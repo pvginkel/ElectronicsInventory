@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     # Database settings
     DATABASE_URL: str = Field(
-        default="postgresql://postgres:postgres@localhost:5432/electronics_inventory",
+        default="postgresql+psycopg://postgres:postgres@localhost:5432/electronics_inventory",
         description="PostgreSQL connection string",
     )
 
@@ -47,7 +47,7 @@ class Settings(BaseSettings):
         description="RabbitMQ broker URL for Celery",
     )
     CELERY_RESULT_BACKEND: str = Field(
-        default="db+postgresql://postgres:postgres@localhost:5432/electronics_inventory",
+        default="db+postgresql+psycopg://postgres:@localhost:5432/electronics_inventory",
         description="PostgreSQL result backend for Celery",
     )
 
@@ -65,7 +65,6 @@ class Settings(BaseSettings):
     def SQLALCHEMY_TRACK_MODIFICATIONS(self) -> bool:
         """Disable SQLAlchemy track modifications."""
         return False
-
 
 
 @lru_cache
