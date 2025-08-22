@@ -1,5 +1,9 @@
 """Database connection and session management."""
 
+from collections.abc import Generator
+from contextlib import contextmanager
+from typing import Any
+
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
@@ -11,17 +15,33 @@ def get_engine() -> Engine:
     return db.engine
 
 
-def get_session():
-    """Get a new database session."""
-    return db.session
+@contextmanager
+def get_session() -> Generator[Any, None, None]:
+    """Get a database session with proper cleanup.
+
+    This follows SQLAlchemy 2.x best practices for session management.
+    Use as a context manager to ensure proper cleanup.
+    """
+    session = db.session
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 def init_db() -> None:
-    """Initialize database tables."""
-    # Import all models to ensure they're registered
+    """Initialize database tables.
+
+    Only creates tables if they don't exist. Safe to call multiple times.
+    """
+    # Import all models to ensure they're registered with SQLAlchemy
     import app.models  # noqa: F401
 
-    # Create all tables
+    # Create all tables (only if they don't exist)
     db.create_all()
 
 
@@ -33,3 +53,5 @@ def check_db_connection() -> bool:
             return result.scalar() == 1
     except Exception:
         return False
+
+

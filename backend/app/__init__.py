@@ -9,7 +9,6 @@ if TYPE_CHECKING:
     from app.config import Settings
 
 from app.config import get_settings
-from app.database import init_db
 from app.extensions import db
 
 
@@ -34,10 +33,6 @@ def create_app(settings: "Settings | None" = None) -> Flask:
 
     # Configure CORS
     CORS(app, origins=settings.CORS_ORIGINS)
-
-    # Initialize database
-    with app.app_context():
-        init_db()
 
     # Register blueprints
     from app.api import health_bp
