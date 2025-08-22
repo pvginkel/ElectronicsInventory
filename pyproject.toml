@@ -6,6 +6,9 @@ authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"
 packages = [{include = "app"}]
 
+[tool.poetry.scripts]
+inventory-cli = "app.cli:main"
+
 [tool.poetry.dependencies]
 python = "^3.12"
 flask = "^3.0.0"
