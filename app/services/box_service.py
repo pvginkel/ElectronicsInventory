@@ -8,13 +8,14 @@ from sqlalchemy.orm import selectinload
 from app.database import get_session
 from app.models.box import Box
 from app.models.location import Location
+from app.schemas.box import BoxListSchema, BoxResponseSchema
 
 
 class BoxService:
     """Service class for box and location management operations."""
 
     @staticmethod
-    def create_box(description: str, capacity: int) -> Box:
+    def create_box(description: str, capacity: int) -> BoxResponseSchema:
         """Create box and generate all locations (1 to capacity)."""
         with get_session() as session:
             # Get next available box_no
@@ -37,11 +38,11 @@ class BoxService:
             session.commit()
 
             # Refresh to get all relationships
-            session.refresh(box)
-            return box
+            session.refresh(box, ["locations"])
+            return BoxResponseSchema.model_validate(box)
 
     @staticmethod
-    def get_box_with_locations(box_no: int) -> Box | None:
+    def get_box_with_locations(box_no: int) -> BoxResponseSchema | None:
         """Get box with all its locations."""
         with get_session() as session:
             stmt = (
@@ -49,19 +50,21 @@ class BoxService:
                 .options(selectinload(Box.locations))
                 .where(Box.box_no == box_no)
             )
-            return session.execute(stmt).scalar_one_or_none()
+            box = session.execute(stmt).scalar_one_or_none()
+            return BoxResponseSchema.model_validate(box) if box else None
 
     @staticmethod
-    def get_all_boxes() -> list[Box]:
+    def get_all_boxes() -> list[BoxListSchema]:
         """List all boxes."""
         with get_session() as session:
             stmt = select(Box).order_by(Box.box_no)
-            return list(session.execute(stmt).scalars().all())
+            boxes = list(session.execute(stmt).scalars().all())
+            return [BoxListSchema.model_validate(box) for box in boxes]
 
     @staticmethod
-    def update_box_capacity(box_no: int, new_capacity: int, new_description: str) -> Box | None:
+    def update_box_capacity(box_no: int, new_capacity: int, new_description: str) -> BoxResponseSchema | None:
         """Update box capacity and description.
-        
+
         If increasing capacity, new locations are created.
         If decreasing capacity, validates that higher-numbered locations are empty.
         """
@@ -73,7 +76,7 @@ class BoxService:
                 return None
 
             current_capacity = box.capacity
-            
+
             if new_capacity < current_capacity:
                 # Check if locations to be removed would have parts
                 # For now, just check if locations exist (they shouldn't have parts in basic implementation)
@@ -82,11 +85,11 @@ class BoxService:
                     Location.loc_no > new_capacity
                 )
                 locations_to_remove = list(session.execute(stmt).scalars().all())
-                
+
                 # Remove the higher-numbered locations
                 for location in locations_to_remove:
                     session.delete(location)
-            
+
             elif new_capacity > current_capacity:
                 # Add new locations
                 new_locations = [
@@ -99,8 +102,8 @@ class BoxService:
             box.capacity = new_capacity
             box.description = new_description
             session.commit()
-            session.refresh(box)
-            return box
+            session.refresh(box, ["locations"])
+            return BoxResponseSchema.model_validate(box)
 
     @staticmethod
     def delete_box(box_no: int) -> bool:
@@ -111,7 +114,7 @@ class BoxService:
             box = session.execute(stmt).scalar_one_or_none()
             if not box:
                 return False
-            
+
             # The locations will be deleted automatically due to cascade
             session.delete(box)
             session.commit()

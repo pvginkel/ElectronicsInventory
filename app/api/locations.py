@@ -22,7 +22,7 @@ def get_location_details(box_no: int, loc_no: int):
             location = session.execute(stmt).scalar_one_or_none()
             if not location:
                 return jsonify({"error": "Location not found"}), 404
-            
+
             return jsonify(LocationResponseSchema.model_validate(location).model_dump())
     except Exception as e:
         return jsonify({"error": str(e)}), 500

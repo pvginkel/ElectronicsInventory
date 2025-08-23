@@ -5,9 +5,9 @@ Revises: 001
 Create Date: 2025-01-21 10:00:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '002'
@@ -28,7 +28,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('box_no')
     )
-    
+
     # Create locations table with surrogate key
     op.create_table('locations',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
