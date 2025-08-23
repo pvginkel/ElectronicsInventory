@@ -34,6 +34,10 @@ def create_app(settings: "Settings | None" = None) -> Flask:
     # Configure CORS
     CORS(app, origins=settings.CORS_ORIGINS)
 
+    # Register error handlers
+    from app.utils.flask_error_handlers import register_error_handlers
+    register_error_handlers(app)
+
     # Register blueprints
     from app.api import health_bp
     from app.api.boxes import boxes_bp
