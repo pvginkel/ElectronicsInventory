@@ -138,7 +138,7 @@ This document captures all technical decisions for the Electronics Inventory fro
 ### Boxes & Locations
 
 * **Box model**: Numbered boxes; **sequential locations** (1..N) **left→right, top→bottom**
-* **Display**: Grid view per box (cells labeled `BOX-LOCATION`, e.g., `7-3`)
+* **Display**: List of locations per box (cells labeled `BOX-LOCATION`, e.g., `7-3`)
 * **Actions**:
 
   * Create box (capacity N)
@@ -262,7 +262,7 @@ src/
 │   │   └── new.tsx              # create
 │   ├── boxes/
 │   │   ├── index.tsx
-│   │   └── $boxNo.tsx           # grid
+│   │   └── $boxNo.tsx           # box and its locations
 │   ├── shopping/index.tsx
 │   └── projects/
 │       ├── index.tsx
