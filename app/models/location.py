@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from app.models.box import Box
 
 
-class Location(db.Model):
+class Location(db.Model):  # type: ignore[name-defined]
     """Model representing a numbered location within a box."""
 
     __tablename__ = "locations"
@@ -22,7 +22,7 @@ class Location(db.Model):
     loc_no: Mapped[int] = mapped_column(nullable=False)
 
     # Relationships
-    box: Mapped["Box"] = relationship(back_populates="locations")  # type: ignore[assignment]
+    box: Mapped["Box"] = relationship("Box", back_populates="locations")  # type: ignore[assignment]
 
     __table_args__ = (UniqueConstraint("box_no", "loc_no"),)
 

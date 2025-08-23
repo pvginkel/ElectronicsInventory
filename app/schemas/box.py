@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.location import LocationResponseSchema
 
@@ -25,8 +25,7 @@ class BoxResponseSchema(BaseModel):
     updated_at: datetime
     locations: list[LocationResponseSchema]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BoxListSchema(BaseModel):
@@ -36,8 +35,7 @@ class BoxListSchema(BaseModel):
     description: str
     capacity: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BoxLocationGridSchema(BaseModel):
@@ -50,5 +48,4 @@ class BoxLocationGridSchema(BaseModel):
         description="Grid layout data for UI display"
     )
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
