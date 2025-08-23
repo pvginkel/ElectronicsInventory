@@ -1,6 +1,5 @@
 """Box service for core box and location management logic."""
 
-from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -17,12 +16,12 @@ class BoxService:
         """Create box and generate all locations (1 to capacity)."""
         # Get next available box_no
         max_box_no = db.execute(select(func.coalesce(func.max(Box.box_no), 0))).scalar()
-        next_box_no = max_box_no + 1
+        next_box_no = (max_box_no or 0) + 1
 
         # Create the box
         box = Box(box_no=next_box_no, description=description, capacity=capacity)
         db.add(box)
-        
+
         # Force flush to get the ID - autoflush doesn't trigger on attribute access for new objects
         db.flush()
 
@@ -86,10 +85,10 @@ class BoxService:
         # Update box
         box.capacity = new_capacity
         box.description = new_description
-        
+
         # Expire the locations relationship so it will be reloaded on next access
         db.expire(box, ['locations'])
-        
+
         return box
 
     @staticmethod

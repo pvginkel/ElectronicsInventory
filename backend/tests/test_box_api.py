@@ -2,13 +2,11 @@
 
 import json
 
-from flask import Flask, g
 from flask.testing import FlaskClient
+from sqlalchemy.orm import Session
 
-from app.extensions import db
 from app.models.box import Box
 from app.services.box_service import BoxService
-from sqlalchemy.orm import Session
 
 
 class TestBoxAPI:

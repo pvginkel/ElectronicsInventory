@@ -32,15 +32,14 @@ def create_app(settings: "Settings | None" = None) -> Flask:
 
         import app.extensions as ext
 
-        ext.SessionLocal = sessionmaker(
+        ext.SessionLocal = sessionmaker(  # noqa: F811  # type: ignore[call-overload]
             bind=db.engine, autoflush=True, expire_on_commit=False
         )
 
     # Initialize SpecTree for OpenAPI docs
-    from spectree import SpecTree
+    from app.utils.spectree_config import configure_spectree
 
-    api = SpecTree("flask", title="Electronics Inventory API", version="0.1.0")
-    api.register(app)
+    configure_spectree(app)
 
     # Configure CORS
     CORS(app, origins=settings.CORS_ORIGINS)
@@ -63,7 +62,7 @@ def create_app(settings: "Settings | None" = None) -> Flask:
     @app.before_request
     def open_session():
         """Create a new database session for each request."""
-        from app.extensions import SessionLocal
+        from app.extensions import SessionLocal  # noqa: F811
 
         if SessionLocal:
             g.db = SessionLocal()

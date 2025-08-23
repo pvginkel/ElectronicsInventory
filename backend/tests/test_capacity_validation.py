@@ -3,13 +3,13 @@
 import pytest
 from flask import Flask
 from pydantic import ValidationError
+from sqlalchemy.orm import Session
 
 from app.extensions import db
 from app.models.box import Box
 from app.models.location import Location
-from app.schemas.box import BoxCreateSchema, BoxResponseSchema
+from app.schemas.box import BoxCreateSchema
 from app.services.box_service import BoxService
-from sqlalchemy.orm import Session
 
 
 class TestCapacityValidation:

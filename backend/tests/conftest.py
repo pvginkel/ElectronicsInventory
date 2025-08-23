@@ -4,11 +4,11 @@ from collections.abc import Generator
 
 import pytest
 from flask import Flask, g
+from sqlalchemy.orm import Session
 
 from app import create_app
 from app.config import Settings
 from app.extensions import db
-from sqlalchemy.orm import Session
 
 
 @pytest.fixture
