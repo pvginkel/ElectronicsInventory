@@ -62,8 +62,8 @@
 # Typed Data Model (high-level, implemented patterns)
 
 * `parts` (**CHAR(4)** `id4` PK, `manufacturer_code`, `type_id`, `description`, `image_url`, `tags` TEXT\[], `seller`, `seller_link`, `created_at`, `updated_at`) - *Not yet implemented*
-* `boxes` (`id` INT AUTOINCREMENT PK, `box_no` INT UNIQUE, `description` STR, `capacity` INT, `created_at`, `updated_at`) - **✅ Implemented**
-* `locations` (`id` INT AUTOINCREMENT PK, `box_id` INT FK→boxes.id, `box_no` INT, `loc_no` INT, **UNIQUE(box\_no, loc\_no)**) - **✅ Implemented**
+* `boxes` (`id` INT AUTOINCREMENT PK, `box_no` INT UNIQUE, `description` STR, `capacity` INT, `created_at`, `updated_at`)
+* `locations` (`id` INT AUTOINCREMENT PK, `box_id` INT FK→boxes.id, `box_no` INT, `loc_no` INT, **UNIQUE(box\_no, loc\_no)**)
 * `part_locations` (`part_id4` FK→parts, `box_no`, `loc_no`, `qty`, **UNIQUE(part\_id4, box\_no, loc\_no)**) - *Not yet implemented*
 * `types` (`id` PK, `name` UNIQUE) - *Not yet implemented*
 * `documents` (`id` PK, `part_id4`, `kind` ENUM(pdf,image,link), `s3_key`, `public_url?`, `original_filename`, `created_at`) - *Not yet implemented*
@@ -74,9 +74,9 @@
 
 **Typing Implementation:**
 
-* SQLAlchemy 2.0 **annotated** models (`Mapped[T]`, `mapped_column(...)`) - **✅ Used in box/location models**
-* Pydantic v2 **typed DTOs** for every request/response - **✅ Implemented with from_attributes=True**
-* mypy strict mode (see below) enforced in CI - **✅ Required**
+* SQLAlchemy 2.0 **annotated** models (`Mapped[T]`, `mapped_column(...)`)
+* Pydantic v2 **typed DTOs** for every request/response
+* mypy strict mode (see below) enforced in CI
 
 **Surrogate vs Business Keys Implementation:**
 * Uses **dual key pattern**: auto-incrementing surrogate keys (`id`) for performance + business keys (`box_no`) for logic
@@ -89,10 +89,10 @@
 # API Conventions (typed, implemented patterns)
 
 * **Blueprints** per resource (`/parts`, `/boxes`, `/locations`, `/search`, `/shopping-list`, `/projects`, `/reorg`, `/ai/suggest`)
-* Request/response models: **Pydantic v2** - **✅ Implemented with validation**
-* Validation & docs: **Spectree** generates OpenAPI (Swagger UI at `/docs`) - *Not yet integrated*
+* Request/response models: **Pydantic v2**
+* Validation & docs: **Spectree** generates OpenAPI (Swagger UI at `/docs`)
 * No direct-to-S3 uploads: frontend uploads to the backend and backend handles S3 key + metadata itself
-* Services return ORM objects. API classes convert these to Pydantic DTO objects which are used in OpenAPI and returned by the API endpoint methods. - **✅ Implemented**
+* Services return ORM objects. API classes convert these to Pydantic DTO objects which are used in OpenAPI and returned by the API endpoint methods.
 
 ## Implemented API Patterns
 
@@ -119,13 +119,13 @@
 
 * **Dependency & env**
 
-  * **Poetry** (most widely adopted workflow on teams using Flask today) - **✅ In use**
-  * **pydantic-settings** for typed config from env - **✅ Implemented in app/config.py**
+  * **Poetry** (most widely adopted workflow on teams using Flask today)
+  * **pydantic-settings** for typed config from env
   * `.env` for local, mounted as Kubernetes **Secret** in prod
 * **Formatting & linting**
 
-  * **ruff** (linter + import sort + format; you can skip black if you use ruff's formatter) - **✅ Configured**
-  * **mypy** (`--strict`) with `sqlalchemy2-stubs` installed - **✅ Required for type checking**
+  * **ruff** (linter + import sort + format; you can skip black if you use ruff's formatter)
+  * **mypy** (`--strict`) with `sqlalchemy2-stubs` installed
 * **Testing**
 
   * **pytest** + **pytest-cov** - **✅ Implemented with comprehensive test suite**
@@ -133,7 +133,7 @@
 * **IDE**
 
   * VS Code extensions: Python, Pylance, Mypy Type Checker, Docker, YAML, Even Better TOML
-  * Settings: enable "Type Checking Mode: strict" in workspace - **✅ Required**
+  * Settings: enable "Type Checking Mode: strict" in workspace
 * **CI (GitHub Actions)**
 
   * Jobs: `ruff`, `mypy`, `pytest` (with testcontainers), `docker build` (multi-arch optional), `helm lint` (see below) - *Not yet configured*
@@ -143,7 +143,7 @@
 
     1. builder: install Poetry, export lock to wheels
     2. runtime: copy wheels + app, run Waitress
-  * Healthcheck: `/healthz` endpoint - *Not yet implemented*
+  * Healthcheck: `/health` endpoint
 
 ## Testing Patterns Implemented
 
