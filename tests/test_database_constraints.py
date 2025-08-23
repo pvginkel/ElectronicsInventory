@@ -51,7 +51,6 @@ class TestDatabaseConstraints:
             # Create a box first
             box = Box(box_no=1, description="Test Box", capacity=10)
             db.session.add(box)
-            db.session.flush()  # Get the ID
 
             # Create first location
             location1 = Location(box_id=box.id, box_no=1, loc_no=5)
@@ -85,7 +84,6 @@ class TestDatabaseConstraints:
         with app.app_context():
             box = Box(box_no=1, description="Test Box", capacity=5)
             db.session.add(box)
-            db.session.flush()
 
             location = Location(box_id=box.id, box_no=None, loc_no=1)
             db.session.add(location)
@@ -98,7 +96,6 @@ class TestDatabaseConstraints:
         with app.app_context():
             box = Box(box_no=1, description="Test Box", capacity=5)
             db.session.add(box)
-            db.session.flush()
 
             location = Location(box_id=box.id, box_no=1, loc_no=None)
             db.session.add(location)
@@ -112,20 +109,21 @@ class TestDatabaseConstraints:
             # Create box with locations
             box = Box(box_no=1, description="Test Box", capacity=3)
             db.session.add(box)
-            db.session.flush()
 
             # Create locations
             locations = [
                 Location(box_id=box.id, box_no=1, loc_no=1),
                 Location(box_id=box.id, box_no=1, loc_no=2),
-                Location(box_id=box.id, box_no=1, loc_no=3)
+                Location(box_id=box.id, box_no=1, loc_no=3),
             ]
             for location in locations:
                 db.session.add(location)
             db.session.commit()
 
             # Verify locations exist
-            location_count_before = db.session.query(Location).filter_by(box_no=1).count()
+            location_count_before = (
+                db.session.query(Location).filter_by(box_no=1).count()
+            )
             assert location_count_before == 3
 
             # Delete the box
@@ -133,7 +131,9 @@ class TestDatabaseConstraints:
             db.session.commit()
 
             # Verify locations are gone
-            location_count_after = db.session.query(Location).filter_by(box_no=1).count()
+            location_count_after = (
+                db.session.query(Location).filter_by(box_no=1).count()
+            )
             assert location_count_after == 0
 
     def test_box_created_at_auto_populated(self, app: Flask):
@@ -142,7 +142,6 @@ class TestDatabaseConstraints:
             box = Box(box_no=1, description="Test Box", capacity=5)
             db.session.add(box)
             db.session.commit()
-            db.session.refresh(box)
 
             assert box.created_at is not None
 
@@ -152,7 +151,6 @@ class TestDatabaseConstraints:
             box = Box(box_no=1, description="Test Box", capacity=5)
             db.session.add(box)
             db.session.commit()
-            db.session.refresh(box)
 
             assert box.updated_at is not None
 
@@ -165,7 +163,6 @@ class TestDatabaseConstraints:
             box = Box(box_no=1, description="Test Box", capacity=5)
             db.session.add(box)
             db.session.commit()
-            db.session.refresh(box)
 
             original_updated_at = box.updated_at
 
@@ -175,7 +172,6 @@ class TestDatabaseConstraints:
             # Update box
             box.description = "Updated Box"
             db.session.commit()
-            db.session.refresh(box)
 
             # Note: SQLite may not update timestamps automatically like PostgreSQL
             # This test verifies the model structure but may not work in SQLite
@@ -194,20 +190,18 @@ class TestDatabaseConstraints:
             # Create box
             box = Box(box_no=1, description="Test Box", capacity=3)
             db.session.add(box)
-            db.session.flush()
 
             # Create locations
             locations = [
                 Location(box_id=box.id, box_no=1, loc_no=1),
                 Location(box_id=box.id, box_no=1, loc_no=2),
-                Location(box_id=box.id, box_no=1, loc_no=3)
+                Location(box_id=box.id, box_no=1, loc_no=3),
             ]
             for location in locations:
                 db.session.add(location)
             db.session.commit()
 
             # Test relationship
-            db.session.refresh(box)
             assert len(box.locations) == 3
 
             # Verify location ordering (should be by loc_no)
@@ -220,7 +214,6 @@ class TestDatabaseConstraints:
             # Create box
             box = Box(box_no=1, description="Test Box", capacity=5)
             db.session.add(box)
-            db.session.flush()
 
             # Create location
             location = Location(box_id=box.id, box_no=1, loc_no=3)
@@ -228,7 +221,6 @@ class TestDatabaseConstraints:
             db.session.commit()
 
             # Test relationship
-            db.session.refresh(location)
             assert location.box is not None
             assert location.box.box_no == 1
             assert location.box.description == "Test Box"
@@ -258,7 +250,6 @@ class TestDatabaseConstraints:
             box1 = Box(box_no=1, description="Box 1", capacity=5)
             box2 = Box(box_no=2, description="Box 2", capacity=5)
             db.session.add_all([box1, box2])
-            db.session.flush()
 
             # Create locations with same loc_no in different boxes
             location1 = Location(box_id=box1.id, box_no=1, loc_no=3)
@@ -298,5 +289,4 @@ class TestDatabaseConstraints:
             db.session.add(box)
             db.session.commit()
 
-            db.session.refresh(box)
             assert box.description == ""

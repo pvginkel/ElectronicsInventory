@@ -12,7 +12,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 engine = create_engine(DB_URL, future=True)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)  # <- important
+SessionLocal = sessionmaker(bind=engine, autoflush=True, expire_on_commit=False)  # <- important
 ```
 
 ```python

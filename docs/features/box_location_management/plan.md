@@ -41,7 +41,6 @@ Implement basic box and storage location management for the Electronics Inventor
 - `BoxCreateSchema` - for creating boxes (capacity, required description)
 - `BoxResponseSchema` - full box details with locations and description
 - `BoxListSchema` - lightweight box list with description
-- `BoxLocationGridSchema` - box with location grid for UI
 
 **Location Schemas** (`app/schemas/location.py`):
 - `LocationResponseSchema` - location details
@@ -55,7 +54,7 @@ Implement basic box and storage location management for the Electronics Inventor
 ### Box Endpoints (`app/api/boxes.py`):
 - `POST /boxes` - Create new box with specified capacity
 - `GET /boxes` - List all boxes with summary info
-- `GET /boxes/{box_no}` - Get box details with location grid
+- `GET /boxes/{box_no}` - Get box details
 - `PUT /boxes/{box_no}` - Update box
 - `DELETE /boxes/{box_no}` - Delete empty box
 - `GET /boxes/{box_no}/locations` - Get all locations in box
@@ -76,7 +75,6 @@ Implement basic box and storage location management for the Electronics Inventor
 - `get_all_boxes() -> list[Box]` - List all boxes
 - `update_box_capacity(box_no: int, new_capacity: int, new_description: str) -> Box` - Update box capacity and description (validate no conflicts)
 - `delete_box(box_no: int) -> bool` - Delete box if empty, return success status
-- `get_location_grid(box_no: int) -> dict` - Grid layout for UI display
 
 ## Database Migrations
 
