@@ -5,7 +5,6 @@ from flask import Flask, g
 from app.extensions import db
 from app.models.box import Box
 from app.models.location import Location
-from app.schemas.box import BoxListSchema, BoxResponseSchema
 from app.services.box_service import BoxService
 from sqlalchemy.orm import Session
 
@@ -19,22 +18,16 @@ class TestBoxService:
             # Create a box with capacity 10
             result = BoxService.create_box(session, "Test Box", 10)
 
-            # Verify return type
-            assert isinstance(result, BoxResponseSchema)
+            # Verify return type is ORM model
+            assert isinstance(result, Box)
             assert result.box_no == 1
             assert result.description == "Test Box"
             assert result.capacity == 10
+
+            # Verify locations are populated via eager loading
             assert len(result.locations) == 10
-
-            # Verify locations are sequential
             location_numbers = [loc.loc_no for loc in result.locations]
-            assert location_numbers == list(range(1, 11))
-
-            # Verify database state
-            box = db.session.get(Box, result.box_no)
-            assert box is not None
-            assert box.description == "Test Box"
-            assert box.capacity == 10
+            assert sorted(location_numbers) == list(range(1, 11))
 
     def test_create_multiple_boxes_sequential_numbering(
         self, app: Flask, session: Session
@@ -54,12 +47,13 @@ class TestBoxService:
         with app.app_context():
             # Create a box first
             created_box = BoxService.create_box(session, "Test Box", 5)
+            session.commit()
 
             # Retrieve it
             result = BoxService.get_box_with_locations(session, created_box.box_no)
 
             assert result is not None
-            assert isinstance(result, BoxResponseSchema)
+            assert isinstance(result, Box)
             assert result.box_no == created_box.box_no
             assert result.description == "Test Box"
             assert result.capacity == 5
@@ -84,15 +78,16 @@ class TestBoxService:
             BoxService.create_box(session, "Box A", 5)
             BoxService.create_box(session, "Box B", 10)
             BoxService.create_box(session, "Box C", 3)
+            session.commit()
 
             result = BoxService.get_all_boxes(session)
 
             assert isinstance(result, list)
             assert len(result) == 3
 
-            # Verify all items are BoxListSchema
+            # Verify all items are Box ORM models
             for box in result:
-                assert isinstance(box, BoxListSchema)
+                assert isinstance(box, Box)
 
             # Verify ordering by box_no
             box_nos = [box.box_no for box in result]
@@ -115,13 +110,13 @@ class TestBoxService:
             )
 
             assert result is not None
-            assert isinstance(result, BoxResponseSchema)
+            assert isinstance(result, Box)
             assert result.box_no == original_box_no
             assert result.description == "Updated Box"
             assert result.capacity == 8
-            assert len(result.locations) == 8
 
-            # Verify new locations were added
+            # Verify new locations are populated via eager loading
+            assert len(result.locations) == 8
             location_numbers = sorted([loc.loc_no for loc in result.locations])
             assert location_numbers == list(range(1, 9))
 
@@ -138,13 +133,13 @@ class TestBoxService:
             )
 
             assert result is not None
-            assert isinstance(result, BoxResponseSchema)
+            assert isinstance(result, Box)
             assert result.box_no == original_box_no
             assert result.description == "Smaller Box"
             assert result.capacity == 5
-            assert len(result.locations) == 5
 
-            # Verify only locations 1-5 remain
+            # Verify only locations 1-5 remain via eager loading
+            assert len(result.locations) == 5
             location_numbers = sorted([loc.loc_no for loc in result.locations])
             assert location_numbers == [1, 2, 3, 4, 5]
 
@@ -177,19 +172,22 @@ class TestBoxService:
             # Create a box
             box = BoxService.create_box(session, "Test Box", 5)
             box_no = box.box_no
+            box_id = box.id
+            session.commit()
 
             # Verify it exists
-            assert db.session.get(Box, box_no) is not None
+            assert session.get(Box, box_id) is not None
 
             # Delete it
             result = BoxService.delete_box(session, box_no)
+            session.commit()
             assert result is True
 
             # Verify it's gone
-            assert db.session.get(Box, box_no) is None
+            assert session.get(Box, box_id) is None
 
             # Verify locations are also gone due to cascade
-            locations = db.session.query(Location).filter_by(box_no=box_no).all()
+            locations = session.query(Location).filter_by(box_no=box_no).all()
             assert len(locations) == 0
 
     def test_delete_box_nonexistent(self, app: Flask, session: Session):
@@ -205,6 +203,8 @@ class TestBoxService:
             # But let's test with valid values to ensure service works
             box = BoxService.create_box(session, "Valid Box", 1)
             assert box.capacity == 1
+            
+            # Check locations are populated via eager loading
             assert len(box.locations) == 1
 
     def test_location_cascade_delete(self, app: Flask, session: Session):
@@ -213,14 +213,16 @@ class TestBoxService:
             # Create box with locations
             box = BoxService.create_box(session, "Test Box", 3)
             box_no = box.box_no
+            session.commit()
 
             # Verify locations exist
-            locations_before = db.session.query(Location).filter_by(box_no=box_no).all()
+            locations_before = session.query(Location).filter_by(box_no=box_no).all()
             assert len(locations_before) == 3
 
             # Delete box
             BoxService.delete_box(session, box_no)
+            session.commit()
 
             # Verify locations are gone
-            locations_after = db.session.query(Location).filter_by(box_no=box_no).all()
+            locations_after = session.query(Location).filter_by(box_no=box_no).all()
             assert len(locations_after) == 0

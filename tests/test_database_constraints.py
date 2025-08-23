@@ -51,6 +51,7 @@ class TestDatabaseConstraints:
             # Create a box first
             box = Box(box_no=1, description="Test Box", capacity=10)
             db.session.add(box)
+            db.session.flush()  # Flush to get the box.id
 
             # Create first location
             location1 = Location(box_id=box.id, box_no=1, loc_no=5)
@@ -84,6 +85,7 @@ class TestDatabaseConstraints:
         with app.app_context():
             box = Box(box_no=1, description="Test Box", capacity=5)
             db.session.add(box)
+            db.session.flush()  # Flush to get the box.id
 
             location = Location(box_id=box.id, box_no=None, loc_no=1)
             db.session.add(location)
@@ -96,6 +98,7 @@ class TestDatabaseConstraints:
         with app.app_context():
             box = Box(box_no=1, description="Test Box", capacity=5)
             db.session.add(box)
+            db.session.flush()  # Flush to get the box.id
 
             location = Location(box_id=box.id, box_no=1, loc_no=None)
             db.session.add(location)
@@ -109,6 +112,7 @@ class TestDatabaseConstraints:
             # Create box with locations
             box = Box(box_no=1, description="Test Box", capacity=3)
             db.session.add(box)
+            db.session.flush()  # Flush to get the box.id
 
             # Create locations
             locations = [
@@ -190,6 +194,7 @@ class TestDatabaseConstraints:
             # Create box
             box = Box(box_no=1, description="Test Box", capacity=3)
             db.session.add(box)
+            db.session.flush()  # Flush to get the box.id
 
             # Create locations
             locations = [
@@ -214,6 +219,7 @@ class TestDatabaseConstraints:
             # Create box
             box = Box(box_no=1, description="Test Box", capacity=5)
             db.session.add(box)
+            db.session.flush()  # Flush to get the box.id
 
             # Create location
             location = Location(box_id=box.id, box_no=1, loc_no=3)
@@ -250,6 +256,7 @@ class TestDatabaseConstraints:
             box1 = Box(box_no=1, description="Box 1", capacity=5)
             box2 = Box(box_no=2, description="Box 2", capacity=5)
             db.session.add_all([box1, box2])
+            db.session.flush()  # Flush to get the box IDs
 
             # Create locations with same loc_no in different boxes
             location1 = Location(box_id=box1.id, box_no=1, loc_no=3)

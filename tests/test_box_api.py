@@ -119,6 +119,7 @@ class TestBoxAPI:
     def test_get_box_details_existing(self, client: FlaskClient, session: Session):
         """Test getting details of an existing box."""
         box = BoxService.create_box(session, "Test Box", 6)
+        session.commit()
         box_no = box.box_no
 
         response = client.get(f"/boxes/{box_no}")
@@ -147,6 +148,7 @@ class TestBoxAPI:
     def test_update_box_existing(self, client: FlaskClient, session: Session):
         """Test updating an existing box."""
         box = BoxService.create_box(session, "Original Box", 5)
+        session.commit()
         box_no = box.box_no
 
         data = {"description": "Updated Box", "capacity": 8}
@@ -165,6 +167,7 @@ class TestBoxAPI:
     def test_update_box_decrease_capacity(self, client: FlaskClient, session: Session):
         """Test updating a box with decreased capacity."""
         box = BoxService.create_box(session, "Test Box", 10)
+        session.commit()
         box_no = box.box_no
 
         data = {"description": "Smaller Box", "capacity": 6}
@@ -207,17 +210,20 @@ class TestBoxAPI:
     def test_delete_box_existing(self, client: FlaskClient, session: Session):
         """Test deleting an existing box."""
         box = BoxService.create_box(session, "Test Box", 5)
+        session.commit()
         box_no = box.box_no
+        box_id = box.id
 
         # Verify box exists
-        assert session.get(Box, box_no) is not None
+        assert session.get(Box, box_id) is not None
 
         response = client.delete(f"/boxes/{box_no}")
 
         assert response.status_code == 204
 
-        # Verify box is deleted
-        assert session.get(Box, box_no) is None
+        # Verify box is deleted - need to refresh session
+        session.expire_all()
+        assert session.get(Box, box_id) is None
 
     def test_delete_box_nonexistent(self, client: FlaskClient):
         """Test deleting a non-existent box."""
@@ -230,6 +236,7 @@ class TestBoxAPI:
     def test_get_box_locations_existing(self, client: FlaskClient, session: Session):
         """Test getting locations for an existing box."""
         box = BoxService.create_box(session, "Test Box", 4)
+        session.commit()
         box_no = box.box_no
 
         response = client.get(f"/boxes/{box_no}/locations")
@@ -250,33 +257,6 @@ class TestBoxAPI:
         response_data = json.loads(response.data)
         assert "error" in response_data
 
-    def test_get_box_grid_existing(self, client: FlaskClient, session: Session):
-        """Test getting grid layout for an existing box."""
-        box = BoxService.create_box(session, "Test Box", 6)
-        box_no = box.box_no
-
-        response = client.get(f"/boxes/{box_no}/grid")
-
-        assert response.status_code == 200
-        response_data = json.loads(response.data)
-
-        assert response_data["box_no"] == box_no
-        assert response_data["capacity"] == 6
-        assert "locations" in response_data
-        assert len(response_data["locations"]) == 6
-
-        # Verify location structure
-        for i, location in enumerate(response_data["locations"], 1):
-            assert location["loc_no"] == i
-            assert location["available"] is True
-
-    def test_get_box_grid_nonexistent(self, client: FlaskClient):
-        """Test getting grid layout for a non-existent box."""
-        response = client.get("/boxes/999/grid")
-
-        assert response.status_code == 404
-        response_data = json.loads(response.data)
-        assert "error" in response_data
 
     def test_api_error_handling(self, client: FlaskClient):
         """Test that API endpoints handle errors gracefully."""

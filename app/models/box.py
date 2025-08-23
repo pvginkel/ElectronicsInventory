@@ -30,7 +30,7 @@ class Box(db.Model):  # type: ignore[name-defined]
 
     # Relationships
     locations: Mapped[list["Location"]] = relationship(  # type: ignore[assignment]
-        "Location", back_populates="box", cascade="all, delete-orphan"
+        "Location", back_populates="box", cascade="all, delete-orphan", lazy="selectin"
     )
 
     def __repr__(self) -> str:
