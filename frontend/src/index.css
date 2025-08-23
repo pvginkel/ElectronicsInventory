@@ -24,6 +24,34 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
+    
+    /* Extended design tokens for modern UI */
+    --success: 142 76% 36%;
+    --success-foreground: 355 7% 97%;
+    --warning: 35 91% 65%;
+    --warning-foreground: 26 83% 14%;
+    --info: 199 89% 48%;
+    --info-foreground: 210 20% 98%;
+    
+    /* Component category colors */
+    --electronics-resistor: 45 93% 47%;
+    --electronics-capacitor: 262 83% 58%;
+    --electronics-ic: 217 91% 60%;
+    --electronics-mechanical: 142 71% 45%;
+    --electronics-connector: 24 70% 50%;
+    
+    /* Spacing scale */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-2xl: 3rem;
+    
+    /* Enhanced shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   }
 
   @media (prefers-color-scheme: dark) {
@@ -47,6 +75,19 @@
       --border: 217.2 32.6% 17.5%;
       --input: 217.2 32.6% 17.5%;
       --ring: 224.3 76.3% 94.1%;
+      
+      /* Dark mode extended tokens */
+      --success: 142 84% 47%;
+      --success-foreground: 355 7% 97%;
+      --warning: 35 91% 65%;
+      --warning-foreground: 26 83% 14%;
+      --info: 199 89% 58%;
+      --info-foreground: 210 20% 98%;
+      
+      /* Enhanced shadows for dark mode */
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
     }
   }
 }
@@ -58,5 +99,46 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  /* Smooth transitions for interactive elements */
+  .transition-smooth {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Enhanced shadow utilities */
+  .shadow-soft {
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .shadow-medium {
+    box-shadow: var(--shadow-md);
+  }
+  
+  .shadow-strong {
+    box-shadow: var(--shadow-lg);
+  }
+  
+  /* Category-specific styling */
+  .category-resistor {
+    border-left: 3px solid hsl(var(--electronics-resistor));
+  }
+  
+  .category-capacitor {
+    border-left: 3px solid hsl(var(--electronics-capacitor));
+  }
+  
+  .category-ic {
+    border-left: 3px solid hsl(var(--electronics-ic));
+  }
+  
+  .category-mechanical {
+    border-left: 3px solid hsl(var(--electronics-mechanical));
+  }
+  
+  .category-connector {
+    border-left: 3px solid hsl(var(--electronics-connector));
   }
 }
