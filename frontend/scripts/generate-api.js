@@ -1,0 +1,285 @@
+#!/usr/bin/env node
+
+import { execSync } from 'child_process';
+import { writeFileSync, mkdirSync, unlinkSync } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { fetchAndCache } from './fetch-openapi.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const OUTPUT_DIR = path.join(__dirname, '../src/lib/api/generated');
+const TYPES_FILE = path.join(OUTPUT_DIR, 'types.ts');
+const CLIENT_FILE = path.join(OUTPUT_DIR, 'client.ts');
+const HOOKS_FILE = path.join(OUTPUT_DIR, 'hooks.ts');
+
+/**
+ * Ensures output directory exists
+ */
+function ensureOutputDir() {
+  try {
+    mkdirSync(OUTPUT_DIR, { recursive: true });
+  } catch (error) {
+    // Directory might already exist, ignore error
+  }
+}
+
+/**
+ * Generates TypeScript types from OpenAPI spec
+ */
+function generateTypes(spec) {
+  console.log('🔄 Generating TypeScript types...');
+  
+  // Write spec to temporary file for openapi-typescript
+  const tempSpecFile = path.join(__dirname, 'temp-openapi.json');
+  writeFileSync(tempSpecFile, JSON.stringify(spec, null, 2));
+  
+  try {
+    // Run openapi-typescript to generate types
+    execSync(`npx openapi-typescript ${tempSpecFile} --output ${TYPES_FILE}`, {
+      stdio: 'inherit'
+    });
+    
+    // Clean up temp file
+    try {
+      unlinkSync(tempSpecFile);
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+    
+    console.log('✅ TypeScript types generated');
+  } catch (error) {
+    throw new Error(`Failed to generate TypeScript types: ${error.message}`);
+  }
+}
+
+/**
+ * Generates openapi-fetch client
+ */
+function generateClient() {
+  console.log('🔄 Generating API client...');
+  
+  const clientContent = `// Generated API client - do not edit manually
+import createClient from 'openapi-fetch';
+import type { paths } from './types';
+
+// Create the main API client
+export const api = createClient<paths>({
+  baseUrl: process.env.NODE_ENV === 'production' 
+    ? '/api'  // Production: assume API is served from same origin
+    : 'http://localhost:5000',  // Development: backend on different port
+});
+
+// Export types for convenience
+export type * from './types';
+`;
+  
+  writeFileSync(CLIENT_FILE, clientContent);
+  console.log('✅ API client generated');
+}
+
+/**
+ * Generates TanStack Query hooks from OpenAPI spec
+ */
+function generateHooks(spec) {
+  console.log('🔄 Generating TanStack Query hooks...');
+  
+  const hooks = [];
+  const imports = new Set(['useQuery', 'useMutation', 'useQueryClient']);
+  
+  // Process each path in the OpenAPI spec
+  for (const [path, pathItem] of Object.entries(spec.paths || {})) {
+    for (const [method, operation] of Object.entries(pathItem)) {
+      if (!operation.operationId) continue;
+      
+      const operationId = operation.operationId;
+      const summary = operation.summary || '';
+      const isQuery = method.toLowerCase() === 'get';
+      const isMutation = ['post', 'put', 'patch', 'delete'].includes(method.toLowerCase());
+      
+      if (isQuery) {
+        hooks.push(generateQueryHook(path, method, operation, operationId, summary));
+      } else if (isMutation) {
+        hooks.push(generateMutationHook(path, method, operation, operationId, summary));
+      }
+    }
+  }
+  
+  const hooksContent = `// Generated TanStack Query hooks - do not edit manually
+import { ${Array.from(imports).join(', ')} } from '@tanstack/react-query';
+import { api } from './client';
+import type { paths } from './types';
+
+${hooks.join('\n\n')}
+`;
+  
+  writeFileSync(HOOKS_FILE, hooksContent);
+  console.log('✅ TanStack Query hooks generated');
+}
+
+/**
+ * Generates a React Query hook for GET requests
+ */
+function generateQueryHook(path, method, operation, operationId, summary) {
+  const hookName = `use${capitalize(operationId)}`;
+  const pathParams = extractPathParams(path);
+  const hasParams = pathParams.length > 0 || (operation.parameters && operation.parameters.length > 0);
+  
+  let paramsType = 'void';
+  let paramsArg = '';
+  let pathWithParams = `'${path}' as const`;
+  let queryOptions = '';
+  
+  if (hasParams) {
+    paramsType = `paths['${path}']['${method}']['parameters']`;
+    paramsArg = `params: ${paramsType}`;
+    
+    if (pathParams.length > 0) {
+      pathWithParams = `'${path}'`;
+    }
+    
+    queryOptions = ', { params }';
+  }
+  
+  const optionsType = hasParams 
+    ? `Omit<Parameters<typeof useQuery>[0], 'queryKey' | 'queryFn'>`
+    : `Omit<Parameters<typeof useQuery>[0], 'queryKey' | 'queryFn'>`;
+  
+  return `/**
+ * ${summary || `${method.toUpperCase()} ${path}`}
+ */
+export function ${hookName}(${paramsArg}${hasParams ? ', ' : ''}options?: ${optionsType}) {
+  return useQuery({
+    queryKey: ['${operationId}'${hasParams ? ', params' : ''}],
+    queryFn: async () => {
+      const { data, error } = await api.${method.toUpperCase()}(${pathWithParams}${queryOptions});
+      if (error) throw error;
+      return data;
+    },
+    ...options
+  });
+}`;
+}
+
+/**
+ * Generates a React Query mutation hook for POST/PUT/PATCH/DELETE requests
+ */
+function generateMutationHook(path, method, operation, operationId, summary) {
+  const hookName = `use${capitalize(operationId)}`;
+  const pathParams = extractPathParams(path);
+  const hasBody = operation.requestBody;
+  const hasPathParams = pathParams.length > 0;
+  
+  let variablesType = 'void';
+  let pathWithParams = `'${path}' as const`;
+  let mutationArgs = '';
+  
+  if (hasPathParams || hasBody) {
+    const parts = [];
+    if (hasPathParams) {
+      parts.push(`path: paths['${path}']['${method}']['parameters']['path']`);
+    }
+    if (hasBody) {
+      parts.push(`body: NonNullable<paths['${path}']['${method}']['requestBody']>['content']['application/json']`);
+    }
+    variablesType = `{ ${parts.join('; ')} }`;
+    
+    if (hasPathParams) {
+      pathWithParams = `'${path}'`;
+    }
+    
+    // Build mutation arguments
+    const argParts = [];
+    if (hasPathParams) {
+      argParts.push('params: variables.path');
+    }
+    if (hasBody) {
+      argParts.push('body: variables.body');
+    }
+    mutationArgs = argParts.length > 0 ? `, { ${argParts.join(', ')} }` : '';
+  }
+  
+  return `/**
+ * ${summary || `${method.toUpperCase()} ${path}`}
+ */
+export function ${hookName}(options?: Omit<Parameters<typeof useMutation>[0], 'mutationFn'>) {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (variables: ${variablesType}) => {
+      const { data, error } = await api.${method.toUpperCase()}(${pathWithParams}${mutationArgs});
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      // Invalidate relevant queries after successful mutation
+      queryClient.invalidateQueries();
+    },
+    ...options
+  });
+}`;
+}
+
+/**
+ * Extracts path parameters from an OpenAPI path
+ */
+function extractPathParams(path) {
+  const matches = path.match(/\{([^}]+)\}/g);
+  return matches ? matches.map(match => match.slice(1, -1)) : [];
+}
+
+/**
+ * Capitalizes the first letter of a string
+ */
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Main generation function
+ */
+async function generateAPI(options = {}) {
+  const { fetchMode = false, buildMode = false } = options;
+  
+  try {
+    console.log('🚀 Starting API code generation...');
+    
+    // Ensure output directory exists
+    ensureOutputDir();
+    
+    // Fetch or load OpenAPI spec
+    const spec = await fetchAndCache({ 
+      forceRefresh: fetchMode, 
+      buildMode: buildMode 
+    });
+    
+    // Generate all the files
+    generateTypes(spec);
+    generateClient();
+    generateHooks(spec);
+    
+    console.log('✅ API code generation completed successfully!');
+    console.log(`   Generated files:`);
+    console.log(`   - ${TYPES_FILE}`);
+    console.log(`   - ${CLIENT_FILE}`);
+    console.log(`   - ${HOOKS_FILE}`);
+    
+  } catch (error) {
+    console.error('❌ API generation failed:', error.message);
+    throw error;
+  }
+}
+
+// CLI usage
+if (process.argv[1] === __filename) {
+  const args = process.argv.slice(2);
+  const fetchMode = args.includes('--fetch');
+  const buildMode = args.includes('--cache-only');
+  
+  generateAPI({ fetchMode, buildMode })
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}
+
+export { generateAPI };

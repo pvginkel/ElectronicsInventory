@@ -1,0 +1,664 @@
+{
+  "components": {
+    "schemas": {
+      "BoxCreateSchema.6d5ef0b": {
+        "description": "Schema for creating a new box.",
+        "properties": {
+          "capacity": {
+            "description": "Maximum number of individual storage locations within this box",
+            "example": 60,
+            "exclusiveMinimum": 0,
+            "maximum": 1000,
+            "title": "Capacity",
+            "type": "integer"
+          },
+          "description": {
+            "description": "Descriptive name for the box to help identify its contents or purpose",
+            "example": "Small Components Storage",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "description",
+          "capacity"
+        ],
+        "title": "BoxCreateSchema",
+        "type": "object"
+      },
+      "BoxListSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/BoxListSchemaList.a9993e3.BoxListSchema"
+        },
+        "title": "BoxListSchemaList",
+        "type": "array"
+      },
+      "BoxListSchemaList.a9993e3.BoxListSchema": {
+        "description": "Schema for lightweight box list.",
+        "properties": {
+          "box_no": {
+            "description": "Sequential box number",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "capacity": {
+            "description": "Maximum number of storage locations in this box",
+            "example": 60,
+            "title": "Capacity",
+            "type": "integer"
+          },
+          "description": {
+            "description": "Descriptive name for the box",
+            "example": "Small Components Storage",
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "box_no",
+          "description",
+          "capacity"
+        ],
+        "title": "BoxListSchema",
+        "type": "object"
+      },
+      "BoxResponseSchema.6d5ef0b": {
+        "description": "Schema for full box details with locations.",
+        "properties": {
+          "box_no": {
+            "description": "Sequential box number assigned automatically",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "capacity": {
+            "description": "Maximum number of storage locations in this box",
+            "example": 60,
+            "title": "Capacity",
+            "type": "integer"
+          },
+          "created_at": {
+            "description": "Timestamp when the box was created",
+            "example": "2024-01-15T10:30:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "description": "Descriptive name for the box",
+            "example": "Small Components Storage",
+            "title": "Description",
+            "type": "string"
+          },
+          "locations": {
+            "description": "List of all storage locations within this box",
+            "items": {
+              "$ref": "#/components/schemas/BoxResponseSchema.6d5ef0b.LocationResponseSchema"
+            },
+            "title": "Locations",
+            "type": "array"
+          },
+          "updated_at": {
+            "description": "Timestamp when the box was last modified",
+            "example": "2024-01-15T14:45:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "box_no",
+          "description",
+          "capacity",
+          "created_at",
+          "updated_at",
+          "locations"
+        ],
+        "title": "BoxResponseSchema",
+        "type": "object"
+      },
+      "BoxResponseSchema.6d5ef0b.LocationResponseSchema": {
+        "description": "Schema for location details.",
+        "properties": {
+          "box_no": {
+            "description": "The box number where this location is situated",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "loc_no": {
+            "description": "The location number within the box (e.g., location 3 in box 7 would be '7-3')",
+            "example": 15,
+            "title": "Loc No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "box_no",
+          "loc_no"
+        ],
+        "title": "LocationResponseSchema",
+        "type": "object"
+      },
+      "BoxUpdateSchema.6d5ef0b": {
+        "description": "Schema for updating an existing box.",
+        "properties": {
+          "capacity": {
+            "description": "Updated maximum number of storage locations in this box",
+            "example": 80,
+            "exclusiveMinimum": 0,
+            "maximum": 1000,
+            "title": "Capacity",
+            "type": "integer"
+          },
+          "description": {
+            "description": "Updated descriptive name for the box",
+            "example": "Updated Components Storage",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "description",
+          "capacity"
+        ],
+        "title": "BoxUpdateSchema",
+        "type": "object"
+      },
+      "ErrorResponseSchema.c2a0d71": {
+        "description": "Standard error response format.",
+        "properties": {
+          "details": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Additional error details",
+            "example": [
+              "box_no: field required"
+            ],
+            "title": "Details"
+          },
+          "error": {
+            "description": "Error message",
+            "example": "Validation failed",
+            "title": "Error",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponseSchema",
+        "type": "object"
+      },
+      "LocationResponseSchema.1cdc15f": {
+        "description": "Schema for location details.",
+        "properties": {
+          "box_no": {
+            "description": "The box number where this location is situated",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "loc_no": {
+            "description": "The location number within the box (e.g., location 3 in box 7 would be '7-3')",
+            "example": 15,
+            "title": "Loc No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "box_no",
+          "loc_no"
+        ],
+        "title": "LocationResponseSchema",
+        "type": "object"
+      },
+      "LocationResponseSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/LocationResponseSchemaList.a9993e3.LocationResponseSchema"
+        },
+        "title": "LocationResponseSchemaList",
+        "type": "array"
+      },
+      "LocationResponseSchemaList.a9993e3.LocationResponseSchema": {
+        "description": "Schema for location details.",
+        "properties": {
+          "box_no": {
+            "description": "The box number where this location is situated",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "loc_no": {
+            "description": "The location number within the box (e.g., location 3 in box 7 would be '7-3')",
+            "example": 15,
+            "title": "Loc No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "box_no",
+          "loc_no"
+        ],
+        "title": "LocationResponseSchema",
+        "type": "object"
+      },
+      "ValidationError.6a07bef": {
+        "description": "Model of a validation error response.",
+        "items": {
+          "$ref": "#/components/schemas/ValidationError.6a07bef.ValidationErrorElement"
+        },
+        "title": "ValidationError",
+        "type": "array"
+      },
+      "ValidationError.6a07bef.ValidationErrorElement": {
+        "description": "Model of a validation error response element.",
+        "properties": {
+          "ctx": {
+            "title": "Error context",
+            "type": "object"
+          },
+          "loc": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing field name",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Error message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationErrorElement",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Hobby electronics parts inventory management system",
+    "title": "Electronics Inventory API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/boxes": {
+      "get": {
+        "description": "",
+        "operationId": "get__boxes",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoxListSchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "List all boxes with summary info.",
+        "tags": []
+      },
+      "post": {
+        "description": "",
+        "operationId": "post__boxes",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoxCreateSchema.6d5ef0b"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoxResponseSchema.6d5ef0b"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Create new box with specified capacity.",
+        "tags": []
+      }
+    },
+    "/boxes/{box_no}": {
+      "delete": {
+        "description": "",
+        "operationId": "delete__boxes_{box_no}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "box_no",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Delete empty box.",
+        "tags": []
+      },
+      "get": {
+        "description": "",
+        "operationId": "get__boxes_{box_no}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "box_no",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoxResponseSchema.6d5ef0b"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Get box details.",
+        "tags": []
+      },
+      "put": {
+        "description": "",
+        "operationId": "put__boxes_{box_no}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "box_no",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoxUpdateSchema.6d5ef0b"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoxResponseSchema.6d5ef0b"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Update box (capacity changes require validation).",
+        "tags": []
+      }
+    },
+    "/boxes/{box_no}/locations": {
+      "get": {
+        "description": "",
+        "operationId": "get__boxes_{box_no}_locations",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "box_no",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationResponseSchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Get all locations in box.",
+        "tags": []
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "",
+        "operationId": "get__health",
+        "parameters": [],
+        "responses": {},
+        "summary": "Health check endpoint for container orchestration.",
+        "tags": []
+      }
+    },
+    "/locations/{box_no}/{loc_no}": {
+      "get": {
+        "description": "",
+        "operationId": "get__locations_{box_no}_{loc_no}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "box_no",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "",
+            "in": "path",
+            "name": "loc_no",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationResponseSchema.1cdc15f"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Get specific location details.",
+        "tags": []
+      }
+    }
+  },
+  "security": [],
+  "tags": []
+}
