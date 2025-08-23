@@ -1,12 +1,11 @@
 """Tests for box service functionality."""
 
-from flask import Flask, g
+from flask import Flask
+from sqlalchemy.orm import Session
 
-from app.extensions import db
 from app.models.box import Box
 from app.models.location import Location
 from app.services.box_service import BoxService
-from sqlalchemy.orm import Session
 
 
 class TestBoxService:
@@ -203,7 +202,7 @@ class TestBoxService:
             # But let's test with valid values to ensure service works
             box = BoxService.create_box(session, "Valid Box", 1)
             assert box.capacity == 1
-            
+
             # Check locations are populated via eager loading
             assert len(box.locations) == 1
 
