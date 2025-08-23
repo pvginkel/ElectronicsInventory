@@ -45,6 +45,17 @@
 
 ## Bugs and Issues Found
 
+### ❌ ORM Objects Returned Directly
+**Severity: High**
+- Service methods return SQLAlchemy ORM objects directly instead of Pydantic DTOs
+- This causes detached instance errors when objects are serialized outside the session context
+- **Required Fix:** Convert all service methods to return Pydantic response schemas
+  - `BoxService.create_box()` should return `BoxResponseSchema` not `Box` ORM object
+  - `BoxService.get_box()` should return `BoxResponseSchema` not `Box` ORM object
+  - `BoxService.get_all_boxes()` should return `List[BoxListSchema]` not `List[Box]` ORM objects
+  - All location-related methods should similarly return appropriate Pydantic schemas
+- This violates the technical design specification requiring typed DTOs for all API responses
+
 ### ❌ Missing Tests
 **Severity: High**
 - No unit tests created for box service functions
@@ -111,7 +122,8 @@
 The implementation correctly follows the technical plan with high fidelity. The core functionality is solid and follows good software engineering practices. 
 
 **Major Issues:**
-1. **Missing tests** - This is the most significant gap and should be addressed
+1. **ORM objects returned directly** - Service methods return ORM objects causing detached instance serialization errors; must convert to Pydantic DTOs
+2. **Missing tests** - This is the most significant gap and should be addressed
 
 **Enhancement Opportunities:**
 1. **Error handling centralization** - Current pattern is consistent but could be DRYer with Flask error handlers/decorators
