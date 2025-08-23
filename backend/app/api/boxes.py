@@ -1,12 +1,10 @@
 """Box management API endpoints."""
 
 from flask import Blueprint, jsonify, request
-from spectree import Response
 
 from app.schemas.box import (
     BoxCreateSchema,
     BoxListSchema,
-    BoxLocationGridSchema,
     BoxResponseSchema,
 )
 from app.schemas.location import LocationResponseSchema
@@ -45,7 +43,7 @@ def get_box_details(box_no: int):
         box = BoxService.get_box_with_locations(box_no)
         if not box:
             return jsonify({"error": "Box not found"}), 404
-        
+
         return jsonify(BoxResponseSchema.model_validate(box).model_dump())
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -58,14 +56,14 @@ def update_box(box_no: int):
         data = request.get_json()
         description = data.get("description", "")
         capacity = data.get("capacity")
-        
+
         if not description or capacity is None or capacity <= 0:
             return jsonify({"error": "Description and positive capacity required"}), 400
-        
+
         box = BoxService.update_box_capacity(box_no, capacity, description)
         if not box:
             return jsonify({"error": "Box not found"}), 404
-        
+
         return jsonify(BoxResponseSchema.model_validate(box).model_dump())
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -90,7 +88,7 @@ def get_box_locations(box_no: int):
         box = BoxService.get_box_with_locations(box_no)
         if not box:
             return jsonify({"error": "Box not found"}), 404
-        
+
         return jsonify([
             LocationResponseSchema.model_validate(location).model_dump()
             for location in box.locations
@@ -106,7 +104,7 @@ def get_box_grid(box_no: int):
         grid = BoxService.get_location_grid(box_no)
         if not grid:
             return jsonify({"error": "Box not found"}), 404
-        
+
         return jsonify(grid)
     except Exception as e:
         return jsonify({"error": str(e)}), 500

@@ -6,5 +6,18 @@
         "markdown",
         "latex",
         "plaintext"
-    ]
+    ],
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportUnknownMemberType": "information",
+        "reportUnknownVariableType": "information",
+        "reportUnknownArgumentType": "information"
+    },
+    "python.analysis.exclude": [
+        "**/alembic/versions/**"
+    ],
+    "python.analysis.ignore": [
+        "**/alembic/versions/**"
+    ],
+    "python.linting.mypyEnabled": true,
+    "python.linting.enabled": true
 }

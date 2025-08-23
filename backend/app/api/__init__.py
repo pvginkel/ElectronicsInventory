@@ -2,6 +2,9 @@
 
 from flask import Blueprint, jsonify
 
+from app.api.boxes import boxes_bp
+from app.api.locations import locations_bp
+
 # Health check blueprint
 health_bp = Blueprint("health", __name__)
 
@@ -14,5 +17,3 @@ def health_check():
 
 # Import other blueprints here when they're created
 # from app.api.parts import parts_bp
-# from app.api.boxes import boxes_bp
-# etc.

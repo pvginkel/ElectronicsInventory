@@ -11,7 +11,7 @@ from app.schemas.location import LocationResponseSchema
 
 __all__: list[str] = [
     "BoxCreateSchema",
-    "BoxListSchema", 
+    "BoxListSchema",
     "BoxLocationGridSchema",
     "BoxResponseSchema",
     "LocationResponseSchema",
