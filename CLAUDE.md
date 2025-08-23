@@ -38,6 +38,32 @@ ruff format .
 mypy .
 ```
 
+### Implementation Patterns
+
+#### Service Layer Architecture
+- **Static service classes** with no instance state (e.g., `BoxService`)
+- **Explicit session dependency injection** - all methods take `db: Session` parameter
+- **ORM object returns** - services return SQLAlchemy models, APIs convert to Pydantic DTOs
+- **Session lifecycle management** - use `flush()` for immediate ID access, `expire()` for relationship reloading
+
+#### Database Design Patterns
+- **Dual key pattern** - auto-incrementing surrogate keys (`id`) + sequential business keys (`box_no`) 
+- **Surrogate keys for relationships** - FKs reference `id` columns for performance
+- **Business keys for logic** - APIs and business logic use business keys (`box_no`, not `id`)
+- **Eager loading configuration** - use `lazy="selectin"` for relationships that are always accessed
+
+#### API Layer Patterns
+- **Centralized error handling** via `@handle_api_errors` decorator
+- **Structured JSON responses** with consistent `{"error": "...", "details": "..."}` format
+- **Pydantic validation** with `from_attributes=True` for ORM-to-DTO conversion
+- **Flask `g.db` session** pattern for per-request database sessions
+
+#### Testing Architecture
+- **Class-based test organization** (`TestBoxService`, `TestBoxAPI`) 
+- **Fixture dependency injection** - app, session, client fixtures in `conftest.py`
+- **In-memory SQLite** for test isolation (`DATABASE_URL="sqlite:///:memory:"`)
+- **Comprehensive test categories**: unit (service), integration (API), constraints (database), validation (edge cases)
+
 ### Key Business Rules
 1. **Part IDs**: Auto-generated 4 uppercase letters, guaranteed unique
 2. **Zero quantity cleanup**: When total quantity reaches zero, all location assignments are cleared
@@ -47,7 +73,7 @@ mypy .
 ### API Structure
 - Blueprints per resource: `/parts`, `/boxes`, `/locations`, `/search`, `/shopping-list`, `/projects`
 - All requests/responses use Pydantic v2 models
-- OpenAPI docs available at `/docs`
+- OpenAPI docs available at `/docs` (Spectree integration pending)
 - No direct S3 uploads - all file handling through backend
 
 ### File Storage

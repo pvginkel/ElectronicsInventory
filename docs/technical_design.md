@@ -59,64 +59,111 @@
 * Optional: combine with `to_tsvector` (simple English) for reasonable ranking.
 * Endpoint: `GET /search?q=...` returns parts with key fields & locations.
 
-# Typed Data Model (high-level, unchanged intent)
+# Typed Data Model (high-level, implemented patterns)
 
-* `parts` (**CHAR(4)** `id4` PK, `manufacturer_code`, `type_id`, `description`, `image_url`, `tags` TEXT\[], `seller`, `seller_link`, `created_at`, `updated_at`)
-* `boxes` (`box_no` INT PK, `capacity` INT)
-* `locations` (`box_no` INT FK→boxes, `loc_no` INT, **UNIQUE(box\_no, loc\_no)**)
-* `part_locations` (`part_id4` FK→parts, `box_no`, `loc_no`, `qty`, **UNIQUE(part\_id4, box\_no, loc\_no)**)
-* `types` (`id` PK, `name` UNIQUE)
-* `documents` (`id` PK, `part_id4`, `kind` ENUM(pdf,image,link), `s3_key`, `public_url?`, `original_filename`, `created_at`)
-* `history` (`id` PK, `part_id4`, `delta_qty`, `at`)
-* `shopping_list` (`id` PK, `maybe_part_id4` NULL, `manufacturer_code`, `description`, `type_id`, `desired_qty`, `seller`, `seller_link`, `notes`, `created_at`)
-* `projects` (`id` PK, `name`, `notes`, `created_at`)
-* `project_requirements` (`project_id`, `part_id4 OR placeholder`, `required_qty`)
+* `parts` (**CHAR(4)** `id4` PK, `manufacturer_code`, `type_id`, `description`, `image_url`, `tags` TEXT\[], `seller`, `seller_link`, `created_at`, `updated_at`) - *Not yet implemented*
+* `boxes` (`id` INT AUTOINCREMENT PK, `box_no` INT UNIQUE, `description` STR, `capacity` INT, `created_at`, `updated_at`) - **✅ Implemented**
+* `locations` (`id` INT AUTOINCREMENT PK, `box_id` INT FK→boxes.id, `box_no` INT, `loc_no` INT, **UNIQUE(box\_no, loc\_no)**) - **✅ Implemented**
+* `part_locations` (`part_id4` FK→parts, `box_no`, `loc_no`, `qty`, **UNIQUE(part\_id4, box\_no, loc\_no)**) - *Not yet implemented*
+* `types` (`id` PK, `name` UNIQUE) - *Not yet implemented*
+* `documents` (`id` PK, `part_id4`, `kind` ENUM(pdf,image,link), `s3_key`, `public_url?`, `original_filename`, `created_at`) - *Not yet implemented*
+* `history` (`id` PK, `part_id4`, `delta_qty`, `at`) - *Not yet implemented*
+* `shopping_list` (`id` PK, `maybe_part_id4` NULL, `manufacturer_code`, `description`, `type_id`, `desired_qty`, `seller`, `seller_link`, `notes`, `created_at`) - *Not yet implemented*
+* `projects` (`id` PK, `name`, `notes`, `created_at`) - *Not yet implemented*
+* `project_requirements` (`project_id`, `part_id4 OR placeholder`, `required_qty`) - *Not yet implemented*
 
-**Typing:**
+**Typing Implementation:**
 
-* SQLAlchemy 2.0 **annotated** models (`Mapped[T]`, `mapped_column(...)`)
-* Pydantic v2 **typed DTOs** for every request/response
-* mypy strict mode (see below) enforced in CI
+* SQLAlchemy 2.0 **annotated** models (`Mapped[T]`, `mapped_column(...)`) - **✅ Used in box/location models**
+* Pydantic v2 **typed DTOs** for every request/response - **✅ Implemented with from_attributes=True**
+* mypy strict mode (see below) enforced in CI - **✅ Required**
 
-**ID policy:** 4 uppercase letters (`A–Z`). Generate, try insert, **retry on unique violation** (DB enforces uniqueness).
+**Surrogate vs Business Keys Implementation:**
+* Uses **dual key pattern**: auto-incrementing surrogate keys (`id`) for performance + business keys (`box_no`) for logic
+* Business keys are auto-generated sequentially (not user-provided)
+* All relationships use surrogate keys internally
+* All business logic and APIs use business keys externally
 
-# API Conventions (typed)
+**ID policy:** 4 uppercase letters (`A–Z`). Generate, try insert, **retry on unique violation** (DB enforces uniqueness). - *For parts (not yet implemented)*
+
+# API Conventions (typed, implemented patterns)
 
 * **Blueprints** per resource (`/parts`, `/boxes`, `/locations`, `/search`, `/shopping-list`, `/projects`, `/reorg`, `/ai/suggest`)
-* Request/response models: **Pydantic v2**
-* Validation & docs: **Spectree** generates OpenAPI (Swagger UI at `/docs`)
+* Request/response models: **Pydantic v2** - **✅ Implemented with validation**
+* Validation & docs: **Spectree** generates OpenAPI (Swagger UI at `/docs`) - *Not yet integrated*
 * No direct-to-S3 uploads: frontend uploads to the backend and backend handles S3 key + metadata itself
-* Services return ORM objects. API classes convert these to Pydantic DTO objects which are used in OpenAPI and returned by the API endpoint methods.
+* Services return ORM objects. API classes convert these to Pydantic DTO objects which are used in OpenAPI and returned by the API endpoint methods. - **✅ Implemented**
 
-# Dev Experience
+## Implemented API Patterns
+
+### Error Handling
+* **Centralized error handling** via `@handle_api_errors` decorator in `app/utils/error_handling.py`
+* **Structured error responses** with consistent JSON format: `{"error": "...", "details": "..."}`
+* **HTTP status code mapping**: 400 (validation), 404 (not found), 409 (conflict), 500 (server error)
+* **User-friendly messages** for database constraint violations (unique, foreign key, not null)
+
+### Request/Response Flow
+1. **Request validation**: Pydantic schemas validate incoming JSON automatically
+2. **Service layer**: Static methods take explicit Session parameter, return ORM objects
+3. **Response serialization**: Pydantic DTOs with `from_attributes=True` convert ORM to JSON
+4. **Transaction management**: Flask `g.db` session per request pattern
+
+### Service Layer Architecture
+* **Static service classes** (no instance state)
+* **Explicit session dependency injection** - all service methods take `db: Session`
+* **ORM object return types** - services return SQLAlchemy models, not DTOs
+* **Session lifecycle management** - flush() for immediate ID access, expire() for relationship reloading
+* **Business logic encapsulation** - complex operations (capacity changes) handled in services
+
+# Dev Experience (implemented patterns)
 
 * **Dependency & env**
 
-  * **Poetry** (most widely adopted workflow on teams using Flask today)
-  * **pydantic-settings** for typed config from env
+  * **Poetry** (most widely adopted workflow on teams using Flask today) - **✅ In use**
+  * **pydantic-settings** for typed config from env - **✅ Implemented in app/config.py**
   * `.env` for local, mounted as Kubernetes **Secret** in prod
 * **Formatting & linting**
 
-  * **ruff** (linter + import sort + format; you can skip black if you use ruff’s formatter)
-  * **mypy** (`--strict`) with `sqlalchemy2-stubs` installed
+  * **ruff** (linter + import sort + format; you can skip black if you use ruff's formatter) - **✅ Configured**
+  * **mypy** (`--strict`) with `sqlalchemy2-stubs` installed - **✅ Required for type checking**
 * **Testing**
 
-  * **pytest** + **pytest-cov**
-  * **testcontainers-python** for ephemeral PostgreSQL & RabbitMQ in CI
+  * **pytest** + **pytest-cov** - **✅ Implemented with comprehensive test suite**
+  * **testcontainers-python** for ephemeral PostgreSQL & RabbitMQ in CI - *Not yet configured*
 * **IDE**
 
   * VS Code extensions: Python, Pylance, Mypy Type Checker, Docker, YAML, Even Better TOML
-  * Settings: enable “Type Checking Mode: strict” in workspace
+  * Settings: enable "Type Checking Mode: strict" in workspace - **✅ Required**
 * **CI (GitHub Actions)**
 
-  * Jobs: `ruff`, `mypy`, `pytest` (with testcontainers), `docker build` (multi-arch optional), `helm lint` (see below)
+  * Jobs: `ruff`, `mypy`, `pytest` (with testcontainers), `docker build` (multi-arch optional), `helm lint` (see below) - *Not yet configured*
 * **Docker (no Makefile, no pre-commit)**
 
   * **Multi-stage** Dockerfile:
 
     1. builder: install Poetry, export lock to wheels
     2. runtime: copy wheels + app, run Waitress
-  * Healthcheck: `/healthz` endpoint
+  * Healthcheck: `/healthz` endpoint - *Not yet implemented*
+
+## Testing Patterns Implemented
+
+### Test Architecture
+* **pytest** with class-based test organization (`TestBoxService`, `TestBoxAPI`)
+* **Fixture-based dependency injection** - app, session, client fixtures in `conftest.py`
+* **In-memory SQLite** for test database isolation (`DATABASE_URL="sqlite:///:memory:"`)
+* **Session management** - dedicated test session fixtures with proper transaction handling
+
+### Test Categories
+1. **Unit tests** (`test_box_service.py`) - Test service layer methods directly
+2. **API integration tests** (`test_box_api.py`) - Test HTTP endpoints with JSON payloads
+3. **Database constraint tests** (`test_database_constraints.py`) - Test unique constraints and relationships
+4. **Validation tests** (`test_capacity_validation.py`) - Test edge cases and error conditions
+
+### Test Data Patterns
+* **Factory methods** in service layer for test data creation
+* **Explicit session management** - separate session fixture for isolation
+* **Transaction boundaries** - commit/rollback handling in fixtures
+* **Eager loading testing** - verify relationship loading behavior
 
 # Key Implementation Notes (gotchas handled)
 
