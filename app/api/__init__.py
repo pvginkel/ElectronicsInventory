@@ -9,7 +9,7 @@ from app.api.locations import locations_bp
 health_bp = Blueprint("health", __name__)
 
 
-@health_bp.route("/healthz")
+@health_bp.route("/health")
 def health_check():
     """Health check endpoint for container orchestration."""
     return jsonify({"status": "healthy"})
