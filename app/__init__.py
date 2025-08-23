@@ -36,7 +36,11 @@ def create_app(settings: "Settings | None" = None) -> Flask:
 
     # Register blueprints
     from app.api import health_bp
+    from app.api.boxes import boxes_bp
+    from app.api.locations import locations_bp
 
     app.register_blueprint(health_bp)
+    app.register_blueprint(boxes_bp)
+    app.register_blueprint(locations_bp)
 
     return app

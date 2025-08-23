@@ -2,7 +2,7 @@
 
 ## Description
 
-Implement basic box and storage location management for the Electronics Inventory. This includes creating numbered boxes with numbered locations and providing APIs to manage them. Advanced features like part assignments, location suggestions, and reorganization planning will be implemented later.
+Implement basic box and storage location management for the Electronics Inventory. This includes creating numbered boxes with numbered locations and providing APIs to manage them. The implementation uses surrogate keys (auto-incrementing integer IDs) for database performance while maintaining business logic with box numbers. Advanced features like part assignments, location suggestions, and reorganization planning will be implemented later.
 
 ## Database Models (SQLAlchemy 2.x)
 
@@ -13,7 +13,8 @@ Implement basic box and storage location management for the Electronics Inventor
 ### Models Structure:
 
 **Box Model** (`app/models/box.py`):
-- `box_no: Mapped[int]` (Primary Key)
+- `id: Mapped[int]` (Primary Key, auto-incrementing surrogate key)
+- `box_no: Mapped[int]` (Business identifier, unique, auto-generated sequentially)
 - `description: Mapped[str]` (description)
 - `capacity: Mapped[int]` (number of locations)
 - `created_at: Mapped[datetime]`
@@ -21,10 +22,12 @@ Implement basic box and storage location management for the Electronics Inventor
 - `locations: Mapped[list[Location]]` (relationship)
 
 **Location Model** (`app/models/location.py`):
-- `box_no: Mapped[int]` (Foreign Key to boxes)
-- `loc_no: Mapped[int]` 
-- `UniqueConstraint(box_no, loc_no)` (composite unique key)
-- `box: Mapped[Box]` (relationship)
+- `id: Mapped[int]` (Primary Key, auto-incrementing surrogate key)
+- `box_id: Mapped[int]` (Foreign Key to boxes.id)
+- `box_no: Mapped[int]` (Business identifier for display/logic)
+- `loc_no: Mapped[int]` (Location number within box)
+- `UniqueConstraint(box_no, loc_no)` (composite unique key for business logic)
+- `box: Mapped[Box]` (relationship via box_id)
 
 ## Pydantic Schemas
 
@@ -68,11 +71,11 @@ Implement basic box and storage location management for the Electronics Inventor
 ### Box Service (`app/services/box_service.py`):
 
 **Key Functions:**
-- `create_box(capacity: int) -> Box` - Creates box and generates all locations (1 to capacity)
-- `get_box_with_locations(box_no: int) -> Box` - Get box with all its locations
+- `create_box(description: str, capacity: int) -> Box` - Creates box with auto-generated box_no and generates all locations (1 to capacity)
+- `get_box_with_locations(box_no: int) -> Box` - Get box with all its locations by business identifier
 - `get_all_boxes() -> list[Box]` - List all boxes
-- `update_box_capacity(box_no: int, new_capacity: int) -> Box` - Update box capacity (validate no conflicts)
-- `delete_box(box_no: int)` - Delete box if empty
+- `update_box_capacity(box_no: int, new_capacity: int, new_description: str) -> Box` - Update box capacity and description (validate no conflicts)
+- `delete_box(box_no: int) -> bool` - Delete box if empty, return success status
 - `get_location_grid(box_no: int) -> dict` - Grid layout for UI display
 
 ## Database Migrations
@@ -81,17 +84,24 @@ Implement basic box and storage location management for the Electronics Inventor
 - `alembic/versions/002_create_box_location_tables.py` - Migration for box/location tables
 
 ### Migration Contents:
-- Create `boxes` table
-- Create `locations` table with composite unique constraint (box_no, loc_no)
-- Add foreign key constraint from locations to boxes
+- Create `boxes` table with surrogate primary key (`id`) and unique business key (`box_no`)
+- Create `locations` table with surrogate primary key (`id`), foreign key to `boxes.id`, and composite unique constraint (`box_no`, `loc_no`)
+- Add proper foreign key constraints using surrogate keys for performance
 
 ## Algorithm Details
+
+### Box Number Generation Algorithm:
+When creating a new box:
+1. Query for maximum existing `box_no` value
+2. Assign `next_box_no = max_box_no + 1` (starting from 1 if no boxes exist)
+3. Create box with auto-generated surrogate key `id` and business key `box_no`
 
 ### Location Generation Algorithm:
 When creating a box with capacity N:
 1. Generate locations 1 through N
-2. Locations fill left-to-right, top-to-bottom (UI responsibility)
-3. Each location gets unique (box_no, loc_no) pair
+2. Each location gets both surrogate key `id` and business identifiers (`box_id`, `box_no`, `loc_no`)
+3. Locations fill left-to-right, top-to-bottom (UI responsibility)
+4. Each location gets unique (`box_no`, `loc_no`) pair for business logic
 
 ## Files to Modify:
 - `app/models/__init__.py` - Import new models (Box, Location)
