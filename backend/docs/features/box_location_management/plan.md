@@ -56,7 +56,7 @@ Implement basic box and storage location management for the Electronics Inventor
 - `POST /boxes` - Create new box with specified capacity
 - `GET /boxes` - List all boxes with summary info
 - `GET /boxes/{box_no}` - Get box details with location grid
-- `PUT /boxes/{box_no}` - Update box (capacity changes require validation)
+- `PUT /boxes/{box_no}` - Update box
 - `DELETE /boxes/{box_no}` - Delete empty box
 - `GET /boxes/{box_no}/locations` - Get all locations in box
 
@@ -113,4 +113,3 @@ When creating a box with capacity N:
 - Unit tests for box service functions
 - API endpoint tests for box CRUD operations
 - Database constraint validation tests (unique box numbers, location constraints)
-- Box capacity validation tests
