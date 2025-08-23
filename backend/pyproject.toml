@@ -87,6 +87,10 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --cov=app --cov-report=term-missing"
+filterwarnings = [
+    "ignore::pydantic.warnings.PydanticDeprecatedSince20",
+    "ignore::pluggy._warnings.PluggyTeardownRaisedWarning"
+]
 
 [tool.coverage.run]
 source = ["app"]
