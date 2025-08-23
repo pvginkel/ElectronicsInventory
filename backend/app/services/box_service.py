@@ -3,7 +3,7 @@
 from typing import Any
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from app.models.box import Box
 from app.models.location import Location
@@ -37,9 +37,7 @@ class BoxService:
     @staticmethod
     def get_box_with_locations(db: Session, box_no: int) -> Box | None:
         """Get box with all its locations."""
-        stmt = (
-            select(Box).options(selectinload(Box.locations)).where(Box.box_no == box_no)
-        )
+        stmt = select(Box).where(Box.box_no == box_no)
         return db.execute(stmt).scalar_one_or_none()
 
     @staticmethod
@@ -88,6 +86,10 @@ class BoxService:
         # Update box
         box.capacity = new_capacity
         box.description = new_description
+        
+        # Expire the locations relationship so it will be reloaded on next access
+        db.expire(box, ['locations'])
+        
         return box
 
     @staticmethod

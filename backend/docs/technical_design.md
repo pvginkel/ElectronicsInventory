@@ -86,6 +86,7 @@
 * Request/response models: **Pydantic v2**
 * Validation & docs: **Spectree** generates OpenAPI (Swagger UI at `/docs`)
 * No direct-to-S3 uploads: frontend uploads to the backend and backend handles S3 key + metadata itself
+* Services return ORM objects. API classes convert these to Pydantic DTO objects which are used in OpenAPI and returned by the API endpoint methods.
 
 # Dev Experience
 

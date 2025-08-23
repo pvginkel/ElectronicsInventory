@@ -5,6 +5,7 @@ from flask import Flask
 from pydantic import ValidationError
 
 from app.extensions import db
+from app.models.box import Box
 from app.models.location import Location
 from app.schemas.box import BoxCreateSchema, BoxResponseSchema
 from app.services.box_service import BoxService
@@ -232,13 +233,13 @@ class TestCapacityValidation:
             assert location_numbers == list(range(1, 13))
 
     def test_capacity_validation_in_response_schema(self, app: Flask, session: Session):
-        """Test that BoxResponseSchema properly handles capacity."""
+        """Test that service returns ORM box models properly."""
         with app.app_context():
             # Create box through service
             box = BoxService.create_box(session, "Test Box", 7)
 
-            # Verify response schema validation
-            assert isinstance(box, BoxResponseSchema)
+            # Verify ORM model returned with eager loaded locations
+            assert isinstance(box, Box)
             assert box.capacity == 7
             assert len(box.locations) == 7
 
@@ -251,12 +252,11 @@ class TestCapacityValidation:
             capacity = 10
             box = BoxService.create_box(session, "Test Box", capacity)
 
-            # Verify all locations were created successfully
-            db_locations = db.session.query(Location).filter_by(box_no=box.box_no).all()
-            assert len(db_locations) == capacity
+            # Verify all locations were created and loaded successfully
+            assert len(box.locations) == capacity
 
             # Verify all locations have the correct box reference
-            for location in db_locations:
+            for location in box.locations:
                 assert location.box_no == box.box_no
                 assert location.box_id is not None
 
