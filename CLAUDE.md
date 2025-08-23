@@ -73,7 +73,7 @@ mypy .
 ### API Structure
 - Blueprints per resource: `/parts`, `/boxes`, `/locations`, `/search`, `/shopping-list`, `/projects`
 - All requests/responses use Pydantic v2 models
-- OpenAPI docs available at `/docs` (Spectree integration pending)
+- OpenAPI docs available at `/docs`
 - No direct S3 uploads - all file handling through backend
 
 ### File Storage

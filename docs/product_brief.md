@@ -33,7 +33,7 @@ Keep track of hobby electronics parts so you always know **what you have**, **wh
 * Boxes are **numbers**: Box “1”, Box “2”, …
 * Each box has a set of **numbered locations** laid out **left-to-right, top-to-bottom**.
 * A specific slot is written as **BOX-LOCATION** (e.g., “7-3” means Box 7, Location 3).
-* Locations are generated in sequence for each box (e.g., 1..60). The UI shows them as a simple grid.
+* Locations are generated in sequence for each box (e.g., 1..60). The UI shows them as a simple list of locations.
 
 **Parts**
 

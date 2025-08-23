@@ -41,7 +41,7 @@ class TestBoxService:
             assert box2.box_no == 2
             assert box3.box_no == 3
 
-    def test_get_box_with_locations_existing(self, app: Flask, session: Session):
+    def test_get_box_existing(self, app: Flask, session: Session):
         """Test getting an existing box with its locations."""
         with app.app_context():
             # Create a box first
@@ -49,7 +49,7 @@ class TestBoxService:
             session.commit()
 
             # Retrieve it
-            result = BoxService.get_box_with_locations(session, created_box.box_no)
+            result = BoxService.get_box(session, created_box.box_no)
 
             assert result is not None
             assert isinstance(result, Box)
@@ -58,10 +58,10 @@ class TestBoxService:
             assert result.capacity == 5
             assert len(result.locations) == 5
 
-    def test_get_box_with_locations_nonexistent(self, app: Flask, session: Session):
+    def test_get_box_nonexistent(self, app: Flask, session: Session):
         """Test getting a non-existent box returns None."""
         with app.app_context():
-            result = BoxService.get_box_with_locations(session, 999)
+            result = BoxService.get_box(session, 999)
             assert result is None
 
     def test_get_all_boxes_empty(self, app: Flask, session: Session):

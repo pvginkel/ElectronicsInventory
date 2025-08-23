@@ -9,12 +9,12 @@ class LocationResponseSchema(BaseModel):
     box_no: int = Field(  # type: ignore[call-overload]
         ...,
         description="The box number where this location is situated",
-        example=7
+        json_schema_extra={"example": 7}
     )
     loc_no: int = Field(  # type: ignore[call-overload]
         ...,
         description="The location number within the box (e.g., location 3 in box 7 would be '7-3')",
-        example=15
+        json_schema_extra={"example": 15}
     )
 
     model_config = ConfigDict(from_attributes=True)

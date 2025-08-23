@@ -16,14 +16,14 @@ class BoxCreateSchema(BaseModel):
         min_length=1,
         max_length=255,
         description="Descriptive name for the box to help identify its contents or purpose",
-        example="Small Components Storage"
+        json_schema_extra={"example": "Small Components Storage"}
     )
     capacity: int = Field(
         ...,
         gt=0,
         le=1000,
         description="Maximum number of individual storage locations within this box",
-        example=60
+        json_schema_extra={"example": 60}
     )
 
 
@@ -35,14 +35,14 @@ class BoxUpdateSchema(BaseModel):
         min_length=1,
         max_length=255,
         description="Updated descriptive name for the box",
-        example="Updated Components Storage"
+        json_schema_extra={"example": "Updated Components Storage"}
     )
     capacity: int = Field(
         ...,
         gt=0,
         le=1000,
         description="Updated maximum number of storage locations in this box",
-        example=80
+        json_schema_extra={"example": 80}
     )
 
 
@@ -51,23 +51,23 @@ class BoxResponseSchema(BaseModel):
 
     box_no: int = Field(
         description="Sequential box number assigned automatically",
-        example=7
+        json_schema_extra={"example": 7}
     )
     description: str = Field(
         description="Descriptive name for the box",
-        example="Small Components Storage"
+        json_schema_extra={"example": "Small Components Storage"}
     )
     capacity: int = Field(
         description="Maximum number of storage locations in this box",
-        example=60
+        json_schema_extra={"example": 60}
     )
     created_at: datetime = Field(
         description="Timestamp when the box was created",
-        example="2024-01-15T10:30:00Z"
+        json_schema_extra={"example": "2024-01-15T10:30:00Z"}
     )
     updated_at: datetime = Field(
         description="Timestamp when the box was last modified",
-        example="2024-01-15T14:45:00Z"
+        json_schema_extra={"example": "2024-01-15T14:45:00Z"}
     )
     locations: list[LocationResponseSchema] = Field(
         description="List of all storage locations within this box"
@@ -81,39 +81,15 @@ class BoxListSchema(BaseModel):
 
     box_no: int = Field(
         description="Sequential box number",
-        example=7
+        json_schema_extra={"example": 7}
     )
     description: str = Field(
         description="Descriptive name for the box",
-        example="Small Components Storage"
+        json_schema_extra={"example": "Small Components Storage"}
     )
     capacity: int = Field(
         description="Maximum number of storage locations in this box",
-        example=60
-    )
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class BoxLocationGridSchema(BaseModel):
-    """Schema for box with location grid for UI."""
-
-    box_no: int = Field(
-        description="Sequential box number",
-        example=7
-    )
-    description: str = Field(
-        description="Descriptive name for the box",
-        example="Small Components Storage"
-    )
-    capacity: int = Field(
-        description="Maximum number of storage locations in this box",
-        example=60
-    )
-    location_grid: dict[str, Any] = Field(  # type: ignore[call-overload]
-        ...,
-        description="Grid layout data for UI display with rows, columns, and location mappings",
-        example={"rows": 10, "cols": 6, "locations": {"1": {"available": True}, "2": {"available": False}}}
+        json_schema_extra={"example": 60}
     )
 
     model_config = ConfigDict(from_attributes=True)
