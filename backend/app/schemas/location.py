@@ -1,6 +1,6 @@
 """Location schemas for request/response validation."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class LocationResponseSchema(BaseModel):
@@ -9,5 +9,4 @@ class LocationResponseSchema(BaseModel):
     box_no: int
     loc_no: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

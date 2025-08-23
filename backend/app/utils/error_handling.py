@@ -8,6 +8,7 @@ from flask import jsonify
 from flask.wrappers import Response
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
+from werkzeug.exceptions import BadRequest
 
 
 def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Response | tuple[Response | str, int]]:
@@ -20,6 +21,12 @@ def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Response | tupl
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return func(*args, **kwargs)
+        except BadRequest:
+            # JSON parsing errors from request.get_json()
+            return jsonify({
+                "error": "Invalid JSON",
+                "details": "Request body must be valid JSON"
+            }), 400
         except ValidationError as e:
             # Pydantic validation errors
             error_details = []

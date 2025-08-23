@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from app.models.location import Location
 
 
-class Box(db.Model):
+class Box(db.Model):  # type: ignore[name-defined]
     """Model representing a storage box with numbered locations."""
 
     __tablename__ = "boxes"
@@ -30,7 +30,7 @@ class Box(db.Model):
 
     # Relationships
     locations: Mapped[list["Location"]] = relationship(  # type: ignore[assignment]
-        back_populates="box", cascade="all, delete-orphan"
+        "Location", back_populates="box", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
