@@ -34,8 +34,8 @@ class BoxService:
         return box
 
     @staticmethod
-    def get_box_with_locations(db: Session, box_no: int) -> Box | None:
-        """Get box with all its locations."""
+    def get_box(db: Session, box_no: int) -> Box | None:
+        """Get box."""
         stmt = select(Box).where(Box.box_no == box_no)
         return db.execute(stmt).scalar_one_or_none()
 

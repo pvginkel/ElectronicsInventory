@@ -11,7 +11,7 @@ class ErrorResponseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     error: str = Field(..., description="Error message", json_schema_extra={"example": "Validation failed"})
-    details: str | None = Field(None, description="Additional error details", json_schema_extra={"example": "box_no: field required"})
+    details: list[str] | str | None = Field(None, description="Additional error details", json_schema_extra={"example": ["box_no: field required"]})
 
 
 class SuccessResponseSchema(BaseModel):
