@@ -1,0 +1,209 @@
+import { useState, useEffect } from 'react';
+import { Form, FormField, FormLabel, FormError } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { TypeSelector } from '@/components/types/type-selector';
+import { TagsInput } from './tags-input';
+import { useGet__parts__part_id4_, usePost__parts, usePut__parts__part_id4_ } from '@/lib/api/generated/hooks';
+import { validatePartData } from '@/lib/utils/parts';
+
+interface PartFormData {
+  description: string;
+  manufacturerCode: string;
+  typeId?: number;
+  tags: string[];
+}
+
+interface PartFormProps {
+  partId?: string;
+  onSuccess: (partId: string) => void;
+  onCancel?: () => void;
+}
+
+export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
+  const [formData, setFormData] = useState<PartFormData>({
+    description: '',
+    manufacturerCode: '',
+    tags: [],
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const isEditing = Boolean(partId);
+  
+  // Fetch existing part data if editing
+  const { data: existingPart, isLoading: isLoadingPart } = useGet__parts__part_id4_(
+    { path: { part_id4: partId! } },
+    { enabled: isEditing }
+  );
+
+  const createPartMutation = usePost__parts();
+  const updatePartMutation = usePut__parts__part_id4_();
+
+  // Populate form with existing part data
+  useEffect(() => {
+    if (existingPart && isEditing) {
+      setFormData({
+        description: existingPart.description,
+        manufacturerCode: existingPart.manufacturer_code || '',
+        typeId: existingPart.type_id || undefined,
+        tags: existingPart.tags || [],
+      });
+    }
+  }, [existingPart, isEditing]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate form data
+    const validation = validatePartData({
+      description: formData.description,
+      manufacturerCode: formData.manufacturerCode,
+      typeId: formData.typeId,
+      tags: formData.tags,
+    });
+
+    if (!validation.isValid) {
+      const newErrors: Record<string, string> = {};
+      validation.errors.forEach((error) => {
+        if (error.includes('Description')) newErrors.description = error;
+        if (error.includes('Manufacturer')) newErrors.manufacturerCode = error;
+      });
+      setErrors(newErrors);
+      return;
+    }
+
+    setErrors({});
+
+    try {
+      if (isEditing && partId) {
+        // Update existing part
+        const result = await updatePartMutation.mutateAsync({
+          path: { part_id4: partId },
+          body: {
+            description: formData.description,
+            manufacturer_code: formData.manufacturerCode || null,
+            type_id: formData.typeId || null,
+            tags: formData.tags.length > 0 ? formData.tags : null,
+            image_url: null,
+          }
+        });
+        onSuccess(result.id4);
+      } else {
+        // Create new part
+        const result = await createPartMutation.mutateAsync({
+          body: {
+            description: formData.description,
+            manufacturer_code: formData.manufacturerCode || null,
+            type_id: formData.typeId || null,
+            tags: formData.tags.length > 0 ? formData.tags : null,
+            image_url: null,
+          }
+        });
+        onSuccess(result.id4);
+      }
+    } catch (error) {
+      console.error('Failed to save part:', error);
+      setErrors({ submit: 'Failed to save part. Please try again.' });
+    }
+  };
+
+  const updateFormData = (field: keyof PartFormData, value: string | number | string[] | undefined) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  if (isEditing && isLoadingPart) {
+    return (
+      <Card className="p-6">
+        <div className="text-center">Loading part details...</div>
+      </Card>
+    );
+  }
+
+  const isLoading = createPartMutation.isPending || updatePartMutation.isPending;
+
+  return (
+    <Card className="p-6">
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold">
+          {isEditing ? `Edit Part ${partId}` : 'Create New Part'}
+        </h2>
+      </div>
+
+      <Form onSubmit={handleSubmit} className="space-y-6">
+        <FormField>
+          <FormLabel htmlFor="description" required>
+            Description
+          </FormLabel>
+          <Input
+            id="description"
+            value={formData.description}
+            onChange={(e) => updateFormData('description', e.target.value)}
+            error={errors.description}
+            maxLength={200}
+          />
+          <FormError message={errors.description} />
+        </FormField>
+
+        <FormField>
+          <FormLabel htmlFor="manufacturerCode">
+            Manufacturer Code
+          </FormLabel>
+          <Input
+            id="manufacturerCode"
+            value={formData.manufacturerCode}
+            onChange={(e) => updateFormData('manufacturerCode', e.target.value)}
+            error={errors.manufacturerCode}
+            maxLength={100}
+          />
+          <FormError message={errors.manufacturerCode} />
+        </FormField>
+
+        <FormField>
+          <FormLabel>Type</FormLabel>
+          <TypeSelector
+            value={formData.typeId}
+            onChange={(value) => updateFormData('typeId', value)}
+            error={errors.typeId}
+          />
+          <FormError message={errors.typeId} />
+        </FormField>
+
+        <FormField>
+          <FormLabel>Tags</FormLabel>
+          <TagsInput
+            value={formData.tags}
+            onChange={(tags) => updateFormData('tags', tags)}
+          />
+        </FormField>
+
+
+        <FormError message={errors.submit} />
+
+        <div className="flex justify-end gap-3 pt-4">
+          {onCancel && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+          )}
+          <Button
+            type="submit"
+            disabled={isLoading}
+            loading={isLoading}
+          >
+            {isEditing ? 'Update Part' : 'Create Part'}
+          </Button>
+        </div>
+      </Form>
+    </Card>
+  );
+}
