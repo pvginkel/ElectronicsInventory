@@ -125,7 +125,6 @@ interface PartListItemProps {
     type?: { name: string } | null;
     tags?: string[] | null;
     quantity?: number;
-    image_url?: string | null;
   };
   onClick?: () => void;
 }
@@ -186,18 +185,6 @@ function PartListItem({ part, onClick }: PartListItemProps) {
           )}
         </div>
 
-        {part.image_url && (
-          <div className="ml-4 flex-shrink-0">
-            <img
-              src={part.image_url}
-              alt={displayDescription}
-              className="w-16 h-16 object-cover rounded-md border"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-          </div>
-        )}
       </div>
     </Card>
   );

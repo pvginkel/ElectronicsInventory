@@ -6,12 +6,12 @@ interface PartData {
 }
 
 interface Part {
-  partId4: string;
+  id4: string;
   description: string;
-  manufacturerCode?: string;
-  typeId?: number;
-  tags: string[];
-  quantity: number;
+  manufacturer_code?: string | null;
+  type_id?: number | null;
+  tags?: string[] | null;
+  quantity?: number;
 }
 
 export function validatePartData(data: PartData): { isValid: boolean; errors: string[] } {
@@ -41,9 +41,9 @@ export function formatPartForDisplay(part: Part): {
   displayManufacturerCode?: string;
 } {
   return {
-    displayId: part.partId4.toUpperCase(),
+    displayId: part.id4.toUpperCase(),
     displayDescription: part.description,
-    displayManufacturerCode: part.manufacturerCode || undefined,
+    displayManufacturerCode: part.manufacturer_code || undefined,
   };
 }
 

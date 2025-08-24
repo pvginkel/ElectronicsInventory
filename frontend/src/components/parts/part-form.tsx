@@ -13,6 +13,8 @@ interface PartFormData {
   manufacturerCode: string;
   typeId?: number;
   tags: string[];
+  seller: string;
+  sellerLink: string;
 }
 
 interface PartFormProps {
@@ -26,6 +28,8 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
     description: '',
     manufacturerCode: '',
     tags: [],
+    seller: '',
+    sellerLink: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -48,6 +52,8 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
         manufacturerCode: existingPart.manufacturer_code || '',
         typeId: existingPart.type_id || undefined,
         tags: existingPart.tags || [],
+        seller: existingPart.seller || '',
+        sellerLink: existingPart.seller_link || '',
       });
     }
   }, [existingPart, isEditing]);
@@ -85,7 +91,8 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
             manufacturer_code: formData.manufacturerCode || null,
             type_id: formData.typeId || null,
             tags: formData.tags.length > 0 ? formData.tags : null,
-            image_url: null,
+            seller: formData.seller || null,
+            seller_link: formData.sellerLink || null,
           }
         });
         onSuccess(result.id4);
@@ -97,7 +104,8 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
             manufacturer_code: formData.manufacturerCode || null,
             type_id: formData.typeId || null,
             tags: formData.tags.length > 0 ? formData.tags : null,
-            image_url: null,
+            seller: formData.seller || null,
+            seller_link: formData.sellerLink || null,
           }
         });
         onSuccess(result.id4);
@@ -181,6 +189,31 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
           />
         </FormField>
 
+        <FormField>
+          <FormLabel htmlFor="seller">
+            Seller
+          </FormLabel>
+          <Input
+            id="seller"
+            value={formData.seller}
+            onChange={(e) => updateFormData('seller', e.target.value)}
+            error={errors.seller}
+          />
+          <FormError message={errors.seller} />
+        </FormField>
+
+        <FormField>
+          <FormLabel htmlFor="sellerLink">
+            Seller Link
+          </FormLabel>
+          <Input
+            id="sellerLink"
+            value={formData.sellerLink}
+            onChange={(e) => updateFormData('sellerLink', e.target.value)}
+            error={errors.sellerLink}
+          />
+          <FormError message={errors.sellerLink} />
+        </FormField>
 
         <FormError message={errors.submit} />
 

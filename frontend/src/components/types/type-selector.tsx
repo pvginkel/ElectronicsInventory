@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useTypesSearch, useCreateType } from '@/hooks/use-types';
 
 interface Type {
@@ -78,12 +79,12 @@ export function TypeSelector({ value, onChange, placeholder = "Search or create 
     setShowCreateDialog(true);
   };
 
-  const handleConfirmCreate = async () => {
-    if (!createTypeName.trim()) return;
+  const handleConfirmCreate = async (typeName: string) => {
+    if (!typeName.trim()) return;
     
     try {
       const result = await createTypeMutation.mutateAsync({
-        body: { name: createTypeName.trim() }
+        body: { name: typeName.trim() }
       });
       
       onChange(result.id);
@@ -196,7 +197,7 @@ function CreateTypeOption({ searchTerm, onClick }: CreateTypeOptionProps) {
 
 interface TypeCreateDialogProps {
   initialName: string;
-  onConfirm: () => void;
+  onConfirm: (name: string) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
@@ -206,25 +207,35 @@ function TypeCreateDialog({ initialName, onConfirm, onCancel, isLoading }: TypeC
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (name.trim()) {
-      onConfirm();
+      onConfirm(name);
+    }
+  };
+
+  const handleConfirm = () => {
+    if (name.trim()) {
+      onConfirm(name);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-card border rounded-lg shadow-lg w-full max-w-md">
+    <Dialog open={true} onOpenChange={() => onCancel()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create New Type</DialogTitle>
+        </DialogHeader>
+        
         <form onSubmit={handleSubmit}>
-          <div className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Create New Type</h3>
+          <div className="mb-4">
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Type name"
               autoFocus
             />
           </div>
-          <div className="flex justify-end gap-2 p-6 pt-0">
+          
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"
@@ -234,15 +245,16 @@ function TypeCreateDialog({ initialName, onConfirm, onCancel, isLoading }: TypeC
               Cancel
             </Button>
             <Button
-              type="submit"
+              type="button"
+              onClick={handleConfirm}
               disabled={!name.trim() || isLoading}
               loading={isLoading}
             >
               Create
             </Button>
-          </div>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

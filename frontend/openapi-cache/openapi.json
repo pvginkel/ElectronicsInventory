@@ -370,21 +370,6 @@
             "title": "Description",
             "type": "string"
           },
-          "image_url": {
-            "anyOf": [
-              {
-                "maxLength": 500,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "URL to main part image",
-            "example": "https://s3.example.com/inventory-images/BZQP-main.jpg",
-            "title": "Image Url"
-          },
           "manufacturer_code": {
             "anyOf": [
               {
@@ -619,19 +604,6 @@
             "title": "Id4",
             "type": "string"
           },
-          "image_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "URL to main part image",
-            "example": "https://s3.example.com/inventory-images/BZQP-main.jpg",
-            "title": "Image Url"
-          },
           "manufacturer_code": {
             "anyOf": [
               {
@@ -729,7 +701,6 @@
           "manufacturer_code",
           "type_id",
           "description",
-          "image_url",
           "tags",
           "seller",
           "seller_link",
@@ -795,21 +766,6 @@
             "description": "Updated description",
             "example": "12V SPDT automotive relay with 40A contacts",
             "title": "Description"
-          },
-          "image_url": {
-            "anyOf": [
-              {
-                "maxLength": 500,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Updated image URL",
-            "example": "https://s3.example.com/inventory-images/BZQP-updated.jpg",
-            "title": "Image Url"
           },
           "manufacturer_code": {
             "anyOf": [

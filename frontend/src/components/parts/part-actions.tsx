@@ -59,12 +59,11 @@ export function AddStockDialog({ partId, typeId, open, onOpenChange, onSuccess }
   };
 
   const handleUseSuggestion = () => {
-    if (suggestions && suggestions.length > 0) {
-      const suggestion = suggestions[0];
+    if (suggestions && typeof suggestions === 'object' && 'box_no' in suggestions && 'loc_no' in suggestions) {
       setFormData(prev => ({
         ...prev,
-        boxNo: suggestion.box_no.toString(),
-        locNo: suggestion.loc_no.toString(),
+        boxNo: suggestions.box_no.toString(),
+        locNo: suggestions.loc_no.toString(),
       }));
     }
   };
@@ -124,10 +123,10 @@ export function AddStockDialog({ partId, typeId, open, onOpenChange, onSuccess }
             <FormError message={errors.quantity} />
           </FormField>
 
-          {suggestions && suggestions.length > 0 && (
+          {suggestions && typeof suggestions === 'object' && 'box_no' in suggestions && 'loc_no' in suggestions && (
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">
-                Suggested: {formatLocation(suggestions[0].box_no, suggestions[0].loc_no)}
+                Suggested: {formatLocation(suggestions.box_no, suggestions.loc_no)}
               </span>
               <Button
                 type="button"

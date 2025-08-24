@@ -117,20 +117,6 @@ export function PartDetails({ partId }: PartDetailsProps) {
           </div>
         </div>
 
-        {/* Part Image */}
-        {part.image_url && (
-          <div className="mt-6">
-            <h3 className="font-medium mb-2">Image</h3>
-            <img
-              src={part.image_url}
-              alt={displayDescription}
-              className="max-w-sm h-auto rounded-md border"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
-          </div>
-        )}
       </Card>
 
       {/* Stock Locations */}
@@ -147,7 +133,10 @@ export function PartDetails({ partId }: PartDetailsProps) {
         <div className="flex gap-3">
           <Button
             variant="outline"
-            onClick={() => setShowStockDialog(true)}
+            onClick={() => {
+              // TODO: Implement stock management dialog
+              console.log('Manage stock for', partId);
+            }}
           >
             Manage Stock
           </Button>
