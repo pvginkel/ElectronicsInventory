@@ -32,10 +32,10 @@ def configure_spectree(app: Flask) -> SpecTree:
 
     # Register the SpecTree with the Flask app to create documentation routes
     api.register(app)
-    
+
     # Add redirect routes for convenience
     from flask import redirect
-    
+
     @app.route("/docs")
     @app.route("/docs/")
     def docs_redirect():

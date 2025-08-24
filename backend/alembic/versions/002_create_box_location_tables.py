@@ -1,7 +1,7 @@
 """Create box and location tables
 
 Revision ID: 002
-Revises: 001
+Revises: 
 Create Date: 2025-01-21 10:00:00.000000
 
 """
@@ -11,7 +11,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '002'
-down_revision = '001'
+down_revision = None
 branch_labels = None
 depends_on = None
 

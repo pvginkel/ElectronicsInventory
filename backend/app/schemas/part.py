@@ -1,0 +1,199 @@
+"""Part schemas for request/response validation."""
+
+from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.type import TypeResponseSchema
+
+
+class PartCreateSchema(BaseModel):
+    """Schema for creating a new part."""
+
+    manufacturer_code: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Manufacturer's part number or code",
+        json_schema_extra={"example": "OMRON G5Q-1A4"}
+    )
+    type_id: Optional[int] = Field(
+        None,
+        description="ID of the part type/category",
+        json_schema_extra={"example": 1}
+    )
+    description: str = Field(
+        ...,
+        min_length=1,
+        description="Free text description of the part",
+        json_schema_extra={"example": "12V SPDT relay with 40A contacts"}
+    )
+    image_url: Optional[str] = Field(
+        None,
+        max_length=500,
+        description="URL to main part image",
+        json_schema_extra={"example": "https://s3.example.com/inventory-images/BZQP-main.jpg"}
+    )
+    tags: Optional[list[str]] = Field(
+        None,
+        description="Tags for categorization and search",
+        json_schema_extra={"example": ["12V", "SPDT", "automotive"]}
+    )
+    seller: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Vendor/supplier name",
+        json_schema_extra={"example": "Digi-Key"}
+    )
+    seller_link: Optional[str] = Field(
+        None,
+        max_length=500,
+        description="Product page URL at seller",
+        json_schema_extra={"example": "https://www.digikey.com/en/products/detail/G5Q-1A4"}
+    )
+
+
+class PartUpdateSchema(BaseModel):
+    """Schema for updating an existing part."""
+
+    manufacturer_code: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Updated manufacturer's part number",
+        json_schema_extra={"example": "OMRON G5Q-1A4-DC12"}
+    )
+    type_id: Optional[int] = Field(
+        None,
+        description="Updated part type/category ID",
+        json_schema_extra={"example": 2}
+    )
+    description: Optional[str] = Field(
+        None,
+        min_length=1,
+        description="Updated description",
+        json_schema_extra={"example": "12V SPDT automotive relay with 40A contacts"}
+    )
+    image_url: Optional[str] = Field(
+        None,
+        max_length=500,
+        description="Updated image URL",
+        json_schema_extra={"example": "https://s3.example.com/inventory-images/BZQP-updated.jpg"}
+    )
+    tags: Optional[list[str]] = Field(
+        None,
+        description="Updated tags",
+        json_schema_extra={"example": ["12V", "SPDT", "automotive", "waterproof"]}
+    )
+    seller: Optional[str] = Field(
+        None,
+        max_length=255,
+        description="Updated seller name",
+        json_schema_extra={"example": "Mouser Electronics"}
+    )
+    seller_link: Optional[str] = Field(
+        None,
+        max_length=500,
+        description="Updated product page URL",
+        json_schema_extra={"example": "https://www.mouser.com/ProductDetail/G5Q-1A4"}
+    )
+
+
+class PartResponseSchema(BaseModel):
+    """Schema for full part details with relationships."""
+
+    id4: str = Field(
+        description="4-character unique part identifier",
+        json_schema_extra={"example": "BZQP"}
+    )
+    manufacturer_code: Optional[str] = Field(
+        description="Manufacturer's part number",
+        json_schema_extra={"example": "OMRON G5Q-1A4"}
+    )
+    type_id: Optional[int] = Field(
+        description="Part type/category ID",
+        json_schema_extra={"example": 1}
+    )
+    type: Optional[TypeResponseSchema] = Field(
+        description="Part type/category details",
+        default=None
+    )
+    description: str = Field(
+        description="Free text description",
+        json_schema_extra={"example": "12V SPDT relay with 40A contacts"}
+    )
+    image_url: Optional[str] = Field(
+        description="URL to main part image",
+        json_schema_extra={"example": "https://s3.example.com/inventory-images/BZQP-main.jpg"}
+    )
+    tags: Optional[list[str]] = Field(
+        description="Tags for categorization",
+        json_schema_extra={"example": ["12V", "SPDT", "automotive"]}
+    )
+    seller: Optional[str] = Field(
+        description="Vendor/supplier name",
+        json_schema_extra={"example": "Digi-Key"}
+    )
+    seller_link: Optional[str] = Field(
+        description="Product page URL",
+        json_schema_extra={"example": "https://www.digikey.com/en/products/detail/G5Q-1A4"}
+    )
+    created_at: datetime = Field(
+        description="Timestamp when the part was created",
+        json_schema_extra={"example": "2024-01-15T10:30:00Z"}
+    )
+    updated_at: datetime = Field(
+        description="Timestamp when the part was last modified",
+        json_schema_extra={"example": "2024-01-15T14:45:00Z"}
+    )
+    total_quantity: int = Field(
+        description="Total quantity across all locations",
+        json_schema_extra={"example": 25}
+    )
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PartListSchema(BaseModel):
+    """Schema for lightweight part listings."""
+
+    id4: str = Field(
+        description="4-character unique part identifier",
+        json_schema_extra={"example": "BZQP"}
+    )
+    manufacturer_code: Optional[str] = Field(
+        description="Manufacturer's part number",
+        json_schema_extra={"example": "OMRON G5Q-1A4"}
+    )
+    description: str = Field(
+        description="Free text description",
+        json_schema_extra={"example": "12V SPDT relay with 40A contacts"}
+    )
+    total_quantity: int = Field(
+        description="Total quantity across all locations",
+        json_schema_extra={"example": 25}
+    )
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PartLocationResponseSchema(BaseModel):
+    """Schema for part location details with quantity."""
+
+    id4: str = Field(
+        description="4-character part identifier",
+        json_schema_extra={"example": "BZQP"}
+    )
+    box_no: int = Field(
+        description="Box number",
+        json_schema_extra={"example": 7}
+    )
+    loc_no: int = Field(
+        description="Location number within box",
+        json_schema_extra={"example": 3}
+    )
+    qty: int = Field(
+        description="Quantity at this location",
+        json_schema_extra={"example": 10}
+    )
+
+    model_config = ConfigDict(from_attributes=True)
