@@ -136,17 +136,19 @@ export function BoxList() {
         submitText="Create Box"
       />
 
-      <BoxForm
-        open={editFormOpen}
-        onOpenChange={(open) => {
-          setEditFormOpen(open)
-          if (!open) setEditingBox(null)
-        }}
-        onSubmit={handleUpdateBox}
-        initialValues={editingBox || undefined}
-        title="Edit Box"
-        submitText="Update Box"
-      />
+      {editingBox && (
+        <BoxForm
+          open={editFormOpen}
+          onOpenChange={(open) => {
+            setEditFormOpen(open)
+            if (!open) setEditingBox(null)
+          }}
+          onSubmit={handleUpdateBox}
+          initialValues={editingBox}
+          title="Edit Box"
+          submitText="Update Box"
+        />
+      )}
 
       <ConfirmDialog {...confirmProps} />
     </div>

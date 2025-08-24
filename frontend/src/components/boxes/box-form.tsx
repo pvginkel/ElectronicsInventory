@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Form, FormField, FormLabel, FormError } from '@/components/ui/form'
+import { Form, FormField, FormLabel } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useFormState } from '@/hooks/use-form-state'
@@ -79,14 +79,9 @@ export function BoxForm({
               </FormLabel>
               <Input
                 id="description"
-                placeholder="e.g., Small Components Storage"
                 maxLength={255}
                 {...form.getFieldProps('description')}
               />
-              <FormError message={form.errors.description} />
-              <div className="text-xs text-muted-foreground">
-                {form.values.description.length}/255 characters
-              </div>
             </FormField>
 
             <FormField>
@@ -98,13 +93,8 @@ export function BoxForm({
                 type="number"
                 min="1"
                 max="50"
-                placeholder="e.g., 60"
                 {...form.getFieldProps('capacity')}
               />
-              <FormError message={form.errors.capacity} />
-              <div className="text-xs text-muted-foreground">
-                Number of storage locations (1-50)
-              </div>
             </FormField>
           </div>
 
