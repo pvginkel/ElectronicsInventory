@@ -65,14 +65,15 @@ class PartService:
         return db.execute(stmt).scalar_one_or_none()
 
     @staticmethod
-    def get_parts_list(db: Session, limit: int = 50, offset: int = 0) -> list[Part]:
+    def get_parts_list(db: Session, limit: int = 50, offset: int = 0, type_id: Optional[int] = None) -> list[Part]:
         """List parts with pagination, ordered by creation date."""
-        stmt = (
-            select(Part)
-            .order_by(Part.created_at.desc())
-            .limit(limit)
-            .offset(offset)
-        )
+        stmt = select(Part).order_by(Part.created_at.desc())
+        
+        # Apply type filter if specified
+        if type_id is not None:
+            stmt = stmt.where(Part.type_id == type_id)
+        
+        stmt = stmt.limit(limit).offset(offset)
         return list(db.execute(stmt).scalars().all())
 
     @staticmethod

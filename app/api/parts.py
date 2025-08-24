@@ -38,26 +38,7 @@ def create_part():
         seller_link=data.seller_link,
     )
 
-    # Get total quantity for response
-    total_qty = PartService.get_total_quantity(g.db, part.id4)
-
-    # Create response data manually since total_quantity isn't on the model
-    response_data = {
-        "id4": part.id4,
-        "manufacturer_code": part.manufacturer_code,
-        "type_id": part.type_id,
-        "type": TypeResponseSchema.model_validate(part.type).model_dump() if part.type else None,
-        "description": part.description,
-        "image_url": part.image_url,
-        "tags": part.tags,
-        "seller": part.seller,
-        "seller_link": part.seller_link,
-        "created_at": part.created_at,
-        "updated_at": part.updated_at,
-        "total_quantity": total_qty
-    }
-
-    return response_data, 201
+    return PartResponseSchema.model_validate(part).model_dump(), 201
 
 
 @parts_bp.route("", methods=["GET"])
@@ -69,26 +50,10 @@ def list_parts():
     offset = int(request.args.get("offset", 0))
     type_filter = request.args.get("type_id", type=int)
 
-    # Apply type filter if specified
-    if type_filter:
-        # For now, implement simple filtering (could be optimized)
-        all_parts = PartService.get_parts_list(g.db, limit * 2, 0)  # Get more to filter
-        parts = [p for p in all_parts if p.type_id == type_filter][:limit]
-    else:
-        parts = PartService.get_parts_list(g.db, limit, offset)
+    # Get parts with optional type filtering
+    parts = PartService.get_parts_list(g.db, limit, offset, type_filter)
 
-    result = []
-    for part in parts:
-        total_qty = PartService.get_total_quantity(g.db, part.id4)
-        part_data = {
-            "id4": part.id4,
-            "manufacturer_code": part.manufacturer_code,
-            "description": part.description,
-            "total_quantity": total_qty
-        }
-        result.append(part_data)
-
-    return result
+    return [PartListSchema.model_validate(part).model_dump() for part in parts]
 
 
 @parts_bp.route("/<string:part_id4>", methods=["GET"])
@@ -100,26 +65,7 @@ def get_part(part_id4: str):
     if not part:
         return {"error": "Part not found"}, 404
 
-    # Get total quantity
-    total_qty = PartService.get_total_quantity(g.db, part_id4)
-
-    # Create response data manually
-    response_data = {
-        "id4": part.id4,
-        "manufacturer_code": part.manufacturer_code,
-        "type_id": part.type_id,
-        "type": TypeResponseSchema.model_validate(part.type).model_dump() if part.type else None,
-        "description": part.description,
-        "image_url": part.image_url,
-        "tags": part.tags,
-        "seller": part.seller,
-        "seller_link": part.seller_link,
-        "created_at": part.created_at,
-        "updated_at": part.updated_at,
-        "total_quantity": total_qty
-    }
-
-    return response_data
+    return PartResponseSchema.model_validate(part).model_dump()
 
 
 @parts_bp.route("/<string:part_id4>", methods=["PUT"])
@@ -144,26 +90,7 @@ def update_part(part_id4: str):
     if not part:
         return {"error": "Part not found"}, 404
 
-    # Get total quantity
-    total_qty = PartService.get_total_quantity(g.db, part_id4)
-
-    # Create response data manually
-    response_data = {
-        "id4": part.id4,
-        "manufacturer_code": part.manufacturer_code,
-        "type_id": part.type_id,
-        "type": TypeResponseSchema.model_validate(part.type).model_dump() if part.type else None,
-        "description": part.description,
-        "image_url": part.image_url,
-        "tags": part.tags,
-        "seller": part.seller,
-        "seller_link": part.seller_link,
-        "created_at": part.created_at,
-        "updated_at": part.updated_at,
-        "total_quantity": total_qty
-    }
-
-    return response_data
+    return PartResponseSchema.model_validate(part).model_dump()
 
 
 @parts_bp.route("/<string:part_id4>", methods=["DELETE"])

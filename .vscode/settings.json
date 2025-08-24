@@ -10,5 +10,8 @@
   "python.analysis.ignore": ["**/alembic/versions/**"],
   "python.linting.mypyEnabled": true,
   "python.linting.enabled": true,
-  "editor.formatOnSave": false
+  "editor.formatOnSave": false,
+  "[python]": {
+    "editor.formatOnSave": false
+  }
 }
