@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.schemas.type import TypeResponseSchema
 
@@ -145,10 +145,13 @@ class PartResponseSchema(BaseModel):
         description="Timestamp when the part was last modified",
         json_schema_extra={"example": "2024-01-15T14:45:00Z"}
     )
-    total_quantity: int = Field(
-        description="Total quantity across all locations",
-        json_schema_extra={"example": 25}
-    )
+
+    @computed_field
+    @property
+    def total_quantity(self) -> int:
+        """Computed field for total quantity across all locations."""
+        # This will access the part_locations relationship from the ORM model
+        return sum(location.qty for location in self.part_locations) if hasattr(self, 'part_locations') and self.part_locations else 0
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -168,10 +171,12 @@ class PartListSchema(BaseModel):
         description="Free text description",
         json_schema_extra={"example": "12V SPDT relay with 40A contacts"}
     )
-    total_quantity: int = Field(
-        description="Total quantity across all locations",
-        json_schema_extra={"example": 25}
-    )
+
+    @computed_field
+    @property
+    def total_quantity(self) -> int:
+        """Computed field for total quantity across all locations."""
+        return sum(location.qty for location in self.part_locations) if hasattr(self, 'part_locations') and self.part_locations else 0
 
     model_config = ConfigDict(from_attributes=True)
 

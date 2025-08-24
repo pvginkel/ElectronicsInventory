@@ -102,6 +102,37 @@ class TestPartsAPI:
             response_data = json.loads(response.data)
             assert len(response_data) == 2
 
+    def test_list_parts_with_type_filter(self, app: Flask, client: FlaskClient, session: Session):
+        """Test listing parts with type filter parameter."""
+        with app.app_context():
+            # Create types and parts
+            resistor_type = TypeService.create_type(session, "Resistor")
+            capacitor_type = TypeService.create_type(session, "Capacitor")
+            session.flush()
+
+            PartService.create_part(session, "1k resistor", type_id=resistor_type.id)
+            PartService.create_part(session, "2k resistor", type_id=resistor_type.id)
+            PartService.create_part(session, "100uF capacitor", type_id=capacitor_type.id)
+            session.commit()
+
+            # Test filtering by resistor type
+            response = client.get(f"/parts?type_id={resistor_type.id}")
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+            assert len(response_data) == 2
+
+            # Test filtering by capacitor type
+            response = client.get(f"/parts?type_id={capacitor_type.id}")
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+            assert len(response_data) == 1
+
+            # Test with non-existent type
+            response = client.get("/parts?type_id=999")
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+            assert len(response_data) == 0
+
     def test_get_part_existing(self, app: Flask, client: FlaskClient, session: Session):
         """Test getting an existing part."""
         with app.app_context():

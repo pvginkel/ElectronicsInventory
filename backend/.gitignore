@@ -159,9 +159,6 @@ cython_debug/
 #  project, it is recommended to ignore the whole .idea directory.
 .idea/
 
-# VS Code
-.vscode/
-
 # OS specific
 .DS_Store
 Thumbs.db

@@ -117,6 +117,39 @@ class TestPartService:
             result = PartService.get_parts_list(session, limit=2, offset=2)
             assert len(result) == 2
 
+    def test_get_parts_list_with_type_filter(self, app: Flask, session: Session):
+        """Test listing parts with type filtering."""
+        with app.app_context():
+            # Create types
+            resistor_type = TypeService.create_type(session, "Resistor")
+            capacitor_type = TypeService.create_type(session, "Capacitor")
+            session.flush()
+
+            # Create parts with different types
+            PartService.create_part(session, "1k resistor", type_id=resistor_type.id)
+            PartService.create_part(session, "2k resistor", type_id=resistor_type.id)
+            PartService.create_part(session, "100uF capacitor", type_id=capacitor_type.id)
+            PartService.create_part(session, "No type part")  # No type_id
+            session.commit()
+
+            # Test filtering by resistor type
+            resistors = PartService.get_parts_list(session, type_id=resistor_type.id)
+            assert len(resistors) == 2
+            assert all(part.type_id == resistor_type.id for part in resistors)
+
+            # Test filtering by capacitor type
+            capacitors = PartService.get_parts_list(session, type_id=capacitor_type.id)
+            assert len(capacitors) == 1
+            assert capacitors[0].type_id == capacitor_type.id
+
+            # Test with non-existent type
+            empty_result = PartService.get_parts_list(session, type_id=999)
+            assert len(empty_result) == 0
+
+            # Test no filter (should get all parts)
+            all_parts = PartService.get_parts_list(session)
+            assert len(all_parts) == 4
+
     def test_update_part_details(self, app: Flask, session: Session):
         """Test updating part details."""
         with app.app_context():
