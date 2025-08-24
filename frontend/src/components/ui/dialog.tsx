@@ -9,6 +9,7 @@ interface DialogProps {
 
 export function Dialog({ open, onOpenChange, children }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const mouseDownOutside = useRef(false)
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -25,10 +26,15 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
     onOpenChange(false)
   }
 
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === dialogRef.current) {
+  const handleMouseDown = (e: React.MouseEvent) => {
+    mouseDownOutside.current = e.target === dialogRef.current
+  }
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (e.target === dialogRef.current && mouseDownOutside.current) {
       handleClose()
     }
+    mouseDownOutside.current = false
   }
 
   return (
@@ -36,7 +42,8 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
       ref={dialogRef}
       className="backdrop:bg-black/50 bg-transparent p-0 rounded-lg shadow-lg max-w-lg w-full"
       onClose={handleClose}
-      onClick={handleBackdropClick}
+      onMouseDown={handleMouseDown}
+      onClick={handleClick}
     >
       <div className="bg-card text-card-foreground border rounded-lg shadow-lg">
         {children}
