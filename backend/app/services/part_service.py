@@ -36,7 +36,6 @@ class PartService:
         description: str,
         manufacturer_code: Optional[str] = None,
         type_id: Optional[int] = None,
-        image_url: Optional[str] = None,
         tags: Optional[list[str]] = None,
         seller: Optional[str] = None,
         seller_link: Optional[str] = None,
@@ -49,7 +48,6 @@ class PartService:
             manufacturer_code=manufacturer_code,
             type_id=type_id,
             description=description,
-            image_url=image_url,
             tags=tags,
             seller=seller,
             seller_link=seller_link,
@@ -68,11 +66,11 @@ class PartService:
     def get_parts_list(db: Session, limit: int = 50, offset: int = 0, type_id: Optional[int] = None) -> list[Part]:
         """List parts with pagination, ordered by creation date."""
         stmt = select(Part).order_by(Part.created_at.desc())
-        
+
         # Apply type filter if specified
         if type_id is not None:
             stmt = stmt.where(Part.type_id == type_id)
-        
+
         stmt = stmt.limit(limit).offset(offset)
         return list(db.execute(stmt).scalars().all())
 
@@ -83,7 +81,6 @@ class PartService:
         manufacturer_code: Optional[str] = None,
         type_id: Optional[int] = None,
         description: Optional[str] = None,
-        image_url: Optional[str] = None,
         tags: Optional[list[str]] = None,
         seller: Optional[str] = None,
         seller_link: Optional[str] = None,
@@ -101,8 +98,6 @@ class PartService:
             part.type_id = type_id
         if description is not None:
             part.description = description
-        if image_url is not None:
-            part.image_url = image_url
         if tags is not None:
             part.tags = tags
         if seller is not None:

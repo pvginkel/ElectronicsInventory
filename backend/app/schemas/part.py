@@ -28,12 +28,6 @@ class PartCreateSchema(BaseModel):
         description="Free text description of the part",
         json_schema_extra={"example": "12V SPDT relay with 40A contacts"}
     )
-    image_url: Optional[str] = Field(
-        None,
-        max_length=500,
-        description="URL to main part image",
-        json_schema_extra={"example": "https://s3.example.com/inventory-images/BZQP-main.jpg"}
-    )
     tags: Optional[list[str]] = Field(
         None,
         description="Tags for categorization and search",
@@ -72,12 +66,6 @@ class PartUpdateSchema(BaseModel):
         min_length=1,
         description="Updated description",
         json_schema_extra={"example": "12V SPDT automotive relay with 40A contacts"}
-    )
-    image_url: Optional[str] = Field(
-        None,
-        max_length=500,
-        description="Updated image URL",
-        json_schema_extra={"example": "https://s3.example.com/inventory-images/BZQP-updated.jpg"}
     )
     tags: Optional[list[str]] = Field(
         None,
@@ -120,10 +108,6 @@ class PartResponseSchema(BaseModel):
     description: str = Field(
         description="Free text description",
         json_schema_extra={"example": "12V SPDT relay with 40A contacts"}
-    )
-    image_url: Optional[str] = Field(
-        description="URL to main part image",
-        json_schema_extra={"example": "https://s3.example.com/inventory-images/BZQP-main.jpg"}
     )
     tags: Optional[list[str]] = Field(
         description="Tags for categorization",

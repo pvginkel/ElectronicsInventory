@@ -35,7 +35,6 @@ def upgrade() -> None:
     sa.Column('manufacturer_code', sa.String(255), nullable=True),
     sa.Column('type_id', sa.Integer(), nullable=True),
     sa.Column('description', sa.Text(), nullable=False),
-    sa.Column('image_url', sa.String(500), nullable=True),
     sa.Column('tags', postgresql.ARRAY(sa.Text()).with_variant(sa.JSON(), "sqlite"), nullable=True),
     sa.Column('seller', sa.String(255), nullable=True),
     sa.Column('seller_link', sa.String(500), nullable=True),
