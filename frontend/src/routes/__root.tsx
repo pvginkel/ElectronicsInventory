@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/router-devtools'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
+
+const queryClient = new QueryClient()
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -13,7 +16,8 @@ function RootLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <QueryClientProvider client={queryClient}>
+      <div className="flex h-screen overflow-hidden">
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <Sidebar
@@ -47,6 +51,7 @@ function RootLayout() {
       </div>
 
       <TanStackRouterDevtools />
-    </div>
+      </div>
+    </QueryClientProvider>
   )
 }

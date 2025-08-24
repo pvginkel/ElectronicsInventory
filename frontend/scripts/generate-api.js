@@ -66,9 +66,11 @@ import type { paths } from './types';
 
 // Create the main API client
 export const api = createClient<paths>({
-  baseUrl: process.env.NODE_ENV === 'production' 
-    ? '/api'  // Production: assume API is served from same origin
-    : 'http://localhost:5000',  // Development: backend on different port
+  baseUrl: import.meta.env.VITE_API_BASE_URL || (
+    process.env.NODE_ENV === 'production' 
+      ? '/api'  // Production: assume API is served from same origin
+      : 'http://localhost:5000'  // Development: backend on different port
+  ),
 });
 
 // Export types for convenience
@@ -122,7 +124,8 @@ ${hooks.join('\n\n')}
  * Generates a React Query hook for GET requests
  */
 function generateQueryHook(path, method, operation, operationId, summary) {
-  const hookName = `use${capitalize(operationId)}`;
+  const sanitizedOperationId = operationId.replace(/[{}]/g, '_');
+  const hookName = `use${capitalize(sanitizedOperationId)}`;
   const pathParams = extractPathParams(path);
   const hasParams = pathParams.length > 0 || (operation.parameters && operation.parameters.length > 0);
   
@@ -151,7 +154,7 @@ function generateQueryHook(path, method, operation, operationId, summary) {
  */
 export function ${hookName}(${paramsArg}${hasParams ? ', ' : ''}options?: ${optionsType}) {
   return useQuery({
-    queryKey: ['${operationId}'${hasParams ? ', params' : ''}],
+    queryKey: ['${sanitizedOperationId}'${hasParams ? ', params' : ''}],
     queryFn: async () => {
       const { data, error } = await api.${method.toUpperCase()}(${pathWithParams}${queryOptions});
       if (error) throw error;
@@ -166,7 +169,8 @@ export function ${hookName}(${paramsArg}${hasParams ? ', ' : ''}options?: ${opti
  * Generates a React Query mutation hook for POST/PUT/PATCH/DELETE requests
  */
 function generateMutationHook(path, method, operation, operationId, summary) {
-  const hookName = `use${capitalize(operationId)}`;
+  const sanitizedOperationId = operationId.replace(/[{}]/g, '_');
+  const hookName = `use${capitalize(sanitizedOperationId)}`;
   const pathParams = extractPathParams(path);
   const hasBody = operation.requestBody;
   const hasPathParams = pathParams.length > 0;
@@ -192,7 +196,7 @@ function generateMutationHook(path, method, operation, operationId, summary) {
     // Build mutation arguments
     const argParts = [];
     if (hasPathParams) {
-      argParts.push('params: variables.path');
+      argParts.push('params: { path: variables.path }');
     }
     if (hasBody) {
       argParts.push('body: variables.body');
