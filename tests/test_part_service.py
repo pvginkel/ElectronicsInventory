@@ -61,7 +61,6 @@ class TestPartService:
                 description="1k ohm resistor",
                 manufacturer_code="RES-1K-5%",
                 type_id=type_obj.id,
-                image_url="https://example.com/image.jpg",
                 tags=["1k", "5%", "THT"],
                 seller="Digi-Key",
                 seller_link="https://digikey.com/product/123"
@@ -70,7 +69,6 @@ class TestPartService:
             assert part.description == "1k ohm resistor"
             assert part.manufacturer_code == "RES-1K-5%"
             assert part.type_id == type_obj.id
-            assert part.image_url == "https://example.com/image.jpg"
             assert part.tags == ["1k", "5%", "THT"]
             assert part.seller == "Digi-Key"
             assert part.seller_link == "https://digikey.com/product/123"

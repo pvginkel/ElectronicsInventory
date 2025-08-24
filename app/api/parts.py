@@ -12,7 +12,6 @@ from app.schemas.part import (
     PartUpdateSchema,
 )
 from app.schemas.quantity_history import QuantityHistoryResponseSchema
-from app.schemas.type import TypeResponseSchema
 from app.services.inventory_service import InventoryService
 from app.services.part_service import PartService
 from app.utils.error_handling import handle_api_errors
@@ -32,7 +31,6 @@ def create_part():
         description=data.description,
         manufacturer_code=data.manufacturer_code,
         type_id=data.type_id,
-        image_url=data.image_url,
         tags=data.tags,
         seller=data.seller,
         seller_link=data.seller_link,
@@ -81,7 +79,6 @@ def update_part(part_id4: str):
         manufacturer_code=data.manufacturer_code,
         type_id=data.type_id,
         description=data.description,
-        image_url=data.image_url,
         tags=data.tags,
         seller=data.seller,
         seller_link=data.seller_link,

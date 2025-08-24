@@ -27,7 +27,6 @@ class Part(db.Model):  # type: ignore[name-defined]
         ForeignKey("types.id"), nullable=True
     )
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    image_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     tags: Mapped[Optional[list[str]]] = mapped_column(
         postgresql.ARRAY(Text).with_variant(JSON, "sqlite"), nullable=True
     )
