@@ -1,6 +1,37 @@
 {
   "components": {
     "schemas": {
+      "AddStockSchema.46800bd": {
+        "description": "Schema for adding stock to a location.",
+        "properties": {
+          "box_no": {
+            "description": "Box number where stock will be added",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "loc_no": {
+            "description": "Location number within the box",
+            "example": 3,
+            "title": "Loc No",
+            "type": "integer"
+          },
+          "qty": {
+            "description": "Quantity to add (must be positive)",
+            "example": 10,
+            "exclusiveMinimum": 0,
+            "title": "Qty",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "box_no",
+          "loc_no",
+          "qty"
+        ],
+        "title": "AddStockSchema",
+        "type": "object"
+      },
       "BoxCreateSchema.6d5ef0b": {
         "description": "Schema for creating a new box.",
         "properties": {
@@ -259,6 +290,821 @@
           "loc_no"
         ],
         "title": "LocationResponseSchema",
+        "type": "object"
+      },
+      "LocationSuggestionSchema.46800bd": {
+        "description": "Schema for location suggestions.",
+        "properties": {
+          "box_no": {
+            "description": "Suggested box number",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "loc_no": {
+            "description": "Suggested location number within box",
+            "example": 3,
+            "title": "Loc No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "box_no",
+          "loc_no"
+        ],
+        "title": "LocationSuggestionSchema",
+        "type": "object"
+      },
+      "MoveStockSchema.46800bd": {
+        "description": "Schema for moving stock between locations.",
+        "properties": {
+          "from_box_no": {
+            "description": "Source box number",
+            "example": 7,
+            "title": "From Box No",
+            "type": "integer"
+          },
+          "from_loc_no": {
+            "description": "Source location number within box",
+            "example": 3,
+            "title": "From Loc No",
+            "type": "integer"
+          },
+          "qty": {
+            "description": "Quantity to move (must be positive)",
+            "example": 3,
+            "exclusiveMinimum": 0,
+            "title": "Qty",
+            "type": "integer"
+          },
+          "to_box_no": {
+            "description": "Destination box number",
+            "example": 8,
+            "title": "To Box No",
+            "type": "integer"
+          },
+          "to_loc_no": {
+            "description": "Destination location number within box",
+            "example": 15,
+            "title": "To Loc No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "from_box_no",
+          "from_loc_no",
+          "to_box_no",
+          "to_loc_no",
+          "qty"
+        ],
+        "title": "MoveStockSchema",
+        "type": "object"
+      },
+      "PartCreateSchema.1a46b79": {
+        "description": "Schema for creating a new part.",
+        "properties": {
+          "description": {
+            "description": "Free text description of the part",
+            "example": "12V SPDT relay with 40A contacts",
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "URL to main part image",
+            "example": "https://s3.example.com/inventory-images/BZQP-main.jpg",
+            "title": "Image Url"
+          },
+          "manufacturer_code": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Manufacturer's part number or code",
+            "example": "OMRON G5Q-1A4",
+            "title": "Manufacturer Code"
+          },
+          "seller": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vendor/supplier name",
+            "example": "Digi-Key",
+            "title": "Seller"
+          },
+          "seller_link": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Product page URL at seller",
+            "example": "https://www.digikey.com/en/products/detail/G5Q-1A4",
+            "title": "Seller Link"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tags for categorization and search",
+            "example": [
+              "12V",
+              "SPDT",
+              "automotive"
+            ],
+            "title": "Tags"
+          },
+          "type_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ID of the part type/category",
+            "example": 1,
+            "title": "Type Id"
+          }
+        },
+        "required": [
+          "description"
+        ],
+        "title": "PartCreateSchema",
+        "type": "object"
+      },
+      "PartListSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/PartListSchemaList.a9993e3.PartListSchema"
+        },
+        "title": "PartListSchemaList",
+        "type": "array"
+      },
+      "PartListSchemaList.a9993e3.PartListSchema": {
+        "description": "Schema for lightweight part listings.",
+        "properties": {
+          "description": {
+            "description": "Free text description",
+            "example": "12V SPDT relay with 40A contacts",
+            "title": "Description",
+            "type": "string"
+          },
+          "id4": {
+            "description": "4-character unique part identifier",
+            "example": "BZQP",
+            "title": "Id4",
+            "type": "string"
+          },
+          "manufacturer_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Manufacturer's part number",
+            "example": "OMRON G5Q-1A4",
+            "title": "Manufacturer Code"
+          }
+        },
+        "required": [
+          "id4",
+          "manufacturer_code",
+          "description"
+        ],
+        "title": "PartListSchema",
+        "type": "object"
+      },
+      "PartLocationResponseSchema.1a46b79": {
+        "description": "Schema for part location details with quantity.",
+        "properties": {
+          "box_no": {
+            "description": "Box number",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "id4": {
+            "description": "4-character part identifier",
+            "example": "BZQP",
+            "title": "Id4",
+            "type": "string"
+          },
+          "loc_no": {
+            "description": "Location number within box",
+            "example": 3,
+            "title": "Loc No",
+            "type": "integer"
+          },
+          "qty": {
+            "description": "Quantity at this location",
+            "example": 10,
+            "title": "Qty",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id4",
+          "box_no",
+          "loc_no",
+          "qty"
+        ],
+        "title": "PartLocationResponseSchema",
+        "type": "object"
+      },
+      "PartLocationResponseSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/PartLocationResponseSchemaList.a9993e3.PartLocationResponseSchema"
+        },
+        "title": "PartLocationResponseSchemaList",
+        "type": "array"
+      },
+      "PartLocationResponseSchemaList.a9993e3.PartLocationResponseSchema": {
+        "description": "Schema for part location details with quantity.",
+        "properties": {
+          "box_no": {
+            "description": "Box number",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "id4": {
+            "description": "4-character part identifier",
+            "example": "BZQP",
+            "title": "Id4",
+            "type": "string"
+          },
+          "loc_no": {
+            "description": "Location number within box",
+            "example": 3,
+            "title": "Loc No",
+            "type": "integer"
+          },
+          "qty": {
+            "description": "Quantity at this location",
+            "example": 10,
+            "title": "Qty",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id4",
+          "box_no",
+          "loc_no",
+          "qty"
+        ],
+        "title": "PartLocationResponseSchema",
+        "type": "object"
+      },
+      "PartResponseSchema.1a46b79": {
+        "description": "Schema for full part details with relationships.",
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when the part was created",
+            "example": "2024-01-15T10:30:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "description": "Free text description",
+            "example": "12V SPDT relay with 40A contacts",
+            "title": "Description",
+            "type": "string"
+          },
+          "id4": {
+            "description": "4-character unique part identifier",
+            "example": "BZQP",
+            "title": "Id4",
+            "type": "string"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "URL to main part image",
+            "example": "https://s3.example.com/inventory-images/BZQP-main.jpg",
+            "title": "Image Url"
+          },
+          "manufacturer_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Manufacturer's part number",
+            "example": "OMRON G5Q-1A4",
+            "title": "Manufacturer Code"
+          },
+          "seller": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vendor/supplier name",
+            "example": "Digi-Key",
+            "title": "Seller"
+          },
+          "seller_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Product page URL",
+            "example": "https://www.digikey.com/en/products/detail/G5Q-1A4",
+            "title": "Seller Link"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tags for categorization",
+            "example": [
+              "12V",
+              "SPDT",
+              "automotive"
+            ],
+            "title": "Tags"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PartResponseSchema.1a46b79.TypeResponseSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Part type/category details"
+          },
+          "type_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Part type/category ID",
+            "example": 1,
+            "title": "Type Id"
+          },
+          "updated_at": {
+            "description": "Timestamp when the part was last modified",
+            "example": "2024-01-15T14:45:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id4",
+          "manufacturer_code",
+          "type_id",
+          "description",
+          "image_url",
+          "tags",
+          "seller",
+          "seller_link",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "PartResponseSchema",
+        "type": "object"
+      },
+      "PartResponseSchema.1a46b79.TypeResponseSchema": {
+        "description": "Schema for type details.",
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when the type was created",
+            "example": "2024-01-15T10:30:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the type",
+            "example": 1,
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Name of the part type/category",
+            "example": "Relay",
+            "title": "Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "Timestamp when the type was last modified",
+            "example": "2024-01-15T14:45:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "TypeResponseSchema",
+        "type": "object"
+      },
+      "PartUpdateSchema.1a46b79": {
+        "description": "Schema for updating an existing part.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated description",
+            "example": "12V SPDT automotive relay with 40A contacts",
+            "title": "Description"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated image URL",
+            "example": "https://s3.example.com/inventory-images/BZQP-updated.jpg",
+            "title": "Image Url"
+          },
+          "manufacturer_code": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated manufacturer's part number",
+            "example": "OMRON G5Q-1A4-DC12",
+            "title": "Manufacturer Code"
+          },
+          "seller": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated seller name",
+            "example": "Mouser Electronics",
+            "title": "Seller"
+          },
+          "seller_link": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated product page URL",
+            "example": "https://www.mouser.com/ProductDetail/G5Q-1A4",
+            "title": "Seller Link"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated tags",
+            "example": [
+              "12V",
+              "SPDT",
+              "automotive",
+              "waterproof"
+            ],
+            "title": "Tags"
+          },
+          "type_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated part type/category ID",
+            "example": 2,
+            "title": "Type Id"
+          }
+        },
+        "title": "PartUpdateSchema",
+        "type": "object"
+      },
+      "QuantityHistoryResponseSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/QuantityHistoryResponseSchemaList.a9993e3.QuantityHistoryResponseSchema"
+        },
+        "title": "QuantityHistoryResponseSchemaList",
+        "type": "array"
+      },
+      "QuantityHistoryResponseSchemaList.a9993e3.QuantityHistoryResponseSchema": {
+        "description": "Schema for quantity history entries.",
+        "properties": {
+          "delta_qty": {
+            "description": "Quantity change (positive for additions, negative for removals)",
+            "example": -5,
+            "title": "Delta Qty",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Unique identifier for the history entry",
+            "example": 1,
+            "title": "Id",
+            "type": "integer"
+          },
+          "location_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Location reference where change occurred",
+            "example": "7-3",
+            "title": "Location Reference"
+          },
+          "part_id4": {
+            "description": "4-character part identifier",
+            "example": "BZQP",
+            "title": "Part Id4",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "When the quantity change occurred",
+            "example": "2024-01-15T14:45:00Z",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "part_id4",
+          "delta_qty",
+          "location_reference",
+          "timestamp"
+        ],
+        "title": "QuantityHistoryResponseSchema",
+        "type": "object"
+      },
+      "RemoveStockSchema.46800bd": {
+        "description": "Schema for removing stock from a location.",
+        "properties": {
+          "box_no": {
+            "description": "Box number where stock will be removed from",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "loc_no": {
+            "description": "Location number within the box",
+            "example": 3,
+            "title": "Loc No",
+            "type": "integer"
+          },
+          "qty": {
+            "description": "Quantity to remove (must be positive)",
+            "example": 5,
+            "exclusiveMinimum": 0,
+            "title": "Qty",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "box_no",
+          "loc_no",
+          "qty"
+        ],
+        "title": "RemoveStockSchema",
+        "type": "object"
+      },
+      "TypeCreateSchema.50492c8": {
+        "description": "Schema for creating a new type.",
+        "properties": {
+          "name": {
+            "description": "Name of the part type/category",
+            "example": "Relay",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "TypeCreateSchema",
+        "type": "object"
+      },
+      "TypeResponseSchema.50492c8": {
+        "description": "Schema for type details.",
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when the type was created",
+            "example": "2024-01-15T10:30:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the type",
+            "example": 1,
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Name of the part type/category",
+            "example": "Relay",
+            "title": "Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "Timestamp when the type was last modified",
+            "example": "2024-01-15T14:45:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "TypeResponseSchema",
+        "type": "object"
+      },
+      "TypeResponseSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/TypeResponseSchemaList.a9993e3.TypeResponseSchema"
+        },
+        "title": "TypeResponseSchemaList",
+        "type": "array"
+      },
+      "TypeResponseSchemaList.a9993e3.TypeResponseSchema": {
+        "description": "Schema for type details.",
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when the type was created",
+            "example": "2024-01-15T10:30:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the type",
+            "example": 1,
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Name of the part type/category",
+            "example": "Relay",
+            "title": "Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "Timestamp when the type was last modified",
+            "example": "2024-01-15T14:45:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "TypeResponseSchema",
+        "type": "object"
+      },
+      "TypeUpdateSchema.50492c8": {
+        "description": "Schema for updating an existing type.",
+        "properties": {
+          "name": {
+            "description": "Updated name of the part type/category",
+            "example": "Power Relay",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "TypeUpdateSchema",
         "type": "object"
       },
       "ValidationError.6a07bef": {
@@ -596,6 +1442,225 @@
         "tags": []
       }
     },
+    "/inventory/parts/{part_id4}/move": {
+      "post": {
+        "description": "",
+        "operationId": "post__inventory_parts_{part_id4}_move",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "part_id4",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveStockSchema.46800bd"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Move stock between locations.",
+        "tags": []
+      }
+    },
+    "/inventory/parts/{part_id4}/stock": {
+      "delete": {
+        "description": "",
+        "operationId": "delete__inventory_parts_{part_id4}_stock",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "part_id4",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveStockSchema.46800bd"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Remove stock from a location.",
+        "tags": []
+      },
+      "post": {
+        "description": "",
+        "operationId": "post__inventory_parts_{part_id4}_stock",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "part_id4",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddStockSchema.46800bd"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartLocationResponseSchema.1a46b79"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Add stock to a location.",
+        "tags": []
+      }
+    },
+    "/inventory/suggestions/{type_id}": {
+      "get": {
+        "description": "",
+        "operationId": "get__inventory_suggestions_{type_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "type_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationSuggestionSchema.46800bd"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Get location suggestions for part type.",
+        "tags": []
+      }
+    },
     "/locations/{box_no}/{loc_no}": {
       "get": {
         "description": "",
@@ -655,6 +1720,575 @@
           }
         },
         "summary": "Get specific location details.",
+        "tags": []
+      }
+    },
+    "/parts": {
+      "get": {
+        "description": "",
+        "operationId": "get__parts",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartListSchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "List parts with pagination.",
+        "tags": []
+      },
+      "post": {
+        "description": "",
+        "operationId": "post__parts",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartCreateSchema.1a46b79"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartResponseSchema.1a46b79"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Create new part.",
+        "tags": []
+      }
+    },
+    "/parts/{part_id4}": {
+      "delete": {
+        "description": "",
+        "operationId": "delete__parts_{part_id4}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "part_id4",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Delete part if total quantity is zero.",
+        "tags": []
+      },
+      "get": {
+        "description": "",
+        "operationId": "get__parts_{part_id4}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "part_id4",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartResponseSchema.1a46b79"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Get single part with full details.",
+        "tags": []
+      },
+      "put": {
+        "description": "",
+        "operationId": "put__parts_{part_id4}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "part_id4",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartUpdateSchema.1a46b79"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartResponseSchema.1a46b79"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Update part details.",
+        "tags": []
+      }
+    },
+    "/parts/{part_id4}/history": {
+      "get": {
+        "description": "",
+        "operationId": "get__parts_{part_id4}_history",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "part_id4",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuantityHistoryResponseSchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Get quantity change history for a part.",
+        "tags": []
+      }
+    },
+    "/parts/{part_id4}/locations": {
+      "get": {
+        "description": "",
+        "operationId": "get__parts_{part_id4}_locations",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "part_id4",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartLocationResponseSchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Get all locations for a part.",
+        "tags": []
+      }
+    },
+    "/types": {
+      "get": {
+        "description": "",
+        "operationId": "get__types",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypeResponseSchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "List all part types.",
+        "tags": []
+      },
+      "post": {
+        "description": "",
+        "operationId": "post__types",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TypeCreateSchema.50492c8"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypeResponseSchema.50492c8"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Create new part type.",
+        "tags": []
+      }
+    },
+    "/types/{type_id}": {
+      "delete": {
+        "description": "",
+        "operationId": "delete__types_{type_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "type_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Delete type if not in use.",
+        "tags": []
+      },
+      "get": {
+        "description": "",
+        "operationId": "get__types_{type_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "type_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypeResponseSchema.50492c8"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Get single type details.",
+        "tags": []
+      },
+      "put": {
+        "description": "",
+        "operationId": "put__types_{type_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "type_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TypeUpdateSchema.50492c8"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypeResponseSchema.50492c8"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Update type name.",
         "tags": []
       }
     }
