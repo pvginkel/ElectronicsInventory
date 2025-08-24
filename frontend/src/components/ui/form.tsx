@@ -41,7 +41,7 @@ export function FormLabel({ children, htmlFor, required, className = '' }: FormL
       className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${className}`}
     >
       {children}
-      {required && <span className="text-red-500 ml-1">*</span>}
+      {required && <span className="text-destructive ml-1">*</span>}
     </label>
   )
 }
@@ -55,7 +55,7 @@ export function FormError({ message, className = '' }: FormErrorProps) {
   if (!message) return null
 
   return (
-    <p className={`text-sm text-red-500 ${className}`}>
+    <p className={`text-sm text-destructive ${className}`}>
       {message}
     </p>
   )
