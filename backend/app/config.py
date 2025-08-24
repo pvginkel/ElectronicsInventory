@@ -66,6 +66,11 @@ class Settings(BaseSettings):
         """Disable SQLAlchemy track modifications."""
         return False
 
+    @property
+    def is_testing(self) -> bool:
+        """Check if running in testing environment."""
+        return self.FLASK_ENV == "testing"
+
 
 @lru_cache
 def get_settings() -> Settings:
