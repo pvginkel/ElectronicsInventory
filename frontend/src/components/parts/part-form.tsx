@@ -143,77 +143,79 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
       </div>
 
       <Form onSubmit={handleSubmit} className="space-y-6">
-        <FormField>
-          <FormLabel htmlFor="description" required>
-            Description
-          </FormLabel>
-          <Input
-            id="description"
-            value={formData.description}
-            onChange={(e) => updateFormData('description', e.target.value)}
-            error={errors.description}
-            maxLength={200}
-          />
-          <FormError message={errors.description} />
-        </FormField>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FormField>
+            <FormLabel htmlFor="description" required>
+              Description
+            </FormLabel>
+            <Input
+              id="description"
+              value={formData.description}
+              onChange={(e) => updateFormData('description', e.target.value)}
+              error={errors.description}
+              maxLength={200}
+            />
+            <FormError message={errors.description} />
+          </FormField>
 
-        <FormField>
-          <FormLabel htmlFor="manufacturerCode">
-            Manufacturer Code
-          </FormLabel>
-          <Input
-            id="manufacturerCode"
-            value={formData.manufacturerCode}
-            onChange={(e) => updateFormData('manufacturerCode', e.target.value)}
-            error={errors.manufacturerCode}
-            maxLength={100}
-          />
-          <FormError message={errors.manufacturerCode} />
-        </FormField>
+          <FormField>
+            <FormLabel htmlFor="manufacturerCode">
+              Manufacturer Code
+            </FormLabel>
+            <Input
+              id="manufacturerCode"
+              value={formData.manufacturerCode}
+              onChange={(e) => updateFormData('manufacturerCode', e.target.value)}
+              error={errors.manufacturerCode}
+              maxLength={100}
+            />
+            <FormError message={errors.manufacturerCode} />
+          </FormField>
 
-        <FormField>
-          <FormLabel>Type</FormLabel>
-          <TypeSelector
-            value={formData.typeId}
-            onChange={(value) => updateFormData('typeId', value)}
-            error={errors.typeId}
-          />
-          <FormError message={errors.typeId} />
-        </FormField>
+          <FormField>
+            <FormLabel>Type</FormLabel>
+            <TypeSelector
+              value={formData.typeId}
+              onChange={(value) => updateFormData('typeId', value)}
+              error={errors.typeId}
+            />
+            <FormError message={errors.typeId} />
+          </FormField>
 
-        <FormField>
-          <FormLabel>Tags</FormLabel>
-          <TagsInput
-            value={formData.tags}
-            onChange={(tags) => updateFormData('tags', tags)}
-          />
-        </FormField>
+          <FormField>
+            <FormLabel>Tags</FormLabel>
+            <TagsInput
+              value={formData.tags}
+              onChange={(tags) => updateFormData('tags', tags)}
+            />
+          </FormField>
 
-        <FormField>
-          <FormLabel htmlFor="seller">
-            Seller
-          </FormLabel>
-          <Input
-            id="seller"
-            value={formData.seller}
-            onChange={(e) => updateFormData('seller', e.target.value)}
-            error={errors.seller}
-          />
-          <FormError message={errors.seller} />
-        </FormField>
+          <FormField>
+            <FormLabel htmlFor="seller">
+              Seller
+            </FormLabel>
+            <Input
+              id="seller"
+              value={formData.seller}
+              onChange={(e) => updateFormData('seller', e.target.value)}
+              error={errors.seller}
+            />
+            <FormError message={errors.seller} />
+          </FormField>
 
-        <FormField>
-          <FormLabel htmlFor="sellerLink">
-            Seller Link
-          </FormLabel>
-          <Input
-            id="sellerLink"
-            value={formData.sellerLink}
-            onChange={(e) => updateFormData('sellerLink', e.target.value)}
-            error={errors.sellerLink}
-          />
-          <FormError message={errors.sellerLink} />
-        </FormField>
+          <FormField>
+            <FormLabel htmlFor="sellerLink">
+              Seller Link
+            </FormLabel>
+            <Input
+              id="sellerLink"
+              value={formData.sellerLink}
+              onChange={(e) => updateFormData('sellerLink', e.target.value)}
+              error={errors.sellerLink}
+            />
+            <FormError message={errors.sellerLink} />
+          </FormField>
+        </div>
 
         <FormError message={errors.submit} />
 

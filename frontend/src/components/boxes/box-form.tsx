@@ -73,29 +73,31 @@ export function BoxForm({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <FormField>
-              <FormLabel htmlFor="description" required>
-                Description
-              </FormLabel>
-              <Input
-                id="description"
-                maxLength={255}
-                {...form.getFieldProps('description')}
-              />
-            </FormField>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField>
+                <FormLabel htmlFor="description" required>
+                  Description
+                </FormLabel>
+                <Input
+                  id="description"
+                  maxLength={255}
+                  {...form.getFieldProps('description')}
+                />
+              </FormField>
 
-            <FormField>
-              <FormLabel htmlFor="capacity" required>
-                Capacity
-              </FormLabel>
-              <Input
-                id="capacity"
-                type="number"
-                min="1"
-                max="50"
-                {...form.getFieldProps('capacity')}
-              />
-            </FormField>
+              <FormField>
+                <FormLabel htmlFor="capacity" required>
+                  Capacity
+                </FormLabel>
+                <Input
+                  id="capacity"
+                  type="number"
+                  min="1"
+                  max="50"
+                  {...form.getFieldProps('capacity')}
+                />
+              </FormField>
+            </div>
           </div>
 
           <DialogFooter>

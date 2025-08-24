@@ -82,7 +82,7 @@ export function AddStockDialog({ partId, typeId, open, onOpenChange, onSuccess }
         </DialogHeader>
 
         <Form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField>
               <FormLabel htmlFor="boxNo" required>Box Number</FormLabel>
               <Input
@@ -241,7 +241,7 @@ export function MoveStockDialog({ partId, fromLocation, open, onOpenChange, onSu
         </div>
 
         <Form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField>
               <FormLabel htmlFor="toBoxNo" required>To Box Number</FormLabel>
               <Input
