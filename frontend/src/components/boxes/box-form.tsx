@@ -109,7 +109,7 @@ export function BoxForm({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
+            <Button type="button" variant="outline" preventValidation onClick={handleClose}>
               Cancel
             </Button>
             <Button 

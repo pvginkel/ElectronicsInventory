@@ -10,6 +10,7 @@ interface ButtonProps {
   icon?: ReactNode
   className?: string
   type?: 'button' | 'submit' | 'reset'
+  preventValidation?: boolean
 }
 
 export function Button({ 
@@ -21,7 +22,8 @@ export function Button({
   loading = false,
   icon,
   className = '',
-  type = 'button'
+  type = 'button',
+  preventValidation = false
 }: ButtonProps) {
   const baseClasses = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
   
@@ -39,10 +41,16 @@ export function Button({
     lg: 'h-11 px-8'
   }
   
+  const handleMouseDown = preventValidation ? (e: React.MouseEvent) => {
+    e.preventDefault()
+    onClick?.()
+  } : undefined
+
   return (
     <button
       type={type}
-      onClick={onClick}
+      onClick={preventValidation ? undefined : onClick}
+      onMouseDown={handleMouseDown}
       disabled={disabled || loading}
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
     >

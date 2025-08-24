@@ -13,6 +13,7 @@ export interface FormState<T> {
   errors: FormErrors<T>
   touched: { [K in keyof T]?: boolean }
   isSubmitting: boolean
+  isResetting: boolean
   isValid: boolean
 }
 
@@ -31,6 +32,7 @@ export function useFormState<T extends Record<string, unknown>>({
   const [errors, setErrors] = useState<FormErrors<T>>({})
   const [touched, setTouched] = useState<{ [K in keyof T]?: boolean }>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isResetting, setIsResetting] = useState(false)
 
   const validateField = (name: keyof T, value: T[keyof T]): string | undefined => {
     const rule = validationRules[name]
@@ -61,6 +63,9 @@ export function useFormState<T extends Record<string, unknown>>({
   }
 
   const setFieldTouched = (name: keyof T, isTouched: boolean = true) => {
+    // Don't validate or mark as touched if we're resetting
+    if (isResetting) return
+    
     setTouched(prev => ({ ...prev, [name]: isTouched }))
     
     if (isTouched) {
@@ -101,10 +106,13 @@ export function useFormState<T extends Record<string, unknown>>({
   }
 
   const reset = () => {
+    setIsResetting(true)
     setValues(initialValues)
     setErrors({})
     setTouched({})
     setIsSubmitting(false)
+    // Reset the resetting flag after a brief moment to allow blur events to be ignored
+    setTimeout(() => setIsResetting(false), 0)
   }
 
   const isValid = Object.values(errors).every(error => !error)
@@ -114,6 +122,7 @@ export function useFormState<T extends Record<string, unknown>>({
     errors,
     touched,
     isSubmitting,
+    isResetting,
     isValid,
     setValue,
     setFieldTouched,
