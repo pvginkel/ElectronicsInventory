@@ -25,6 +25,9 @@ def create_app(settings: "Settings | None" = None) -> Flask:
     # Initialize extensions
     db.init_app(app)
 
+    # Import models to register them with SQLAlchemy
+    from app import models  # noqa: F401
+
     # Initialize SessionLocal for per-request sessions
     # This needs to be done in app context since db.engine requires it
     with app.app_context():
@@ -52,11 +55,17 @@ def create_app(settings: "Settings | None" = None) -> Flask:
     # Register blueprints
     from app.api import health_bp
     from app.api.boxes import boxes_bp
+    from app.api.inventory import inventory_bp
     from app.api.locations import locations_bp
+    from app.api.parts import parts_bp
+    from app.api.types import types_bp
 
     app.register_blueprint(health_bp)
     app.register_blueprint(boxes_bp)
     app.register_blueprint(locations_bp)
+    app.register_blueprint(types_bp)
+    app.register_blueprint(parts_bp)
+    app.register_blueprint(inventory_bp)
 
     # Session per request hooks
     @app.before_request
