@@ -2,18 +2,24 @@
 
 from flask import Blueprint, jsonify
 
-from app.api.boxes import boxes_bp
-from app.api.locations import locations_bp
+# Create main API blueprint
+api_bp = Blueprint("api", __name__, url_prefix="/api")
 
-# Health check blueprint
-health_bp = Blueprint("health", __name__)
-
-
-@health_bp.route("/health")
+# Health check endpoint directly on the main API blueprint
+@api_bp.route("/health")
 def health_check():
     """Health check endpoint for container orchestration."""
     return jsonify({"status": "healthy"})
 
+# Import and register all resource blueprints
+from app.api.boxes import boxes_bp
+from app.api.inventory import inventory_bp
+from app.api.locations import locations_bp
+from app.api.parts import parts_bp
+from app.api.types import types_bp
 
-# Import other blueprints here when they're created
-# from app.api.parts import parts_bp
+api_bp.register_blueprint(boxes_bp)
+api_bp.register_blueprint(locations_bp)
+api_bp.register_blueprint(types_bp)
+api_bp.register_blueprint(parts_bp)
+api_bp.register_blueprint(inventory_bp)

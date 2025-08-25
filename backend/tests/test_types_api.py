@@ -17,7 +17,7 @@ class TestTypesAPI:
         """Test creating a new type."""
         data = {"name": "Resistor"}
 
-        response = client.post("/types", json=data)
+        response = client.post("/api/types", json=data)
 
         assert response.status_code == 201
         response_data = json.loads(response.data)
@@ -31,14 +31,14 @@ class TestTypesAPI:
         # Missing required name
         data = {}
 
-        response = client.post("/types", json=data)
+        response = client.post("/api/types", json=data)
         assert response.status_code == 400
 
     def test_create_type_empty_name(self, app: Flask, client: FlaskClient):
         """Test creating a type with empty name."""
         data = {"name": ""}
 
-        response = client.post("/types", json=data)
+        response = client.post("/api/types", json=data)
         assert response.status_code == 400
 
     def test_list_types(self, app: Flask, client: FlaskClient, session: Session):
@@ -50,7 +50,7 @@ class TestTypesAPI:
             TypeService.create_type(session, "Inductor")
             session.commit()
 
-            response = client.get("/types")
+            response = client.get("/api/types")
 
             assert response.status_code == 200
             response_data = json.loads(response.data)
@@ -63,7 +63,7 @@ class TestTypesAPI:
 
     def test_list_types_empty(self, app: Flask, client: FlaskClient):
         """Test listing types when none exist."""
-        response = client.get("/types")
+        response = client.get("/api/types")
 
         assert response.status_code == 200
         response_data = json.loads(response.data)
@@ -75,7 +75,7 @@ class TestTypesAPI:
             type_obj = TypeService.create_type(session, "Capacitor")
             session.commit()
 
-            response = client.get(f"/types/{type_obj.id}")
+            response = client.get(f"/api/types/{type_obj.id}")
 
             assert response.status_code == 200
             response_data = json.loads(response.data)
@@ -85,7 +85,7 @@ class TestTypesAPI:
 
     def test_get_type_nonexistent(self, app: Flask, client: FlaskClient):
         """Test getting a non-existent type."""
-        response = client.get("/types/999")
+        response = client.get("/api/types/999")
         assert response.status_code == 404
 
     def test_update_type(self, app: Flask, client: FlaskClient, session: Session):
@@ -96,7 +96,7 @@ class TestTypesAPI:
 
             update_data = {"name": "Fixed Resistor"}
 
-            response = client.put(f"/types/{type_obj.id}", json=update_data)
+            response = client.put(f"/api/types/{type_obj.id}", json=update_data)
 
             assert response.status_code == 200
             response_data = json.loads(response.data)
@@ -108,7 +108,7 @@ class TestTypesAPI:
         """Test updating a non-existent type."""
         update_data = {"name": "New Name"}
 
-        response = client.put("/types/999", json=update_data)
+        response = client.put("/api/types/999", json=update_data)
         assert response.status_code == 404
 
     def test_update_type_invalid_data(self, app: Flask, client: FlaskClient, session: Session):
@@ -120,7 +120,7 @@ class TestTypesAPI:
             # Empty name
             update_data = {"name": ""}
 
-            response = client.put(f"/types/{type_obj.id}", json=update_data)
+            response = client.put(f"/api/types/{type_obj.id}", json=update_data)
             assert response.status_code == 400
 
     def test_delete_type_unused(self, app: Flask, client: FlaskClient, session: Session):
@@ -129,7 +129,7 @@ class TestTypesAPI:
             type_obj = TypeService.create_type(session, "Temporary")
             session.commit()
 
-            response = client.delete(f"/types/{type_obj.id}")
+            response = client.delete(f"/api/types/{type_obj.id}")
             assert response.status_code == 204
 
     def test_delete_type_in_use(self, app: Flask, client: FlaskClient, session: Session):
@@ -146,10 +146,10 @@ class TestTypesAPI:
             )
             session.commit()
 
-            response = client.delete(f"/types/{type_obj.id}")
+            response = client.delete(f"/api/types/{type_obj.id}")
             assert response.status_code == 409
 
     def test_delete_type_nonexistent(self, app: Flask, client: FlaskClient):
         """Test deleting a non-existent type."""
-        response = client.delete("/types/999")
+        response = client.delete("/api/types/999")
         assert response.status_code == 404

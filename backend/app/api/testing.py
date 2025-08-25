@@ -4,8 +4,10 @@ from flask import Blueprint, g, jsonify
 from spectree import Response
 
 from app.config import get_settings
+from app.schemas.common import ErrorResponseSchema
+from app.schemas.testing import TestHealthResponseSchema, TestResetResponseSchema
 from app.utils.error_handling import handle_api_errors
-from app.utils.spectree_config import spec
+from app.utils.spectree_config import api
 
 testing_bp = Blueprint("testing", __name__, url_prefix="/api/test")
 
@@ -19,7 +21,7 @@ def ensure_testing_environment():
 
 
 @testing_bp.route("/reset", methods=["DELETE"])
-@spec.validate(resp=Response(HTTP_200=dict, HTTP_404=dict), tags=["testing"])
+@api.validate(resp=Response(HTTP_200=TestResetResponseSchema, HTTP_404=ErrorResponseSchema), tags=["testing"])
 @handle_api_errors
 def reset_database():
     """Reset database to clean state for testing.
@@ -41,7 +43,7 @@ def reset_database():
 
 
 @testing_bp.route("/health", methods=["GET"])
-@spec.validate(resp=Response(HTTP_200=dict, HTTP_404=dict), tags=["testing"])
+@api.validate(resp=Response(HTTP_200=TestHealthResponseSchema, HTTP_404=ErrorResponseSchema), tags=["testing"])
 @handle_api_errors
 def test_health():
     """Health check endpoint for testing environment."""

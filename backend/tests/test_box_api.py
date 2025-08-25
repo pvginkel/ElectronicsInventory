@@ -16,7 +16,7 @@ class TestBoxAPI:
         """Test creating a box with valid data."""
         data = {"description": "Storage Box A", "capacity": 12}
         response = client.post(
-            "/boxes", data=json.dumps(data), content_type="application/json"
+            "/api/boxes", data=json.dumps(data), content_type="application/json"
         )
 
         assert response.status_code == 201
@@ -36,7 +36,7 @@ class TestBoxAPI:
         """Test creating a box with zero capacity fails validation."""
         data = {"description": "Invalid Box", "capacity": 0}
         response = client.post(
-            "/boxes", data=json.dumps(data), content_type="application/json"
+            "/api/boxes", data=json.dumps(data), content_type="application/json"
         )
 
         assert response.status_code == 400
@@ -45,7 +45,7 @@ class TestBoxAPI:
         """Test creating a box with negative capacity fails validation."""
         data = {"description": "Invalid Box", "capacity": -5}
         response = client.post(
-            "/boxes", data=json.dumps(data), content_type="application/json"
+            "/api/boxes", data=json.dumps(data), content_type="application/json"
         )
 
         assert response.status_code == 400
@@ -54,7 +54,7 @@ class TestBoxAPI:
         """Test creating a box without description fails validation."""
         data = {"capacity": 10}
         response = client.post(
-            "/boxes", data=json.dumps(data), content_type="application/json"
+            "/api/boxes", data=json.dumps(data), content_type="application/json"
         )
 
         assert response.status_code == 400
@@ -63,7 +63,7 @@ class TestBoxAPI:
         """Test creating a box with empty description fails validation."""
         data = {"description": "", "capacity": 10}
         response = client.post(
-            "/boxes", data=json.dumps(data), content_type="application/json"
+            "/api/boxes", data=json.dumps(data), content_type="application/json"
         )
 
         assert response.status_code == 400
@@ -72,14 +72,14 @@ class TestBoxAPI:
         """Test creating a box without capacity fails validation."""
         data = {"description": "Test Box"}
         response = client.post(
-            "/boxes", data=json.dumps(data), content_type="application/json"
+            "/api/boxes", data=json.dumps(data), content_type="application/json"
         )
 
         assert response.status_code == 400
 
     def test_get_all_boxes_empty(self, client: FlaskClient):
         """Test getting all boxes when none exist."""
-        response = client.get("/boxes")
+        response = client.get("/api/boxes")
 
         assert response.status_code == 200
         response_data = json.loads(response.data)
@@ -94,7 +94,7 @@ class TestBoxAPI:
         BoxService.create_box(session, "Box 2", 10)
         BoxService.create_box(session, "Box 3", 3)
 
-        response = client.get("/boxes")
+        response = client.get("/api/boxes")
 
         assert response.status_code == 200
         response_data = json.loads(response.data)
@@ -120,7 +120,7 @@ class TestBoxAPI:
         session.commit()
         box_no = box.box_no
 
-        response = client.get(f"/boxes/{box_no}")
+        response = client.get(f"/api/boxes/{box_no}")
 
         assert response.status_code == 200
         response_data = json.loads(response.data)
@@ -137,7 +137,7 @@ class TestBoxAPI:
 
     def test_get_box_details_nonexistent(self, client: FlaskClient):
         """Test getting details of a non-existent box."""
-        response = client.get("/boxes/999")
+        response = client.get("/api/boxes/999")
 
         assert response.status_code == 404
         response_data = json.loads(response.data)
@@ -151,7 +151,7 @@ class TestBoxAPI:
 
         data = {"description": "Updated Box", "capacity": 8}
         response = client.put(
-            f"/boxes/{box_no}", data=json.dumps(data), content_type="application/json"
+            f"/api/boxes/{box_no}", data=json.dumps(data), content_type="application/json"
         )
 
         assert response.status_code == 200
@@ -170,7 +170,7 @@ class TestBoxAPI:
 
         data = {"description": "Smaller Box", "capacity": 6}
         response = client.put(
-            f"/boxes/{box_no}", data=json.dumps(data), content_type="application/json"
+            f"/api/boxes/{box_no}", data=json.dumps(data), content_type="application/json"
         )
 
         assert response.status_code == 200
@@ -183,7 +183,7 @@ class TestBoxAPI:
         """Test updating a non-existent box."""
         data = {"description": "Updated Box", "capacity": 8}
         response = client.put(
-            "/boxes/999", data=json.dumps(data), content_type="application/json"
+            "/api/boxes/999", data=json.dumps(data), content_type="application/json"
         )
 
         assert response.status_code == 404
@@ -200,7 +200,7 @@ class TestBoxAPI:
             "capacity": -1,  # Negative capacity
         }
         response = client.put(
-            f"/boxes/{box_no}", data=json.dumps(data), content_type="application/json"
+            f"/api/boxes/{box_no}", data=json.dumps(data), content_type="application/json"
         )
 
         assert response.status_code == 400
@@ -215,7 +215,7 @@ class TestBoxAPI:
         # Verify box exists
         assert session.get(Box, box_id) is not None
 
-        response = client.delete(f"/boxes/{box_no}")
+        response = client.delete(f"/api/boxes/{box_no}")
 
         assert response.status_code == 204
 
@@ -225,7 +225,7 @@ class TestBoxAPI:
 
     def test_delete_box_nonexistent(self, client: FlaskClient):
         """Test deleting a non-existent box."""
-        response = client.delete("/boxes/999")
+        response = client.delete("/api/boxes/999")
 
         assert response.status_code == 404
         response_data = json.loads(response.data)
@@ -237,7 +237,7 @@ class TestBoxAPI:
         session.commit()
         box_no = box.box_no
 
-        response = client.get(f"/boxes/{box_no}/locations")
+        response = client.get(f"/api/boxes/{box_no}/locations")
 
         assert response.status_code == 200
         response_data = json.loads(response.data)
@@ -249,7 +249,7 @@ class TestBoxAPI:
 
     def test_get_box_locations_nonexistent(self, client: FlaskClient):
         """Test getting locations for a non-existent box."""
-        response = client.get("/boxes/999/locations")
+        response = client.get("/api/boxes/999/locations")
 
         assert response.status_code == 404
         response_data = json.loads(response.data)
@@ -260,7 +260,7 @@ class TestBoxAPI:
         """Test that API endpoints handle errors gracefully."""
         # Invalid JSON
         response = client.post(
-            "/boxes", data="invalid json", content_type="application/json"
+            "/api/boxes", data="invalid json", content_type="application/json"
         )
 
         assert response.status_code == 400
@@ -270,7 +270,7 @@ class TestBoxAPI:
         data = {"description": "Test Box", "capacity": 5}
 
         # Send without proper content type
-        response = client.post("/boxes", data=json.dumps(data))
+        response = client.post("/api/boxes", data=json.dumps(data))
 
         # Should handle gracefully (specific behavior depends on implementation)
         assert response.status_code in [400, 415, 500]  # Various possible responses
@@ -280,7 +280,7 @@ class TestBoxAPI:
         # Create first box
         data1 = {"description": "Box 1", "capacity": 5}
         response1 = client.post(
-            "/boxes", data=json.dumps(data1), content_type="application/json"
+            "/api/boxes", data=json.dumps(data1), content_type="application/json"
         )
 
         assert response1.status_code == 201
@@ -290,7 +290,7 @@ class TestBoxAPI:
         # Create second box
         data2 = {"description": "Box 2", "capacity": 3}
         response2 = client.post(
-            "/boxes", data=json.dumps(data2), content_type="application/json"
+            "/api/boxes", data=json.dumps(data2), content_type="application/json"
         )
 
         assert response2.status_code == 201
