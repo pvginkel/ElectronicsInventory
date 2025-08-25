@@ -149,10 +149,12 @@ function generateQueryHook(path, method, operation, operationId, summary) {
     ? `Omit<Parameters<typeof useQuery>[0], 'queryKey' | 'queryFn'>`
     : `Omit<Parameters<typeof useQuery>[0], 'queryKey' | 'queryFn'>`;
   
+  const responseType = `NonNullable<paths['${path}']['${method}']['responses']['200']['content']['application/json']>`;
+  
   return `/**
  * ${summary || `${method.toUpperCase()} ${path}`}
  */
-export function ${hookName}(${paramsArg}${hasParams ? ', ' : ''}options?: ${optionsType}) {
+export function ${hookName}(${paramsArg}${hasParams ? ', ' : ''}options?: ${optionsType}): ReturnType<typeof useQuery<${responseType}>> {
   return useQuery({
     queryKey: ['${transformedOperationId}'${hasParams ? ', params' : ''}],
     queryFn: async () => {
@@ -204,10 +206,12 @@ function generateMutationHook(path, method, operation, operationId, summary) {
     mutationArgs = argParts.length > 0 ? `, { ${argParts.join(', ')} }` : '';
   }
   
+  const responseType = `NonNullable<paths['${path}']['${method}']['responses']['200']['content']['application/json']>`;
+  
   return `/**
  * ${summary || `${method.toUpperCase()} ${path}`}
  */
-export function ${hookName}(options?: Omit<Parameters<typeof useMutation>[0], 'mutationFn'>) {
+export function ${hookName}(options?: Omit<Parameters<typeof useMutation>[0], 'mutationFn'>): ReturnType<typeof useMutation<${responseType}, Error, ${variablesType}>> {
   const queryClient = useQueryClient();
   
   return useMutation({
