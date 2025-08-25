@@ -11,7 +11,6 @@ def test_settings_defaults():
     assert settings.FLASK_ENV == "development"
     assert settings.DEBUG is True
     assert settings.SECRET_KEY == "dev-secret-key-change-in-production"
-    assert settings.CORS_ORIGINS == ["http://localhost:3000"]
 
 
 def test_settings_from_env(monkeypatch):

@@ -52,20 +52,10 @@ def create_app(settings: "Settings | None" = None) -> Flask:
 
     register_error_handlers(app)
 
-    # Register blueprints
-    from app.api import health_bp
-    from app.api.boxes import boxes_bp
-    from app.api.inventory import inventory_bp
-    from app.api.locations import locations_bp
-    from app.api.parts import parts_bp
-    from app.api.types import types_bp
+    # Register main API blueprint
+    from app.api import api_bp
 
-    app.register_blueprint(health_bp)
-    app.register_blueprint(boxes_bp)
-    app.register_blueprint(locations_bp)
-    app.register_blueprint(types_bp)
-    app.register_blueprint(parts_bp)
-    app.register_blueprint(inventory_bp)
+    app.register_blueprint(api_bp)
 
     # Register testing blueprint only in testing environment
     if settings.is_testing:

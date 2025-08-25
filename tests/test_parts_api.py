@@ -20,7 +20,7 @@ class TestPartsAPI:
         with app.app_context():
             data = {"description": "1k ohm resistor"}
 
-            response = client.post("/parts", json=data)
+            response = client.post("/api/parts", json=data)
 
             assert response.status_code == 201
             response_data = json.loads(response.data)
@@ -46,7 +46,7 @@ class TestPartsAPI:
                 "seller_link": "https://digikey.com/product/123"
             }
 
-            response = client.post("/parts", json=data)
+            response = client.post("/api/parts", json=data)
 
             assert response.status_code == 201
             response_data = json.loads(response.data)
@@ -62,7 +62,7 @@ class TestPartsAPI:
         # Missing required description
         data = {"manufacturer_code": "RES-1K"}
 
-        response = client.post("/parts", json=data)
+        response = client.post("/api/parts", json=data)
         assert response.status_code == 400
 
     def test_list_parts(self, app: Flask, client: FlaskClient, session: Session):
@@ -73,7 +73,7 @@ class TestPartsAPI:
             PartService.create_part(session, "Part 2")
             session.commit()
 
-            response = client.get("/parts")
+            response = client.get("/api/parts")
 
             assert response.status_code == 200
             response_data = json.loads(response.data)
@@ -91,13 +91,13 @@ class TestPartsAPI:
             session.commit()
 
             # Test with limit
-            response = client.get("/parts?limit=3")
+            response = client.get("/api/parts?limit=3")
             assert response.status_code == 200
             response_data = json.loads(response.data)
             assert len(response_data) == 3
 
             # Test with offset
-            response = client.get("/parts?limit=2&offset=2")
+            response = client.get("/api/parts?limit=2&offset=2")
             assert response.status_code == 200
             response_data = json.loads(response.data)
             assert len(response_data) == 2
@@ -116,19 +116,19 @@ class TestPartsAPI:
             session.commit()
 
             # Test filtering by resistor type
-            response = client.get(f"/parts?type_id={resistor_type.id}")
+            response = client.get(f"/api/parts?type_id={resistor_type.id}")
             assert response.status_code == 200
             response_data = json.loads(response.data)
             assert len(response_data) == 2
 
             # Test filtering by capacitor type
-            response = client.get(f"/parts?type_id={capacitor_type.id}")
+            response = client.get(f"/api/parts?type_id={capacitor_type.id}")
             assert response.status_code == 200
             response_data = json.loads(response.data)
             assert len(response_data) == 1
 
             # Test with non-existent type
-            response = client.get("/parts?type_id=999")
+            response = client.get("/api/parts?type_id=999")
             assert response.status_code == 200
             response_data = json.loads(response.data)
             assert len(response_data) == 0
@@ -146,7 +146,7 @@ class TestPartsAPI:
             )
             session.commit()
 
-            response = client.get(f"/parts/{part.id4}")
+            response = client.get(f"/api/parts/{part.id4}")
 
             assert response.status_code == 200
             response_data = json.loads(response.data)
@@ -159,7 +159,7 @@ class TestPartsAPI:
 
     def test_get_part_nonexistent(self, app: Flask, client: FlaskClient):
         """Test getting a non-existent part."""
-        response = client.get("/parts/AAAA")
+        response = client.get("/api/parts/AAAA")
         assert response.status_code == 404
 
     def test_update_part(self, app: Flask, client: FlaskClient, session: Session):
@@ -174,7 +174,7 @@ class TestPartsAPI:
                 "tags": ["updated"]
             }
 
-            response = client.put(f"/parts/{part.id4}", json=update_data)
+            response = client.put(f"/api/parts/{part.id4}", json=update_data)
 
             assert response.status_code == 200
             response_data = json.loads(response.data)
@@ -187,7 +187,7 @@ class TestPartsAPI:
         """Test updating a non-existent part."""
         update_data = {"description": "New description"}
 
-        response = client.put("/parts/AAAA", json=update_data)
+        response = client.put("/api/parts/AAAA", json=update_data)
         assert response.status_code == 404
 
     def test_delete_part_zero_quantity(self, app: Flask, client: FlaskClient, session: Session):
@@ -196,7 +196,7 @@ class TestPartsAPI:
             part = PartService.create_part(session, "To be deleted")
             session.commit()
 
-            response = client.delete(f"/parts/{part.id4}")
+            response = client.delete(f"/api/parts/{part.id4}")
             assert response.status_code == 204
 
     def test_delete_part_with_quantity(self, app: Flask, client: FlaskClient, session: Session):
@@ -210,12 +210,12 @@ class TestPartsAPI:
             InventoryService.add_stock(session, part.id4, box.box_no, 1, 5)
             session.commit()
 
-            response = client.delete(f"/parts/{part.id4}")
+            response = client.delete(f"/api/parts/{part.id4}")
             assert response.status_code == 409
 
     def test_delete_part_nonexistent(self, app: Flask, client: FlaskClient):
         """Test deleting a non-existent part."""
-        response = client.delete("/parts/AAAA")
+        response = client.delete("/api/parts/AAAA")
         assert response.status_code == 404
 
     def test_get_part_locations(self, app: Flask, client: FlaskClient, session: Session):
@@ -230,7 +230,7 @@ class TestPartsAPI:
             InventoryService.add_stock(session, part.id4, box.box_no, 3, 10)
             session.commit()
 
-            response = client.get(f"/parts/{part.id4}/locations")
+            response = client.get(f"/api/parts/{part.id4}/locations")
 
             assert response.status_code == 200
             response_data = json.loads(response.data)
@@ -242,7 +242,7 @@ class TestPartsAPI:
 
     def test_get_part_locations_nonexistent(self, app: Flask, client: FlaskClient):
         """Test getting locations for non-existent part."""
-        response = client.get("/parts/AAAA/locations")
+        response = client.get("/api/parts/AAAA/locations")
         assert response.status_code == 404
 
     def test_get_part_history(self, app: Flask, client: FlaskClient, session: Session):
@@ -258,7 +258,7 @@ class TestPartsAPI:
             InventoryService.remove_stock(session, part.id4, box.box_no, 1, 3)
             session.commit()
 
-            response = client.get(f"/parts/{part.id4}/history")
+            response = client.get(f"/api/parts/{part.id4}/history")
 
             assert response.status_code == 200
             response_data = json.loads(response.data)
@@ -273,5 +273,5 @@ class TestPartsAPI:
 
     def test_get_part_history_nonexistent(self, app: Flask, client: FlaskClient):
         """Test getting history for non-existent part."""
-        response = client.get("/parts/AAAA/history")
+        response = client.get("/api/parts/AAAA/history")
         assert response.status_code == 404

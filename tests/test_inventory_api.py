@@ -28,7 +28,7 @@ class TestInventoryAPI:
                 "qty": 5
             }
 
-            response = client.post(f"/inventory/parts/{part.id4}/stock", json=data)
+            response = client.post(f"/api/inventory/parts/{part.id4}/stock", json=data)
 
             assert response.status_code == 201
             response_data = json.loads(response.data)
@@ -42,7 +42,7 @@ class TestInventoryAPI:
         """Test adding stock for non-existent part."""
         data = {"box_no": 1, "loc_no": 1, "qty": 5}
 
-        response = client.post("/inventory/parts/AAAA/stock", json=data)
+        response = client.post("/api/inventory/parts/AAAA/stock", json=data)
         assert response.status_code == 404
 
     def test_add_stock_invalid_location(self, app: Flask, client: FlaskClient, session: Session):
@@ -53,7 +53,7 @@ class TestInventoryAPI:
 
             data = {"box_no": 999, "loc_no": 1, "qty": 5}
 
-            response = client.post(f"/inventory/parts/{part.id4}/stock", json=data)
+            response = client.post(f"/api/inventory/parts/{part.id4}/stock", json=data)
             assert response.status_code == 400
 
     def test_add_stock_invalid_quantity(self, app: Flask, client: FlaskClient, session: Session):
@@ -66,7 +66,7 @@ class TestInventoryAPI:
             # Zero quantity
             data = {"box_no": box.box_no, "loc_no": 1, "qty": 0}
 
-            response = client.post(f"/inventory/parts/{part.id4}/stock", json=data)
+            response = client.post(f"/api/inventory/parts/{part.id4}/stock", json=data)
             assert response.status_code == 400
 
     def test_remove_stock(self, app: Flask, client: FlaskClient, session: Session):
@@ -82,14 +82,14 @@ class TestInventoryAPI:
 
             data = {"box_no": box.box_no, "loc_no": 1, "qty": 3}
 
-            response = client.delete(f"/inventory/parts/{part.id4}/stock", json=data)
+            response = client.delete(f"/api/inventory/parts/{part.id4}/stock", json=data)
             assert response.status_code == 204
 
     def test_remove_stock_nonexistent_part(self, app: Flask, client: FlaskClient):
         """Test removing stock for non-existent part."""
         data = {"box_no": 1, "loc_no": 1, "qty": 3}
 
-        response = client.delete("/inventory/parts/AAAA/stock", json=data)
+        response = client.delete("/api/inventory/parts/AAAA/stock", json=data)
         assert response.status_code == 404
 
     def test_remove_stock_insufficient(self, app: Flask, client: FlaskClient, session: Session):
@@ -105,7 +105,7 @@ class TestInventoryAPI:
 
             data = {"box_no": box.box_no, "loc_no": 1, "qty": 5}
 
-            response = client.delete(f"/inventory/parts/{part.id4}/stock", json=data)
+            response = client.delete(f"/api/inventory/parts/{part.id4}/stock", json=data)
             assert response.status_code == 400
 
     def test_remove_stock_nonexistent_location(self, app: Flask, client: FlaskClient, session: Session):
@@ -117,7 +117,7 @@ class TestInventoryAPI:
 
             data = {"box_no": box.box_no, "loc_no": 1, "qty": 1}
 
-            response = client.delete(f"/inventory/parts/{part.id4}/stock", json=data)
+            response = client.delete(f"/api/inventory/parts/{part.id4}/stock", json=data)
             assert response.status_code == 404
 
     def test_move_stock(self, app: Flask, client: FlaskClient, session: Session):
@@ -139,7 +139,7 @@ class TestInventoryAPI:
                 "qty": 3
             }
 
-            response = client.post(f"/inventory/parts/{part.id4}/move", json=data)
+            response = client.post(f"/api/inventory/parts/{part.id4}/move", json=data)
             assert response.status_code == 204
 
     def test_move_stock_nonexistent_part(self, app: Flask, client: FlaskClient):
@@ -152,7 +152,7 @@ class TestInventoryAPI:
             "qty": 3
         }
 
-        response = client.post("/inventory/parts/AAAA/move", json=data)
+        response = client.post("/api/inventory/parts/AAAA/move", json=data)
         assert response.status_code == 404
 
     def test_move_stock_insufficient(self, app: Flask, client: FlaskClient, session: Session):
@@ -174,7 +174,7 @@ class TestInventoryAPI:
                 "qty": 5
             }
 
-            response = client.post(f"/inventory/parts/{part.id4}/move", json=data)
+            response = client.post(f"/api/inventory/parts/{part.id4}/move", json=data)
             assert response.status_code == 400
 
     def test_move_stock_invalid_destination(self, app: Flask, client: FlaskClient, session: Session):
@@ -196,7 +196,7 @@ class TestInventoryAPI:
                 "qty": 3
             }
 
-            response = client.post(f"/inventory/parts/{part.id4}/move", json=data)
+            response = client.post(f"/api/inventory/parts/{part.id4}/move", json=data)
             assert response.status_code == 400
 
     def test_get_location_suggestion(self, app: Flask, client: FlaskClient, session: Session):
@@ -206,7 +206,7 @@ class TestInventoryAPI:
             box = BoxService.create_box(session, "Test Box", 5)
             session.commit()
 
-            response = client.get("/inventory/suggestions/1")  # Type ID 1
+            response = client.get("/api/inventory/suggestions/1")  # Type ID 1
 
             assert response.status_code == 200
             response_data = json.loads(response.data)
@@ -228,7 +228,7 @@ class TestInventoryAPI:
             InventoryService.add_stock(session, part.id4, box.box_no, 1, 5)
             session.commit()
 
-            response = client.get("/inventory/suggestions/1")
+            response = client.get("/api/inventory/suggestions/1")
 
             assert response.status_code == 200
             response_data = json.loads(response.data)
@@ -240,5 +240,5 @@ class TestInventoryAPI:
     def test_get_location_suggestion_no_available(self, app: Flask, client: FlaskClient):
         """Test location suggestion when no locations are available."""
         # No boxes created, so no locations available
-        response = client.get("/inventory/suggestions/1")
+        response = client.get("/api/inventory/suggestions/1")
         assert response.status_code == 404
