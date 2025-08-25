@@ -26,7 +26,7 @@ def configure_spectree(app: Flask) -> SpecTree:
         title="Electronics Inventory API",
         version="1.0.0",
         description="Hobby electronics parts inventory management system",
-        path="docs",  # OpenAPI docs available at /docs
+        path="api/docs",  # OpenAPI docs available at /api/docs
         validation_error_status=400,
     )
 
@@ -36,10 +36,10 @@ def configure_spectree(app: Flask) -> SpecTree:
     # Add redirect routes for convenience
     from flask import redirect
 
-    @app.route("/docs")
-    @app.route("/docs/")
+    @app.route("/api/docs")
+    @app.route("/api/docs/")
     def docs_redirect():
-        return redirect("/docs/swagger/", code=302)
+        return redirect("/api/docs/swagger/", code=302)
 
     return api
 
