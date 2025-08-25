@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(python3:*)",
+      "Bash(pytest:*)",
+      "Bash(curl:*)",
+      "WebSearch",
+      "WebFetch",
+      "Bash(find:*)",
+      "Bash(python:*)",
+      "Bash(poetry:*)",
+      "Bash(timeout:*)",
+      "Bash(alembic:*)",
+      "Bash(ruff check:*)",
+      "Bash(mypy:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
