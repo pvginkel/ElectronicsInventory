@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:localhost)",
+      "Bash(mkdir:*)",
+      "Bash(pnpm:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(npm:*)",
+      "WebFetch(*)",
+      "Bash(timeout:*)",
+      "Bash(rg:*)",
+      "Bash(cp:*)",
+      "WebSearch",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Read(//home/pvginkel/source/ElectronicsInventory/**)",
+      "Read(//home/pvginkel/source/ElectronicsInventory/backend/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
