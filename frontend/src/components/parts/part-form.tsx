@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { TypeSelector } from '@/components/types/type-selector';
 import { TagsInput } from './tags-input';
-import { useGet__api_parts__part_id4_, usePost__api_parts, usePut__api_parts__part_id4_ } from '@/lib/api/generated/hooks';
+import { useGetPartsByPartId4, usePostParts, usePutPartsByPartId4 } from '@/lib/api/generated/hooks';
 import { validatePartData } from '@/lib/utils/parts';
 
 interface PartFormData {
@@ -36,13 +36,13 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
   const isEditing = Boolean(partId);
   
   // Fetch existing part data if editing
-  const { data: existingPart, isLoading: isLoadingPart } = useGet__api_parts__part_id4_(
+  const { data: existingPart, isLoading: isLoadingPart } = useGetPartsByPartId4(
     { path: { part_id4: partId! } },
     { enabled: isEditing }
   );
 
-  const createPartMutation = usePost__api_parts();
-  const updatePartMutation = usePut__api_parts__part_id4_();
+  const createPartMutation = usePostParts();
+  const updatePartMutation = usePutPartsByPartId4();
 
   // Populate form with existing part data
   useEffect(() => {

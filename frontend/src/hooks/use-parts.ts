@@ -1,22 +1,22 @@
 import { useMemo } from 'react';
 import {
-  useGet__api_parts__part_id4__locations,
-  useGet__api_parts__part_id4__history,
-  usePost__api_inventory_parts__part_id4__stock,
-  useDelete__api_inventory_parts__part_id4__stock,
-  usePost__api_inventory_parts__part_id4__move,
+  useGetPartsLocationsByPartId4,
+  useGetPartsHistoryByPartId4,
+  usePostInventoryPartsStockByPartId4,
+  useDeleteInventoryPartsStockByPartId4,
+  usePostInventoryPartsMoveByPartId4,
 } from '@/lib/api/generated/hooks';
 import { calculateTotalQuantity } from '@/lib/utils/locations';
 
 export function usePartLocations(partId: string) {
-  const query = useGet__api_parts__part_id4__locations(
+  const query = useGetPartsLocationsByPartId4(
     { path: { part_id4: partId } },
     { enabled: !!partId }
   );
 
   const totalQuantity = useMemo(() => {
     if (!query.data) return 0;
-    return calculateTotalQuantity(query.data.map(location => ({
+    return calculateTotalQuantity(query.data.map((location: unknown) => ({
       boxNo: location.box_no,
       locNo: location.loc_no,
       quantity: location.quantity,
@@ -30,31 +30,31 @@ export function usePartLocations(partId: string) {
 }
 
 export function usePartHistory(partId: string) {
-  return useGet__api_parts__part_id4__history(
+  return useGetPartsHistoryByPartId4(
     { path: { part_id4: partId } },
     { enabled: !!partId }
   );
 }
 
 export function useAddStock() {
-  return usePost__api_inventory_parts__part_id4__stock({
-    onError: (error) => {
+  return usePostInventoryPartsStockByPartId4({
+    onError: (error: unknown) => {
       console.error('Failed to add stock:', error);
     },
   });
 }
 
 export function useRemoveStock() {
-  return useDelete__api_inventory_parts__part_id4__stock({
-    onError: (error) => {
+  return useDeleteInventoryPartsStockByPartId4({
+    onError: (error: unknown) => {
       console.error('Failed to remove stock:', error);
     },
   });
 }
 
 export function useMoveStock() {
-  return usePost__api_inventory_parts__part_id4__move({
-    onError: (error) => {
+  return usePostInventoryPartsMoveByPartId4({
+    onError: (error: unknown) => {
       console.error('Failed to move stock:', error);
     },
   });

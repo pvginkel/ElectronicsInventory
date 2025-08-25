@@ -54,7 +54,7 @@ export function PartLocationGrid({ partId, typeId }: PartLocationGridProps) {
       </div>
 
       <div className="space-y-1">
-        {locations.map((location) => (
+        {locations.map((location: unknown) => (
           <LocationRow
             key={`${location.box_no}-${location.loc_no}`}
             location={location}
@@ -247,7 +247,7 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
   };
 
   const handleUseSuggestion = () => {
-    if (suggestions && suggestions.length > 0) {
+    if (suggestions && Array.isArray(suggestions) && suggestions.length > 0) {
       const suggestion = suggestions[0];
       setBoxNo(suggestion.box_no.toString());
       setLocNo(suggestion.loc_no.toString());
@@ -282,7 +282,7 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
         min="1"
       />
       
-      {suggestions && suggestions.length > 0 && (
+      {suggestions && Array.isArray(suggestions) && suggestions.length > 0 && (
         <Button
           size="sm"
           variant="outline"

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { useGet__api_parts } from '@/lib/api/generated/hooks';
+import { useGetParts } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 
 interface PartListProps {
@@ -12,13 +12,13 @@ interface PartListProps {
 
 export function PartList({ onSelectPart, onCreatePart }: PartListProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const { data: parts = [], isLoading, error } = useGet__api_parts();
+  const { data: parts = [], isLoading, error } = useGetParts();
 
   const filteredParts = useMemo(() => {
     if (!searchTerm.trim()) return parts;
 
     const term = searchTerm.toLowerCase();
-    return parts.filter((part) => {
+    return parts.filter((part: unknown) => {
       const { displayId, displayDescription, displayManufacturerCode } = formatPartForDisplay(part);
       
       return (
@@ -26,7 +26,7 @@ export function PartList({ onSelectPart, onCreatePart }: PartListProps) {
         displayDescription.toLowerCase().includes(term) ||
         (displayManufacturerCode && displayManufacturerCode.toLowerCase().includes(term)) ||
         (part.type?.name && part.type.name.toLowerCase().includes(term)) ||
-        (part.tags && part.tags.some(tag => tag.toLowerCase().includes(term)))
+        (part.tags && part.tags.some((tag: unknown) => (tag as string).toLowerCase().includes(term)))
       );
     });
   }, [parts, searchTerm]);
@@ -104,7 +104,7 @@ export function PartList({ onSelectPart, onCreatePart }: PartListProps) {
             </div>
           </Card>
         ) : (
-          filteredParts.map((part) => (
+          filteredParts.map((part: unknown) => (
             <PartListItem
               key={part.id4}
               part={part}

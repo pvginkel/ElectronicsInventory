@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PartLocationGrid } from './part-location-grid';
 import { PartForm } from './part-form';
-import { useGet__api_parts__part_id4_ } from '@/lib/api/generated/hooks';
+import { useGetPartsByPartId4 } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 
 interface PartDetailsProps {
@@ -13,7 +13,7 @@ interface PartDetailsProps {
 export function PartDetails({ partId }: PartDetailsProps) {
   const [isEditing, setIsEditing] = useState(false);
   
-  const { data: part, isLoading, error, refetch } = useGet__api_parts__part_id4_(
+  const { data: part, isLoading, error, refetch } = useGetPartsByPartId4(
     { path: { part_id4: partId } },
     { enabled: !!partId }
   );
@@ -95,7 +95,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
             <h3 className="font-medium mb-2">Tags</h3>
             <div className="flex flex-wrap gap-1">
               {part.tags && part.tags.length > 0 ? (
-                part.tags.map((tag, index) => (
+                part.tags.map((tag: unknown, index: number) => (
                   <span
                     key={index}
                     className="px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded-md"

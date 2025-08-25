@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { 
-  useGet__api_boxes, 
-  usePost__api_boxes, 
-  usePut__api_boxes__box_no_, 
-  useDelete__api_boxes__box_no_ 
+  useGetBoxes, 
+  usePostBoxes, 
+  usePutBoxesByBoxNo, 
+  useDeleteBoxesByBoxNo 
 } from '@/lib/api/generated/hooks'
 import { BoxCard } from './box-card'
 import { BoxForm } from './box-form'
@@ -20,10 +20,10 @@ export function BoxList() {
 
   const { confirm, confirmProps } = useConfirm()
   
-  const { data: boxes, isLoading, error } = useGet__api_boxes()
-  const createMutation = usePost__api_boxes()
-  const updateMutation = usePut__api_boxes__box_no_()
-  const deleteMutation = useDelete__api_boxes__box_no_()
+  const { data: boxes, isLoading, error } = useGetBoxes()
+  const createMutation = usePostBoxes()
+  const updateMutation = usePutBoxesByBoxNo()
+  const deleteMutation = useDeleteBoxesByBoxNo()
 
   const handleCreateBox = async (data: { description: string; capacity: number }) => {
     await createMutation.mutateAsync({ body: data })
@@ -116,7 +116,7 @@ export function BoxList() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {boxes!.map((box) => (
+          {boxes!.map((box: unknown) => (
             <BoxCard
               key={box.box_no}
               box={box}
