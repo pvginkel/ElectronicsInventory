@@ -91,7 +91,7 @@ function generateHooks(spec) {
   const imports = new Set(['useQuery', 'useMutation', 'useQueryClient']);
   
   // Generate type aliases from schema titles
-  const { typeAliases, typeMap } = generateTypeAliases(spec);
+  const { typeAliases, typeMap, parameterTypeMap } = generateTypeAliases(spec);
   
   // Process each path in the OpenAPI spec
   for (const [path, pathItem] of Object.entries(spec.paths || {})) {
@@ -104,9 +104,9 @@ function generateHooks(spec) {
       const isMutation = ['post', 'put', 'patch', 'delete'].includes(method.toLowerCase());
       
       if (isQuery) {
-        hooks.push(generateQueryHook(path, method, operation, operationId, summary, spec, typeMap));
+        hooks.push(generateQueryHook(path, method, operation, operationId, summary, spec, typeMap, parameterTypeMap));
       } else if (isMutation) {
-        hooks.push(generateMutationHook(path, method, operation, operationId, summary, spec, typeMap));
+        hooks.push(generateMutationHook(path, method, operation, operationId, summary, spec, typeMap, parameterTypeMap));
       }
     }
   }
@@ -129,7 +129,7 @@ ${hooks.join('\n\n')}
 /**
  * Generates a React Query hook for GET requests
  */
-function generateQueryHook(path, method, operation, operationId, summary, spec, typeMap) {
+function generateQueryHook(path, method, operation, operationId, summary, spec, typeMap, parameterTypeMap) {
   const transformedOperationId = transformOperationId(operationId);
   const hookName = `use${capitalize(transformedOperationId)}`;
   const pathParams = extractPathParams(path);
@@ -141,7 +141,8 @@ function generateQueryHook(path, method, operation, operationId, summary, spec, 
   let queryOptions = '';
   
   if (hasParams) {
-    paramsType = `paths['${path}']['${method}']['parameters']`;
+    const parameterTypeAlias = parameterTypeMap.get(`${path}:${method}`);
+    paramsType = parameterTypeAlias || `paths['${path}']['${method}']['parameters']`;
     paramsArg = `params: ${paramsType}`;
     
     if (pathParams.length > 0) {
@@ -176,7 +177,7 @@ export function ${hookName}(${paramsArg}${hasParams ? ', ' : ''}options?: ${opti
 /**
  * Generates a React Query mutation hook for POST/PUT/PATCH/DELETE requests
  */
-function generateMutationHook(path, method, operation, operationId, summary, spec, typeMap) {
+function generateMutationHook(path, method, operation, operationId, summary, spec, typeMap, parameterTypeMap) {
   const transformedOperationId = transformOperationId(operationId);
   const hookName = `use${capitalize(transformedOperationId)}`;
   const pathParams = extractPathParams(path);
@@ -190,7 +191,12 @@ function generateMutationHook(path, method, operation, operationId, summary, spe
   if (hasPathParams || hasBody) {
     const parts = [];
     if (hasPathParams) {
-      parts.push(`path: paths['${path}']['${method}']['parameters']['path']`);
+      const parameterTypeAlias = parameterTypeMap.get(`${path}:${method}`);
+      if (parameterTypeAlias) {
+        parts.push(`path: ${parameterTypeAlias}['path']`);
+      } else {
+        parts.push(`path: paths['${path}']['${method}']['parameters']['path']`);
+      }
     }
     if (hasBody) {
       const bodyType = getFriendlyType(spec, path, method, 'requestBody', typeMap);
@@ -263,7 +269,7 @@ function extractParameters(operationId) {
  * Converts underscore-separated strings to camelCase
  */
 function toCamelCase(str) {
-  return str.replace(/_([a-z0-9])/g, (match, letter) => letter.toUpperCase());
+  return str.replace(/_([a-z0-9])/g, (_, letter) => letter.toUpperCase());
 }
 
 /**
@@ -295,11 +301,12 @@ function transformOperationId(operationId) {
 }
 
 /**
- * Generates user-friendly type aliases from OpenAPI schemas
+ * Generates user-friendly type aliases from OpenAPI schemas and parameters
  */
 function generateTypeAliases(spec) {
   const typeAliases = [];
   const typeMap = new Map();
+  const parameterTypeMap = new Map();
   
   // Extract schemas and create aliases based on unique schema keys
   if (spec.components && spec.components.schemas) {
@@ -316,7 +323,26 @@ function generateTypeAliases(spec) {
     }
   }
   
-  return { typeAliases, typeMap };
+  // Generate parameter type aliases for each operation
+  for (const [path, pathItem] of Object.entries(spec.paths || {})) {
+    for (const [method, operation] of Object.entries(pathItem)) {
+      if (!operation.operationId) continue;
+      
+      const transformedOperationId = transformOperationId(operation.operationId);
+      const pathParams = extractPathParams(path);
+      const hasParams = pathParams.length > 0 || (operation.parameters && operation.parameters.length > 0);
+      
+      if (hasParams) {
+        const parameterTypeName = `${capitalize(transformedOperationId)}Parameters`;
+        const parameterTypePath = `paths['${path}']['${method}']['parameters']`;
+        
+        typeAliases.push(`export type ${parameterTypeName} = ${parameterTypePath};`);
+        parameterTypeMap.set(`${path}:${method}`, parameterTypeName);
+      }
+    }
+  }
+  
+  return { typeAliases, typeMap, parameterTypeMap };
 }
 
 /**
