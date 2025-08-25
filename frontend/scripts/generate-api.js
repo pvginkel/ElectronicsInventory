@@ -32,21 +32,13 @@ function generateTypes(spec) {
   console.log('🔄 Generating TypeScript types...');
   
   // Write spec to temporary file for openapi-typescript
-  const tempSpecFile = path.join(__dirname, 'temp-openapi.json');
-  writeFileSync(tempSpecFile, JSON.stringify(spec, null, 2));
+  const specFile = path.join(__dirname, '..', 'openapi-cache', 'openapi.json');
   
   try {
     // Run openapi-typescript to generate types
-    execSync(`npx openapi-typescript ${tempSpecFile} --output ${TYPES_FILE}`, {
+    execSync(`npx openapi-typescript ${specFile} --output ${TYPES_FILE}`, {
       stdio: 'inherit'
     });
-    
-    // Clean up temp file
-    try {
-      unlinkSync(tempSpecFile);
-    } catch (e) {
-      // Ignore cleanup errors
-    }
     
     console.log('✅ TypeScript types generated');
   } catch (error) {
@@ -357,16 +349,32 @@ function findSchemaReference(spec, path, method, type) {
     if (!operation) return null;
     
     if (type === 'response') {
-      const response = operation.responses?.['200'];
-      const schema = response?.content?.['application/json']?.schema;
-      if (schema && schema.$ref) {
-        return schema.$ref.replace('#/components/schemas/', '');
+      // Check for success response codes (200-299)
+      if (operation.responses) {
+        const responseCodes = Object.keys(operation.responses)
+          .map(code => parseInt(code, 10))
+          .filter(code => !isNaN(code) && code >= 200 && code < 300)
+          .sort((a, b) => a - b);
+        
+        for (const code of responseCodes) {
+          const response = operation.responses[code.toString()];
+          const schema = response.content?.['application/json']?.schema;
+          if (schema && schema.$ref) {
+            return {
+              schemaRef: schema.$ref.replace('#/components/schemas/', ''),
+              statusCode: code.toString()
+            };
+          }
+        }
       }
     } else if (type === 'requestBody') {
       const requestBody = operation.requestBody;
       const schema = requestBody?.content?.['application/json']?.schema;
       if (schema && schema.$ref) {
-        return schema.$ref.replace('#/components/schemas/', '');
+        return {
+          schemaRef: schema.$ref.replace('#/components/schemas/', ''),
+          statusCode: null
+        };
       }
     }
   } catch (error) {
@@ -380,20 +388,40 @@ function findSchemaReference(spec, path, method, type) {
  * Gets a friendly type alias or falls back to the original type path
  */
 function getFriendlyType(spec, path, method, type, typeMap) {
-  const schemaKey = findSchemaReference(spec, path, method, type);
+  const result = findSchemaReference(spec, path, method, type);
   
-  if (schemaKey && typeMap.has(schemaKey)) {
-    return typeMap.get(schemaKey);
+  if (result && result.schemaRef && typeMap.has(result.schemaRef)) {
+    return typeMap.get(result.schemaRef);
   }
   
-  // Fallback to original long path
+  // For responses, check if any success response exists, otherwise assume void
   if (type === 'response') {
-    return `NonNullable<paths['${path}']['${method}']['responses']['200']['content']['application/json']>`;
+    const operation = spec.paths[path]?.[method];
+    if (operation?.responses) {
+      // Get actual response codes, filter for success (200-299), and sort
+      const responseCodes = Object.keys(operation.responses)
+        .map(code => parseInt(code, 10))
+        .filter(code => !isNaN(code) && code >= 200 && code < 300)
+        .sort((a, b) => a - b);
+      
+      for (const code of responseCodes) {
+        const response = operation.responses[code.toString()];
+        if (response.content?.['application/json']) {
+          // Has content, use the long path with the actual status code
+          return `NonNullable<paths['${path}']['${method}']['responses']['${code}']['content']['application/json']>`;
+        } else {
+          // No content, return void for operations that don't return data
+          return 'void';
+        }
+      }
+    }
+    // No success response found, assume void
+    return 'void';
   } else if (type === 'requestBody') {
     return `NonNullable<paths['${path}']['${method}']['requestBody']>['content']['application/json']`;
   }
   
-  return `NonNullable<paths['${path}']['${method}']['responses']['200']['content']['application/json']>`;
+  return 'void';
 }
 
 /**

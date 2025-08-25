@@ -12,7 +12,6 @@ const __dirname = path.dirname(__filename);
 
 const CACHE_DIR = path.join(__dirname, '../openapi-cache');
 const CACHE_FILE = path.join(CACHE_DIR, 'openapi.json');
-const METADATA_FILE = path.join(CACHE_DIR, 'last-fetch.txt');
 
 // Primary and fallback URLs for fetching OpenAPI spec
 const OPENAPI_URLS = [
@@ -87,12 +86,7 @@ function calculateSpecHash(spec) {
 function loadCache() {
   try {
     const spec = JSON.parse(readFileSync(CACHE_FILE, 'utf8'));
-    const metadata = readFileSync(METADATA_FILE, 'utf8').trim().split('\n');
-    return {
-      spec,
-      timestamp: metadata[0],
-      hash: metadata[1]
-    };
+    return spec;
   } catch (error) {
     return null;
   }
@@ -102,18 +96,10 @@ function loadCache() {
  * Saves OpenAPI spec and metadata to cache
  */
 function saveCache(spec) {
-  const hash = calculateSpecHash(spec);
-  const timestamp = new Date().toISOString();
-  
   // Save the spec
   writeFileSync(CACHE_FILE, JSON.stringify(spec, null, 2));
   
-  // Save metadata
-  const metadata = `${timestamp}\n${hash}`;
-  writeFileSync(METADATA_FILE, metadata);
-  
-  console.log(`✅ Cached OpenAPI spec (hash: ${hash})`);
-  return { timestamp, hash };
+  console.log(`✅ Cached OpenAPI spec`);
 }
 
 /**
@@ -124,14 +110,13 @@ export async function fetchAndCache(options = {}) {
   
   if (buildMode) {
     // Build mode: only use cache, never fetch
-    const cache = loadCache();
-    if (!cache) {
+    const spec = loadCache();
+    if (!spec) {
       throw new Error(
         'No cached OpenAPI spec found. Run "pnpm generate:api" first to fetch and cache the spec.'
       );
     }
-    console.log(`📦 Using cached OpenAPI spec from ${cache.timestamp} (hash: ${cache.hash})`);
-    return cache.spec;
+    return spec;
   }
   
   // Check if we should use cache
