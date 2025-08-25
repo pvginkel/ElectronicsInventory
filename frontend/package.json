@@ -8,7 +8,7 @@
     "dev": "vite --host --port 3000",
     "build": "pnpm generate:api:build && tsc -b && vite build",
     "lint": "eslint .",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --noEmit --project tsconfig.app.json",
     "preview": "vite preview",
     "generate:routes": "tsr generate",
     "generate:api": "node scripts/generate-api.js --fetch",
