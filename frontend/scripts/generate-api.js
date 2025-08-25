@@ -124,8 +124,8 @@ ${hooks.join('\n\n')}
  * Generates a React Query hook for GET requests
  */
 function generateQueryHook(path, method, operation, operationId, summary) {
-  const sanitizedOperationId = operationId.replace(/[{}]/g, '_');
-  const hookName = `use${capitalize(sanitizedOperationId)}`;
+  const transformedOperationId = transformOperationId(operationId);
+  const hookName = `use${capitalize(transformedOperationId)}`;
   const pathParams = extractPathParams(path);
   const hasParams = pathParams.length > 0 || (operation.parameters && operation.parameters.length > 0);
   
@@ -154,7 +154,7 @@ function generateQueryHook(path, method, operation, operationId, summary) {
  */
 export function ${hookName}(${paramsArg}${hasParams ? ', ' : ''}options?: ${optionsType}) {
   return useQuery({
-    queryKey: ['${sanitizedOperationId}'${hasParams ? ', params' : ''}],
+    queryKey: ['${transformedOperationId}'${hasParams ? ', params' : ''}],
     queryFn: async () => {
       const { data, error } = await api.${method.toUpperCase()}(${pathWithParams}${queryOptions});
       if (error) throw error;
@@ -169,8 +169,8 @@ export function ${hookName}(${paramsArg}${hasParams ? ', ' : ''}options?: ${opti
  * Generates a React Query mutation hook for POST/PUT/PATCH/DELETE requests
  */
 function generateMutationHook(path, method, operation, operationId, summary) {
-  const sanitizedOperationId = operationId.replace(/[{}]/g, '_');
-  const hookName = `use${capitalize(sanitizedOperationId)}`;
+  const transformedOperationId = transformOperationId(operationId);
+  const hookName = `use${capitalize(transformedOperationId)}`;
   const pathParams = extractPathParams(path);
   const hasBody = operation.requestBody;
   const hasPathParams = pathParams.length > 0;
@@ -238,6 +238,49 @@ function extractPathParams(path) {
  */
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Extracts parameter names from operationId
+ */
+function extractParameters(operationId) {
+  const matches = operationId.match(/\{([^}]+)\}/g);
+  return matches ? matches.map(match => match.slice(1, -1)) : [];
+}
+
+/**
+ * Converts underscore-separated strings to camelCase
+ */
+function toCamelCase(str) {
+  return str.replace(/_([a-z0-9])/g, (match, letter) => letter.toUpperCase());
+}
+
+/**
+ * Transforms operationId using custom naming pattern
+ */
+function transformOperationId(operationId) {
+  // Extract parameters
+  const parameters = extractParameters(operationId);
+  
+  // Replace parameter patterns with single underscore and remove __api
+  let baseName = operationId.replace(/\{[^}]+\}/g, '_');
+  baseName = baseName.replace(/__api/g, '');
+  
+  // Clean up multiple consecutive underscores
+  baseName = baseName.replace(/_+/g, '_');
+  baseName = baseName.replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+  
+  // Create parameter suffix if parameters exist
+  let parameterSuffix = '';
+  if (parameters.length > 0) {
+    parameterSuffix = '_by_' + parameters.join('_and_');
+  }
+  
+  // Concatenate base name + parameter suffix
+  const fullName = baseName + parameterSuffix;
+  
+  // Convert to camelCase
+  return toCamelCase(fullName);
 }
 
 /**
