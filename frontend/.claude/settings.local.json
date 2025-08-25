@@ -14,9 +14,7 @@
       "WebSearch",
       "Bash(wc:*)",
       "Bash(find:*)",
-      "Bash(grep:*)",
-      "Read(//home/pvginkel/source/ElectronicsInventory/**)",
-      "Read(//home/pvginkel/source/ElectronicsInventory/backend/**)"
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

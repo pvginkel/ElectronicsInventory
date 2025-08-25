@@ -16,7 +16,7 @@ const METADATA_FILE = path.join(CACHE_DIR, 'last-fetch.txt');
 
 // Primary and fallback URLs for fetching OpenAPI spec
 const OPENAPI_URLS = [
-  'http://localhost:5000/docs/openapi.json'
+  'http://localhost:5000/api/docs/openapi.json'
 ];
 
 /**

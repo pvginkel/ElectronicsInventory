@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import {
-  useGet__types,
-  usePost__types,
-  useGet__inventory_suggestions__type_id_,
+  useGet__api_types,
+  usePost__api_types,
+  useGet__api_inventory_suggestions__type_id_,
 } from '@/lib/api/generated/hooks';
 
 export function useTypesSearch(searchTerm: string) {
-  const { data: allTypes, ...rest } = useGet__types();
+  const { data: allTypes, ...rest } = useGet__api_types();
 
   const filteredTypes = useMemo(() => {
     if (!allTypes || !searchTerm.trim()) {
@@ -26,7 +26,7 @@ export function useTypesSearch(searchTerm: string) {
 }
 
 export function useCreateType() {
-  return usePost__types({
+  return usePost__api_types({
     onError: (error) => {
       console.error('Failed to create type:', error);
     },
@@ -34,7 +34,7 @@ export function useCreateType() {
 }
 
 export function useLocationSuggestions(typeId: number | undefined) {
-  return useGet__inventory_suggestions__type_id_(
+  return useGet__api_inventory_suggestions__type_id_(
     { path: { type_id: typeId! } },
     { enabled: !!typeId }
   );

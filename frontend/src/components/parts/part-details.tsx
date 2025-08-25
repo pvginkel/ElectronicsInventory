@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PartLocationGrid } from './part-location-grid';
 import { PartForm } from './part-form';
-import { useGet__parts__part_id4_ } from '@/lib/api/generated/hooks';
+import { useGet__api_parts__part_id4_ } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 
 interface PartDetailsProps {
@@ -13,7 +13,7 @@ interface PartDetailsProps {
 export function PartDetails({ partId }: PartDetailsProps) {
   const [isEditing, setIsEditing] = useState(false);
   
-  const { data: part, isLoading, error, refetch } = useGet__parts__part_id4_(
+  const { data: part, isLoading, error, refetch } = useGet__api_parts__part_id4_(
     { path: { part_id4: partId } },
     { enabled: !!partId }
   );

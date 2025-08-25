@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { 
-  useGet__boxes__box_no_, 
-  usePut__boxes__box_no_, 
-  useDelete__boxes__box_no_ 
+  useGet__api_boxes__box_no_, 
+  usePut__api_boxes__box_no_, 
+  useDelete__api_boxes__box_no_ 
 } from '@/lib/api/generated/hooks'
 import { LocationList } from './location-list'
 import { BoxForm } from './box-form'
@@ -21,9 +21,9 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
   const [editFormOpen, setEditFormOpen] = useState(false)
   const { confirm, confirmProps } = useConfirm()
 
-  const { data: box, isLoading, error } = useGet__boxes__box_no_({ path: { box_no: boxNo } })
-  const updateMutation = usePut__boxes__box_no_()
-  const deleteMutation = useDelete__boxes__box_no_()
+  const { data: box, isLoading, error } = useGet__api_boxes__box_no_({ path: { box_no: boxNo } })
+  const updateMutation = usePut__api_boxes__box_no_()
+  const deleteMutation = useDelete__api_boxes__box_no_()
 
   const handleUpdateBox = async (data: { description: string; capacity: number }) => {
     await updateMutation.mutateAsync({

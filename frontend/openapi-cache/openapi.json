@@ -942,6 +942,44 @@
         "title": "RemoveStockSchema",
         "type": "object"
       },
+      "TestHealthResponseSchema.355d24f": {
+        "description": "Response schema for test health endpoint.",
+        "properties": {
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "environment",
+          "message"
+        ],
+        "title": "TestHealthResponseSchema",
+        "type": "object"
+      },
+      "TestResetResponseSchema.355d24f": {
+        "description": "Response schema for database reset endpoint.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "TestResetResponseSchema",
+        "type": "object"
+      },
       "TypeCreateSchema.50492c8": {
         "description": "Schema for creating a new type.",
         "properties": {
@@ -1111,10 +1149,10 @@
   },
   "openapi": "3.1.0",
   "paths": {
-    "/boxes": {
+    "/api/boxes": {
       "get": {
         "description": "",
-        "operationId": "get__boxes",
+        "operationId": "get__api_boxes",
         "parameters": [],
         "responses": {
           "200": {
@@ -1143,7 +1181,7 @@
       },
       "post": {
         "description": "",
-        "operationId": "post__boxes",
+        "operationId": "post__api_boxes",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -1181,10 +1219,10 @@
         "tags": []
       }
     },
-    "/boxes/{box_no}": {
+    "/api/boxes/{box_no}": {
       "delete": {
         "description": "",
-        "operationId": "delete__boxes_{box_no}",
+        "operationId": "delete__api_boxes_{box_no}",
         "parameters": [
           {
             "description": "",
@@ -1227,7 +1265,7 @@
       },
       "get": {
         "description": "",
-        "operationId": "get__boxes_{box_no}",
+        "operationId": "get__api_boxes_{box_no}",
         "parameters": [
           {
             "description": "",
@@ -1277,7 +1315,7 @@
       },
       "put": {
         "description": "",
-        "operationId": "put__boxes_{box_no}",
+        "operationId": "put__api_boxes_{box_no}",
         "parameters": [
           {
             "description": "",
@@ -1336,10 +1374,10 @@
         "tags": []
       }
     },
-    "/boxes/{box_no}/locations": {
+    "/api/boxes/{box_no}/locations": {
       "get": {
         "description": "",
-        "operationId": "get__boxes_{box_no}_locations",
+        "operationId": "get__api_boxes_{box_no}_locations",
         "parameters": [
           {
             "description": "",
@@ -1388,20 +1426,20 @@
         "tags": []
       }
     },
-    "/health": {
+    "/api/health": {
       "get": {
         "description": "",
-        "operationId": "get__health",
+        "operationId": "get__api_health",
         "parameters": [],
         "responses": {},
         "summary": "Health check endpoint for container orchestration.",
         "tags": []
       }
     },
-    "/inventory/parts/{part_id4}/move": {
+    "/api/inventory/parts/{part_id4}/move": {
       "post": {
         "description": "",
-        "operationId": "post__inventory_parts_{part_id4}_move",
+        "operationId": "post__api_inventory_parts_{part_id4}_move",
         "parameters": [
           {
             "description": "",
@@ -1452,10 +1490,10 @@
         "tags": []
       }
     },
-    "/inventory/parts/{part_id4}/stock": {
+    "/api/inventory/parts/{part_id4}/stock": {
       "delete": {
         "description": "",
-        "operationId": "delete__inventory_parts_{part_id4}_stock",
+        "operationId": "delete__api_inventory_parts_{part_id4}_stock",
         "parameters": [
           {
             "description": "",
@@ -1507,7 +1545,7 @@
       },
       "post": {
         "description": "",
-        "operationId": "post__inventory_parts_{part_id4}_stock",
+        "operationId": "post__api_inventory_parts_{part_id4}_stock",
         "parameters": [
           {
             "description": "",
@@ -1565,10 +1603,10 @@
         "tags": []
       }
     },
-    "/inventory/suggestions/{type_id}": {
+    "/api/inventory/suggestions/{type_id}": {
       "get": {
         "description": "",
-        "operationId": "get__inventory_suggestions_{type_id}",
+        "operationId": "get__api_inventory_suggestions_{type_id}",
         "parameters": [
           {
             "description": "",
@@ -1617,10 +1655,10 @@
         "tags": []
       }
     },
-    "/locations/{box_no}/{loc_no}": {
+    "/api/locations/{box_no}/{loc_no}": {
       "get": {
         "description": "",
-        "operationId": "get__locations_{box_no}_{loc_no}",
+        "operationId": "get__api_locations_{box_no}_{loc_no}",
         "parameters": [
           {
             "description": "",
@@ -1679,10 +1717,10 @@
         "tags": []
       }
     },
-    "/parts": {
+    "/api/parts": {
       "get": {
         "description": "",
-        "operationId": "get__parts",
+        "operationId": "get__api_parts",
         "parameters": [],
         "responses": {
           "200": {
@@ -1711,7 +1749,7 @@
       },
       "post": {
         "description": "",
-        "operationId": "post__parts",
+        "operationId": "post__api_parts",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -1749,10 +1787,10 @@
         "tags": []
       }
     },
-    "/parts/{part_id4}": {
+    "/api/parts/{part_id4}": {
       "delete": {
         "description": "",
-        "operationId": "delete__parts_{part_id4}",
+        "operationId": "delete__api_parts_{part_id4}",
         "parameters": [
           {
             "description": "",
@@ -1804,7 +1842,7 @@
       },
       "get": {
         "description": "",
-        "operationId": "get__parts_{part_id4}",
+        "operationId": "get__api_parts_{part_id4}",
         "parameters": [
           {
             "description": "",
@@ -1853,7 +1891,7 @@
       },
       "put": {
         "description": "",
-        "operationId": "put__parts_{part_id4}",
+        "operationId": "put__api_parts_{part_id4}",
         "parameters": [
           {
             "description": "",
@@ -1911,10 +1949,10 @@
         "tags": []
       }
     },
-    "/parts/{part_id4}/history": {
+    "/api/parts/{part_id4}/history": {
       "get": {
         "description": "",
-        "operationId": "get__parts_{part_id4}_history",
+        "operationId": "get__api_parts_{part_id4}_history",
         "parameters": [
           {
             "description": "",
@@ -1962,10 +2000,10 @@
         "tags": []
       }
     },
-    "/parts/{part_id4}/locations": {
+    "/api/parts/{part_id4}/locations": {
       "get": {
         "description": "",
-        "operationId": "get__parts_{part_id4}_locations",
+        "operationId": "get__api_parts_{part_id4}_locations",
         "parameters": [
           {
             "description": "",
@@ -2013,10 +2051,96 @@
         "tags": []
       }
     },
-    "/types": {
+    "/api/test/health": {
       "get": {
         "description": "",
-        "operationId": "get__types",
+        "operationId": "get__api_test_health",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestHealthResponseSchema.355d24f"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Health check endpoint for testing environment.",
+        "tags": [
+          "testing"
+        ]
+      }
+    },
+    "/api/test/reset": {
+      "delete": {
+        "description": "This endpoint drops all data from the database and recreates the tables. Only available when FLASK_ENV=testing.",
+        "operationId": "delete__api_test_reset",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestResetResponseSchema.355d24f"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reset database to clean state for testing.",
+        "tags": [
+          "testing"
+        ]
+      }
+    },
+    "/api/types": {
+      "get": {
+        "description": "",
+        "operationId": "get__api_types",
         "parameters": [],
         "responses": {
           "200": {
@@ -2045,7 +2169,7 @@
       },
       "post": {
         "description": "",
-        "operationId": "post__types",
+        "operationId": "post__api_types",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -2083,10 +2207,10 @@
         "tags": []
       }
     },
-    "/types/{type_id}": {
+    "/api/types/{type_id}": {
       "delete": {
         "description": "",
-        "operationId": "delete__types_{type_id}",
+        "operationId": "delete__api_types_{type_id}",
         "parameters": [
           {
             "description": "",
@@ -2139,7 +2263,7 @@
       },
       "get": {
         "description": "",
-        "operationId": "get__types_{type_id}",
+        "operationId": "get__api_types_{type_id}",
         "parameters": [
           {
             "description": "",
@@ -2189,7 +2313,7 @@
       },
       "put": {
         "description": "",
-        "operationId": "put__types_{type_id}",
+        "operationId": "put__api_types_{type_id}",
         "parameters": [
           {
             "description": "",
@@ -2250,5 +2374,9 @@
     }
   },
   "security": [],
-  "tags": []
+  "tags": [
+    {
+      "name": "testing"
+    }
+  ]
 }

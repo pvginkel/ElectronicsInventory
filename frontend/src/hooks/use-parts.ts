@@ -1,15 +1,15 @@
 import { useMemo } from 'react';
 import {
-  useGet__parts__part_id4__locations,
-  useGet__parts__part_id4__history,
-  usePost__inventory_parts__part_id4__stock,
-  useDelete__inventory_parts__part_id4__stock,
-  usePost__inventory_parts__part_id4__move,
+  useGet__api_parts__part_id4__locations,
+  useGet__api_parts__part_id4__history,
+  usePost__api_inventory_parts__part_id4__stock,
+  useDelete__api_inventory_parts__part_id4__stock,
+  usePost__api_inventory_parts__part_id4__move,
 } from '@/lib/api/generated/hooks';
 import { calculateTotalQuantity } from '@/lib/utils/locations';
 
 export function usePartLocations(partId: string) {
-  const query = useGet__parts__part_id4__locations(
+  const query = useGet__api_parts__part_id4__locations(
     { path: { part_id4: partId } },
     { enabled: !!partId }
   );
@@ -30,14 +30,14 @@ export function usePartLocations(partId: string) {
 }
 
 export function usePartHistory(partId: string) {
-  return useGet__parts__part_id4__history(
+  return useGet__api_parts__part_id4__history(
     { path: { part_id4: partId } },
     { enabled: !!partId }
   );
 }
 
 export function useAddStock() {
-  return usePost__inventory_parts__part_id4__stock({
+  return usePost__api_inventory_parts__part_id4__stock({
     onError: (error) => {
       console.error('Failed to add stock:', error);
     },
@@ -45,7 +45,7 @@ export function useAddStock() {
 }
 
 export function useRemoveStock() {
-  return useDelete__inventory_parts__part_id4__stock({
+  return useDelete__api_inventory_parts__part_id4__stock({
     onError: (error) => {
       console.error('Failed to remove stock:', error);
     },
@@ -53,7 +53,7 @@ export function useRemoveStock() {
 }
 
 export function useMoveStock() {
-  return usePost__inventory_parts__part_id4__move({
+  return usePost__api_inventory_parts__part_id4__move({
     onError: (error) => {
       console.error('Failed to move stock:', error);
     },

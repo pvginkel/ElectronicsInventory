@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { useGet__parts } from '@/lib/api/generated/hooks';
+import { useGet__api_parts } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 
 interface PartListProps {
@@ -12,7 +12,7 @@ interface PartListProps {
 
 export function PartList({ onSelectPart, onCreatePart }: PartListProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const { data: parts = [], isLoading, error } = useGet__parts();
+  const { data: parts = [], isLoading, error } = useGet__api_parts();
 
   const filteredParts = useMemo(() => {
     if (!searchTerm.trim()) return parts;
