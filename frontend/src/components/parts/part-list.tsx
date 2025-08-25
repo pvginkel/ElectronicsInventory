@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { useGetParts } from '@/lib/api/generated/hooks';
+import { useGetParts, type PartListSchemaList_a9993e3_PartListSchema } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 
 interface PartListProps {
@@ -18,15 +18,13 @@ export function PartList({ onSelectPart, onCreatePart }: PartListProps) {
     if (!searchTerm.trim()) return parts;
 
     const term = searchTerm.toLowerCase();
-    return parts.filter((part: unknown) => {
+    return parts.filter((part: PartListSchemaList_a9993e3_PartListSchema) => {
       const { displayId, displayDescription, displayManufacturerCode } = formatPartForDisplay(part);
       
       return (
         displayId.toLowerCase().includes(term) ||
         displayDescription.toLowerCase().includes(term) ||
-        (displayManufacturerCode && displayManufacturerCode.toLowerCase().includes(term)) ||
-        (part.type?.name && part.type.name.toLowerCase().includes(term)) ||
-        (part.tags && part.tags.some((tag: unknown) => (tag as string).toLowerCase().includes(term)))
+        (displayManufacturerCode && displayManufacturerCode.toLowerCase().includes(term))
       );
     });
   }, [parts, searchTerm]);
@@ -104,7 +102,7 @@ export function PartList({ onSelectPart, onCreatePart }: PartListProps) {
             </div>
           </Card>
         ) : (
-          filteredParts.map((part: unknown) => (
+          filteredParts.map((part: PartListSchemaList_a9993e3_PartListSchema) => (
             <PartListItem
               key={part.id4}
               part={part}

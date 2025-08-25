@@ -54,7 +54,7 @@ export function PartLocationGrid({ partId, typeId }: PartLocationGridProps) {
       </div>
 
       <div className="space-y-1">
-        {locations.map((location: unknown) => (
+        {locations.map((location: PartLocation) => (
           <LocationRow
             key={`${location.box_no}-${location.loc_no}`}
             location={location}

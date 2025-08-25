@@ -5,6 +5,7 @@ import {
   usePostInventoryPartsStockByPartId4,
   useDeleteInventoryPartsStockByPartId4,
   usePostInventoryPartsMoveByPartId4,
+  type PartLocationResponseSchemaList_a9993e3_PartLocationResponseSchema,
 } from '@/lib/api/generated/hooks';
 import { calculateTotalQuantity } from '@/lib/utils/locations';
 
@@ -16,10 +17,10 @@ export function usePartLocations(partId: string) {
 
   const totalQuantity = useMemo(() => {
     if (!query.data) return 0;
-    return calculateTotalQuantity(query.data.map((location: unknown) => ({
+    return calculateTotalQuantity(query.data.map((location: PartLocationResponseSchemaList_a9993e3_PartLocationResponseSchema) => ({
       boxNo: location.box_no,
       locNo: location.loc_no,
-      quantity: location.quantity,
+      quantity: location.qty,
     })));
   }, [query.data]);
 

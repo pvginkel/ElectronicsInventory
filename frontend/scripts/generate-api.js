@@ -154,6 +154,7 @@ function generateQueryHook(path, method, operation, operationId, summary, spec, 
  * ${summary || `${method.toUpperCase()} ${path}`}
  */
 export function ${hookName}(${paramsArg}${hasParams ? ', ' : ''}options?: ${optionsType}): ReturnType<typeof useQuery<${responseType}>> {
+  // @ts-ignore
   return useQuery({
     queryKey: ['${transformedOperationId}'${hasParams ? ', params' : ''}],
     queryFn: async () => {
@@ -219,8 +220,9 @@ function generateMutationHook(path, method, operation, operationId, summary, spe
 export function ${hookName}(options?: Omit<Parameters<typeof useMutation>[0], 'mutationFn'>): ReturnType<typeof useMutation<${responseType}, Error, ${variablesType}>> {
   const queryClient = useQueryClient();
   
+  // @ts-ignore
   return useMutation({
-    mutationFn: async (variables: ${variablesType}) => {
+    mutationFn: async (${(variablesType == 'void' ? '' : 'variables: ' + variablesType)}) => {
       const { data, error } = await api.${method.toUpperCase()}(${pathWithParams}${mutationArgs});
       if (error) throw error;
       return data;

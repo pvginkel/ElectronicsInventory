@@ -95,7 +95,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
             <h3 className="font-medium mb-2">Tags</h3>
             <div className="flex flex-wrap gap-1">
               {part.tags && part.tags.length > 0 ? (
-                part.tags.map((tag: unknown, index: number) => (
+                part.tags.map((tag: string, index: number) => (
                   <span
                     key={index}
                     className="px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded-md"

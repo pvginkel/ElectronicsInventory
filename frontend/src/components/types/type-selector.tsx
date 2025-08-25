@@ -126,7 +126,7 @@ export function TypeSelector({ value, onChange, placeholder = "Search or create 
             <div className="p-3 text-sm text-muted-foreground">Searching...</div>
           ) : (
             <>
-              {types.map((type: unknown) => (
+              {types.map((type: Type) => (
                 <TypeOption
                   key={type.id}
                   type={type}
