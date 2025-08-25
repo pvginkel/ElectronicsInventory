@@ -90,6 +90,9 @@ function generateHooks(spec) {
   const hooks = [];
   const imports = new Set(['useQuery', 'useMutation', 'useQueryClient']);
   
+  // Generate type aliases from schema titles
+  const { typeAliases, typeMap } = generateTypeAliases(spec);
+  
   // Process each path in the OpenAPI spec
   for (const [path, pathItem] of Object.entries(spec.paths || {})) {
     for (const [method, operation] of Object.entries(pathItem)) {
@@ -101,9 +104,9 @@ function generateHooks(spec) {
       const isMutation = ['post', 'put', 'patch', 'delete'].includes(method.toLowerCase());
       
       if (isQuery) {
-        hooks.push(generateQueryHook(path, method, operation, operationId, summary));
+        hooks.push(generateQueryHook(path, method, operation, operationId, summary, spec, typeMap));
       } else if (isMutation) {
-        hooks.push(generateMutationHook(path, method, operation, operationId, summary));
+        hooks.push(generateMutationHook(path, method, operation, operationId, summary, spec, typeMap));
       }
     }
   }
@@ -111,7 +114,10 @@ function generateHooks(spec) {
   const hooksContent = `// Generated TanStack Query hooks - do not edit manually
 import { ${Array.from(imports).join(', ')} } from '@tanstack/react-query';
 import { api } from './client';
-import type { paths } from './types';
+import type { paths, components } from './types';
+
+// Type aliases for better developer experience
+${typeAliases.join('\n')}
 
 ${hooks.join('\n\n')}
 `;
@@ -123,7 +129,7 @@ ${hooks.join('\n\n')}
 /**
  * Generates a React Query hook for GET requests
  */
-function generateQueryHook(path, method, operation, operationId, summary) {
+function generateQueryHook(path, method, operation, operationId, summary, spec, typeMap) {
   const transformedOperationId = transformOperationId(operationId);
   const hookName = `use${capitalize(transformedOperationId)}`;
   const pathParams = extractPathParams(path);
@@ -149,7 +155,7 @@ function generateQueryHook(path, method, operation, operationId, summary) {
     ? `Omit<Parameters<typeof useQuery>[0], 'queryKey' | 'queryFn'>`
     : `Omit<Parameters<typeof useQuery>[0], 'queryKey' | 'queryFn'>`;
   
-  const responseType = `NonNullable<paths['${path}']['${method}']['responses']['200']['content']['application/json']>`;
+  const responseType = getFriendlyType(spec, path, method, 'response', typeMap);
   
   return `/**
  * ${summary || `${method.toUpperCase()} ${path}`}
@@ -170,7 +176,7 @@ export function ${hookName}(${paramsArg}${hasParams ? ', ' : ''}options?: ${opti
 /**
  * Generates a React Query mutation hook for POST/PUT/PATCH/DELETE requests
  */
-function generateMutationHook(path, method, operation, operationId, summary) {
+function generateMutationHook(path, method, operation, operationId, summary, spec, typeMap) {
   const transformedOperationId = transformOperationId(operationId);
   const hookName = `use${capitalize(transformedOperationId)}`;
   const pathParams = extractPathParams(path);
@@ -187,7 +193,8 @@ function generateMutationHook(path, method, operation, operationId, summary) {
       parts.push(`path: paths['${path}']['${method}']['parameters']['path']`);
     }
     if (hasBody) {
-      parts.push(`body: NonNullable<paths['${path}']['${method}']['requestBody']>['content']['application/json']`);
+      const bodyType = getFriendlyType(spec, path, method, 'requestBody', typeMap);
+      parts.push(`body: ${bodyType}`);
     }
     variablesType = `{ ${parts.join('; ')} }`;
     
@@ -206,7 +213,7 @@ function generateMutationHook(path, method, operation, operationId, summary) {
     mutationArgs = argParts.length > 0 ? `, { ${argParts.join(', ')} }` : '';
   }
   
-  const responseType = `NonNullable<paths['${path}']['${method}']['responses']['200']['content']['application/json']>`;
+  const responseType = getFriendlyType(spec, path, method, 'response', typeMap);
   
   return `/**
  * ${summary || `${method.toUpperCase()} ${path}`}
@@ -285,6 +292,82 @@ function transformOperationId(operationId) {
   
   // Convert to camelCase
   return toCamelCase(fullName);
+}
+
+/**
+ * Generates user-friendly type aliases from OpenAPI schemas
+ */
+function generateTypeAliases(spec) {
+  const typeAliases = [];
+  const typeMap = new Map();
+  
+  // Extract schemas and create aliases based on unique schema keys
+  if (spec.components && spec.components.schemas) {
+    for (const [schemaKey, schema] of Object.entries(spec.components.schemas)) {
+      if (schema.title) {
+        // Convert schema key to a valid TypeScript identifier
+        // Replace dots and special characters with underscores
+        const aliasName = schemaKey.replace(/[^a-zA-Z0-9]/g, '_');
+        const longTypePath = `components['schemas']['${schemaKey}']`;
+        
+        typeAliases.push(`export type ${aliasName} = ${longTypePath};`);
+        typeMap.set(schemaKey, aliasName);
+      }
+    }
+  }
+  
+  return { typeAliases, typeMap };
+}
+
+/**
+ * Finds the schema reference for a specific path/method/type combination
+ */
+function findSchemaReference(spec, path, method, type) {
+  try {
+    const pathItem = spec.paths[path];
+    if (!pathItem) return null;
+    
+    const operation = pathItem[method];
+    if (!operation) return null;
+    
+    if (type === 'response') {
+      const response = operation.responses?.['200'];
+      const schema = response?.content?.['application/json']?.schema;
+      if (schema && schema.$ref) {
+        return schema.$ref.replace('#/components/schemas/', '');
+      }
+    } else if (type === 'requestBody') {
+      const requestBody = operation.requestBody;
+      const schema = requestBody?.content?.['application/json']?.schema;
+      if (schema && schema.$ref) {
+        return schema.$ref.replace('#/components/schemas/', '');
+      }
+    }
+  } catch (error) {
+    // Ignore errors and fall back to long path
+  }
+  
+  return null;
+}
+
+/**
+ * Gets a friendly type alias or falls back to the original type path
+ */
+function getFriendlyType(spec, path, method, type, typeMap) {
+  const schemaKey = findSchemaReference(spec, path, method, type);
+  
+  if (schemaKey && typeMap.has(schemaKey)) {
+    return typeMap.get(schemaKey);
+  }
+  
+  // Fallback to original long path
+  if (type === 'response') {
+    return `NonNullable<paths['${path}']['${method}']['responses']['200']['content']['application/json']>`;
+  } else if (type === 'requestBody') {
+    return `NonNullable<paths['${path}']['${method}']['requestBody']>['content']['application/json']`;
+  }
+  
+  return `NonNullable<paths['${path}']['${method}']['responses']['200']['content']['application/json']>`;
 }
 
 /**
