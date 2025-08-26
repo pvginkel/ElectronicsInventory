@@ -60,7 +60,7 @@ import type { paths } from './types';
 export const api = createClient<paths>({
   baseUrl: import.meta.env.VITE_API_BASE_URL || (
     process.env.NODE_ENV === 'production' 
-      ? '/api'  // Production: assume API is served from same origin
+      ? ''  // Production: assume API is served from same origin
       : 'http://localhost:5000'  // Development: backend on different port
   ),
 });
