@@ -41,16 +41,18 @@ export function Button({
     lg: 'h-11 px-8'
   }
   
-  const handleMouseDown = preventValidation ? (e: React.MouseEvent) => {
-    e.preventDefault()
-    onClick?.()
+  const handleMouseUp = preventValidation ? (e: React.MouseEvent) => {
+    if (e.button === 0) {
+      e.preventDefault()
+      onClick?.()
+    }
   } : undefined
 
   return (
     <button
       type={type}
       onClick={preventValidation ? undefined : onClick}
-      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
       disabled={disabled || loading}
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
     >
