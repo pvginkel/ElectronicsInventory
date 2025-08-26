@@ -6,7 +6,7 @@
   "packageManager": "pnpm@9.0.0",
   "scripts": {
     "dev": "vite --host --port 3000",
-    "build": "pnpm generate:api:build && tsc -b && vite build",
+    "build": "pnpm generate:api:build && pnpm generate:routes && tsc -b && vite build",
     "lint": "eslint .",
     "type-check": "tsc --noEmit --project tsconfig.app.json",
     "preview": "vite preview",
