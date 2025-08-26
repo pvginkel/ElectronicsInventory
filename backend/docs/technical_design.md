@@ -10,6 +10,10 @@
 * **OpenAPI** via **Spectree** (Flask plugin that reads Pydantic models)
 * **CORS**: `flask-cors` (allow only your frontend origin)
 
+## Architecture
+
+* Backend follows a BFF pattern. Breaking changes can be made and the frontend will always be brought in line.
+
 ## Object/BLOB Storage (Ceph S3)
 
 * **boto3** S3 client configured with your **Ceph RGW endpoint**

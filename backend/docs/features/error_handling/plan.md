@@ -2,23 +2,22 @@
 
 ## Brief Description
 
-Implement comprehensive, consistent error handling throughout the Flask backend API with structured error responses, proper HTTP status codes, enhanced validation error reporting, and robust error monitoring to ensure graceful failure handling for all client interactions.
+Enhance the existing error handling infrastructure with domain-specific exceptions, improved error messages, and better client feedback while maintaining the current decorator-based pattern and Pydantic schema structure.
 
 ## Files and Functions to be Created or Modified
 
 ### Enhanced Error Response Infrastructure
-- `app/schemas/error.py` - **NEW** - Structured error response schemas with error codes and metadata
-- `app/utils/error_codes.py` - **NEW** - Standardized error code definitions and categorization
-- `app/utils/error_context.py` - **NEW** - Error context enrichment and request correlation
-- `app/utils/error_handling.py` - **MODIFY** - Enhanced error classification and user-friendly message generation
-- `app/utils/flask_error_handlers.py` - **MODIFY** - More comprehensive error handlers with structured responses
+- `app/schemas/common.py` - **MODIFY** - Enhance existing ErrorResponseSchema with error codes and context
+- `app/utils/error_codes.py` - **NEW** - Standardized error code definitions for business errors
+- `app/utils/error_handling.py` - **MODIFY** - Enhanced error classification and domain-specific message generation
+- `app/utils/flask_error_handlers.py` - **MODIFY** - Add domain-specific error handlers
 
 ### Service Layer Error Enhancement
-- `app/services/part_service.py` - **MODIFY** - Replace generic ValueError with domain-specific exceptions
+- `app/services/part_service.py` - **MODIFY** - Replace generic ValueError with domain-specific exceptions  
 - `app/services/inventory_service.py` - **MODIFY** - Enhanced validation errors with field-specific details
 - `app/services/box_service.py` - **MODIFY** - Better capacity and constraint validation errors
 - `app/services/type_service.py` - **MODIFY** - Improved type validation and conflict detection
-- `app/exceptions/service_exceptions.py` - **NEW** - Custom service-level exceptions hierarchy
+- `app/exceptions.py` - **NEW** - Custom service-level exceptions following single-file pattern
 
 ### API Layer Error Response Enhancement
 - `app/api/parts.py` - **MODIFY** - Enhanced error responses with recovery suggestions
@@ -27,117 +26,113 @@ Implement comprehensive, consistent error handling throughout the Flask backend 
 - `app/api/inventory.py` - **MODIFY** - Inventory operation error enhancement
 - `app/api/types.py` - **MODIFY** - Type management error improvements
 
-### Database Error Enhancement
-- `app/models/__init__.py` - **MODIFY** - Custom exception mapping for database constraints
+### Database Error Enhancement  
 - `app/utils/constraint_mapper.py` - **NEW** - Map database constraints to business-friendly error messages
-- `app/utils/validation_helpers.py` - **NEW** - Enhanced validation utilities with detailed error context
-
-### Error Monitoring and Logging
-- `app/utils/error_logger.py` - **NEW** - Structured error logging with request correlation
-- `app/utils/performance_monitor.py` - **NEW** - Track error patterns and API performance impact
-- `app/middleware/error_tracking.py` - **NEW** - Request/response error correlation middleware
+- `app/utils/validation_helpers.py` - **NEW** - Generic validation utilities for format and data type validation
 
 ### Testing Enhancement
-- `tests/test_error_handling.py` - **NEW** - Comprehensive error handling test suite
+- `tests/test_error_handling.py` - **NEW** - Comprehensive error handling test suite following existing pytest patterns
 - `tests/test_validation_errors.py` - **NEW** - Validation error message and structure tests
 - `tests/conftest.py` - **MODIFY** - Test fixtures for error scenario testing
 
 ## Step-by-Step Implementation
 
 ### Phase 1: Error Response Structure and Codes
-1. **Create error.py schema** - Define structured error response format:
-   - `DetailedErrorResponseSchema` with error codes, messages, field details, and suggested actions
-   - `ValidationErrorResponseSchema` with field-specific error reporting
-   - `BusinessErrorResponseSchema` for domain logic violations
-   - `SystemErrorResponseSchema` for infrastructure failures
+1. **Enhance ErrorResponseSchema** - Extend existing schema in `app/schemas/common.py`:
+   - Add optional `error_code` field for domain-specific error categorization
+   - Add optional `context` field for additional error metadata
+   - Maintain backward compatibility with existing `error` and `details` fields
 
 2. **Create error_codes.py** - Standardized error classification:
-   - `PART_NOT_FOUND`, `LOCATION_OCCUPIED`, `INSUFFICIENT_STOCK`
+   - `RECORD_NOT_FOUND`, `RESOURCE_CONFLICT`, `INSUFFICIENT_QUANTITY`
+   - `CAPACITY_EXCEEDED`, `INVALID_OPERATION`, `RESOURCE_IN_USE`
    - `VALIDATION_FAILED`, `CONSTRAINT_VIOLATION`, `BUSINESS_RULE_ERROR`
    - `SYSTEM_ERROR`, `DATABASE_ERROR`, `EXTERNAL_SERVICE_ERROR`
-   - Error code to HTTP status mapping
+   - Error code to HTTP status mapping with specific status codes:
+     - `RECORD_NOT_FOUND` → 404
+     - `RESOURCE_CONFLICT`, `INSUFFICIENT_QUANTITY`, `CAPACITY_EXCEEDED`, `RESOURCE_IN_USE` → 409
+     - `INVALID_OPERATION` → 422
+     - `VALIDATION_FAILED` → 400
+     - `CONSTRAINT_VIOLATION`, `BUSINESS_RULE_ERROR` → 400
 
-3. **Create error_context.py** - Request correlation and enrichment:
-   - Generate correlation IDs for request tracking
-   - Capture request context (endpoint, method, user session)
-   - Add timing information and performance context
-   - Extract relevant business context from request data
+3. **Create ResourceType enum** - Standardized resource identification:
+   - `PART`, `BOX`, `LOCATION`, `TYPE`, `INVENTORY`, `QUANTITY_HISTORY`
+   - Used for consistent resource identification across all exceptions and error messages
 
 ### Phase 2: Service Layer Exception Enhancement
-1. **Create service_exceptions.py** - Domain-specific exception hierarchy:
-   - `PartNotFoundException`, `LocationNotAvailableException`
-   - `InsufficientStockException`, `InvalidQuantityException`
-   - `BoxCapacityExceededException`, `DuplicateResourceException`
-   - Each exception includes error code, context, and recovery suggestions
+1. **Create exceptions.py** - Generic exception hierarchy:
+   - `RecordNotFoundException` (for parts, boxes, locations, types)
+   - `ResourceConflictException` (for occupied locations, duplicates)
+   - `InsufficientQuantityException`, `CapacityExceededException`
+   - `InvalidOperationException`, `ResourceInUseException`
+   - Base exception class with standardized context structure:
+     - `resource_type`: ResourceType enum value
+     - `resource_id`: Business key identifier (box_no, part_id, etc.)
+     - `operation`: What operation was being attempted
+     - `additional_context`: Dictionary of extra relevant data
+     - `error_code`: Corresponding error code from error_codes.py
+     - `message`: Human-readable error message
 
-2. **Enhance service methods** - Replace generic exceptions with domain-specific ones:
-   - `PartService.create_part()` - Better ID generation failure handling
-   - `InventoryService.add_stock()` - Enhanced location and quantity validation
-   - `InventoryService.remove_stock()` - Detailed insufficient stock reporting
-   - All services - Context-aware error messages with affected resources
+2. **Enhance service methods** - Replace generic exceptions with standardized ones:
+   - `PartService.create_part()` - Use `ResourceConflictException` for ID collisions, include business validation logic
+   - `BoxService.get_box()` - Use `RecordNotFoundException` for missing boxes, include business validation logic
+   - `InventoryService.add_stock()` - Use `CapacityExceededException` for location limits, include business validation logic
+   - `InventoryService.remove_stock()` - Use `InsufficientQuantityException` for stock shortages, include business validation logic
+   - All services - Contain business logic validation within service methods, use generic validation helpers for format/type validation only
 
 3. **Create constraint_mapper.py** - Database constraint to business error mapping:
-   - Map foreign key violations to "Referenced part/location does not exist"
-   - Map unique constraints to "Part ID/Box number already exists"
-   - Map check constraints to specific business rule violations
-   - Include affected fields and suggested corrections
+   - Map foreign key violations to `RecordNotFoundException` with referenced resource type
+   - Map unique constraints to `ResourceConflictException` with conflicting field details
+   - Map check constraints to appropriate business rule exceptions
+   - Include affected fields, resource types, and suggested corrections
+
+4. **Error message templates** - Standardized message patterns:
+   - `RecordNotFoundException`: "{resource_type} not found: {resource_id}"
+   - `ResourceConflictException`: "{resource_type} conflict: {details}"
+   - `InsufficientQuantityException`: "Insufficient quantity: requested {requested}, available {available}"
+   - `CapacityExceededException`: "Capacity exceeded: {resource_type} {resource_id} cannot accommodate {attempted} items"
+   - `InvalidOperationException`: "Invalid operation on {resource_type} {resource_id}: {reason}"
+   - `ResourceInUseException`: "{resource_type} {resource_id} is currently in use and cannot be modified"
 
 ### Phase 3: API Layer Error Response Enhancement
-1. **Enhance error_handling.py decorator** - Improved error processing:
+1. **Enhance @handle_api_errors decorator** - Improved error processing within existing pattern:
+   - Add handling for custom domain exceptions
    - Error code assignment based on exception type
    - Context-aware message generation with business terminology
    - Field-level error details for validation failures
-   - Recovery action suggestions based on error type and context
 
 2. **Update API endpoints** - Better error response structure:
    - Replace generic error messages with specific, actionable feedback
    - Include relevant resource identifiers in error context
    - Provide suggested next steps for recoverable errors
-   - Add request correlation IDs to all error responses
+   - Use enhanced ErrorResponseSchema with error codes
 
 3. **Enhance flask_error_handlers.py** - Comprehensive error coverage:
    - Handle custom service exceptions with proper HTTP status codes
    - Improve validation error formatting with field context
-   - Add request correlation to all error responses
-   - Include API versioning and endpoint context
+   - Maintain existing JSON response structure
 
-### Phase 4: Validation and Business Rule Enhancement
-1. **Create validation_helpers.py** - Enhanced validation utilities:
-   - `validate_part_id4_format()` with format-specific error messages
-   - `validate_quantity_constraints()` with business rule context
-   - `validate_location_availability()` with capacity and conflict details
-   - Cross-field validation with relationship context
+### Phase 4: Validation Enhancement
+1. **Create validation_helpers.py** - Generic validation utilities only:
+   - `validate_id4_format()` - Format validation for 4-letter uppercase IDs
+   - `validate_positive_integer()` - Numeric range validation
+   - `validate_string_length()` - String length constraints
+   - `sanitize_input()` - Generic input sanitization
+   - No business logic validation (stays in services)
+   - Only create methods that that will be used; create them as needed and refactory when necessary
 
 2. **Enhance Pydantic schemas** - Better validation error messages:
-   - Custom validators with business-friendly error messages
-   - Field-level validation with context-aware descriptions
-   - Cross-field validation with relationship explanations
-   - Examples of correct formats in validation error messages
+   - Custom validators with format-specific error messages
+   - Field-level validation with examples of correct formats
+   - Use generic validation helpers for format validation only
+   - Business rule validation remains in service methods
 
-3. **Improve business logic validation** - Service-level rule enforcement:
-   - Part ID uniqueness validation with collision handling context
-   - Location capacity validation with current usage details
-   - Quantity constraints with available stock information
-   - Type assignment validation with compatibility checks
-
-### Phase 5: Error Monitoring and Performance Tracking
-1. **Create error_logger.py** - Structured error logging:
-   - Log error patterns with request correlation
-   - Track error frequency by endpoint and error type
-   - Performance impact measurement for error handling
-   - Integration with external monitoring services
-
-2. **Create performance_monitor.py** - Error impact analysis:
-   - Track API response times with error correlation
-   - Monitor error recovery success rates
-   - Measure user experience impact of different error types
-   - Generate error trend reports for system improvement
-
-3. **Create error_tracking middleware** - Request lifecycle error monitoring:
-   - Automatic error context collection throughout request lifecycle
-   - Performance impact measurement of error handling overhead
-   - User session correlation for error pattern analysis
-   - Error recovery attempt tracking and success measurement
+3. **Improve business logic validation in services** - Service-level rule enforcement:
+   - Part ID uniqueness validation with collision handling context in PartService
+   - Location capacity validation with current usage details in InventoryService
+   - Quantity constraints with available stock information in InventoryService
+   - Type assignment validation with compatibility checks in TypeService
+   - All business rules encapsulated within respective service methods
 
 ## Algorithms and Logic
 
@@ -175,40 +170,25 @@ mapConstraintViolation(integrity_error, context):
   6. Return mapped business error with context
 ```
 
-### Error Context Enrichment
-```
-enrichErrorContext(error, request_context):
-  1. Generate correlation ID for request tracking
-  2. Extract relevant business entities from request
-  3. Add timing and performance context
-  4. Include user session and authentication context
-  5. Capture request parameters and payload summary
-  6. Return enriched error object with full context
-```
-
 ## Implementation Phases
 
 ### Phase 1: Error Response Foundation
-- Establish structured error response format
+- Enhance existing ErrorResponseSchema with error codes and context
 - Create error code system and HTTP status mapping
-- Implement request correlation and context capture
+- Maintain backward compatibility with current error structure
 
-### Phase 2: Service Layer Exception Handling
+### Phase 2: Service Layer Exception Handling  
+- Create domain-specific exceptions in single exceptions.py file
 - Replace generic exceptions with domain-specific ones
-- Enhance validation with business context
 - Improve database constraint error mapping
 
 ### Phase 3: API Error Response Enhancement
-- Update all API endpoints with structured error responses
-- Implement comprehensive error handler coverage
-- Add recovery suggestions and actionable feedback
+- Enhance existing @handle_api_errors decorator
+- Update flask error handlers for domain exceptions
+- Maintain existing API endpoint patterns
 
-### Phase 4: Validation and Business Rule Enhancement
-- Strengthen Pydantic schema validation messages
-- Enhance cross-field and business rule validation
+### Phase 4: Validation Enhancement
+- Create generic validation utilities for format and data type validation
+- Strengthen Pydantic schema validation messages for format errors
+- Enhance business rule validation within service methods
 - Improve error context with affected resource details
-
-### Phase 5: Monitoring and Continuous Improvement
-- Implement error pattern tracking and analysis
-- Monitor API performance impact of error handling
-- Create error trend reporting for system improvement
