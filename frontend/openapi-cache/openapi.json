@@ -942,44 +942,6 @@
         "title": "RemoveStockSchema",
         "type": "object"
       },
-      "TestHealthResponseSchema.355d24f": {
-        "description": "Response schema for test health endpoint.",
-        "properties": {
-          "environment": {
-            "title": "Environment",
-            "type": "string"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "status",
-          "environment",
-          "message"
-        ],
-        "title": "TestHealthResponseSchema",
-        "type": "object"
-      },
-      "TestResetResponseSchema.355d24f": {
-        "description": "Response schema for database reset endpoint.",
-        "properties": {
-          "message": {
-            "title": "Message",
-            "type": "string"
-          }
-        },
-        "required": [
-          "message"
-        ],
-        "title": "TestResetResponseSchema",
-        "type": "object"
-      },
       "TypeCreateSchema.50492c8": {
         "description": "Schema for creating a new type.",
         "properties": {
@@ -2051,92 +2013,6 @@
         "tags": []
       }
     },
-    "/api/test/health": {
-      "get": {
-        "description": "",
-        "operationId": "get__api_test_health",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TestHealthResponseSchema.355d24f"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationError.6a07bef"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Not Found"
-          }
-        },
-        "summary": "Health check endpoint for testing environment.",
-        "tags": [
-          "testing"
-        ]
-      }
-    },
-    "/api/test/reset": {
-      "delete": {
-        "description": "This endpoint drops all data from the database and recreates the tables. Only available when FLASK_ENV=testing.",
-        "operationId": "delete__api_test_reset",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TestResetResponseSchema.355d24f"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationError.6a07bef"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Not Found"
-          }
-        },
-        "summary": "Reset database to clean state for testing.",
-        "tags": [
-          "testing"
-        ]
-      }
-    },
     "/api/types": {
       "get": {
         "description": "",
@@ -2374,9 +2250,5 @@
     }
   },
   "security": [],
-  "tags": [
-    {
-      "name": "testing"
-    }
-  ]
+  "tags": []
 }

@@ -31,7 +31,7 @@ export function TypeSelector({ value, onChange, placeholder = "Search or create 
   // Initialize search term with selected type name if available
   useEffect(() => {
     if (value && types.length > 0) {
-      const selectedType = types.find((t: unknown) => (t as {id: number}).id === value);
+      const selectedType = types.find((t: Type) => t.id === value);
       if (selectedType && !searchTerm) {
         setSearchTerm(selectedType.name);
       }
@@ -102,7 +102,7 @@ export function TypeSelector({ value, onChange, placeholder = "Search or create 
     setCreateTypeName('');
   };
 
-  const exactMatch = types.find((t: unknown) => (t as {name: string}).name.toLowerCase() === searchTerm.toLowerCase());
+  const exactMatch = types.find((t: Type) => t.name.toLowerCase() === searchTerm.toLowerCase());
   const showCreateOption = searchTerm.trim() && !exactMatch && !isLoading;
 
   return (
@@ -123,7 +123,12 @@ export function TypeSelector({ value, onChange, placeholder = "Search or create 
           className="absolute top-full left-0 right-0 z-10 mt-1 bg-card border border-input rounded-md shadow-md max-h-60 overflow-y-auto"
         >
           {isLoading ? (
-            <div className="p-3 text-sm text-muted-foreground">Searching...</div>
+            <div className="p-3">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-sm text-muted-foreground">Searching types...</span>
+              </div>
+            </div>
           ) : (
             <>
               {types.map((type: Type) => (

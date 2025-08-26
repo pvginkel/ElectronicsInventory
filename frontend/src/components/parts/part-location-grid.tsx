@@ -22,7 +22,25 @@ export function PartLocationGrid({ partId, typeId }: PartLocationGridProps) {
   const [showAddRow, setShowAddRow] = useState(false);
 
   if (isLoading) {
-    return <div className="text-sm text-muted-foreground">Loading locations...</div>;
+    return (
+      <div className="space-y-2">
+        <div className="flex justify-between items-center mb-4">
+          <div className="h-5 bg-muted rounded w-32 animate-pulse"></div>
+          <div className="h-4 bg-muted rounded w-20 animate-pulse"></div>
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="animate-pulse">
+              <div className="flex items-center justify-between p-2 border rounded">
+                <div className="h-4 bg-muted rounded w-16"></div>
+                <div className="h-4 bg-muted rounded w-12"></div>
+                <div className="h-8 bg-muted rounded w-20"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (locations.length === 0 && totalQuantity === 0) {
