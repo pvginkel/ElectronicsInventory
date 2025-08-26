@@ -8,6 +8,7 @@ packages = [{include = "app"}]
 
 [tool.poetry.scripts]
 inventory-cli = "app.cli:main"
+dev = "run:main"
 
 [tool.poetry.dependencies]
 python = "^3.12"
