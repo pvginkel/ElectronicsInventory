@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from app.models.part import Part
 from app.services.part_service import PartService
 from app.services.type_service import TypeService
+from app.exceptions import RecordNotFoundException, InvalidOperationException
+import pytest
 
 
 class TestPartService:
@@ -90,8 +92,8 @@ class TestPartService:
     def test_get_part_nonexistent(self, app: Flask, session: Session):
         """Test getting a non-existent part."""
         with app.app_context():
-            part = PartService.get_part(session, "AAAA")
-            assert part is None
+            with pytest.raises(RecordNotFoundException, match="Part AAAA was not found"):
+                PartService.get_part(session, "AAAA")
 
     def test_get_parts_list(self, app: Flask, session: Session):
         """Test listing parts with pagination."""
@@ -175,8 +177,8 @@ class TestPartService:
     def test_update_part_nonexistent(self, app: Flask, session: Session):
         """Test updating a non-existent part."""
         with app.app_context():
-            result = PartService.update_part_details(session, "AAAA", description="New desc")
-            assert result is None
+            with pytest.raises(RecordNotFoundException, match="Part AAAA was not found"):
+                PartService.update_part_details(session, "AAAA", description="New desc")
 
     def test_delete_part_zero_quantity(self, app: Flask, session: Session):
         """Test deleting a part with zero quantity."""
@@ -185,15 +187,14 @@ class TestPartService:
             part = PartService.create_part(session, "To be deleted")
             session.commit()
 
-            # Should be able to delete
-            result = PartService.delete_part(session, part.id4)
-            assert result is True
+            # Should be able to delete (no exception thrown)
+            PartService.delete_part(session, part.id4)
 
     def test_delete_part_nonexistent(self, app: Flask, session: Session):
         """Test deleting a non-existent part."""
         with app.app_context():
-            result = PartService.delete_part(session, "AAAA")
-            assert result is False
+            with pytest.raises(RecordNotFoundException, match="Part AAAA was not found"):
+                PartService.delete_part(session, "AAAA")
 
     def test_get_total_quantity_no_locations(self, app: Flask, session: Session):
         """Test getting total quantity for part with no locations."""

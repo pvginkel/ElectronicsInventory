@@ -37,9 +37,6 @@ def list_types():
 def get_type(type_id: int):
     """Get single type details."""
     type_obj = TypeService.get_type(g.db, type_id)
-    if not type_obj:
-        return {"error": "Type not found"}, 404
-
     return TypeResponseSchema.model_validate(type_obj).model_dump()
 
 
@@ -50,9 +47,6 @@ def update_type(type_id: int):
     """Update type name."""
     data = TypeUpdateSchema.model_validate(request.get_json())
     type_obj = TypeService.update_type(g.db, type_id, data.name)
-    if not type_obj:
-        return {"error": "Type not found"}, 404
-
     return TypeResponseSchema.model_validate(type_obj).model_dump()
 
 
@@ -61,12 +55,5 @@ def update_type(type_id: int):
 @handle_api_errors
 def delete_type(type_id: int):
     """Delete type if not in use."""
-    if TypeService.delete_type(g.db, type_id):
-        return "", 204
-    else:
-        # Check if type exists to give appropriate error
-        type_obj = TypeService.get_type(g.db, type_id)
-        if not type_obj:
-            return {"error": "Type not found"}, 404
-        else:
-            return {"error": "Cannot delete type that is in use by parts"}, 409
+    TypeService.delete_type(g.db, type_id)
+    return "", 204

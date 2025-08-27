@@ -201,7 +201,7 @@ class InventoryService:
         return list(db.execute(stmt).scalars().all())
 
     @staticmethod
-    def suggest_location(db: Session, type_id: Optional[int]) -> tuple[int, int] | None:
+    def suggest_location(db: Session, type_id: Optional[int]) -> tuple[int, int]:
         """Suggest a location for a part based on type and availability."""
         # For now, implement simple first-available algorithm
         # Future enhancement: prefer same-category boxes
@@ -223,9 +223,9 @@ class InventoryService:
         )
 
         result = db.execute(stmt).first()
-        if result:
-            return (result[0], result[1])
-        return None
+        if not result:
+            raise RecordNotFoundException("Available location", "none found")
+        return (result[0], result[1])
 
     @staticmethod
     def cleanup_zero_quantities(db: Session, part_id4: str) -> None:

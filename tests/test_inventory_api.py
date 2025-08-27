@@ -54,7 +54,7 @@ class TestInventoryAPI:
             data = {"box_no": 999, "loc_no": 1, "qty": 5}
 
             response = client.post(f"/api/inventory/parts/{part.id4}/stock", json=data)
-            assert response.status_code == 400
+            assert response.status_code == 404
 
     def test_add_stock_invalid_quantity(self, app: Flask, client: FlaskClient, session: Session):
         """Test adding stock with invalid quantity."""
@@ -106,7 +106,7 @@ class TestInventoryAPI:
             data = {"box_no": box.box_no, "loc_no": 1, "qty": 5}
 
             response = client.delete(f"/api/inventory/parts/{part.id4}/stock", json=data)
-            assert response.status_code == 400
+            assert response.status_code == 409
 
     def test_remove_stock_nonexistent_location(self, app: Flask, client: FlaskClient, session: Session):
         """Test removing stock from location with no stock."""
@@ -175,7 +175,7 @@ class TestInventoryAPI:
             }
 
             response = client.post(f"/api/inventory/parts/{part.id4}/move", json=data)
-            assert response.status_code == 400
+            assert response.status_code == 409
 
     def test_move_stock_invalid_destination(self, app: Flask, client: FlaskClient, session: Session):
         """Test moving stock to invalid destination."""
@@ -197,7 +197,7 @@ class TestInventoryAPI:
             }
 
             response = client.post(f"/api/inventory/parts/{part.id4}/move", json=data)
-            assert response.status_code == 400
+            assert response.status_code == 404
 
     def test_get_location_suggestion(self, app: Flask, client: FlaskClient, session: Session):
         """Test getting location suggestions."""

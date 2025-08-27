@@ -85,7 +85,7 @@ def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Response | tupl
             return jsonify({
                 "error": e.message,
                 "details": {"message": "The requested operation cannot be performed"}
-            }), 400
+            }), 409
 
         except InventoryException as e:
             # Generic inventory exception (fallback for custom exceptions)

@@ -24,10 +24,8 @@ inventory_bp = Blueprint("inventory", __name__, url_prefix="/inventory")
 @handle_api_errors
 def add_stock(part_id4: str):
     """Add stock to a location."""
-    # Check if part exists
-    part = PartService.get_part(g.db, part_id4)
-    if not part:
-        return {"error": "Part not found"}, 404
+    # Check if part exists (this will raise RecordNotFoundException if not found)
+    PartService.get_part(g.db, part_id4)
 
     data = AddStockSchema.model_validate(request.get_json())
 
@@ -48,10 +46,8 @@ def add_stock(part_id4: str):
 @handle_api_errors
 def remove_stock(part_id4: str):
     """Remove stock from a location."""
-    # Check if part exists
-    part = PartService.get_part(g.db, part_id4)
-    if not part:
-        return {"error": "Part not found"}, 404
+    # Check if part exists (this will raise RecordNotFoundException if not found)
+    PartService.get_part(g.db, part_id4)
 
     data = RemoveStockSchema.model_validate(request.get_json())
 
@@ -66,10 +62,8 @@ def remove_stock(part_id4: str):
 @handle_api_errors
 def move_stock(part_id4: str):
     """Move stock between locations."""
-    # Check if part exists
-    part = PartService.get_part(g.db, part_id4)
-    if not part:
-        return {"error": "Part not found"}, 404
+    # Check if part exists (this will raise RecordNotFoundException if not found)
+    PartService.get_part(g.db, part_id4)
 
     data = MoveStockSchema.model_validate(request.get_json())
 
@@ -90,10 +84,5 @@ def move_stock(part_id4: str):
 @handle_api_errors
 def get_location_suggestion(type_id: int):
     """Get location suggestions for part type."""
-    suggestion = InventoryService.suggest_location(g.db, type_id)
-
-    if not suggestion:
-        return {"error": "No available locations found"}, 404
-
-    box_no, loc_no = suggestion
+    box_no, loc_no = InventoryService.suggest_location(g.db, type_id)
     return LocationSuggestionSchema(box_no=box_no, loc_no=loc_no).model_dump()
