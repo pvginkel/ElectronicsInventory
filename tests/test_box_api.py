@@ -284,6 +284,206 @@ class TestBoxAPI:
         response_data = json.loads(response.data)
         assert "error" in response_data
 
+    def test_get_box_locations_with_parts_false(self, client: FlaskClient, session: Session):
+        """Test getting basic locations with include_parts=false (backward compatibility)."""
+        from app.services.inventory_service import InventoryService
+
+        box = BoxService.create_box(session, "Test Box", 3)
+        session.commit()
+        
+        # Add some parts to test that they're not included when include_parts=false
+        InventoryService.add_stock(session, "R001", box.box_no, 1, 10)
+        InventoryService.add_stock(session, "C002", box.box_no, 3, 25)
+        session.commit()
+
+        response = client.get(f"/api/boxes/{box.box_no}/locations?include_parts=false")
+
+        assert response.status_code == 200
+        response_data = json.loads(response.data)
+
+        assert len(response_data) == 3
+        for i, location in enumerate(response_data, 1):
+            assert location["box_no"] == box.box_no
+            assert location["loc_no"] == i
+            # Basic schema should not include part information
+            assert "is_occupied" not in location
+            assert "part_assignments" not in location
+
+    def test_get_box_locations_with_parts_true_empty_box(self, client: FlaskClient, session: Session):
+        """Test getting enhanced locations for empty box with include_parts=true."""
+        box = BoxService.create_box(session, "Empty Box", 4)
+        session.commit()
+
+        response = client.get(f"/api/boxes/{box.box_no}/locations?include_parts=true")
+
+        assert response.status_code == 200
+        response_data = json.loads(response.data)
+
+        assert len(response_data) == 4
+        for i, location in enumerate(response_data, 1):
+            assert location["box_no"] == box.box_no
+            assert location["loc_no"] == i
+            assert location["is_occupied"] == False
+            assert location["part_assignments"] is None
+
+    def test_get_box_locations_with_parts_true_with_parts(self, client: FlaskClient, session: Session):
+        """Test getting enhanced locations with parts using include_parts=true."""
+        from app.services.inventory_service import InventoryService
+        from app.services.part_service import PartService
+
+        box = BoxService.create_box(session, "Parts Box", 5)
+        
+        # Create parts with detailed information
+        part1 = PartService.create_part(
+            session,
+            "1kΩ resistor, 0603 package",
+            manufacturer_code="RES-0603-1K"
+        )
+        part2 = PartService.create_part(
+            session,
+            "100nF capacitor, ceramic",
+            manufacturer_code="CAP-0603-100N"
+        )
+        session.commit()
+        
+        # Add parts to different locations
+        InventoryService.add_stock(session, part1.id4, box.box_no, 2, 50)
+        InventoryService.add_stock(session, part2.id4, box.box_no, 4, 100)
+        InventoryService.add_stock(session, part1.id4, box.box_no, 5, 25)  # Same part in multiple locations
+        session.commit()
+
+        response = client.get(f"/api/boxes/{box.box_no}/locations?include_parts=true")
+
+        assert response.status_code == 200
+        response_data = json.loads(response.data)
+
+        assert len(response_data) == 5
+        
+        # Location 1: empty
+        assert response_data[0]["box_no"] == box.box_no
+        assert response_data[0]["loc_no"] == 1
+        assert response_data[0]["is_occupied"] == False
+        assert response_data[0]["part_assignments"] is None
+        
+        # Location 2: has R001
+        assert response_data[1]["box_no"] == box.box_no
+        assert response_data[1]["loc_no"] == 2
+        assert response_data[1]["is_occupied"] == True
+        assert len(response_data[1]["part_assignments"]) == 1
+        part_assignment = response_data[1]["part_assignments"][0]
+        assert part_assignment["id4"] == part1.id4
+        assert part_assignment["qty"] == 50
+        assert part_assignment["manufacturer_code"] == "RES-0603-1K"
+        assert part_assignment["description"] == "1kΩ resistor, 0603 package"
+        
+        # Location 3: empty
+        assert response_data[2]["loc_no"] == 3
+        assert response_data[2]["is_occupied"] == False
+        assert response_data[2]["part_assignments"] is None
+        
+        # Location 4: has C002
+        assert response_data[3]["loc_no"] == 4
+        assert response_data[3]["is_occupied"] == True
+        assert len(response_data[3]["part_assignments"]) == 1
+        part_assignment = response_data[3]["part_assignments"][0]
+        assert part_assignment["id4"] == part2.id4
+        assert part_assignment["qty"] == 100
+        assert part_assignment["manufacturer_code"] == "CAP-0603-100N"
+        assert part_assignment["description"] == "100nF capacitor, ceramic"
+        
+        # Location 5: has R001 again
+        assert response_data[4]["loc_no"] == 5
+        assert response_data[4]["is_occupied"] == True
+        assert len(response_data[4]["part_assignments"]) == 1
+        part_assignment = response_data[4]["part_assignments"][0]
+        assert part_assignment["id4"] == part1.id4
+        assert part_assignment["qty"] == 25
+
+    def test_get_box_locations_default_include_parts_false(self, client: FlaskClient, session: Session):
+        """Test that include_parts defaults to false for backward compatibility."""
+        from app.services.inventory_service import InventoryService
+
+        box = BoxService.create_box(session, "Default Test Box", 2)
+        session.commit()
+        
+        # Add part to verify it's not included by default
+        InventoryService.add_stock(session, "TEST", box.box_no, 1, 5)
+        session.commit()
+
+        # Request without include_parts parameter
+        response = client.get(f"/api/boxes/{box.box_no}/locations")
+
+        assert response.status_code == 200
+        response_data = json.loads(response.data)
+
+        assert len(response_data) == 2
+        for location in response_data:
+            # Should use basic schema (no part information)
+            assert "is_occupied" not in location
+            assert "part_assignments" not in location
+            assert "box_no" in location
+            assert "loc_no" in location
+
+    def test_get_box_locations_with_parts_parameter_validation(self, client: FlaskClient, session: Session):
+        """Test various values for include_parts parameter."""
+        box = BoxService.create_box(session, "Param Test Box", 2)
+        session.commit()
+
+        # Test case-insensitive true values
+        for true_value in ["true", "TRUE", "True"]:
+            response = client.get(f"/api/boxes/{box.box_no}/locations?include_parts={true_value}")
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+            # Should use enhanced schema
+            assert "is_occupied" in response_data[0]
+            assert "part_assignments" in response_data[0]
+
+        # Test case-insensitive false values
+        for false_value in ["false", "FALSE", "False", "0", "no"]:
+            response = client.get(f"/api/boxes/{box.box_no}/locations?include_parts={false_value}")
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+            # Should use basic schema
+            assert "is_occupied" not in response_data[0]
+            assert "part_assignments" not in response_data[0]
+
+    def test_get_box_locations_with_parts_nonexistent_box(self, client: FlaskClient):
+        """Test getting enhanced locations for non-existent box."""
+        response = client.get("/api/boxes/999/locations?include_parts=true")
+        
+        assert response.status_code == 404
+        response_data = json.loads(response.data)
+        assert "error" in response_data
+
+    def test_get_box_locations_multiple_parts_same_location(self, client: FlaskClient, session: Session):
+        """Test enhanced locations when multiple parts might be in same location (edge case)."""
+        from app.services.inventory_service import InventoryService
+
+        box = BoxService.create_box(session, "Multi-part Location Box", 2)
+        session.commit()
+        
+        # Add multiple different parts to the same location
+        # Note: Current model has unique constraint on (part_id4, box_no, loc_no)
+        # so this tests the schema's ability to handle multiple parts per location
+        InventoryService.add_stock(session, "PART", box.box_no, 1, 10)
+        InventoryService.add_stock(session, "TEST", box.box_no, 1, 5)
+        session.commit()
+
+        response = client.get(f"/api/boxes/{box.box_no}/locations?include_parts=true")
+
+        assert response.status_code == 200
+        response_data = json.loads(response.data)
+
+        # Location 1 should have multiple part assignments
+        location_1 = response_data[0]
+        assert location_1["is_occupied"] == True
+        assert len(location_1["part_assignments"]) == 2
+        
+        # Verify both parts are present (order might vary)
+        part_ids = [assignment["id4"] for assignment in location_1["part_assignments"]]
+        assert "PART" in part_ids
+        assert "TEST" in part_ids
+
 
     def test_api_error_handling(self, client: FlaskClient):
         """Test that API endpoints handle errors gracefully."""
