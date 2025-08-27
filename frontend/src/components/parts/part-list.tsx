@@ -122,7 +122,8 @@ interface PartListItemProps {
     manufacturer_code?: string | null;
     type?: { name: string } | null;
     tags?: string[] | null;
-    quantity?: number;
+    total_quantity?: number;
+    quantity?: number; // For backwards compatibility
   };
   onClick?: () => void;
 }
@@ -144,7 +145,7 @@ function PartListItem({ part, onClick }: PartListItemProps) {
           <div className="flex items-center gap-4 mb-2">
             <span className="font-mono font-semibold text-lg">{displayId}</span>
             <span className="text-muted-foreground">
-              Total Quantity: {part.quantity || 0}
+              Total Quantity: {part.total_quantity ?? part.quantity ?? 0}
             </span>
           </div>
           

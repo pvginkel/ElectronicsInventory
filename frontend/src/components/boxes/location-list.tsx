@@ -4,6 +4,14 @@ interface LocationListProps {
   locations: Array<{
     box_no: number
     loc_no: number
+    // Extended fields for part assignments (may not be present in all cases)
+    id4?: string
+    quantity?: number
+    part?: {
+      id4: string
+      description: string
+      manufacturer_code?: string
+    }
   }>
 }
 

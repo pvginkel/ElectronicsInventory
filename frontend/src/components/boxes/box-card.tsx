@@ -6,6 +6,10 @@ interface BoxCardProps {
     box_no: number
     description: string
     capacity: number
+    total_locations?: number
+    occupied_locations?: number
+    available_locations?: number
+    usage_percentage?: number
   }
   onView: () => void
   onEdit: () => void
@@ -30,7 +34,7 @@ export function BoxCard({ box, onView, onEdit, onDelete }: BoxCardProps) {
       <CardContent className="pt-0">
         <div className="flex justify-between items-center">
           <div className="text-sm text-muted-foreground">
-            Usage: 0/{box.capacity} (0%)
+            Usage: {box.occupied_locations ?? 0}/{box.total_locations ?? box.capacity} ({Math.round(box.usage_percentage ?? 0)}%)
           </div>
           
           <div className="flex space-x-2">
@@ -49,7 +53,7 @@ export function BoxCard({ box, onView, onEdit, onDelete }: BoxCardProps) {
         <div className="mt-3 bg-muted rounded-full h-2">
           <div 
             className="bg-primary h-2 rounded-full transition-all duration-300" 
-            style={{ width: '0%' }}
+            style={{ width: `${Math.min(box.usage_percentage ?? 0, 100)}%` }}
           />
         </div>
       </CardContent>

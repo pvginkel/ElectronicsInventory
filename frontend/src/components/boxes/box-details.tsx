@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { 
   useGetBoxesByBoxNo, 
+  useGetBoxes,
+  useGetBoxesLocationsByBoxNo,
   usePutBoxesByBoxNo, 
   useDeleteBoxesByBoxNo 
 } from '@/lib/api/generated/hooks'
@@ -22,6 +24,8 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
   const { confirm, confirmProps } = useConfirm()
 
   const { data: box, isLoading, error } = useGetBoxesByBoxNo({ path: { box_no: boxNo } })
+  const { data: boxes } = useGetBoxes() // Get all boxes to find usage stats for this specific box  
+  const { data: detailedLocations } = useGetBoxesLocationsByBoxNo({ path: { box_no: boxNo } })
   const updateMutation = usePutBoxesByBoxNo()
   const deleteMutation = useDeleteBoxesByBoxNo()
 
@@ -85,8 +89,11 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
     )
   }
 
-  const usedLocations = 0 // TODO: Calculate based on actual parts data when available
-  const usagePercentage = Math.round((usedLocations / box!.capacity) * 100)
+  // Get usage statistics from the boxes list endpoint which includes the new usage fields
+  const boxFromList = boxes?.find(b => b.box_no === boxNo)
+  const usedLocations = (boxFromList as any)?.occupied_locations ?? 0
+  const usagePercentage = Math.round((boxFromList as any)?.usage_percentage ?? ((usedLocations / box!.capacity) * 100))
+  const totalLocations = (boxFromList as any)?.total_locations ?? box?.capacity
 
   return (
     <div>
@@ -133,7 +140,7 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
               
               <div>
                 <div className="text-sm font-medium">Usage</div>
-                <div className="text-lg">{usedLocations}/{box!.capacity} ({usagePercentage}%)</div>
+                <div className="text-lg">{usedLocations}/{totalLocations} ({usagePercentage}%)</div>
                 <div className="mt-2 bg-muted rounded-full h-2">
                   <div 
                     className="bg-primary h-2 rounded-full transition-all duration-300" 
@@ -158,7 +165,7 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
               <CardTitle>Locations</CardTitle>
             </CardHeader>
             <CardContent>
-              <LocationList locations={box!.locations || []} />
+              <LocationList locations={detailedLocations || box!.locations || []} />
             </CardContent>
           </Card>
         </div>

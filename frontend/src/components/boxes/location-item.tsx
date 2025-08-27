@@ -2,6 +2,14 @@ interface LocationItemProps {
   location: {
     box_no: number
     loc_no: number
+    // Extended fields for part assignments (may not be present in all cases)
+    id4?: string
+    quantity?: number
+    part?: {
+      id4: string
+      description: string
+      manufacturer_code?: string
+    }
   }
 }
 
@@ -25,8 +33,19 @@ export function LocationItem({ location }: LocationItemProps) {
       </div>
       
       <div className="text-right">
-        <div className="text-sm font-medium text-muted-foreground">Empty</div>
-        <div className="text-xs text-muted-foreground">Available</div>
+        {location.id4 || location.part ? (
+          <>
+            <div className="text-sm font-medium">{location.part?.id4 || location.id4}</div>
+            <div className="text-xs text-muted-foreground">
+              Qty: {location.quantity || 0}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="text-sm font-medium text-muted-foreground">—</div>
+            <div className="text-xs text-muted-foreground">No data</div>
+          </>
+        )}
       </div>
     </div>
   )
