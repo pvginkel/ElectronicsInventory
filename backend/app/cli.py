@@ -14,6 +14,10 @@ from app.database import (
     upgrade_database,
 )
 from app.extensions import db
+from app.models.box import Box
+from app.models.part import Part
+from app.models.part_location import PartLocation
+from app.models.type import Type
 from app.services.test_data_service import TestDataService
 
 
@@ -178,19 +182,14 @@ def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
             with db.session() as session:
                 TestDataService.load_full_dataset(session)
                 print("✅ Test data loaded successfully")
-                
+
                 # Show summary of loaded data
-                from app.models.part import Part
-                from app.models.box import Box
-                from app.models.type import Type
-                from app.models.part_location import PartLocation
-                
                 part_count = session.query(Part).count()
-                box_count = session.query(Box).count() 
+                box_count = session.query(Box).count()
                 type_count = session.query(Type).count()
                 location_count = session.query(PartLocation).count()
-                
-                print(f"📊 Dataset summary:")
+
+                print("📊 Dataset summary:")
                 print(f"   • {type_count} part types")
                 print(f"   • {box_count} storage boxes")
                 print(f"   • {part_count} parts")

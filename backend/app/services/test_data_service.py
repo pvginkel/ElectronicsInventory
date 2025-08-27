@@ -101,9 +101,12 @@ class TestDataService:
             # Get type_id from types map
             type_id = None
             if part_data.get("type"):
-                type_obj = types.get(part_data["type"])
+                type_name = part_data["type"]
+                type_obj = types.get(type_name)
                 if type_obj:
                     type_id = type_obj.id
+                else:
+                    raise InvalidOperationException("load parts data", f"unknown type '{type_name}' in part {part_data['id4']}")
 
             part = Part(
                 id4=part_data["id4"],

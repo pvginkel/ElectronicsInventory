@@ -167,6 +167,32 @@ class TestTestDataService:
                 assert part_abcd.seller == "Digi-Key"
                 assert part_abcd.seller_link == "https://example.com"
 
+    def test_load_parts_invalid_type_reference(self, app: Flask, session: Session):
+        """Test that loading parts with invalid type references raises an error."""
+        with app.app_context():
+            types_map = {}  # Empty types map to force error
+            
+            test_data = [
+                {
+                    "id4": "ABCD",
+                    "description": "Test part",
+                    "type": "NonexistentType"  # This type doesn't exist
+                }
+            ]
+            
+            with tempfile.TemporaryDirectory() as temp_dir:
+                data_dir = Path(temp_dir)
+                parts_file = data_dir / "parts.json"
+                
+                with parts_file.open("w") as f:
+                    json.dump(test_data, f)
+                
+                # Should raise InvalidOperationException
+                with pytest.raises(InvalidOperationException) as exc_info:
+                    TestDataService.load_parts(session, data_dir, types_map)
+                
+                assert "unknown type 'NonexistentType' in part ABCD" in str(exc_info.value)
+
     def test_load_parts_without_type(self, app: Flask, session: Session):
         """Test loading parts without type assignment."""
         with app.app_context():
