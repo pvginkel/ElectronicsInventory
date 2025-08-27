@@ -246,8 +246,8 @@ class TestBoxAPI:
         # Attempt to delete the box via API
         response = client.delete(f"/api/boxes/{box.box_no}")
         
-        # Should return 400 with proper error message now that we've fixed the Spectree validation
-        assert response.status_code == 400
+        # Should return 409 with proper error message now that we've fixed the Spectree validation
+        assert response.status_code == 409
         response_data = json.loads(response.data)
         assert "error" in response_data
         assert "details" in response_data

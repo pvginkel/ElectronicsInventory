@@ -7,6 +7,8 @@ from app.models.part_location import PartLocation
 from app.services.box_service import BoxService
 from app.services.inventory_service import InventoryService
 from app.services.part_service import PartService
+from app.exceptions import RecordNotFoundException, InvalidOperationException, InsufficientQuantityException
+import pytest
 
 
 class TestInventoryService:
@@ -55,11 +57,8 @@ class TestInventoryService:
             session.commit()
 
             # Try to add stock to non-existent location
-            try:
+            with pytest.raises(RecordNotFoundException, match="Location 999-1 was not found"):
                 InventoryService.add_stock(session, part.id4, 999, 1, 5)
-                assert False, "Should have raised ValueError"
-            except ValueError as e:
-                assert "does not exist" in str(e)
 
     def test_add_stock_zero_quantity(self, app: Flask, session: Session):
         """Test adding zero quantity (should fail)."""
@@ -68,11 +67,8 @@ class TestInventoryService:
             part = PartService.create_part(session, "Test part")
             session.commit()
 
-            try:
+            with pytest.raises(InvalidOperationException, match="Cannot add negative or zero stock"):
                 InventoryService.add_stock(session, part.id4, box.box_no, 1, 0)
-                assert False, "Should have raised ValueError"
-            except ValueError as e:
-                assert "positive" in str(e)
 
     def test_remove_stock_partial(self, app: Flask, session: Session):
         """Test removing partial stock from a location."""
@@ -85,10 +81,8 @@ class TestInventoryService:
             InventoryService.add_stock(session, part.id4, box.box_no, 1, 10)
             session.commit()
 
-            # Remove some stock
-            result = InventoryService.remove_stock(session, part.id4, box.box_no, 1, 3)
-
-            assert result is True
+            # Remove some stock (no exception thrown)
+            InventoryService.remove_stock(session, part.id4, box.box_no, 1, 3)
 
             # Check remaining quantity
             locations = InventoryService.get_part_locations(session, part.id4)
@@ -106,10 +100,8 @@ class TestInventoryService:
             InventoryService.add_stock(session, part.id4, box.box_no, 1, 5)
             session.commit()
 
-            # Remove all stock
-            result = InventoryService.remove_stock(session, part.id4, box.box_no, 1, 5)
-
-            assert result is True
+            # Remove all stock (no exception thrown)
+            InventoryService.remove_stock(session, part.id4, box.box_no, 1, 5)
 
             # Location should be removed
             locations = InventoryService.get_part_locations(session, part.id4)
@@ -127,11 +119,8 @@ class TestInventoryService:
             session.commit()
 
             # Try to remove more than available
-            try:
+            with pytest.raises(InsufficientQuantityException, match="Not enough parts available"):
                 InventoryService.remove_stock(session, part.id4, box.box_no, 1, 5)
-                assert False, "Should have raised ValueError"
-            except ValueError as e:
-                assert "Insufficient quantity" in str(e)
 
     def test_remove_stock_nonexistent_location(self, app: Flask, session: Session):
         """Test removing stock from location with no stock."""
@@ -141,8 +130,8 @@ class TestInventoryService:
             session.commit()
 
             # Try to remove from empty location
-            result = InventoryService.remove_stock(session, part.id4, box.box_no, 1, 1)
-            assert result is False
+            with pytest.raises(RecordNotFoundException, match="Part location .* was not found"):
+                InventoryService.remove_stock(session, part.id4, box.box_no, 1, 1)
 
     def test_move_stock_success(self, app: Flask, session: Session):
         """Test successfully moving stock between locations."""
@@ -155,12 +144,10 @@ class TestInventoryService:
             InventoryService.add_stock(session, part.id4, box.box_no, 1, 10)
             session.commit()
 
-            # Move some stock to another location
-            result = InventoryService.move_stock(
+            # Move some stock to another location (no exception thrown)
+            InventoryService.move_stock(
                 session, part.id4, box.box_no, 1, box.box_no, 2, 3
             )
-
-            assert result is True
 
             # Check locations
             locations = InventoryService.get_part_locations(session, part.id4)
@@ -183,11 +170,10 @@ class TestInventoryService:
             session.commit()
 
             # Try to move more than available
-            result = InventoryService.move_stock(
-                session, part.id4, box.box_no, 1, box.box_no, 2, 5
-            )
-
-            assert result is False
+            with pytest.raises(InsufficientQuantityException, match="Not enough parts available"):
+                InventoryService.move_stock(
+                    session, part.id4, box.box_no, 1, box.box_no, 2, 5
+                )
 
     def test_move_stock_invalid_destination(self, app: Flask, session: Session):
         """Test moving stock to invalid destination."""
@@ -201,11 +187,10 @@ class TestInventoryService:
             session.commit()
 
             # Try to move to non-existent location
-            result = InventoryService.move_stock(
-                session, part.id4, box.box_no, 1, 999, 1, 3
-            )
-
-            assert result is False
+            with pytest.raises(RecordNotFoundException, match="Location 999-1 was not found"):
+                InventoryService.move_stock(
+                    session, part.id4, box.box_no, 1, 999, 1, 3
+                )
 
     def test_get_part_locations(self, app: Flask, session: Session):
         """Test getting all locations for a part."""

@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from app.models.type import Type
 from app.services.part_service import PartService
 from app.services.type_service import TypeService
+from app.exceptions import RecordNotFoundException, InvalidOperationException
+import pytest
 
 
 class TestTypeService:
@@ -37,8 +39,8 @@ class TestTypeService:
     def test_get_type_nonexistent(self, app: Flask, session: Session):
         """Test getting a non-existent type."""
         with app.app_context():
-            type_obj = TypeService.get_type(session, 999)
-            assert type_obj is None
+            with pytest.raises(RecordNotFoundException, match="Type 999 was not found"):
+                TypeService.get_type(session, 999)
 
     def test_get_all_types(self, app: Flask, session: Session):
         """Test listing all types."""
@@ -73,8 +75,8 @@ class TestTypeService:
     def test_update_type_nonexistent(self, app: Flask, session: Session):
         """Test updating a non-existent type."""
         with app.app_context():
-            result = TypeService.update_type(session, 999, "New Name")
-            assert result is None
+            with pytest.raises(RecordNotFoundException, match="Type 999 was not found"):
+                TypeService.update_type(session, 999, "New Name")
 
     def test_delete_type_unused(self, app: Flask, session: Session):
         """Test deleting an unused type."""
@@ -83,9 +85,8 @@ class TestTypeService:
             type_obj = TypeService.create_type(session, "Temporary")
             session.commit()
 
-            # Should be able to delete
-            result = TypeService.delete_type(session, type_obj.id)
-            assert result is True
+            # Should be able to delete (no exception thrown)
+            TypeService.delete_type(session, type_obj.id)
 
     def test_delete_type_in_use(self, app: Flask, session: Session):
         """Test deleting a type that's in use by parts."""
@@ -101,12 +102,12 @@ class TestTypeService:
             )
             session.commit()
 
-            # Should not be able to delete
-            result = TypeService.delete_type(session, type_obj.id)
-            assert result is False
+            # Should raise InvalidOperationException
+            with pytest.raises(InvalidOperationException, match="Cannot delete type .* because it is being used by existing parts"):
+                TypeService.delete_type(session, type_obj.id)
 
     def test_delete_type_nonexistent(self, app: Flask, session: Session):
         """Test deleting a non-existent type."""
         with app.app_context():
-            result = TypeService.delete_type(session, 999)
-            assert result is False
+            with pytest.raises(RecordNotFoundException, match="Type 999 was not found"):
+                TypeService.delete_type(session, 999)

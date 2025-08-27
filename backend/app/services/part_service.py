@@ -7,6 +7,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.part import Part
 from app.models.part_location import PartLocation
 
@@ -28,7 +29,7 @@ class PartService:
             if not existing:
                 return id4
 
-        raise ValueError(f"Failed to generate unique part ID after {max_attempts} attempts")
+        raise InvalidOperationException("generate unique part ID", f"failed after {max_attempts} attempts")
 
     @staticmethod
     def create_part(
@@ -57,10 +58,13 @@ class PartService:
         return part
 
     @staticmethod
-    def get_part(db: Session, part_id4: str) -> Part | None:
+    def get_part(db: Session, part_id4: str) -> Part:
         """Get part by 4-character ID."""
         stmt = select(Part).where(Part.id4 == part_id4)
-        return db.execute(stmt).scalar_one_or_none()
+        part = db.execute(stmt).scalar_one_or_none()
+        if not part:
+            raise RecordNotFoundException("Part", part_id4)
+        return part
 
     @staticmethod
     def get_parts_list(db: Session, limit: int = 50, offset: int = 0, type_id: Optional[int] = None) -> list[Part]:
@@ -84,12 +88,12 @@ class PartService:
         tags: Optional[list[str]] = None,
         seller: Optional[str] = None,
         seller_link: Optional[str] = None,
-    ) -> Part | None:
+    ) -> Part:
         """Update part details."""
         stmt = select(Part).where(Part.id4 == part_id4)
         part = db.execute(stmt).scalar_one_or_none()
         if not part:
-            return None
+            raise RecordNotFoundException("Part", part_id4)
 
         # Update fields if provided
         if manufacturer_code is not None:
@@ -108,21 +112,20 @@ class PartService:
         return part
 
     @staticmethod
-    def delete_part(db: Session, part_id4: str) -> bool:
+    def delete_part(db: Session, part_id4: str) -> None:
         """Delete part if it exists and has zero total quantity."""
         stmt = select(Part).where(Part.id4 == part_id4)
         part = db.execute(stmt).scalar_one_or_none()
         if not part:
-            return False
+            raise RecordNotFoundException("Part", part_id4)
 
         # Check if part has any quantity
         total_qty = PartService.get_total_quantity(db, part_id4)
         if total_qty > 0:
-            return False
+            raise InvalidOperationException(f"delete part {part_id4}", "it still has parts in inventory that must be removed first")
 
         # Delete the part (cascaded deletes will handle relationships)
         db.delete(part)
-        return True
 
     @staticmethod
     def get_total_quantity(db: Session, part_id4: str) -> int:

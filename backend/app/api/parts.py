@@ -60,9 +60,6 @@ def list_parts():
 def get_part(part_id4: str):
     """Get single part with full details."""
     part = PartService.get_part(g.db, part_id4)
-    if not part:
-        return {"error": "Part not found"}, 404
-
     return PartResponseSchema.model_validate(part).model_dump()
 
 
@@ -84,9 +81,6 @@ def update_part(part_id4: str):
         seller_link=data.seller_link,
     )
 
-    if not part:
-        return {"error": "Part not found"}, 404
-
     return PartResponseSchema.model_validate(part).model_dump()
 
 
@@ -95,16 +89,8 @@ def update_part(part_id4: str):
 @handle_api_errors
 def delete_part(part_id4: str):
     """Delete part if total quantity is zero."""
-    if PartService.delete_part(g.db, part_id4):
-        return "", 204
-    else:
-        # Check if part exists to give appropriate error
-        part = PartService.get_part(g.db, part_id4)
-        if not part:
-            return {"error": "Part not found"}, 404
-        else:
-            total_qty = PartService.get_total_quantity(g.db, part_id4)
-            return {"error": f"Cannot delete part with quantity {total_qty}. Remove all stock first."}, 409
+    PartService.delete_part(g.db, part_id4)
+    return "", 204
 
 
 @parts_bp.route("/<string:part_id4>/locations", methods=["GET"])
@@ -113,9 +99,6 @@ def delete_part(part_id4: str):
 def get_part_locations(part_id4: str):
     """Get all locations for a part."""
     part = PartService.get_part(g.db, part_id4)
-    if not part:
-        return {"error": "Part not found"}, 404
-
     locations = InventoryService.get_part_locations(g.db, part_id4)
 
     return [
@@ -135,9 +118,7 @@ def get_part_locations(part_id4: str):
 def get_part_history(part_id4: str):
     """Get quantity change history for a part."""
     part = PartService.get_part(g.db, part_id4)
-    if not part:
-        return {"error": "Part not found"}, 404
-
+    
     # History is loaded with the part via relationship
     return [
         QuantityHistoryResponseSchema.model_validate(history).model_dump()
