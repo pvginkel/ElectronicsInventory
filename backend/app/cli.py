@@ -13,6 +13,8 @@ from app.database import (
     get_pending_migrations,
     upgrade_database,
 )
+from app.extensions import db
+from app.services.test_data_service import TestDataService
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -46,6 +48,30 @@ Examples:
         "--yes-i-am-sure",
         action="store_true",
         help="Required safety flag when using --recreate",
+    )
+
+    # load-test-data command
+    load_test_data_parser = subparsers.add_parser(
+        "load-test-data",
+        help="Recreate database and load fixed test data",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""
+Recreate database from scratch and load fixed test dataset.
+
+This command:
+1. Drops all tables and recreates the database schema (like upgrade-db --recreate)
+2. Loads fixed test data from JSON files in app/data/test_data/
+3. Creates 10 boxes with realistic electronics organization
+4. Loads ~50 realistic electronics parts with proper relationships
+
+Examples:
+  inventory-cli load-test-data --yes-i-am-sure    Load complete test dataset
+        """,
+    )
+    load_test_data_parser.add_argument(
+        "--yes-i-am-sure",
+        action="store_true",
+        help="Required safety flag to confirm database recreation",
     )
 
     return parser
@@ -112,6 +138,69 @@ def handle_upgrade_db(
             sys.exit(1)
 
 
+def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
+    """Handle load-test-data command."""
+    with app.app_context():
+        # Check database connectivity
+        if not check_db_connection():
+            print(
+                "❌ Cannot connect to database. Check your DATABASE_URL configuration.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        # Safety check for confirmation
+        if not confirmed:
+            print(
+                "❌ --yes-i-am-sure flag is required for safety",
+                file=sys.stderr,
+            )
+            print(
+                "   This will DROP ALL TABLES and recreate with test data!",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        print("⚠️  WARNING: About to drop all tables and load test data!")
+        print("   This will permanently delete all existing data in the database.")
+
+        try:
+            # First recreate the database using existing logic
+            print("🔄 Recreating database from scratch...")
+            applied = upgrade_database(recreate=True)
+            if applied:
+                print(f"✅ Database recreated with {len(applied)} migration(s)")
+            else:
+                print("✅ Database recreated successfully")
+
+            # Load test data
+            print("📦 Loading fixed test dataset...")
+            with db.session() as session:
+                TestDataService.load_full_dataset(session)
+                print("✅ Test data loaded successfully")
+                
+                # Show summary of loaded data
+                from app.models.part import Part
+                from app.models.box import Box
+                from app.models.type import Type
+                from app.models.part_location import PartLocation
+                
+                part_count = session.query(Part).count()
+                box_count = session.query(Box).count() 
+                type_count = session.query(Type).count()
+                location_count = session.query(PartLocation).count()
+                
+                print(f"📊 Dataset summary:")
+                print(f"   • {type_count} part types")
+                print(f"   • {box_count} storage boxes")
+                print(f"   • {part_count} parts")
+                print(f"   • {location_count} part locations with inventory")
+
+        except Exception as e:
+            print(f"❌ Failed to load test data: {e}", file=sys.stderr)
+            sys.exit(1)
+
+
 def main() -> NoReturn:
     """Main CLI entry point."""
     parser = create_parser()
@@ -128,6 +217,11 @@ def main() -> NoReturn:
         handle_upgrade_db(
             app=app,
             recreate=args.recreate,
+            confirmed=args.yes_i_am_sure,
+        )
+    elif args.command == "load-test-data":
+        handle_load_test_data(
+            app=app,
             confirmed=args.yes_i_am_sure,
         )
     else:
