@@ -4,7 +4,7 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.exceptions import RecordNotFoundException, InvalidOperationException
+from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.box import Box
 from app.models.location import Location
 from app.models.part_location import PartLocation
@@ -108,12 +108,71 @@ class BoxService:
         # Check if box contains any parts
         parts_stmt = select(PartLocation).where(PartLocation.box_no == box_no).limit(1)
         has_parts = db.execute(parts_stmt).scalar_one_or_none() is not None
-        
+
         if has_parts:
             raise InvalidOperationException(
-                f"delete box {box_no}", 
+                f"delete box {box_no}",
                 "it contains parts that must be moved or removed first"
             )
 
         # Safe to delete - the locations will be deleted automatically due to cascade
         db.delete(box)
+
+    @staticmethod
+    def calculate_box_usage(db: Session, box_no: int) -> dict:
+        """Calculate usage statistics for a specific box."""
+        from sqlalchemy import func
+
+        # Get box info
+        box = BoxService.get_box(db, box_no)
+
+        # Count total locations and occupied locations
+        total_locations = box.capacity
+
+        # Count occupied locations (those with parts)
+        occupied_stmt = select(func.count(func.distinct(PartLocation.loc_no))).where(
+            PartLocation.box_no == box_no
+        )
+        occupied_count = db.execute(occupied_stmt).scalar() or 0
+
+        # Calculate usage percentage
+        usage_percentage = (occupied_count / total_locations * 100) if total_locations > 0 else 0
+
+        return {
+            'box_no': box_no,
+            'total_locations': total_locations,
+            'occupied_locations': occupied_count,
+            'available_locations': total_locations - occupied_count,
+            'usage_percentage': round(usage_percentage, 2)
+        }
+
+    @staticmethod
+    def get_all_boxes_with_usage(db: Session) -> list[dict]:
+        """Get all boxes with their usage statistics calculated."""
+        from sqlalchemy import func
+
+        # Query to get all boxes with usage stats in one go
+        stmt = select(
+            Box,
+            func.count(func.distinct(PartLocation.loc_no)).label('occupied_count')
+        ).outerjoin(
+            PartLocation, Box.box_no == PartLocation.box_no
+        ).group_by(Box.id).order_by(Box.box_no)
+
+        results = db.execute(stmt).all()
+
+        boxes_with_usage = []
+        for box, occupied_count in results:
+            occupied_count = occupied_count or 0
+            usage_percentage = (occupied_count / box.capacity * 100) if box.capacity > 0 else 0
+
+            box_dict = {
+                'box': box,
+                'total_locations': box.capacity,
+                'occupied_locations': occupied_count,
+                'available_locations': box.capacity - occupied_count,
+                'usage_percentage': round(usage_percentage, 2)
+            }
+            boxes_with_usage.append(box_dict)
+
+        return boxes_with_usage

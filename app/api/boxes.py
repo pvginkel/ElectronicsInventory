@@ -9,6 +9,8 @@ from app.schemas.box import (
     BoxListSchema,
     BoxResponseSchema,
     BoxUpdateSchema,
+    BoxUsageStatsSchema,
+    BoxWithUsageSchema,
 )
 from app.schemas.common import ErrorResponseSchema
 from app.schemas.location import LocationResponseSchema
@@ -31,12 +33,35 @@ def create_box():
 
 
 @boxes_bp.route("", methods=["GET"])
-@api.validate(resp=SpectreeResponse(HTTP_200=list[BoxListSchema]))
+@api.validate(resp=SpectreeResponse(HTTP_200=list[BoxWithUsageSchema]))
 @handle_api_errors
 def list_boxes():
-    """List all boxes with summary info."""
-    boxes = BoxService.get_all_boxes(g.db)
-    return [BoxListSchema.model_validate(box).model_dump() for box in boxes]
+    """List all boxes with usage statistics."""
+    # Check if client wants usage stats
+    include_usage = request.args.get("include_usage", "true").lower() == "true"
+
+    if include_usage:
+        boxes_with_usage = BoxService.get_all_boxes_with_usage(g.db)
+        result = []
+        for item in boxes_with_usage:
+            box = item['box']
+            # Create schema instance with calculated usage stats
+            box_data = BoxWithUsageSchema(
+                box_no=box.box_no,
+                description=box.description,
+                capacity=box.capacity,
+                created_at=box.created_at,
+                updated_at=box.updated_at,
+                total_locations=item['total_locations'],
+                occupied_locations=item['occupied_locations'],
+                available_locations=item['available_locations'],
+                usage_percentage=item['usage_percentage']
+            )
+            result.append(box_data.model_dump())
+        return result
+    else:
+        boxes = BoxService.get_all_boxes(g.db)
+        return [BoxListSchema.model_validate(box).model_dump() for box in boxes]
 
 
 @boxes_bp.route("/<int:box_no>", methods=["GET"])
@@ -67,6 +92,15 @@ def delete_box(box_no: int):
     """Delete empty box."""
     BoxService.delete_box(g.db, box_no)
     return "", 204
+
+
+@boxes_bp.route("/<int:box_no>/usage", methods=["GET"])
+@api.validate(resp=SpectreeResponse(HTTP_200=BoxUsageStatsSchema, HTTP_404=ErrorResponseSchema))
+@handle_api_errors
+def get_box_usage(box_no: int):
+    """Get usage statistics for a specific box."""
+    usage_stats = BoxService.calculate_box_usage(g.db, box_no)
+    return BoxUsageStatsSchema(**usage_stats).model_dump()
 
 
 @boxes_bp.route("/<int:box_no>/locations", methods=["GET"])

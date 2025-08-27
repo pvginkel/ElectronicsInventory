@@ -239,6 +239,50 @@ class InventoryService:
                 db.delete(part_location)
 
     @staticmethod
+    def calculate_total_quantity(db: Session, part_id4: str) -> int:
+        """Calculate total quantity across all locations for a part."""
+        from sqlalchemy import func
+        stmt = select(func.coalesce(func.sum(PartLocation.qty), 0)).where(
+            PartLocation.part_id4 == part_id4
+        )
+        result = db.execute(stmt).scalar()
+        return result or 0
+
+    @staticmethod
+    def get_all_parts_with_totals(db: Session, limit: int = 50, offset: int = 0, type_id: Optional[int] = None) -> list[dict]:
+        """Get all parts with their total quantities calculated."""
+        from sqlalchemy import func
+
+        from app.models.part import Part
+
+        # Base query for parts with total quantity calculation
+        stmt = select(
+            Part,
+            func.coalesce(func.sum(PartLocation.qty), 0).label('total_quantity')
+        ).outerjoin(
+            PartLocation, Part.id4 == PartLocation.part_id4
+        ).group_by(Part.id)
+
+        # Apply type filter if specified
+        if type_id is not None:
+            stmt = stmt.where(Part.type_id == type_id)
+
+        stmt = stmt.order_by(Part.created_at.desc()).limit(limit).offset(offset)
+
+        results = db.execute(stmt).all()
+
+        # Convert to list of dicts with part object and calculated total
+        parts_with_totals = []
+        for part, total_qty in results:
+            part_dict = {
+                'part': part,
+                'total_quantity': int(total_qty)
+            }
+            parts_with_totals.append(part_dict)
+
+        return parts_with_totals
+
+    @staticmethod
     def _get_location(db: Session, box_no: int, loc_no: int) -> Location | None:
         """Get location by box_no and loc_no."""
         stmt = select(Location).where(

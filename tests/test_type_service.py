@@ -1,13 +1,13 @@
 """Tests for type service functionality."""
 
+import pytest
 from flask import Flask
 from sqlalchemy.orm import Session
 
+from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.type import Type
 from app.services.part_service import PartService
 from app.services.type_service import TypeService
-from app.exceptions import RecordNotFoundException, InvalidOperationException
-import pytest
 
 
 class TestTypeService:

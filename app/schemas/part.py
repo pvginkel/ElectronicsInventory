@@ -165,6 +165,49 @@ class PartListSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PartWithTotalSchema(BaseModel):
+    """Schema for part with calculated total quantity."""
+
+    id4: str = Field(
+        description="4-character unique part identifier",
+        json_schema_extra={"example": "BZQP"}
+    )
+    manufacturer_code: Optional[str] = Field(
+        description="Manufacturer's part number",
+        json_schema_extra={"example": "OMRON G5Q-1A4"}
+    )
+    description: str = Field(
+        description="Free text description",
+        json_schema_extra={"example": "12V SPDT relay with 40A contacts"}
+    )
+    type_id: Optional[int] = Field(
+        description="Part type/category ID",
+        json_schema_extra={"example": 1}
+    )
+    tags: Optional[list[str]] = Field(
+        description="Tags for categorization",
+        json_schema_extra={"example": ["12V", "SPDT", "automotive"]}
+    )
+    seller: Optional[str] = Field(
+        description="Vendor/supplier name",
+        json_schema_extra={"example": "Digi-Key"}
+    )
+    created_at: datetime = Field(
+        description="Timestamp when the part was created",
+        json_schema_extra={"example": "2024-01-15T10:30:00Z"}
+    )
+    updated_at: datetime = Field(
+        description="Timestamp when the part was last modified",
+        json_schema_extra={"example": "2024-01-15T14:45:00Z"}
+    )
+    total_quantity: int = Field(
+        description="Total quantity across all locations",
+        json_schema_extra={"example": 150}
+    )
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class PartLocationResponseSchema(BaseModel):
     """Schema for part location details with quantity."""
 

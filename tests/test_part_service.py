@@ -2,14 +2,14 @@
 
 import string
 
+import pytest
 from flask import Flask
 from sqlalchemy.orm import Session
 
+from app.exceptions import RecordNotFoundException
 from app.models.part import Part
 from app.services.part_service import PartService
 from app.services.type_service import TypeService
-from app.exceptions import RecordNotFoundException, InvalidOperationException
-import pytest
 
 
 class TestPartService:
