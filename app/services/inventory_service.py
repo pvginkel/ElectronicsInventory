@@ -5,6 +5,11 @@ from typing import Optional
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
+from app.exceptions import (
+    InsufficientQuantityException,
+    InvalidOperationException,
+    RecordNotFoundException,
+)
 from app.models.location import Location
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
@@ -20,12 +25,12 @@ class InventoryService:
     ) -> PartLocation:
         """Add stock to a location."""
         if qty <= 0:
-            raise ValueError("Quantity must be positive")
+            raise InvalidOperationException("add negative or zero stock", "quantity must be positive")
 
         # Validate location exists
         location = InventoryService._get_location(db, box_no, loc_no)
         if not location:
-            raise ValueError(f"Location {box_no}-{loc_no} does not exist")
+            raise RecordNotFoundException("Location", f"{box_no}-{loc_no}")
 
         # Check if part already exists at this location
         stmt = select(PartLocation).where(
@@ -66,10 +71,10 @@ class InventoryService:
     @staticmethod
     def remove_stock(
         db: Session, part_id4: str, box_no: int, loc_no: int, qty: int
-    ) -> bool:
+    ) -> None:
         """Remove stock from a location."""
         if qty <= 0:
-            raise ValueError("Quantity must be positive")
+            raise InvalidOperationException("remove negative or zero stock", "quantity must be positive")
 
         # Find existing location assignment
         stmt = select(PartLocation).where(
@@ -82,10 +87,10 @@ class InventoryService:
         part_location = db.execute(stmt).scalar_one_or_none()
 
         if not part_location:
-            return False
+            raise RecordNotFoundException("Part location", f"{part_id4} at {box_no}-{loc_no}")
 
         if part_location.qty < qty:
-            raise ValueError("Insufficient quantity at location")
+            raise InsufficientQuantityException(qty, part_location.qty, f"{box_no}-{loc_no}")
 
         # Update quantity
         part_location.qty -= qty
@@ -105,8 +110,6 @@ class InventoryService:
         # Check if total quantity is now zero and cleanup if needed
         InventoryService.cleanup_zero_quantities(db, part_id4)
 
-        return True
-
     @staticmethod
     def move_stock(
         db: Session,
@@ -116,10 +119,10 @@ class InventoryService:
         to_box: int,
         to_loc: int,
         qty: int,
-    ) -> bool:
+    ) -> None:
         """Move stock between locations."""
         if qty <= 0:
-            raise ValueError("Quantity must be positive")
+            raise InvalidOperationException("move negative or zero stock", "quantity must be positive")
 
         # Validate source has sufficient quantity
         stmt = select(PartLocation).where(
@@ -131,13 +134,16 @@ class InventoryService:
         )
         source_location = db.execute(stmt).scalar_one_or_none()
 
-        if not source_location or source_location.qty < qty:
-            return False
+        if not source_location:
+            raise RecordNotFoundException("Part location", f"{part_id4} at {from_box}-{from_loc}")
+
+        if source_location.qty < qty:
+            raise InsufficientQuantityException(qty, source_location.qty, f"{from_box}-{from_loc}")
 
         # Validate destination location exists
         dest_location = InventoryService._get_location(db, to_box, to_loc)
         if not dest_location:
-            return False
+            raise RecordNotFoundException("Location", f"{to_box}-{to_loc}")
 
         # Begin transaction: remove from source, add to destination
         try:
@@ -183,8 +189,6 @@ class InventoryService:
                 location_reference=f"{to_box}-{to_loc}",
             )
             db.add(add_history)
-
-            return True
 
         except Exception:
             # Let the caller handle transaction rollback

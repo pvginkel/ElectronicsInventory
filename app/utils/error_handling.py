@@ -10,6 +10,15 @@ from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from werkzeug.exceptions import BadRequest
 
+from app.exceptions import (
+    CapacityExceededException,
+    InsufficientQuantityException,
+    InvalidOperationException,
+    InventoryException,
+    RecordNotFoundException,
+    ResourceConflictException,
+)
+
 
 def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Response | tuple[Response | str, int]]:
     """Decorator to handle common API errors consistently.
@@ -38,6 +47,48 @@ def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Response | tupl
             return jsonify({
                 "error": "Validation failed",
                 "details": error_details
+            }), 400
+
+        except RecordNotFoundException as e:
+            # Custom domain exception for not found resources
+            return jsonify({
+                "error": e.message,
+                "details": "The requested resource could not be found"
+            }), 404
+
+        except ResourceConflictException as e:
+            # Custom domain exception for resource conflicts
+            return jsonify({
+                "error": e.message,
+                "details": "A resource with those details already exists"
+            }), 409
+
+        except InsufficientQuantityException as e:
+            # Custom domain exception for insufficient quantities
+            return jsonify({
+                "error": e.message,
+                "details": "The requested quantity is not available"
+            }), 409
+
+        except CapacityExceededException as e:
+            # Custom domain exception for capacity limits
+            return jsonify({
+                "error": e.message,
+                "details": "The operation would exceed storage capacity"
+            }), 409
+
+        except InvalidOperationException as e:
+            # Custom domain exception for invalid operations
+            return jsonify({
+                "error": e.message,
+                "details": "The requested operation cannot be performed"
+            }), 400
+
+        except InventoryException as e:
+            # Generic inventory exception (fallback for custom exceptions)
+            return jsonify({
+                "error": e.message,
+                "details": "An inventory operation failed"
             }), 400
 
         except IntegrityError as e:

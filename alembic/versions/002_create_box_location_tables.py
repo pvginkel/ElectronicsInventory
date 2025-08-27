@@ -1,7 +1,7 @@
 """Create box and location tables
 
 Revision ID: 002
-Revises: 
+Revises:
 Create Date: 2025-01-21 10:00:00.000000
 
 """

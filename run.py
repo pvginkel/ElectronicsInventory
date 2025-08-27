@@ -1,11 +1,14 @@
 """Development server entry point."""
 
-from app import create_app
-from app.config import get_settings
-from waitress import serve
-from paste.translogger import TransLogger
 import logging
 import os
+
+from paste.translogger import TransLogger
+from waitress import serve
+
+from app import create_app
+from app.config import get_settings
+
 
 def main():
     settings = get_settings()

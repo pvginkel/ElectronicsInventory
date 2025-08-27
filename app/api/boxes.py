@@ -45,9 +45,6 @@ def list_boxes():
 def get_box_details(box_no: int):
     """Get box details."""
     box = BoxService.get_box(g.db, box_no)
-    if not box:
-        return {"error": "Box not found"}, 404
-
     return BoxResponseSchema.model_validate(box).model_dump()
 
 
@@ -60,21 +57,16 @@ def update_box(box_no: int):
     data = BoxUpdateSchema.model_validate(request.get_json())
 
     box = BoxService.update_box_capacity(g.db, box_no, data.capacity, data.description)
-    if not box:
-        return {"error": "Box not found"}, 404
-
     return BoxResponseSchema.model_validate(box).model_dump()
 
 
 @boxes_bp.route("/<int:box_no>", methods=["DELETE"])
-@api.validate(resp=SpectreeResponse(HTTP_204=None, HTTP_404=ErrorResponseSchema))
+@api.validate(resp=SpectreeResponse(HTTP_204=None, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 def delete_box(box_no: int):
     """Delete empty box."""
-    if BoxService.delete_box(g.db, box_no):
-        return "", 204
-    else:
-        return {"error": "Box not found"}, 404
+    BoxService.delete_box(g.db, box_no)
+    return "", 204
 
 
 @boxes_bp.route("/<int:box_no>/locations", methods=["GET"])
@@ -83,9 +75,6 @@ def delete_box(box_no: int):
 def get_box_locations(box_no: int):
     """Get all locations in box."""
     box = BoxService.get_box(g.db, box_no)
-    if not box:
-        return {"error": "Box not found"}, 404
-
     return [
         LocationResponseSchema.model_validate(location).model_dump()
         for location in box.locations
