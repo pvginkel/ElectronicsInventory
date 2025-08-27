@@ -1,9 +1,17 @@
 """
 Common response schemas for consistent API structure.
 """
-from typing import Any
+from typing import Any, Union
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class ErrorDetailsSchema(BaseModel):
+    """Error details object."""
+    model_config = ConfigDict(from_attributes=True)
+    
+    message: str = Field(..., description="Additional error context")
+    field: str | None = Field(None, description="Field name for validation errors")
 
 
 class ErrorResponseSchema(BaseModel):
@@ -11,7 +19,7 @@ class ErrorResponseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     error: str = Field(..., description="Error message", json_schema_extra={"example": "Validation failed"})
-    details: list[str] | str | None = Field(None, description="Additional error details", json_schema_extra={"example": ["box_no: field required"]})
+    details: Union[ErrorDetailsSchema, list[ErrorDetailsSchema]] = Field(..., description="Additional error details")
 
 
 class SuccessResponseSchema(BaseModel):

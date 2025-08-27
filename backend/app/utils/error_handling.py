@@ -34,7 +34,7 @@ def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Response | tupl
             # JSON parsing errors from request.get_json()
             return jsonify({
                 "error": "Invalid JSON",
-                "details": "Request body must be valid JSON"
+                "details": {"message": "Request body must be valid JSON"}
             }), 400
         except ValidationError as e:
             # Pydantic validation errors
@@ -42,7 +42,10 @@ def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Response | tupl
             for error in e.errors():
                 field = ".".join(str(x) for x in error["loc"])
                 message = error["msg"]
-                error_details.append(f"{field}: {message}")
+                error_details.append({
+                    "message": message,
+                    "field": field
+                })
 
             return jsonify({
                 "error": "Validation failed",
@@ -53,42 +56,42 @@ def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Response | tupl
             # Custom domain exception for not found resources
             return jsonify({
                 "error": e.message,
-                "details": "The requested resource could not be found"
+                "details": {"message": "The requested resource could not be found"}
             }), 404
 
         except ResourceConflictException as e:
             # Custom domain exception for resource conflicts
             return jsonify({
                 "error": e.message,
-                "details": "A resource with those details already exists"
+                "details": {"message": "A resource with those details already exists"}
             }), 409
 
         except InsufficientQuantityException as e:
             # Custom domain exception for insufficient quantities
             return jsonify({
                 "error": e.message,
-                "details": "The requested quantity is not available"
+                "details": {"message": "The requested quantity is not available"}
             }), 409
 
         except CapacityExceededException as e:
             # Custom domain exception for capacity limits
             return jsonify({
                 "error": e.message,
-                "details": "The operation would exceed storage capacity"
+                "details": {"message": "The operation would exceed storage capacity"}
             }), 409
 
         except InvalidOperationException as e:
             # Custom domain exception for invalid operations
             return jsonify({
                 "error": e.message,
-                "details": "The requested operation cannot be performed"
+                "details": {"message": "The requested operation cannot be performed"}
             }), 400
 
         except InventoryException as e:
             # Generic inventory exception (fallback for custom exceptions)
             return jsonify({
                 "error": e.message,
-                "details": "An inventory operation failed"
+                "details": {"message": "An inventory operation failed"}
             }), 400
 
         except IntegrityError as e:
@@ -99,29 +102,29 @@ def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Response | tupl
             if "UNIQUE constraint failed" in error_msg or "duplicate key" in error_msg.lower():
                 return jsonify({
                     "error": "Resource already exists",
-                    "details": "A record with these values already exists"
+                    "details": {"message": "A record with these values already exists"}
                 }), 409
             elif "FOREIGN KEY constraint failed" in error_msg or "foreign key" in error_msg.lower():
                 return jsonify({
                     "error": "Invalid reference",
-                    "details": "Referenced resource does not exist"
+                    "details": {"message": "Referenced resource does not exist"}
                 }), 400
             elif "NOT NULL constraint failed" in error_msg or "null value" in error_msg.lower():
                 return jsonify({
                     "error": "Missing required field",
-                    "details": "Required field cannot be empty"
+                    "details": {"message": "Required field cannot be empty"}
                 }), 400
             else:
                 return jsonify({
                     "error": "Database constraint violation",
-                    "details": "The operation violates a database constraint"
+                    "details": {"message": "The operation violates a database constraint"}
                 }), 400
 
         except Exception as e:
             # Generic error handler
             return jsonify({
                 "error": "Internal server error",
-                "details": str(e)
+                "details": {"message": str(e)}
             }), 500
 
     return wrapper

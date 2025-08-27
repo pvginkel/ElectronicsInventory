@@ -250,8 +250,11 @@ class TestBoxAPI:
         assert response.status_code == 400
         response_data = json.loads(response.data)
         assert "error" in response_data
+        assert "details" in response_data
         assert f"Cannot delete box {box.box_no}" in response_data["error"]
         assert "it contains parts that must be moved or removed first" in response_data["error"]
+        assert "message" in response_data["details"]
+        assert "The requested operation cannot be performed" in response_data["details"]["message"]
         
         # Verify box still exists
         verify_response = client.get(f"/api/boxes/{box.box_no}")
