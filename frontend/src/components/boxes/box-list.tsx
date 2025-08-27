@@ -5,7 +5,7 @@ import {
   usePostBoxes, 
   usePutBoxesByBoxNo, 
   useDeleteBoxesByBoxNo,
-  type BoxListSchemaList_a9993e3_BoxListSchema
+  type BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema
 } from '@/lib/api/generated/hooks'
 import { BoxCard } from './box-card'
 import { BoxForm } from './box-form'
@@ -17,7 +17,7 @@ export function BoxList() {
   const navigate = useNavigate()
   const [createFormOpen, setCreateFormOpen] = useState(false)
   const [editFormOpen, setEditFormOpen] = useState(false)
-  const [editingBox, setEditingBox] = useState<BoxListSchemaList_a9993e3_BoxListSchema | null>(null)
+  const [editingBox, setEditingBox] = useState<BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema | null>(null)
 
   const { confirm, confirmProps } = useConfirm()
   
@@ -30,7 +30,7 @@ export function BoxList() {
     await createMutation.mutateAsync({ body: data })
   }
 
-  const handleEditBox = (box: BoxListSchemaList_a9993e3_BoxListSchema) => {
+  const handleEditBox = (box: BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema) => {
     setEditingBox(box)
     setEditFormOpen(true)
   }
@@ -45,7 +45,7 @@ export function BoxList() {
     setEditingBox(null)
   }
 
-  const handleDeleteBox = async (box: BoxListSchemaList_a9993e3_BoxListSchema) => {
+  const handleDeleteBox = async (box: BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema) => {
     const confirmed = await confirm({
       title: 'Delete Box',
       description: `Are you sure you want to delete Box ${box.box_no} (${box.description})? This action cannot be undone.`,
@@ -117,7 +117,7 @@ export function BoxList() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {boxes!.map((box: BoxListSchemaList_a9993e3_BoxListSchema) => (
+          {boxes!.map((box: BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema) => (
             <BoxCard
               key={box.box_no}
               box={box}

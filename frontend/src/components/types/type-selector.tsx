@@ -7,6 +7,7 @@ import { useTypesSearch, useCreateType } from '@/hooks/use-types';
 interface Type {
   id: number;
   name: string;
+  part_count?: number;
 }
 
 interface TypeSelectorProps {
@@ -222,10 +223,15 @@ function TypeOption({ type, onClick }: TypeOptionProps) {
   return (
     <button
       type="button"
-      className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
+      className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none flex justify-between items-center"
       onClick={onClick}
     >
-      {type.name}
+      <span>{type.name}</span>
+      {typeof type.part_count === 'number' && (
+        <span className="text-xs text-muted-foreground">
+          {type.part_count} part{type.part_count !== 1 ? 's' : ''}
+        </span>
+      )}
     </button>
   );
 }

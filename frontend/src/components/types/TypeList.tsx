@@ -1,9 +1,5 @@
 import { useState } from 'react'
-import { 
-  useGetTypes, 
-  type TypeResponseSchemaList_a9993e3_TypeResponseSchema
-} from '@/lib/api/generated/hooks'
-import { useCreateType, useUpdateType, useDeleteType } from '@/hooks/use-types'
+import { useCreateType, useUpdateType, useDeleteType, useGetTypesWithStats } from '@/hooks/use-types'
 import { TypeCard } from './TypeCard'
 import { TypeForm } from './TypeForm'
 import { Button } from '@/components/ui/button'
@@ -14,17 +10,17 @@ import { useConfirm } from '@/hooks/use-confirm'
 export function TypeList() {
   const [createFormOpen, setCreateFormOpen] = useState(false)
   const [editFormOpen, setEditFormOpen] = useState(false)
-  const [editingType, setEditingType] = useState<TypeResponseSchemaList_a9993e3_TypeResponseSchema | null>(null)
+  const [editingType, setEditingType] = useState<{ id: number; name: string; created_at?: string; updated_at?: string } | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
 
   const { confirm, confirmProps } = useConfirm()
   
-  const { data: types, isLoading, error } = useGetTypes()
+  const { data: types, isLoading, error } = useGetTypesWithStats(true)
   const createMutation = useCreateType()
   const updateMutation = useUpdateType()
   const deleteMutation = useDeleteType()
 
-  const filteredTypes = types?.filter(type => 
+  const filteredTypes = types?.filter((type: { name: string }) => 
     type.name.toLowerCase().includes(searchTerm.toLowerCase())
   ) || []
 
@@ -32,7 +28,7 @@ export function TypeList() {
     await createMutation.mutateAsync({ body: data })
   }
 
-  const handleEditType = (type: TypeResponseSchemaList_a9993e3_TypeResponseSchema) => {
+  const handleEditType = (type: { id: number; name: string; created_at?: string; updated_at?: string }) => {
     setEditingType(type)
     setEditFormOpen(true)
   }
@@ -47,7 +43,7 @@ export function TypeList() {
     setEditingType(null)
   }
 
-  const handleDeleteType = async (type: TypeResponseSchemaList_a9993e3_TypeResponseSchema) => {
+  const handleDeleteType = async (type: { id: number; name: string; created_at?: string; updated_at?: string }) => {
     const confirmed = await confirm({
       title: 'Delete Type',
       description: `Are you sure you want to delete the type "${type.name}"? This action cannot be undone.`,
@@ -92,7 +88,7 @@ export function TypeList() {
     )
   }
 
-  const isEmpty = !types || types.length === 0
+  const isEmpty = !types || (Array.isArray(types) && types.length === 0)
   const noSearchResults = searchTerm && filteredTypes.length === 0
 
   return (
@@ -136,10 +132,11 @@ export function TypeList() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredTypes.map((type: TypeResponseSchemaList_a9993e3_TypeResponseSchema) => (
+          {filteredTypes.map((type: { id: number; name: string; part_count?: number }) => (
             <TypeCard
               key={type.id}
               type={type}
+              partCount={type.part_count}
               onEdit={() => handleEditType(type)}
               onDelete={() => handleDeleteType(type)}
             />

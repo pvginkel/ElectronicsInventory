@@ -59,43 +59,6 @@
         "title": "BoxCreateSchema",
         "type": "object"
       },
-      "BoxListSchemaList.a9993e3": {
-        "items": {
-          "$ref": "#/components/schemas/BoxListSchemaList.a9993e3.BoxListSchema"
-        },
-        "title": "BoxListSchemaList",
-        "type": "array"
-      },
-      "BoxListSchemaList.a9993e3.BoxListSchema": {
-        "description": "Schema for lightweight box list.",
-        "properties": {
-          "box_no": {
-            "description": "Sequential box number",
-            "example": 7,
-            "title": "Box No",
-            "type": "integer"
-          },
-          "capacity": {
-            "description": "Maximum number of storage locations in this box",
-            "example": 60,
-            "title": "Capacity",
-            "type": "integer"
-          },
-          "description": {
-            "description": "Descriptive name for the box",
-            "example": "Small Components Storage",
-            "title": "Description",
-            "type": "string"
-          }
-        },
-        "required": [
-          "box_no",
-          "description",
-          "capacity"
-        ],
-        "title": "BoxListSchema",
-        "type": "object"
-      },
       "BoxResponseSchema.6d5ef0b": {
         "description": "Schema for full box details with locations.",
         "properties": {
@@ -201,6 +164,131 @@
         "title": "BoxUpdateSchema",
         "type": "object"
       },
+      "BoxUsageStatsSchema.6d5ef0b": {
+        "description": "Schema for box usage statistics.",
+        "properties": {
+          "available_locations": {
+            "description": "Number of locations currently available for new parts",
+            "example": 18,
+            "title": "Available Locations",
+            "type": "integer"
+          },
+          "box_no": {
+            "description": "Box number",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "occupied_locations": {
+            "description": "Number of locations currently occupied by parts",
+            "example": 42,
+            "title": "Occupied Locations",
+            "type": "integer"
+          },
+          "total_locations": {
+            "description": "Total number of locations in this box",
+            "example": 60,
+            "title": "Total Locations",
+            "type": "integer"
+          },
+          "usage_percentage": {
+            "description": "Percentage of locations that are occupied",
+            "example": 70,
+            "title": "Usage Percentage",
+            "type": "number"
+          }
+        },
+        "required": [
+          "box_no",
+          "total_locations",
+          "occupied_locations",
+          "available_locations",
+          "usage_percentage"
+        ],
+        "title": "BoxUsageStatsSchema",
+        "type": "object"
+      },
+      "BoxWithUsageSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/BoxWithUsageSchemaList.a9993e3.BoxWithUsageSchema"
+        },
+        "title": "BoxWithUsageSchemaList",
+        "type": "array"
+      },
+      "BoxWithUsageSchemaList.a9993e3.BoxWithUsageSchema": {
+        "description": "Schema for box with usage statistics.",
+        "properties": {
+          "available_locations": {
+            "description": "Number of locations currently available for new parts",
+            "example": 18,
+            "title": "Available Locations",
+            "type": "integer"
+          },
+          "box_no": {
+            "description": "Sequential box number",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "capacity": {
+            "description": "Maximum number of storage locations in this box",
+            "example": 60,
+            "title": "Capacity",
+            "type": "integer"
+          },
+          "created_at": {
+            "description": "Timestamp when the box was created",
+            "example": "2024-01-15T10:30:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "description": "Descriptive name for the box",
+            "example": "Small Components Storage",
+            "title": "Description",
+            "type": "string"
+          },
+          "occupied_locations": {
+            "description": "Number of locations currently occupied by parts",
+            "example": 42,
+            "title": "Occupied Locations",
+            "type": "integer"
+          },
+          "total_locations": {
+            "description": "Total number of locations in this box",
+            "example": 60,
+            "title": "Total Locations",
+            "type": "integer"
+          },
+          "updated_at": {
+            "description": "Timestamp when the box was last modified",
+            "example": "2024-01-15T14:45:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "usage_percentage": {
+            "description": "Percentage of locations that are occupied",
+            "example": 70,
+            "title": "Usage Percentage",
+            "type": "number"
+          }
+        },
+        "required": [
+          "box_no",
+          "description",
+          "capacity",
+          "created_at",
+          "updated_at",
+          "total_locations",
+          "occupied_locations",
+          "available_locations",
+          "usage_percentage"
+        ],
+        "title": "BoxWithUsageSchema",
+        "type": "object"
+      },
       "ErrorResponseSchema.c2a0d71": {
         "description": "Standard error response format.",
         "properties": {
@@ -284,36 +372,6 @@
         "title": "LocationResponseSchema",
         "type": "object"
       },
-      "LocationResponseSchemaList.a9993e3": {
-        "items": {
-          "$ref": "#/components/schemas/LocationResponseSchemaList.a9993e3.LocationResponseSchema"
-        },
-        "title": "LocationResponseSchemaList",
-        "type": "array"
-      },
-      "LocationResponseSchemaList.a9993e3.LocationResponseSchema": {
-        "description": "Schema for location details.",
-        "properties": {
-          "box_no": {
-            "description": "The box number where this location is situated",
-            "example": 7,
-            "title": "Box No",
-            "type": "integer"
-          },
-          "loc_no": {
-            "description": "The location number within the box (e.g., location 3 in box 7 would be '7-3')",
-            "example": 15,
-            "title": "Loc No",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "box_no",
-          "loc_no"
-        ],
-        "title": "LocationResponseSchema",
-        "type": "object"
-      },
       "LocationSuggestionSchema.46800bd": {
         "description": "Schema for location suggestions.",
         "properties": {
@@ -335,6 +393,104 @@
           "loc_no"
         ],
         "title": "LocationSuggestionSchema",
+        "type": "object"
+      },
+      "LocationWithPartResponseSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/LocationWithPartResponseSchemaList.a9993e3.LocationWithPartResponseSchema"
+        },
+        "title": "LocationWithPartResponseSchemaList",
+        "type": "array"
+      },
+      "LocationWithPartResponseSchemaList.a9993e3.LocationWithPartResponseSchema": {
+        "description": "Schema for location details including part assignment information.",
+        "properties": {
+          "box_no": {
+            "description": "The box number where this location is situated",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "is_occupied": {
+            "description": "Whether location contains parts",
+            "example": true,
+            "title": "Is Occupied",
+            "type": "boolean"
+          },
+          "loc_no": {
+            "description": "The location number within the box (e.g., location 3 in box 7 would be '7-3')",
+            "example": 15,
+            "title": "Loc No",
+            "type": "integer"
+          },
+          "part_assignments": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LocationWithPartResponseSchemaList.a9993e3.PartAssignmentSchema"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Parts stored in this location",
+            "example": [],
+            "title": "Part Assignments"
+          }
+        },
+        "required": [
+          "box_no",
+          "loc_no",
+          "is_occupied"
+        ],
+        "title": "LocationWithPartResponseSchema",
+        "type": "object"
+      },
+      "LocationWithPartResponseSchemaList.a9993e3.PartAssignmentSchema": {
+        "description": "Schema for minimal part data within location display.",
+        "properties": {
+          "description": {
+            "description": "Part description for display purposes",
+            "example": "SPDT Relay 5VDC",
+            "title": "Description",
+            "type": "string"
+          },
+          "id4": {
+            "description": "4-character part identifier",
+            "example": "ABCD",
+            "title": "Id4",
+            "type": "string"
+          },
+          "manufacturer_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Manufacturer part code for display purposes",
+            "example": "OMRON G5Q-1A4",
+            "title": "Manufacturer Code"
+          },
+          "qty": {
+            "description": "Quantity at this location",
+            "example": 25,
+            "title": "Qty",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id4",
+          "qty",
+          "description"
+        ],
+        "title": "PartAssignmentSchema",
         "type": "object"
       },
       "MoveStockSchema.46800bd": {
@@ -477,50 +633,6 @@
           "description"
         ],
         "title": "PartCreateSchema",
-        "type": "object"
-      },
-      "PartListSchemaList.a9993e3": {
-        "items": {
-          "$ref": "#/components/schemas/PartListSchemaList.a9993e3.PartListSchema"
-        },
-        "title": "PartListSchemaList",
-        "type": "array"
-      },
-      "PartListSchemaList.a9993e3.PartListSchema": {
-        "description": "Schema for lightweight part listings.",
-        "properties": {
-          "description": {
-            "description": "Free text description",
-            "example": "12V SPDT relay with 40A contacts",
-            "title": "Description",
-            "type": "string"
-          },
-          "id4": {
-            "description": "4-character unique part identifier",
-            "example": "BZQP",
-            "title": "Id4",
-            "type": "string"
-          },
-          "manufacturer_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Manufacturer's part number",
-            "example": "OMRON G5Q-1A4",
-            "title": "Manufacturer Code"
-          }
-        },
-        "required": [
-          "id4",
-          "manufacturer_code",
-          "description"
-        ],
-        "title": "PartListSchema",
         "type": "object"
       },
       "PartLocationResponseSchema.1a46b79": {
@@ -874,6 +986,122 @@
         "title": "PartUpdateSchema",
         "type": "object"
       },
+      "PartWithTotalSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/PartWithTotalSchemaList.a9993e3.PartWithTotalSchema"
+        },
+        "title": "PartWithTotalSchemaList",
+        "type": "array"
+      },
+      "PartWithTotalSchemaList.a9993e3.PartWithTotalSchema": {
+        "description": "Schema for part with calculated total quantity.",
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when the part was created",
+            "example": "2024-01-15T10:30:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "description": "Free text description",
+            "example": "12V SPDT relay with 40A contacts",
+            "title": "Description",
+            "type": "string"
+          },
+          "id4": {
+            "description": "4-character unique part identifier",
+            "example": "BZQP",
+            "title": "Id4",
+            "type": "string"
+          },
+          "manufacturer_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Manufacturer's part number",
+            "example": "OMRON G5Q-1A4",
+            "title": "Manufacturer Code"
+          },
+          "seller": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vendor/supplier name",
+            "example": "Digi-Key",
+            "title": "Seller"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tags for categorization",
+            "example": [
+              "12V",
+              "SPDT",
+              "automotive"
+            ],
+            "title": "Tags"
+          },
+          "total_quantity": {
+            "description": "Total quantity across all locations",
+            "example": 150,
+            "title": "Total Quantity",
+            "type": "integer"
+          },
+          "type_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Part type/category ID",
+            "example": 1,
+            "title": "Type Id"
+          },
+          "updated_at": {
+            "description": "Timestamp when the part was last modified",
+            "example": "2024-01-15T14:45:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id4",
+          "manufacturer_code",
+          "description",
+          "type_id",
+          "tags",
+          "seller",
+          "created_at",
+          "updated_at",
+          "total_quantity"
+        ],
+        "title": "PartWithTotalSchema",
+        "type": "object"
+      },
       "QuantityHistoryResponseSchemaList.a9993e3": {
         "items": {
           "$ref": "#/components/schemas/QuantityHistoryResponseSchemaList.a9993e3.QuantityHistoryResponseSchema"
@@ -1143,7 +1371,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BoxListSchemaList.a9993e3"
+                  "$ref": "#/components/schemas/BoxWithUsageSchemaList.a9993e3"
                 }
               }
             },
@@ -1160,7 +1388,7 @@
             "description": "Bad Request"
           }
         },
-        "summary": "List all boxes with summary info.",
+        "summary": "List all boxes with usage statistics.",
         "tags": []
       },
       "post": {
@@ -1379,7 +1607,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LocationResponseSchemaList.a9993e3"
+                  "$ref": "#/components/schemas/LocationWithPartResponseSchemaList.a9993e3"
                 }
               }
             },
@@ -1406,7 +1634,59 @@
             "description": "Not Found"
           }
         },
-        "summary": "Get all locations in box.",
+        "summary": "Get all locations in box with part assignment information.",
+        "tags": []
+      }
+    },
+    "/api/boxes/{box_no}/usage": {
+      "get": {
+        "description": "",
+        "operationId": "get__api_boxes_{box_no}_usage",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "box_no",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoxUsageStatsSchema.6d5ef0b"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Get usage statistics for a specific box.",
         "tags": []
       }
     },
@@ -1711,7 +1991,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PartListSchemaList.a9993e3"
+                  "$ref": "#/components/schemas/PartWithTotalSchemaList.a9993e3"
                 }
               }
             },
@@ -1728,7 +2008,7 @@
             "description": "Bad Request"
           }
         },
-        "summary": "List parts with pagination.",
+        "summary": "List parts with pagination and total quantities.",
         "tags": []
       },
       "post": {
@@ -2062,7 +2342,7 @@
             "description": "Bad Request"
           }
         },
-        "summary": "List all part types.",
+        "summary": "List all part types with optional statistics.",
         "tags": []
       },
       "post": {

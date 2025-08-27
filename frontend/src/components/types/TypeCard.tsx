@@ -5,13 +5,15 @@ interface TypeCardProps {
   type: {
     id: number
     name: string
+    part_count?: number
   }
   partCount?: number
   onEdit: () => void
   onDelete: () => void
 }
 
-export function TypeCard({ type, partCount = 0, onEdit, onDelete }: TypeCardProps) {
+export function TypeCard({ type, partCount, onEdit, onDelete }: TypeCardProps) {
+  const displayPartCount = type.part_count ?? partCount ?? 0;
   return (
     <Card variant="content" className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
@@ -20,7 +22,7 @@ export function TypeCard({ type, partCount = 0, onEdit, onDelete }: TypeCardProp
             <CardTitle className="text-base">{type.name}</CardTitle>
           </div>
           <div className="text-right">
-            <div className="text-sm font-medium">{partCount} parts</div>
+            <div className="text-sm font-medium">{displayPartCount} parts</div>
             <div className="text-xs text-muted-foreground">using this type</div>
           </div>
         </div>

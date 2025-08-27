@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { useGetParts, type PartListSchemaList_a9993e3_PartListSchema } from '@/lib/api/generated/hooks';
+import { useGetParts, type PartWithTotalSchemaList_a9993e3_PartWithTotalSchema } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 
 interface PartListProps {
@@ -18,7 +18,7 @@ export function PartList({ onSelectPart, onCreatePart }: PartListProps) {
     if (!searchTerm.trim()) return parts;
 
     const term = searchTerm.toLowerCase();
-    return parts.filter((part: PartListSchemaList_a9993e3_PartListSchema) => {
+    return parts.filter((part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema) => {
       const { displayId, displayDescription, displayManufacturerCode } = formatPartForDisplay(part);
       
       return (
@@ -102,7 +102,7 @@ export function PartList({ onSelectPart, onCreatePart }: PartListProps) {
             </div>
           </Card>
         ) : (
-          filteredParts.map((part: PartListSchemaList_a9993e3_PartListSchema) => (
+          filteredParts.map((part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema) => (
             <PartListItem
               key={part.id4}
               part={part}
