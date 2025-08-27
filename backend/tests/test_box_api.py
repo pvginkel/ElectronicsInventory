@@ -231,6 +231,32 @@ class TestBoxAPI:
         response_data = json.loads(response.data)
         assert "error" in response_data
 
+    def test_delete_box_with_parts_fails(self, client: FlaskClient, session: Session):
+        """Test that deleting a box with parts returns a 400 error."""
+        from app.services.inventory_service import InventoryService
+        
+        # Create box
+        box = BoxService.create_box(session, "Test Box", 5)
+        session.commit()
+        
+        # Add a part to the box
+        InventoryService.add_stock(session, "TEST", box.box_no, 1, 10)
+        session.commit()
+        
+        # Attempt to delete the box via API
+        response = client.delete(f"/api/boxes/{box.box_no}")
+        
+        # Should return 400 with proper error message now that we've fixed the Spectree validation
+        assert response.status_code == 400
+        response_data = json.loads(response.data)
+        assert "error" in response_data
+        assert f"Cannot delete box {box.box_no}" in response_data["error"]
+        assert "it contains parts that must be moved or removed first" in response_data["error"]
+        
+        # Verify box still exists
+        verify_response = client.get(f"/api/boxes/{box.box_no}")
+        assert verify_response.status_code == 200
+
     def test_get_box_locations_existing(self, client: FlaskClient, session: Session):
         """Test getting locations for an existing box."""
         box = BoxService.create_box(session, "Test Box", 4)

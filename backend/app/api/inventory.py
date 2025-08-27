@@ -31,20 +31,16 @@ def add_stock(part_id4: str):
 
     data = AddStockSchema.model_validate(request.get_json())
 
-    try:
-        part_location = InventoryService.add_stock(
-            g.db, part_id4, data.box_no, data.loc_no, data.qty
-        )
+    part_location = InventoryService.add_stock(
+        g.db, part_id4, data.box_no, data.loc_no, data.qty
+    )
 
-        return PartLocationResponseSchema(
-            id4=part_location.part_id4,
-            box_no=part_location.box_no,
-            loc_no=part_location.loc_no,
-            qty=part_location.qty
-        ).model_dump(), 201
-
-    except ValueError as e:
-        return {"error": str(e)}, 400
+    return PartLocationResponseSchema(
+        id4=part_location.part_id4,
+        box_no=part_location.box_no,
+        loc_no=part_location.loc_no,
+        qty=part_location.qty
+    ).model_dump(), 201
 
 
 @inventory_bp.route("/parts/<string:part_id4>/stock", methods=["DELETE"])
@@ -59,18 +55,10 @@ def remove_stock(part_id4: str):
 
     data = RemoveStockSchema.model_validate(request.get_json())
 
-    try:
-        success = InventoryService.remove_stock(
-            g.db, part_id4, data.box_no, data.loc_no, data.qty
-        )
-
-        if success:
-            return "", 204
-        else:
-            return {"error": "Part not found at specified location"}, 404
-
-    except ValueError as e:
-        return {"error": str(e)}, 400
+    InventoryService.remove_stock(
+        g.db, part_id4, data.box_no, data.loc_no, data.qty
+    )
+    return "", 204
 
 
 @inventory_bp.route("/parts/<string:part_id4>/move", methods=["POST"])
@@ -85,24 +73,16 @@ def move_stock(part_id4: str):
 
     data = MoveStockSchema.model_validate(request.get_json())
 
-    try:
-        success = InventoryService.move_stock(
-            g.db,
-            part_id4,
-            data.from_box_no,
-            data.from_loc_no,
-            data.to_box_no,
-            data.to_loc_no,
-            data.qty,
-        )
-
-        if success:
-            return "", 204
-        else:
-            return {"error": "Insufficient stock at source location or destination location does not exist"}, 400
-
-    except ValueError as e:
-        return {"error": str(e)}, 400
+    InventoryService.move_stock(
+        g.db,
+        part_id4,
+        data.from_box_no,
+        data.from_loc_no,
+        data.to_box_no,
+        data.to_loc_no,
+        data.qty,
+    )
+    return "", 204
 
 
 @inventory_bp.route("/suggestions/<int:type_id>", methods=["GET"])

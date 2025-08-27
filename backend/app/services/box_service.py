@@ -4,8 +4,10 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.exceptions import RecordNotFoundException, InvalidOperationException
 from app.models.box import Box
 from app.models.location import Location
+from app.models.part_location import PartLocation
 
 
 class BoxService:
@@ -34,10 +36,13 @@ class BoxService:
         return box
 
     @staticmethod
-    def get_box(db: Session, box_no: int) -> Box | None:
+    def get_box(db: Session, box_no: int) -> Box:
         """Get box."""
         stmt = select(Box).where(Box.box_no == box_no)
-        return db.execute(stmt).scalar_one_or_none()
+        box = db.execute(stmt).scalar_one_or_none()
+        if not box:
+            raise RecordNotFoundException("Box", box_no)
+        return box
 
     @staticmethod
     def get_all_boxes(db: Session) -> list[Box]:
@@ -48,7 +53,7 @@ class BoxService:
     @staticmethod
     def update_box_capacity(
         db: Session, box_no: int, new_capacity: int, new_description: str
-    ) -> Box | None:
+    ) -> Box:
         """Update box capacity and description.
 
         If increasing capacity, new locations are created.
@@ -58,7 +63,7 @@ class BoxService:
         stmt = select(Box).where(Box.box_no == box_no)
         box = db.execute(stmt).scalar_one_or_none()
         if not box:
-            return None
+            raise RecordNotFoundException("Box", box_no)
 
         current_capacity = box.capacity
 
@@ -92,14 +97,23 @@ class BoxService:
         return box
 
     @staticmethod
-    def delete_box(db: Session, box_no: int) -> bool:
-        """Delete box if it exists. Returns True if deleted, False if not found."""
+    def delete_box(db: Session, box_no: int) -> None:
+        """Delete box if it exists and contains no parts."""
         # Find box by box_no
         stmt = select(Box).where(Box.box_no == box_no)
         box = db.execute(stmt).scalar_one_or_none()
         if not box:
-            return False
+            raise RecordNotFoundException("Box", box_no)
 
-        # The locations will be deleted automatically due to cascade
+        # Check if box contains any parts
+        parts_stmt = select(PartLocation).where(PartLocation.box_no == box_no).limit(1)
+        has_parts = db.execute(parts_stmt).scalar_one_or_none() is not None
+        
+        if has_parts:
+            raise InvalidOperationException(
+                f"delete box {box_no}", 
+                "it contains parts that must be moved or removed first"
+            )
+
+        # Safe to delete - the locations will be deleted automatically due to cascade
         db.delete(box)
-        return True
