@@ -1,10 +1,15 @@
 """Type service for managing part types/categories."""
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.type import Type
+
+if TYPE_CHECKING:
+    from app.schemas.type import TypeWithStatsModel
 
 
 class TypeService:
@@ -57,3 +62,42 @@ class TypeService:
             raise InvalidOperationException(f"delete type {type_id}", "it is being used by existing parts")
 
         db.delete(type_obj)
+
+    @staticmethod
+    def calculate_type_part_count(db: Session, type_id: int) -> int:
+        """Calculate the number of parts using a specific type."""
+        from sqlalchemy import func
+
+        from app.models.part import Part
+
+        stmt = select(func.count(Part.id)).where(Part.type_id == type_id)
+        result = db.execute(stmt).scalar()
+        return result or 0
+
+    @staticmethod
+    def get_all_types_with_part_counts(db: Session) -> list['TypeWithStatsModel']:
+        """Get all types with their part counts calculated."""
+        from sqlalchemy import func
+
+        from app.models.part import Part
+        from app.schemas.type import TypeWithStatsModel
+
+        # Query to get all types with part counts in one go
+        stmt = select(
+            Type,
+            func.count(Part.id).label('part_count')
+        ).outerjoin(
+            Part, Type.id == Part.type_id
+        ).group_by(Type.id).order_by(Type.name)
+
+        results = db.execute(stmt).all()
+
+        types_with_stats = []
+        for type_obj, part_count in results:
+            type_with_stats = TypeWithStatsModel(
+                type=type_obj,
+                part_count=part_count or 0
+            )
+            types_with_stats.append(type_with_stats)
+
+        return types_with_stats

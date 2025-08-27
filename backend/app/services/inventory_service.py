@@ -1,5 +1,6 @@
 """Inventory service for managing part locations and quantities."""
 
+from typing import TYPE_CHECKING
 
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
@@ -13,6 +14,9 @@ from app.models.location import Location
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
 from app.services.part_service import PartService
+
+if TYPE_CHECKING:
+    from app.schemas.part import PartWithTotalModel
 
 
 class InventoryService:
@@ -248,11 +252,12 @@ class InventoryService:
         return result or 0
 
     @staticmethod
-    def get_all_parts_with_totals(db: Session, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list[dict]:
+    def get_all_parts_with_totals(db: Session, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list['PartWithTotalModel']:
         """Get all parts with their total quantities calculated."""
         from sqlalchemy import func
 
         from app.models.part import Part
+        from app.schemas.part import PartWithTotalModel
 
         # Base query for parts with total quantity calculation
         stmt = select(
@@ -270,14 +275,14 @@ class InventoryService:
 
         results = db.execute(stmt).all()
 
-        # Convert to list of dicts with part object and calculated total
+        # Convert to list of PartWithTotalModel instances
         parts_with_totals = []
         for part, total_qty in results:
-            part_dict = {
-                'part': part,
-                'total_quantity': int(total_qty)
-            }
-            parts_with_totals.append(part_dict)
+            part_with_total = PartWithTotalModel(
+                part=part,
+                total_quantity=int(total_qty)
+            )
+            parts_with_totals.append(part_with_total)
 
         return parts_with_totals
 

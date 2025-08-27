@@ -1,10 +1,15 @@
 """Part schemas for request/response validation."""
 
+from dataclasses import dataclass
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.schemas.type import TypeResponseSchema
+
+if TYPE_CHECKING:
+    from app.models.part import Part
 
 
 class PartCreateSchema(BaseModel):
@@ -228,3 +233,10 @@ class PartLocationResponseSchema(BaseModel):
     )
 
     model_config = ConfigDict(from_attributes=True)
+
+
+@dataclass
+class PartWithTotalModel:
+    """Service layer model combining Part ORM model with total quantity."""
+    part: 'Part'  # Forward reference to avoid circular imports
+    total_quantity: int

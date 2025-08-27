@@ -1,10 +1,15 @@
 """Box schemas for request/response validation."""
 
+from dataclasses import dataclass
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.location import LocationResponseSchema
+
+if TYPE_CHECKING:
+    from app.models.box import Box
 
 
 class BoxCreateSchema(BaseModel):
@@ -162,3 +167,23 @@ class BoxUsageStatsSchema(BaseModel):
     )
 
     model_config = ConfigDict(from_attributes=True)
+
+
+@dataclass
+class BoxUsageStatsModel:
+    """Service layer model for box usage statistics."""
+    box_no: int
+    total_locations: int
+    occupied_locations: int
+    available_locations: int
+    usage_percentage: float
+
+
+@dataclass
+class BoxWithUsageModel:
+    """Service layer model combining Box ORM model with usage stats."""
+    box: 'Box'  # Forward reference to avoid circular imports
+    total_locations: int
+    occupied_locations: int
+    available_locations: int
+    usage_percentage: float
