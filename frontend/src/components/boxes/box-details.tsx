@@ -52,7 +52,7 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div>
         <div className="mb-6">
           <div className="h-8 w-32 bg-muted animate-pulse rounded mb-2" />
           <div className="h-6 w-48 bg-muted animate-pulse rounded" />
@@ -71,7 +71,7 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
 
   if (error || !box) {
     return (
-      <div className="p-6">
+      <div>
         <div className="text-center py-12">
           <p className="text-lg text-muted-foreground">Failed to load box details</p>
           <p className="text-sm text-muted-foreground mt-2">
@@ -89,7 +89,7 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
   const usagePercentage = Math.round((usedLocations / box!.capacity) * 100)
 
   return (
-    <div className="p-6">
+    <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-2">
@@ -97,8 +97,7 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
             <span>/</span>
             <span>Box {box!.box_no}</span>
           </div>
-          <h1 className="text-3xl font-bold">Box {box!.box_no}</h1>
-          <p className="text-lg text-muted-foreground">{box!.description}</p>
+          <h1 className="text-3xl font-bold">#{box!.box_no} {box!.description}</h1>
         </div>
         <div className="flex space-x-2">
           <Button variant="outline" onClick={() => setEditFormOpen(true)}>

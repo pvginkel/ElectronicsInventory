@@ -21,9 +21,6 @@ export function LocationItem({ location }: LocationItemProps) {
         </div>
         <div>
           <div className="font-medium">Location {location.loc_no}</div>
-          <div className="text-sm text-muted-foreground">
-            {locationId}
-          </div>
         </div>
       </div>
       

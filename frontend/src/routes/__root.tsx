@@ -3,7 +3,6 @@ import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Sidebar } from '@/components/layout/sidebar'
-import { Header } from '@/components/layout/header'
 
 const queryClient = new QueryClient()
 
@@ -41,10 +40,16 @@ function RootLayout() {
 
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header
-          onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
-          isMobile={true}
-        />
+        {/* Mobile menu button */}
+        <div className="lg:hidden border-b border-border bg-background">
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-4 hover:bg-accent"
+          >
+            <span className="text-xl">☰</span>
+          </button>
+        </div>
+        
         <main className="flex-1 overflow-auto bg-muted/30 p-6">
           <Outlet />
         </main>

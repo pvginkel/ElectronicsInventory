@@ -21,22 +21,37 @@ export function TypeSelector({ value, onChange, placeholder = "Search or create 
   const [showDropdown, setShowDropdown] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createTypeName, setCreateTypeName] = useState('');
+  const [isUserEditing, setIsUserEditing] = useState(false);
+  const [selectedTypeName, setSelectedTypeName] = useState('');
   
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
   const { data: types = [], isLoading } = useTypesSearch(searchTerm);
   const createTypeMutation = useCreateType();
+
+  // Get the display name for the current selected type
+  const getSelectedTypeName = () => {
+    return selectedTypeName;
+  };
   
-  // Initialize search term with selected type name if available
+  // Store selected type name when value changes  
   useEffect(() => {
     if (value && types.length > 0) {
       const selectedType = types.find((t: Type) => t.id === value);
-      if (selectedType && !searchTerm) {
-        setSearchTerm(selectedType.name);
+      if (selectedType) {
+        setSelectedTypeName(selectedType.name);
+        if (!isUserEditing && searchTerm !== selectedType.name) {
+          setSearchTerm(selectedType.name);
+        }
+      }
+    } else {
+      setSelectedTypeName('');
+      if (!isUserEditing && !value) {
+        setSearchTerm('');
       }
     }
-  }, [value, types, searchTerm]);
+  }, [value, types, isUserEditing, searchTerm]);
   
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -46,14 +61,26 @@ export function TypeSelector({ value, onChange, placeholder = "Search or create 
         !inputRef.current?.contains(event.target as Node)
       ) {
         setShowDropdown(false);
+        setIsUserEditing(false);
+        // If user was editing but didn't select anything, restore to original value
+        if (value) {
+          const selectedTypeName = getSelectedTypeName();
+          if (selectedTypeName && searchTerm !== selectedTypeName) {
+            setSearchTerm(selectedTypeName);
+          }
+        } else if (searchTerm) {
+          // No type selected but there's text, clear it
+          setSearchTerm('');
+        }
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [value, searchTerm, types]);
 
   const handleInputFocus = () => {
+    setIsUserEditing(true);
     setShowDropdown(true);
   };
 
@@ -68,9 +95,30 @@ export function TypeSelector({ value, onChange, placeholder = "Search or create 
     }
   };
 
+  const handleInputBlur = () => {
+    // Use setTimeout to allow for selection clicks to register first
+    setTimeout(() => {
+      if (!showDropdown) {
+        setIsUserEditing(false);
+        // If user was editing but didn't select anything, restore to original value
+        if (value) {
+          const selectedTypeName = getSelectedTypeName();
+          if (selectedTypeName && searchTerm !== selectedTypeName) {
+            setSearchTerm(selectedTypeName);
+          }
+        } else if (searchTerm) {
+          // No type selected but there's text, clear it
+          setSearchTerm('');
+        }
+      }
+    }, 150);
+  };
+
   const handleSelectType = (type: Type) => {
     onChange(type.id);
     setSearchTerm(type.name);
+    setSelectedTypeName(type.name);
+    setIsUserEditing(false);
     setShowDropdown(false);
   };
 
@@ -89,6 +137,8 @@ export function TypeSelector({ value, onChange, placeholder = "Search or create 
       
       onChange(result.id);
       setSearchTerm(result.name);
+      setSelectedTypeName(result.name);
+      setIsUserEditing(false);
       setShowCreateDialog(false);
       setShowDropdown(false);
       setCreateTypeName('');
@@ -112,6 +162,7 @@ export function TypeSelector({ value, onChange, placeholder = "Search or create 
         value={searchTerm}
         onChange={handleInputChange}
         onFocus={handleInputFocus}
+        onBlur={handleInputBlur}
         placeholder={placeholder}
         error={error}
         className="w-full"

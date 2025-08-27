@@ -131,6 +131,7 @@ function LocationRow({
 }: LocationRowProps) {
   const [quantity, setQuantity] = useState(location.qty.toString());
   const removeStockMutation = useRemoveStock();
+  const addStockMutation = useAddStock();
 
   const locationString = formatLocation(location.box_no, location.loc_no);
 
@@ -143,10 +144,42 @@ function LocationRow({
       return;
     }
 
-    // TODO: Implement quantity update when we have the endpoint
-    // For now, just close editing
-    onStopEdit();
-    onQuantityChange();
+    const currentQty = location.qty;
+    const diff = newQty - currentQty;
+    
+    if (diff === 0) {
+      onStopEdit();
+      return;
+    }
+
+    try {
+      if (diff > 0) {
+        // Add stock
+        await addStockMutation.mutateAsync({
+          path: { part_id4: partId },
+          body: {
+            box_no: location.box_no,
+            loc_no: location.loc_no,
+            qty: diff
+          }
+        });
+      } else {
+        // Remove stock
+        await removeStockMutation.mutateAsync({
+          path: { part_id4: partId },
+          body: {
+            box_no: location.box_no,
+            loc_no: location.loc_no,
+            qty: Math.abs(diff)
+          }
+        });
+      }
+      
+      onStopEdit();
+      onQuantityChange();
+    } catch (error) {
+      console.error('Failed to update quantity:', error);
+    }
   };
 
   const handleRemove = async () => {
@@ -189,7 +222,7 @@ function LocationRow({
           <Button
             size="sm"
             onClick={handleSave}
-            disabled={removeStockMutation.isPending}
+            disabled={removeStockMutation.isPending || addStockMutation.isPending}
           >
             Save
           </Button>
@@ -197,7 +230,7 @@ function LocationRow({
             size="sm"
             variant="outline"
             onClick={handleCancel}
-            disabled={removeStockMutation.isPending}
+            disabled={removeStockMutation.isPending || addStockMutation.isPending}
           >
             Cancel
           </Button>

@@ -138,7 +138,7 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
     <Card className="p-6">
       <div className="mb-6">
         <h2 className="text-lg font-semibold">
-          {isEditing ? `Edit Part ${partId}` : 'Create New Part'}
+          {isEditing ? `Edit Part ${partId}` : 'Add Part'}
         </h2>
       </div>
 
@@ -235,7 +235,7 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
             disabled={isLoading}
             loading={isLoading}
           >
-            {isEditing ? 'Update Part' : 'Create Part'}
+            {isEditing ? 'Update Part' : 'Add Part'}
           </Button>
         </div>
       </Form>

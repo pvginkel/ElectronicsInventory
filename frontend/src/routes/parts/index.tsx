@@ -17,7 +17,12 @@ function Parts() {
   }
 
   return (
-    <div className="p-6">
+    <div>
+      {/* Breadcrumb */}
+      <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
+        <span>Parts</span>
+      </div>
+      
       <PartList 
         onSelectPart={handleSelectPart}
         onCreatePart={handleCreatePart}

@@ -46,21 +46,21 @@ export function PartList({ onSelectPart, onCreatePart }: PartListProps) {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Parts</h1>
+        <h1 className="text-3xl font-bold">Parts</h1>
         {onCreatePart && (
           <Button onClick={onCreatePart}>
-            Add New Part
+            Add Part
           </Button>
         )}
       </div>
 
       {/* Search */}
-      <div className="flex gap-4">
+      <div className="w-full">
         <Input
           placeholder="Search parts by ID, description, manufacturer, type, or tags..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-1"
+          className="w-full"
         />
       </div>
 
@@ -94,7 +94,7 @@ export function PartList({ onSelectPart, onCreatePart }: PartListProps) {
                   ? 'Try adjusting your search terms or create a new part.'
                   : 'Get started by adding your first part to the inventory.'}
               </p>
-              {onCreatePart && (
+              {onCreatePart && !searchTerm && (
                 <Button onClick={onCreatePart}>
                   Add First Part
                 </Button>
@@ -144,7 +144,7 @@ function PartListItem({ part, onClick }: PartListItemProps) {
           <div className="flex items-center gap-4 mb-2">
             <span className="font-mono font-semibold text-lg">{displayId}</span>
             <span className="text-muted-foreground">
-              Total Qty: {part.quantity || 0}
+              Total Quantity: {part.quantity || 0}
             </span>
           </div>
           
@@ -153,7 +153,7 @@ function PartListItem({ part, onClick }: PartListItemProps) {
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             {displayManufacturerCode && (
               <span>
-                <strong>Manufacturer:</strong> {displayManufacturerCode}
+                <strong>Manufacturer Code:</strong> {displayManufacturerCode}
               </span>
             )}
             

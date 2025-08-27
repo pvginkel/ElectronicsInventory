@@ -66,10 +66,10 @@ export function BoxList() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div>
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Storage Boxes</h1>
-          <Button disabled>Create Box</Button>
+          <Button disabled>Add Box</Button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -82,7 +82,7 @@ export function BoxList() {
 
   if (error) {
     return (
-      <div className="p-6">
+      <div>
         <div className="text-center py-12">
           <p className="text-lg text-muted-foreground">Failed to load boxes</p>
           <p className="text-sm text-muted-foreground mt-2">{String(error)}</p>
@@ -94,11 +94,11 @@ export function BoxList() {
   const isEmpty = !boxes || boxes.length === 0
 
   return (
-    <div className="p-6">
+    <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Storage Boxes</h1>
         <Button onClick={() => setCreateFormOpen(true)}>
-          Create Box
+          Add Box
         </Button>
       </div>
 
@@ -106,13 +106,13 @@ export function BoxList() {
         <div className="text-center py-12">
           <h3 className="text-lg font-medium text-muted-foreground">No storage boxes yet</h3>
           <p className="text-sm text-muted-foreground mt-2">
-            Create your first storage box to start organizing your electronics parts.
+            Add your first storage box to start organizing your electronics parts.
           </p>
           <Button 
             className="mt-4" 
             onClick={() => setCreateFormOpen(true)}
           >
-            Create First Box
+            Add First Box
           </Button>
         </div>
       ) : (
@@ -133,8 +133,8 @@ export function BoxList() {
         open={createFormOpen}
         onOpenChange={setCreateFormOpen}
         onSubmit={handleCreateBox}
-        title="Create New Box"
-        submitText="Create Box"
+        title="Add Box"
+        submitText="Add Box"
       />
 
       {editingBox && (

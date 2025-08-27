@@ -15,7 +15,7 @@ interface QuickActionsProps {
 const defaultActions: QuickAction[] = [
   {
     id: 'add-part',
-    title: 'Add New Part',
+    title: 'Add Part',
     description: 'Register a new electronic component',
     icon: '🔧',
     onClick: () => console.log('Navigate to add part')

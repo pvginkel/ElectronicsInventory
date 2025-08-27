@@ -18,8 +18,7 @@ export function BoxCard({ box, onView, onEdit, onDelete }: BoxCardProps) {
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-base">Box {box.box_no}</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">{box.description}</p>
+            <CardTitle className="text-base">#{box.box_no} {box.description}</CardTitle>
           </div>
           <div className="text-right">
             <div className="text-sm font-medium">{box.capacity} locations</div>
