@@ -1,102 +1,221 @@
-# Electronics Inventory Backend - Claude Development Context
+# Development Guidelines - Electronics Inventory Backend
 
-## Project Overview
-This is the Flask backend for a hobby electronics parts inventory management system. See @docs/product_brief.md for complete feature requirements and @docs/technical_design.md for full technical specifications.
+This document defines the code architecture, patterns, and testing requirements for the Electronics Inventory project. Follow these guidelines to ensure consistency and maintainability.
 
-## Key Development Context
+## Project Architecture
 
-### Stack Summary
-- **Python 3.12** + **Flask 3.x** + **SQLAlchemy 2.x** + **PostgreSQL**
-- **Pydantic v2** for typed request/response models
-- **Spectree** for OpenAPI documentation
-- **Celery** + **RabbitMQ** for background jobs
-- **Ceph S3** (boto3) for file storage
-- **Poetry** for dependency management
+This Flask backend implements a **hobby electronics parts inventory system** as described in `docs/product_brief.md`. The architecture follows a layered pattern with clear separation of concerns:
 
-### Core Data Model
-- **Parts**: 4-letter IDs (e.g., "BZQP"), manufacturer codes, categories, descriptions, tags
-- **Storage**: Numbered boxes with numbered locations (e.g., "7-3" = Box 7, Location 3)
-- **Quantities**: Parts can exist in multiple locations with different quantities
-- **Documents**: PDFs, images, links stored in S3 and referenced in database
-
-### Development Commands
-```bash
-# Setup
-poetry install
-poetry shell
-
-# Run locally
-python -m flask run --debug
-
-# Testing
-pytest
-pytest --cov
-
-# Code quality
-ruff check .
-ruff format .
-mypy .
+```
+app/
+├── api/          # HTTP endpoints and request handling
+├── services/     # Business logic layer
+├── models/       # SQLAlchemy database models
+├── schemas/      # Pydantic request/response schemas
+└── utils/        # Shared utilities and error handling
 ```
 
-### Implementation Patterns
+## Code Organization Patterns
 
-#### Service Layer Architecture
-- **Static service classes** with no instance state (e.g., `BoxService`)
-- **Explicit session dependency injection** - all methods take `db: Session` parameter
-- **ORM object returns** - services return SQLAlchemy models, APIs convert to Pydantic DTOs
-- **Session lifecycle management** - use `flush()` for immediate ID access, `expire()` for relationship reloading
+### 1. API Layer (`app/api/`)
 
-#### Database Design Patterns
-- **Dual key pattern** - auto-incrementing surrogate keys (`id`) + sequential business keys (`box_no`) 
-- **Surrogate keys for relationships** - FKs reference `id` columns for performance
-- **Business keys for logic** - APIs and business logic use business keys (`box_no`, not `id`)
-- **Eager loading configuration** - use `lazy="selectin"` for relationships that are always accessed
+API endpoints handle HTTP concerns only - no business logic.
 
-#### API Layer Patterns
-- **Centralized error handling** via `@handle_api_errors` decorator
-- **Structured JSON responses** with consistent `{"error": "...", "details": "..."}` format
-- **Pydantic validation** with `from_attributes=True` for ORM-to-DTO conversion
-- **Flask `g.db` session** pattern for per-request database sessions
+**Pattern:**
+- Each resource gets its own module (e.g., `parts.py`, `boxes.py`)
+- Use Flask blueprints with URL prefixes
+- Validate requests with Pydantic schemas via `@api.validate`
+- Delegate all business logic to service classes
+- Handle errors with `@handle_api_errors` decorator
+- Return data using response schemas
 
-#### Testing Architecture
-- **Class-based test organization** (`TestBoxService`, `TestBoxAPI`) 
-- **Fixture dependency injection** - app, session, client fixtures in `conftest.py`
-- **In-memory SQLite** for test isolation (`DATABASE_URL="sqlite:///:memory:"`)
-- **Comprehensive test categories**: unit (service), integration (API), constraints (database), validation (edge cases)
+**Example structure:**
+```python
+@parts_bp.route("", methods=["POST"])
+@api.validate(json=PartCreateSchema, resp=SpectreeResponse(HTTP_201=PartResponseSchema))
+@handle_api_errors
+def create_part():
+    data = PartCreateSchema.model_validate(request.get_json())
+    part = PartService.create_part(g.db, **data.model_dump())
+    return PartResponseSchema.model_validate(part).model_dump(), 201
+```
 
-### Key Business Rules
-1. **Part IDs**: Auto-generated 4 uppercase letters, guaranteed unique
-2. **Zero quantity cleanup**: When total quantity reaches zero, all location assignments are cleared
-3. **Location suggestions**: Prefer same-category boxes, then designated category boxes, then first available
-4. **Search**: Single search box across all text fields using PostgreSQL pg_trgm
+### 2. Service Layer (`app/services/`)
 
-### API Structure
-- Blueprints per resource: `/parts`, `/boxes`, `/locations`, `/search`, `/shopping-list`, `/projects`
-- All requests/responses use Pydantic v2 models
-- OpenAPI docs available at `/docs`
-- No direct S3 uploads - all file handling through backend
+Services contain all business logic and database operations.
 
-### File Storage
-- S3 buckets: `inventory-docs` (PDFs), `inventory-images` (images)
-- All uploads go through backend API, not direct to S3
-- Frontend uses PDF.js for PDF viewing
+**Requirements:**
+- All methods must be `@staticmethod`
+- First parameter is always `Session` (database session)
+- Return SQLAlchemy model instances, not dicts
+- Raise typed exceptions (`RecordNotFoundException`, `InvalidOperationException`)
+- No HTTP-specific code (no Flask imports)
+- Services can call other services
 
-### Background Jobs (Celery)
-- AI tagging from descriptions/manufacturer codes
-- Category suggestions
-- Photo-based part number extraction
-- Datasheet discovery and fetching
-- Reorganization plan generation
+**Example pattern:**
+```python
+class PartService:
+    @staticmethod
+    def create_part(db: Session, description: str, **kwargs) -> Part:
+        # Validation and business logic here
+        part = Part(description=description, **kwargs)
+        db.add(part)
+        db.flush()  # Get ID immediately if needed
+        return part
+```
 
-This file provides context for development work. Refer to the full documentation in `docs/` for complete requirements and specifications.
+### 3. Model Layer (`app/models/`)
 
-## Command Templates
+SQLAlchemy models represent database entities.
 
-The repository includes command templates for specific development workflows:
+**Requirements:**
+- One file per model (e.g., `part.py`, `box.py`)
+- Use typed annotations with `Mapped[Type]`
+- Include relationships with proper lazy loading
+- Add `__repr__` methods for debugging
+- Use proper cascade settings for relationships
+- Include timestamps (`created_at`, `updated_at`) where appropriate
 
-- When writing a product brief: @docs/commands/create_brief.md
-- When planning a new feature: @docs/commands/plan_feature.md
-- When doing code review: @docs/commands/code_review.md
-- When planning or implementing a new feature, reference the product brief at @docs/product_brief.md
+### 4. Schema Layer (`app/schemas/`)
 
-Use these files when the user asks you to perform the applicable action.
+Pydantic schemas for request/response validation.
+
+**Naming conventions:**
+- `*CreateSchema` - Creating new resources
+- `*UpdateSchema` - Updating existing resources  
+- `*ResponseSchema` - Full API responses with relationships
+- `*ListSchema` - Lightweight listings
+
+**Requirements:**
+- Use `Field()` with descriptions and examples
+- Set `model_config = ConfigDict(from_attributes=True)` for ORM integration
+- Use `@computed_field` for calculated properties
+- Include proper type hints and optional fields
+
+## File Placement Rules
+
+### New Features
+When implementing new features:
+
+1. **Models first** - Create SQLAlchemy model in `app/models/`
+2. **Services** - Business logic in `app/services/` 
+3. **Schemas** - Request/response validation in `app/schemas/`
+4. **API endpoints** - HTTP layer in `app/api/`
+5. **Database migration** - Alembic migration in `alembic/versions/`
+
+### Utilities
+- Error handling: `app/utils/error_handling.py`
+- Shared validation: `app/utils/` 
+- Configuration: `app/config.py`
+
+## Testing Requirements (Definition of Done)
+
+**Every piece of code must have comprehensive tests.** No feature is complete without tests.
+
+### Test Organization
+- Tests mirror the `app/` structure in `tests/`
+- Test files named `test_{module_name}.py`
+- Test classes named `TestServiceName` or `TestApiEndpoint`
+
+### Service Testing
+**Required test coverage for services:**
+- ✅ All public methods
+- ✅ Success paths with various input combinations  
+- ✅ Error conditions and exception handling
+- ✅ Edge cases (empty data, boundary conditions)
+- ✅ Database constraints and validation
+
+**Example service test structure:**
+```python
+class TestPartService:
+    def test_create_part_minimal(self, app: Flask, session: Session):
+        # Test creating with minimum required fields
+        
+    def test_create_part_full_data(self, app: Flask, session: Session):
+        # Test creating with all fields populated
+        
+    def test_get_part_nonexistent(self, app: Flask, session: Session):
+        # Test error handling
+        with pytest.raises(RecordNotFoundException):
+            PartService.get_part(session, "INVALID")
+```
+
+### API Testing
+**Required test coverage for APIs:**
+- ✅ All HTTP endpoints and methods
+- ✅ Request validation (invalid payloads, missing fields)
+- ✅ Response format validation
+- ✅ HTTP status codes
+- ✅ Error responses
+
+### Database Testing
+- ✅ Model constraints and relationships
+- ✅ Cascade behavior
+- ✅ Data integrity
+
+## Code Quality Standards
+
+### Linting and Formatting
+Before committing, run:
+```bash
+poetry run ruff check .      # Linting
+poetry run ruff format .     # Code formatting  
+poetry run mypy .           # Type checking
+poetry run pytest          # Full test suite
+```
+
+### Type Hints
+- Use type hints for all function parameters and return types
+- Use `| None` for optional types (not `Optional[]`)
+- Import types in `TYPE_CHECKING` blocks when needed for forward references
+
+### Error Handling
+- Use custom exceptions from `app.exceptions`
+- Include context in error messages
+- Let `@handle_api_errors` convert exceptions to HTTP responses
+
+## Database Patterns
+
+### Relationships
+- Use `lazy="selectin"` for commonly accessed relationships
+- Set proper cascade options: `cascade="all, delete-orphan"` for owned entities
+- Use foreign key constraints
+
+### Queries
+- Build queries with `select()` statements
+- Use `scalar_one_or_none()` for single results that may not exist
+- Use `scalars().all()` for multiple results
+- Always handle the case where records don't exist
+
+## Development Workflow
+
+1. **Plan** - Understand requirements from `docs/product_brief.md`
+2. **Model** - Design database schema and relationships
+3. **Service** - Implement business logic with comprehensive error handling
+4. **Test services** - Write thorough service tests first
+5. **API** - Create HTTP endpoints that delegate to services  
+6. **Test APIs** - Validate HTTP behavior and response formats
+7. **Lint/Type check** - Ensure code quality standards
+8. **Integration test** - Verify end-to-end functionality
+
+## Key Project Concepts
+
+Reference `docs/product_brief.md` for domain understanding:
+
+- **Parts** have unique 4-character IDs and live in **Locations** within numbered **Boxes**
+- **Inventory tracking** with quantity history
+- **Projects** plan builds and track part requirements
+- **Smart organization** suggests optimal part placement
+- **Search** across all part attributes and documentation
+
+## Dependencies
+
+- **Flask** - Web framework
+- **SQLAlchemy** - ORM and database abstraction
+- **Pydantic** - Request/response validation 
+- **Alembic** - Database migrations
+- **SpectTree** - OpenAPI documentation generation
+- **PostgreSQL** - Primary database
+- **pytest** - Testing framework
+
+Focus on creating well-tested, maintainable code that follows these established patterns. The goal is a robust parts inventory system that stays organized and scales with your electronics hobby.
