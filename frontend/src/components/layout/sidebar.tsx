@@ -15,6 +15,7 @@ const navigationItems: SidebarItem[] = [
   { to: '/', label: 'Dashboard', icon: '📊' },
   { to: '/parts', label: 'Parts', icon: '🔧' },
   { to: '/boxes', label: 'Storage', icon: '📦' },
+  { to: '/types', label: 'Types', icon: '🏷️' },
   { to: '/about', label: 'About', icon: 'ℹ️' }
 ]
 

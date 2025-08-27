@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import {
   useGetTypes,
   usePostTypes,
+  usePutTypesByTypeId,
+  useDeleteTypesByTypeId,
   useGetInventorySuggestionsByTypeId,
 } from '@/lib/api/generated/hooks';
 
@@ -29,6 +31,22 @@ export function useCreateType() {
   return usePostTypes({
     onError: (error: unknown) => {
       console.error('Failed to create type:', error);
+    },
+  });
+}
+
+export function useUpdateType() {
+  return usePutTypesByTypeId({
+    onError: (error: unknown) => {
+      console.error('Failed to update type:', error);
+    },
+  });
+}
+
+export function useDeleteType() {
+  return useDeleteTypesByTypeId({
+    onError: (error: unknown) => {
+      console.error('Failed to delete type:', error);
     },
   });
 }
