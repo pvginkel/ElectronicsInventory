@@ -13,10 +13,12 @@
       "Bash(timeout:*)",
       "Bash(alembic:*)",
       "Bash(ruff check:*)",
-      "Bash(mypy:*)",
-      "Read(/home/pvginkel/source/ElectronicsInventory/frontend/docs/**)"
+      "Bash(mypy:*)"
     ],
-    "deny": [],
+    "deny": [
+      "Bash(ruff format:*)",
+      "Bash(poetry run ruff format:*)"
+    ],
     "ask": []
   }
 }
