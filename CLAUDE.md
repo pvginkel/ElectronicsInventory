@@ -159,7 +159,6 @@ class TestPartService:
 Before committing, run:
 ```bash
 poetry run ruff check .      # Linting
-poetry run ruff format .     # Code formatting  
 poetry run mypy .           # Type checking
 poetry run pytest          # Full test suite
 ```
