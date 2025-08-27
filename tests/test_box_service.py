@@ -410,11 +410,11 @@ class TestBoxService:
 
             usage_stats = BoxService.calculate_box_usage(session, box.box_no)
 
-            assert usage_stats['box_no'] == box.box_no
-            assert usage_stats['total_locations'] == 20
-            assert usage_stats['occupied_locations'] == 0
-            assert usage_stats['available_locations'] == 20
-            assert usage_stats['usage_percentage'] == 0.0
+            assert usage_stats.box_no == box.box_no
+            assert usage_stats.total_locations == 20
+            assert usage_stats.occupied_locations == 0
+            assert usage_stats.available_locations == 20
+            assert usage_stats.usage_percentage == 0.0
 
     def test_calculate_box_usage_partially_filled(self, app: Flask, session: Session):
         """Test calculating usage for a partially filled box."""
@@ -431,11 +431,11 @@ class TestBoxService:
 
             usage_stats = BoxService.calculate_box_usage(session, box.box_no)
 
-            assert usage_stats['box_no'] == box.box_no
-            assert usage_stats['total_locations'] == 10
-            assert usage_stats['occupied_locations'] == 3
-            assert usage_stats['available_locations'] == 7
-            assert usage_stats['usage_percentage'] == 30.0
+            assert usage_stats.box_no == box.box_no
+            assert usage_stats.total_locations == 10
+            assert usage_stats.occupied_locations == 3
+            assert usage_stats.available_locations == 7
+            assert usage_stats.usage_percentage == 30.0
 
     def test_calculate_box_usage_same_part_multiple_locations(self, app: Flask, session: Session):
         """Test calculating usage when same part is in multiple locations."""
@@ -453,11 +453,11 @@ class TestBoxService:
 
             usage_stats = BoxService.calculate_box_usage(session, box.box_no)
 
-            assert usage_stats['box_no'] == box.box_no
-            assert usage_stats['total_locations'] == 5
-            assert usage_stats['occupied_locations'] == 4
-            assert usage_stats['available_locations'] == 1
-            assert usage_stats['usage_percentage'] == 80.0
+            assert usage_stats.box_no == box.box_no
+            assert usage_stats.total_locations == 5
+            assert usage_stats.occupied_locations == 4
+            assert usage_stats.available_locations == 1
+            assert usage_stats.usage_percentage == 80.0
 
     def test_calculate_box_usage_completely_filled(self, app: Flask, session: Session):
         """Test calculating usage for a completely filled box."""
@@ -474,11 +474,11 @@ class TestBoxService:
 
             usage_stats = BoxService.calculate_box_usage(session, box.box_no)
 
-            assert usage_stats['box_no'] == box.box_no
-            assert usage_stats['total_locations'] == 3
-            assert usage_stats['occupied_locations'] == 3
-            assert usage_stats['available_locations'] == 0
-            assert usage_stats['usage_percentage'] == 100.0
+            assert usage_stats.box_no == box.box_no
+            assert usage_stats.total_locations == 3
+            assert usage_stats.occupied_locations == 3
+            assert usage_stats.available_locations == 0
+            assert usage_stats.usage_percentage == 100.0
 
     def test_calculate_box_usage_nonexistent_box(self, app: Flask, session: Session):
         """Test calculating usage for a non-existent box raises exception."""
@@ -524,22 +524,22 @@ class TestBoxService:
             assert len(boxes_with_usage) == 3
 
             # Create lookup by box_no for easier testing
-            usage_by_box = {item['box'].box_no: item for item in boxes_with_usage}
+            usage_by_box = {item.box.box_no: item for item in boxes_with_usage}
 
             # Check Box 1 (empty)
             box1_usage = usage_by_box[box1.box_no]
-            assert box1_usage['occupied_locations'] == 0
-            assert box1_usage['usage_percentage'] == 0.0
+            assert box1_usage.occupied_locations == 0
+            assert box1_usage.usage_percentage == 0.0
 
             # Check Box 2 (partial)
             box2_usage = usage_by_box[box2.box_no]
-            assert box2_usage['occupied_locations'] == 3
-            assert box2_usage['usage_percentage'] == 15.0
+            assert box2_usage.occupied_locations == 3
+            assert box2_usage.usage_percentage == 15.0
 
             # Check Box 3 (full)
             box3_usage = usage_by_box[box3.box_no]
-            assert box3_usage['occupied_locations'] == 5
-            assert box3_usage['usage_percentage'] == 100.0
+            assert box3_usage.occupied_locations == 5
+            assert box3_usage.usage_percentage == 100.0
 
     def test_get_all_boxes_with_usage_ordering(self, app: Flask, session: Session):
         """Test that boxes are returned in correct order (by box_no)."""
@@ -555,6 +555,6 @@ class TestBoxService:
             assert len(boxes_with_usage) == 3
 
             # Verify ordering by box_no
-            box_numbers = [item['box'].box_no for item in boxes_with_usage]
+            box_numbers = [item.box.box_no for item in boxes_with_usage]
             assert box_numbers == sorted(box_numbers)
             assert box_numbers == [box1.box_no, box2.box_no, box3.box_no]

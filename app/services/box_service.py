@@ -1,5 +1,6 @@
 """Box service for core box and location management logic."""
 
+from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -8,6 +9,9 @@ from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.box import Box
 from app.models.location import Location
 from app.models.part_location import PartLocation
+
+if TYPE_CHECKING:
+    from app.schemas.box import BoxUsageStatsModel, BoxWithUsageModel
 
 
 class BoxService:
@@ -119,9 +123,11 @@ class BoxService:
         db.delete(box)
 
     @staticmethod
-    def calculate_box_usage(db: Session, box_no: int) -> dict:
+    def calculate_box_usage(db: Session, box_no: int) -> 'BoxUsageStatsModel':
         """Calculate usage statistics for a specific box."""
         from sqlalchemy import func
+
+        from app.schemas.box import BoxUsageStatsModel
 
         # Get box info
         box = BoxService.get_box(db, box_no)
@@ -138,18 +144,20 @@ class BoxService:
         # Calculate usage percentage
         usage_percentage = (occupied_count / total_locations * 100) if total_locations > 0 else 0
 
-        return {
-            'box_no': box_no,
-            'total_locations': total_locations,
-            'occupied_locations': occupied_count,
-            'available_locations': total_locations - occupied_count,
-            'usage_percentage': round(usage_percentage, 2)
-        }
+        return BoxUsageStatsModel(
+            box_no=box_no,
+            total_locations=total_locations,
+            occupied_locations=occupied_count,
+            available_locations=total_locations - occupied_count,
+            usage_percentage=round(usage_percentage, 2)
+        )
 
     @staticmethod
-    def get_all_boxes_with_usage(db: Session) -> list[dict]:
+    def get_all_boxes_with_usage(db: Session) -> list['BoxWithUsageModel']:
         """Get all boxes with their usage statistics calculated."""
         from sqlalchemy import func
+
+        from app.schemas.box import BoxWithUsageModel
 
         # Query to get all boxes with usage stats in one go
         stmt = select(
@@ -166,13 +174,13 @@ class BoxService:
             occupied_count = occupied_count or 0
             usage_percentage = (occupied_count / box.capacity * 100) if box.capacity > 0 else 0
 
-            box_dict = {
-                'box': box,
-                'total_locations': box.capacity,
-                'occupied_locations': occupied_count,
-                'available_locations': box.capacity - occupied_count,
-                'usage_percentage': round(usage_percentage, 2)
-            }
-            boxes_with_usage.append(box_dict)
+            box_with_usage = BoxWithUsageModel(
+                box=box,
+                total_locations=box.capacity,
+                occupied_locations=occupied_count,
+                available_locations=box.capacity - occupied_count,
+                usage_percentage=round(usage_percentage, 2)
+            )
+            boxes_with_usage.append(box_with_usage)
 
         return boxes_with_usage

@@ -111,3 +111,119 @@ class TestTypeService:
         with app.app_context():
             with pytest.raises(RecordNotFoundException, match="Type 999 was not found"):
                 TypeService.delete_type(session, 999)
+
+    def test_calculate_type_part_count_no_parts(self, app: Flask, session: Session):
+        """Test calculating part count for a type with no parts."""
+        with app.app_context():
+            # Create a type
+            type_obj = TypeService.create_type(session, "Resistor")
+            session.commit()
+
+            # Count should be 0
+            count = TypeService.calculate_type_part_count(session, type_obj.id)
+            assert count == 0
+
+    def test_calculate_type_part_count_with_parts(self, app: Flask, session: Session):
+        """Test calculating part count for a type with parts."""
+        with app.app_context():
+            # Create a type
+            type_obj = TypeService.create_type(session, "Resistor")
+            session.flush()
+
+            # Create parts using this type
+            PartService.create_part(session, "1k resistor", type_id=type_obj.id)
+            PartService.create_part(session, "10k resistor", type_id=type_obj.id)
+            PartService.create_part(session, "100k resistor", type_id=type_obj.id)
+            session.commit()
+
+            # Count should be 3
+            count = TypeService.calculate_type_part_count(session, type_obj.id)
+            assert count == 3
+
+    def test_calculate_type_part_count_nonexistent_type(self, app: Flask, session: Session):
+        """Test calculating part count for a non-existent type."""
+        with app.app_context():
+            # Should return 0 for non-existent type
+            count = TypeService.calculate_type_part_count(session, 999)
+            assert count == 0
+
+    def test_get_all_types_with_part_counts_empty(self, app: Flask, session: Session):
+        """Test getting all types with part counts when no types exist."""
+        with app.app_context():
+            types_with_stats = TypeService.get_all_types_with_part_counts(session)
+            assert types_with_stats == []
+
+    def test_get_all_types_with_part_counts_no_parts(self, app: Flask, session: Session):
+        """Test getting all types with part counts when no parts exist."""
+        with app.app_context():
+            # Create types
+            type1 = TypeService.create_type(session, "Resistor")
+            type2 = TypeService.create_type(session, "Capacitor")
+            session.commit()
+
+            types_with_stats = TypeService.get_all_types_with_part_counts(session)
+
+            assert len(types_with_stats) == 2
+            
+            # Verify structure and that all part counts are 0
+            for type_with_stats in types_with_stats:
+                assert hasattr(type_with_stats, 'type')
+                assert hasattr(type_with_stats, 'part_count')
+                assert type_with_stats.part_count == 0
+
+    def test_get_all_types_with_part_counts_with_parts(self, app: Flask, session: Session):
+        """Test getting all types with part counts when parts exist."""
+        with app.app_context():
+            # Create types
+            resistor_type = TypeService.create_type(session, "Resistor")
+            capacitor_type = TypeService.create_type(session, "Capacitor")
+            inductor_type = TypeService.create_type(session, "Inductor")
+            session.flush()
+
+            # Create parts with different type distributions
+            # 3 resistor parts
+            PartService.create_part(session, "1k resistor", type_id=resistor_type.id)
+            PartService.create_part(session, "10k resistor", type_id=resistor_type.id)
+            PartService.create_part(session, "100k resistor", type_id=resistor_type.id)
+            
+            # 1 capacitor part
+            PartService.create_part(session, "10uF capacitor", type_id=capacitor_type.id)
+            
+            # 0 inductor parts (type exists but unused)
+            session.commit()
+
+            types_with_stats = TypeService.get_all_types_with_part_counts(session)
+
+            assert len(types_with_stats) == 3
+
+            # Create lookup by type name for easier testing
+            stats_by_name = {item.type.name: item.part_count for item in types_with_stats}
+            
+            assert stats_by_name["Resistor"] == 3
+            assert stats_by_name["Capacitor"] == 1
+            assert stats_by_name["Inductor"] == 0
+
+            # Verify data types and structure
+            for type_with_stats in types_with_stats:
+                assert hasattr(type_with_stats, 'type')
+                assert hasattr(type_with_stats, 'part_count')
+                assert isinstance(type_with_stats.part_count, int)
+                assert type_with_stats.part_count >= 0
+
+    def test_get_all_types_with_part_counts_ordering(self, app: Flask, session: Session):
+        """Test that types with part counts are ordered by name."""
+        with app.app_context():
+            # Create types in non-alphabetical order
+            TypeService.create_type(session, "Zener Diode")
+            TypeService.create_type(session, "Amplifier")
+            TypeService.create_type(session, "Battery")
+            session.commit()
+
+            types_with_stats = TypeService.get_all_types_with_part_counts(session)
+
+            assert len(types_with_stats) == 3
+            
+            # Verify ordering by name
+            type_names = [item.type.name for item in types_with_stats]
+            assert type_names == sorted(type_names)
+            assert type_names == ["Amplifier", "Battery", "Zener Diode"]

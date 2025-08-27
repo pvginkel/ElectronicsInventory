@@ -343,7 +343,7 @@ class TestInventoryService:
             assert len(parts_with_totals) == 3
 
             # Check totals by part ID
-            totals_by_id = {item['part'].id4: item['total_quantity'] for item in parts_with_totals}
+            totals_by_id = {item.part.id4: item.total_quantity for item in parts_with_totals}
             assert totals_by_id[part1.id4] == 50
             assert totals_by_id[part2.id4] == 15
             assert totals_by_id[part3.id4] == 0
@@ -376,7 +376,7 @@ class TestInventoryService:
 
             # Verify all returned parts are resistors
             for item in resistor_parts:
-                assert item['part'].type_id == type1.id
+                assert item.part.type_id == type1.id
 
     def test_get_all_parts_with_totals_pagination(self, app: Flask, session: Session):
         """Test pagination in get_all_parts_with_totals."""

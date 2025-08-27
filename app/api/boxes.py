@@ -43,8 +43,8 @@ def list_boxes():
     if include_usage:
         boxes_with_usage = BoxService.get_all_boxes_with_usage(g.db)
         result = []
-        for item in boxes_with_usage:
-            box = item['box']
+        for box_with_usage in boxes_with_usage:
+            box = box_with_usage.box
             # Create schema instance with calculated usage stats
             box_data = BoxWithUsageSchema(
                 box_no=box.box_no,
@@ -52,10 +52,10 @@ def list_boxes():
                 capacity=box.capacity,
                 created_at=box.created_at,
                 updated_at=box.updated_at,
-                total_locations=item['total_locations'],
-                occupied_locations=item['occupied_locations'],
-                available_locations=item['available_locations'],
-                usage_percentage=item['usage_percentage']
+                total_locations=box_with_usage.total_locations,
+                occupied_locations=box_with_usage.occupied_locations,
+                available_locations=box_with_usage.available_locations,
+                usage_percentage=box_with_usage.usage_percentage
             )
             result.append(box_data.model_dump())
         return result
@@ -100,7 +100,13 @@ def delete_box(box_no: int):
 def get_box_usage(box_no: int):
     """Get usage statistics for a specific box."""
     usage_stats = BoxService.calculate_box_usage(g.db, box_no)
-    return BoxUsageStatsSchema(**usage_stats).model_dump()
+    return BoxUsageStatsSchema(
+        box_no=usage_stats.box_no,
+        total_locations=usage_stats.total_locations,
+        occupied_locations=usage_stats.occupied_locations,
+        available_locations=usage_stats.available_locations,
+        usage_percentage=usage_stats.usage_percentage
+    ).model_dump()
 
 
 @boxes_bp.route("/<int:box_no>/locations", methods=["GET"])

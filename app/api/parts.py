@@ -52,9 +52,9 @@ def list_parts():
     parts_with_totals = InventoryService.get_all_parts_with_totals(g.db, limit, offset, type_filter)
 
     result = []
-    for item in parts_with_totals:
-        part = item['part']
-        total_qty = item['total_quantity']
+    for part_with_total in parts_with_totals:
+        part = part_with_total.part
+        total_qty = part_with_total.total_quantity
 
         # Create schema instance with calculated total
         part_data = PartWithTotalSchema(
