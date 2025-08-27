@@ -13,7 +13,7 @@ from app.schemas.box import (
     BoxWithUsageSchema,
 )
 from app.schemas.common import ErrorResponseSchema
-from app.schemas.location import LocationResponseSchema
+from app.schemas.location import LocationResponseSchema, LocationWithPartResponseSchema, PartAssignmentSchema
 from app.services.box_service import BoxService
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
@@ -113,9 +113,41 @@ def get_box_usage(box_no: int):
 @api.validate(resp=SpectreeResponse(HTTP_200=list[LocationResponseSchema], HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 def get_box_locations(box_no: int):
-    """Get all locations in box."""
-    box = BoxService.get_box(g.db, box_no)
-    return [
-        LocationResponseSchema.model_validate(location).model_dump()
-        for location in box.locations
-    ]
+    """Get all locations in box.
+    
+    Query parameters:
+    - include_parts (bool): Include part assignment data for each location (default: false)
+    """
+    include_parts = request.args.get("include_parts", "false").lower() == "true"
+    
+    if include_parts:
+        # Use enhanced service method with part data
+        locations_with_parts = BoxService.get_box_locations_with_parts(g.db, box_no)
+        result = []
+        for location_data in locations_with_parts:
+            # Convert PartAssignmentData to PartAssignmentSchema
+            part_assignments = [
+                PartAssignmentSchema(
+                    id4=part.id4,
+                    qty=part.qty,
+                    manufacturer_code=part.manufacturer_code,
+                    description=part.description
+                )
+                for part in location_data.part_assignments
+            ]
+            
+            location_response = LocationWithPartResponseSchema(
+                box_no=location_data.box_no,
+                loc_no=location_data.loc_no,
+                is_occupied=location_data.is_occupied,
+                part_assignments=part_assignments if part_assignments else None
+            )
+            result.append(location_response.model_dump())
+        return result
+    else:
+        # Use existing logic for basic location data
+        box = BoxService.get_box(g.db, box_no)
+        return [
+            LocationResponseSchema.model_validate(location).model_dump()
+            for location in box.locations
+        ]

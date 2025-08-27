@@ -1,5 +1,6 @@
 """Box service for core box and location management logic."""
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
@@ -8,10 +9,29 @@ from sqlalchemy.orm import Session
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.box import Box
 from app.models.location import Location
+from app.models.part import Part
 from app.models.part_location import PartLocation
 
 if TYPE_CHECKING:
     from app.schemas.box import BoxUsageStatsModel, BoxWithUsageModel
+
+
+@dataclass
+class PartAssignmentData:
+    """Data class for part assignment information at a location."""
+    id4: str
+    qty: int
+    manufacturer_code: str | None
+    description: str
+
+
+@dataclass
+class LocationWithPartData:
+    """Data class for location information including part assignments."""
+    box_no: int
+    loc_no: int
+    is_occupied: bool
+    part_assignments: list[PartAssignmentData]
 
 
 class BoxService:
@@ -184,3 +204,61 @@ class BoxService:
             boxes_with_usage.append(box_with_usage)
 
         return boxes_with_usage
+
+    @staticmethod
+    def get_box_locations_with_parts(db: Session, box_no: int) -> list[LocationWithPartData]:
+        """Get all locations for a box with part assignment information."""
+        # First verify the box exists
+        BoxService.get_box(db, box_no)
+        
+        # Query locations with their part assignments
+        # Use a LEFT JOIN to include empty locations
+        stmt = select(
+            Location.box_no,
+            Location.loc_no,
+            PartLocation.part_id4,
+            PartLocation.qty,
+            Part.manufacturer_code,
+            Part.description
+        ).select_from(
+            Location
+        ).outerjoin(
+            PartLocation, 
+            (Location.box_no == PartLocation.box_no) & 
+            (Location.loc_no == PartLocation.loc_no)
+        ).outerjoin(
+            Part, PartLocation.part_id4 == Part.id4
+        ).where(
+            Location.box_no == box_no
+        ).order_by(Location.loc_no)
+
+        results = db.execute(stmt).all()
+
+        # Group results by location
+        locations_dict: dict[int, LocationWithPartData] = {}
+        
+        for result in results:
+            loc_no = result.loc_no
+            
+            # Initialize location if not seen before
+            if loc_no not in locations_dict:
+                locations_dict[loc_no] = LocationWithPartData(
+                    box_no=result.box_no,
+                    loc_no=loc_no,
+                    is_occupied=False,
+                    part_assignments=[]
+                )
+            
+            # Add part assignment if there is one
+            if result.part_id4 is not None:
+                locations_dict[loc_no].is_occupied = True
+                part_assignment = PartAssignmentData(
+                    id4=result.part_id4,
+                    qty=result.qty,
+                    manufacturer_code=result.manufacturer_code,
+                    description=result.description or ""
+                )
+                locations_dict[loc_no].part_assignments.append(part_assignment)
+        
+        # Return ordered list by location number
+        return [locations_dict[loc_no] for loc_no in sorted(locations_dict.keys())]

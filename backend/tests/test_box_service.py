@@ -9,6 +9,7 @@ from app.models.box import Box
 from app.models.location import Location
 from app.services.box_service import BoxService
 from app.services.inventory_service import InventoryService
+from app.services.part_service import PartService
 
 
 class TestBoxService:
@@ -558,3 +559,224 @@ class TestBoxService:
             box_numbers = [item.box.box_no for item in boxes_with_usage]
             assert box_numbers == sorted(box_numbers)
             assert box_numbers == [box1.box_no, box2.box_no, box3.box_no]
+
+    def test_get_box_locations_with_parts_empty_box(self, app: Flask, session: Session):
+        """Test getting locations with parts for an empty box."""
+        with app.app_context():
+            # Create empty box
+            box = BoxService.create_box(session, "Empty Box", 5)
+            session.commit()
+
+            locations_with_parts = BoxService.get_box_locations_with_parts(session, box.box_no)
+
+            assert len(locations_with_parts) == 5
+            for i, location_data in enumerate(locations_with_parts, 1):
+                assert location_data.box_no == box.box_no
+                assert location_data.loc_no == i
+                assert location_data.is_occupied == False
+                assert location_data.part_assignments == []
+
+    def test_get_box_locations_with_parts_single_part(self, app: Flask, session: Session):
+        """Test getting locations with parts when box has one part in one location."""
+        with app.app_context():
+            # Create box and add one part
+            box = BoxService.create_box(session, "Single Part Box", 3)
+            session.commit()
+            
+            # Add part to location 2
+            InventoryService.add_stock(session, "R001", box.box_no, 2, 25)
+            session.commit()
+
+            locations_with_parts = BoxService.get_box_locations_with_parts(session, box.box_no)
+
+            assert len(locations_with_parts) == 3
+            
+            # Location 1: empty
+            assert locations_with_parts[0].box_no == box.box_no
+            assert locations_with_parts[0].loc_no == 1
+            assert locations_with_parts[0].is_occupied == False
+            assert locations_with_parts[0].part_assignments == []
+            
+            # Location 2: has part
+            assert locations_with_parts[1].box_no == box.box_no
+            assert locations_with_parts[1].loc_no == 2
+            assert locations_with_parts[1].is_occupied == True
+            assert len(locations_with_parts[1].part_assignments) == 1
+            
+            part_assignment = locations_with_parts[1].part_assignments[0]
+            assert part_assignment.id4 == "R001"
+            assert part_assignment.qty == 25
+            assert part_assignment.manufacturer_code is None
+            assert part_assignment.description == "Part R001"
+            
+            # Location 3: empty
+            assert locations_with_parts[2].box_no == box.box_no
+            assert locations_with_parts[2].loc_no == 3
+            assert locations_with_parts[2].is_occupied == False
+            assert locations_with_parts[2].part_assignments == []
+
+    def test_get_box_locations_with_parts_multiple_parts(self, app: Flask, session: Session):
+        """Test getting locations with parts when multiple parts in different locations."""
+        with app.app_context():
+            # Create box and add multiple parts
+            box = BoxService.create_box(session, "Multi Part Box", 5)
+            session.commit()
+            
+            # Add parts to different locations
+            InventoryService.add_stock(session, "R001", box.box_no, 1, 10)
+            InventoryService.add_stock(session, "C002", box.box_no, 3, 50)
+            InventoryService.add_stock(session, "L003", box.box_no, 5, 5)
+            session.commit()
+
+            locations_with_parts = BoxService.get_box_locations_with_parts(session, box.box_no)
+
+            assert len(locations_with_parts) == 5
+            
+            # Location 1: has R001
+            assert locations_with_parts[0].is_occupied == True
+            assert len(locations_with_parts[0].part_assignments) == 1
+            assert locations_with_parts[0].part_assignments[0].id4 == "R001"
+            assert locations_with_parts[0].part_assignments[0].qty == 10
+            
+            # Location 2: empty
+            assert locations_with_parts[1].is_occupied == False
+            assert locations_with_parts[1].part_assignments == []
+            
+            # Location 3: has C002
+            assert locations_with_parts[2].is_occupied == True
+            assert len(locations_with_parts[2].part_assignments) == 1
+            assert locations_with_parts[2].part_assignments[0].id4 == "C002"
+            assert locations_with_parts[2].part_assignments[0].qty == 50
+            
+            # Location 4: empty
+            assert locations_with_parts[3].is_occupied == False
+            assert locations_with_parts[3].part_assignments == []
+            
+            # Location 5: has L003
+            assert locations_with_parts[4].is_occupied == True
+            assert len(locations_with_parts[4].part_assignments) == 1
+            assert locations_with_parts[4].part_assignments[0].id4 == "L003"
+            assert locations_with_parts[4].part_assignments[0].qty == 5
+
+    def test_get_box_locations_with_parts_same_part_multiple_locations(self, app: Flask, session: Session):
+        """Test getting locations when same part is in multiple locations."""
+        with app.app_context():
+            # Create box and add same part to multiple locations
+            box = BoxService.create_box(session, "Same Part Box", 4)
+            session.commit()
+            
+            # Add same part to different locations with different quantities
+            InventoryService.add_stock(session, "R001", box.box_no, 1, 100)
+            InventoryService.add_stock(session, "R001", box.box_no, 3, 200)
+            InventoryService.add_stock(session, "R001", box.box_no, 4, 50)
+            session.commit()
+
+            locations_with_parts = BoxService.get_box_locations_with_parts(session, box.box_no)
+
+            assert len(locations_with_parts) == 4
+            
+            # Location 1: has R001 (qty=100)
+            assert locations_with_parts[0].is_occupied == True
+            assert len(locations_with_parts[0].part_assignments) == 1
+            assert locations_with_parts[0].part_assignments[0].id4 == "R001"
+            assert locations_with_parts[0].part_assignments[0].qty == 100
+            
+            # Location 2: empty
+            assert locations_with_parts[1].is_occupied == False
+            assert locations_with_parts[1].part_assignments == []
+            
+            # Location 3: has R001 (qty=200)
+            assert locations_with_parts[2].is_occupied == True
+            assert len(locations_with_parts[2].part_assignments) == 1
+            assert locations_with_parts[2].part_assignments[0].id4 == "R001"
+            assert locations_with_parts[2].part_assignments[0].qty == 200
+            
+            # Location 4: has R001 (qty=50)
+            assert locations_with_parts[3].is_occupied == True
+            assert len(locations_with_parts[3].part_assignments) == 1
+            assert locations_with_parts[3].part_assignments[0].id4 == "R001"
+            assert locations_with_parts[3].part_assignments[0].qty == 50
+
+    def test_get_box_locations_with_parts_with_part_details(self, app: Flask, session: Session):
+        """Test getting locations with parts including manufacturer code and description."""
+        with app.app_context():
+            # Create box and part with full details
+            box = BoxService.create_box(session, "Detailed Parts Box", 3)
+            part = PartService.create_part(
+                session, 
+                "1kΩ resistor, 0603 package",
+                manufacturer_code="RES-0603-1K"
+            )
+            session.commit()
+            
+            # Add part to location
+            InventoryService.add_stock(session, part.id4, box.box_no, 2, 100)
+            session.commit()
+
+            locations_with_parts = BoxService.get_box_locations_with_parts(session, box.box_no)
+
+            assert len(locations_with_parts) == 3
+            
+            # Location 2: has detailed part
+            location_2 = locations_with_parts[1]
+            assert location_2.is_occupied == True
+            assert len(location_2.part_assignments) == 1
+            
+            part_assignment = location_2.part_assignments[0]
+            assert part_assignment.id4 == part.id4
+            assert part_assignment.qty == 100
+            assert part_assignment.manufacturer_code == "RES-0603-1K"
+            assert part_assignment.description == "1kΩ resistor, 0603 package"
+
+    def test_get_box_locations_with_parts_nonexistent_box(self, app: Flask, session: Session):
+        """Test getting locations with parts for non-existent box raises exception."""
+        with app.app_context():
+            from app.exceptions import RecordNotFoundException
+
+            with pytest.raises(RecordNotFoundException) as exc_info:
+                BoxService.get_box_locations_with_parts(session, 999)
+            assert "Box 999 was not found" in str(exc_info.value)
+
+    def test_get_box_locations_with_parts_ordering(self, app: Flask, session: Session):
+        """Test that locations are returned in correct order by location number."""
+        with app.app_context():
+            # Create box with larger capacity
+            box = BoxService.create_box(session, "Ordered Box", 10)
+            session.commit()
+            
+            # Add parts to non-sequential locations
+            InventoryService.add_stock(session, "PART", box.box_no, 8, 10)
+            InventoryService.add_stock(session, "TEST", box.box_no, 3, 20)
+            InventoryService.add_stock(session, "DEMO", box.box_no, 1, 5)
+            InventoryService.add_stock(session, "COMP", box.box_no, 10, 15)
+            session.commit()
+
+            locations_with_parts = BoxService.get_box_locations_with_parts(session, box.box_no)
+
+            assert len(locations_with_parts) == 10
+            
+            # Verify locations are ordered by loc_no
+            location_numbers = [loc.loc_no for loc in locations_with_parts]
+            assert location_numbers == sorted(location_numbers)
+            assert location_numbers == list(range(1, 11))
+            
+            # Verify the correct parts are at the correct locations
+            # Location 1: DEMO
+            assert locations_with_parts[0].is_occupied == True
+            assert locations_with_parts[0].part_assignments[0].id4 == "DEMO"
+            assert locations_with_parts[0].part_assignments[0].qty == 5
+            
+            # Location 3: TEST  
+            assert locations_with_parts[2].is_occupied == True
+            assert locations_with_parts[2].part_assignments[0].id4 == "TEST"
+            assert locations_with_parts[2].part_assignments[0].qty == 20
+            
+            # Location 8: PART
+            assert locations_with_parts[7].is_occupied == True
+            assert locations_with_parts[7].part_assignments[0].id4 == "PART"
+            assert locations_with_parts[7].part_assignments[0].qty == 10
+            
+            # Location 10: COMP
+            assert locations_with_parts[9].is_occupied == True
+            assert locations_with_parts[9].part_assignments[0].id4 == "COMP"
+            assert locations_with_parts[9].part_assignments[0].qty == 15
