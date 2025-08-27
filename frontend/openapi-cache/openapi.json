@@ -372,6 +372,36 @@
         "title": "LocationResponseSchema",
         "type": "object"
       },
+      "LocationResponseSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/LocationResponseSchemaList.a9993e3.LocationResponseSchema"
+        },
+        "title": "LocationResponseSchemaList",
+        "type": "array"
+      },
+      "LocationResponseSchemaList.a9993e3.LocationResponseSchema": {
+        "description": "Schema for location details.",
+        "properties": {
+          "box_no": {
+            "description": "The box number where this location is situated",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "loc_no": {
+            "description": "The location number within the box (e.g., location 3 in box 7 would be '7-3')",
+            "example": 15,
+            "title": "Loc No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "box_no",
+          "loc_no"
+        ],
+        "title": "LocationResponseSchema",
+        "type": "object"
+      },
       "LocationSuggestionSchema.46800bd": {
         "description": "Schema for location suggestions.",
         "properties": {
@@ -393,104 +423,6 @@
           "loc_no"
         ],
         "title": "LocationSuggestionSchema",
-        "type": "object"
-      },
-      "LocationWithPartResponseSchemaList.a9993e3": {
-        "items": {
-          "$ref": "#/components/schemas/LocationWithPartResponseSchemaList.a9993e3.LocationWithPartResponseSchema"
-        },
-        "title": "LocationWithPartResponseSchemaList",
-        "type": "array"
-      },
-      "LocationWithPartResponseSchemaList.a9993e3.LocationWithPartResponseSchema": {
-        "description": "Schema for location details including part assignment information.",
-        "properties": {
-          "box_no": {
-            "description": "The box number where this location is situated",
-            "example": 7,
-            "title": "Box No",
-            "type": "integer"
-          },
-          "is_occupied": {
-            "description": "Whether location contains parts",
-            "example": true,
-            "title": "Is Occupied",
-            "type": "boolean"
-          },
-          "loc_no": {
-            "description": "The location number within the box (e.g., location 3 in box 7 would be '7-3')",
-            "example": 15,
-            "title": "Loc No",
-            "type": "integer"
-          },
-          "part_assignments": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/LocationWithPartResponseSchemaList.a9993e3.PartAssignmentSchema"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Parts stored in this location",
-            "example": [],
-            "title": "Part Assignments"
-          }
-        },
-        "required": [
-          "box_no",
-          "loc_no",
-          "is_occupied"
-        ],
-        "title": "LocationWithPartResponseSchema",
-        "type": "object"
-      },
-      "LocationWithPartResponseSchemaList.a9993e3.PartAssignmentSchema": {
-        "description": "Schema for minimal part data within location display.",
-        "properties": {
-          "description": {
-            "description": "Part description for display purposes",
-            "example": "SPDT Relay 5VDC",
-            "title": "Description",
-            "type": "string"
-          },
-          "id4": {
-            "description": "4-character part identifier",
-            "example": "ABCD",
-            "title": "Id4",
-            "type": "string"
-          },
-          "manufacturer_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Manufacturer part code for display purposes",
-            "example": "OMRON G5Q-1A4",
-            "title": "Manufacturer Code"
-          },
-          "qty": {
-            "description": "Quantity at this location",
-            "example": 25,
-            "title": "Qty",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id4",
-          "qty",
-          "description"
-        ],
-        "title": "PartAssignmentSchema",
         "type": "object"
       },
       "MoveStockSchema.46800bd": {
@@ -1588,7 +1520,7 @@
     },
     "/api/boxes/{box_no}/locations": {
       "get": {
-        "description": "",
+        "description": "Query parameters: - include_parts (bool): Include part assignment data for each location (default: false)",
         "operationId": "get__api_boxes_{box_no}_locations",
         "parameters": [
           {
@@ -1607,7 +1539,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LocationWithPartResponseSchemaList.a9993e3"
+                  "$ref": "#/components/schemas/LocationResponseSchemaList.a9993e3"
                 }
               }
             },
@@ -1634,7 +1566,7 @@
             "description": "Not Found"
           }
         },
-        "summary": "Get all locations in box with part assignment information.",
+        "summary": "Get all locations in box.",
         "tags": []
       }
     },
