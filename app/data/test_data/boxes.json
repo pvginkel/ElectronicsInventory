@@ -1,0 +1,12 @@
+[
+  {"box_no": 1, "description": "Small Parts Storage", "capacity": 40},
+  {"box_no": 2, "description": "Resistor Collection", "capacity": 60},
+  {"box_no": 3, "description": "IC Storage", "capacity": 30},
+  {"box_no": 4, "description": "Sensor Module Box", "capacity": 50},
+  {"box_no": 5, "description": "LED & Display", "capacity": 40},
+  {"box_no": 6, "description": "Power Components", "capacity": 30},
+  {"box_no": 7, "description": "Connector Box", "capacity": 50},
+  {"box_no": 8, "description": "Cable Storage", "capacity": 20},
+  {"box_no": 9, "description": "Mechanical Parts", "capacity": 30},
+  {"box_no": 10, "description": "Development Boards", "capacity": 25}
+]
