@@ -13,7 +13,8 @@
       "Bash(timeout:*)",
       "Bash(alembic:*)",
       "Bash(ruff check:*)",
-      "Bash(mypy:*)"
+      "Bash(mypy:*)",
+      "Read(/home/pvginkel/source/ElectronicsInventory/frontend/docs/**)"
     ],
     "deny": [],
     "ask": []
