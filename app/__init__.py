@@ -60,6 +60,7 @@ def create_app(settings: "Settings | None" = None) -> Flask:
     # Register testing blueprint only in testing environment
     if settings.is_testing:
         from app.api.testing import testing_bp
+
         app.register_blueprint(testing_bp)
 
     # Session per request hooks

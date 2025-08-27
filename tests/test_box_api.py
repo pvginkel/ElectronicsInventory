@@ -151,7 +151,9 @@ class TestBoxAPI:
 
         data = {"description": "Updated Box", "capacity": 8}
         response = client.put(
-            f"/api/boxes/{box_no}", data=json.dumps(data), content_type="application/json"
+            f"/api/boxes/{box_no}",
+            data=json.dumps(data),
+            content_type="application/json",
         )
 
         assert response.status_code == 200
@@ -170,7 +172,9 @@ class TestBoxAPI:
 
         data = {"description": "Smaller Box", "capacity": 6}
         response = client.put(
-            f"/api/boxes/{box_no}", data=json.dumps(data), content_type="application/json"
+            f"/api/boxes/{box_no}",
+            data=json.dumps(data),
+            content_type="application/json",
         )
 
         assert response.status_code == 200
@@ -200,7 +204,9 @@ class TestBoxAPI:
             "capacity": -1,  # Negative capacity
         }
         response = client.put(
-            f"/api/boxes/{box_no}", data=json.dumps(data), content_type="application/json"
+            f"/api/boxes/{box_no}",
+            data=json.dumps(data),
+            content_type="application/json",
         )
 
         assert response.status_code == 400
@@ -252,9 +258,15 @@ class TestBoxAPI:
         assert "error" in response_data
         assert "details" in response_data
         assert f"Cannot delete box {box.box_no}" in response_data["error"]
-        assert "it contains parts that must be moved or removed first" in response_data["error"]
+        assert (
+            "it contains parts that must be moved or removed first"
+            in response_data["error"]
+        )
         assert "message" in response_data["details"]
-        assert "The requested operation cannot be performed" in response_data["details"]["message"]
+        assert (
+            "The requested operation cannot be performed"
+            in response_data["details"]["message"]
+        )
 
         # Verify box still exists
         verify_response = client.get(f"/api/boxes/{box.box_no}")
@@ -283,7 +295,6 @@ class TestBoxAPI:
         assert response.status_code == 404
         response_data = json.loads(response.data)
         assert "error" in response_data
-
 
     def test_api_error_handling(self, client: FlaskClient):
         """Test that API endpoints handle errors gracefully."""
@@ -325,3 +336,227 @@ class TestBoxAPI:
         assert response2.status_code == 201
         box2_data = json.loads(response2.data)
         assert box2_data["box_no"] == 2
+
+    def test_get_box_locations_with_parts_empty_box(
+        self, client: FlaskClient, session: Session
+    ):
+        """Test getting locations with parts for an empty box."""
+        # Create empty box
+        box = BoxService.create_box(session, "Empty Box", 3)
+        session.commit()
+
+        response = client.get(f"/api/boxes/{box.box_no}/locations")
+
+        assert response.status_code == 200
+        response_data = json.loads(response.data)
+
+        assert len(response_data) == 3
+
+        for location in response_data:
+            assert location["box_no"] == box.box_no
+            assert location["loc_no"] in [1, 2, 3]
+            assert location["is_occupied"] is False
+            assert location["part_assignments"] is None
+
+    def test_get_box_locations_with_parts_partially_filled(
+        self, client: FlaskClient, session: Session
+    ):
+        """Test getting locations with parts for a partially filled box."""
+        from app.services.inventory_service import InventoryService
+
+        # Create box and add parts
+        box = BoxService.create_box(session, "Partial Box", 4)
+        session.commit()
+
+        # Add parts to locations 1 and 3
+        InventoryService.add_stock(session, "PART", box.box_no, 1, 10)
+        InventoryService.add_stock(session, "TEST", box.box_no, 3, 25)
+        session.commit()
+
+        # Update part descriptions for better test verification
+        from app.models.part import Part
+
+        part = session.query(Part).filter_by(id4="PART").first()
+        if part:
+            part.description = "Test Part Description"
+            part.manufacturer_code = "PART-001"
+
+        test_part = session.query(Part).filter_by(id4="TEST").first()
+        if test_part:
+            test_part.description = "Test Component"
+            test_part.manufacturer_code = None
+        session.commit()
+
+        response = client.get(f"/api/boxes/{box.box_no}/locations")
+
+        assert response.status_code == 200
+        response_data = json.loads(response.data)
+
+        assert len(response_data) == 4
+
+        # Find location 1 (occupied)
+        loc1 = next(loc for loc in response_data if loc["loc_no"] == 1)
+        assert loc1["is_occupied"] is True
+        assert len(loc1["part_assignments"]) == 1
+        assignment1 = loc1["part_assignments"][0]
+        assert assignment1["id4"] == "PART"
+        assert assignment1["qty"] == 10
+
+        # Find location 2 (empty)
+        loc2 = next(loc for loc in response_data if loc["loc_no"] == 2)
+        assert loc2["is_occupied"] is False
+        assert loc2["part_assignments"] is None
+
+        # Find location 3 (occupied)
+        loc3 = next(loc for loc in response_data if loc["loc_no"] == 3)
+        assert loc3["is_occupied"] is True
+        assert len(loc3["part_assignments"]) == 1
+        assignment3 = loc3["part_assignments"][0]
+        assert assignment3["id4"] == "TEST"
+        assert assignment3["qty"] == 25
+
+    def test_get_box_locations_basic_structure(
+        self, client: FlaskClient, session: Session
+    ):
+        """Test the basic structure of the enhanced endpoint without relying on InventoryService."""
+        # Create simple box
+        box = BoxService.create_box(session, "Test Box", 2)
+        session.commit()
+
+        response = client.get(f"/api/boxes/{box.box_no}/locations")
+
+        assert response.status_code == 200
+        response_data = json.loads(response.data)
+
+        assert len(response_data) == 2
+
+        for location in response_data:
+            assert "box_no" in location
+            assert "loc_no" in location
+            assert "is_occupied" in location
+            assert "part_assignments" in location
+            assert location["is_occupied"] is False
+            assert location["part_assignments"] is None
+
+    def test_get_box_locations_with_parts_include_parts_false(
+        self, client: FlaskClient, session: Session
+    ):
+        """Test getting locations with include_parts=false returns basic location data."""
+        from app.services.inventory_service import InventoryService
+
+        # Create box and add parts
+        box = BoxService.create_box(session, "Test Box", 3)
+        session.commit()
+
+        # Add part to location 1
+        InventoryService.add_stock(session, "COMP", box.box_no, 1, 15)
+        session.commit()
+
+        response = client.get(f"/api/boxes/{box.box_no}/locations?include_parts=false")
+
+        assert response.status_code == 200
+        response_data = json.loads(response.data)
+
+        assert len(response_data) == 3
+
+        # Should return enhanced schema but with part data excluded
+        for location in response_data:
+            assert "box_no" in location
+            assert "loc_no" in location
+            # Should have enhanced fields but show empty/false values
+            assert "is_occupied" in location
+            assert "part_assignments" in location
+            assert location["is_occupied"] is False
+            assert location["part_assignments"] is None
+
+    def test_get_box_locations_with_parts_include_parts_true_explicit(
+        self, client: FlaskClient, session: Session
+    ):
+        """Test getting locations with explicit include_parts=true."""
+        # Create empty box
+        box = BoxService.create_box(session, "Test Box", 2)
+        session.commit()
+
+        response = client.get(f"/api/boxes/{box.box_no}/locations?include_parts=true")
+
+        assert response.status_code == 200
+        response_data = json.loads(response.data)
+
+        assert len(response_data) == 2
+
+        for location in response_data:
+            assert "is_occupied" in location
+            assert "part_assignments" in location
+            assert location["is_occupied"] is False
+            assert location["part_assignments"] is None
+
+    def test_get_box_locations_with_parts_ordering(
+        self, client: FlaskClient, session: Session
+    ):
+        """Test that locations are returned in proper order."""
+        from app.services.inventory_service import InventoryService
+
+        box = BoxService.create_box(session, "Order Test Box", 5)
+        session.commit()
+
+        # Add parts in non-sequential order
+        InventoryService.add_stock(session, "COMP", box.box_no, 4, 10)
+        InventoryService.add_stock(session, "PART", box.box_no, 2, 20)
+        session.commit()
+
+        response = client.get(f"/api/boxes/{box.box_no}/locations")
+
+        assert response.status_code == 200
+        response_data = json.loads(response.data)
+
+        # Verify ordering by loc_no
+        location_numbers = [loc["loc_no"] for loc in response_data]
+        assert location_numbers == [1, 2, 3, 4, 5]
+
+        # Verify occupation status
+        occupied_locations = [
+            loc["loc_no"] for loc in response_data if loc["is_occupied"]
+        ]
+        assert sorted(occupied_locations) == [2, 4]
+
+    def test_get_box_locations_with_parts_nonexistent_box(self, client: FlaskClient):
+        """Test getting locations for a non-existent box returns 404."""
+        response = client.get("/api/boxes/999/locations")
+
+        assert response.status_code == 404
+        response_data = json.loads(response.data)
+        assert "error" in response_data
+        assert "Box 999 was not found" in response_data["error"]
+
+    def test_get_box_locations_with_parts_data_consistency(
+        self, client: FlaskClient, session: Session
+    ):
+        """Test that location data is consistent with usage statistics."""
+        from app.services.inventory_service import InventoryService
+
+        box = BoxService.create_box(session, "Consistency Box", 6)
+        session.commit()
+
+        # Add parts to multiple locations
+        InventoryService.add_stock(session, "COMP", box.box_no, 1, 100)
+        InventoryService.add_stock(session, "RESI", box.box_no, 3, 50)
+        InventoryService.add_stock(session, "CAPA", box.box_no, 5, 25)
+        session.commit()
+
+        # Get location data and usage stats
+        locations_response = client.get(f"/api/boxes/{box.box_no}/locations")
+        usage_response = client.get(f"/api/boxes/{box.box_no}/usage")
+
+        assert locations_response.status_code == 200
+        assert usage_response.status_code == 200
+
+        locations_data = json.loads(locations_response.data)
+        usage_data = json.loads(usage_response.data)
+
+        # Count occupied locations from API response
+        occupied_count = sum(1 for loc in locations_data if loc["is_occupied"])
+
+        # Should match usage statistics
+        assert occupied_count == usage_data["occupied_locations"]
+        assert occupied_count == 3
+        assert usage_data["available_locations"] == 3

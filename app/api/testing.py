@@ -21,7 +21,10 @@ def ensure_testing_environment():
 
 
 @testing_bp.route("/reset", methods=["DELETE"])
-@api.validate(resp=Response(HTTP_200=TestResetResponseSchema, HTTP_404=ErrorResponseSchema), tags=["testing"])
+@api.validate(
+    resp=Response(HTTP_200=TestResetResponseSchema, HTTP_404=ErrorResponseSchema),
+    tags=["testing"],
+)
 @handle_api_errors
 def reset_database():
     """Reset database to clean state for testing.
@@ -36,19 +39,24 @@ def reset_database():
     db.create_all()
 
     # Commit the transaction
-    if hasattr(g, 'db') and g.db:
+    if hasattr(g, "db") and g.db:
         g.db.commit()
 
     return jsonify({"message": "Database reset successfully"})
 
 
 @testing_bp.route("/health", methods=["GET"])
-@api.validate(resp=Response(HTTP_200=TestHealthResponseSchema, HTTP_404=ErrorResponseSchema), tags=["testing"])
+@api.validate(
+    resp=Response(HTTP_200=TestHealthResponseSchema, HTTP_404=ErrorResponseSchema),
+    tags=["testing"],
+)
 @handle_api_errors
 def test_health():
     """Health check endpoint for testing environment."""
-    return jsonify({
-        "status": "ok",
-        "environment": "testing",
-        "message": "Test endpoints are available"
-    })
+    return jsonify(
+        {
+            "status": "ok",
+            "environment": "testing",
+            "message": "Test endpoints are available",
+        }
+    )

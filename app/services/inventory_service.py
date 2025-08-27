@@ -28,7 +28,9 @@ class InventoryService:
     ) -> PartLocation:
         """Add stock to a location."""
         if qty <= 0:
-            raise InvalidOperationException("add negative or zero stock", "quantity must be positive")
+            raise InvalidOperationException(
+                "add negative or zero stock", "quantity must be positive"
+            )
 
         # Validate location exists
         location = InventoryService._get_location(db, box_no, loc_no)
@@ -77,7 +79,9 @@ class InventoryService:
     ) -> None:
         """Remove stock from a location."""
         if qty <= 0:
-            raise InvalidOperationException("remove negative or zero stock", "quantity must be positive")
+            raise InvalidOperationException(
+                "remove negative or zero stock", "quantity must be positive"
+            )
 
         # Find existing location assignment
         stmt = select(PartLocation).where(
@@ -90,10 +94,14 @@ class InventoryService:
         part_location = db.execute(stmt).scalar_one_or_none()
 
         if not part_location:
-            raise RecordNotFoundException("Part location", f"{part_id4} at {box_no}-{loc_no}")
+            raise RecordNotFoundException(
+                "Part location", f"{part_id4} at {box_no}-{loc_no}"
+            )
 
         if part_location.qty < qty:
-            raise InsufficientQuantityException(qty, part_location.qty, f"{box_no}-{loc_no}")
+            raise InsufficientQuantityException(
+                qty, part_location.qty, f"{box_no}-{loc_no}"
+            )
 
         # Update quantity
         part_location.qty -= qty
@@ -125,7 +133,9 @@ class InventoryService:
     ) -> None:
         """Move stock between locations."""
         if qty <= 0:
-            raise InvalidOperationException("move negative or zero stock", "quantity must be positive")
+            raise InvalidOperationException(
+                "move negative or zero stock", "quantity must be positive"
+            )
 
         # Validate source has sufficient quantity
         stmt = select(PartLocation).where(
@@ -138,10 +148,14 @@ class InventoryService:
         source_location = db.execute(stmt).scalar_one_or_none()
 
         if not source_location:
-            raise RecordNotFoundException("Part location", f"{part_id4} at {from_box}-{from_loc}")
+            raise RecordNotFoundException(
+                "Part location", f"{part_id4} at {from_box}-{from_loc}"
+            )
 
         if source_location.qty < qty:
-            raise InsufficientQuantityException(qty, source_location.qty, f"{from_box}-{from_loc}")
+            raise InsufficientQuantityException(
+                qty, source_location.qty, f"{from_box}-{from_loc}"
+            )
 
         # Validate destination location exists
         dest_location = InventoryService._get_location(db, to_box, to_loc)
@@ -245,6 +259,7 @@ class InventoryService:
     def calculate_total_quantity(db: Session, part_id4: str) -> int:
         """Calculate total quantity across all locations for a part."""
         from sqlalchemy import func
+
         stmt = select(func.coalesce(func.sum(PartLocation.qty), 0)).where(
             PartLocation.part_id4 == part_id4
         )
@@ -252,7 +267,9 @@ class InventoryService:
         return result or 0
 
     @staticmethod
-    def get_all_parts_with_totals(db: Session, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list['PartWithTotalModel']:
+    def get_all_parts_with_totals(
+        db: Session, limit: int = 50, offset: int = 0, type_id: int | None = None
+    ) -> list["PartWithTotalModel"]:
         """Get all parts with their total quantities calculated."""
         from sqlalchemy import func
 
@@ -260,12 +277,14 @@ class InventoryService:
         from app.schemas.part import PartWithTotalModel
 
         # Base query for parts with total quantity calculation
-        stmt = select(
-            Part,
-            func.coalesce(func.sum(PartLocation.qty), 0).label('total_quantity')
-        ).outerjoin(
-            PartLocation, Part.id4 == PartLocation.part_id4
-        ).group_by(Part.id)
+        stmt = (
+            select(
+                Part,
+                func.coalesce(func.sum(PartLocation.qty), 0).label("total_quantity"),
+            )
+            .outerjoin(PartLocation, Part.id4 == PartLocation.part_id4)
+            .group_by(Part.id)
+        )
 
         # Apply type filter if specified
         if type_id is not None:
@@ -279,8 +298,7 @@ class InventoryService:
         parts_with_totals = []
         for part, total_qty in results:
             part_with_total = PartWithTotalModel(
-                part=part,
-                total_quantity=int(total_qty)
+                part=part, total_quantity=int(total_qty)
             )
             parts_with_totals.append(part_with_total)
 

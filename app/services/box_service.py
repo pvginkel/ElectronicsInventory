@@ -1,5 +1,6 @@
 """Box service for core box and location management logic."""
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
@@ -8,10 +9,31 @@ from sqlalchemy.orm import Session
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.box import Box
 from app.models.location import Location
+from app.models.part import Part
 from app.models.part_location import PartLocation
 
 if TYPE_CHECKING:
     from app.schemas.box import BoxUsageStatsModel, BoxWithUsageModel
+
+
+@dataclass
+class PartAssignmentData:
+    """Data class for part assignment information."""
+
+    id4: str
+    qty: int
+    manufacturer_code: str | None
+    description: str
+
+
+@dataclass
+class LocationWithPartData:
+    """Data class combining location info with part assignments."""
+
+    box_no: int
+    loc_no: int
+    is_occupied: bool
+    part_assignments: list[PartAssignmentData]
 
 
 class BoxService:
@@ -96,7 +118,7 @@ class BoxService:
         box.description = new_description
 
         # Expire the locations relationship so it will be reloaded on next access
-        db.expire(box, ['locations'])
+        db.expire(box, ["locations"])
 
         return box
 
@@ -116,14 +138,14 @@ class BoxService:
         if has_parts:
             raise InvalidOperationException(
                 f"delete box {box_no}",
-                "it contains parts that must be moved or removed first"
+                "it contains parts that must be moved or removed first",
             )
 
         # Safe to delete - the locations will be deleted automatically due to cascade
         db.delete(box)
 
     @staticmethod
-    def calculate_box_usage(db: Session, box_no: int) -> 'BoxUsageStatsModel':
+    def calculate_box_usage(db: Session, box_no: int) -> "BoxUsageStatsModel":
         """Calculate usage statistics for a specific box."""
         from sqlalchemy import func
 
@@ -142,45 +164,114 @@ class BoxService:
         occupied_count = db.execute(occupied_stmt).scalar() or 0
 
         # Calculate usage percentage
-        usage_percentage = (occupied_count / total_locations * 100) if total_locations > 0 else 0
+        usage_percentage = (
+            (occupied_count / total_locations * 100) if total_locations > 0 else 0
+        )
 
         return BoxUsageStatsModel(
             box_no=box_no,
             total_locations=total_locations,
             occupied_locations=occupied_count,
             available_locations=total_locations - occupied_count,
-            usage_percentage=round(usage_percentage, 2)
+            usage_percentage=round(usage_percentage, 2),
         )
 
     @staticmethod
-    def get_all_boxes_with_usage(db: Session) -> list['BoxWithUsageModel']:
+    def get_all_boxes_with_usage(db: Session) -> list["BoxWithUsageModel"]:
         """Get all boxes with their usage statistics calculated."""
         from sqlalchemy import func
 
         from app.schemas.box import BoxWithUsageModel
 
         # Query to get all boxes with usage stats in one go
-        stmt = select(
-            Box,
-            func.count(func.distinct(PartLocation.loc_no)).label('occupied_count')
-        ).outerjoin(
-            PartLocation, Box.box_no == PartLocation.box_no
-        ).group_by(Box.id).order_by(Box.box_no)
+        stmt = (
+            select(
+                Box,
+                func.count(func.distinct(PartLocation.loc_no)).label("occupied_count"),
+            )
+            .outerjoin(PartLocation, Box.box_no == PartLocation.box_no)
+            .group_by(Box.id)
+            .order_by(Box.box_no)
+        )
 
         results = db.execute(stmt).all()
 
         boxes_with_usage = []
         for box, occupied_count in results:
             occupied_count = occupied_count or 0
-            usage_percentage = (occupied_count / box.capacity * 100) if box.capacity > 0 else 0
+            usage_percentage = (
+                (occupied_count / box.capacity * 100) if box.capacity > 0 else 0
+            )
 
             box_with_usage = BoxWithUsageModel(
                 box=box,
                 total_locations=box.capacity,
                 occupied_locations=occupied_count,
                 available_locations=box.capacity - occupied_count,
-                usage_percentage=round(usage_percentage, 2)
+                usage_percentage=round(usage_percentage, 2),
             )
             boxes_with_usage.append(box_with_usage)
 
         return boxes_with_usage
+
+    @staticmethod
+    def get_box_locations_with_parts(
+        db: Session, box_no: int
+    ) -> list[LocationWithPartData]:
+        """Get all locations for a box with part assignment information."""
+        # Ensure box exists first
+        BoxService.get_box(db, box_no)
+
+        # Query locations with optional part assignments
+        # LEFT JOIN to include empty locations
+        stmt = (
+            select(
+                Location.box_no,
+                Location.loc_no,
+                PartLocation.part_id4,
+                PartLocation.qty,
+                Part.manufacturer_code,
+                Part.description,
+            )
+            .select_from(Location)
+            .outerjoin(
+                PartLocation,
+                (Location.box_no == PartLocation.box_no)
+                & (Location.loc_no == PartLocation.loc_no),
+            )
+            .outerjoin(Part, PartLocation.part_id4 == Part.id4)
+            .where(Location.box_no == box_no)
+            .order_by(Location.loc_no)
+        )
+
+        result_rows = db.execute(stmt).all()
+
+        # Group results by location
+        locations_dict: dict[int, LocationWithPartData] = {}
+
+        for row in result_rows:
+            loc_no = row.loc_no
+
+            if loc_no not in locations_dict:
+                locations_dict[loc_no] = LocationWithPartData(
+                    box_no=row.box_no,
+                    loc_no=loc_no,
+                    is_occupied=False,
+                    part_assignments=[],
+                )
+
+            location_data = locations_dict[loc_no]
+
+            # If there's part data, add it to assignments
+            if row.part_id4 is not None:
+                location_data.is_occupied = True
+                part_assignment = PartAssignmentData(
+                    id4=row.part_id4,
+                    qty=row.qty,
+                    manufacturer_code=row.manufacturer_code,
+                    description=row.description,
+                )
+                location_data.part_assignments.append(part_assignment)
+
+        # Return ordered list of locations
+        return [locations_dict[loc_no] for loc_no in sorted(locations_dict.keys())]

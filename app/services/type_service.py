@@ -59,7 +59,9 @@ class TypeService:
 
         # Check if any parts use this type
         if type_obj.parts:
-            raise InvalidOperationException(f"delete type {type_id}", "it is being used by existing parts")
+            raise InvalidOperationException(
+                f"delete type {type_id}", "it is being used by existing parts"
+            )
 
         db.delete(type_obj)
 
@@ -75,7 +77,7 @@ class TypeService:
         return result or 0
 
     @staticmethod
-    def get_all_types_with_part_counts(db: Session) -> list['TypeWithStatsModel']:
+    def get_all_types_with_part_counts(db: Session) -> list["TypeWithStatsModel"]:
         """Get all types with their part counts calculated."""
         from sqlalchemy import func
 
@@ -83,20 +85,19 @@ class TypeService:
         from app.schemas.type import TypeWithStatsModel
 
         # Query to get all types with part counts in one go
-        stmt = select(
-            Type,
-            func.count(Part.id).label('part_count')
-        ).outerjoin(
-            Part, Type.id == Part.type_id
-        ).group_by(Type.id).order_by(Type.name)
+        stmt = (
+            select(Type, func.count(Part.id).label("part_count"))
+            .outerjoin(Part, Type.id == Part.type_id)
+            .group_by(Type.id)
+            .order_by(Type.name)
+        )
 
         results = db.execute(stmt).all()
 
         types_with_stats = []
         for type_obj, part_count in results:
             type_with_stats = TypeWithStatsModel(
-                type=type_obj,
-                part_count=part_count or 0
+                type=type_obj, part_count=part_count or 0
             )
             types_with_stats.append(type_with_stats)
 

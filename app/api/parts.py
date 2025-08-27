@@ -21,7 +21,10 @@ parts_bp = Blueprint("parts", __name__, url_prefix="/parts")
 
 
 @parts_bp.route("", methods=["POST"])
-@api.validate(json=PartCreateSchema, resp=SpectreeResponse(HTTP_201=PartResponseSchema, HTTP_400=ErrorResponseSchema))
+@api.validate(
+    json=PartCreateSchema,
+    resp=SpectreeResponse(HTTP_201=PartResponseSchema, HTTP_400=ErrorResponseSchema),
+)
 @handle_api_errors
 def create_part():
     """Create new part."""
@@ -49,7 +52,9 @@ def list_parts():
     type_filter = request.args.get("type_id", type=int)
 
     # Get parts with calculated total quantities
-    parts_with_totals = InventoryService.get_all_parts_with_totals(g.db, limit, offset, type_filter)
+    parts_with_totals = InventoryService.get_all_parts_with_totals(
+        g.db, limit, offset, type_filter
+    )
 
     result = []
     for part_with_total in parts_with_totals:
@@ -66,7 +71,7 @@ def list_parts():
             seller=part.seller,
             created_at=part.created_at,
             updated_at=part.updated_at,
-            total_quantity=total_qty
+            total_quantity=total_qty,
         )
         result.append(part_data.model_dump())
 
@@ -74,7 +79,9 @@ def list_parts():
 
 
 @parts_bp.route("/<string:part_id4>", methods=["GET"])
-@api.validate(resp=SpectreeResponse(HTTP_200=PartResponseSchema, HTTP_404=ErrorResponseSchema))
+@api.validate(
+    resp=SpectreeResponse(HTTP_200=PartResponseSchema, HTTP_404=ErrorResponseSchema)
+)
 @handle_api_errors
 def get_part(part_id4: str):
     """Get single part with full details."""
@@ -83,7 +90,14 @@ def get_part(part_id4: str):
 
 
 @parts_bp.route("/<string:part_id4>", methods=["PUT"])
-@api.validate(json=PartUpdateSchema, resp=SpectreeResponse(HTTP_200=PartResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
+@api.validate(
+    json=PartUpdateSchema,
+    resp=SpectreeResponse(
+        HTTP_200=PartResponseSchema,
+        HTTP_400=ErrorResponseSchema,
+        HTTP_404=ErrorResponseSchema,
+    ),
+)
 @handle_api_errors
 def update_part(part_id4: str):
     """Update part details."""
@@ -104,7 +118,11 @@ def update_part(part_id4: str):
 
 
 @parts_bp.route("/<string:part_id4>", methods=["DELETE"])
-@api.validate(resp=SpectreeResponse(HTTP_204=None, HTTP_404=ErrorResponseSchema, HTTP_409=ErrorResponseSchema))
+@api.validate(
+    resp=SpectreeResponse(
+        HTTP_204=None, HTTP_404=ErrorResponseSchema, HTTP_409=ErrorResponseSchema
+    )
+)
 @handle_api_errors
 def delete_part(part_id4: str):
     """Delete part if total quantity is zero."""
@@ -113,7 +131,11 @@ def delete_part(part_id4: str):
 
 
 @parts_bp.route("/<string:part_id4>/locations", methods=["GET"])
-@api.validate(resp=SpectreeResponse(HTTP_200=list[PartLocationResponseSchema], HTTP_404=ErrorResponseSchema))
+@api.validate(
+    resp=SpectreeResponse(
+        HTTP_200=list[PartLocationResponseSchema], HTTP_404=ErrorResponseSchema
+    )
+)
 @handle_api_errors
 def get_part_locations(part_id4: str):
     """Get all locations for a part."""
@@ -123,17 +145,18 @@ def get_part_locations(part_id4: str):
 
     return [
         PartLocationResponseSchema(
-            id4=loc.part_id4,
-            box_no=loc.box_no,
-            loc_no=loc.loc_no,
-            qty=loc.qty
+            id4=loc.part_id4, box_no=loc.box_no, loc_no=loc.loc_no, qty=loc.qty
         ).model_dump()
         for loc in locations
     ]
 
 
 @parts_bp.route("/<string:part_id4>/history", methods=["GET"])
-@api.validate(resp=SpectreeResponse(HTTP_200=list[QuantityHistoryResponseSchema], HTTP_404=ErrorResponseSchema))
+@api.validate(
+    resp=SpectreeResponse(
+        HTTP_200=list[QuantityHistoryResponseSchema], HTTP_404=ErrorResponseSchema
+    )
+)
 @handle_api_errors
 def get_part_history(part_id4: str):
     """Get quantity change history for a part."""

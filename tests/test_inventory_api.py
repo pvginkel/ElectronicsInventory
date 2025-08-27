@@ -22,11 +22,7 @@ class TestInventoryAPI:
             part = PartService.create_part(session, "Test part")
             session.commit()
 
-            data = {
-                "box_no": box.box_no,
-                "loc_no": 1,
-                "qty": 5
-            }
+            data = {"box_no": box.box_no, "loc_no": 1, "qty": 5}
 
             response = client.post(f"/api/inventory/parts/{part.id4}/stock", json=data)
 
@@ -45,7 +41,9 @@ class TestInventoryAPI:
         response = client.post("/api/inventory/parts/AAAA/stock", json=data)
         assert response.status_code == 404
 
-    def test_add_stock_invalid_location(self, app: Flask, client: FlaskClient, session: Session):
+    def test_add_stock_invalid_location(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test adding stock to invalid location."""
         with app.app_context():
             part = PartService.create_part(session, "Test part")
@@ -56,7 +54,9 @@ class TestInventoryAPI:
             response = client.post(f"/api/inventory/parts/{part.id4}/stock", json=data)
             assert response.status_code == 404
 
-    def test_add_stock_invalid_quantity(self, app: Flask, client: FlaskClient, session: Session):
+    def test_add_stock_invalid_quantity(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test adding stock with invalid quantity."""
         with app.app_context():
             box = BoxService.create_box(session, "Test Box", 10)
@@ -82,7 +82,9 @@ class TestInventoryAPI:
 
             data = {"box_no": box.box_no, "loc_no": 1, "qty": 3}
 
-            response = client.delete(f"/api/inventory/parts/{part.id4}/stock", json=data)
+            response = client.delete(
+                f"/api/inventory/parts/{part.id4}/stock", json=data
+            )
             assert response.status_code == 204
 
     def test_remove_stock_nonexistent_part(self, app: Flask, client: FlaskClient):
@@ -92,7 +94,9 @@ class TestInventoryAPI:
         response = client.delete("/api/inventory/parts/AAAA/stock", json=data)
         assert response.status_code == 404
 
-    def test_remove_stock_insufficient(self, app: Flask, client: FlaskClient, session: Session):
+    def test_remove_stock_insufficient(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test removing more stock than available."""
         with app.app_context():
             # Setup with limited stock
@@ -105,10 +109,14 @@ class TestInventoryAPI:
 
             data = {"box_no": box.box_no, "loc_no": 1, "qty": 5}
 
-            response = client.delete(f"/api/inventory/parts/{part.id4}/stock", json=data)
+            response = client.delete(
+                f"/api/inventory/parts/{part.id4}/stock", json=data
+            )
             assert response.status_code == 409
 
-    def test_remove_stock_nonexistent_location(self, app: Flask, client: FlaskClient, session: Session):
+    def test_remove_stock_nonexistent_location(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test removing stock from location with no stock."""
         with app.app_context():
             box = BoxService.create_box(session, "Test Box", 10)
@@ -117,7 +125,9 @@ class TestInventoryAPI:
 
             data = {"box_no": box.box_no, "loc_no": 1, "qty": 1}
 
-            response = client.delete(f"/api/inventory/parts/{part.id4}/stock", json=data)
+            response = client.delete(
+                f"/api/inventory/parts/{part.id4}/stock", json=data
+            )
             assert response.status_code == 404
 
     def test_move_stock(self, app: Flask, client: FlaskClient, session: Session):
@@ -136,7 +146,7 @@ class TestInventoryAPI:
                 "from_loc_no": 1,
                 "to_box_no": box.box_no,
                 "to_loc_no": 2,
-                "qty": 3
+                "qty": 3,
             }
 
             response = client.post(f"/api/inventory/parts/{part.id4}/move", json=data)
@@ -149,13 +159,15 @@ class TestInventoryAPI:
             "from_loc_no": 1,
             "to_box_no": 1,
             "to_loc_no": 2,
-            "qty": 3
+            "qty": 3,
         }
 
         response = client.post("/api/inventory/parts/AAAA/move", json=data)
         assert response.status_code == 404
 
-    def test_move_stock_insufficient(self, app: Flask, client: FlaskClient, session: Session):
+    def test_move_stock_insufficient(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test moving more stock than available."""
         with app.app_context():
             # Setup with limited stock
@@ -171,13 +183,15 @@ class TestInventoryAPI:
                 "from_loc_no": 1,
                 "to_box_no": box.box_no,
                 "to_loc_no": 2,
-                "qty": 5
+                "qty": 5,
             }
 
             response = client.post(f"/api/inventory/parts/{part.id4}/move", json=data)
             assert response.status_code == 409
 
-    def test_move_stock_invalid_destination(self, app: Flask, client: FlaskClient, session: Session):
+    def test_move_stock_invalid_destination(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test moving stock to invalid destination."""
         with app.app_context():
             # Setup with stock
@@ -193,13 +207,15 @@ class TestInventoryAPI:
                 "from_loc_no": 1,
                 "to_box_no": 999,  # Non-existent box
                 "to_loc_no": 1,
-                "qty": 3
+                "qty": 3,
             }
 
             response = client.post(f"/api/inventory/parts/{part.id4}/move", json=data)
             assert response.status_code == 404
 
-    def test_get_location_suggestion(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_location_suggestion(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test getting location suggestions."""
         with app.app_context():
             # Create a box
@@ -216,7 +232,9 @@ class TestInventoryAPI:
             assert response_data["box_no"] == box.box_no
             assert response_data["loc_no"] == 1
 
-    def test_get_location_suggestion_with_occupied_locations(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_location_suggestion_with_occupied_locations(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test location suggestion when some locations are occupied."""
         with app.app_context():
             # Setup with occupied location
@@ -237,7 +255,9 @@ class TestInventoryAPI:
             assert response_data["box_no"] == box.box_no
             assert response_data["loc_no"] == 2
 
-    def test_get_location_suggestion_no_available(self, app: Flask, client: FlaskClient):
+    def test_get_location_suggestion_no_available(
+        self, app: Flask, client: FlaskClient
+    ):
         """Test location suggestion when no locations are available."""
         # No boxes created, so no locations available
         response = client.get("/api/inventory/suggestions/1")

@@ -22,9 +22,7 @@ class QuantityHistory(db.Model):  # type: ignore[name-defined]
         CHAR(4), ForeignKey("parts.id4"), nullable=False
     )
     delta_qty: Mapped[int] = mapped_column(nullable=False)
-    location_reference: Mapped[str | None] = mapped_column(
-        String(20), nullable=True
-    )
+    location_reference: Mapped[str | None] = mapped_column(String(20), nullable=True)
     timestamp: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.now()
     )
@@ -35,4 +33,6 @@ class QuantityHistory(db.Model):  # type: ignore[name-defined]
     )
 
     def __repr__(self) -> str:
-        return f"<QuantityHistory {self.part_id4}: {self.delta_qty:+d} @ {self.timestamp}>"
+        return (
+            f"<QuantityHistory {self.part_id4}: {self.delta_qty:+d} @ {self.timestamp}>"
+        )

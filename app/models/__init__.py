@@ -8,4 +8,11 @@ from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
 from app.models.type import Type
 
-__all__: list[str] = ["Box", "Location", "Part", "PartLocation", "QuantityHistory", "Type"]
+__all__: list[str] = [
+    "Box",
+    "Location",
+    "Part",
+    "PartLocation",
+    "QuantityHistory",
+    "Type",
+]

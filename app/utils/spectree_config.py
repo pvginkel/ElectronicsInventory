@@ -42,5 +42,3 @@ def configure_spectree(app: Flask) -> SpecTree:
         return redirect("/api/docs/swagger/", code=302)
 
     return api
-
-

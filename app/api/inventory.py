@@ -20,7 +20,14 @@ inventory_bp = Blueprint("inventory", __name__, url_prefix="/inventory")
 
 
 @inventory_bp.route("/parts/<string:part_id4>/stock", methods=["POST"])
-@api.validate(json=AddStockSchema, resp=SpectreeResponse(HTTP_201=PartLocationResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
+@api.validate(
+    json=AddStockSchema,
+    resp=SpectreeResponse(
+        HTTP_201=PartLocationResponseSchema,
+        HTTP_400=ErrorResponseSchema,
+        HTTP_404=ErrorResponseSchema,
+    ),
+)
 @handle_api_errors
 def add_stock(part_id4: str):
     """Add stock to a location."""
@@ -37,12 +44,17 @@ def add_stock(part_id4: str):
         id4=part_location.part_id4,
         box_no=part_location.box_no,
         loc_no=part_location.loc_no,
-        qty=part_location.qty
+        qty=part_location.qty,
     ).model_dump(), 201
 
 
 @inventory_bp.route("/parts/<string:part_id4>/stock", methods=["DELETE"])
-@api.validate(json=RemoveStockSchema, resp=SpectreeResponse(HTTP_204=None, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
+@api.validate(
+    json=RemoveStockSchema,
+    resp=SpectreeResponse(
+        HTTP_204=None, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema
+    ),
+)
 @handle_api_errors
 def remove_stock(part_id4: str):
     """Remove stock from a location."""
@@ -51,14 +63,17 @@ def remove_stock(part_id4: str):
 
     data = RemoveStockSchema.model_validate(request.get_json())
 
-    InventoryService.remove_stock(
-        g.db, part_id4, data.box_no, data.loc_no, data.qty
-    )
+    InventoryService.remove_stock(g.db, part_id4, data.box_no, data.loc_no, data.qty)
     return "", 204
 
 
 @inventory_bp.route("/parts/<string:part_id4>/move", methods=["POST"])
-@api.validate(json=MoveStockSchema, resp=SpectreeResponse(HTTP_204=None, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
+@api.validate(
+    json=MoveStockSchema,
+    resp=SpectreeResponse(
+        HTTP_204=None, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema
+    ),
+)
 @handle_api_errors
 def move_stock(part_id4: str):
     """Move stock between locations."""
@@ -80,7 +95,11 @@ def move_stock(part_id4: str):
 
 
 @inventory_bp.route("/suggestions/<int:type_id>", methods=["GET"])
-@api.validate(resp=SpectreeResponse(HTTP_200=LocationSuggestionSchema, HTTP_404=ErrorResponseSchema))
+@api.validate(
+    resp=SpectreeResponse(
+        HTTP_200=LocationSuggestionSchema, HTTP_404=ErrorResponseSchema
+    )
+)
 @handle_api_errors
 def get_location_suggestion(type_id: int):
     """Get location suggestions for part type."""

@@ -28,7 +28,9 @@ class PartService:
             if not existing:
                 return id4
 
-        raise InvalidOperationException("generate unique part ID", f"failed after {max_attempts} attempts")
+        raise InvalidOperationException(
+            "generate unique part ID", f"failed after {max_attempts} attempts"
+        )
 
     @staticmethod
     def create_part(
@@ -66,7 +68,9 @@ class PartService:
         return part
 
     @staticmethod
-    def get_parts_list(db: Session, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list[Part]:
+    def get_parts_list(
+        db: Session, limit: int = 50, offset: int = 0, type_id: int | None = None
+    ) -> list[Part]:
         """List parts with pagination, ordered by creation date."""
         stmt = select(Part).order_by(Part.created_at.desc())
 
@@ -121,7 +125,10 @@ class PartService:
         # Check if part has any quantity
         total_qty = PartService.get_total_quantity(db, part_id4)
         if total_qty > 0:
-            raise InvalidOperationException(f"delete part {part_id4}", "it still has parts in inventory that must be removed first")
+            raise InvalidOperationException(
+                f"delete part {part_id4}",
+                "it still has parts in inventory that must be removed first",
+            )
 
         # Delete the part (cascaded deletes will handle relationships)
         db.delete(part)

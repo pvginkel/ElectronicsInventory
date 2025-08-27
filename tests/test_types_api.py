@@ -111,7 +111,9 @@ class TestTypesAPI:
         response = client.put("/api/types/999", json=update_data)
         assert response.status_code == 404
 
-    def test_update_type_invalid_data(self, app: Flask, client: FlaskClient, session: Session):
+    def test_update_type_invalid_data(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test updating a type with invalid data."""
         with app.app_context():
             type_obj = TypeService.create_type(session, "Resistor")
@@ -123,7 +125,9 @@ class TestTypesAPI:
             response = client.put(f"/api/types/{type_obj.id}", json=update_data)
             assert response.status_code == 400
 
-    def test_delete_type_unused(self, app: Flask, client: FlaskClient, session: Session):
+    def test_delete_type_unused(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test deleting an unused type."""
         with app.app_context():
             type_obj = TypeService.create_type(session, "Temporary")
@@ -132,7 +136,9 @@ class TestTypesAPI:
             response = client.delete(f"/api/types/{type_obj.id}")
             assert response.status_code == 204
 
-    def test_delete_type_in_use(self, app: Flask, client: FlaskClient, session: Session):
+    def test_delete_type_in_use(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test deleting a type that's in use by parts."""
         with app.app_context():
             # Create type and part that uses it
@@ -140,9 +146,7 @@ class TestTypesAPI:
             session.flush()
 
             PartService.create_part(
-                session,
-                description="1k resistor",
-                type_id=type_obj.id
+                session, description="1k resistor", type_id=type_obj.id
             )
             session.commit()
 
@@ -154,7 +158,9 @@ class TestTypesAPI:
         response = client.delete("/api/types/999")
         assert response.status_code == 404
 
-    def test_list_types_with_stats_false(self, app: Flask, client: FlaskClient, session: Session):
+    def test_list_types_with_stats_false(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test listing types with include_stats=false returns normal response."""
         with app.app_context():
             # Create types
@@ -168,7 +174,7 @@ class TestTypesAPI:
             response_data = json.loads(response.data)
 
             assert len(response_data) == 2
-            
+
             # Should not have part_count field
             for type_data in response_data:
                 assert "name" in type_data
@@ -177,7 +183,9 @@ class TestTypesAPI:
                 assert "updated_at" in type_data
                 assert "part_count" not in type_data
 
-    def test_list_types_with_stats_true_no_parts(self, app: Flask, client: FlaskClient, session: Session):
+    def test_list_types_with_stats_true_no_parts(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test listing types with include_stats=true when no parts exist."""
         with app.app_context():
             # Create types but no parts
@@ -201,7 +209,9 @@ class TestTypesAPI:
                 assert "part_count" in type_data
                 assert type_data["part_count"] == 0
 
-    def test_list_types_with_stats_true_with_parts(self, app: Flask, client: FlaskClient, session: Session):
+    def test_list_types_with_stats_true_with_parts(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test listing types with include_stats=true when parts exist."""
         with app.app_context():
             # Create types
@@ -215,10 +225,12 @@ class TestTypesAPI:
             PartService.create_part(session, "1k resistor", type_id=resistor_type.id)
             PartService.create_part(session, "10k resistor", type_id=resistor_type.id)
             PartService.create_part(session, "100k resistor", type_id=resistor_type.id)
-            
+
             # 1 capacitor part
-            PartService.create_part(session, "10uF capacitor", type_id=capacitor_type.id)
-            
+            PartService.create_part(
+                session, "10uF capacitor", type_id=capacitor_type.id
+            )
+
             # 0 inductor parts (type exists but unused)
             session.commit()
 
@@ -231,7 +243,7 @@ class TestTypesAPI:
 
             # Create lookup by type name for easier testing
             stats_by_name = {t["name"]: t["part_count"] for t in response_data}
-            
+
             assert stats_by_name["Resistor"] == 3
             assert stats_by_name["Capacitor"] == 1
             assert stats_by_name["Inductor"] == 0
@@ -246,7 +258,9 @@ class TestTypesAPI:
                 assert isinstance(type_data["part_count"], int)
                 assert type_data["part_count"] >= 0
 
-    def test_list_types_default_behavior_no_stats(self, app: Flask, client: FlaskClient, session: Session):
+    def test_list_types_default_behavior_no_stats(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test that default behavior (no query param) returns normal response without stats."""
         with app.app_context():
             # Create types and parts
@@ -262,7 +276,7 @@ class TestTypesAPI:
             response_data = json.loads(response.data)
 
             assert len(response_data) == 1
-            
+
             # Should not have part_count field
             type_data = response_data[0]
             assert "name" in type_data
@@ -271,7 +285,9 @@ class TestTypesAPI:
             assert "updated_at" in type_data
             assert "part_count" not in type_data
 
-    def test_list_types_stats_case_insensitive(self, app: Flask, client: FlaskClient, session: Session):
+    def test_list_types_stats_case_insensitive(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test that include_stats parameter is case insensitive."""
         with app.app_context():
             # Create types
@@ -280,22 +296,22 @@ class TestTypesAPI:
 
             # Test various case combinations
             test_cases = ["TRUE", "True", "true", "tRuE"]
-            
+
             for case in test_cases:
                 response = client.get(f"/api/types?include_stats={case}")
                 assert response.status_code == 200
-                
+
                 response_data = json.loads(response.data)
                 assert len(response_data) == 1
                 assert "part_count" in response_data[0]
 
             # Test false cases
             false_cases = ["FALSE", "False", "false", "fAlSe", "0", "no", "off"]
-            
+
             for case in false_cases:
                 response = client.get(f"/api/types?include_stats={case}")
                 assert response.status_code == 200
-                
+
                 response_data = json.loads(response.data)
                 assert len(response_data) == 1
                 assert "part_count" not in response_data[0]

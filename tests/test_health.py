@@ -1,7 +1,6 @@
 """Test health check endpoint."""
 
 
-
 def test_health_check(client) -> None:
     """Test health check endpoint returns healthy status."""
     response = client.get("/api/health")

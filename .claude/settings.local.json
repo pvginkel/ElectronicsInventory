@@ -14,7 +14,9 @@
       "Bash(alembic:*)",
       "Bash(ruff check:*)",
       "Bash(mypy:*)",
-      "Read(/home/pvginkel/source/ElectronicsInventory/frontend/docs/**)"
+      "Read(/home/pvginkel/source/ElectronicsInventory/frontend/docs/**)",
+      "Read(/home/pvginkel/source/ElectronicsInventory/frontend/docs/**)",
+      "Bash(ruff format:*)"
     ],
     "deny": [],
     "ask": []

@@ -18,7 +18,10 @@ types_bp = Blueprint("types", __name__, url_prefix="/types")
 
 
 @types_bp.route("", methods=["POST"])
-@api.validate(json=TypeCreateSchema, resp=SpectreeResponse(HTTP_201=TypeResponseSchema, HTTP_400=ErrorResponseSchema))
+@api.validate(
+    json=TypeCreateSchema,
+    resp=SpectreeResponse(HTTP_201=TypeResponseSchema, HTTP_400=ErrorResponseSchema),
+)
 @handle_api_errors
 def create_type():
     """Create new part type."""
@@ -45,17 +48,22 @@ def list_types():
                 name=type_obj.name,
                 created_at=type_obj.created_at,
                 updated_at=type_obj.updated_at,
-                part_count=type_with_stats.part_count
+                part_count=type_with_stats.part_count,
             )
             result.append(type_data.model_dump())
         return result
     else:
         types = TypeService.get_all_types(g.db)
-        return [TypeResponseSchema.model_validate(type_obj).model_dump() for type_obj in types]
+        return [
+            TypeResponseSchema.model_validate(type_obj).model_dump()
+            for type_obj in types
+        ]
 
 
 @types_bp.route("/<int:type_id>", methods=["GET"])
-@api.validate(resp=SpectreeResponse(HTTP_200=TypeResponseSchema, HTTP_404=ErrorResponseSchema))
+@api.validate(
+    resp=SpectreeResponse(HTTP_200=TypeResponseSchema, HTTP_404=ErrorResponseSchema)
+)
 @handle_api_errors
 def get_type(type_id: int):
     """Get single type details."""
@@ -64,7 +72,14 @@ def get_type(type_id: int):
 
 
 @types_bp.route("/<int:type_id>", methods=["PUT"])
-@api.validate(json=TypeUpdateSchema, resp=SpectreeResponse(HTTP_200=TypeResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
+@api.validate(
+    json=TypeUpdateSchema,
+    resp=SpectreeResponse(
+        HTTP_200=TypeResponseSchema,
+        HTTP_400=ErrorResponseSchema,
+        HTTP_404=ErrorResponseSchema,
+    ),
+)
 @handle_api_errors
 def update_type(type_id: int):
     """Update type name."""
@@ -74,7 +89,11 @@ def update_type(type_id: int):
 
 
 @types_bp.route("/<int:type_id>", methods=["DELETE"])
-@api.validate(resp=SpectreeResponse(HTTP_204=None, HTTP_404=ErrorResponseSchema, HTTP_409=ErrorResponseSchema))
+@api.validate(
+    resp=SpectreeResponse(
+        HTTP_204=None, HTTP_404=ErrorResponseSchema, HTTP_409=ErrorResponseSchema
+    )
+)
 @handle_api_errors
 def delete_type(type_id: int):
     """Delete type if not in use."""

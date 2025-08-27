@@ -31,5 +31,6 @@ def main():
         wsgi.logger.info("Using Waitress WSGI server for production")
         serve(wsgi, host=host, port=port, threads=20)
 
+
 if __name__ == "__main__":
     main()

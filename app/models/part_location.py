@@ -28,9 +28,7 @@ class PartLocation(db.Model):  # type: ignore[name-defined]
     )
     box_no: Mapped[int] = mapped_column(nullable=False)
     loc_no: Mapped[int] = mapped_column(nullable=False)
-    location_id: Mapped[int] = mapped_column(
-        ForeignKey("locations.id"), nullable=False
-    )
+    location_id: Mapped[int] = mapped_column(ForeignKey("locations.id"), nullable=False)
     qty: Mapped[int] = mapped_column(nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.now()

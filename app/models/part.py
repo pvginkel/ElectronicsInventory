@@ -23,9 +23,7 @@ class Part(db.Model):  # type: ignore[name-defined]
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     id4: Mapped[str] = mapped_column(CHAR(4), unique=True, nullable=False)
     manufacturer_code: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    type_id: Mapped[int | None] = mapped_column(
-        ForeignKey("types.id"), nullable=True
-    )
+    type_id: Mapped[int | None] = mapped_column(ForeignKey("types.id"), nullable=True)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     tags: Mapped[list[str] | None] = mapped_column(
         postgresql.ARRAY(Text).with_variant(JSON, "sqlite"), nullable=True
@@ -44,10 +42,16 @@ class Part(db.Model):  # type: ignore[name-defined]
         "Type", back_populates="parts", lazy="selectin"
     )
     part_locations: Mapped[list["PartLocation"]] = relationship(  # type: ignore[assignment]
-        "PartLocation", back_populates="part", cascade="all, delete-orphan", lazy="selectin"
+        "PartLocation",
+        back_populates="part",
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
     quantity_history: Mapped[list["QuantityHistory"]] = relationship(  # type: ignore[assignment]
-        "QuantityHistory", back_populates="part", cascade="all, delete-orphan", lazy="selectin"
+        "QuantityHistory",
+        back_populates="part",
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
     def __repr__(self) -> str:

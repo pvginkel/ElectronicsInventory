@@ -15,7 +15,9 @@ from app.services.type_service import TypeService
 class TestPartsAPI:
     """Test cases for parts API endpoints."""
 
-    def test_create_part_minimal(self, app: Flask, client: FlaskClient, session: Session):
+    def test_create_part_minimal(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test creating a part with minimal data."""
         with app.app_context():
             data = {"description": "1k ohm resistor"}
@@ -30,7 +32,9 @@ class TestPartsAPI:
             assert response_data["manufacturer_code"] is None
             assert response_data["total_quantity"] == 0
 
-    def test_create_part_full_data(self, app: Flask, client: FlaskClient, session: Session):
+    def test_create_part_full_data(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test creating a part with full data."""
         with app.app_context():
             # Create type first
@@ -43,7 +47,7 @@ class TestPartsAPI:
                 "type_id": type_obj.id,
                 "tags": ["1k", "5%"],
                 "seller": "Digi-Key",
-                "seller_link": "https://digikey.com/product/123"
+                "seller_link": "https://digikey.com/product/123",
             }
 
             response = client.post("/api/parts", json=data)
@@ -82,7 +86,9 @@ class TestPartsAPI:
             assert all("id4" in part for part in response_data)
             assert all("description" in part for part in response_data)
 
-    def test_list_parts_with_pagination(self, app: Flask, client: FlaskClient, session: Session):
+    def test_list_parts_with_pagination(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test listing parts with pagination parameters."""
         with app.app_context():
             # Create multiple parts
@@ -102,7 +108,9 @@ class TestPartsAPI:
             response_data = json.loads(response.data)
             assert len(response_data) == 2
 
-    def test_list_parts_with_type_filter(self, app: Flask, client: FlaskClient, session: Session):
+    def test_list_parts_with_type_filter(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test listing parts with type filter parameter."""
         with app.app_context():
             # Create types and parts
@@ -112,7 +120,9 @@ class TestPartsAPI:
 
             PartService.create_part(session, "1k resistor", type_id=resistor_type.id)
             PartService.create_part(session, "2k resistor", type_id=resistor_type.id)
-            PartService.create_part(session, "100uF capacitor", type_id=capacitor_type.id)
+            PartService.create_part(
+                session, "100uF capacitor", type_id=capacitor_type.id
+            )
             session.commit()
 
             # Test filtering by resistor type
@@ -139,10 +149,7 @@ class TestPartsAPI:
             # Create a part with type
             type_obj = TypeService.create_type(session, "Resistor")
             part = PartService.create_part(
-                session,
-                "1k resistor",
-                manufacturer_code="RES-1K",
-                type_id=type_obj.id
+                session, "1k resistor", manufacturer_code="RES-1K", type_id=type_obj.id
             )
             session.commit()
 
@@ -171,7 +178,7 @@ class TestPartsAPI:
             update_data = {
                 "description": "Updated description",
                 "manufacturer_code": "NEW-CODE",
-                "tags": ["updated"]
+                "tags": ["updated"],
             }
 
             response = client.put(f"/api/parts/{part.id4}", json=update_data)
@@ -190,7 +197,9 @@ class TestPartsAPI:
         response = client.put("/api/parts/AAAA", json=update_data)
         assert response.status_code == 404
 
-    def test_delete_part_zero_quantity(self, app: Flask, client: FlaskClient, session: Session):
+    def test_delete_part_zero_quantity(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test deleting a part with zero quantity."""
         with app.app_context():
             part = PartService.create_part(session, "To be deleted")
@@ -199,7 +208,9 @@ class TestPartsAPI:
             response = client.delete(f"/api/parts/{part.id4}")
             assert response.status_code == 204
 
-    def test_delete_part_with_quantity(self, app: Flask, client: FlaskClient, session: Session):
+    def test_delete_part_with_quantity(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test deleting a part that has quantity."""
         with app.app_context():
             # Create part with stock
@@ -218,7 +229,9 @@ class TestPartsAPI:
         response = client.delete("/api/parts/AAAA")
         assert response.status_code == 404
 
-    def test_get_part_locations(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_part_locations(
+        self, app: Flask, client: FlaskClient, session: Session
+    ):
         """Test getting locations for a part."""
         with app.app_context():
             # Create part with stock in multiple locations

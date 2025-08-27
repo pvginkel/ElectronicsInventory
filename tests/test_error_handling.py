@@ -43,7 +43,10 @@ class TestDomainExceptions:
         assert exception.message == "Not enough parts available (requested 10, have 3)"
 
         exception_with_location = InsufficientQuantityException(10, 3, "7-3")
-        assert exception_with_location.message == "Not enough parts available at 7-3 (requested 10, have 3)"
+        assert (
+            exception_with_location.message
+            == "Not enough parts available at 7-3 (requested 10, have 3)"
+        )
 
     def test_capacity_exceeded_exception(self):
         """Test CapacityExceededException formatting."""
@@ -95,7 +98,10 @@ class TestBoxServiceExceptions:
             BoxService.delete_box(session, box.box_no)
 
         assert f"Cannot delete box {box.box_no}" in exc_info.value.message
-        assert "it contains parts that must be moved or removed first" in exc_info.value.message
+        assert (
+            "it contains parts that must be moved or removed first"
+            in exc_info.value.message
+        )
 
 
 class TestInventoryServiceExceptions:
@@ -146,7 +152,10 @@ class TestInventoryServiceExceptions:
         with pytest.raises(RecordNotFoundException) as exc_info:
             InventoryService.remove_stock(session, "TEST", box.box_no, 1, 10)
 
-        assert exc_info.value.message == f"Part location TEST at {box.box_no}-1 was not found"
+        assert (
+            exc_info.value.message
+            == f"Part location TEST at {box.box_no}-1 was not found"
+        )
 
     def test_remove_stock_insufficient_quantity(self, session: Session):
         """Test removing more stock than available raises InsufficientQuantityException."""
@@ -162,7 +171,10 @@ class TestInventoryServiceExceptions:
         with pytest.raises(InsufficientQuantityException) as exc_info:
             InventoryService.remove_stock(session, "TEST", box.box_no, 1, 10)
 
-        assert exc_info.value.message == f"Not enough parts available at {box.box_no}-1 (requested 10, have 5)"
+        assert (
+            exc_info.value.message
+            == f"Not enough parts available at {box.box_no}-1 (requested 10, have 5)"
+        )
 
     def test_move_stock_invalid_quantity(self, session: Session):
         """Test moving negative or zero stock raises InvalidOperationException."""
@@ -171,7 +183,9 @@ class TestInventoryServiceExceptions:
         session.commit()
 
         with pytest.raises(InvalidOperationException) as exc_info:
-            InventoryService.move_stock(session, "TEST", box.box_no, 1, box.box_no, 2, 0)
+            InventoryService.move_stock(
+                session, "TEST", box.box_no, 1, box.box_no, 2, 0
+            )
 
         assert "Cannot move negative or zero stock" in exc_info.value.message
         assert "quantity must be positive" in exc_info.value.message
@@ -183,9 +197,14 @@ class TestInventoryServiceExceptions:
         session.commit()
 
         with pytest.raises(RecordNotFoundException) as exc_info:
-            InventoryService.move_stock(session, "TEST", box.box_no, 1, box.box_no, 2, 5)
+            InventoryService.move_stock(
+                session, "TEST", box.box_no, 1, box.box_no, 2, 5
+            )
 
-        assert exc_info.value.message == f"Part location TEST at {box.box_no}-1 was not found"
+        assert (
+            exc_info.value.message
+            == f"Part location TEST at {box.box_no}-1 was not found"
+        )
 
     def test_move_stock_insufficient_quantity(self, session: Session):
         """Test moving more stock than available raises InsufficientQuantityException."""
@@ -199,9 +218,14 @@ class TestInventoryServiceExceptions:
 
         # Try to move 10 parts (more than available)
         with pytest.raises(InsufficientQuantityException) as exc_info:
-            InventoryService.move_stock(session, "TEST", box.box_no, 1, box.box_no, 2, 10)
+            InventoryService.move_stock(
+                session, "TEST", box.box_no, 1, box.box_no, 2, 10
+            )
 
-        assert exc_info.value.message == f"Not enough parts available at {box.box_no}-1 (requested 10, have 5)"
+        assert (
+            exc_info.value.message
+            == f"Not enough parts available at {box.box_no}-1 (requested 10, have 5)"
+        )
 
     def test_move_stock_nonexistent_destination(self, session: Session):
         """Test moving stock to non-existent destination raises RecordNotFoundException."""
@@ -247,14 +271,20 @@ class TestErrorHandlingIntegration:
         session.commit()
 
         # Update box capacity (should work)
-        updated_box = BoxService.update_box_capacity(session, box.box_no, 20, "Updated description")
+        updated_box = BoxService.update_box_capacity(
+            session, box.box_no, 20, "Updated description"
+        )
         assert updated_box.capacity == 20
         session.commit()
 
         # Remove all remaining stock before deleting box
         # After the above operations: 2 items in location 1, 5 items in location 2
-        InventoryService.remove_stock(session, "TEST", box.box_no, 1, 2)  # Remove remaining from location 1
-        InventoryService.remove_stock(session, "TEST", box.box_no, 2, 5)  # Remove all from location 2
+        InventoryService.remove_stock(
+            session, "TEST", box.box_no, 1, 2
+        )  # Remove remaining from location 1
+        InventoryService.remove_stock(
+            session, "TEST", box.box_no, 2, 5
+        )  # Remove all from location 2
         session.commit()
 
         # Delete box (should work now that it's empty)

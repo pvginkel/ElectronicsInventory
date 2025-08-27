@@ -28,9 +28,7 @@ class TestInventoryService:
             session.commit()
 
             # Add stock
-            result = InventoryService.add_stock(
-                session, part.id4, box.box_no, 1, 5
-            )
+            result = InventoryService.add_stock(session, part.id4, box.box_no, 1, 5)
 
             assert isinstance(result, PartLocation)
             assert result.part_id4 == part.id4
@@ -62,7 +60,9 @@ class TestInventoryService:
             session.commit()
 
             # Try to add stock to non-existent location
-            with pytest.raises(RecordNotFoundException, match="Location 999-1 was not found"):
+            with pytest.raises(
+                RecordNotFoundException, match="Location 999-1 was not found"
+            ):
                 InventoryService.add_stock(session, part.id4, 999, 1, 5)
 
     def test_add_stock_zero_quantity(self, app: Flask, session: Session):
@@ -72,7 +72,9 @@ class TestInventoryService:
             part = PartService.create_part(session, "Test part")
             session.commit()
 
-            with pytest.raises(InvalidOperationException, match="Cannot add negative or zero stock"):
+            with pytest.raises(
+                InvalidOperationException, match="Cannot add negative or zero stock"
+            ):
                 InventoryService.add_stock(session, part.id4, box.box_no, 1, 0)
 
     def test_remove_stock_partial(self, app: Flask, session: Session):
@@ -124,7 +126,9 @@ class TestInventoryService:
             session.commit()
 
             # Try to remove more than available
-            with pytest.raises(InsufficientQuantityException, match="Not enough parts available"):
+            with pytest.raises(
+                InsufficientQuantityException, match="Not enough parts available"
+            ):
                 InventoryService.remove_stock(session, part.id4, box.box_no, 1, 5)
 
     def test_remove_stock_nonexistent_location(self, app: Flask, session: Session):
@@ -135,7 +139,9 @@ class TestInventoryService:
             session.commit()
 
             # Try to remove from empty location
-            with pytest.raises(RecordNotFoundException, match="Part location .* was not found"):
+            with pytest.raises(
+                RecordNotFoundException, match="Part location .* was not found"
+            ):
                 InventoryService.remove_stock(session, part.id4, box.box_no, 1, 1)
 
     def test_move_stock_success(self, app: Flask, session: Session):
@@ -175,7 +181,9 @@ class TestInventoryService:
             session.commit()
 
             # Try to move more than available
-            with pytest.raises(InsufficientQuantityException, match="Not enough parts available"):
+            with pytest.raises(
+                InsufficientQuantityException, match="Not enough parts available"
+            ):
                 InventoryService.move_stock(
                     session, part.id4, box.box_no, 1, box.box_no, 2, 5
                 )
@@ -192,10 +200,10 @@ class TestInventoryService:
             session.commit()
 
             # Try to move to non-existent location
-            with pytest.raises(RecordNotFoundException, match="Location 999-1 was not found"):
-                InventoryService.move_stock(
-                    session, part.id4, box.box_no, 1, 999, 1, 3
-                )
+            with pytest.raises(
+                RecordNotFoundException, match="Location 999-1 was not found"
+            ):
+                InventoryService.move_stock(session, part.id4, box.box_no, 1, 999, 1, 3)
 
     def test_get_part_locations(self, app: Flask, session: Session):
         """Test getting all locations for a part."""
@@ -229,7 +237,9 @@ class TestInventoryService:
             assert suggestion is not None
             assert suggestion == (box.box_no, 1)
 
-    def test_suggest_location_with_occupied_locations(self, app: Flask, session: Session):
+    def test_suggest_location_with_occupied_locations(
+        self, app: Flask, session: Session
+    ):
         """Test location suggestion when some locations are occupied."""
         with app.app_context():
             # Setup with occupied location
@@ -269,7 +279,9 @@ class TestInventoryService:
             locations = InventoryService.get_part_locations(session, part.id4)
             assert len(locations) == 0
 
-    def test_calculate_total_quantity_single_location(self, app: Flask, session: Session):
+    def test_calculate_total_quantity_single_location(
+        self, app: Flask, session: Session
+    ):
         """Test calculating total quantity for part with single location."""
         with app.app_context():
             # Setup
@@ -285,7 +297,9 @@ class TestInventoryService:
             total = InventoryService.calculate_total_quantity(session, part.id4)
             assert total == 25
 
-    def test_calculate_total_quantity_multiple_locations(self, app: Flask, session: Session):
+    def test_calculate_total_quantity_multiple_locations(
+        self, app: Flask, session: Session
+    ):
         """Test calculating total quantity for part with multiple locations."""
         with app.app_context():
             # Setup
@@ -333,8 +347,12 @@ class TestInventoryService:
 
             # Add stock to some parts
             InventoryService.add_stock(session, part1.id4, box.box_no, 1, 20)
-            InventoryService.add_stock(session, part1.id4, box.box_no, 2, 30)  # Total: 50
-            InventoryService.add_stock(session, part2.id4, box.box_no, 3, 15)  # Total: 15
+            InventoryService.add_stock(
+                session, part1.id4, box.box_no, 2, 30
+            )  # Total: 50
+            InventoryService.add_stock(
+                session, part2.id4, box.box_no, 3, 15
+            )  # Total: 15
             session.commit()
 
             # Get parts with totals
@@ -343,12 +361,16 @@ class TestInventoryService:
             assert len(parts_with_totals) == 3
 
             # Check totals by part ID
-            totals_by_id = {item.part.id4: item.total_quantity for item in parts_with_totals}
+            totals_by_id = {
+                item.part.id4: item.total_quantity for item in parts_with_totals
+            }
             assert totals_by_id[part1.id4] == 50
             assert totals_by_id[part2.id4] == 15
             assert totals_by_id[part3.id4] == 0
 
-    def test_get_all_parts_with_totals_with_type_filter(self, app: Flask, session: Session):
+    def test_get_all_parts_with_totals_with_type_filter(
+        self, app: Flask, session: Session
+    ):
         """Test getting parts with totals filtered by type."""
         with app.app_context():
             # Setup: create type and parts
@@ -360,7 +382,9 @@ class TestInventoryService:
 
             part1 = PartService.create_part(session, "Resistor part", type_id=type1.id)
             part2 = PartService.create_part(session, "Capacitor part", type_id=type2.id)
-            part3 = PartService.create_part(session, "Another resistor", type_id=type1.id)
+            part3 = PartService.create_part(
+                session, "Another resistor", type_id=type1.id
+            )
             session.commit()
 
             # Add stock
@@ -370,7 +394,9 @@ class TestInventoryService:
             session.commit()
 
             # Get only resistors
-            resistor_parts = InventoryService.get_all_parts_with_totals(session, type_id=type1.id)
+            resistor_parts = InventoryService.get_all_parts_with_totals(
+                session, type_id=type1.id
+            )
 
             assert len(resistor_parts) == 2
 
@@ -391,10 +417,14 @@ class TestInventoryService:
 
             # Add stock to all parts
             for i, part in enumerate(parts):
-                InventoryService.add_stock(session, part.id4, box.box_no, i + 1, (i + 1) * 10)
+                InventoryService.add_stock(
+                    session, part.id4, box.box_no, i + 1, (i + 1) * 10
+                )
             session.commit()
 
             # Test pagination: limit 3, offset 2
-            parts_with_totals = InventoryService.get_all_parts_with_totals(session, limit=3, offset=2)
+            parts_with_totals = InventoryService.get_all_parts_with_totals(
+                session, limit=3, offset=2
+            )
 
             assert len(parts_with_totals) == 3

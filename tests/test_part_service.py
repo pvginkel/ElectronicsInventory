@@ -65,7 +65,7 @@ class TestPartService:
                 type_id=type_obj.id,
                 tags=["1k", "5%", "THT"],
                 seller="Digi-Key",
-                seller_link="https://digikey.com/product/123"
+                seller_link="https://digikey.com/product/123",
             )
 
             assert part.description == "1k ohm resistor"
@@ -92,7 +92,9 @@ class TestPartService:
     def test_get_part_nonexistent(self, app: Flask, session: Session):
         """Test getting a non-existent part."""
         with app.app_context():
-            with pytest.raises(RecordNotFoundException, match="Part AAAA was not found"):
+            with pytest.raises(
+                RecordNotFoundException, match="Part AAAA was not found"
+            ):
                 PartService.get_part(session, "AAAA")
 
     def test_get_parts_list(self, app: Flask, session: Session):
@@ -128,7 +130,9 @@ class TestPartService:
             # Create parts with different types
             PartService.create_part(session, "1k resistor", type_id=resistor_type.id)
             PartService.create_part(session, "2k resistor", type_id=resistor_type.id)
-            PartService.create_part(session, "100uF capacitor", type_id=capacitor_type.id)
+            PartService.create_part(
+                session, "100uF capacitor", type_id=capacitor_type.id
+            )
             PartService.create_part(session, "No type part")  # No type_id
             session.commit()
 
@@ -164,7 +168,7 @@ class TestPartService:
                 part.id4,
                 manufacturer_code="CAP-100UF",
                 type_id=type_obj.id,
-                tags=["100uF", "25V"]
+                tags=["100uF", "25V"],
             )
 
             assert updated_part is not None
@@ -177,7 +181,9 @@ class TestPartService:
     def test_update_part_nonexistent(self, app: Flask, session: Session):
         """Test updating a non-existent part."""
         with app.app_context():
-            with pytest.raises(RecordNotFoundException, match="Part AAAA was not found"):
+            with pytest.raises(
+                RecordNotFoundException, match="Part AAAA was not found"
+            ):
                 PartService.update_part_details(session, "AAAA", description="New desc")
 
     def test_delete_part_zero_quantity(self, app: Flask, session: Session):
@@ -193,7 +199,9 @@ class TestPartService:
     def test_delete_part_nonexistent(self, app: Flask, session: Session):
         """Test deleting a non-existent part."""
         with app.app_context():
-            with pytest.raises(RecordNotFoundException, match="Part AAAA was not found"):
+            with pytest.raises(
+                RecordNotFoundException, match="Part AAAA was not found"
+            ):
                 PartService.delete_part(session, "AAAA")
 
     def test_get_total_quantity_no_locations(self, app: Flask, session: Session):
