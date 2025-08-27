@@ -219,6 +219,51 @@ Reference `docs/product_brief.md` for domain understanding:
 
 Focus on creating well-tested, maintainable code that follows these established patterns. The goal is a robust parts inventory system that stays organized and scales with your electronics hobby.
 
+## Test Data Management
+
+**IMPORTANT**: The project includes a comprehensive fixed test dataset that must be kept up to date with any schema or business logic changes.
+
+### Loading Test Data
+Use the CLI to recreate the database with a consistent, realistic development dataset:
+
+```bash
+# Recreate database and load fixed test dataset
+poetry run python -m app.cli load-test-data --yes-i-am-sure
+```
+
+This command:
+1. Drops all tables and recreates the database schema (like `upgrade-db --recreate`)
+2. Loads fixed test data from JSON files in `app/data/test_data/`
+3. Creates 10 boxes with realistic electronics organization
+4. Loads ~50 realistic electronics parts with proper relationships
+
+### Dataset Maintenance Requirements
+
+**When making schema changes:**
+1. Update the JSON files in `app/data/test_data/` to reflect new fields or relationships
+2. Ensure test data exercises new constraints and validations
+3. Test `load-test-data` command after migrations to verify compatibility
+4. Add new realistic data examples for any new entity types or attributes
+
+**When adding business logic:**
+1. Update test data JSON files to include edge cases for new functionality
+2. Ensure fixed data creates realistic scenarios for testing new features
+3. Verify that all JSON data maintains referential integrity
+
+**The fixed test dataset should always:**
+- Reflect realistic electronics inventory scenarios with proper part organization
+- Exercise all database constraints and relationships
+- Provide diverse, predictable data for comprehensive testing
+- Include edge cases (empty locations, various quantities, different part types)
+- Be consistent and reproducible across all development environments
+
+**JSON Data Files Location**: `app/data/test_data/`
+- `types.json` - Electronics part categories
+- `boxes.json` - Storage box configurations  
+- `parts.json` - Realistic electronics parts data
+- `part_locations.json` - Part distribution across storage locations
+- `quantity_history.json` - Historical stock changes
+
 ## Command Templates
 
 The repository includes command templates for specific development workflows:
