@@ -207,23 +207,16 @@
           "details": {
             "anyOf": [
               {
+                "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71.ErrorDetailsSchema"
+              },
+              {
                 "items": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71.ErrorDetailsSchema"
                 },
                 "type": "array"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
               }
             ],
-            "default": null,
             "description": "Additional error details",
-            "example": [
-              "box_no: field required"
-            ],
             "title": "Details"
           },
           "error": {
@@ -234,9 +227,38 @@
           }
         },
         "required": [
-          "error"
+          "error",
+          "details"
         ],
         "title": "ErrorResponseSchema",
+        "type": "object"
+      },
+      "ErrorResponseSchema.c2a0d71.ErrorDetailsSchema": {
+        "description": "Error details object.",
+        "properties": {
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Field name for validation errors",
+            "title": "Field"
+          },
+          "message": {
+            "description": "Additional error context",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "ErrorDetailsSchema",
         "type": "object"
       },
       "LocationResponseSchema.1cdc15f": {
@@ -1205,7 +1227,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
                 }
               }
             },
