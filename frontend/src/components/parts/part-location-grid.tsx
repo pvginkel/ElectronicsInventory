@@ -152,50 +152,42 @@ function LocationRow({
       return;
     }
 
-    try {
-      if (diff > 0) {
-        // Add stock
-        await addStockMutation.mutateAsync({
-          path: { part_id4: partId },
-          body: {
-            box_no: location.box_no,
-            loc_no: location.loc_no,
-            qty: diff
-          }
-        });
-      } else {
-        // Remove stock
-        await removeStockMutation.mutateAsync({
-          path: { part_id4: partId },
-          body: {
-            box_no: location.box_no,
-            loc_no: location.loc_no,
-            qty: Math.abs(diff)
-          }
-        });
-      }
-      
-      onStopEdit();
-      onQuantityChange();
-    } catch (error) {
-      console.error('Failed to update quantity:', error);
-    }
-  };
-
-  const handleRemove = async () => {
-    try {
+    if (diff > 0) {
+      // Add stock
+      await addStockMutation.mutateAsync({
+        path: { part_id4: partId },
+        body: {
+          box_no: location.box_no,
+          loc_no: location.loc_no,
+          qty: diff
+        }
+      });
+    } else {
+      // Remove stock
       await removeStockMutation.mutateAsync({
         path: { part_id4: partId },
         body: {
           box_no: location.box_no,
           loc_no: location.loc_no,
-          qty: location.qty
+          qty: Math.abs(diff)
         }
       });
-      onRemove();
-    } catch (error) {
-      console.error('Failed to remove stock:', error);
     }
+    
+    onStopEdit();
+    onQuantityChange();
+  };
+
+  const handleRemove = async () => {
+    await removeStockMutation.mutateAsync({
+      path: { part_id4: partId },
+      body: {
+        box_no: location.box_no,
+        loc_no: location.loc_no,
+        qty: location.qty
+      }
+    });
+    onRemove();
   };
 
   const handleCancel = () => {
@@ -282,19 +274,15 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
       return;
     }
 
-    try {
-      await addStockMutation.mutateAsync({
-        path: { part_id4: partId },
-        body: {
-          box_no: box,
-          loc_no: loc,
-          qty: qty
-        }
-      });
-      onAdd();
-    } catch (error) {
-      console.error('Failed to add stock:', error);
-    }
+    await addStockMutation.mutateAsync({
+      path: { part_id4: partId },
+      body: {
+        box_no: box,
+        loc_no: loc,
+        qty: qty
+      }
+    });
+    onAdd();
   };
 
   const handleUseSuggestion = () => {

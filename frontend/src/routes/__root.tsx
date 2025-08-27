@@ -1,14 +1,25 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/router-devtools'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { Sidebar } from '@/components/layout/sidebar'
-
-const queryClient = new QueryClient()
+import { ToastProvider } from '@/contexts/toast-context'
+import { queryClient, setToastFunction } from '@/lib/query-client'
+import { useToast } from '@/hooks/use-toast'
 
 export const Route = createRootRoute({
   component: RootLayout,
 })
+
+function QuerySetup({ children }: { children: React.ReactNode }) {
+  const { showError } = useToast()
+
+  useEffect(() => {
+    setToastFunction(showError)
+  }, [showError])
+
+  return <>{children}</>
+}
 
 function RootLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -16,7 +27,9 @@ function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex h-screen overflow-hidden">
+      <ToastProvider>
+        <QuerySetup>
+          <div className="flex h-screen overflow-hidden">
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <Sidebar
@@ -56,7 +69,9 @@ function RootLayout() {
       </div>
 
       <TanStackRouterDevtools />
-      </div>
+          </div>
+        </QuerySetup>
+      </ToastProvider>
     </QueryClientProvider>
   )
 }

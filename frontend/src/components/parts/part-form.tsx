@@ -81,38 +81,33 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
 
     setErrors({});
 
-    try {
-      if (isEditing && partId) {
-        // Update existing part
-        const result = await updatePartMutation.mutateAsync({
-          path: { part_id4: partId },
-          body: {
-            description: formData.description,
-            manufacturer_code: formData.manufacturerCode || null,
-            type_id: formData.typeId || null,
-            tags: formData.tags.length > 0 ? formData.tags : null,
-            seller: formData.seller || null,
-            seller_link: formData.sellerLink || null,
-          }
-        });
-        onSuccess(result.id4);
-      } else {
-        // Create new part
-        const result = await createPartMutation.mutateAsync({
-          body: {
-            description: formData.description,
-            manufacturer_code: formData.manufacturerCode || null,
-            type_id: formData.typeId || null,
-            tags: formData.tags.length > 0 ? formData.tags : null,
-            seller: formData.seller || null,
-            seller_link: formData.sellerLink || null,
-          }
-        });
-        onSuccess(result.id4);
-      }
-    } catch (error) {
-      console.error('Failed to save part:', error);
-      setErrors({ submit: 'Failed to save part. Please try again.' });
+    if (isEditing && partId) {
+      // Update existing part
+      const result = await updatePartMutation.mutateAsync({
+        path: { part_id4: partId },
+        body: {
+          description: formData.description,
+          manufacturer_code: formData.manufacturerCode || null,
+          type_id: formData.typeId || null,
+          tags: formData.tags.length > 0 ? formData.tags : null,
+          seller: formData.seller || null,
+          seller_link: formData.sellerLink || null,
+        }
+      });
+      onSuccess(result.id4);
+    } else {
+      // Create new part
+      const result = await createPartMutation.mutateAsync({
+        body: {
+          description: formData.description,
+          manufacturer_code: formData.manufacturerCode || null,
+          type_id: formData.typeId || null,
+          tags: formData.tags.length > 0 ? formData.tags : null,
+          seller: formData.seller || null,
+          seller_link: formData.sellerLink || null,
+        }
+      });
+      onSuccess(result.id4);
     }
   };
 
@@ -217,7 +212,6 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
           </FormField>
         </div>
 
-        <FormError message={errors.submit} />
 
         <div className="flex justify-end gap-3 pt-4">
           {onCancel && (

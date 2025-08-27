@@ -36,16 +36,11 @@ export function PartDetails({ partId }: PartDetailsProps) {
     });
 
     if (confirmed) {
-      try {
-        await deletePartMutation.mutateAsync({
-          path: { part_id4: partId }
-        });
-        // Navigate back to parts list after successful deletion
-        navigate({ to: '/parts' });
-      } catch (error) {
-        console.error('Failed to delete part:', error);
-        // The error will be handled by the mutation error handling
-      }
+      await deletePartMutation.mutateAsync({
+        path: { part_id4: partId }
+      });
+      // Navigate back to parts list after successful deletion
+      navigate({ to: '/parts' });
     }
   };
 

@@ -43,19 +43,15 @@ export function AddStockDialog({ partId, typeId, open, onOpenChange, onSuccess }
       return;
     }
 
-    try {
-      await addStockMutation.mutateAsync({
-        path: { part_id4: partId },
-        body: { box_no: boxNo, loc_no: locNo, qty }
-      });
-      
-      setFormData({ boxNo: '', locNo: '', quantity: '' });
-      setErrors({});
-      onSuccess();
-      onOpenChange(false);
-    } catch {
-      setErrors({ submit: 'Failed to add stock. Please try again.' });
-    }
+    await addStockMutation.mutateAsync({
+      path: { part_id4: partId },
+      body: { box_no: boxNo, loc_no: locNo, qty }
+    });
+    
+    setFormData({ boxNo: '', locNo: '', quantity: '' });
+    setErrors({});
+    onSuccess();
+    onOpenChange(false);
   };
 
   const handleUseSuggestion = () => {
@@ -139,7 +135,6 @@ export function AddStockDialog({ partId, typeId, open, onOpenChange, onSuccess }
             </div>
           )}
 
-          <FormError message={errors.submit} />
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleCancel}>
@@ -198,25 +193,21 @@ export function MoveStockDialog({ partId, fromLocation, open, onOpenChange, onSu
       return;
     }
 
-    try {
-      await moveStockMutation.mutateAsync({
-        path: { part_id4: partId },
-        body: {
-          from_box_no: fromLocation.box_no,
-          from_loc_no: fromLocation.loc_no,
-          to_box_no: toBoxNo,
-          to_loc_no: toLocNo,
-          qty
-        }
-      });
-      
-      setFormData({ toBoxNo: '', toLocNo: '', quantity: '1' });
-      setErrors({});
-      onSuccess();
-      onOpenChange(false);
-    } catch {
-      setErrors({ submit: 'Failed to move stock. Please try again.' });
-    }
+    await moveStockMutation.mutateAsync({
+      path: { part_id4: partId },
+      body: {
+        from_box_no: fromLocation.box_no,
+        from_loc_no: fromLocation.loc_no,
+        to_box_no: toBoxNo,
+        to_loc_no: toLocNo,
+        qty
+      }
+    });
+    
+    setFormData({ toBoxNo: '', toLocNo: '', quantity: '1' });
+    setErrors({});
+    onSuccess();
+    onOpenChange(false);
   };
 
   const handleCancel = () => {
@@ -283,7 +274,6 @@ export function MoveStockDialog({ partId, fromLocation, open, onOpenChange, onSu
             <FormError message={errors.quantity} />
           </FormField>
 
-          <FormError message={errors.submit} />
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleCancel}>
@@ -325,23 +315,19 @@ export function RemoveStockDialog({ partId, location, open, onOpenChange, onSucc
       return;
     }
 
-    try {
-      await removeStockMutation.mutateAsync({
-        path: { part_id4: partId },
-        body: {
-          box_no: location.box_no,
-          loc_no: location.loc_no,
-          qty
-        }
-      });
-      
-      setQuantity(location.qty.toString());
-      setErrors({});
-      onSuccess();
-      onOpenChange(false);
-    } catch {
-      setErrors({ submit: 'Failed to remove stock. Please try again.' });
-    }
+    await removeStockMutation.mutateAsync({
+      path: { part_id4: partId },
+      body: {
+        box_no: location.box_no,
+        loc_no: location.loc_no,
+        qty
+      }
+    });
+    
+    setQuantity(location.qty.toString());
+    setErrors({});
+    onSuccess();
+    onOpenChange(false);
   };
 
   const handleCancel = () => {
@@ -378,7 +364,6 @@ export function RemoveStockDialog({ partId, location, open, onOpenChange, onSucc
             <FormError message={errors.quantity} />
           </FormField>
 
-          <FormError message={errors.submit} />
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleCancel}>

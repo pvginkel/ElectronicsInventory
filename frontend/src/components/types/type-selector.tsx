@@ -130,21 +130,17 @@ export function TypeSelector({ value, onChange, placeholder = "Search or create 
   const handleConfirmCreate = async (typeName: string) => {
     if (!typeName.trim()) return;
     
-    try {
-      const result = await createTypeMutation.mutateAsync({
-        body: { name: typeName.trim() }
-      });
-      
-      onChange(result.id);
-      setSearchTerm(result.name);
-      setSelectedTypeName(result.name);
-      setIsUserEditing(false);
-      setShowCreateDialog(false);
-      setShowDropdown(false);
-      setCreateTypeName('');
-    } catch (error) {
-      console.error('Failed to create type:', error);
-    }
+    const result = await createTypeMutation.mutateAsync({
+      body: { name: typeName.trim() }
+    });
+    
+    onChange(result.id);
+    setSearchTerm(result.name);
+    setSelectedTypeName(result.name);
+    setIsUserEditing(false);
+    setShowCreateDialog(false);
+    setShowDropdown(false);
+    setCreateTypeName('');
   };
 
   const handleCancelCreate = () => {
