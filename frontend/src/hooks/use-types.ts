@@ -28,27 +28,15 @@ export function useTypesSearch(searchTerm: string) {
 }
 
 export function useCreateType() {
-  return usePostTypes({
-    onError: (error: unknown) => {
-      console.error('Failed to create type:', error);
-    },
-  });
+  return usePostTypes();
 }
 
 export function useUpdateType() {
-  return usePutTypesByTypeId({
-    onError: (error: unknown) => {
-      console.error('Failed to update type:', error);
-    },
-  });
+  return usePutTypesByTypeId();
 }
 
 export function useDeleteType() {
-  return useDeleteTypesByTypeId({
-    onError: (error: unknown) => {
-      console.error('Failed to delete type:', error);
-    },
-  });
+  return useDeleteTypesByTypeId();
 }
 
 export function useLocationSuggestions(typeId: number | undefined) {
