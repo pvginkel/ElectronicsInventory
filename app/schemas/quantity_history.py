@@ -1,7 +1,6 @@
 """Quantity History schemas for request/response validation."""
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -21,7 +20,7 @@ class QuantityHistoryResponseSchema(BaseModel):
         description="Quantity change (positive for additions, negative for removals)",
         json_schema_extra={"example": -5}
     )
-    location_reference: Optional[str] = Field(
+    location_reference: str | None = Field(
         description="Location reference where change occurred",
         json_schema_extra={"example": "7-3"}
     )

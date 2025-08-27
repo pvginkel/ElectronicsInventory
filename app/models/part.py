@@ -22,16 +22,16 @@ class Part(db.Model):  # type: ignore[name-defined]
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     id4: Mapped[str] = mapped_column(CHAR(4), unique=True, nullable=False)
-    manufacturer_code: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    type_id: Mapped[Optional[int]] = mapped_column(
+    manufacturer_code: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    type_id: Mapped[int | None] = mapped_column(
         ForeignKey("types.id"), nullable=True
     )
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    tags: Mapped[Optional[list[str]]] = mapped_column(
+    tags: Mapped[list[str] | None] = mapped_column(
         postgresql.ARRAY(Text).with_variant(JSON, "sqlite"), nullable=True
     )
-    seller: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    seller_link: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    seller: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    seller_link: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.now()
     )

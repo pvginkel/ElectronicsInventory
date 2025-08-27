@@ -1,7 +1,6 @@
 """Part schemas for request/response validation."""
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -11,13 +10,13 @@ from app.schemas.type import TypeResponseSchema
 class PartCreateSchema(BaseModel):
     """Schema for creating a new part."""
 
-    manufacturer_code: Optional[str] = Field(
+    manufacturer_code: str | None = Field(
         None,
         max_length=255,
         description="Manufacturer's part number or code",
         json_schema_extra={"example": "OMRON G5Q-1A4"}
     )
-    type_id: Optional[int] = Field(
+    type_id: int | None = Field(
         None,
         description="ID of the part type/category",
         json_schema_extra={"example": 1}
@@ -28,18 +27,18 @@ class PartCreateSchema(BaseModel):
         description="Free text description of the part",
         json_schema_extra={"example": "12V SPDT relay with 40A contacts"}
     )
-    tags: Optional[list[str]] = Field(
+    tags: list[str] | None = Field(
         None,
         description="Tags for categorization and search",
         json_schema_extra={"example": ["12V", "SPDT", "automotive"]}
     )
-    seller: Optional[str] = Field(
+    seller: str | None = Field(
         None,
         max_length=255,
         description="Vendor/supplier name",
         json_schema_extra={"example": "Digi-Key"}
     )
-    seller_link: Optional[str] = Field(
+    seller_link: str | None = Field(
         None,
         max_length=500,
         description="Product page URL at seller",
@@ -50,35 +49,35 @@ class PartCreateSchema(BaseModel):
 class PartUpdateSchema(BaseModel):
     """Schema for updating an existing part."""
 
-    manufacturer_code: Optional[str] = Field(
+    manufacturer_code: str | None = Field(
         None,
         max_length=255,
         description="Updated manufacturer's part number",
         json_schema_extra={"example": "OMRON G5Q-1A4-DC12"}
     )
-    type_id: Optional[int] = Field(
+    type_id: int | None = Field(
         None,
         description="Updated part type/category ID",
         json_schema_extra={"example": 2}
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         None,
         min_length=1,
         description="Updated description",
         json_schema_extra={"example": "12V SPDT automotive relay with 40A contacts"}
     )
-    tags: Optional[list[str]] = Field(
+    tags: list[str] | None = Field(
         None,
         description="Updated tags",
         json_schema_extra={"example": ["12V", "SPDT", "automotive", "waterproof"]}
     )
-    seller: Optional[str] = Field(
+    seller: str | None = Field(
         None,
         max_length=255,
         description="Updated seller name",
         json_schema_extra={"example": "Mouser Electronics"}
     )
-    seller_link: Optional[str] = Field(
+    seller_link: str | None = Field(
         None,
         max_length=500,
         description="Updated product page URL",
@@ -93,15 +92,15 @@ class PartResponseSchema(BaseModel):
         description="4-character unique part identifier",
         json_schema_extra={"example": "BZQP"}
     )
-    manufacturer_code: Optional[str] = Field(
+    manufacturer_code: str | None = Field(
         description="Manufacturer's part number",
         json_schema_extra={"example": "OMRON G5Q-1A4"}
     )
-    type_id: Optional[int] = Field(
+    type_id: int | None = Field(
         description="Part type/category ID",
         json_schema_extra={"example": 1}
     )
-    type: Optional[TypeResponseSchema] = Field(
+    type: TypeResponseSchema | None = Field(
         description="Part type/category details",
         default=None
     )
@@ -109,15 +108,15 @@ class PartResponseSchema(BaseModel):
         description="Free text description",
         json_schema_extra={"example": "12V SPDT relay with 40A contacts"}
     )
-    tags: Optional[list[str]] = Field(
+    tags: list[str] | None = Field(
         description="Tags for categorization",
         json_schema_extra={"example": ["12V", "SPDT", "automotive"]}
     )
-    seller: Optional[str] = Field(
+    seller: str | None = Field(
         description="Vendor/supplier name",
         json_schema_extra={"example": "Digi-Key"}
     )
-    seller_link: Optional[str] = Field(
+    seller_link: str | None = Field(
         description="Product page URL",
         json_schema_extra={"example": "https://www.digikey.com/en/products/detail/G5Q-1A4"}
     )
@@ -147,7 +146,7 @@ class PartListSchema(BaseModel):
         description="4-character unique part identifier",
         json_schema_extra={"example": "BZQP"}
     )
-    manufacturer_code: Optional[str] = Field(
+    manufacturer_code: str | None = Field(
         description="Manufacturer's part number",
         json_schema_extra={"example": "OMRON G5Q-1A4"}
     )
@@ -172,7 +171,7 @@ class PartWithTotalSchema(BaseModel):
         description="4-character unique part identifier",
         json_schema_extra={"example": "BZQP"}
     )
-    manufacturer_code: Optional[str] = Field(
+    manufacturer_code: str | None = Field(
         description="Manufacturer's part number",
         json_schema_extra={"example": "OMRON G5Q-1A4"}
     )
@@ -180,15 +179,15 @@ class PartWithTotalSchema(BaseModel):
         description="Free text description",
         json_schema_extra={"example": "12V SPDT relay with 40A contacts"}
     )
-    type_id: Optional[int] = Field(
+    type_id: int | None = Field(
         description="Part type/category ID",
         json_schema_extra={"example": 1}
     )
-    tags: Optional[list[str]] = Field(
+    tags: list[str] | None = Field(
         description="Tags for categorization",
         json_schema_extra={"example": ["12V", "SPDT", "automotive"]}
     )
-    seller: Optional[str] = Field(
+    seller: str | None = Field(
         description="Vendor/supplier name",
         json_schema_extra={"example": "Digi-Key"}
     )

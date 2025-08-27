@@ -1,6 +1,5 @@
 """Inventory service for managing part locations and quantities."""
 
-from typing import Optional
 
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
@@ -201,7 +200,7 @@ class InventoryService:
         return list(db.execute(stmt).scalars().all())
 
     @staticmethod
-    def suggest_location(db: Session, type_id: Optional[int]) -> tuple[int, int]:
+    def suggest_location(db: Session, type_id: int | None) -> tuple[int, int]:
         """Suggest a location for a part based on type and availability."""
         # For now, implement simple first-available algorithm
         # Future enhancement: prefer same-category boxes
@@ -249,7 +248,7 @@ class InventoryService:
         return result or 0
 
     @staticmethod
-    def get_all_parts_with_totals(db: Session, limit: int = 50, offset: int = 0, type_id: Optional[int] = None) -> list[dict]:
+    def get_all_parts_with_totals(db: Session, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list[dict]:
         """Get all parts with their total quantities calculated."""
         from sqlalchemy import func
 

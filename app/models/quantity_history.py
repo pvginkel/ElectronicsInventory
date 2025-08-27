@@ -1,7 +1,7 @@
 """Quantity History model for Electronics Inventory."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import CHAR, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -22,7 +22,7 @@ class QuantityHistory(db.Model):  # type: ignore[name-defined]
         CHAR(4), ForeignKey("parts.id4"), nullable=False
     )
     delta_qty: Mapped[int] = mapped_column(nullable=False)
-    location_reference: Mapped[Optional[str]] = mapped_column(
+    location_reference: Mapped[str | None] = mapped_column(
         String(20), nullable=True
     )
     timestamp: Mapped[datetime] = mapped_column(

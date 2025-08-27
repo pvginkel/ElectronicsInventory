@@ -2,7 +2,6 @@
 
 import random
 import string
-from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -19,7 +18,7 @@ class PartService:
     def generate_part_id4(db: Session) -> str:
         """Generate unique 4-character part ID with collision handling."""
         max_attempts = 3
-        for attempt in range(max_attempts):
+        for _ in range(max_attempts):
             # Generate 4 random uppercase letters
             id4 = "".join(random.choices(string.ascii_uppercase, k=4))
 
@@ -35,11 +34,11 @@ class PartService:
     def create_part(
         db: Session,
         description: str,
-        manufacturer_code: Optional[str] = None,
-        type_id: Optional[int] = None,
-        tags: Optional[list[str]] = None,
-        seller: Optional[str] = None,
-        seller_link: Optional[str] = None,
+        manufacturer_code: str | None = None,
+        type_id: int | None = None,
+        tags: list[str] | None = None,
+        seller: str | None = None,
+        seller_link: str | None = None,
     ) -> Part:
         """Create a new part with auto-generated ID."""
         id4 = PartService.generate_part_id4(db)
@@ -67,7 +66,7 @@ class PartService:
         return part
 
     @staticmethod
-    def get_parts_list(db: Session, limit: int = 50, offset: int = 0, type_id: Optional[int] = None) -> list[Part]:
+    def get_parts_list(db: Session, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list[Part]:
         """List parts with pagination, ordered by creation date."""
         stmt = select(Part).order_by(Part.created_at.desc())
 
@@ -82,12 +81,12 @@ class PartService:
     def update_part_details(
         db: Session,
         part_id4: str,
-        manufacturer_code: Optional[str] = None,
-        type_id: Optional[int] = None,
-        description: Optional[str] = None,
-        tags: Optional[list[str]] = None,
-        seller: Optional[str] = None,
-        seller_link: Optional[str] = None,
+        manufacturer_code: str | None = None,
+        type_id: int | None = None,
+        description: str | None = None,
+        tags: list[str] | None = None,
+        seller: str | None = None,
+        seller_link: str | None = None,
     ) -> Part:
         """Update part details."""
         stmt = select(Part).where(Part.id4 == part_id4)
