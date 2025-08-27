@@ -6,10 +6,10 @@ from spectree import Response as SpectreeResponse
 from app.schemas.common import ErrorResponseSchema
 from app.schemas.part import (
     PartCreateSchema,
-    PartListSchema,
     PartLocationResponseSchema,
     PartResponseSchema,
     PartUpdateSchema,
+    PartWithTotalSchema,
 )
 from app.schemas.quantity_history import QuantityHistoryResponseSchema
 from app.services.inventory_service import InventoryService
@@ -40,18 +40,37 @@ def create_part():
 
 
 @parts_bp.route("", methods=["GET"])
-@api.validate(resp=SpectreeResponse(HTTP_200=list[PartListSchema]))
+@api.validate(resp=SpectreeResponse(HTTP_200=list[PartWithTotalSchema]))
 @handle_api_errors
 def list_parts():
-    """List parts with pagination."""
+    """List parts with pagination and total quantities."""
     limit = int(request.args.get("limit", 50))
     offset = int(request.args.get("offset", 0))
     type_filter = request.args.get("type_id", type=int)
 
-    # Get parts with optional type filtering
-    parts = PartService.get_parts_list(g.db, limit, offset, type_filter)
+    # Get parts with calculated total quantities
+    parts_with_totals = InventoryService.get_all_parts_with_totals(g.db, limit, offset, type_filter)
 
-    return [PartListSchema.model_validate(part).model_dump() for part in parts]
+    result = []
+    for item in parts_with_totals:
+        part = item['part']
+        total_qty = item['total_quantity']
+
+        # Create schema instance with calculated total
+        part_data = PartWithTotalSchema(
+            id4=part.id4,
+            manufacturer_code=part.manufacturer_code,
+            description=part.description,
+            type_id=part.type_id,
+            tags=part.tags,
+            seller=part.seller,
+            created_at=part.created_at,
+            updated_at=part.updated_at,
+            total_quantity=total_qty
+        )
+        result.append(part_data.model_dump())
+
+    return result
 
 
 @parts_bp.route("/<string:part_id4>", methods=["GET"])
@@ -98,7 +117,8 @@ def delete_part(part_id4: str):
 @handle_api_errors
 def get_part_locations(part_id4: str):
     """Get all locations for a part."""
-    part = PartService.get_part(g.db, part_id4)
+    # Ensure part exists
+    PartService.get_part(g.db, part_id4)
     locations = InventoryService.get_part_locations(g.db, part_id4)
 
     return [
@@ -118,7 +138,7 @@ def get_part_locations(part_id4: str):
 def get_part_history(part_id4: str):
     """Get quantity change history for a part."""
     part = PartService.get_part(g.db, part_id4)
-    
+
     # History is loaded with the part via relationship
     return [
         QuantityHistoryResponseSchema.model_validate(history).model_dump()

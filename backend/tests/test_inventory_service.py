@@ -1,14 +1,19 @@
 """Tests for inventory service functionality."""
 
+import pytest
 from flask import Flask
 from sqlalchemy.orm import Session
 
+from app.exceptions import (
+    InsufficientQuantityException,
+    InvalidOperationException,
+    RecordNotFoundException,
+)
 from app.models.part_location import PartLocation
 from app.services.box_service import BoxService
 from app.services.inventory_service import InventoryService
 from app.services.part_service import PartService
-from app.exceptions import RecordNotFoundException, InvalidOperationException, InsufficientQuantityException
-import pytest
+from app.services.type_service import TypeService
 
 
 class TestInventoryService:
@@ -263,3 +268,133 @@ class TestInventoryService:
             # All locations should be cleaned up
             locations = InventoryService.get_part_locations(session, part.id4)
             assert len(locations) == 0
+
+    def test_calculate_total_quantity_single_location(self, app: Flask, session: Session):
+        """Test calculating total quantity for part with single location."""
+        with app.app_context():
+            # Setup
+            box = BoxService.create_box(session, "Test Box", 10)
+            part = PartService.create_part(session, "Test part")
+            session.commit()
+
+            # Add stock
+            InventoryService.add_stock(session, part.id4, box.box_no, 1, 25)
+            session.commit()
+
+            # Calculate total
+            total = InventoryService.calculate_total_quantity(session, part.id4)
+            assert total == 25
+
+    def test_calculate_total_quantity_multiple_locations(self, app: Flask, session: Session):
+        """Test calculating total quantity for part with multiple locations."""
+        with app.app_context():
+            # Setup
+            box = BoxService.create_box(session, "Test Box", 10)
+            part = PartService.create_part(session, "Test part")
+            session.commit()
+
+            # Add stock to multiple locations
+            InventoryService.add_stock(session, part.id4, box.box_no, 1, 15)
+            InventoryService.add_stock(session, part.id4, box.box_no, 3, 10)
+            InventoryService.add_stock(session, part.id4, box.box_no, 7, 5)
+            session.commit()
+
+            # Calculate total
+            total = InventoryService.calculate_total_quantity(session, part.id4)
+            assert total == 30
+
+    def test_calculate_total_quantity_no_stock(self, app: Flask, session: Session):
+        """Test calculating total quantity for part with no stock."""
+        with app.app_context():
+            # Create part but don't add any stock
+            part = PartService.create_part(session, "Test part")
+            session.commit()
+
+            # Calculate total
+            total = InventoryService.calculate_total_quantity(session, part.id4)
+            assert total == 0
+
+    def test_get_all_parts_with_totals_empty(self, app: Flask, session: Session):
+        """Test getting all parts with totals when no parts exist."""
+        with app.app_context():
+            parts_with_totals = InventoryService.get_all_parts_with_totals(session)
+            assert parts_with_totals == []
+
+    def test_get_all_parts_with_totals_basic(self, app: Flask, session: Session):
+        """Test getting all parts with calculated totals."""
+        with app.app_context():
+            # Setup: create parts with different stock levels
+            box = BoxService.create_box(session, "Test Box", 10)
+
+            part1 = PartService.create_part(session, "Part 1")
+            part2 = PartService.create_part(session, "Part 2")
+            part3 = PartService.create_part(session, "Part 3")  # No stock
+            session.commit()
+
+            # Add stock to some parts
+            InventoryService.add_stock(session, part1.id4, box.box_no, 1, 20)
+            InventoryService.add_stock(session, part1.id4, box.box_no, 2, 30)  # Total: 50
+            InventoryService.add_stock(session, part2.id4, box.box_no, 3, 15)  # Total: 15
+            session.commit()
+
+            # Get parts with totals
+            parts_with_totals = InventoryService.get_all_parts_with_totals(session)
+
+            assert len(parts_with_totals) == 3
+
+            # Check totals by part ID
+            totals_by_id = {item['part'].id4: item['total_quantity'] for item in parts_with_totals}
+            assert totals_by_id[part1.id4] == 50
+            assert totals_by_id[part2.id4] == 15
+            assert totals_by_id[part3.id4] == 0
+
+    def test_get_all_parts_with_totals_with_type_filter(self, app: Flask, session: Session):
+        """Test getting parts with totals filtered by type."""
+        with app.app_context():
+            # Setup: create type and parts
+            type1 = TypeService.create_type(session, "Resistor")
+            type2 = TypeService.create_type(session, "Capacitor")
+            session.commit()
+
+            box = BoxService.create_box(session, "Test Box", 10)
+
+            part1 = PartService.create_part(session, "Resistor part", type_id=type1.id)
+            part2 = PartService.create_part(session, "Capacitor part", type_id=type2.id)
+            part3 = PartService.create_part(session, "Another resistor", type_id=type1.id)
+            session.commit()
+
+            # Add stock
+            InventoryService.add_stock(session, part1.id4, box.box_no, 1, 100)
+            InventoryService.add_stock(session, part2.id4, box.box_no, 2, 50)
+            InventoryService.add_stock(session, part3.id4, box.box_no, 3, 75)
+            session.commit()
+
+            # Get only resistors
+            resistor_parts = InventoryService.get_all_parts_with_totals(session, type_id=type1.id)
+
+            assert len(resistor_parts) == 2
+
+            # Verify all returned parts are resistors
+            for item in resistor_parts:
+                assert item['part'].type_id == type1.id
+
+    def test_get_all_parts_with_totals_pagination(self, app: Flask, session: Session):
+        """Test pagination in get_all_parts_with_totals."""
+        with app.app_context():
+            # Create multiple parts
+            box = BoxService.create_box(session, "Test Box", 20)
+            parts = []
+            for i in range(5):
+                part = PartService.create_part(session, f"Part {i}")
+                parts.append(part)
+            session.commit()
+
+            # Add stock to all parts
+            for i, part in enumerate(parts):
+                InventoryService.add_stock(session, part.id4, box.box_no, i + 1, (i + 1) * 10)
+            session.commit()
+
+            # Test pagination: limit 3, offset 2
+            parts_with_totals = InventoryService.get_all_parts_with_totals(session, limit=3, offset=2)
+
+            assert len(parts_with_totals) == 3

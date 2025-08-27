@@ -400,3 +400,161 @@ class TestBoxService:
 
             remaining_box2 = BoxService.get_box(session, box2.box_no)
             assert remaining_box2.box_no == box2.box_no
+
+    def test_calculate_box_usage_empty_box(self, app: Flask, session: Session):
+        """Test calculating usage for an empty box."""
+        with app.app_context():
+            # Create empty box
+            box = BoxService.create_box(session, "Empty Box", 20)
+            session.commit()
+
+            usage_stats = BoxService.calculate_box_usage(session, box.box_no)
+
+            assert usage_stats['box_no'] == box.box_no
+            assert usage_stats['total_locations'] == 20
+            assert usage_stats['occupied_locations'] == 0
+            assert usage_stats['available_locations'] == 20
+            assert usage_stats['usage_percentage'] == 0.0
+
+    def test_calculate_box_usage_partially_filled(self, app: Flask, session: Session):
+        """Test calculating usage for a partially filled box."""
+        with app.app_context():
+            # Create box and add parts to some locations
+            box = BoxService.create_box(session, "Partial Box", 10)
+            session.commit()
+
+            # Add parts to 3 different locations (30% usage)
+            InventoryService.add_stock(session, "PART", box.box_no, 1, 5)
+            InventoryService.add_stock(session, "TEST", box.box_no, 3, 10)
+            InventoryService.add_stock(session, "DEMO", box.box_no, 7, 2)
+            session.commit()
+
+            usage_stats = BoxService.calculate_box_usage(session, box.box_no)
+
+            assert usage_stats['box_no'] == box.box_no
+            assert usage_stats['total_locations'] == 10
+            assert usage_stats['occupied_locations'] == 3
+            assert usage_stats['available_locations'] == 7
+            assert usage_stats['usage_percentage'] == 30.0
+
+    def test_calculate_box_usage_same_part_multiple_locations(self, app: Flask, session: Session):
+        """Test calculating usage when same part is in multiple locations."""
+        with app.app_context():
+            # Create box and add same part to multiple locations
+            box = BoxService.create_box(session, "Multi-location Box", 5)
+            session.commit()
+
+            # Add same part to 4 different locations (80% usage)
+            InventoryService.add_stock(session, "PART", box.box_no, 1, 10)
+            InventoryService.add_stock(session, "PART", box.box_no, 2, 5)
+            InventoryService.add_stock(session, "PART", box.box_no, 4, 15)
+            InventoryService.add_stock(session, "PART", box.box_no, 5, 20)
+            session.commit()
+
+            usage_stats = BoxService.calculate_box_usage(session, box.box_no)
+
+            assert usage_stats['box_no'] == box.box_no
+            assert usage_stats['total_locations'] == 5
+            assert usage_stats['occupied_locations'] == 4
+            assert usage_stats['available_locations'] == 1
+            assert usage_stats['usage_percentage'] == 80.0
+
+    def test_calculate_box_usage_completely_filled(self, app: Flask, session: Session):
+        """Test calculating usage for a completely filled box."""
+        with app.app_context():
+            # Create small box and fill all locations
+            box = BoxService.create_box(session, "Full Box", 3)
+            session.commit()
+
+            # Fill all 3 locations
+            InventoryService.add_stock(session, "PART", box.box_no, 1, 100)
+            InventoryService.add_stock(session, "TEST", box.box_no, 2, 50)
+            InventoryService.add_stock(session, "DEMO", box.box_no, 3, 25)
+            session.commit()
+
+            usage_stats = BoxService.calculate_box_usage(session, box.box_no)
+
+            assert usage_stats['box_no'] == box.box_no
+            assert usage_stats['total_locations'] == 3
+            assert usage_stats['occupied_locations'] == 3
+            assert usage_stats['available_locations'] == 0
+            assert usage_stats['usage_percentage'] == 100.0
+
+    def test_calculate_box_usage_nonexistent_box(self, app: Flask, session: Session):
+        """Test calculating usage for a non-existent box raises exception."""
+        with app.app_context():
+            from app.exceptions import RecordNotFoundException
+
+            with pytest.raises(RecordNotFoundException) as exc_info:
+                BoxService.calculate_box_usage(session, 999)
+            assert "Box 999 was not found" in str(exc_info.value)
+
+    def test_get_all_boxes_with_usage_empty_database(self, app: Flask, session: Session):
+        """Test getting all boxes with usage when no boxes exist."""
+        with app.app_context():
+            boxes_with_usage = BoxService.get_all_boxes_with_usage(session)
+            assert boxes_with_usage == []
+
+    def test_get_all_boxes_with_usage_multiple_boxes(self, app: Flask, session: Session):
+        """Test getting all boxes with usage statistics."""
+        with app.app_context():
+            # Create boxes with different usage levels
+            box1 = BoxService.create_box(session, "Empty Box", 10)
+            box2 = BoxService.create_box(session, "Partial Box", 20)
+            box3 = BoxService.create_box(session, "Full Box", 5)
+            session.commit()
+
+            # Add parts to some boxes
+            # Box 2: 3 locations used (15% usage)
+            InventoryService.add_stock(session, "PART", box2.box_no, 1, 10)
+            InventoryService.add_stock(session, "TEST", box2.box_no, 5, 5)
+            InventoryService.add_stock(session, "DEMO", box2.box_no, 10, 15)
+
+            # Box 3: all locations used (100% usage)
+            InventoryService.add_stock(session, "COMP", box3.box_no, 1, 20)
+            InventoryService.add_stock(session, "RESI", box3.box_no, 2, 30)
+            InventoryService.add_stock(session, "CAPA", box3.box_no, 3, 40)
+            InventoryService.add_stock(session, "TRAN", box3.box_no, 4, 50)
+            InventoryService.add_stock(session, "DIGI", box3.box_no, 5, 60)
+            session.commit()
+
+            # Get all boxes with usage
+            boxes_with_usage = BoxService.get_all_boxes_with_usage(session)
+
+            assert len(boxes_with_usage) == 3
+
+            # Create lookup by box_no for easier testing
+            usage_by_box = {item['box'].box_no: item for item in boxes_with_usage}
+
+            # Check Box 1 (empty)
+            box1_usage = usage_by_box[box1.box_no]
+            assert box1_usage['occupied_locations'] == 0
+            assert box1_usage['usage_percentage'] == 0.0
+
+            # Check Box 2 (partial)
+            box2_usage = usage_by_box[box2.box_no]
+            assert box2_usage['occupied_locations'] == 3
+            assert box2_usage['usage_percentage'] == 15.0
+
+            # Check Box 3 (full)
+            box3_usage = usage_by_box[box3.box_no]
+            assert box3_usage['occupied_locations'] == 5
+            assert box3_usage['usage_percentage'] == 100.0
+
+    def test_get_all_boxes_with_usage_ordering(self, app: Flask, session: Session):
+        """Test that boxes are returned in correct order (by box_no)."""
+        with app.app_context():
+            # Create boxes (will get sequential box numbers)
+            box1 = BoxService.create_box(session, "First Box", 5)
+            box2 = BoxService.create_box(session, "Second Box", 10)
+            box3 = BoxService.create_box(session, "Third Box", 15)
+            session.commit()
+
+            boxes_with_usage = BoxService.get_all_boxes_with_usage(session)
+
+            assert len(boxes_with_usage) == 3
+
+            # Verify ordering by box_no
+            box_numbers = [item['box'].box_no for item in boxes_with_usage]
+            assert box_numbers == sorted(box_numbers)
+            assert box_numbers == [box1.box_no, box2.box_no, box3.box_no]

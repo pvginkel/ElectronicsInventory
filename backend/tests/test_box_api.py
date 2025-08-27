@@ -234,18 +234,18 @@ class TestBoxAPI:
     def test_delete_box_with_parts_fails(self, client: FlaskClient, session: Session):
         """Test that deleting a box with parts returns a 400 error."""
         from app.services.inventory_service import InventoryService
-        
+
         # Create box
         box = BoxService.create_box(session, "Test Box", 5)
         session.commit()
-        
+
         # Add a part to the box
         InventoryService.add_stock(session, "TEST", box.box_no, 1, 10)
         session.commit()
-        
+
         # Attempt to delete the box via API
         response = client.delete(f"/api/boxes/{box.box_no}")
-        
+
         # Should return 409 with proper error message now that we've fixed the Spectree validation
         assert response.status_code == 409
         response_data = json.loads(response.data)
@@ -255,7 +255,7 @@ class TestBoxAPI:
         assert "it contains parts that must be moved or removed first" in response_data["error"]
         assert "message" in response_data["details"]
         assert "The requested operation cannot be performed" in response_data["details"]["message"]
-        
+
         # Verify box still exists
         verify_response = client.get(f"/api/boxes/{box.box_no}")
         assert verify_response.status_code == 200

@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class ErrorDetailsSchema(BaseModel):
     """Error details object."""
     model_config = ConfigDict(from_attributes=True)
-    
+
     message: str = Field(..., description="Additional error context")
     field: str | None = Field(None, description="Field name for validation errors")
 
