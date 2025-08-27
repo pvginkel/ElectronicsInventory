@@ -11,14 +11,19 @@ All API error responses follow a consistent JSON structure:
 ```json
 {
   "error": "Human-readable error message",
-  "details": "Additional context or technical details"
+  "details": {
+    "message": "Additional context or technical details",
+    "field": "field_name"
+  }
 }
 ```
 
 ### Field Specifications
 
 - **`error`**: Human-readable error message suitable for display to users
-- **`details`**: Additional technical context, may be a string or array of strings
+- **`details`**: Object containing additional error information
+  - **`details.message`**: Additional context or technical details (always present)
+  - **`details.field`**: Field name for validation errors (optional, only present for field-specific errors)
 
 ## HTTP Status Codes
 
@@ -38,19 +43,25 @@ The API uses standard HTTP status codes to categorize different types of errors:
 
 **Trigger**: Request data fails validation (Pydantic schema validation)
 
-**Response Structure**: For field-level validation errors, the `details` field contains an array of field error strings:
+**Response Structure**: For field-level validation errors, the `details` field contains an array of error objects:
 
 ```json
 {
   "error": "Validation failed",
   "details": [
-    "description: Field required",
-    "capacity: Ensure this value is greater than 0"
+    {
+      "message": "Field required",
+      "field": "description"
+    },
+    {
+      "message": "Ensure this value is greater than 0",
+      "field": "capacity"
+    }
   ]
 }
 ```
 
-**Field Error Format**: `"field_name: Error message"`
+**Multiple Field Errors**: When multiple fields have validation errors, `details` is an array of error objects, each with `message` and `field` properties.
 
 ### 2. Business Logic Errors (400/409)
 
@@ -64,7 +75,9 @@ The API uses standard HTTP status codes to categorize different types of errors:
 ```json
 {
   "error": "Cannot delete box 5 because it contains parts that must be moved or removed first",
-  "details": "The requested operation cannot be performed"
+  "details": {
+    "message": "The requested operation cannot be performed"
+  }
 }
 ```
 
@@ -75,7 +88,9 @@ The API uses standard HTTP status codes to categorize different types of errors:
 ```json
 {
   "error": "Box 999 was not found",
-  "details": "The requested resource could not be found"
+  "details": {
+    "message": "The requested resource could not be found"
+  }
 }
 ```
 
@@ -91,7 +106,9 @@ The API uses standard HTTP status codes to categorize different types of errors:
 ```json
 {
   "error": "Not enough parts available at 7-3 (requested 10, have 5)",
-  "details": "The requested quantity is not available"
+  "details": {
+    "message": "The requested quantity is not available"
+  }
 }
 ```
 
