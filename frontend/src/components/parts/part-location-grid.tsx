@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { usePartLocations, useAddStock, useRemoveStock } from '@/hooks/use-parts';
@@ -52,7 +52,7 @@ export function PartLocationGrid({ partId, typeId }: PartLocationGridProps) {
             partId={partId}
             typeId={typeId}
             onAdd={() => {
-              setShowAddRow(false);
+              // Keep showAddRow true for consecutive additions
               refetch();
             }}
             onCancel={() => setShowAddRow(false)}
@@ -100,7 +100,7 @@ export function PartLocationGrid({ partId, typeId }: PartLocationGridProps) {
           partId={partId}
           typeId={typeId}
           onAdd={() => {
-            setShowAddRow(false);
+            // Keep showAddRow true for consecutive additions
             refetch();
           }}
           onCancel={() => setShowAddRow(false)}
@@ -264,6 +264,14 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
   
   const addStockMutation = useAddStock();
   const { data: suggestions } = useLocationSuggestions(typeId);
+  const boxInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus the box input when component mounts
+  useEffect(() => {
+    if (boxInputRef.current) {
+      boxInputRef.current.focus();
+    }
+  }, []);
 
   const handleAdd = async () => {
     const box = parseInt(boxNo, 10);
@@ -282,6 +290,17 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
         qty: qty
       }
     });
+    
+    // Clear form fields for consecutive additions
+    setBoxNo('');
+    setLocNo('');
+    setQuantity('');
+    
+    // Focus back to box input for next addition
+    if (boxInputRef.current) {
+      boxInputRef.current.focus();
+    }
+    
     onAdd();
   };
 
@@ -293,15 +312,29 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
     }
   };
 
+  // Handle keyboard events
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAdd();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      onCancel();
+    }
+  };
+
   return (
     <div className="flex items-center gap-2 p-2 border rounded bg-muted/30">
       <Input
+        ref={boxInputRef}
         type="number"
         placeholder="Box"
         value={boxNo}
         onChange={(e) => setBoxNo(e.target.value)}
+        onKeyDown={handleKeyDown}
         className="w-16 h-8"
         min="1"
+        autoFocus
       />
       <span className="text-muted-foreground">-</span>
       <Input
@@ -309,6 +342,7 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
         placeholder="Loc"
         value={locNo}
         onChange={(e) => setLocNo(e.target.value)}
+        onKeyDown={handleKeyDown}
         className="w-16 h-8"
         min="1"
       />
@@ -317,6 +351,7 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
         placeholder="Qty"
         value={quantity}
         onChange={(e) => setQuantity(e.target.value)}
+        onKeyDown={handleKeyDown}
         className="w-20 h-8"
         min="1"
       />
