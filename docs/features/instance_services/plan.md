@@ -45,14 +45,18 @@ All services receive `Session` as their first parameter and contain no state. AP
 
 ## Implementation Steps
 
-### Phase 1: Service Container and Base Classes
+### Phase 1: Dependency Injection Setup
 
-1. **Create Service Container**
-   - Create `app/services/container.py` with a simple dependency injection container
-   - Define service registration and retrieval methods
-   - Handle service lifecycle (singleton instances)
+1. **Install Dependency Injector**
+   - Add `dependency-injector` package to project dependencies
+   - This provides providers, containers, and wiring capabilities
 
-2. **Create Base Service Class**
+2. **Create Service Container**
+   - Create `app/services/container.py` using `dependency-injector.containers.DeclarativeContainer`
+   - Define service providers using `providers.Factory` for request-scoped services
+   - Configure database session provider for service injection
+
+3. **Create Base Service Class**
    - Create `app/services/base.py` with abstract base service class
    - Define constructor that accepts `Session` dependency
    - Provide common utilities if needed
@@ -78,24 +82,24 @@ All services receive `Session` as their first parameter and contain no state. AP
    - Apply same conversion pattern
    - Update any cross-service dependencies
 
-### Phase 3: Dependency Injection Setup
+### Phase 3: Flask Integration
 
 7. **Update Application Factory**
    - Initialize service container in `create_app()`
-   - Register all service classes with container
-   - Create request-scoped service instances using `g.db` session
+   - Configure container with database session provider
+   - Set up dependency-injector wiring for Flask integration
 
-8. **Create Service Injection Decorator**
-   - Create `@inject_services` decorator for API endpoints
-   - Automatically inject required services into `g` object
-   - Handle service resolution from container
+8. **Configure Dependency Wiring**
+   - Use dependency-injector's `@inject` decorator on API endpoints
+   - Configure automatic service injection using container wiring
+   - Set up request-scoped service resolution
 
 ### Phase 4: Update API Layer
 
 9. **Update API Endpoints**
-   - Replace `ServiceClass.method(g.db, ...)` calls with `g.service_name.method(...)`
-   - Add `@inject_services` decorator to endpoints that need services
-   - Remove manual `g.db` passing
+   - Replace `ServiceClass.method(g.db, ...)` calls with injected service instances
+   - Add `@inject` decorator to endpoints that need services
+   - Use dependency-injector's automatic injection instead of manual `g.db` passing
 
 ### Phase 5: Update Tests
 
@@ -111,21 +115,39 @@ All services receive `Session` as their first parameter and contain no state. AP
 
 ## Dependency Injection Pattern
 
-### Service Registration
+### Service Container Definition
 ```python
-# In app/__init__.py
-container = ServiceContainer()
-container.register(PartService)
-container.register(BoxService) 
-container.register(InventoryService, dependencies=[PartService])
+# In app/services/container.py
+from dependency_injector import containers, providers
+from sqlalchemy.orm import Session
+
+class ServiceContainer(containers.DeclarativeContainer):
+    # Database session provider
+    db_session = providers.Dependency(instance_of=Session)
+    
+    # Service providers
+    part_service = providers.Factory(PartService, db=db_session)
+    box_service = providers.Factory(BoxService, db=db_session)
+    inventory_service = providers.Factory(
+        InventoryService, 
+        db=db_session,
+        part_service=part_service
+    )
+    type_service = providers.Factory(TypeService, db=db_session)
+    test_data_service = providers.Factory(TestDataService, db=db_session)
 ```
 
-### Service Resolution
+### Service Injection in API Endpoints
 ```python
 # In API endpoints
-@inject_services('part_service', 'inventory_service')
-def create_part():
-    part = g.part_service.create_part(description=data.description, ...)
+from dependency_injector.wiring import Provide, inject
+from app.services.container import ServiceContainer
+
+@inject
+def create_part(
+    part_service: PartService = Provide[ServiceContainer.part_service]
+):
+    part = part_service.create_part(description=data.description, ...)
     return PartResponseSchema.model_validate(part).model_dump(), 201
 ```
 
@@ -147,7 +169,10 @@ Services that depend on other services:
 - `InventoryService` depends on `PartService` (for quantity calculations and cleanup)
 - API endpoints may need multiple services injected
 
-The container will handle dependency resolution and ensure proper initialization order.
+The dependency-injector container automatically handles:
+- Dependency resolution and initialization order
+- Circular dependency detection
+- Request-scoped service lifecycle management
 
 ## Backwards Compatibility
 
@@ -160,18 +185,21 @@ However, the public API contracts (HTTP endpoints) remain unchanged.
 
 ## Benefits
 
-1. **Improved Testability** - Services can be easily mocked and stubbed
-2. **Better Separation of Concerns** - Each service manages its own dependencies
-3. **Dependency Injection** - Cleaner architecture with explicit dependencies
-4. **State Management** - Services can maintain state if needed in the future
-5. **Extensibility** - Easier to add cross-cutting concerns (logging, caching, etc.)
+1. **Improved Testability** - Services can be easily mocked and stubbed using dependency-injector's override capabilities
+2. **Better Separation of Concerns** - Each service manages its own dependencies with clear container definitions
+3. **Mature Dependency Injection** - Uses battle-tested `dependency-injector` package with comprehensive features
+4. **Configuration Management** - Built-in support for configuration injection and environment-specific overrides
+5. **Type Safety** - Full mypy support and typing annotations for injected dependencies
+6. **Performance** - Cython-optimized dependency resolution with minimal runtime overhead
+7. **Framework Integration** - Seamless Flask integration with automatic wiring capabilities
 
 ## Implementation Order
 
 Execute phases sequentially to minimize breaking changes:
-1. Create container and base classes first
+1. Install dependency-injector package and create container setup
 2. Convert one service at a time, starting with services that have no dependencies
-3. Update injection system before updating API layer
-4. Update tests last to verify everything works correctly
+3. Configure Flask wiring and container integration
+4. Update API endpoints to use dependency injection
+5. Update tests last to verify everything works correctly
 
-The refactoring maintains all existing business logic while improving the overall architecture.
+The refactoring maintains all existing business logic while leveraging a mature, production-ready dependency injection framework.
