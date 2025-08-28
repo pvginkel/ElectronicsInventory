@@ -1,4 +1,4 @@
-# Frontend Features Checklist
+# Phase 1
 
 ## Part Management UI
 - [x] Display 4-letter part IDs prominently in all views
@@ -46,44 +46,10 @@
 - [x] Box utilization charts and capacity indicators
 - [x] Visual location list with occupancy status
 
-## Shopping List Interface
-- [ ] Add items to shopping list (existing or new parts)
-- [ ] Edit shopping list entries with quantities and notes
-- [ ] Convert shopping list items to inventory with location assignment
-- [ ] Show shopping list alongside inventory views
-
-## Project Management
-- [ ] Create projects with required parts lists
-- [ ] Show stock coverage indicators (green/yellow/red status)
-- [ ] "Add Missing to Shopping List" batch operation
-- [ ] Build project interface with location selection for deductions
-- [ ] Project progress tracking and completion status
-
-## Reorganization Interface
-- [ ] Trigger reorganization analysis from UI
-- [ ] Display proposed move list with visual previews
-- [ ] Accept/reject individual move suggestions
-- [ ] "Apply All Moves" batch operation with confirmation
-- [ ] Before/after layout visualization
-
-## Location Intelligence
-- [x] Show suggested locations with reasoning (category grouping)
-- [x] Location suggestions when adding stock to parts
-- [x] Type-based location recommendations
-- [ ] Visual indicators for category clustering in boxes
-- [ ] Category dashboard showing box distribution
-
-## Label Generation
-- [ ] Print label interface with 4-letter ID text
-- [ ] Optional 1D barcode generation if printer supports
-- [ ] Label preview with customizable formatting
-- [ ] Batch label printing for multiple parts
-
 ## Mobile Optimization
 - [ ] Camera integration for part photos
 - [x] Touch-friendly quantity input (large buttons)
 - [x] Responsive layout for phone/tablet usage
-- [ ] Offline-first capability for basic operations
 
 ## AI Assistant Integration
 - [ ] Photo analysis interface with part number extraction
@@ -113,3 +79,38 @@
 - [x] Suggestions panel for maintenance tasks
 - [x] Responsive sidebar navigation
 - [x] Breadcrumb navigation
+
+# Phase 2
+
+## Shopping List Interface
+- [ ] Add items to shopping list (existing or new parts)
+- [ ] Edit shopping list entries with quantities and notes
+- [ ] Convert shopping list items to inventory with location assignment
+- [ ] Show shopping list alongside inventory views
+
+## Project Management
+- [ ] Create projects with required parts lists
+- [ ] Show stock coverage indicators (green/yellow/red status)
+- [ ] "Add Missing to Shopping List" batch operation
+- [ ] Build project interface with location selection for deductions
+- [ ] Project progress tracking and completion status
+
+## Reorganization Interface
+- [ ] Trigger reorganization analysis from UI
+- [ ] Display proposed move list with visual previews
+- [ ] Accept/reject individual move suggestions
+- [ ] "Apply All Moves" batch operation with confirmation
+- [ ] Before/after layout visualization
+
+## Location Intelligence
+- [ ] Show suggested locations with reasoning (category grouping)
+- [ ] Location suggestions when adding stock to parts
+- [ ] Type-based location recommendations
+- [ ] Visual indicators for category clustering in boxes
+- [ ] Category dashboard showing box distribution
+
+## Label Generation
+- [ ] Print label interface with 4-letter ID text
+- [ ] Optional 1D barcode generation if printer supports
+- [ ] Label preview with customizable formatting
+- [ ] Batch label printing for multiple parts
