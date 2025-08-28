@@ -1,15 +1,15 @@
 import { useMemo } from 'react';
 import {
-  useGetPartsLocationsByPartId4,
-  usePostInventoryPartsStockByPartId4,
-  useDeleteInventoryPartsStockByPartId4,
+  useGetPartsLocationsByPartKey,
+  usePostInventoryPartsStockByPartKey,
+  useDeleteInventoryPartsStockByPartKey,
   type PartLocationResponseSchemaList_a9993e3_PartLocationResponseSchema,
 } from '@/lib/api/generated/hooks';
 import { calculateTotalQuantity } from '@/lib/utils/locations';
 
 export function usePartLocations(partId: string) {
-  const query = useGetPartsLocationsByPartId4(
-    { path: { part_id4: partId } },
+  const query = useGetPartsLocationsByPartKey(
+    { path: { part_key: partId } },
     { enabled: !!partId }
   );
 
@@ -29,9 +29,9 @@ export function usePartLocations(partId: string) {
 }
 
 export function useAddStock() {
-  return usePostInventoryPartsStockByPartId4();
+  return usePostInventoryPartsStockByPartKey();
 }
 
 export function useRemoveStock() {
-  return useDeleteInventoryPartsStockByPartId4();
+  return useDeleteInventoryPartsStockByPartKey();
 }

@@ -6,7 +6,7 @@ interface PartData {
 }
 
 interface Part {
-  id4: string;
+  key: string;
   description: string;
   manufacturer_code?: string | null;
   type_id?: number | null;
@@ -41,7 +41,7 @@ export function formatPartForDisplay(part: Part): {
   displayManufacturerCode?: string;
 } {
   return {
-    displayId: part.id4.toUpperCase(),
+    displayId: part.key.toUpperCase(),
     displayDescription: part.description,
     displayManufacturerCode: part.manufacturer_code || undefined,
   };

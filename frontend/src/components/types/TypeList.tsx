@@ -15,7 +15,7 @@ export function TypeList() {
 
   const { confirm, confirmProps } = useConfirm()
   
-  const { data: types, isLoading, error } = useGetTypesWithStats(true)
+  const { data: types, isLoading, error } = useGetTypesWithStats()
   const createMutation = useCreateType()
   const updateMutation = useUpdateType()
   const deleteMutation = useDeleteType()

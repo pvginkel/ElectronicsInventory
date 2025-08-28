@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { TypeSelector } from '@/components/types/type-selector';
 import { TagsInput } from './tags-input';
-import { useGetPartsByPartId4, usePostParts, usePutPartsByPartId4 } from '@/lib/api/generated/hooks';
+import { useGetPartsByPartKey, usePostParts, usePutPartsByPartKey } from '@/lib/api/generated/hooks';
 import { validatePartData } from '@/lib/utils/parts';
 
 interface PartFormData {
@@ -36,13 +36,13 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
   const isEditing = Boolean(partId);
   
   // Fetch existing part data if editing
-  const { data: existingPart, isLoading: isLoadingPart } = useGetPartsByPartId4(
-    { path: { part_id4: partId! } },
+  const { data: existingPart, isLoading: isLoadingPart } = useGetPartsByPartKey(
+    { path: { part_key: partId! } },
     { enabled: isEditing }
   );
 
   const createPartMutation = usePostParts();
-  const updatePartMutation = usePutPartsByPartId4();
+  const updatePartMutation = usePutPartsByPartKey();
 
   // Populate form with existing part data
   useEffect(() => {
@@ -84,7 +84,7 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
     if (isEditing && partId) {
       // Update existing part
       const result = await updatePartMutation.mutateAsync({
-        path: { part_id4: partId },
+        path: { part_key: partId },
         body: {
           description: formData.description,
           manufacturer_code: formData.manufacturerCode || null,
@@ -94,7 +94,7 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
           seller_link: formData.sellerLink || null,
         }
       });
-      onSuccess(result.id4);
+      onSuccess(result.key);
     } else {
       // Create new part
       const result = await createPartMutation.mutateAsync({
@@ -107,7 +107,7 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
           seller_link: formData.sellerLink || null,
         }
       });
-      onSuccess(result.id4);
+      onSuccess(result.key);
     }
   };
 

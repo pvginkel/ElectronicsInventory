@@ -40,7 +40,7 @@ export function LocationItem({ location }: LocationItemProps) {
         {location.isOccupied && location.partAssignments && location.partAssignments.length > 0 ? (
           <>
             <div className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-              {location.partAssignments[0].id4}
+              {location.partAssignments[0].key}
             </div>
             <div className="text-xs text-muted-foreground">
               Qty: {location.totalQuantity}

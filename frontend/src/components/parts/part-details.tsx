@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { PartLocationGrid } from './part-location-grid';
 import { PartForm } from './part-form';
-import { useGetPartsByPartId4, useDeletePartsByPartId4 } from '@/lib/api/generated/hooks';
+import { useGetPartsByPartKey, useDeletePartsByPartKey } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { useConfirm } from '@/hooks/use-confirm';
 
@@ -18,12 +18,12 @@ export function PartDetails({ partId }: PartDetailsProps) {
   const navigate = useNavigate();
   const { confirm, confirmProps } = useConfirm();
   
-  const { data: part, isLoading, error, refetch } = useGetPartsByPartId4(
-    { path: { part_id4: partId } },
+  const { data: part, isLoading, error, refetch } = useGetPartsByPartKey(
+    { path: { part_key: partId } },
     { enabled: !!partId }
   );
   
-  const deletePartMutation = useDeletePartsByPartId4();
+  const deletePartMutation = useDeletePartsByPartKey();
 
   const handleDeletePart = async () => {
     if (!part) return;
@@ -37,7 +37,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
 
     if (confirmed) {
       await deletePartMutation.mutateAsync({
-        path: { part_id4: partId }
+        path: { part_key: partId }
       });
       // Navigate back to parts list after successful deletion
       navigate({ to: '/parts' });

@@ -76,8 +76,8 @@ Custom hooks in `src/hooks/` serve as the service layer. They wrap generated API
 ```typescript
 // ✅ This pattern is used throughout the codebase
 export function usePartLocations(partId: string) {
-  const query = useGetPartsLocationsByPartId4(
-    { path: { part_id4: partId } },
+  const query = useGetPartsLocationsByPartKey(
+    { path: { part_key: partId } },
     { enabled: !!partId }
   );
 

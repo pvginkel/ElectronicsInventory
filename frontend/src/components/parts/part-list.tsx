@@ -104,9 +104,9 @@ export function PartList({ onSelectPart, onCreatePart }: PartListProps) {
         ) : (
           filteredParts.map((part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema) => (
             <PartListItem
-              key={part.id4}
+              key={part.key}
               part={part}
-              onClick={() => onSelectPart?.(part.id4)}
+              onClick={() => onSelectPart?.(part.key)}
             />
           ))
         )}
@@ -117,7 +117,7 @@ export function PartList({ onSelectPart, onCreatePart }: PartListProps) {
 
 interface PartListItemProps {
   part: {
-    id4: string;
+    key: string;
     description: string;
     manufacturer_code?: string | null;
     type?: { name: string } | null;

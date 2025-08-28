@@ -35,7 +35,7 @@ export function useBoxLocationsWithParts(boxNo: number) {
         
         // Generate display text
         const displayText = isOccupied 
-          ? `${apiLocation.part_assignments![0].id4} ${totalQuantity > 1 ? `(${totalQuantity})` : ''}`.trim()
+          ? `${apiLocation.part_assignments![0].key} ${totalQuantity > 1 ? `(${totalQuantity})` : ''}`.trim()
           : 'Empty';
         
         // Generate styling classes with dark mode support

@@ -576,10 +576,10 @@
             "title": "Box No",
             "type": "integer"
           },
-          "id4": {
+          "key": {
             "description": "4-character part identifier",
             "example": "BZQP",
-            "title": "Id4",
+            "title": "Key",
             "type": "string"
           },
           "loc_no": {
@@ -596,7 +596,7 @@
           }
         },
         "required": [
-          "id4",
+          "key",
           "box_no",
           "loc_no",
           "qty"
@@ -620,10 +620,10 @@
             "title": "Box No",
             "type": "integer"
           },
-          "id4": {
+          "key": {
             "description": "4-character part identifier",
             "example": "BZQP",
-            "title": "Id4",
+            "title": "Key",
             "type": "string"
           },
           "loc_no": {
@@ -640,7 +640,7 @@
           }
         },
         "required": [
-          "id4",
+          "key",
           "box_no",
           "loc_no",
           "qty"
@@ -664,10 +664,10 @@
             "title": "Description",
             "type": "string"
           },
-          "id4": {
+          "key": {
             "description": "4-character unique part identifier",
             "example": "BZQP",
-            "title": "Id4",
+            "title": "Key",
             "type": "string"
           },
           "manufacturer_code": {
@@ -763,7 +763,7 @@
           }
         },
         "required": [
-          "id4",
+          "key",
           "manufacturer_code",
           "type_id",
           "description",
@@ -941,10 +941,10 @@
             "title": "Description",
             "type": "string"
           },
-          "id4": {
+          "key": {
             "description": "4-character unique part identifier",
             "example": "BZQP",
-            "title": "Id4",
+            "title": "Key",
             "type": "string"
           },
           "manufacturer_code": {
@@ -1021,7 +1021,7 @@
           }
         },
         "required": [
-          "id4",
+          "key",
           "manufacturer_code",
           "description",
           "type_id",
@@ -1069,12 +1069,6 @@
             "example": "7-3",
             "title": "Location Reference"
           },
-          "part_id4": {
-            "description": "4-character part identifier",
-            "example": "BZQP",
-            "title": "Part Id4",
-            "type": "string"
-          },
           "timestamp": {
             "description": "When the quantity change occurred",
             "example": "2024-01-15T14:45:00Z",
@@ -1085,7 +1079,6 @@
         },
         "required": [
           "id",
-          "part_id4",
           "delta_qty",
           "location_reference",
           "timestamp"
@@ -1632,15 +1625,15 @@
         "tags": []
       }
     },
-    "/api/inventory/parts/{part_id4}/move": {
+    "/api/inventory/parts/{part_key}/move": {
       "post": {
         "description": "",
-        "operationId": "post__api_inventory_parts_{part_id4}_move",
+        "operationId": "post__api_inventory_parts_{part_key}_move",
         "parameters": [
           {
             "description": "",
             "in": "path",
-            "name": "part_id4",
+            "name": "part_key",
             "required": true,
             "schema": {
               "type": "string"
@@ -1686,15 +1679,15 @@
         "tags": []
       }
     },
-    "/api/inventory/parts/{part_id4}/stock": {
+    "/api/inventory/parts/{part_key}/stock": {
       "delete": {
         "description": "",
-        "operationId": "delete__api_inventory_parts_{part_id4}_stock",
+        "operationId": "delete__api_inventory_parts_{part_key}_stock",
         "parameters": [
           {
             "description": "",
             "in": "path",
-            "name": "part_id4",
+            "name": "part_key",
             "required": true,
             "schema": {
               "type": "string"
@@ -1741,12 +1734,12 @@
       },
       "post": {
         "description": "",
-        "operationId": "post__api_inventory_parts_{part_id4}_stock",
+        "operationId": "post__api_inventory_parts_{part_key}_stock",
         "parameters": [
           {
             "description": "",
             "in": "path",
-            "name": "part_id4",
+            "name": "part_key",
             "required": true,
             "schema": {
               "type": "string"
@@ -1983,15 +1976,15 @@
         "tags": []
       }
     },
-    "/api/parts/{part_id4}": {
+    "/api/parts/{part_key}": {
       "delete": {
         "description": "",
-        "operationId": "delete__api_parts_{part_id4}",
+        "operationId": "delete__api_parts_{part_key}",
         "parameters": [
           {
             "description": "",
             "in": "path",
-            "name": "part_id4",
+            "name": "part_key",
             "required": true,
             "schema": {
               "type": "string"
@@ -2038,12 +2031,12 @@
       },
       "get": {
         "description": "",
-        "operationId": "get__api_parts_{part_id4}",
+        "operationId": "get__api_parts_{part_key}",
         "parameters": [
           {
             "description": "",
             "in": "path",
-            "name": "part_id4",
+            "name": "part_key",
             "required": true,
             "schema": {
               "type": "string"
@@ -2087,12 +2080,12 @@
       },
       "put": {
         "description": "",
-        "operationId": "put__api_parts_{part_id4}",
+        "operationId": "put__api_parts_{part_key}",
         "parameters": [
           {
             "description": "",
             "in": "path",
-            "name": "part_id4",
+            "name": "part_key",
             "required": true,
             "schema": {
               "type": "string"
@@ -2145,15 +2138,15 @@
         "tags": []
       }
     },
-    "/api/parts/{part_id4}/history": {
+    "/api/parts/{part_key}/history": {
       "get": {
         "description": "",
-        "operationId": "get__api_parts_{part_id4}_history",
+        "operationId": "get__api_parts_{part_key}_history",
         "parameters": [
           {
             "description": "",
             "in": "path",
-            "name": "part_id4",
+            "name": "part_key",
             "required": true,
             "schema": {
               "type": "string"
@@ -2196,15 +2189,15 @@
         "tags": []
       }
     },
-    "/api/parts/{part_id4}/locations": {
+    "/api/parts/{part_key}/locations": {
       "get": {
         "description": "",
-        "operationId": "get__api_parts_{part_id4}_locations",
+        "operationId": "get__api_parts_{part_key}_locations",
         "parameters": [
           {
             "description": "",
             "in": "path",
-            "name": "part_id4",
+            "name": "part_key",
             "required": true,
             "schema": {
               "type": "string"

@@ -1,7 +1,7 @@
 // Frontend domain model types for enhanced location data
 
 export interface PartAssignment {
-  id4: string;
+  key: string;
   qty: number;
   manufacturer_code?: string;
   description?: string;

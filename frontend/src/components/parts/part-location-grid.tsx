@@ -155,7 +155,7 @@ function LocationRow({
     if (diff > 0) {
       // Add stock
       await addStockMutation.mutateAsync({
-        path: { part_id4: partId },
+        path: { part_key: partId },
         body: {
           box_no: location.box_no,
           loc_no: location.loc_no,
@@ -165,7 +165,7 @@ function LocationRow({
     } else {
       // Remove stock
       await removeStockMutation.mutateAsync({
-        path: { part_id4: partId },
+        path: { part_key: partId },
         body: {
           box_no: location.box_no,
           loc_no: location.loc_no,
@@ -180,7 +180,7 @@ function LocationRow({
 
   const handleRemove = async () => {
     await removeStockMutation.mutateAsync({
-      path: { part_id4: partId },
+      path: { part_key: partId },
       body: {
         box_no: location.box_no,
         loc_no: location.loc_no,
@@ -283,7 +283,7 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
     }
 
     await addStockMutation.mutateAsync({
-      path: { part_id4: partId },
+      path: { part_key: partId },
       body: {
         box_no: box,
         loc_no: loc,
