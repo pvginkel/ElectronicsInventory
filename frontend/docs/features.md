@@ -2,10 +2,14 @@
 
 ## Part Management UI
 - [x] Display 4-letter part IDs prominently in all views
-- [ ] Create part entry form with photo capture (mobile camera)
+- [x] Create part entry form with all core fields
 - [x] Edit part details (manufacturer code, description, type, tags)
-- [ ] Show part image gallery with main photo selection
+- [x] Type/category selector with full CRUD operations
+- [x] Tags input with manual entry support
 - [x] Display seller information and product page links
+- [x] Delete parts with confirmation (only if zero quantity)
+- [ ] Photo capture (mobile camera integration)
+- [ ] Show part image gallery with main photo selection
 - [ ] Auto-suggest tags from AI analysis results
 
 ## Inventory Visualization
@@ -20,13 +24,13 @@
 - [x] "Use Items" interface with location selection and quantity deduction
 - [ ] "Move Items" flow with source/destination location picker
 - [ ] Split quantity interface for distributing across locations
-- [x] Quick keypad for numeric quantity entry
+- [x] Inline quantity editing with save/cancel actions
 
 ## Search & Discovery
 - [x] Single search box with real-time results
 - [x] Display search results with quantities and locations
-- [ ] Show part details in expandable cards or modal
-- [ ] Navigate directly to part locations from search results
+- [x] Show part details in dedicated part view pages
+- [x] Navigate to individual part pages from search results
 
 ## Document Viewing
 - [ ] PDF viewer using PDF.js for in-app datasheet viewing
@@ -36,9 +40,11 @@
 
 ## Box & Location Management
 - [x] Create new boxes with configurable capacity
-- [ ] Visual box layout editor (grid representation)
+- [x] Edit box details (description, capacity)
+- [x] Delete empty boxes with confirmation
 - [x] Location numbering display (left-to-right, top-to-bottom)
 - [x] Box utilization charts and capacity indicators
+- [x] Visual location list with occupancy status
 
 ## Shopping List Interface
 - [ ] Add items to shopping list (existing or new parts)
@@ -62,8 +68,9 @@
 
 ## Location Intelligence
 - [x] Show suggested locations with reasoning (category grouping)
+- [x] Location suggestions when adding stock to parts
+- [x] Type-based location recommendations
 - [ ] Visual indicators for category clustering in boxes
-- [ ] "Smart Fill" recommendations when adding stock
 - [ ] Category dashboard showing box distribution
 
 ## Label Generation
@@ -87,6 +94,22 @@
 ## Performance & UX
 - [ ] Show thumbnails in search results and lists
 - [ ] Lazy loading for large part collections
-- [ ] Optimistic UI updates for stock operations
-- [ ] Loading states for AI operations and background jobs
+- [x] Optimistic UI updates for stock operations
+- [x] Loading states and skeleton UI for async operations
 - [x] Error handling with user-friendly messages
+- [x] Toast notifications for all operations
+
+## Type/Category Management (Implemented)
+- [x] Create, edit, and delete part types/categories
+- [x] Type selector component with search functionality
+- [x] Display part count per type
+- [x] Type-based location suggestions for organization
+- [x] Full CRUD operations with confirmation dialogs
+
+## Dashboard & Navigation (Implemented) 
+- [x] Dashboard with metrics overview (mock data)
+- [x] Quick action cards for common workflows
+- [x] Recent activity feed display
+- [x] Suggestions panel for maintenance tasks
+- [x] Responsive sidebar navigation
+- [x] Breadcrumb navigation
