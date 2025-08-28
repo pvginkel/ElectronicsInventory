@@ -15,7 +15,7 @@ Implement comprehensive document management functionality for the electronics in
 
 #### `part_attachments` table  
 - `id` (primary key, auto-increment)
-- `part_id4` (CHAR(4), foreign key to parts.id4)
+- `part_key` (CHAR(4), foreign key to parts.key)
 - `attachment_type` (enum: 'url', 'image', 'pdf')
 - `title` (string, user-provided or extracted title)
 - `s3_key` (string, S3 object key - for uploaded files and URL thumbnail images)
@@ -36,8 +36,8 @@ New migration file: `004_add_document_tables.py`
 - `electronics-inventory-part-attachments` - All document storage (images, PDFs, URL thumbnails)
 
 ### S3 Key Structure
-- Part attachments: `parts/{part_id4}/attachments/{uuid}.{ext}`
-- URL cover images: `parts/{part_id4}/attachments/{uuid}.jpg` (reuses same pattern)
+- Part attachments: `parts/{part_key}/attachments/{uuid}.{ext}`
+- URL cover images: `parts/{part_key}/attachments/{uuid}.jpg` (reuses same pattern)
 
 ## Files to Create
 
@@ -85,7 +85,7 @@ New migration file: `004_add_document_tables.py`
    - Accept source image from S3 or local upload  
    - Do not put restrictions on the size of thumbnails requested
    - Use lazy generation: create thumbnails only when requested
-   - **Store thumbnails on disk in `/tmp/thumbnails` folder** (no S3 storage)
+   - **Store thumbnails on disk in `THUMBNAIL_STORAGE_PATH` folder** (no S3 storage)
    - Use PIL/Pillow for image manipulation
    - Return thumbnail data directly through backend API
 
@@ -93,7 +93,7 @@ New migration file: `004_add_document_tables.py`
    ```python
    def get_thumbnail(attachment_id: int, size: int) -> str:
        # Check if thumbnail exists on disk
-       thumbnail_path = f"/tmp/thumbnails/{attachment_id}_{size}.jpg"
+       thumbnail_path = f"{config.THUMBNAIL_STORAGE_PATH}/{attachment_id}_{size}.jpg"
        if os.path.exists(thumbnail_path):
            return thumbnail_path
            
@@ -103,7 +103,7 @@ New migration file: `004_add_document_tables.py`
        thumbnail_data = image_service.create_thumbnail(original_image, size)
        
        # Save to disk
-       os.makedirs("/tmp/thumbnails", exist_ok=True)
+       os.makedirs(config.THUMBNAIL_STORAGE_PATH, exist_ok=True)
        with open(thumbnail_path, 'wb') as f:
            f.write(thumbnail_data)
        return thumbnail_path
@@ -136,7 +136,7 @@ New migration file: `004_add_document_tables.py`
 2. **URL Thumbnail Storage**
    - Download extracted thumbnail URL
    - Store as full-size image in S3 using same s3_key pattern
-   - Generate thumbnails using same lazy algorithm (disk storage in `/tmp/thumbnails`)
+   - Generate thumbnails using same lazy algorithm (disk storage in `THUMBNAIL_STORAGE_PATH`)
    - URL attachments use s3_key to store the downloaded thumbnail image
 
 ### PDF Handling Algorithm
@@ -153,19 +153,19 @@ New migration file: `004_add_document_tables.py`
 ## API Endpoints Design
 
 ### Part Cover Image Management
-- `PUT /api/parts/{part_id4}/cover` - Set cover attachment ID (body: {"attachment_id": 123})
-- `DELETE /api/parts/{part_id4}/cover` - Remove cover image (set to null)
-- `GET /api/parts/{part_id4}/cover` - Get cover image details
-- `GET /api/parts/{part_id4}/cover/thumbnail?size=150` - Get cover thumbnail via backend
+- `PUT /api/parts/{part_key}/cover` - Set cover attachment ID (body: {"attachment_id": 123})
+- `DELETE /api/parts/{part_key}/cover` - Remove cover image (set to null)
+- `GET /api/parts/{part_key}/cover` - Get cover image details
+- `GET /api/parts/{part_key}/cover/thumbnail?size=150` - Get cover thumbnail via backend
 
 ### Part Attachments Endpoints (All document types)  
-- `POST /api/parts/{part_id4}/attachments` - Add attachment (file upload or URL)
-- `GET /api/parts/{part_id4}/attachments` - List all attachments
-- `GET /api/parts/{part_id4}/attachments/{attachment_id}` - Get attachment details
-- `GET /api/parts/{part_id4}/attachments/{attachment_id}/download` - Download/stream file via backend
-- `GET /api/parts/{part_id4}/attachments/{attachment_id}/thumbnail?size=150` - Get thumbnail via backend  
-- `PUT /api/parts/{part_id4}/attachments/{attachment_id}` - Update attachment metadata
-- `DELETE /api/parts/{part_id4}/attachments/{attachment_id}` - Delete attachment
+- `POST /api/parts/{part_key}/attachments` - Add attachment (file upload or URL)
+- `GET /api/parts/{part_key}/attachments` - List all attachments
+- `GET /api/parts/{part_key}/attachments/{attachment_id}` - Get attachment details
+- `GET /api/parts/{part_key}/attachments/{attachment_id}/download` - Download/stream file via backend
+- `GET /api/parts/{part_key}/attachments/{attachment_id}/thumbnail?size=150` - Get thumbnail via backend  
+- `PUT /api/parts/{part_key}/attachments/{attachment_id}` - Update attachment metadata
+- `DELETE /api/parts/{part_key}/attachments/{attachment_id}` - Delete attachment
 
 ### Backend File Serving
 All file access routes through backend - no direct S3 access for frontend:
@@ -179,12 +179,12 @@ All file access routes through backend - no direct S3 access for frontend:
 ### Phase 1: Core Infrastructure
 1. Create database models and migration (add cover_attachment_id to parts, create part_attachments)
 2. Implement S3Service with basic operations (single bucket)
-3. Create basic ImageService with disk-based thumbnail generation (`/tmp/thumbnails`)
+3. Create basic ImageService with disk-based thumbnail generation (`THUMBNAIL_STORAGE_PATH`)
 4. Add PartAttachment model and service
 
 ### Phase 2: File Upload & Management
 1. Add file upload endpoints with backend file serving
-2. Implement lazy thumbnail generation (disk storage in `/tmp/thumbnails`)
+2. Implement lazy thumbnail generation (disk storage in `THUMBNAIL_STORAGE_PATH`)
 3. Add PDF handling with generic icons
 4. Add cover image management (set/get/delete cover attachment)
 
@@ -247,24 +247,70 @@ THUMBNAIL_STORAGE_PATH: str = Field(default="/tmp/thumbnails", description="Disk
 
 ## Testing Requirements
 
-### Service Tests
-- S3Service: upload, download, delete, existence checks
-- ImageService: thumbnail generation at various sizes
-- DocumentService: CRUD operations for images and attachments
-- URLThumbnailService: metadata extraction, fallback handling
+### Unit Tests
 
-### API Tests  
-- File upload validation (size limits, type restrictions)
-- Thumbnail generation and caching
-- URL attachment processing
-- Error handling for invalid files/URLs
-- Concurrent access to thumbnail generation
+#### S3Service Tests
+- Upload file to S3 bucket
+- Download file from S3 bucket  
+- Delete file from S3 bucket
+- Check file existence in S3 bucket
+- Handle S3 connection errors and timeouts
+- Validate S3 key generation patterns
+
+#### ImageService Tests
+- Generate thumbnails at various sizes (50px, 150px, 300px, 500px)
+- Handle different image formats (JPEG, PNG, WebP, SVG)
+- Process images with various aspect ratios
+- Handle corrupted or invalid image data
+- Verify lazy thumbnail generation and disk caching
+- Test thumbnail cleanup and storage management
+- Validate thumbnail file naming and paths using `THUMBNAIL_STORAGE_PATH`
+
+#### DocumentService Tests
+- Create part attachments for all types (image, PDF, URL)
+- Update attachment metadata and titles
+- Delete attachments and clean up S3 storage
+- Handle attachment type validation
+- Test file size and type restrictions
+- Validate S3 key generation for parts
+- Handle concurrent attachment operations
+
+#### URLThumbnailService Tests
+- Extract og:image metadata from web pages
+- Extract twitter:image metadata from web pages
+- Fallback to Google favicon service
+- Handle invalid URLs and connection timeouts
+- Process redirects and different response codes
+- Sanitize extracted metadata and URLs
+- Test with various website structures
 
 ### Integration Tests
-- End-to-end document workflows
-- S3 storage integration
-- Image processing pipeline
-- URL processing with real websites
+
+#### Real Ceph Backend Tests
+**Note: Real Ceph backend will be provided for testing**
+
+- End-to-end file upload workflow with real S3 storage
+- Thumbnail generation pipeline using actual Ceph storage
+- URL processing workflow with real image downloads
+- Part attachment CRUD operations with persistent storage
+- Cover image management with S3 integration
+- File serving through backend with S3 streaming
+- Concurrent file operations and race condition handling
+
+#### API Integration Tests
+- File upload endpoints with multipart form data
+- Thumbnail serving with proper HTTP caching headers
+- URL attachment processing with external web requests
+- Error handling for S3 connectivity issues
+- File download streaming with proper MIME types
+- Authentication and authorization for file operations
+
+#### Database Integration Tests
+- Part attachment relationships and foreign key constraints
+- Cover attachment assignment and cascade behavior
+- Migration testing with existing data
+- Attachment deletion and orphaned file cleanup
+- Transaction handling for multi-step operations
 
 ## Security Considerations
 
