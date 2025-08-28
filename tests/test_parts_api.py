@@ -25,7 +25,7 @@ class TestPartsAPI:
             assert response.status_code == 201
             response_data = json.loads(response.data)
 
-            assert len(response_data["id4"]) == 4
+            assert len(response_data["key"]) == 4
             assert response_data["description"] == "1k ohm resistor"
             assert response_data["manufacturer_code"] is None
             assert response_data["total_quantity"] == 0
@@ -79,7 +79,7 @@ class TestPartsAPI:
             response_data = json.loads(response.data)
 
             assert len(response_data) == 2
-            assert all("id4" in part for part in response_data)
+            assert all("key" in part for part in response_data)
             assert all("description" in part for part in response_data)
 
     def test_list_parts_with_pagination(self, app: Flask, client: FlaskClient, session: Session):
@@ -146,12 +146,12 @@ class TestPartsAPI:
             )
             session.commit()
 
-            response = client.get(f"/api/parts/{part.id4}")
+            response = client.get(f"/api/parts/{part.key}")
 
             assert response.status_code == 200
             response_data = json.loads(response.data)
 
-            assert response_data["id4"] == part.id4
+            assert response_data["key"] == part.key
             assert response_data["description"] == "1k resistor"
             assert response_data["manufacturer_code"] == "RES-1K"
             assert response_data["type"] is not None
@@ -174,7 +174,7 @@ class TestPartsAPI:
                 "tags": ["updated"]
             }
 
-            response = client.put(f"/api/parts/{part.id4}", json=update_data)
+            response = client.put(f"/api/parts/{part.key}", json=update_data)
 
             assert response.status_code == 200
             response_data = json.loads(response.data)
@@ -196,7 +196,7 @@ class TestPartsAPI:
             part = PartService.create_part(session, "To be deleted")
             session.commit()
 
-            response = client.delete(f"/api/parts/{part.id4}")
+            response = client.delete(f"/api/parts/{part.key}")
             assert response.status_code == 204
 
     def test_delete_part_with_quantity(self, app: Flask, client: FlaskClient, session: Session):
@@ -207,10 +207,10 @@ class TestPartsAPI:
             part = PartService.create_part(session, "Has quantity")
             session.commit()
 
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 5)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
             session.commit()
 
-            response = client.delete(f"/api/parts/{part.id4}")
+            response = client.delete(f"/api/parts/{part.key}")
             assert response.status_code == 409
 
     def test_delete_part_nonexistent(self, app: Flask, client: FlaskClient):
@@ -226,11 +226,11 @@ class TestPartsAPI:
             part = PartService.create_part(session, "Multi-location part")
             session.commit()
 
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 5)
-            InventoryService.add_stock(session, part.id4, box.box_no, 3, 10)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
+            InventoryService.add_stock(session, part.key, box.box_no, 3, 10)
             session.commit()
 
-            response = client.get(f"/api/parts/{part.id4}/locations")
+            response = client.get(f"/api/parts/{part.key}/locations")
 
             assert response.status_code == 200
             response_data = json.loads(response.data)
@@ -254,11 +254,11 @@ class TestPartsAPI:
             session.commit()
 
             # Add and remove stock to create history
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 10)
-            InventoryService.remove_stock(session, part.id4, box.box_no, 1, 3)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 10)
+            InventoryService.remove_stock(session, part.key, box.box_no, 1, 3)
             session.commit()
 
-            response = client.get(f"/api/parts/{part.id4}/history")
+            response = client.get(f"/api/parts/{part.key}/history")
 
             assert response.status_code == 200
             response_data = json.loads(response.data)

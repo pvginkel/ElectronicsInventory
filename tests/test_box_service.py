@@ -251,10 +251,13 @@ class TestBoxService:
         with app.app_context():
             # Create box
             box = BoxService.create_box(session, "Test Box", 10)
+            
+            # Create a part first
+            part = PartService.create_part(session, "Test part")
             session.commit()
 
-            # Add a part to the box
-            InventoryService.add_stock(session, "TEST", box.box_no, 1, 5)
+            # Add the part to the box
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
             session.commit()
 
             # Attempt to delete box should fail
@@ -273,12 +276,17 @@ class TestBoxService:
         with app.app_context():
             # Create box
             box = BoxService.create_box(session, "Test Box", 10)
+            
+            # Create multiple parts first
+            part1 = PartService.create_part(session, "Part 1")
+            part2 = PartService.create_part(session, "Part 2")
+            part3 = PartService.create_part(session, "Part 3")
             session.commit()
 
             # Add multiple parts to different locations in the box
-            InventoryService.add_stock(session, "PART", box.box_no, 1, 10)
-            InventoryService.add_stock(session, "TEST", box.box_no, 3, 5)
-            InventoryService.add_stock(session, "DEMO", box.box_no, 7, 15)
+            InventoryService.add_stock(session, part1.key, box.box_no, 1, 10)
+            InventoryService.add_stock(session, part2.key, box.box_no, 3, 5)
+            InventoryService.add_stock(session, part3.key, box.box_no, 7, 15)
             session.commit()
 
             # Attempt to delete box should fail
@@ -293,12 +301,15 @@ class TestBoxService:
         with app.app_context():
             # Create box
             box = BoxService.create_box(session, "Test Box", 10)
+            
+            # Create a part first
+            part = PartService.create_part(session, "Test part")
             session.commit()
 
             # Add same part to multiple locations within the same box
-            InventoryService.add_stock(session, "TEST", box.box_no, 1, 5)
-            InventoryService.add_stock(session, "TEST", box.box_no, 5, 10)
-            InventoryService.add_stock(session, "TEST", box.box_no, 9, 3)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
+            InventoryService.add_stock(session, part.key, box.box_no, 5, 10)
+            InventoryService.add_stock(session, part.key, box.box_no, 9, 3)
             session.commit()
 
             # Attempt to delete box should fail
@@ -313,11 +324,15 @@ class TestBoxService:
         with app.app_context():
             # Create box
             box = BoxService.create_box(session, "Test Box", 10)
+            
+            # Create parts first
+            part1 = PartService.create_part(session, "Test part")
+            part2 = PartService.create_part(session, "Demo part")
             session.commit()
 
             # Add parts to the box
-            InventoryService.add_stock(session, "TEST", box.box_no, 1, 5)
-            InventoryService.add_stock(session, "DEMO", box.box_no, 3, 10)
+            InventoryService.add_stock(session, part1.key, box.box_no, 1, 5)
+            InventoryService.add_stock(session, part2.key, box.box_no, 3, 10)
             session.commit()
 
             # Verify deletion fails with parts present
@@ -325,8 +340,8 @@ class TestBoxService:
                 BoxService.delete_box(session, box.box_no)
 
             # Remove all parts
-            InventoryService.remove_stock(session, "TEST", box.box_no, 1, 5)
-            InventoryService.remove_stock(session, "DEMO", box.box_no, 3, 10)
+            InventoryService.remove_stock(session, part1.key, box.box_no, 1, 5)
+            InventoryService.remove_stock(session, part2.key, box.box_no, 3, 10)
             session.commit()
 
             # Now deletion should succeed
@@ -361,17 +376,23 @@ class TestBoxService:
             # Create two boxes
             box1 = BoxService.create_box(session, "Box 1", 5)
             box2 = BoxService.create_box(session, "Box 2", 5)
+            
+            # Create parts first
+            comp_part = PartService.create_part(session, "Component")
+            resi_part = PartService.create_part(session, "Resistor")
+            capa_part = PartService.create_part(session, "Capacitor")
+            tran_part = PartService.create_part(session, "Transistor")
             session.commit()
 
             # Add parts to both boxes
             # Box 1: Same part in multiple locations + different part
-            InventoryService.add_stock(session, "COMP", box1.box_no, 1, 10)
-            InventoryService.add_stock(session, "COMP", box1.box_no, 3, 5)
-            InventoryService.add_stock(session, "RESI", box1.box_no, 2, 20)
+            InventoryService.add_stock(session, comp_part.key, box1.box_no, 1, 10)
+            InventoryService.add_stock(session, comp_part.key, box1.box_no, 3, 5)
+            InventoryService.add_stock(session, resi_part.key, box1.box_no, 2, 20)
 
             # Box 2: Different parts
-            InventoryService.add_stock(session, "CAPA", box2.box_no, 1, 15)
-            InventoryService.add_stock(session, "TRAN", box2.box_no, 4, 8)
+            InventoryService.add_stock(session, capa_part.key, box2.box_no, 1, 15)
+            InventoryService.add_stock(session, tran_part.key, box2.box_no, 4, 8)
             session.commit()
 
             # Both boxes should fail to delete
@@ -382,9 +403,9 @@ class TestBoxService:
                 BoxService.delete_box(session, box2.box_no)
 
             # Remove all parts from box1 only
-            InventoryService.remove_stock(session, "COMP", box1.box_no, 1, 10)
-            InventoryService.remove_stock(session, "COMP", box1.box_no, 3, 5)
-            InventoryService.remove_stock(session, "RESI", box1.box_no, 2, 20)
+            InventoryService.remove_stock(session, comp_part.key, box1.box_no, 1, 10)
+            InventoryService.remove_stock(session, comp_part.key, box1.box_no, 3, 5)
+            InventoryService.remove_stock(session, resi_part.key, box1.box_no, 2, 20)
             session.commit()
 
             # Now box1 can be deleted but box2 still cannot
@@ -422,12 +443,17 @@ class TestBoxService:
         with app.app_context():
             # Create box and add parts to some locations
             box = BoxService.create_box(session, "Partial Box", 10)
+            
+            # Create parts first
+            part1 = PartService.create_part(session, "Part 1")
+            part2 = PartService.create_part(session, "Part 2")
+            part3 = PartService.create_part(session, "Part 3")
             session.commit()
 
             # Add parts to 3 different locations (30% usage)
-            InventoryService.add_stock(session, "PART", box.box_no, 1, 5)
-            InventoryService.add_stock(session, "TEST", box.box_no, 3, 10)
-            InventoryService.add_stock(session, "DEMO", box.box_no, 7, 2)
+            InventoryService.add_stock(session, part1.key, box.box_no, 1, 5)
+            InventoryService.add_stock(session, part2.key, box.box_no, 3, 10)
+            InventoryService.add_stock(session, part3.key, box.box_no, 7, 2)
             session.commit()
 
             usage_stats = BoxService.calculate_box_usage(session, box.box_no)
@@ -443,13 +469,16 @@ class TestBoxService:
         with app.app_context():
             # Create box and add same part to multiple locations
             box = BoxService.create_box(session, "Multi-location Box", 5)
+            
+            # Create part first
+            part = PartService.create_part(session, "Test part")
             session.commit()
 
             # Add same part to 4 different locations (80% usage)
-            InventoryService.add_stock(session, "PART", box.box_no, 1, 10)
-            InventoryService.add_stock(session, "PART", box.box_no, 2, 5)
-            InventoryService.add_stock(session, "PART", box.box_no, 4, 15)
-            InventoryService.add_stock(session, "PART", box.box_no, 5, 20)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 10)
+            InventoryService.add_stock(session, part.key, box.box_no, 2, 5)
+            InventoryService.add_stock(session, part.key, box.box_no, 4, 15)
+            InventoryService.add_stock(session, part.key, box.box_no, 5, 20)
             session.commit()
 
             usage_stats = BoxService.calculate_box_usage(session, box.box_no)
@@ -465,12 +494,17 @@ class TestBoxService:
         with app.app_context():
             # Create small box and fill all locations
             box = BoxService.create_box(session, "Full Box", 3)
+            
+            # Create parts first
+            part1 = PartService.create_part(session, "Part 1")
+            part2 = PartService.create_part(session, "Part 2")
+            part3 = PartService.create_part(session, "Part 3")
             session.commit()
 
             # Fill all 3 locations
-            InventoryService.add_stock(session, "PART", box.box_no, 1, 100)
-            InventoryService.add_stock(session, "TEST", box.box_no, 2, 50)
-            InventoryService.add_stock(session, "DEMO", box.box_no, 3, 25)
+            InventoryService.add_stock(session, part1.key, box.box_no, 1, 100)
+            InventoryService.add_stock(session, part2.key, box.box_no, 2, 50)
+            InventoryService.add_stock(session, part3.key, box.box_no, 3, 25)
             session.commit()
 
             usage_stats = BoxService.calculate_box_usage(session, box.box_no)
@@ -505,18 +539,29 @@ class TestBoxService:
             box3 = BoxService.create_box(session, "Full Box", 5)
             session.commit()
 
+            # Create parts first
+            part1 = PartService.create_part(session, "Part 1")
+            part2 = PartService.create_part(session, "Part 2")
+            part3 = PartService.create_part(session, "Part 3")
+            comp_part = PartService.create_part(session, "Component")
+            resi_part = PartService.create_part(session, "Resistor")
+            capa_part = PartService.create_part(session, "Capacitor")
+            tran_part = PartService.create_part(session, "Transistor")
+            digi_part = PartService.create_part(session, "Digital")
+            session.flush()
+            
             # Add parts to some boxes
             # Box 2: 3 locations used (15% usage)
-            InventoryService.add_stock(session, "PART", box2.box_no, 1, 10)
-            InventoryService.add_stock(session, "TEST", box2.box_no, 5, 5)
-            InventoryService.add_stock(session, "DEMO", box2.box_no, 10, 15)
+            InventoryService.add_stock(session, part1.key, box2.box_no, 1, 10)
+            InventoryService.add_stock(session, part2.key, box2.box_no, 5, 5)
+            InventoryService.add_stock(session, part3.key, box2.box_no, 10, 15)
 
             # Box 3: all locations used (100% usage)
-            InventoryService.add_stock(session, "COMP", box3.box_no, 1, 20)
-            InventoryService.add_stock(session, "RESI", box3.box_no, 2, 30)
-            InventoryService.add_stock(session, "CAPA", box3.box_no, 3, 40)
-            InventoryService.add_stock(session, "TRAN", box3.box_no, 4, 50)
-            InventoryService.add_stock(session, "DIGI", box3.box_no, 5, 60)
+            InventoryService.add_stock(session, comp_part.key, box3.box_no, 1, 20)
+            InventoryService.add_stock(session, resi_part.key, box3.box_no, 2, 30)
+            InventoryService.add_stock(session, capa_part.key, box3.box_no, 3, 40)
+            InventoryService.add_stock(session, tran_part.key, box3.box_no, 4, 50)
+            InventoryService.add_stock(session, digi_part.key, box3.box_no, 5, 60)
             session.commit()
 
             # Get all boxes with usage
@@ -581,10 +626,13 @@ class TestBoxService:
         with app.app_context():
             # Create box and add one part
             box = BoxService.create_box(session, "Single Part Box", 3)
+            
+            # Create part first
+            part = PartService.create_part(session, "Resistor")
             session.commit()
             
             # Add part to location 2
-            InventoryService.add_stock(session, "R001", box.box_no, 2, 25)
+            InventoryService.add_stock(session, part.key, box.box_no, 2, 25)
             session.commit()
 
             locations_with_parts = BoxService.get_box_locations_with_parts(session, box.box_no)
@@ -604,10 +652,10 @@ class TestBoxService:
             assert len(locations_with_parts[1].part_assignments) == 1
             
             part_assignment = locations_with_parts[1].part_assignments[0]
-            assert part_assignment.id4 == "R001"
+            assert part_assignment.key == part.key
             assert part_assignment.qty == 25
             assert part_assignment.manufacturer_code is None
-            assert part_assignment.description == "Part R001"
+            assert part_assignment.description == "Resistor"
             
             # Location 3: empty
             assert locations_with_parts[2].box_no == box.box_no
@@ -622,40 +670,46 @@ class TestBoxService:
             box = BoxService.create_box(session, "Multi Part Box", 5)
             session.commit()
             
+            # Create parts first
+            part1 = PartService.create_part(session, "Resistor")
+            part2 = PartService.create_part(session, "Capacitor")
+            part3 = PartService.create_part(session, "Inductor")
+            session.flush()
+            
             # Add parts to different locations
-            InventoryService.add_stock(session, "R001", box.box_no, 1, 10)
-            InventoryService.add_stock(session, "C002", box.box_no, 3, 50)
-            InventoryService.add_stock(session, "L003", box.box_no, 5, 5)
+            InventoryService.add_stock(session, part1.key, box.box_no, 1, 10)
+            InventoryService.add_stock(session, part2.key, box.box_no, 3, 50)
+            InventoryService.add_stock(session, part3.key, box.box_no, 5, 5)
             session.commit()
 
             locations_with_parts = BoxService.get_box_locations_with_parts(session, box.box_no)
 
             assert len(locations_with_parts) == 5
             
-            # Location 1: has R001
+            # Location 1: has resistor
             assert locations_with_parts[0].is_occupied == True
             assert len(locations_with_parts[0].part_assignments) == 1
-            assert locations_with_parts[0].part_assignments[0].id4 == "R001"
+            assert locations_with_parts[0].part_assignments[0].key == part1.key
             assert locations_with_parts[0].part_assignments[0].qty == 10
             
             # Location 2: empty
             assert locations_with_parts[1].is_occupied == False
             assert locations_with_parts[1].part_assignments == []
             
-            # Location 3: has C002
+            # Location 3: has capacitor
             assert locations_with_parts[2].is_occupied == True
             assert len(locations_with_parts[2].part_assignments) == 1
-            assert locations_with_parts[2].part_assignments[0].id4 == "C002"
+            assert locations_with_parts[2].part_assignments[0].key == part2.key
             assert locations_with_parts[2].part_assignments[0].qty == 50
             
             # Location 4: empty
             assert locations_with_parts[3].is_occupied == False
             assert locations_with_parts[3].part_assignments == []
             
-            # Location 5: has L003
+            # Location 5: has inductor
             assert locations_with_parts[4].is_occupied == True
             assert len(locations_with_parts[4].part_assignments) == 1
-            assert locations_with_parts[4].part_assignments[0].id4 == "L003"
+            assert locations_with_parts[4].part_assignments[0].key == part3.key
             assert locations_with_parts[4].part_assignments[0].qty == 5
 
     def test_get_box_locations_with_parts_same_part_multiple_locations(self, app: Flask, session: Session):
@@ -665,20 +719,24 @@ class TestBoxService:
             box = BoxService.create_box(session, "Same Part Box", 4)
             session.commit()
             
+            # Create part first
+            part = PartService.create_part(session, "Resistor")
+            session.flush()
+            
             # Add same part to different locations with different quantities
-            InventoryService.add_stock(session, "R001", box.box_no, 1, 100)
-            InventoryService.add_stock(session, "R001", box.box_no, 3, 200)
-            InventoryService.add_stock(session, "R001", box.box_no, 4, 50)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 100)
+            InventoryService.add_stock(session, part.key, box.box_no, 3, 200)
+            InventoryService.add_stock(session, part.key, box.box_no, 4, 50)
             session.commit()
 
             locations_with_parts = BoxService.get_box_locations_with_parts(session, box.box_no)
 
             assert len(locations_with_parts) == 4
             
-            # Location 1: has R001 (qty=100)
+            # Location 1: has resistor (qty=100)
             assert locations_with_parts[0].is_occupied == True
             assert len(locations_with_parts[0].part_assignments) == 1
-            assert locations_with_parts[0].part_assignments[0].id4 == "R001"
+            assert locations_with_parts[0].part_assignments[0].key == part.key
             assert locations_with_parts[0].part_assignments[0].qty == 100
             
             # Location 2: empty
@@ -688,13 +746,13 @@ class TestBoxService:
             # Location 3: has R001 (qty=200)
             assert locations_with_parts[2].is_occupied == True
             assert len(locations_with_parts[2].part_assignments) == 1
-            assert locations_with_parts[2].part_assignments[0].id4 == "R001"
+            assert locations_with_parts[2].part_assignments[0].key == part.key
             assert locations_with_parts[2].part_assignments[0].qty == 200
             
             # Location 4: has R001 (qty=50)
             assert locations_with_parts[3].is_occupied == True
             assert len(locations_with_parts[3].part_assignments) == 1
-            assert locations_with_parts[3].part_assignments[0].id4 == "R001"
+            assert locations_with_parts[3].part_assignments[0].key == part.key
             assert locations_with_parts[3].part_assignments[0].qty == 50
 
     def test_get_box_locations_with_parts_with_part_details(self, app: Flask, session: Session):
@@ -710,7 +768,7 @@ class TestBoxService:
             session.commit()
             
             # Add part to location
-            InventoryService.add_stock(session, part.id4, box.box_no, 2, 100)
+            InventoryService.add_stock(session, part.key, box.box_no, 2, 100)
             session.commit()
 
             locations_with_parts = BoxService.get_box_locations_with_parts(session, box.box_no)
@@ -723,7 +781,7 @@ class TestBoxService:
             assert len(location_2.part_assignments) == 1
             
             part_assignment = location_2.part_assignments[0]
-            assert part_assignment.id4 == part.id4
+            assert part_assignment.key == part.key
             assert part_assignment.qty == 100
             assert part_assignment.manufacturer_code == "RES-0603-1K"
             assert part_assignment.description == "1kΩ resistor, 0603 package"
@@ -744,11 +802,18 @@ class TestBoxService:
             box = BoxService.create_box(session, "Ordered Box", 10)
             session.commit()
             
+            # Create parts first
+            part1 = PartService.create_part(session, "Part 1")
+            part2 = PartService.create_part(session, "Part 2")
+            part3 = PartService.create_part(session, "Part 3")
+            part4 = PartService.create_part(session, "Part 4")
+            session.flush()
+            
             # Add parts to non-sequential locations
-            InventoryService.add_stock(session, "PART", box.box_no, 8, 10)
-            InventoryService.add_stock(session, "TEST", box.box_no, 3, 20)
-            InventoryService.add_stock(session, "DEMO", box.box_no, 1, 5)
-            InventoryService.add_stock(session, "COMP", box.box_no, 10, 15)
+            InventoryService.add_stock(session, part1.key, box.box_no, 8, 10)
+            InventoryService.add_stock(session, part2.key, box.box_no, 3, 20)
+            InventoryService.add_stock(session, part3.key, box.box_no, 1, 5)
+            InventoryService.add_stock(session, part4.key, box.box_no, 10, 15)
             session.commit()
 
             locations_with_parts = BoxService.get_box_locations_with_parts(session, box.box_no)
@@ -761,22 +826,22 @@ class TestBoxService:
             assert location_numbers == list(range(1, 11))
             
             # Verify the correct parts are at the correct locations
-            # Location 1: DEMO
+            # Location 1: part3
             assert locations_with_parts[0].is_occupied == True
-            assert locations_with_parts[0].part_assignments[0].id4 == "DEMO"
+            assert locations_with_parts[0].part_assignments[0].key == part3.key
             assert locations_with_parts[0].part_assignments[0].qty == 5
             
-            # Location 3: TEST  
+            # Location 3: part2  
             assert locations_with_parts[2].is_occupied == True
-            assert locations_with_parts[2].part_assignments[0].id4 == "TEST"
+            assert locations_with_parts[2].part_assignments[0].key == part2.key
             assert locations_with_parts[2].part_assignments[0].qty == 20
             
-            # Location 8: PART
+            # Location 8: part1
             assert locations_with_parts[7].is_occupied == True
-            assert locations_with_parts[7].part_assignments[0].id4 == "PART"
+            assert locations_with_parts[7].part_assignments[0].key == part1.key
             assert locations_with_parts[7].part_assignments[0].qty == 10
             
-            # Location 10: COMP
+            # Location 10: part4
             assert locations_with_parts[9].is_occupied == True
-            assert locations_with_parts[9].part_assignments[0].id4 == "COMP"
+            assert locations_with_parts[9].part_assignments[0].key == part4.key
             assert locations_with_parts[9].part_assignments[0].qty == 15

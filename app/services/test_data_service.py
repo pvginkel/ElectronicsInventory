@@ -106,10 +106,10 @@ class TestDataService:
                 if type_obj:
                     type_id = type_obj.id
                 else:
-                    raise InvalidOperationException("load parts data", f"unknown type '{type_name}' in part {part_data['id4']}")
+                    raise InvalidOperationException("load parts data", f"unknown type '{type_name}' in part {part_data['key']}")
 
             part = Part(
-                id4=part_data["id4"],
+                key=part_data["key"],
                 manufacturer_code=part_data.get("manufacturer_code"),
                 type_id=type_id,
                 description=part_data["description"],
@@ -119,7 +119,7 @@ class TestDataService:
             )
             db.add(part)
             db.flush()  # Get ID immediately
-            parts_map[part_data["id4"]] = part
+            parts_map[part_data["key"]] = part
 
         return parts_map
 
@@ -134,10 +134,15 @@ class TestDataService:
             raise InvalidOperationException("load part locations data", f"failed to read {part_locations_file}: {e}") from e
 
         for location_data in part_locations_data:
-            part_id4 = location_data["part_id4"]
+            part_key = location_data["part_key"]
             box_no = location_data["box_no"]
             loc_no = location_data["loc_no"]
             qty = location_data["qty"]
+            
+            # Get the part to get its ID
+            part = parts[part_key]
+            if not part:
+                raise InvalidOperationException("load part locations", f"part {part_key} not found")
 
             # Find the location_id
             stmt = select(Location).where(
@@ -149,7 +154,7 @@ class TestDataService:
                 raise InvalidOperationException("load part locations", f"location {box_no}-{loc_no} not found")
 
             part_location = PartLocation(
-                part_id4=part_id4,
+                part_id=part.id,
                 box_no=box_no,
                 loc_no=loc_no,
                 location_id=location.id,
@@ -174,8 +179,14 @@ class TestDataService:
             except ValueError as e:
                 raise InvalidOperationException("load quantity history", f"invalid timestamp format: {e}") from e
 
+            # Get the part to get its ID
+            part_key = history_data["part_key"]
+            part = parts[part_key]
+            if not part:
+                raise InvalidOperationException("load quantity history", f"part {part_key} not found")
+                
             quantity_history = QuantityHistory(
-                part_id4=history_data["part_id4"],
+                part_id=part.id,
                 delta_qty=history_data["delta_qty"],
                 location_reference=history_data.get("location_reference"),
                 timestamp=timestamp

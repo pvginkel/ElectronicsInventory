@@ -23,7 +23,7 @@ class LocationResponseSchema(BaseModel):
 class PartAssignmentSchema(BaseModel):
     """Schema for part assignment data within a location."""
 
-    id4: str = Field(
+    key: str = Field(
         ...,
         description="4-character part identifier",
         json_schema_extra={"example": "R001"}

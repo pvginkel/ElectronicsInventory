@@ -21,7 +21,7 @@ class Part(db.Model):  # type: ignore[name-defined]
     __tablename__ = "parts"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    id4: Mapped[str] = mapped_column(CHAR(4), unique=True, nullable=False)
+    key: Mapped[str] = mapped_column(CHAR(4), unique=True, nullable=False)
     manufacturer_code: Mapped[str | None] = mapped_column(String(255), nullable=True)
     type_id: Mapped[int | None] = mapped_column(
         ForeignKey("types.id"), nullable=True
@@ -51,4 +51,4 @@ class Part(db.Model):  # type: ignore[name-defined]
     )
 
     def __repr__(self) -> str:
-        return f"<Part {self.id4}: {self.manufacturer_code or 'N/A'}>"
+        return f"<Part {self.key}: {self.manufacturer_code or 'N/A'}>"

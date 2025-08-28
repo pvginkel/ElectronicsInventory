@@ -127,7 +127,7 @@ class TestTestDataService:
             
             test_data = [
                 {
-                    "id4": "ABCD",
+                    "key": "ABCD",
                     "manufacturer_code": "10k",
                     "description": "10kΩ resistor",
                     "type": "Resistor",
@@ -136,7 +136,7 @@ class TestTestDataService:
                     "seller_link": "https://example.com"
                 },
                 {
-                    "id4": "EFGH",
+                    "key": "EFGH",
                     "manufacturer_code": "LM358",
                     "description": "Op-amp",
                     "type": "Resistor",  # Using existing type for simplicity
@@ -174,7 +174,7 @@ class TestTestDataService:
             
             test_data = [
                 {
-                    "id4": "ABCD",
+                    "key": "ABCD",
                     "description": "Test part",
                     "type": "NonexistentType"  # This type doesn't exist
                 }
@@ -200,7 +200,7 @@ class TestTestDataService:
             
             test_data = [
                 {
-                    "id4": "ABCD",
+                    "key": "ABCD",
                     "description": "Unknown part",
                     "manufacturer_code": "ABC123"
                 }
@@ -234,7 +234,7 @@ class TestTestDataService:
             session.add(location)
             session.flush()
             
-            part = Part(id4="ABCD", description="Test Part")
+            part = Part(key="ABCD", description="Test Part")
             session.add(part)
             session.flush()
             
@@ -242,7 +242,7 @@ class TestTestDataService:
             boxes_map = {1: box}
             
             test_data = [
-                {"part_id4": "ABCD", "box_no": 1, "loc_no": 1, "qty": 50}
+                {"part_key": "ABCD", "box_no": 1, "loc_no": 1, "qty": 50}
             ]
             
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -260,7 +260,7 @@ class TestTestDataService:
                 assert len(part_locations) == 1
                 
                 pl = part_locations[0]
-                assert pl.part_id4 == "ABCD"
+                assert pl.part.key == "ABCD"
                 assert pl.box_no == 1
                 assert pl.loc_no == 1
                 assert pl.qty == 50
@@ -269,11 +269,16 @@ class TestTestDataService:
     def test_load_part_locations_location_not_found(self, app: Flask, session: Session):
         """Test error handling when location doesn't exist."""
         with app.app_context():
-            parts_map = {}
-            boxes_map = {}
+            # Create a part but no corresponding location/box
+            part = Part(key="ABCD", description="Test part")
+            session.add(part)
+            session.flush()
+            
+            parts_map = {"ABCD": part}
+            boxes_map = {}  # Empty - no boxes created
             
             test_data = [
-                {"part_id4": "ABCD", "box_no": 1, "loc_no": 1, "qty": 50}
+                {"part_key": "ABCD", "box_no": 1, "loc_no": 1, "qty": 50}
             ]
             
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -292,7 +297,7 @@ class TestTestDataService:
         """Test successful loading of quantity history."""
         with app.app_context():
             # Create test part
-            part = Part(id4="ABCD", description="Test Part")
+            part = Part(key="ABCD", description="Test Part")
             session.add(part)
             session.flush()
             
@@ -300,13 +305,13 @@ class TestTestDataService:
             
             test_data = [
                 {
-                    "part_id4": "ABCD",
+                    "part_key": "ABCD",
                     "delta_qty": 100,
                     "location_reference": "1-1",
                     "timestamp": "2024-01-15T10:30:00"
                 },
                 {
-                    "part_id4": "ABCD",
+                    "part_key": "ABCD",
                     "delta_qty": -25,
                     "location_reference": "1-1",
                     "timestamp": "2024-02-01T14:15:00"
@@ -329,13 +334,13 @@ class TestTestDataService:
                 
                 # Check first record
                 record1 = history_records[0]
-                assert record1.part_id4 == "ABCD"
+                assert record1.part.key == "ABCD"
                 assert record1.delta_qty == 100
                 assert record1.location_reference == "1-1"
                 
                 # Check second record
                 record2 = history_records[1]
-                assert record2.part_id4 == "ABCD"
+                assert record2.part.key == "ABCD"
                 assert record2.delta_qty == -25
 
     def test_load_quantity_history_invalid_timestamp(self, app: Flask, session: Session):
@@ -345,7 +350,7 @@ class TestTestDataService:
             
             test_data = [
                 {
-                    "part_id4": "ABCD",
+                    "part_key": "ABCD",
                     "delta_qty": 100,
                     "timestamp": "invalid-timestamp"
                 }
@@ -370,13 +375,13 @@ class TestTestDataService:
             types_data = [{"name": "Resistor"}]
             boxes_data = [{"box_no": 1, "description": "Test Box", "capacity": 5}]
             parts_data = [{
-                "id4": "ABCD",
+                "key": "ABCD",
                 "description": "Test resistor",
                 "type": "Resistor"
             }]
-            part_locations_data = [{"part_id4": "ABCD", "box_no": 1, "loc_no": 1, "qty": 10}]
+            part_locations_data = [{"part_key": "ABCD", "box_no": 1, "loc_no": 1, "qty": 10}]
             history_data = [{
-                "part_id4": "ABCD",
+                "part_key": "ABCD",
                 "delta_qty": 10,
                 "location_reference": "1-1",
                 "timestamp": "2024-01-01T00:00:00"
@@ -429,7 +434,7 @@ class TestTestDataService:
                     assert part.type.name == "Resistor"
                     
                     part_location = session.query(PartLocation).first()
-                    assert part_location.part_id4 == "ABCD"
+                    assert part_location.part.key == "ABCD"
                     assert part_location.qty == 10
                     
                 finally:

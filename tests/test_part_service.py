@@ -15,27 +15,27 @@ from app.services.type_service import TypeService
 class TestPartService:
     """Test cases for PartService."""
 
-    def test_generate_part_id4(self, app: Flask, session: Session):
-        """Test part ID generation."""
+    def test_generate_part_key(self, app: Flask, session: Session):
+        """Test part key generation."""
         with app.app_context():
-            id4 = PartService.generate_part_id4(session)
+            key = PartService.generate_part_key(session)
 
             # Should be 4 characters
-            assert len(id4) == 4
+            assert len(key) == 4
 
             # Should be all uppercase letters
-            assert all(c in string.ascii_uppercase for c in id4)
+            assert all(c in string.ascii_uppercase for c in key)
 
-    def test_generate_part_id4_uniqueness(self, app: Flask, session: Session):
-        """Test that generated IDs are unique."""
+    def test_generate_part_key_uniqueness(self, app: Flask, session: Session):
+        """Test that generated keys are unique."""
         with app.app_context():
-            # Create a part to occupy one ID
+            # Create a part to occupy one key
             part = PartService.create_part(session, "Test description")
             session.commit()
 
-            # Generate new ID should be different
-            new_id = PartService.generate_part_id4(session)
-            assert new_id != part.id4
+            # Generate new key should be different
+            new_key = PartService.generate_part_key(session)
+            assert new_key != part.key
 
     def test_create_part_minimal(self, app: Flask, session: Session):
         """Test creating a part with minimal data."""
@@ -43,7 +43,7 @@ class TestPartService:
             part = PartService.create_part(session, "Basic resistor")
 
             assert isinstance(part, Part)
-            assert len(part.id4) == 4
+            assert len(part.key) == 4
             assert part.description == "Basic resistor"
             assert part.manufacturer_code is None
             assert part.type_id is None
@@ -83,10 +83,10 @@ class TestPartService:
             session.commit()
 
             # Retrieve it
-            retrieved_part = PartService.get_part(session, created_part.id4)
+            retrieved_part = PartService.get_part(session, created_part.key)
 
             assert retrieved_part is not None
-            assert retrieved_part.id4 == created_part.id4
+            assert retrieved_part.key == created_part.key
             assert retrieved_part.description == "Test part"
 
     def test_get_part_nonexistent(self, app: Flask, session: Session):
@@ -161,7 +161,7 @@ class TestPartService:
             # Update some fields
             updated_part = PartService.update_part_details(
                 session,
-                part.id4,
+                part.key,
                 manufacturer_code="CAP-100UF",
                 type_id=type_obj.id,
                 tags=["100uF", "25V"]
@@ -188,7 +188,7 @@ class TestPartService:
             session.commit()
 
             # Should be able to delete (no exception thrown)
-            PartService.delete_part(session, part.id4)
+            PartService.delete_part(session, part.key)
 
     def test_delete_part_nonexistent(self, app: Flask, session: Session):
         """Test deleting a non-existent part."""
@@ -202,7 +202,7 @@ class TestPartService:
             part = PartService.create_part(session, "Empty part")
             session.commit()
 
-            total_qty = PartService.get_total_quantity(session, part.id4)
+            total_qty = PartService.get_total_quantity(session, part.key)
             assert total_qty == 0
 
     def test_get_total_quantity_nonexistent_part(self, app: Flask, session: Session):
