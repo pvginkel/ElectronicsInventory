@@ -3,7 +3,6 @@
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.type import Type

@@ -1,8 +1,8 @@
 """Parts management API endpoints."""
 
-from flask import Blueprint, g, request
-from spectree import Response as SpectreeResponse
 from dependency_injector.wiring import Provide, inject
+from flask import Blueprint, request
+from spectree import Response as SpectreeResponse
 
 from app.schemas.common import ErrorResponseSchema
 from app.schemas.part import (

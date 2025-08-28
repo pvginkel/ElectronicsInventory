@@ -17,14 +17,15 @@ from app.services.base import BaseService
 
 if TYPE_CHECKING:
     from app.schemas.part import PartWithTotalModel
+    from app.services.part_service import PartService
 
 
 class InventoryService(BaseService):
     """Service class for inventory management operations."""
-    
-    def __init__(self, db: Session, part_service):
+
+    def __init__(self, db: Session, part_service: "PartService"):
         """Initialize service with database session and part service dependency.
-        
+
         Args:
             db: SQLAlchemy database session
             part_service: Instance of PartService
@@ -271,6 +272,7 @@ class InventoryService(BaseService):
     def calculate_total_quantity(self, part_key: str) -> int:
         """Calculate total quantity across all locations for a part."""
         from sqlalchemy import func
+
         from app.models.part import Part
         stmt = select(func.coalesce(func.sum(PartLocation.qty), 0)).join(
             Part, PartLocation.part_id == Part.id

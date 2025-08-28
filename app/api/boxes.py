@@ -1,9 +1,9 @@
 """Box management API endpoints."""
 
 
-from flask import Blueprint, g, request
-from spectree import Response as SpectreeResponse
 from dependency_injector.wiring import Provide, inject
+from flask import Blueprint, request
+from spectree import Response as SpectreeResponse
 
 from app.schemas.box import (
     BoxCreateSchema,
@@ -14,7 +14,11 @@ from app.schemas.box import (
     BoxWithUsageSchema,
 )
 from app.schemas.common import ErrorResponseSchema
-from app.schemas.location import LocationResponseSchema, LocationWithPartResponseSchema, PartAssignmentSchema
+from app.schemas.location import (
+    LocationResponseSchema,
+    LocationWithPartResponseSchema,
+    PartAssignmentSchema,
+)
 from app.services.container import ServiceContainer
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
@@ -122,12 +126,12 @@ def get_box_usage(box_no: int, box_service=Provide[ServiceContainer.box_service]
 @inject
 def get_box_locations(box_no: int, box_service=Provide[ServiceContainer.box_service]):
     """Get all locations in box.
-    
+
     Query parameters:
     - include_parts (bool): Include part assignment data for each location (default: false)
     """
     include_parts = request.args.get("include_parts", "false").lower() == "true"
-    
+
     if include_parts:
         # Use enhanced service method with part data
         locations_with_parts = box_service.get_box_locations_with_parts(box_no)
@@ -143,7 +147,7 @@ def get_box_locations(box_no: int, box_service=Provide[ServiceContainer.box_serv
                 )
                 for part in location_data.part_assignments
             ]
-            
+
             location_response = LocationWithPartResponseSchema(
                 box_no=location_data.box_no,
                 loc_no=location_data.loc_no,

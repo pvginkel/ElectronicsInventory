@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.box import Box
@@ -203,7 +202,7 @@ class BoxService(BaseService):
         """Get all locations for a box with part assignment information."""
         # First verify the box exists
         self.get_box(box_no)
-        
+
         # Query locations with their part assignments
         # Use a LEFT JOIN to include empty locations
         stmt = select(
@@ -216,8 +215,8 @@ class BoxService(BaseService):
         ).select_from(
             Location
         ).outerjoin(
-            PartLocation, 
-            (Location.box_no == PartLocation.box_no) & 
+            PartLocation,
+            (Location.box_no == PartLocation.box_no) &
             (Location.loc_no == PartLocation.loc_no)
         ).outerjoin(
             Part, PartLocation.part_id == Part.id
@@ -229,10 +228,10 @@ class BoxService(BaseService):
 
         # Group results by location
         locations_dict: dict[int, LocationWithPartData] = {}
-        
+
         for result in results:
             loc_no = result.loc_no
-            
+
             # Initialize location if not seen before
             if loc_no not in locations_dict:
                 locations_dict[loc_no] = LocationWithPartData(
@@ -241,7 +240,7 @@ class BoxService(BaseService):
                     is_occupied=False,
                     part_assignments=[]
                 )
-            
+
             # Add part assignment if there is one
             if result.key is not None:
                 locations_dict[loc_no].is_occupied = True
@@ -252,6 +251,6 @@ class BoxService(BaseService):
                     description=result.description or ""
                 )
                 locations_dict[loc_no].part_assignments.append(part_assignment)
-        
+
         # Return ordered list by location number
         return [locations_dict[loc_no] for loc_no in sorted(locations_dict.keys())]

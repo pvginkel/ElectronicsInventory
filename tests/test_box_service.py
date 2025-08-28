@@ -249,7 +249,7 @@ class TestBoxService:
         with app.app_context():
             # Create box
             box = container.box_service().create_box("Test Box", 10)
-            
+
             # Create a part first
             part = container.part_service().create_part("Test part")
             session.commit()
@@ -274,7 +274,7 @@ class TestBoxService:
         with app.app_context():
             # Create box
             box = container.box_service().create_box("Test Box", 10)
-            
+
             # Create multiple parts first
             part1 = container.part_service().create_part("Part 1")
             part2 = container.part_service().create_part("Part 2")
@@ -299,7 +299,7 @@ class TestBoxService:
         with app.app_context():
             # Create box
             box = container.box_service().create_box("Test Box", 10)
-            
+
             # Create a part first
             part = container.part_service().create_part("Test part")
             session.commit()
@@ -322,7 +322,7 @@ class TestBoxService:
         with app.app_context():
             # Create box
             box = container.box_service().create_box("Test Box", 10)
-            
+
             # Create parts first
             part1 = container.part_service().create_part("Test part")
             part2 = container.part_service().create_part("Demo part")
@@ -374,7 +374,7 @@ class TestBoxService:
             # Create two boxes
             box1 = container.box_service().create_box("Box 1", 5)
             box2 = container.box_service().create_box("Box 2", 5)
-            
+
             # Create parts first
             comp_part = container.part_service().create_part("Component")
             resi_part = container.part_service().create_part("Resistor")
@@ -441,7 +441,7 @@ class TestBoxService:
         with app.app_context():
             # Create box and add parts to some locations
             box = container.box_service().create_box("Partial Box", 10)
-            
+
             # Create parts first
             part1 = container.part_service().create_part("Part 1")
             part2 = container.part_service().create_part("Part 2")
@@ -467,7 +467,7 @@ class TestBoxService:
         with app.app_context():
             # Create box and add same part to multiple locations
             box = container.box_service().create_box("Multi-location Box", 5)
-            
+
             # Create part first
             part = container.part_service().create_part("Test part")
             session.commit()
@@ -492,7 +492,7 @@ class TestBoxService:
         with app.app_context():
             # Create small box and fill all locations
             box = container.box_service().create_box("Full Box", 3)
-            
+
             # Create parts first
             part1 = container.part_service().create_part("Part 1")
             part2 = container.part_service().create_part("Part 2")
@@ -547,7 +547,7 @@ class TestBoxService:
             tran_part = container.part_service().create_part("Transistor")
             digi_part = container.part_service().create_part("Digital")
             session.flush()
-            
+
             # Add parts to some boxes
             # Box 2: 3 locations used (15% usage)
             container.inventory_service().add_stock(part1.key, box2.box_no, 1, 10)
@@ -624,11 +624,11 @@ class TestBoxService:
         with app.app_context():
             # Create box and add one part
             box = container.box_service().create_box("Single Part Box", 3)
-            
+
             # Create part first
             part = container.part_service().create_part("Resistor")
             session.commit()
-            
+
             # Add part to location 2
             container.inventory_service().add_stock(part.key, box.box_no, 2, 25)
             session.commit()
@@ -636,25 +636,25 @@ class TestBoxService:
             locations_with_parts = container.box_service().get_box_locations_with_parts(box.box_no)
 
             assert len(locations_with_parts) == 3
-            
+
             # Location 1: empty
             assert locations_with_parts[0].box_no == box.box_no
             assert locations_with_parts[0].loc_no == 1
             assert locations_with_parts[0].is_occupied == False
             assert locations_with_parts[0].part_assignments == []
-            
+
             # Location 2: has part
             assert locations_with_parts[1].box_no == box.box_no
             assert locations_with_parts[1].loc_no == 2
             assert locations_with_parts[1].is_occupied == True
             assert len(locations_with_parts[1].part_assignments) == 1
-            
+
             part_assignment = locations_with_parts[1].part_assignments[0]
             assert part_assignment.key == part.key
             assert part_assignment.qty == 25
             assert part_assignment.manufacturer_code is None
             assert part_assignment.description == "Resistor"
-            
+
             # Location 3: empty
             assert locations_with_parts[2].box_no == box.box_no
             assert locations_with_parts[2].loc_no == 3
@@ -667,13 +667,13 @@ class TestBoxService:
             # Create box and add multiple parts
             box = container.box_service().create_box("Multi Part Box", 5)
             session.commit()
-            
+
             # Create parts first
             part1 = container.part_service().create_part("Resistor")
             part2 = container.part_service().create_part("Capacitor")
             part3 = container.part_service().create_part("Inductor")
             session.flush()
-            
+
             # Add parts to different locations
             container.inventory_service().add_stock(part1.key, box.box_no, 1, 10)
             container.inventory_service().add_stock(part2.key, box.box_no, 3, 50)
@@ -683,27 +683,27 @@ class TestBoxService:
             locations_with_parts = container.box_service().get_box_locations_with_parts(box.box_no)
 
             assert len(locations_with_parts) == 5
-            
+
             # Location 1: has resistor
             assert locations_with_parts[0].is_occupied == True
             assert len(locations_with_parts[0].part_assignments) == 1
             assert locations_with_parts[0].part_assignments[0].key == part1.key
             assert locations_with_parts[0].part_assignments[0].qty == 10
-            
+
             # Location 2: empty
             assert locations_with_parts[1].is_occupied == False
             assert locations_with_parts[1].part_assignments == []
-            
+
             # Location 3: has capacitor
             assert locations_with_parts[2].is_occupied == True
             assert len(locations_with_parts[2].part_assignments) == 1
             assert locations_with_parts[2].part_assignments[0].key == part2.key
             assert locations_with_parts[2].part_assignments[0].qty == 50
-            
+
             # Location 4: empty
             assert locations_with_parts[3].is_occupied == False
             assert locations_with_parts[3].part_assignments == []
-            
+
             # Location 5: has inductor
             assert locations_with_parts[4].is_occupied == True
             assert len(locations_with_parts[4].part_assignments) == 1
@@ -716,11 +716,11 @@ class TestBoxService:
             # Create box and add same part to multiple locations
             box = container.box_service().create_box("Same Part Box", 4)
             session.commit()
-            
+
             # Create part first
             part = container.part_service().create_part("Resistor")
             session.flush()
-            
+
             # Add same part to different locations with different quantities
             container.inventory_service().add_stock(part.key, box.box_no, 1, 100)
             container.inventory_service().add_stock(part.key, box.box_no, 3, 200)
@@ -730,23 +730,23 @@ class TestBoxService:
             locations_with_parts = container.box_service().get_box_locations_with_parts(box.box_no)
 
             assert len(locations_with_parts) == 4
-            
+
             # Location 1: has resistor (qty=100)
             assert locations_with_parts[0].is_occupied == True
             assert len(locations_with_parts[0].part_assignments) == 1
             assert locations_with_parts[0].part_assignments[0].key == part.key
             assert locations_with_parts[0].part_assignments[0].qty == 100
-            
+
             # Location 2: empty
             assert locations_with_parts[1].is_occupied == False
             assert locations_with_parts[1].part_assignments == []
-            
+
             # Location 3: has R001 (qty=200)
             assert locations_with_parts[2].is_occupied == True
             assert len(locations_with_parts[2].part_assignments) == 1
             assert locations_with_parts[2].part_assignments[0].key == part.key
             assert locations_with_parts[2].part_assignments[0].qty == 200
-            
+
             # Location 4: has R001 (qty=50)
             assert locations_with_parts[3].is_occupied == True
             assert len(locations_with_parts[3].part_assignments) == 1
@@ -763,7 +763,7 @@ class TestBoxService:
                 manufacturer_code="RES-0603-1K"
             )
             session.commit()
-            
+
             # Add part to location
             container.inventory_service().add_stock(part.key, box.box_no, 2, 100)
             session.commit()
@@ -771,12 +771,12 @@ class TestBoxService:
             locations_with_parts = container.box_service().get_box_locations_with_parts(box.box_no)
 
             assert len(locations_with_parts) == 3
-            
+
             # Location 2: has detailed part
             location_2 = locations_with_parts[1]
             assert location_2.is_occupied == True
             assert len(location_2.part_assignments) == 1
-            
+
             part_assignment = location_2.part_assignments[0]
             assert part_assignment.key == part.key
             assert part_assignment.qty == 100
@@ -798,14 +798,14 @@ class TestBoxService:
             # Create box with larger capacity
             box = container.box_service().create_box("Ordered Box", 10)
             session.commit()
-            
+
             # Create parts first
             part1 = container.part_service().create_part("Part 1")
             part2 = container.part_service().create_part("Part 2")
             part3 = container.part_service().create_part("Part 3")
             part4 = container.part_service().create_part("Part 4")
             session.flush()
-            
+
             # Add parts to non-sequential locations
             container.inventory_service().add_stock(part1.key, box.box_no, 8, 10)
             container.inventory_service().add_stock(part2.key, box.box_no, 3, 20)
@@ -816,28 +816,28 @@ class TestBoxService:
             locations_with_parts = container.box_service().get_box_locations_with_parts(box.box_no)
 
             assert len(locations_with_parts) == 10
-            
+
             # Verify locations are ordered by loc_no
             location_numbers = [loc.loc_no for loc in locations_with_parts]
             assert location_numbers == sorted(location_numbers)
             assert location_numbers == list(range(1, 11))
-            
+
             # Verify the correct parts are at the correct locations
             # Location 1: part3
             assert locations_with_parts[0].is_occupied == True
             assert locations_with_parts[0].part_assignments[0].key == part3.key
             assert locations_with_parts[0].part_assignments[0].qty == 5
-            
-            # Location 3: part2  
+
+            # Location 3: part2
             assert locations_with_parts[2].is_occupied == True
             assert locations_with_parts[2].part_assignments[0].key == part2.key
             assert locations_with_parts[2].part_assignments[0].qty == 20
-            
+
             # Location 8: part1
             assert locations_with_parts[7].is_occupied == True
             assert locations_with_parts[7].part_assignments[0].key == part1.key
             assert locations_with_parts[7].part_assignments[0].qty == 10
-            
+
             # Location 10: part4
             assert locations_with_parts[9].is_occupied == True
             assert locations_with_parts[9].part_assignments[0].key == part4.key
