@@ -3,10 +3,10 @@ import { Link } from '@tanstack/react-router'
 import { 
   useGetBoxesByBoxNo, 
   useGetBoxes,
-  useGetBoxesLocationsByBoxNo,
   usePutBoxesByBoxNo, 
   useDeleteBoxesByBoxNo 
 } from '@/lib/api/generated/hooks'
+import { useBoxLocationsWithParts } from '@/hooks/use-box-locations'
 import { LocationList } from './location-list'
 import { BoxForm } from './box-form'
 import { Button } from '@/components/ui/button'
@@ -25,7 +25,7 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
 
   const { data: box, isLoading, error } = useGetBoxesByBoxNo({ path: { box_no: boxNo } })
   const { data: boxes } = useGetBoxes() // Get all boxes to find usage stats for this specific box  
-  const { data: detailedLocations } = useGetBoxesLocationsByBoxNo({ path: { box_no: boxNo } })
+  const { data: locations, isLoading: locationsLoading, error: locationsError } = useBoxLocationsWithParts(boxNo)
   const updateMutation = usePutBoxesByBoxNo()
   const deleteMutation = useDeleteBoxesByBoxNo()
 
@@ -54,7 +54,7 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
     }
   }
 
-  if (isLoading) {
+  if (isLoading || locationsLoading) {
     return (
       <div>
         <div className="mb-6">
@@ -89,11 +89,22 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
     )
   }
 
+  // Show locations error if there's an issue loading them, but don't block the whole page
+  if (locationsError) {
+    console.error('Failed to load enhanced location data:', locationsError)
+  }
+
   // Get usage statistics from the boxes list endpoint which includes the new usage fields
   const boxFromList = boxes?.find(b => b.box_no === boxNo)
-  const usedLocations = (boxFromList as any)?.occupied_locations ?? 0
-  const usagePercentage = Math.round((boxFromList as any)?.usage_percentage ?? ((usedLocations / box!.capacity) * 100))
-  const totalLocations = (boxFromList as any)?.total_locations ?? box?.capacity
+  const usedLocations = boxFromList && 'occupied_locations' in boxFromList 
+    ? (boxFromList as { occupied_locations: number }).occupied_locations 
+    : 0
+  const usagePercentage = boxFromList && 'usage_percentage' in boxFromList
+    ? Math.round((boxFromList as { usage_percentage: number }).usage_percentage)
+    : Math.round((usedLocations / box!.capacity) * 100)
+  const totalLocations = boxFromList && 'total_locations' in boxFromList
+    ? (boxFromList as { total_locations: number }).total_locations
+    : box?.capacity
 
   return (
     <div>
@@ -165,7 +176,24 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
               <CardTitle>Locations</CardTitle>
             </CardHeader>
             <CardContent>
-              <LocationList locations={detailedLocations || box!.locations || []} />
+              {locationsError ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground mb-2">Failed to load location details</p>
+                  <p className="text-xs text-muted-foreground">Falling back to basic location view</p>
+                  <LocationList locations={box!.locations?.map(loc => ({
+                    boxNo: loc.box_no,
+                    locNo: loc.loc_no,
+                    isOccupied: false,
+                    partAssignments: null,
+                    totalQuantity: 0,
+                    displayText: 'Unknown',
+                    isEmpty: true,
+                    stylingClasses: 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+                  })) || []} />
+                </div>
+              ) : (
+                <LocationList locations={locations || []} />
+              )}
             </CardContent>
           </Card>
         </div>

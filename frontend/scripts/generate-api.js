@@ -127,14 +127,26 @@ function generateQueryHook(path, method, operation, operationId, summary, spec, 
   const pathParams = extractPathParams(path);
   const hasParams = pathParams.length > 0 || (operation.parameters && operation.parameters.length > 0);
   
+  // Check if the endpoint supports query parameters (even if not defined in spec)
+  const supportsQueryParams = operation.description && operation.description.includes('Query parameters:');
+  
   let paramsType = 'void';
   let paramsArg = '';
   let pathWithParams = `'${path}' as const`;
   let queryOptions = '';
   
-  if (hasParams) {
-    const parameterTypeAlias = parameterTypeMap.get(`${path}:${method}`);
-    paramsType = parameterTypeAlias || `paths['${path}']['${method}']['parameters']`;
+  if (hasParams || supportsQueryParams) {
+    if (hasParams && supportsQueryParams) {
+      // Has both path/formal params AND supports runtime query params
+      paramsType = 'any';
+    } else if (hasParams) {
+      const parameterTypeAlias = parameterTypeMap.get(`${path}:${method}`);
+      paramsType = parameterTypeAlias || `paths['${path}']['${method}']['parameters']`;
+    } else if (supportsQueryParams) {
+      // For endpoints that support query params but don't have them in the spec
+      paramsType = 'any';
+    }
+    
     paramsArg = `params: ${paramsType}`;
     
     if (pathParams.length > 0) {
@@ -144,7 +156,7 @@ function generateQueryHook(path, method, operation, operationId, summary, spec, 
     queryOptions = ', { params }';
   }
   
-  const optionsType = hasParams 
+  const optionsType = (hasParams || supportsQueryParams)
     ? `Omit<Parameters<typeof useQuery>[0], 'queryKey' | 'queryFn'>`
     : `Omit<Parameters<typeof useQuery>[0], 'queryKey' | 'queryFn'>`;
   
@@ -153,10 +165,10 @@ function generateQueryHook(path, method, operation, operationId, summary, spec, 
   return `/**
  * ${summary || `${method.toUpperCase()} ${path}`}
  */
-export function ${hookName}(${paramsArg}${hasParams ? ', ' : ''}options?: ${optionsType}): ReturnType<typeof useQuery<${responseType}>> {
+export function ${hookName}(${paramsArg}${(hasParams || supportsQueryParams) ? ', ' : ''}options?: ${optionsType}): ReturnType<typeof useQuery<${responseType}>> {
   // @ts-ignore
   return useQuery({
-    queryKey: ['${transformedOperationId}'${hasParams ? ', params' : ''}],
+    queryKey: ['${transformedOperationId}'${(hasParams || supportsQueryParams) ? ', params' : ''}],
     queryFn: async () => {
       const { data, error } = await api.${method.toUpperCase()}(${pathWithParams}${queryOptions});
       if (error) throw error;

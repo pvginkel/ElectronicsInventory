@@ -1,18 +1,8 @@
 import { LocationItem } from './location-item'
+import type { LocationDisplayData } from '@/types/locations'
 
 interface LocationListProps {
-  locations: Array<{
-    box_no: number
-    loc_no: number
-    // Extended fields for part assignments (may not be present in all cases)
-    id4?: string
-    quantity?: number
-    part?: {
-      id4: string
-      description: string
-      manufacturer_code?: string
-    }
-  }>
+  locations: LocationDisplayData[]
 }
 
 export function LocationList({ locations }: LocationListProps) {
@@ -33,7 +23,7 @@ export function LocationList({ locations }: LocationListProps) {
       <div className="space-y-2 max-h-96 overflow-y-auto">
         {locations.map((location) => (
           <LocationItem
-            key={`${location.box_no}-${location.loc_no}`}
+            key={`${location.boxNo}-${location.locNo}`}
             location={location}
           />
         ))}

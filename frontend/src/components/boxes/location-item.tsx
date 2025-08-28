@@ -1,49 +1,60 @@
+import type { LocationDisplayData } from '@/types/locations'
+
 interface LocationItemProps {
-  location: {
-    box_no: number
-    loc_no: number
-    // Extended fields for part assignments (may not be present in all cases)
-    id4?: string
-    quantity?: number
-    part?: {
-      id4: string
-      description: string
-      manufacturer_code?: string
-    }
-  }
+  location: LocationDisplayData
 }
 
 export function LocationItem({ location }: LocationItemProps) {
-  const locationId = `${location.box_no}-${location.loc_no}`
+  const locationId = `${location.boxNo}-${location.locNo}`
   
   return (
     <div 
-      className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
+      className={`flex items-center justify-between p-3 border rounded-lg transition-colors cursor-pointer ${location.stylingClasses}`}
       tabIndex={0}
       role="button"
-      aria-label={`Location ${locationId}`}
+      aria-label={`Location ${locationId} - ${location.displayText}`}
     >
       <div className="flex items-center space-x-3">
-        <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-sm font-medium">
-          {location.loc_no}
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+          location.isOccupied 
+            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300' 
+            : 'bg-muted text-muted-foreground'
+        }`}>
+          {location.locNo}
         </div>
         <div>
-          <div className="font-medium">Location {location.loc_no}</div>
+          <div className="font-medium">Location {location.locNo}</div>
+          {location.isOccupied && location.partAssignments && location.partAssignments.length > 0 && (
+            <div className="text-xs text-muted-foreground">
+              {location.partAssignments[0].manufacturer_code && 
+                `${location.partAssignments[0].manufacturer_code} • `}
+              {location.partAssignments[0].description && 
+                location.partAssignments[0].description.substring(0, 30)}
+              {location.partAssignments[0].description && location.partAssignments[0].description.length > 30 && '...'}
+            </div>
+          )}
         </div>
       </div>
       
       <div className="text-right">
-        {location.id4 || location.part ? (
+        {location.isOccupied && location.partAssignments && location.partAssignments.length > 0 ? (
           <>
-            <div className="text-sm font-medium">{location.part?.id4 || location.id4}</div>
+            <div className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+              {location.partAssignments[0].id4}
+            </div>
             <div className="text-xs text-muted-foreground">
-              Qty: {location.quantity || 0}
+              Qty: {location.totalQuantity}
+              {location.partAssignments.length > 1 && (
+                <span className="ml-1 text-blue-600 dark:text-blue-400">
+                  +{location.partAssignments.length - 1} more
+                </span>
+              )}
             </div>
           </>
         ) : (
           <>
-            <div className="text-sm font-medium text-muted-foreground">—</div>
-            <div className="text-xs text-muted-foreground">No data</div>
+            <div className="text-sm font-medium text-muted-foreground">Empty</div>
+            <div className="text-xs text-muted-foreground">Available</div>
           </>
         )}
       </div>
