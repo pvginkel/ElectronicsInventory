@@ -15,10 +15,7 @@
       "Bash(wc:*)",
       "Bash(find:*)",
       "Bash(grep:*)",
-      "Bash(npx tsc:*)",
-      "Read(/home/pvginkel/source/ElectronicsInventory/backend/docs/**)",
-      "Read(/home/pvginkel/source/ElectronicsInventory/backend/docs/features/frontend_testing_issues/**)",
-      "Read(/home/pvginkel/source/ElectronicsInventory/backend/docs/features/frontend_testing_issues/**)"
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

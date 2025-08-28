@@ -47,12 +47,3 @@ export function formatPartForDisplay(part: Part): {
   };
 }
 
-export function generatePartId(): string {
-  // Generate a random 4-character uppercase ID
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  let result = '';
-  for (let i = 0; i < 4; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
