@@ -1,6 +1,6 @@
 [
   {
-    "id4": "ABCD",
+    "key": "ABCD",
     "manufacturer_code": "SN74HC595N",
     "description": "8-bit shift register with output latches",
     "type": "IC",
@@ -9,7 +9,7 @@
     "seller_link": "https://www.digikey.com/en/products/detail/texas-instruments/SN74HC595N/277246"
   },
   {
-    "id4": "EFGH",
+    "key": "EFGH",
     "manufacturer_code": "LM358N",
     "description": "Dual operational amplifier",
     "type": "IC",
@@ -18,7 +18,7 @@
     "seller_link": "https://www.mouser.com/ProductDetail/595-LM358N"
   },
   {
-    "id4": "IJKL",
+    "key": "IJKL",
     "manufacturer_code": "ESP32-WROOM-32",
     "description": "WiFi & Bluetooth dual-mode module",
     "type": "Microcontroller",
@@ -27,7 +27,7 @@
     "seller_link": "https://www.espressif.com/en/products/modules/esp32"
   },
   {
-    "id4": "MNOP",
+    "key": "MNOP",
     "manufacturer_code": "DHT22",
     "description": "Digital temperature and humidity sensor",
     "type": "Sensor",
@@ -36,7 +36,7 @@
     "seller_link": "https://www.adafruit.com/product/385"
   },
   {
-    "id4": "QRST",
+    "key": "QRST",
     "manufacturer_code": "1N4007",
     "description": "1A 1000V rectifier diode",
     "type": "IC",
@@ -45,7 +45,7 @@
     "seller_link": "https://www.digikey.com/en/products/detail/on-semiconductor/1N4007RLG/917668"
   },
   {
-    "id4": "UVWX",
+    "key": "UVWX",
     "manufacturer_code": "WS2812B",
     "description": "Addressable RGB LED with integrated driver",
     "type": "LED",
@@ -54,7 +54,7 @@
     "seller_link": "https://www.adafruit.com/product/1655"
   },
   {
-    "id4": "YZAB",
+    "key": "YZAB",
     "manufacturer_code": "SRD-05VDC-SL-C",
     "description": "5V DC relay SPDT 10A",
     "type": "Relay",
@@ -63,7 +63,7 @@
     "seller_link": "https://www.digikey.com/en/products/detail/songle-relay/SRD-05VDC-SL-C/4864404"
   },
   {
-    "id4": "CDEF",
+    "key": "CDEF",
     "manufacturer_code": "10k",
     "description": "10kΩ carbon film resistor 1/4W",
     "type": "Resistor",
@@ -72,7 +72,7 @@
     "seller_link": "https://www.digikey.com/en/products/detail/stackpole-electronics-inc/CF14JT10K0/1741444"
   },
   {
-    "id4": "GHIJ",
+    "key": "GHIJ",
     "manufacturer_code": "100uF",
     "description": "100µF electrolytic capacitor 25V",
     "type": "Capacitor",
@@ -81,7 +81,7 @@
     "seller_link": "https://www.mouser.com/ProductDetail/647-UVR1E101MDD"
   },
   {
-    "id4": "KLMN",
+    "key": "KLMN",
     "manufacturer_code": "JST-XH-3",
     "description": "3-pin JST-XH connector housing",
     "type": "Connector",
@@ -90,7 +90,7 @@
     "seller_link": "https://www.digikey.com/en/products/detail/jst-sales-america-inc/XHP-3/555485"
   },
   {
-    "id4": "OPQR",
+    "key": "OPQR",
     "manufacturer_code": "22AWG",
     "description": "22 AWG stranded wire red",
     "type": "Cable",
@@ -99,7 +99,7 @@
     "seller_link": "https://www.adafruit.com/product/1311"
   },
   {
-    "id4": "STUV",
+    "key": "STUV",
     "manufacturer_code": "M3x10",
     "description": "M3x10mm hex socket cap screw",
     "type": "Mechanical",
@@ -108,7 +108,7 @@
     "seller_link": "https://www.mcmaster.com/91292A113/"
   },
   {
-    "id4": "WXYZ",
+    "key": "WXYZ",
     "manufacturer_code": "LM2596",
     "description": "Adjustable step-down voltage regulator module",
     "type": "Power Module",
@@ -117,7 +117,7 @@
     "seller_link": "https://www.amazon.com/LM2596-Converter-3-0-40V-1-5-35V-Efficient/dp/B008BHBEE0"
   },
   {
-    "id4": "ABEF",
+    "key": "ABEF",
     "manufacturer_code": "Arduino Uno R3",
     "description": "Arduino Uno R3 development board",
     "type": "Microcontroller",
@@ -126,7 +126,7 @@
     "seller_link": "https://store.arduino.cc/products/arduino-uno-rev3"
   },
   {
-    "id4": "CDGH",
+    "key": "CDGH",
     "manufacturer_code": "HC-SR04",
     "description": "Ultrasonic distance sensor module",
     "type": "Sensor",
@@ -135,7 +135,7 @@
     "seller_link": "https://www.sparkfun.com/products/15569"
   },
   {
-    "id4": "IJMN",
+    "key": "IJMN",
     "manufacturer_code": "0805",
     "description": "10kΩ SMD resistor 0805 package",
     "type": "Resistor",
@@ -144,7 +144,7 @@
     "seller_link": "https://www.digikey.com/en/products/detail/yageo/RC0805FR-0710KL/727547"
   },
   {
-    "id4": "OPST",
+    "key": "OPST",
     "manufacturer_code": "22pF",
     "description": "22pF ceramic capacitor 50V",
     "type": "Capacitor",
@@ -153,7 +153,7 @@
     "seller_link": "https://www.mouser.com/ProductDetail/810-C0805C220J5G"
   },
   {
-    "id4": "UVYZ",
+    "key": "UVYZ",
     "manufacturer_code": "ATmega328P",
     "description": "8-bit AVR microcontroller DIP-28",
     "type": "Microcontroller",
@@ -162,7 +162,7 @@
     "seller_link": "https://www.microchip.com/en-us/product/ATmega328P"
   },
   {
-    "id4": "BCDE",
+    "key": "BCDE",
     "manufacturer_code": "SSD1306",
     "description": "0.96 inch OLED display 128x64",
     "type": "IC",
@@ -171,7 +171,7 @@
     "seller_link": "https://www.adafruit.com/product/326"
   },
   {
-    "id4": "FGHI",
+    "key": "FGHI",
     "manufacturer_code": "MCP3008",
     "description": "8-channel 10-bit ADC with SPI interface",
     "type": "IC",
@@ -180,7 +180,7 @@
     "seller_link": "https://www.microchip.com/en-us/product/MCP3008"
   },
   {
-    "id4": "JKLM",
+    "key": "JKLM",
     "manufacturer_code": "74HC04",
     "description": "Hex inverter logic gate",
     "type": "IC",
@@ -189,7 +189,7 @@
     "seller_link": "https://www.ti.com/product/SN74HC04"
   },
   {
-    "id4": "NOPQ",
+    "key": "NOPQ",
     "manufacturer_code": "2N2222",
     "description": "NPN bipolar junction transistor",
     "type": "IC",
@@ -198,7 +198,7 @@
     "seller_link": "https://www.onsemi.com/products/discretes/bipolar-transistors/general-purpose-transistors/2n2222a"
   },
   {
-    "id4": "RSTU",
+    "key": "RSTU",
     "manufacturer_code": "IRF540N",
     "description": "N-channel power MOSFET TO-220",
     "type": "IC",
@@ -207,7 +207,7 @@
     "seller_link": "https://www.infineon.com/cms/en/product/power/mosfet/n-channel/irf540n/"
   },
   {
-    "id4": "VWXY",
+    "key": "VWXY",
     "manufacturer_code": "1uF",
     "description": "1µF ceramic capacitor X7R 50V",
     "type": "Capacitor",
@@ -216,7 +216,7 @@
     "seller_link": "https://www.murata.com/en-us/products/capacitor/ceramic/overview"
   },
   {
-    "id4": "ZABC",
+    "key": "ZABC",
     "manufacturer_code": "330Ω",
     "description": "330Ω carbon film resistor 1/4W",
     "type": "Resistor",
@@ -225,7 +225,7 @@
     "seller_link": "https://www.digikey.com/en/products/detail/stackpole-electronics-inc/CF14JT330R/1741328"
   },
   {
-    "id4": "DEFG",
+    "key": "DEFG",
     "manufacturer_code": "Red LED 5mm",
     "description": "5mm red LED standard brightness",
     "type": "LED",
@@ -234,7 +234,7 @@
     "seller_link": "https://www.vishay.com/en/product/83001/"
   },
   {
-    "id4": "HIJK",
+    "key": "HIJK",
     "manufacturer_code": "16MHz",
     "description": "16MHz crystal oscillator HC-49S",
     "type": "IC",
@@ -243,7 +243,7 @@
     "seller_link": "https://abracon.com/Resonators/ABM3B.pdf"
   },
   {
-    "id4": "LMNO",
+    "key": "LMNO",
     "manufacturer_code": "USB-A",
     "description": "USB Type-A male connector",
     "type": "Connector",
@@ -252,7 +252,7 @@
     "seller_link": "https://www.amphenol-cs.com/usb-connectors.html"
   },
   {
-    "id4": "PQRS",
+    "key": "PQRS",
     "manufacturer_code": "RJ45",
     "description": "RJ45 Ethernet connector with transformer",
     "type": "Connector",
@@ -261,7 +261,7 @@
     "seller_link": "https://www.pulseelectronics.com/ethernet/"
   },
   {
-    "id4": "TUVW",
+    "key": "TUVW",
     "manufacturer_code": "Jumper Wire F/F",
     "description": "Female to female jumper wire 20cm",
     "type": "Cable",
@@ -270,7 +270,7 @@
     "seller_link": "https://www.adafruit.com/product/266"
   },
   {
-    "id4": "XYZA",
+    "key": "XYZA",
     "manufacturer_code": "Breadboard 400",
     "description": "Solderless breadboard 400 tie points",
     "type": "Mechanical",
@@ -279,7 +279,7 @@
     "seller_link": "https://www.sparkfun.com/products/12002"
   },
   {
-    "id4": "BCEF",
+    "key": "BCEF",
     "manufacturer_code": "Heatsink TO-220",
     "description": "Aluminum heatsink for TO-220 package",
     "type": "Mechanical",
@@ -288,7 +288,7 @@
     "seller_link": "https://www.aavid.com/products/standard/extrusions"
   },
   {
-    "id4": "GHKL",
+    "key": "GHKL",
     "manufacturer_code": "LM7805",
     "description": "5V linear voltage regulator TO-220",
     "type": "Power Module",
@@ -297,7 +297,7 @@
     "seller_link": "https://www.ti.com/product/LM7805"
   },
   {
-    "id4": "MNPQ",
+    "key": "MNPQ",
     "manufacturer_code": "Potentiometer 10k",
     "description": "10kΩ linear rotary potentiometer",
     "type": "Resistor",
@@ -306,7 +306,7 @@
     "seller_link": "https://www.bourns.com/products/potentiometers"
   },
   {
-    "id4": "RSTV",
+    "key": "RSTV",
     "manufacturer_code": "Push Button",
     "description": "Momentary push button switch SPST",
     "type": "Mechanical",
@@ -315,7 +315,7 @@
     "seller_link": "https://omronfs.omron.com/en_US/ecb/products/sw/12/B3F.html"
   },
   {
-    "id4": "WXAB",
+    "key": "WXAB",
     "manufacturer_code": "Toggle Switch",
     "description": "SPDT toggle switch ON-OFF-ON",
     "type": "Mechanical",
@@ -324,7 +324,7 @@
     "seller_link": "https://www.nkkswitches.com/toggle-switches.aspx"
   },
   {
-    "id4": "CDFG",
+    "key": "CDFG",
     "manufacturer_code": "Blue LED 3mm",
     "description": "3mm blue LED high brightness",
     "type": "LED",
@@ -333,7 +333,7 @@
     "seller_link": "https://www.cree.com/led-components/products/xlamp-leds"
   },
   {
-    "id4": "HILM",
+    "key": "HILM",
     "manufacturer_code": "Green LED 5mm",
     "description": "5mm green LED standard brightness",
     "type": "LED",
@@ -342,7 +342,7 @@
     "seller_link": "https://www.kingbrightusa.com/led-lamps/standard-leds.aspx"
   },
   {
-    "id4": "NORS",
+    "key": "NORS",
     "manufacturer_code": "Photo Resistor",
     "description": "Light dependent resistor photocell",
     "type": "Sensor",
@@ -351,7 +351,7 @@
     "seller_link": "https://lunainc.com/product-category/cds-photoresistors/"
   },
   {
-    "id4": "TUWX",
+    "key": "TUWX",
     "manufacturer_code": "Thermistor 10k",
     "description": "10kΩ NTC thermistor temperature sensor",
     "type": "Sensor",
@@ -360,7 +360,7 @@
     "seller_link": "https://www.vishay.com/thermistors/ntc-thermistors/"
   },
   {
-    "id4": "YZCD",
+    "key": "YZCD",
     "manufacturer_code": "Hall Sensor",
     "description": "A3144 Hall effect magnetic sensor",
     "type": "Sensor",
@@ -369,7 +369,7 @@
     "seller_link": "https://www.allegromicro.com/en/products/sense/magnetic-position-sensor-ics"
   },
   {
-    "id4": "EFIJ",
+    "key": "EFIJ",
     "manufacturer_code": "PIR Sensor",
     "description": "HC-SR501 PIR motion sensor module",
     "type": "Sensor",
@@ -378,7 +378,7 @@
     "seller_link": "https://www.sparkfun.com/products/13285"
   },
   {
-    "id4": "KLOP",
+    "key": "KLOP",
     "manufacturer_code": "Servo Motor",
     "description": "SG90 micro servo motor 9g",
     "type": "Mechanical",
@@ -387,7 +387,7 @@
     "seller_link": "http://www.towerpro.com.tw/product/sg90-7/"
   },
   {
-    "id4": "QTUV",
+    "key": "QTUV",
     "manufacturer_code": "Stepper Motor",
     "description": "28BYJ-48 stepper motor with ULN2003 driver",
     "type": "Mechanical",
@@ -396,7 +396,7 @@
     "seller_link": "https://www.adafruit.com/product/858"
   },
   {
-    "id4": "WXBC",
+    "key": "WXBC",
     "manufacturer_code": "LCD 16x2",
     "description": "16x2 character LCD display with I2C backpack",
     "type": "IC",
@@ -405,7 +405,7 @@
     "seller_link": "https://www.sparkfun.com/products/16396"
   },
   {
-    "id4": "DEHI",
+    "key": "DEHI",
     "manufacturer_code": "7-Segment",
     "description": "7-segment LED display common cathode",
     "type": "LED",
@@ -414,7 +414,7 @@
     "seller_link": "https://www.kingbrightusa.com/led-displays/seven-segment-displays.aspx"
   },
   {
-    "id4": "JKMN",
+    "key": "JKMN",
     "manufacturer_code": "Matrix 8x8",
     "description": "8x8 LED dot matrix display red",
     "type": "LED",
@@ -423,7 +423,7 @@
     "seller_link": "https://www.adafruit.com/product/454"
   },
   {
-    "id4": "PQST",
+    "key": "PQST",
     "manufacturer_code": "RFID Reader",
     "description": "RC522 RFID reader module 13.56MHz",
     "type": "IC",
@@ -432,7 +432,7 @@
     "seller_link": "https://www.sparkfun.com/products/13030"
   },
   {
-    "id4": "JJKE",
+    "key": "JJKE",
     "manufacturer_code": "SD Card Module",
     "description": "MicroSD card adapter module with SPI",
     "type": "IC",
@@ -441,7 +441,7 @@
     "seller_link": "https://www.adafruit.com/product/254"
   },
   {
-    "id4": "ACEG",
+    "key": "ACEG",
     "manufacturer_code": "Real Time Clock",
     "description": "DS3231 real time clock module I2C",
     "type": "IC",

@@ -28,12 +28,12 @@ class TestInventoryAPI:
                 "qty": 5
             }
 
-            response = client.post(f"/api/inventory/parts/{part.id4}/stock", json=data)
+            response = client.post(f"/api/inventory/parts/{part.key}/stock", json=data)
 
             assert response.status_code == 201
             response_data = json.loads(response.data)
 
-            assert response_data["id4"] == part.id4
+            assert response_data["key"] == part.key
             assert response_data["box_no"] == box.box_no
             assert response_data["loc_no"] == 1
             assert response_data["qty"] == 5
@@ -53,7 +53,7 @@ class TestInventoryAPI:
 
             data = {"box_no": 999, "loc_no": 1, "qty": 5}
 
-            response = client.post(f"/api/inventory/parts/{part.id4}/stock", json=data)
+            response = client.post(f"/api/inventory/parts/{part.key}/stock", json=data)
             assert response.status_code == 404
 
     def test_add_stock_invalid_quantity(self, app: Flask, client: FlaskClient, session: Session):
@@ -66,7 +66,7 @@ class TestInventoryAPI:
             # Zero quantity
             data = {"box_no": box.box_no, "loc_no": 1, "qty": 0}
 
-            response = client.post(f"/api/inventory/parts/{part.id4}/stock", json=data)
+            response = client.post(f"/api/inventory/parts/{part.key}/stock", json=data)
             assert response.status_code == 400
 
     def test_remove_stock(self, app: Flask, client: FlaskClient, session: Session):
@@ -77,12 +77,12 @@ class TestInventoryAPI:
             part = PartService.create_part(session, "Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 10)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 10)
             session.commit()
 
             data = {"box_no": box.box_no, "loc_no": 1, "qty": 3}
 
-            response = client.delete(f"/api/inventory/parts/{part.id4}/stock", json=data)
+            response = client.delete(f"/api/inventory/parts/{part.key}/stock", json=data)
             assert response.status_code == 204
 
     def test_remove_stock_nonexistent_part(self, app: Flask, client: FlaskClient):
@@ -100,12 +100,12 @@ class TestInventoryAPI:
             part = PartService.create_part(session, "Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 3)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 3)
             session.commit()
 
             data = {"box_no": box.box_no, "loc_no": 1, "qty": 5}
 
-            response = client.delete(f"/api/inventory/parts/{part.id4}/stock", json=data)
+            response = client.delete(f"/api/inventory/parts/{part.key}/stock", json=data)
             assert response.status_code == 409
 
     def test_remove_stock_nonexistent_location(self, app: Flask, client: FlaskClient, session: Session):
@@ -117,7 +117,7 @@ class TestInventoryAPI:
 
             data = {"box_no": box.box_no, "loc_no": 1, "qty": 1}
 
-            response = client.delete(f"/api/inventory/parts/{part.id4}/stock", json=data)
+            response = client.delete(f"/api/inventory/parts/{part.key}/stock", json=data)
             assert response.status_code == 404
 
     def test_move_stock(self, app: Flask, client: FlaskClient, session: Session):
@@ -128,7 +128,7 @@ class TestInventoryAPI:
             part = PartService.create_part(session, "Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 10)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 10)
             session.commit()
 
             data = {
@@ -139,7 +139,7 @@ class TestInventoryAPI:
                 "qty": 3
             }
 
-            response = client.post(f"/api/inventory/parts/{part.id4}/move", json=data)
+            response = client.post(f"/api/inventory/parts/{part.key}/move", json=data)
             assert response.status_code == 204
 
     def test_move_stock_nonexistent_part(self, app: Flask, client: FlaskClient):
@@ -163,7 +163,7 @@ class TestInventoryAPI:
             part = PartService.create_part(session, "Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 3)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 3)
             session.commit()
 
             data = {
@@ -174,7 +174,7 @@ class TestInventoryAPI:
                 "qty": 5
             }
 
-            response = client.post(f"/api/inventory/parts/{part.id4}/move", json=data)
+            response = client.post(f"/api/inventory/parts/{part.key}/move", json=data)
             assert response.status_code == 409
 
     def test_move_stock_invalid_destination(self, app: Flask, client: FlaskClient, session: Session):
@@ -185,7 +185,7 @@ class TestInventoryAPI:
             part = PartService.create_part(session, "Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 5)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
             session.commit()
 
             data = {
@@ -196,7 +196,7 @@ class TestInventoryAPI:
                 "qty": 3
             }
 
-            response = client.post(f"/api/inventory/parts/{part.id4}/move", json=data)
+            response = client.post(f"/api/inventory/parts/{part.key}/move", json=data)
             assert response.status_code == 404
 
     def test_get_location_suggestion(self, app: Flask, client: FlaskClient, session: Session):
@@ -225,7 +225,7 @@ class TestInventoryAPI:
             session.commit()
 
             # Occupy first location
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 5)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
             session.commit()
 
             response = client.get("/api/inventory/suggestions/1")

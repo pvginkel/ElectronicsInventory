@@ -28,10 +28,10 @@ def upgrade() -> None:
     sa.UniqueConstraint('name')
     )
 
-    # Create parts table with 4-character ID and foreign key to types
+    # Create parts table with 4-character key and foreign key to types
     op.create_table('parts',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('id4', sa.CHAR(4), nullable=False),
+    sa.Column('key', sa.CHAR(4), nullable=False),
     sa.Column('manufacturer_code', sa.String(255), nullable=True),
     sa.Column('type_id', sa.Integer(), nullable=True),
     sa.Column('description', sa.Text(), nullable=False),
@@ -42,13 +42,13 @@ def upgrade() -> None:
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['type_id'], ['types.id'], ),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('id4')
+    sa.UniqueConstraint('key')
     )
 
     # Create part_locations table with foreign keys and constraints
     op.create_table('part_locations',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('part_id4', sa.CHAR(4), nullable=False),
+    sa.Column('part_id', sa.Integer(), nullable=False),
     sa.Column('box_no', sa.Integer(), nullable=False),
     sa.Column('loc_no', sa.Integer(), nullable=False),
     sa.Column('location_id', sa.Integer(), nullable=False),
@@ -57,38 +57,38 @@ def upgrade() -> None:
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.CheckConstraint('qty > 0'),
     sa.ForeignKeyConstraint(['location_id'], ['locations.id'], ),
-    sa.ForeignKeyConstraint(['part_id4'], ['parts.id4'], ),
+    sa.ForeignKeyConstraint(['part_id'], ['parts.id'], ),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('part_id4', 'box_no', 'loc_no')
+    sa.UniqueConstraint('part_id', 'box_no', 'loc_no')
     )
 
     # Create quantity_history table
     op.create_table('quantity_history',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
-    sa.Column('part_id4', sa.CHAR(4), nullable=False),
+    sa.Column('part_id', sa.Integer(), nullable=False),
     sa.Column('delta_qty', sa.Integer(), nullable=False),
     sa.Column('location_reference', sa.String(20), nullable=True),
     sa.Column('timestamp', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
-    sa.ForeignKeyConstraint(['part_id4'], ['parts.id4'], ),
+    sa.ForeignKeyConstraint(['part_id'], ['parts.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
 
     # Add indexes for performance
-    op.create_index('ix_parts_id4', 'parts', ['id4'])
+    op.create_index('ix_parts_key', 'parts', ['key'])
     op.create_index('ix_parts_type_id', 'parts', ['type_id'])
-    op.create_index('ix_part_locations_part_id4', 'part_locations', ['part_id4'])
+    op.create_index('ix_part_locations_part_id', 'part_locations', ['part_id'])
     op.create_index('ix_part_locations_box_loc', 'part_locations', ['box_no', 'loc_no'])
-    op.create_index('ix_quantity_history_part_id4', 'quantity_history', ['part_id4'])
+    op.create_index('ix_quantity_history_part_id', 'quantity_history', ['part_id'])
     op.create_index('ix_quantity_history_timestamp', 'quantity_history', ['timestamp'])
 
 
 def downgrade() -> None:
     op.drop_index('ix_quantity_history_timestamp')
-    op.drop_index('ix_quantity_history_part_id4')
+    op.drop_index('ix_quantity_history_part_id')
     op.drop_index('ix_part_locations_box_loc')
-    op.drop_index('ix_part_locations_part_id4')
+    op.drop_index('ix_part_locations_part_id')
     op.drop_index('ix_parts_type_id')
-    op.drop_index('ix_parts_id4')
+    op.drop_index('ix_parts_key')
     op.drop_table('quantity_history')
     op.drop_table('part_locations')
     op.drop_table('parts')

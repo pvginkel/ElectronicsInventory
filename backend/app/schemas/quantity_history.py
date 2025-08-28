@@ -12,10 +12,6 @@ class QuantityHistoryResponseSchema(BaseModel):
         description="Unique identifier for the history entry",
         json_schema_extra={"example": 1}
     )
-    part_id4: str = Field(
-        description="4-character part identifier",
-        json_schema_extra={"example": "BZQP"}
-    )
     delta_qty: int = Field(
         description="Quantity change (positive for additions, negative for removals)",
         json_schema_extra={"example": -5}

@@ -58,7 +58,7 @@ def list_parts():
 
         # Create schema instance with calculated total
         part_data = PartWithTotalSchema(
-            id4=part.id4,
+            key=part.key,
             manufacturer_code=part.manufacturer_code,
             description=part.description,
             type_id=part.type_id,
@@ -73,25 +73,25 @@ def list_parts():
     return result
 
 
-@parts_bp.route("/<string:part_id4>", methods=["GET"])
+@parts_bp.route("/<string:part_key>", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=PartResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
-def get_part(part_id4: str):
+def get_part(part_key: str):
     """Get single part with full details."""
-    part = PartService.get_part(g.db, part_id4)
+    part = PartService.get_part(g.db, part_key)
     return PartResponseSchema.model_validate(part).model_dump()
 
 
-@parts_bp.route("/<string:part_id4>", methods=["PUT"])
+@parts_bp.route("/<string:part_key>", methods=["PUT"])
 @api.validate(json=PartUpdateSchema, resp=SpectreeResponse(HTTP_200=PartResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
-def update_part(part_id4: str):
+def update_part(part_key: str):
     """Update part details."""
     data = PartUpdateSchema.model_validate(request.get_json())
 
     part = PartService.update_part_details(
         g.db,
-        part_id4,
+        part_key,
         manufacturer_code=data.manufacturer_code,
         type_id=data.type_id,
         description=data.description,
@@ -103,27 +103,27 @@ def update_part(part_id4: str):
     return PartResponseSchema.model_validate(part).model_dump()
 
 
-@parts_bp.route("/<string:part_id4>", methods=["DELETE"])
+@parts_bp.route("/<string:part_key>", methods=["DELETE"])
 @api.validate(resp=SpectreeResponse(HTTP_204=None, HTTP_404=ErrorResponseSchema, HTTP_409=ErrorResponseSchema))
 @handle_api_errors
-def delete_part(part_id4: str):
+def delete_part(part_key: str):
     """Delete part if total quantity is zero."""
-    PartService.delete_part(g.db, part_id4)
+    PartService.delete_part(g.db, part_key)
     return "", 204
 
 
-@parts_bp.route("/<string:part_id4>/locations", methods=["GET"])
+@parts_bp.route("/<string:part_key>/locations", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=list[PartLocationResponseSchema], HTTP_404=ErrorResponseSchema))
 @handle_api_errors
-def get_part_locations(part_id4: str):
+def get_part_locations(part_key: str):
     """Get all locations for a part."""
     # Ensure part exists
-    PartService.get_part(g.db, part_id4)
-    locations = InventoryService.get_part_locations(g.db, part_id4)
+    part = PartService.get_part(g.db, part_key)
+    locations = InventoryService.get_part_locations(g.db, part_key)
 
     return [
         PartLocationResponseSchema(
-            id4=loc.part_id4,
+            key=part.key,
             box_no=loc.box_no,
             loc_no=loc.loc_no,
             qty=loc.qty
@@ -132,12 +132,12 @@ def get_part_locations(part_id4: str):
     ]
 
 
-@parts_bp.route("/<string:part_id4>/history", methods=["GET"])
+@parts_bp.route("/<string:part_key>/history", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=list[QuantityHistoryResponseSchema], HTTP_404=ErrorResponseSchema))
 @handle_api_errors
-def get_part_history(part_id4: str):
+def get_part_history(part_key: str):
     """Get quantity change history for a part."""
-    part = PartService.get_part(g.db, part_id4)
+    part = PartService.get_part(g.db, part_key)
 
     # History is loaded with the part via relationship
     return [

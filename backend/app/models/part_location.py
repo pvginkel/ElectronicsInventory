@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CHAR, CheckConstraint, ForeignKey, UniqueConstraint, func
+from sqlalchemy import CheckConstraint, ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
@@ -18,13 +18,13 @@ class PartLocation(db.Model):  # type: ignore[name-defined]
 
     __tablename__ = "part_locations"
     __table_args__ = (
-        UniqueConstraint("part_id4", "box_no", "loc_no", name="uq_part_location"),
+        UniqueConstraint("part_id", "box_no", "loc_no", name="uq_part_location"),
         CheckConstraint("qty > 0", name="ck_positive_qty"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    part_id4: Mapped[str] = mapped_column(
-        CHAR(4), ForeignKey("parts.id4"), nullable=False
+    part_id: Mapped[int] = mapped_column(
+        ForeignKey("parts.id"), nullable=False
     )
     box_no: Mapped[int] = mapped_column(nullable=False)
     loc_no: Mapped[int] = mapped_column(nullable=False)
@@ -48,4 +48,4 @@ class PartLocation(db.Model):  # type: ignore[name-defined]
     )
 
     def __repr__(self) -> str:
-        return f"<PartLocation {self.part_id4} @ {self.box_no}-{self.loc_no}: qty={self.qty}>"
+        return f"<PartLocation {self.part_id} @ {self.box_no}-{self.loc_no}: qty={self.qty}>"

@@ -13,6 +13,7 @@ from app.exceptions import (
 )
 from app.services.box_service import BoxService
 from app.services.inventory_service import InventoryService
+from app.services.part_service import PartService
 
 
 class TestDomainExceptions:
@@ -84,10 +85,13 @@ class TestBoxServiceExceptions:
         """Test that deleting a box with parts raises InvalidOperationException."""
         # Create a box
         box = BoxService.create_box(session, "Test Box", 10)
+        
+        # Create a part first
+        part = PartService.create_part(session, "Test part")
         session.commit()
 
-        # Add a part to the box
-        InventoryService.add_stock(session, "TEST", box.box_no, 1, 5)
+        # Add the part to the box
+        InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
         session.commit()
 
         # Try to delete the box
@@ -152,15 +156,18 @@ class TestInventoryServiceExceptions:
         """Test removing more stock than available raises InsufficientQuantityException."""
         # Create a box and add some stock
         box = BoxService.create_box(session, "Test Box", 10)
+        
+        # Create a part first
+        part = PartService.create_part(session, "Test part")
         session.commit()
 
         # Add 5 parts to location 1
-        InventoryService.add_stock(session, "TEST", box.box_no, 1, 5)
+        InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
         session.commit()
 
         # Try to remove 10 parts (more than available)
         with pytest.raises(InsufficientQuantityException) as exc_info:
-            InventoryService.remove_stock(session, "TEST", box.box_no, 1, 10)
+            InventoryService.remove_stock(session, part.key, box.box_no, 1, 10)
 
         assert exc_info.value.message == f"Not enough parts available at {box.box_no}-1 (requested 10, have 5)"
 
@@ -191,15 +198,18 @@ class TestInventoryServiceExceptions:
         """Test moving more stock than available raises InsufficientQuantityException."""
         # Create a box and add some stock
         box = BoxService.create_box(session, "Test Box", 10)
+        
+        # Create a part first
+        part = PartService.create_part(session, "Test part")
         session.commit()
 
         # Add 5 parts to location 1
-        InventoryService.add_stock(session, "TEST", box.box_no, 1, 5)
+        InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
         session.commit()
 
         # Try to move 10 parts (more than available)
         with pytest.raises(InsufficientQuantityException) as exc_info:
-            InventoryService.move_stock(session, "TEST", box.box_no, 1, box.box_no, 2, 10)
+            InventoryService.move_stock(session, part.key, box.box_no, 1, box.box_no, 2, 10)
 
         assert exc_info.value.message == f"Not enough parts available at {box.box_no}-1 (requested 10, have 5)"
 
@@ -207,15 +217,18 @@ class TestInventoryServiceExceptions:
         """Test moving stock to non-existent destination raises RecordNotFoundException."""
         # Create a box and add some stock
         box = BoxService.create_box(session, "Test Box", 10)
+        
+        # Create a part first
+        part = PartService.create_part(session, "Test part")
         session.commit()
 
         # Add 5 parts to location 1
-        InventoryService.add_stock(session, "TEST", box.box_no, 1, 5)
+        InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
         session.commit()
 
         # Try to move to non-existent location
         with pytest.raises(RecordNotFoundException) as exc_info:
-            InventoryService.move_stock(session, "TEST", box.box_no, 1, 999, 1, 3)
+            InventoryService.move_stock(session, part.key, box.box_no, 1, 999, 1, 3)
 
         assert exc_info.value.message == "Location 999-1 was not found"
 
@@ -227,6 +240,9 @@ class TestErrorHandlingIntegration:
         """Test that successful operations work without exceptions."""
         # Create a box
         box = BoxService.create_box(session, "Test Box", 10)
+        
+        # Create a part first
+        part = PartService.create_part(session, "Test part")
         session.commit()
 
         # Get the box (should work)
@@ -234,16 +250,16 @@ class TestErrorHandlingIntegration:
         assert retrieved_box.box_no == box.box_no
 
         # Add stock (should work)
-        part_location = InventoryService.add_stock(session, "TEST", box.box_no, 1, 10)
+        part_location = InventoryService.add_stock(session, part.key, box.box_no, 1, 10)
         assert part_location.qty == 10
         session.commit()
 
         # Remove some stock (should work)
-        InventoryService.remove_stock(session, "TEST", box.box_no, 1, 3)
+        InventoryService.remove_stock(session, part.key, box.box_no, 1, 3)
         session.commit()
 
         # Move stock (should work)
-        InventoryService.move_stock(session, "TEST", box.box_no, 1, box.box_no, 2, 5)
+        InventoryService.move_stock(session, part.key, box.box_no, 1, box.box_no, 2, 5)
         session.commit()
 
         # Update box capacity (should work)
@@ -253,8 +269,8 @@ class TestErrorHandlingIntegration:
 
         # Remove all remaining stock before deleting box
         # After the above operations: 2 items in location 1, 5 items in location 2
-        InventoryService.remove_stock(session, "TEST", box.box_no, 1, 2)  # Remove remaining from location 1
-        InventoryService.remove_stock(session, "TEST", box.box_no, 2, 5)  # Remove all from location 2
+        InventoryService.remove_stock(session, part.key, box.box_no, 1, 2)  # Remove remaining from location 1
+        InventoryService.remove_stock(session, part.key, box.box_no, 2, 5)  # Remove all from location 2
         session.commit()
 
         # Delete box (should work now that it's empty)

@@ -24,7 +24,7 @@ class InventoryService:
 
     @staticmethod
     def add_stock(
-        db: Session, part_id4: str, box_no: int, loc_no: int, qty: int
+        db: Session, part_key: str, box_no: int, loc_no: int, qty: int
     ) -> PartLocation:
         """Add stock to a location."""
         if qty <= 0:
@@ -36,9 +36,13 @@ class InventoryService:
             raise RecordNotFoundException("Location", f"{box_no}-{loc_no}")
 
         # Check if part already exists at this location
-        stmt = select(PartLocation).where(
+        # Need to join with Part table to find part by key
+        from app.models.part import Part
+        stmt = select(PartLocation).join(
+            Part, PartLocation.part_id == Part.id
+        ).where(
             and_(
-                PartLocation.part_id4 == part_id4,
+                Part.key == part_key,
                 PartLocation.box_no == box_no,
                 PartLocation.loc_no == loc_no,
             )
@@ -51,8 +55,10 @@ class InventoryService:
             part_location = existing_location
         else:
             # Create new location assignment
+            # First get the part to get its ID
+            part = PartService.get_part(db, part_key)
             part_location = PartLocation(
-                part_id4=part_id4,
+                part_id=part.id,
                 box_no=box_no,
                 loc_no=loc_no,
                 location_id=location.id,
@@ -61,8 +67,9 @@ class InventoryService:
             db.add(part_location)
 
         # Add quantity history record
+        part = PartService.get_part(db, part_key)
         history = QuantityHistory(
-            part_id4=part_id4,
+            part_id=part.id,
             delta_qty=qty,
             location_reference=f"{box_no}-{loc_no}",
         )
@@ -73,16 +80,19 @@ class InventoryService:
 
     @staticmethod
     def remove_stock(
-        db: Session, part_id4: str, box_no: int, loc_no: int, qty: int
+        db: Session, part_key: str, box_no: int, loc_no: int, qty: int
     ) -> None:
         """Remove stock from a location."""
         if qty <= 0:
             raise InvalidOperationException("remove negative or zero stock", "quantity must be positive")
 
         # Find existing location assignment
-        stmt = select(PartLocation).where(
+        from app.models.part import Part
+        stmt = select(PartLocation).join(
+            Part, PartLocation.part_id == Part.id
+        ).where(
             and_(
-                PartLocation.part_id4 == part_id4,
+                Part.key == part_key,
                 PartLocation.box_no == box_no,
                 PartLocation.loc_no == loc_no,
             )
@@ -90,7 +100,7 @@ class InventoryService:
         part_location = db.execute(stmt).scalar_one_or_none()
 
         if not part_location:
-            raise RecordNotFoundException("Part location", f"{part_id4} at {box_no}-{loc_no}")
+            raise RecordNotFoundException("Part location", f"{part_key} at {box_no}-{loc_no}")
 
         if part_location.qty < qty:
             raise InsufficientQuantityException(qty, part_location.qty, f"{box_no}-{loc_no}")
@@ -103,20 +113,21 @@ class InventoryService:
             db.delete(part_location)
 
         # Add negative quantity history record
+        part = PartService.get_part(db, part_key)
         history = QuantityHistory(
-            part_id4=part_id4,
+            part_id=part.id,
             delta_qty=-qty,
             location_reference=f"{box_no}-{loc_no}",
         )
         db.add(history)
 
         # Check if total quantity is now zero and cleanup if needed
-        InventoryService.cleanup_zero_quantities(db, part_id4)
+        InventoryService.cleanup_zero_quantities(db, part_key)
 
     @staticmethod
     def move_stock(
         db: Session,
-        part_id4: str,
+        part_key: str,
         from_box: int,
         from_loc: int,
         to_box: int,
@@ -128,9 +139,12 @@ class InventoryService:
             raise InvalidOperationException("move negative or zero stock", "quantity must be positive")
 
         # Validate source has sufficient quantity
-        stmt = select(PartLocation).where(
+        from app.models.part import Part
+        stmt = select(PartLocation).join(
+            Part, PartLocation.part_id == Part.id
+        ).where(
             and_(
-                PartLocation.part_id4 == part_id4,
+                Part.key == part_key,
                 PartLocation.box_no == from_box,
                 PartLocation.loc_no == from_loc,
             )
@@ -138,7 +152,7 @@ class InventoryService:
         source_location = db.execute(stmt).scalar_one_or_none()
 
         if not source_location:
-            raise RecordNotFoundException("Part location", f"{part_id4} at {from_box}-{from_loc}")
+            raise RecordNotFoundException("Part location", f"{part_key} at {from_box}-{from_loc}")
 
         if source_location.qty < qty:
             raise InsufficientQuantityException(qty, source_location.qty, f"{from_box}-{from_loc}")
@@ -156,17 +170,20 @@ class InventoryService:
                 db.delete(source_location)
 
             # Add history for removal
+            part = PartService.get_part(db, part_key)
             remove_history = QuantityHistory(
-                part_id4=part_id4,
+                part_id=part.id,
                 delta_qty=-qty,
                 location_reference=f"{from_box}-{from_loc}",
             )
             db.add(remove_history)
 
             # Add to destination
-            stmt = select(PartLocation).where(
+            stmt = select(PartLocation).join(
+                Part, PartLocation.part_id == Part.id
+            ).where(
                 and_(
-                    PartLocation.part_id4 == part_id4,
+                    Part.key == part_key,
                     PartLocation.box_no == to_box,
                     PartLocation.loc_no == to_loc,
                 )
@@ -177,7 +194,7 @@ class InventoryService:
                 existing_dest.qty += qty
             else:
                 new_dest = PartLocation(
-                    part_id4=part_id4,
+                    part_id=part.id,
                     box_no=to_box,
                     loc_no=to_loc,
                     location_id=dest_location.id,
@@ -187,7 +204,7 @@ class InventoryService:
 
             # Add history for addition
             add_history = QuantityHistory(
-                part_id4=part_id4,
+                part_id=part.id,
                 delta_qty=qty,
                 location_reference=f"{to_box}-{to_loc}",
             )
@@ -198,9 +215,12 @@ class InventoryService:
             raise
 
     @staticmethod
-    def get_part_locations(db: Session, part_id4: str) -> list[PartLocation]:
+    def get_part_locations(db: Session, part_key: str) -> list[PartLocation]:
         """Get all locations where a part is stored."""
-        stmt = select(PartLocation).where(PartLocation.part_id4 == part_id4)
+        from app.models.part import Part
+        stmt = select(PartLocation).join(
+            Part, PartLocation.part_id == Part.id
+        ).where(Part.key == part_key)
         return list(db.execute(stmt).scalars().all())
 
     @staticmethod
@@ -231,23 +251,27 @@ class InventoryService:
         return (result[0], result[1])
 
     @staticmethod
-    def cleanup_zero_quantities(db: Session, part_id4: str) -> None:
+    def cleanup_zero_quantities(db: Session, part_key: str) -> None:
         """Remove all location assignments when total quantity reaches zero."""
-        total_qty = PartService.get_total_quantity(db, part_id4)
+        total_qty = PartService.get_total_quantity(db, part_key)
         if total_qty == 0:
             # Delete all part_location records for this part
-            stmt = select(PartLocation).where(PartLocation.part_id4 == part_id4)
+            from app.models.part import Part
+            stmt = select(PartLocation).join(
+                Part, PartLocation.part_id == Part.id
+            ).where(Part.key == part_key)
             part_locations = list(db.execute(stmt).scalars().all())
             for part_location in part_locations:
                 db.delete(part_location)
 
     @staticmethod
-    def calculate_total_quantity(db: Session, part_id4: str) -> int:
+    def calculate_total_quantity(db: Session, part_key: str) -> int:
         """Calculate total quantity across all locations for a part."""
         from sqlalchemy import func
-        stmt = select(func.coalesce(func.sum(PartLocation.qty), 0)).where(
-            PartLocation.part_id4 == part_id4
-        )
+        from app.models.part import Part
+        stmt = select(func.coalesce(func.sum(PartLocation.qty), 0)).join(
+            Part, PartLocation.part_id == Part.id
+        ).where(Part.key == part_key)
         result = db.execute(stmt).scalar()
         return result or 0
 
@@ -264,7 +288,7 @@ class InventoryService:
             Part,
             func.coalesce(func.sum(PartLocation.qty), 0).label('total_quantity')
         ).outerjoin(
-            PartLocation, Part.id4 == PartLocation.part_id4
+            PartLocation, Part.id == PartLocation.part_id
         ).group_by(Part.id)
 
         # Apply type filter if specified

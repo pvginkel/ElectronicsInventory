@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 @dataclass
 class PartAssignmentData:
     """Data class for part assignment information at a location."""
-    id4: str
+    key: str
     qty: int
     manufacturer_code: str | None
     description: str
@@ -216,7 +216,7 @@ class BoxService:
         stmt = select(
             Location.box_no,
             Location.loc_no,
-            PartLocation.part_id4,
+            Part.key,
             PartLocation.qty,
             Part.manufacturer_code,
             Part.description
@@ -227,7 +227,7 @@ class BoxService:
             (Location.box_no == PartLocation.box_no) & 
             (Location.loc_no == PartLocation.loc_no)
         ).outerjoin(
-            Part, PartLocation.part_id4 == Part.id4
+            Part, PartLocation.part_id == Part.id
         ).where(
             Location.box_no == box_no
         ).order_by(Location.loc_no)
@@ -250,10 +250,10 @@ class BoxService:
                 )
             
             # Add part assignment if there is one
-            if result.part_id4 is not None:
+            if result.key is not None:
                 locations_dict[loc_no].is_occupied = True
                 part_assignment = PartAssignmentData(
-                    id4=result.part_id4,
+                    key=result.key,
                     qty=result.qty,
                     manufacturer_code=result.manufacturer_code,
                     description=result.description or ""

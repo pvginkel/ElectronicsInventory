@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CHAR, ForeignKey, String, func
+from sqlalchemy import ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
@@ -18,8 +18,8 @@ class QuantityHistory(db.Model):  # type: ignore[name-defined]
     __tablename__ = "quantity_history"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    part_id4: Mapped[str] = mapped_column(
-        CHAR(4), ForeignKey("parts.id4"), nullable=False
+    part_id: Mapped[int] = mapped_column(
+        ForeignKey("parts.id"), nullable=False
     )
     delta_qty: Mapped[int] = mapped_column(nullable=False)
     location_reference: Mapped[str | None] = mapped_column(
@@ -35,4 +35,4 @@ class QuantityHistory(db.Model):  # type: ignore[name-defined]
     )
 
     def __repr__(self) -> str:
-        return f"<QuantityHistory {self.part_id4}: {self.delta_qty:+d} @ {self.timestamp}>"
+        return f"<QuantityHistory {self.part_id}: {self.delta_qty:+d} @ {self.timestamp}>"

@@ -19,57 +19,57 @@ from app.utils.spectree_config import api
 inventory_bp = Blueprint("inventory", __name__, url_prefix="/inventory")
 
 
-@inventory_bp.route("/parts/<string:part_id4>/stock", methods=["POST"])
+@inventory_bp.route("/parts/<string:part_key>/stock", methods=["POST"])
 @api.validate(json=AddStockSchema, resp=SpectreeResponse(HTTP_201=PartLocationResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
-def add_stock(part_id4: str):
+def add_stock(part_key: str):
     """Add stock to a location."""
     # Check if part exists (this will raise RecordNotFoundException if not found)
-    PartService.get_part(g.db, part_id4)
+    part = PartService.get_part(g.db, part_key)
 
     data = AddStockSchema.model_validate(request.get_json())
 
     part_location = InventoryService.add_stock(
-        g.db, part_id4, data.box_no, data.loc_no, data.qty
+        g.db, part_key, data.box_no, data.loc_no, data.qty
     )
 
     return PartLocationResponseSchema(
-        id4=part_location.part_id4,
+        key=part.key,
         box_no=part_location.box_no,
         loc_no=part_location.loc_no,
         qty=part_location.qty
     ).model_dump(), 201
 
 
-@inventory_bp.route("/parts/<string:part_id4>/stock", methods=["DELETE"])
+@inventory_bp.route("/parts/<string:part_key>/stock", methods=["DELETE"])
 @api.validate(json=RemoveStockSchema, resp=SpectreeResponse(HTTP_204=None, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
-def remove_stock(part_id4: str):
+def remove_stock(part_key: str):
     """Remove stock from a location."""
     # Check if part exists (this will raise RecordNotFoundException if not found)
-    PartService.get_part(g.db, part_id4)
+    PartService.get_part(g.db, part_key)
 
     data = RemoveStockSchema.model_validate(request.get_json())
 
     InventoryService.remove_stock(
-        g.db, part_id4, data.box_no, data.loc_no, data.qty
+        g.db, part_key, data.box_no, data.loc_no, data.qty
     )
     return "", 204
 
 
-@inventory_bp.route("/parts/<string:part_id4>/move", methods=["POST"])
+@inventory_bp.route("/parts/<string:part_key>/move", methods=["POST"])
 @api.validate(json=MoveStockSchema, resp=SpectreeResponse(HTTP_204=None, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
-def move_stock(part_id4: str):
+def move_stock(part_key: str):
     """Move stock between locations."""
     # Check if part exists (this will raise RecordNotFoundException if not found)
-    PartService.get_part(g.db, part_id4)
+    PartService.get_part(g.db, part_key)
 
     data = MoveStockSchema.model_validate(request.get_json())
 
     InventoryService.move_stock(
         g.db,
-        part_id4,
+        part_key,
         data.from_box_no,
         data.from_loc_no,
         data.to_box_no,

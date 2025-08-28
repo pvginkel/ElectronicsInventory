@@ -128,7 +128,7 @@ def get_box_locations(box_no: int):
             # Convert PartAssignmentData to PartAssignmentSchema
             part_assignments = [
                 PartAssignmentSchema(
-                    id4=part.id4,
+                    key=part.key,
                     qty=part.qty,
                     manufacturer_code=part.manufacturer_code,
                     description=part.description

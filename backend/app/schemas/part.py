@@ -93,7 +93,7 @@ class PartUpdateSchema(BaseModel):
 class PartResponseSchema(BaseModel):
     """Schema for full part details with relationships."""
 
-    id4: str = Field(
+    key: str = Field(
         description="4-character unique part identifier",
         json_schema_extra={"example": "BZQP"}
     )
@@ -147,7 +147,7 @@ class PartResponseSchema(BaseModel):
 class PartListSchema(BaseModel):
     """Schema for lightweight part listings."""
 
-    id4: str = Field(
+    key: str = Field(
         description="4-character unique part identifier",
         json_schema_extra={"example": "BZQP"}
     )
@@ -172,7 +172,7 @@ class PartListSchema(BaseModel):
 class PartWithTotalSchema(BaseModel):
     """Schema for part with calculated total quantity."""
 
-    id4: str = Field(
+    key: str = Field(
         description="4-character unique part identifier",
         json_schema_extra={"example": "BZQP"}
     )
@@ -215,7 +215,7 @@ class PartWithTotalSchema(BaseModel):
 class PartLocationResponseSchema(BaseModel):
     """Schema for part location details with quantity."""
 
-    id4: str = Field(
+    key: str = Field(
         description="4-character part identifier",
         json_schema_extra={"example": "BZQP"}
     )

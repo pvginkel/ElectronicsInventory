@@ -29,11 +29,11 @@ class TestInventoryService:
 
             # Add stock
             result = InventoryService.add_stock(
-                session, part.id4, box.box_no, 1, 5
+                session, part.key, box.box_no, 1, 5
             )
 
             assert isinstance(result, PartLocation)
-            assert result.part_id4 == part.id4
+            assert result.part_id == part.id
             assert result.box_no == box.box_no
             assert result.loc_no == 1
             assert result.qty == 5
@@ -47,11 +47,11 @@ class TestInventoryService:
             session.commit()
 
             # Add initial stock
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 3)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 3)
             session.commit()
 
             # Add more stock to same location
-            result = InventoryService.add_stock(session, part.id4, box.box_no, 1, 2)
+            result = InventoryService.add_stock(session, part.key, box.box_no, 1, 2)
 
             assert result.qty == 5  # 3 + 2
 
@@ -63,7 +63,7 @@ class TestInventoryService:
 
             # Try to add stock to non-existent location
             with pytest.raises(RecordNotFoundException, match="Location 999-1 was not found"):
-                InventoryService.add_stock(session, part.id4, 999, 1, 5)
+                InventoryService.add_stock(session, part.key, 999, 1, 5)
 
     def test_add_stock_zero_quantity(self, app: Flask, session: Session):
         """Test adding zero quantity (should fail)."""
@@ -73,7 +73,7 @@ class TestInventoryService:
             session.commit()
 
             with pytest.raises(InvalidOperationException, match="Cannot add negative or zero stock"):
-                InventoryService.add_stock(session, part.id4, box.box_no, 1, 0)
+                InventoryService.add_stock(session, part.key, box.box_no, 1, 0)
 
     def test_remove_stock_partial(self, app: Flask, session: Session):
         """Test removing partial stock from a location."""
@@ -83,14 +83,14 @@ class TestInventoryService:
             part = PartService.create_part(session, "Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 10)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 10)
             session.commit()
 
             # Remove some stock (no exception thrown)
-            InventoryService.remove_stock(session, part.id4, box.box_no, 1, 3)
+            InventoryService.remove_stock(session, part.key, box.box_no, 1, 3)
 
             # Check remaining quantity
-            locations = InventoryService.get_part_locations(session, part.id4)
+            locations = InventoryService.get_part_locations(session, part.key)
             assert len(locations) == 1
             assert locations[0].qty == 7
 
@@ -102,14 +102,14 @@ class TestInventoryService:
             part = PartService.create_part(session, "Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 5)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
             session.commit()
 
             # Remove all stock (no exception thrown)
-            InventoryService.remove_stock(session, part.id4, box.box_no, 1, 5)
+            InventoryService.remove_stock(session, part.key, box.box_no, 1, 5)
 
             # Location should be removed
-            locations = InventoryService.get_part_locations(session, part.id4)
+            locations = InventoryService.get_part_locations(session, part.key)
             assert len(locations) == 0
 
     def test_remove_stock_insufficient(self, app: Flask, session: Session):
@@ -120,12 +120,12 @@ class TestInventoryService:
             part = PartService.create_part(session, "Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 3)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 3)
             session.commit()
 
             # Try to remove more than available
             with pytest.raises(InsufficientQuantityException, match="Not enough parts available"):
-                InventoryService.remove_stock(session, part.id4, box.box_no, 1, 5)
+                InventoryService.remove_stock(session, part.key, box.box_no, 1, 5)
 
     def test_remove_stock_nonexistent_location(self, app: Flask, session: Session):
         """Test removing stock from location with no stock."""
@@ -136,7 +136,7 @@ class TestInventoryService:
 
             # Try to remove from empty location
             with pytest.raises(RecordNotFoundException, match="Part location .* was not found"):
-                InventoryService.remove_stock(session, part.id4, box.box_no, 1, 1)
+                InventoryService.remove_stock(session, part.key, box.box_no, 1, 1)
 
     def test_move_stock_success(self, app: Flask, session: Session):
         """Test successfully moving stock between locations."""
@@ -146,16 +146,16 @@ class TestInventoryService:
             part = PartService.create_part(session, "Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 10)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 10)
             session.commit()
 
             # Move some stock to another location (no exception thrown)
             InventoryService.move_stock(
-                session, part.id4, box.box_no, 1, box.box_no, 2, 3
+                session, part.key, box.box_no, 1, box.box_no, 2, 3
             )
 
             # Check locations
-            locations = InventoryService.get_part_locations(session, part.id4)
+            locations = InventoryService.get_part_locations(session, part.key)
             assert len(locations) == 2
 
             # Find the quantities
@@ -171,13 +171,13 @@ class TestInventoryService:
             part = PartService.create_part(session, "Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 3)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 3)
             session.commit()
 
             # Try to move more than available
             with pytest.raises(InsufficientQuantityException, match="Not enough parts available"):
                 InventoryService.move_stock(
-                    session, part.id4, box.box_no, 1, box.box_no, 2, 5
+                    session, part.key, box.box_no, 1, box.box_no, 2, 5
                 )
 
     def test_move_stock_invalid_destination(self, app: Flask, session: Session):
@@ -188,13 +188,13 @@ class TestInventoryService:
             part = PartService.create_part(session, "Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 5)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
             session.commit()
 
             # Try to move to non-existent location
             with pytest.raises(RecordNotFoundException, match="Location 999-1 was not found"):
                 InventoryService.move_stock(
-                    session, part.id4, box.box_no, 1, 999, 1, 3
+                    session, part.key, box.box_no, 1, 999, 1, 3
                 )
 
     def test_get_part_locations(self, app: Flask, session: Session):
@@ -205,11 +205,11 @@ class TestInventoryService:
             part = PartService.create_part(session, "Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 5)
-            InventoryService.add_stock(session, part.id4, box.box_no, 3, 10)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
+            InventoryService.add_stock(session, part.key, box.box_no, 3, 10)
             session.commit()
 
-            locations = InventoryService.get_part_locations(session, part.id4)
+            locations = InventoryService.get_part_locations(session, part.key)
 
             assert len(locations) == 2
             loc_numbers = [loc.loc_no for loc in locations]
@@ -238,7 +238,7 @@ class TestInventoryService:
             session.commit()
 
             # Occupy first location
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 5)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
             session.commit()
 
             # Should suggest next available
@@ -256,17 +256,17 @@ class TestInventoryService:
             session.commit()
 
             # Add stock to two locations
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 3)
-            InventoryService.add_stock(session, part.id4, box.box_no, 2, 2)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 3)
+            InventoryService.add_stock(session, part.key, box.box_no, 2, 2)
             session.commit()
 
             # Remove all stock from both locations
-            InventoryService.remove_stock(session, part.id4, box.box_no, 1, 3)
-            InventoryService.remove_stock(session, part.id4, box.box_no, 2, 2)
+            InventoryService.remove_stock(session, part.key, box.box_no, 1, 3)
+            InventoryService.remove_stock(session, part.key, box.box_no, 2, 2)
             session.commit()
 
             # All locations should be cleaned up
-            locations = InventoryService.get_part_locations(session, part.id4)
+            locations = InventoryService.get_part_locations(session, part.key)
             assert len(locations) == 0
 
     def test_calculate_total_quantity_single_location(self, app: Flask, session: Session):
@@ -278,11 +278,11 @@ class TestInventoryService:
             session.commit()
 
             # Add stock
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 25)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 25)
             session.commit()
 
             # Calculate total
-            total = InventoryService.calculate_total_quantity(session, part.id4)
+            total = InventoryService.calculate_total_quantity(session, part.key)
             assert total == 25
 
     def test_calculate_total_quantity_multiple_locations(self, app: Flask, session: Session):
@@ -294,13 +294,13 @@ class TestInventoryService:
             session.commit()
 
             # Add stock to multiple locations
-            InventoryService.add_stock(session, part.id4, box.box_no, 1, 15)
-            InventoryService.add_stock(session, part.id4, box.box_no, 3, 10)
-            InventoryService.add_stock(session, part.id4, box.box_no, 7, 5)
+            InventoryService.add_stock(session, part.key, box.box_no, 1, 15)
+            InventoryService.add_stock(session, part.key, box.box_no, 3, 10)
+            InventoryService.add_stock(session, part.key, box.box_no, 7, 5)
             session.commit()
 
             # Calculate total
-            total = InventoryService.calculate_total_quantity(session, part.id4)
+            total = InventoryService.calculate_total_quantity(session, part.key)
             assert total == 30
 
     def test_calculate_total_quantity_no_stock(self, app: Flask, session: Session):
@@ -311,7 +311,7 @@ class TestInventoryService:
             session.commit()
 
             # Calculate total
-            total = InventoryService.calculate_total_quantity(session, part.id4)
+            total = InventoryService.calculate_total_quantity(session, part.key)
             assert total == 0
 
     def test_get_all_parts_with_totals_empty(self, app: Flask, session: Session):
@@ -332,9 +332,9 @@ class TestInventoryService:
             session.commit()
 
             # Add stock to some parts
-            InventoryService.add_stock(session, part1.id4, box.box_no, 1, 20)
-            InventoryService.add_stock(session, part1.id4, box.box_no, 2, 30)  # Total: 50
-            InventoryService.add_stock(session, part2.id4, box.box_no, 3, 15)  # Total: 15
+            InventoryService.add_stock(session, part1.key, box.box_no, 1, 20)
+            InventoryService.add_stock(session, part1.key, box.box_no, 2, 30)  # Total: 50
+            InventoryService.add_stock(session, part2.key, box.box_no, 3, 15)  # Total: 15
             session.commit()
 
             # Get parts with totals
@@ -343,10 +343,10 @@ class TestInventoryService:
             assert len(parts_with_totals) == 3
 
             # Check totals by part ID
-            totals_by_id = {item.part.id4: item.total_quantity for item in parts_with_totals}
-            assert totals_by_id[part1.id4] == 50
-            assert totals_by_id[part2.id4] == 15
-            assert totals_by_id[part3.id4] == 0
+            totals_by_id = {item.part.key: item.total_quantity for item in parts_with_totals}
+            assert totals_by_id[part1.key] == 50
+            assert totals_by_id[part2.key] == 15
+            assert totals_by_id[part3.key] == 0
 
     def test_get_all_parts_with_totals_with_type_filter(self, app: Flask, session: Session):
         """Test getting parts with totals filtered by type."""
@@ -364,9 +364,9 @@ class TestInventoryService:
             session.commit()
 
             # Add stock
-            InventoryService.add_stock(session, part1.id4, box.box_no, 1, 100)
-            InventoryService.add_stock(session, part2.id4, box.box_no, 2, 50)
-            InventoryService.add_stock(session, part3.id4, box.box_no, 3, 75)
+            InventoryService.add_stock(session, part1.key, box.box_no, 1, 100)
+            InventoryService.add_stock(session, part2.key, box.box_no, 2, 50)
+            InventoryService.add_stock(session, part3.key, box.box_no, 3, 75)
             session.commit()
 
             # Get only resistors
@@ -391,7 +391,7 @@ class TestInventoryService:
 
             # Add stock to all parts
             for i, part in enumerate(parts):
-                InventoryService.add_stock(session, part.id4, box.box_no, i + 1, (i + 1) * 10)
+                InventoryService.add_stock(session, part.key, box.box_no, i + 1, (i + 1) * 10)
             session.commit()
 
             # Test pagination: limit 3, offset 2
