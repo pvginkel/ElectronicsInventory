@@ -159,7 +159,7 @@ class PartService:
         self.db = db
     
     def create_part(self, description: str, **kwargs) -> Part:
-        id4 = self.generate_part_id4()
+        key = self.generate_part_key()
         # ... rest of implementation using self.db
 ```
 
