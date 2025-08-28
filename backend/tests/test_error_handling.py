@@ -83,7 +83,7 @@ class TestBoxServiceExceptions:
         """Test that deleting a box with parts raises InvalidOperationException."""
         # Create a box
         box = container.box_service().create_box("Test Box", 10)
-        
+
         # Create a part first
         part = container.part_service().create_part("Test part")
         session.commit()
@@ -154,7 +154,7 @@ class TestInventoryServiceExceptions:
         """Test removing more stock than available raises InsufficientQuantityException."""
         # Create a box and add some stock
         box = container.box_service().create_box("Test Box", 10)
-        
+
         # Create a part first
         part = container.part_service().create_part("Test part")
         session.commit()
@@ -196,7 +196,7 @@ class TestInventoryServiceExceptions:
         """Test moving more stock than available raises InsufficientQuantityException."""
         # Create a box and add some stock
         box = container.box_service().create_box("Test Box", 10)
-        
+
         # Create a part first
         part = container.part_service().create_part("Test part")
         session.commit()
@@ -215,7 +215,7 @@ class TestInventoryServiceExceptions:
         """Test moving stock to non-existent destination raises RecordNotFoundException."""
         # Create a box and add some stock
         box = container.box_service().create_box("Test Box", 10)
-        
+
         # Create a part first
         part = container.part_service().create_part("Test part")
         session.commit()
@@ -238,7 +238,7 @@ class TestErrorHandlingIntegration:
         """Test that successful operations work without exceptions."""
         # Create a box
         box = container.box_service().create_box("Test Box", 10)
-        
+
         # Create a part first
         part = container.part_service().create_part("Test part")
         session.commit()

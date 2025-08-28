@@ -171,14 +171,14 @@ class TestTypeService:
         with app.app_context():
             # Create types
             type_service = container.type_service()
-            type1 = type_service.create_type("Resistor")
-            type2 = type_service.create_type("Capacitor")
+            type_service.create_type("Resistor")
+            type_service.create_type("Capacitor")
             session.commit()
 
             types_with_stats = type_service.get_all_types_with_part_counts()
 
             assert len(types_with_stats) == 2
-            
+
             # Verify structure and that all part counts are 0
             for type_with_stats in types_with_stats:
                 assert hasattr(type_with_stats, 'type')
@@ -193,7 +193,7 @@ class TestTypeService:
             part_service = container.part_service()
             resistor_type = type_service.create_type("Resistor")
             capacitor_type = type_service.create_type("Capacitor")
-            inductor_type = type_service.create_type("Inductor")
+            type_service.create_type("Inductor")  # unused in test
             session.flush()
 
             # Create parts with different type distributions
@@ -201,10 +201,10 @@ class TestTypeService:
             part_service.create_part("1k resistor", type_id=resistor_type.id)
             part_service.create_part("10k resistor", type_id=resistor_type.id)
             part_service.create_part("100k resistor", type_id=resistor_type.id)
-            
+
             # 1 capacitor part
             part_service.create_part("10uF capacitor", type_id=capacitor_type.id)
-            
+
             # 0 inductor parts (type exists but unused)
             session.commit()
 
@@ -214,7 +214,7 @@ class TestTypeService:
 
             # Create lookup by type name for easier testing
             stats_by_name = {item.type.name: item.part_count for item in types_with_stats}
-            
+
             assert stats_by_name["Resistor"] == 3
             assert stats_by_name["Capacitor"] == 1
             assert stats_by_name["Inductor"] == 0
@@ -239,7 +239,7 @@ class TestTypeService:
             types_with_stats = type_service.get_all_types_with_part_counts()
 
             assert len(types_with_stats) == 3
-            
+
             # Verify ordering by name
             type_names = [item.type.name for item in types_with_stats]
             assert type_names == sorted(type_names)

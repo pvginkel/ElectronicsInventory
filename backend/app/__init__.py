@@ -36,7 +36,7 @@ def create_app(settings: "Settings | None" = None) -> Flask:
 
         import app.extensions as ext
 
-        ext.SessionLocal = sessionmaker(  # noqa: F811  # type: ignore[call-overload]
+        ext.SessionLocal = sessionmaker(  # noqa: F811  # type: ignore[assignment]
             bind=db.engine, autoflush=True, expire_on_commit=False
         )
 

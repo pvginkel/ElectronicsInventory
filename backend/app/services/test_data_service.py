@@ -5,7 +5,6 @@ from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from app.exceptions import InvalidOperationException
 from app.models.box import Box
@@ -134,7 +133,7 @@ class TestDataService(BaseService):
             box_no = location_data["box_no"]
             loc_no = location_data["loc_no"]
             qty = location_data["qty"]
-            
+
             # Get the part to get its ID
             part = parts[part_key]
             if not part:
@@ -179,7 +178,7 @@ class TestDataService(BaseService):
             part = parts[part_key]
             if not part:
                 raise InvalidOperationException("load quantity history", f"part {part_key} not found")
-                
+
             quantity_history = QuantityHistory(
                 part_id=part.id,
                 delta_qty=history_data["delta_qty"],

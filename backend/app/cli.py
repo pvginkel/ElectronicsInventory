@@ -180,7 +180,8 @@ def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
             # Load test data
             print("📦 Loading fixed test dataset...")
             with db.session() as session:
-                TestDataService.load_full_dataset(session)
+                test_data_service = TestDataService(session)
+                test_data_service.load_full_dataset()
                 print("✅ Test data loaded successfully")
 
                 # Show summary of loaded data

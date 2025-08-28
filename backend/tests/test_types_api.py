@@ -28,7 +28,7 @@ class TestTypesAPI:
     def test_create_type_invalid_data(self, app: Flask, client: FlaskClient):
         """Test creating a type with invalid data."""
         # Missing required name
-        data = {}
+        data: dict[str, str] = {}
 
         response = client.post("/api/types", json=data)
         assert response.status_code == 400
@@ -166,7 +166,7 @@ class TestTypesAPI:
             response_data = json.loads(response.data)
 
             assert len(response_data) == 2
-            
+
             # Should not have part_count field
             for type_data in response_data:
                 assert "name" in type_data
@@ -179,8 +179,8 @@ class TestTypesAPI:
         """Test listing types with include_stats=true when no parts exist."""
         with app.app_context():
             # Create types but no parts
-            resistor_type = container.type_service().create_type("Resistor")
-            capacitor_type = container.type_service().create_type("Capacitor")
+            container.type_service().create_type("Resistor")
+            container.type_service().create_type("Capacitor")
             session.commit()
 
             response = client.get("/api/types?include_stats=true")
@@ -205,7 +205,7 @@ class TestTypesAPI:
             # Create types
             resistor_type = container.type_service().create_type("Resistor")
             capacitor_type = container.type_service().create_type("Capacitor")
-            inductor_type = container.type_service().create_type("Inductor")
+            container.type_service().create_type("Inductor")  # unused in test
             session.flush()
 
             # Create parts with different type distributions
@@ -213,10 +213,10 @@ class TestTypesAPI:
             container.part_service().create_part("1k resistor", type_id=resistor_type.id)
             container.part_service().create_part("10k resistor", type_id=resistor_type.id)
             container.part_service().create_part("100k resistor", type_id=resistor_type.id)
-            
+
             # 1 capacitor part
             container.part_service().create_part("10uF capacitor", type_id=capacitor_type.id)
-            
+
             # 0 inductor parts (type exists but unused)
             session.commit()
 
@@ -229,7 +229,7 @@ class TestTypesAPI:
 
             # Create lookup by type name for easier testing
             stats_by_name = {t["name"]: t["part_count"] for t in response_data}
-            
+
             assert stats_by_name["Resistor"] == 3
             assert stats_by_name["Capacitor"] == 1
             assert stats_by_name["Inductor"] == 0
@@ -260,7 +260,7 @@ class TestTypesAPI:
             response_data = json.loads(response.data)
 
             assert len(response_data) == 1
-            
+
             # Should not have part_count field
             type_data = response_data[0]
             assert "name" in type_data
@@ -278,22 +278,22 @@ class TestTypesAPI:
 
             # Test various case combinations
             test_cases = ["TRUE", "True", "true", "tRuE"]
-            
+
             for case in test_cases:
                 response = client.get(f"/api/types?include_stats={case}")
                 assert response.status_code == 200
-                
+
                 response_data = json.loads(response.data)
                 assert len(response_data) == 1
                 assert "part_count" in response_data[0]
 
             # Test false cases
             false_cases = ["FALSE", "False", "false", "fAlSe", "0", "no", "off"]
-            
+
             for case in false_cases:
                 response = client.get(f"/api/types?include_stats={case}")
                 assert response.status_code == 200
-                
+
                 response_data = json.loads(response.data)
                 assert len(response_data) == 1
                 assert "part_count" not in response_data[0]

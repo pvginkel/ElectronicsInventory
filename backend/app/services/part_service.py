@@ -4,7 +4,6 @@ import random
 import string
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.part import Part

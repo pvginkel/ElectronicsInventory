@@ -134,7 +134,7 @@ class PartResponseSchema(BaseModel):
         json_schema_extra={"example": "2024-01-15T14:45:00Z"}
     )
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def total_quantity(self) -> int:
         """Computed field for total quantity across all locations."""
@@ -160,7 +160,7 @@ class PartListSchema(BaseModel):
         json_schema_extra={"example": "12V SPDT relay with 40A contacts"}
     )
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def total_quantity(self) -> int:
         """Computed field for total quantity across all locations."""

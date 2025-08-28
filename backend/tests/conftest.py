@@ -35,7 +35,7 @@ def app(test_settings: Settings) -> Generator[Flask, None, None]:
         import app.extensions as ext
         from app.extensions import db as flask_db
 
-        ext.SessionLocal = sessionmaker(
+        ext.SessionLocal = sessionmaker(  # type: ignore[assignment]
             bind=flask_db.engine, autoflush=True, expire_on_commit=False
         )
 
@@ -71,6 +71,7 @@ def app(test_settings: Settings) -> Generator[Flask, None, None]:
 def session(app: Flask) -> Generator[Session, None, None]:
     import app.extensions as ext
 
+    assert ext.SessionLocal is not None
     session = ext.SessionLocal()
 
     exc = None
