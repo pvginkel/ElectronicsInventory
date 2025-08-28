@@ -15,13 +15,13 @@ from app.models.part import Part
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
 from app.models.type import Type
-from app.services.test_data_service import TestDataService
+from app.services.container import ServiceContainer
 
 
 class TestTestDataService:
     """Test cases for TestDataService."""
 
-    def test_load_types_success(self, app: Flask, session: Session):
+    def test_load_types_success(self, app: Flask, session: Session, container: ServiceContainer):
         """Test successful loading of types from JSON."""
         with app.app_context():
             # Create temporary test data
@@ -39,7 +39,7 @@ class TestTestDataService:
                     json.dump(test_data, f)
                 
                 # Load types
-                types_map = TestDataService.load_types(session, data_dir)
+                types_map = container.test_data_service().load_types(data_dir)
                 
                 # Verify results
                 assert len(types_map) == 3
@@ -53,18 +53,18 @@ class TestTestDataService:
                 type_names = {t.name for t in all_types}
                 assert type_names == {"Resistor", "Capacitor", "IC"}
 
-    def test_load_types_file_not_found(self, app: Flask, session: Session):
+    def test_load_types_file_not_found(self, app: Flask, session: Session, container: ServiceContainer):
         """Test error handling when types.json doesn't exist."""
         with app.app_context():
             with tempfile.TemporaryDirectory() as temp_dir:
                 data_dir = Path(temp_dir)
                 
                 with pytest.raises(InvalidOperationException) as exc_info:
-                    TestDataService.load_types(session, data_dir)
+                    container.test_data_service().load_types(data_dir)
                 
                 assert "failed to read" in str(exc_info.value)
 
-    def test_load_types_invalid_json(self, app: Flask, session: Session):
+    def test_load_types_invalid_json(self, app: Flask, session: Session, container: ServiceContainer):
         """Test error handling with malformed JSON."""
         with app.app_context():
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -76,11 +76,11 @@ class TestTestDataService:
                     f.write("{invalid json")
                 
                 with pytest.raises(InvalidOperationException) as exc_info:
-                    TestDataService.load_types(session, data_dir)
+                    container.test_data_service().load_types(data_dir)
                 
                 assert "failed to read" in str(exc_info.value)
 
-    def test_load_boxes_success(self, app: Flask, session: Session):
+    def test_load_boxes_success(self, app: Flask, session: Session, container: ServiceContainer):
         """Test successful loading of boxes and locations."""
         with app.app_context():
             test_data = [
@@ -96,7 +96,7 @@ class TestTestDataService:
                     json.dump(test_data, f)
                 
                 # Load boxes
-                boxes_map = TestDataService.load_boxes(session, data_dir)
+                boxes_map = container.test_data_service().load_boxes(data_dir)
                 
                 # Verify results
                 assert len(boxes_map) == 2
@@ -115,7 +115,7 @@ class TestTestDataService:
                 box2_locations = session.query(Location).filter_by(box_no=2).all()
                 assert len(box2_locations) == 20
 
-    def test_load_parts_success(self, app: Flask, session: Session):
+    def test_load_parts_success(self, app: Flask, session: Session, container: ServiceContainer):
         """Test successful loading of parts with type relationships."""
         with app.app_context():
             # First create a type
@@ -152,7 +152,7 @@ class TestTestDataService:
                     json.dump(test_data, f)
                 
                 # Load parts
-                parts_map = TestDataService.load_parts(session, data_dir, types_map)
+                parts_map = container.test_data_service().load_parts(data_dir, types_map)
                 
                 # Verify results
                 assert len(parts_map) == 2
@@ -167,7 +167,7 @@ class TestTestDataService:
                 assert part_abcd.seller == "Digi-Key"
                 assert part_abcd.seller_link == "https://example.com"
 
-    def test_load_parts_invalid_type_reference(self, app: Flask, session: Session):
+    def test_load_parts_invalid_type_reference(self, app: Flask, session: Session, container: ServiceContainer):
         """Test that loading parts with invalid type references raises an error."""
         with app.app_context():
             types_map = {}  # Empty types map to force error
@@ -189,11 +189,11 @@ class TestTestDataService:
                 
                 # Should raise InvalidOperationException
                 with pytest.raises(InvalidOperationException) as exc_info:
-                    TestDataService.load_parts(session, data_dir, types_map)
+                    container.test_data_service().load_parts(data_dir, types_map)
                 
                 assert "unknown type 'NonexistentType' in part ABCD" in str(exc_info.value)
 
-    def test_load_parts_without_type(self, app: Flask, session: Session):
+    def test_load_parts_without_type(self, app: Flask, session: Session, container: ServiceContainer):
         """Test loading parts without type assignment."""
         with app.app_context():
             types_map = {}
@@ -214,7 +214,7 @@ class TestTestDataService:
                     json.dump(test_data, f)
                 
                 # Load parts
-                parts_map = TestDataService.load_parts(session, data_dir, types_map)
+                parts_map = container.test_data_service().load_parts(data_dir, types_map)
                 
                 # Verify results
                 assert len(parts_map) == 1
@@ -222,7 +222,7 @@ class TestTestDataService:
                 assert part.type_id is None
                 assert part.description == "Unknown part"
 
-    def test_load_part_locations_success(self, app: Flask, session: Session):
+    def test_load_part_locations_success(self, app: Flask, session: Session, container: ServiceContainer):
         """Test successful loading of part location assignments."""
         with app.app_context():
             # Create test data
@@ -253,7 +253,7 @@ class TestTestDataService:
                     json.dump(test_data, f)
                 
                 # Load part locations
-                TestDataService.load_part_locations(session, data_dir, parts_map, boxes_map)
+                container.test_data_service().load_part_locations(data_dir, parts_map, boxes_map)
                 
                 # Verify results
                 part_locations = session.query(PartLocation).all()
@@ -266,7 +266,7 @@ class TestTestDataService:
                 assert pl.qty == 50
                 assert pl.location_id == location.id
 
-    def test_load_part_locations_location_not_found(self, app: Flask, session: Session):
+    def test_load_part_locations_location_not_found(self, app: Flask, session: Session, container: ServiceContainer):
         """Test error handling when location doesn't exist."""
         with app.app_context():
             # Create a part but no corresponding location/box
@@ -289,11 +289,11 @@ class TestTestDataService:
                     json.dump(test_data, f)
                 
                 with pytest.raises(InvalidOperationException) as exc_info:
-                    TestDataService.load_part_locations(session, data_dir, parts_map, boxes_map)
+                    container.test_data_service().load_part_locations(data_dir, parts_map, boxes_map)
                 
                 assert "location 1-1 not found" in str(exc_info.value)
 
-    def test_load_quantity_history_success(self, app: Flask, session: Session):
+    def test_load_quantity_history_success(self, app: Flask, session: Session, container: ServiceContainer):
         """Test successful loading of quantity history."""
         with app.app_context():
             # Create test part
@@ -326,7 +326,7 @@ class TestTestDataService:
                     json.dump(test_data, f)
                 
                 # Load quantity history
-                TestDataService.load_quantity_history(session, data_dir, parts_map)
+                container.test_data_service().load_quantity_history(data_dir, parts_map)
                 
                 # Verify results
                 history_records = session.query(QuantityHistory).all()
@@ -343,7 +343,7 @@ class TestTestDataService:
                 assert record2.part.key == "ABCD"
                 assert record2.delta_qty == -25
 
-    def test_load_quantity_history_invalid_timestamp(self, app: Flask, session: Session):
+    def test_load_quantity_history_invalid_timestamp(self, app: Flask, session: Session, container: ServiceContainer):
         """Test error handling with invalid timestamp format."""
         with app.app_context():
             parts_map = {}
@@ -364,11 +364,11 @@ class TestTestDataService:
                     json.dump(test_data, f)
                 
                 with pytest.raises(InvalidOperationException) as exc_info:
-                    TestDataService.load_quantity_history(session, data_dir, parts_map)
+                    container.test_data_service().load_quantity_history(data_dir, parts_map)
                 
                 assert "invalid timestamp format" in str(exc_info.value)
 
-    def test_load_full_dataset_integration(self, app: Flask, session: Session):
+    def test_load_full_dataset_integration(self, app: Flask, session: Session, container: ServiceContainer):
         """Test loading complete dataset integration."""
         with app.app_context():
             # Create minimal test dataset
@@ -402,41 +402,29 @@ class TestTestDataService:
                 with (data_dir / "quantity_history.json").open("w") as f:
                     json.dump(history_data, f)
                 
-                # Temporarily replace the data directory path
-                import app.services.test_data_service
-                original_method = TestDataService.load_full_dataset
+                # Load full dataset using container
+                service = container.test_data_service()
+                types = service.load_types(data_dir)
+                boxes = service.load_boxes(data_dir)
+                parts = service.load_parts(data_dir, types)
+                service.load_part_locations(data_dir, parts, boxes)
+                service.load_quantity_history(data_dir, parts)
+                session.commit()
                 
-                def mock_load_full_dataset(db: Session) -> None:
-                    types = TestDataService.load_types(db, data_dir)
-                    boxes = TestDataService.load_boxes(db, data_dir)
-                    parts = TestDataService.load_parts(db, data_dir, types)
-                    TestDataService.load_part_locations(db, data_dir, parts, boxes)
-                    TestDataService.load_quantity_history(db, data_dir, parts)
-                    db.commit()
+                # Verify all data was loaded
+                assert session.query(Type).count() == 1
+                assert session.query(Box).count() == 1
+                assert session.query(Location).count() == 5  # box capacity
+                assert session.query(Part).count() == 1
+                assert session.query(PartLocation).count() == 1
+                assert session.query(QuantityHistory).count() == 1
                 
-                TestDataService.load_full_dataset = staticmethod(mock_load_full_dataset)
+                # Verify relationships
+                part = session.query(Part).first()
+                assert part.type is not None
+                assert part.type.name == "Resistor"
                 
-                try:
-                    # Load full dataset
-                    TestDataService.load_full_dataset(session)
+                part_location = session.query(PartLocation).first()
+                assert part_location.part.key == "ABCD"
+                assert part_location.qty == 10
                     
-                    # Verify all data was loaded
-                    assert session.query(Type).count() == 1
-                    assert session.query(Box).count() == 1
-                    assert session.query(Location).count() == 5  # box capacity
-                    assert session.query(Part).count() == 1
-                    assert session.query(PartLocation).count() == 1
-                    assert session.query(QuantityHistory).count() == 1
-                    
-                    # Verify relationships
-                    part = session.query(Part).first()
-                    assert part.type is not None
-                    assert part.type.name == "Resistor"
-                    
-                    part_location = session.query(PartLocation).first()
-                    assert part_location.part.key == "ABCD"
-                    assert part_location.qty == 10
-                    
-                finally:
-                    # Restore original method
-                    TestDataService.load_full_dataset = original_method

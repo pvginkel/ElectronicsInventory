@@ -14,28 +14,27 @@ from app.models.part import Part
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
 from app.models.type import Type
+from app.services.base import BaseService
 
 
-class TestDataService:
+class TestDataService(BaseService):
     """Service class for loading fixed test data from JSON files."""
 
-    @staticmethod
-    def load_full_dataset(db: Session) -> None:
+    def load_full_dataset(self) -> None:
         """Load complete test dataset from JSON files in correct dependency order."""
         data_dir = Path(__file__).parent.parent / "data" / "test_data"
 
         # Load in dependency order
-        types = TestDataService.load_types(db, data_dir)
-        boxes = TestDataService.load_boxes(db, data_dir)
-        parts = TestDataService.load_parts(db, data_dir, types)
-        TestDataService.load_part_locations(db, data_dir, parts, boxes)
-        TestDataService.load_quantity_history(db, data_dir, parts)
+        types = self.load_types(data_dir)
+        boxes = self.load_boxes(data_dir)
+        parts = self.load_parts(data_dir, types)
+        self.load_part_locations(data_dir, parts, boxes)
+        self.load_quantity_history(data_dir, parts)
 
         # Commit all changes
-        db.commit()
+        self.db.commit()
 
-    @staticmethod
-    def load_types(db: Session, data_dir: Path) -> dict[str, Type]:
+    def load_types(self, data_dir: Path) -> dict[str, Type]:
         """Load electronics part types from types.json."""
         types_file = data_dir / "types.json"
         try:
@@ -47,14 +46,13 @@ class TestDataService:
         types_map = {}
         for type_data in types_data:
             type_obj = Type(name=type_data["name"])
-            db.add(type_obj)
-            db.flush()  # Get ID immediately
+            self.db.add(type_obj)
+            self.db.flush()  # Get ID immediately
             types_map[type_data["name"]] = type_obj
 
         return types_map
 
-    @staticmethod
-    def load_boxes(db: Session, data_dir: Path) -> dict[int, Box]:
+    def load_boxes(self, data_dir: Path) -> dict[int, Box]:
         """Load boxes from boxes.json and generate all locations."""
         boxes_file = data_dir / "boxes.json"
         try:
@@ -70,8 +68,8 @@ class TestDataService:
                 description=box_data["description"],
                 capacity=box_data["capacity"]
             )
-            db.add(box)
-            db.flush()  # Get ID immediately
+            self.db.add(box)
+            self.db.flush()  # Get ID immediately
 
             # Generate all locations for this box
             for loc_no in range(1, box_data["capacity"] + 1):
@@ -80,14 +78,13 @@ class TestDataService:
                     loc_no=loc_no,
                     box_id=box.id
                 )
-                db.add(location)
+                self.db.add(location)
 
             boxes_map[box_data["box_no"]] = box
 
         return boxes_map
 
-    @staticmethod
-    def load_parts(db: Session, data_dir: Path, types: dict[str, Type]) -> dict[str, Part]:
+    def load_parts(self, data_dir: Path, types: dict[str, Type]) -> dict[str, Part]:
         """Load parts from parts.json with type relationships."""
         parts_file = data_dir / "parts.json"
         try:
@@ -117,14 +114,13 @@ class TestDataService:
                 seller=part_data.get("seller"),
                 seller_link=part_data.get("seller_link")
             )
-            db.add(part)
-            db.flush()  # Get ID immediately
+            self.db.add(part)
+            self.db.flush()  # Get ID immediately
             parts_map[part_data["key"]] = part
 
         return parts_map
 
-    @staticmethod
-    def load_part_locations(db: Session, data_dir: Path, parts: dict[str, Part], boxes: dict[int, Box]) -> None:
+    def load_part_locations(self, data_dir: Path, parts: dict[str, Part], boxes: dict[int, Box]) -> None:
         """Load part location assignments from part_locations.json."""
         part_locations_file = data_dir / "part_locations.json"
         try:
@@ -149,7 +145,7 @@ class TestDataService:
                 Location.box_no == box_no,
                 Location.loc_no == loc_no
             )
-            location = db.execute(stmt).scalar_one_or_none()
+            location = self.db.execute(stmt).scalar_one_or_none()
             if not location:
                 raise InvalidOperationException("load part locations", f"location {box_no}-{loc_no} not found")
 
@@ -160,10 +156,9 @@ class TestDataService:
                 location_id=location.id,
                 qty=qty
             )
-            db.add(part_location)
+            self.db.add(part_location)
 
-    @staticmethod
-    def load_quantity_history(db: Session, data_dir: Path, parts: dict[str, Part]) -> None:
+    def load_quantity_history(self, data_dir: Path, parts: dict[str, Part]) -> None:
         """Load historical quantity changes from quantity_history.json."""
         quantity_history_file = data_dir / "quantity_history.json"
         try:
@@ -191,4 +186,4 @@ class TestDataService:
                 location_reference=history_data.get("location_reference"),
                 timestamp=timestamp
             )
-            db.add(quantity_history)
+            self.db.add(quantity_history)

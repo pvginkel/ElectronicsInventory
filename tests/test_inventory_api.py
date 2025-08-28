@@ -6,20 +6,18 @@ from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
-from app.services.box_service import BoxService
-from app.services.inventory_service import InventoryService
-from app.services.part_service import PartService
+from app.services.container import ServiceContainer
 
 
 class TestInventoryAPI:
     """Test cases for inventory API endpoints."""
 
-    def test_add_stock(self, app: Flask, client: FlaskClient, session: Session):
+    def test_add_stock(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test adding stock to a location."""
         with app.app_context():
             # Setup
-            box = BoxService.create_box(session, "Test Box", 10)
-            part = PartService.create_part(session, "Test part")
+            box = container.box_service().create_box("Test Box", 10)
+            part = container.part_service().create_part("Test part")
             session.commit()
 
             data = {
@@ -45,10 +43,10 @@ class TestInventoryAPI:
         response = client.post("/api/inventory/parts/AAAA/stock", json=data)
         assert response.status_code == 404
 
-    def test_add_stock_invalid_location(self, app: Flask, client: FlaskClient, session: Session):
+    def test_add_stock_invalid_location(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test adding stock to invalid location."""
         with app.app_context():
-            part = PartService.create_part(session, "Test part")
+            part = container.part_service().create_part("Test part")
             session.commit()
 
             data = {"box_no": 999, "loc_no": 1, "qty": 5}
@@ -56,11 +54,11 @@ class TestInventoryAPI:
             response = client.post(f"/api/inventory/parts/{part.key}/stock", json=data)
             assert response.status_code == 404
 
-    def test_add_stock_invalid_quantity(self, app: Flask, client: FlaskClient, session: Session):
+    def test_add_stock_invalid_quantity(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test adding stock with invalid quantity."""
         with app.app_context():
-            box = BoxService.create_box(session, "Test Box", 10)
-            part = PartService.create_part(session, "Test part")
+            box = container.box_service().create_box("Test Box", 10)
+            part = container.part_service().create_part("Test part")
             session.commit()
 
             # Zero quantity
@@ -69,15 +67,15 @@ class TestInventoryAPI:
             response = client.post(f"/api/inventory/parts/{part.key}/stock", json=data)
             assert response.status_code == 400
 
-    def test_remove_stock(self, app: Flask, client: FlaskClient, session: Session):
+    def test_remove_stock(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test removing stock from a location."""
         with app.app_context():
             # Setup with stock
-            box = BoxService.create_box(session, "Test Box", 10)
-            part = PartService.create_part(session, "Test part")
+            box = container.box_service().create_box("Test Box", 10)
+            part = container.part_service().create_part("Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.key, box.box_no, 1, 10)
+            container.inventory_service().add_stock(part.key, box.box_no, 1, 10)
             session.commit()
 
             data = {"box_no": box.box_no, "loc_no": 1, "qty": 3}
@@ -92,15 +90,15 @@ class TestInventoryAPI:
         response = client.delete("/api/inventory/parts/AAAA/stock", json=data)
         assert response.status_code == 404
 
-    def test_remove_stock_insufficient(self, app: Flask, client: FlaskClient, session: Session):
+    def test_remove_stock_insufficient(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test removing more stock than available."""
         with app.app_context():
             # Setup with limited stock
-            box = BoxService.create_box(session, "Test Box", 10)
-            part = PartService.create_part(session, "Test part")
+            box = container.box_service().create_box("Test Box", 10)
+            part = container.part_service().create_part("Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.key, box.box_no, 1, 3)
+            container.inventory_service().add_stock(part.key, box.box_no, 1, 3)
             session.commit()
 
             data = {"box_no": box.box_no, "loc_no": 1, "qty": 5}
@@ -108,11 +106,11 @@ class TestInventoryAPI:
             response = client.delete(f"/api/inventory/parts/{part.key}/stock", json=data)
             assert response.status_code == 409
 
-    def test_remove_stock_nonexistent_location(self, app: Flask, client: FlaskClient, session: Session):
+    def test_remove_stock_nonexistent_location(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test removing stock from location with no stock."""
         with app.app_context():
-            box = BoxService.create_box(session, "Test Box", 10)
-            part = PartService.create_part(session, "Test part")
+            box = container.box_service().create_box("Test Box", 10)
+            part = container.part_service().create_part("Test part")
             session.commit()
 
             data = {"box_no": box.box_no, "loc_no": 1, "qty": 1}
@@ -120,15 +118,15 @@ class TestInventoryAPI:
             response = client.delete(f"/api/inventory/parts/{part.key}/stock", json=data)
             assert response.status_code == 404
 
-    def test_move_stock(self, app: Flask, client: FlaskClient, session: Session):
+    def test_move_stock(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test moving stock between locations."""
         with app.app_context():
             # Setup with stock
-            box = BoxService.create_box(session, "Test Box", 10)
-            part = PartService.create_part(session, "Test part")
+            box = container.box_service().create_box("Test Box", 10)
+            part = container.part_service().create_part("Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.key, box.box_no, 1, 10)
+            container.inventory_service().add_stock(part.key, box.box_no, 1, 10)
             session.commit()
 
             data = {
@@ -155,15 +153,15 @@ class TestInventoryAPI:
         response = client.post("/api/inventory/parts/AAAA/move", json=data)
         assert response.status_code == 404
 
-    def test_move_stock_insufficient(self, app: Flask, client: FlaskClient, session: Session):
+    def test_move_stock_insufficient(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test moving more stock than available."""
         with app.app_context():
             # Setup with limited stock
-            box = BoxService.create_box(session, "Test Box", 10)
-            part = PartService.create_part(session, "Test part")
+            box = container.box_service().create_box("Test Box", 10)
+            part = container.part_service().create_part("Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.key, box.box_no, 1, 3)
+            container.inventory_service().add_stock(part.key, box.box_no, 1, 3)
             session.commit()
 
             data = {
@@ -177,15 +175,15 @@ class TestInventoryAPI:
             response = client.post(f"/api/inventory/parts/{part.key}/move", json=data)
             assert response.status_code == 409
 
-    def test_move_stock_invalid_destination(self, app: Flask, client: FlaskClient, session: Session):
+    def test_move_stock_invalid_destination(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test moving stock to invalid destination."""
         with app.app_context():
             # Setup with stock
-            box = BoxService.create_box(session, "Test Box", 10)
-            part = PartService.create_part(session, "Test part")
+            box = container.box_service().create_box("Test Box", 10)
+            part = container.part_service().create_part("Test part")
             session.commit()
 
-            InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
+            container.inventory_service().add_stock(part.key, box.box_no, 1, 5)
             session.commit()
 
             data = {
@@ -199,11 +197,11 @@ class TestInventoryAPI:
             response = client.post(f"/api/inventory/parts/{part.key}/move", json=data)
             assert response.status_code == 404
 
-    def test_get_location_suggestion(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_location_suggestion(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test getting location suggestions."""
         with app.app_context():
             # Create a box
-            box = BoxService.create_box(session, "Test Box", 5)
+            box = container.box_service().create_box("Test Box", 5)
             session.commit()
 
             response = client.get("/api/inventory/suggestions/1")  # Type ID 1
@@ -216,16 +214,16 @@ class TestInventoryAPI:
             assert response_data["box_no"] == box.box_no
             assert response_data["loc_no"] == 1
 
-    def test_get_location_suggestion_with_occupied_locations(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_location_suggestion_with_occupied_locations(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test location suggestion when some locations are occupied."""
         with app.app_context():
             # Setup with occupied location
-            box = BoxService.create_box(session, "Test Box", 5)
-            part = PartService.create_part(session, "Test part")
+            box = container.box_service().create_box("Test Box", 5)
+            part = container.part_service().create_part("Test part")
             session.commit()
 
             # Occupy first location
-            InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
+            container.inventory_service().add_stock(part.key, box.box_no, 1, 5)
             session.commit()
 
             response = client.get("/api/inventory/suggestions/1")

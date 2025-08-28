@@ -9,13 +9,13 @@ from sqlalchemy.orm import Session
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.part import Part
 from app.models.part_location import PartLocation
+from app.services.base import BaseService
 
 
-class PartService:
+class PartService(BaseService):
     """Service class for part management operations."""
 
-    @staticmethod
-    def generate_part_key(db: Session) -> str:
+    def generate_part_key(self) -> str:
         """Generate unique 4-character part key with collision handling."""
         max_attempts = 3
         for _ in range(max_attempts):
@@ -24,15 +24,14 @@ class PartService:
 
             # Check if key already exists
             stmt = select(Part).where(Part.key == key)
-            existing = db.execute(stmt).scalar_one_or_none()
+            existing = self.db.execute(stmt).scalar_one_or_none()
             if not existing:
                 return key
 
         raise InvalidOperationException("generate unique part key", f"failed after {max_attempts} attempts")
 
-    @staticmethod
     def create_part(
-        db: Session,
+        self,
         description: str,
         manufacturer_code: str | None = None,
         type_id: int | None = None,
@@ -41,7 +40,7 @@ class PartService:
         seller_link: str | None = None,
     ) -> Part:
         """Create a new part with auto-generated key."""
-        key = PartService.generate_part_key(db)
+        key = self.generate_part_key()
 
         part = Part(
             key=key,
@@ -52,21 +51,19 @@ class PartService:
             seller=seller,
             seller_link=seller_link,
         )
-        db.add(part)
-        db.flush()  # Get the ID immediately
+        self.db.add(part)
+        self.db.flush()  # Get the ID immediately
         return part
 
-    @staticmethod
-    def get_part(db: Session, part_key: str) -> Part:
+    def get_part(self, part_key: str) -> Part:
         """Get part by 4-character key."""
         stmt = select(Part).where(Part.key == part_key)
-        part = db.execute(stmt).scalar_one_or_none()
+        part = self.db.execute(stmt).scalar_one_or_none()
         if not part:
             raise RecordNotFoundException("Part", part_key)
         return part
 
-    @staticmethod
-    def get_parts_list(db: Session, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list[Part]:
+    def get_parts_list(self, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list[Part]:
         """List parts with pagination, ordered by creation date."""
         stmt = select(Part).order_by(Part.created_at.desc())
 
@@ -75,11 +72,10 @@ class PartService:
             stmt = stmt.where(Part.type_id == type_id)
 
         stmt = stmt.limit(limit).offset(offset)
-        return list(db.execute(stmt).scalars().all())
+        return list(self.db.execute(stmt).scalars().all())
 
-    @staticmethod
     def update_part_details(
-        db: Session,
+        self,
         part_key: str,
         manufacturer_code: str | None = None,
         type_id: int | None = None,
@@ -90,7 +86,7 @@ class PartService:
     ) -> Part:
         """Update part details."""
         stmt = select(Part).where(Part.key == part_key)
-        part = db.execute(stmt).scalar_one_or_none()
+        part = self.db.execute(stmt).scalar_one_or_none()
         if not part:
             raise RecordNotFoundException("Part", part_key)
 
@@ -110,28 +106,26 @@ class PartService:
 
         return part
 
-    @staticmethod
-    def delete_part(db: Session, part_key: str) -> None:
+    def delete_part(self, part_key: str) -> None:
         """Delete part if it exists and has zero total quantity."""
         stmt = select(Part).where(Part.key == part_key)
-        part = db.execute(stmt).scalar_one_or_none()
+        part = self.db.execute(stmt).scalar_one_or_none()
         if not part:
             raise RecordNotFoundException("Part", part_key)
 
         # Check if part has any quantity
-        total_qty = PartService.get_total_quantity(db, part_key)
+        total_qty = self.get_total_quantity(part_key)
         if total_qty > 0:
             raise InvalidOperationException(f"delete part {part_key}", "it still has parts in inventory that must be removed first")
 
         # Delete the part (cascaded deletes will handle relationships)
-        db.delete(part)
+        self.db.delete(part)
 
-    @staticmethod
-    def get_total_quantity(db: Session, part_key: str) -> int:
+    def get_total_quantity(self, part_key: str) -> int:
         """Get total quantity across all locations for a part."""
         # Need to join with Part table since PartLocation now references parts.id
         stmt = select(func.coalesce(func.sum(PartLocation.qty), 0)).join(
             Part, PartLocation.part_id == Part.id
         ).where(Part.key == part_key)
-        result = db.execute(stmt).scalar()
+        result = self.db.execute(stmt).scalar()
         return result or 0

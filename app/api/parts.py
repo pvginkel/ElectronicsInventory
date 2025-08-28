@@ -2,6 +2,7 @@
 
 from flask import Blueprint, g, request
 from spectree import Response as SpectreeResponse
+from dependency_injector.wiring import Provide, inject
 
 from app.schemas.common import ErrorResponseSchema
 from app.schemas.part import (
@@ -12,8 +13,7 @@ from app.schemas.part import (
     PartWithTotalSchema,
 )
 from app.schemas.quantity_history import QuantityHistoryResponseSchema
-from app.services.inventory_service import InventoryService
-from app.services.part_service import PartService
+from app.services.container import ServiceContainer
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
@@ -23,11 +23,11 @@ parts_bp = Blueprint("parts", __name__, url_prefix="/parts")
 @parts_bp.route("", methods=["POST"])
 @api.validate(json=PartCreateSchema, resp=SpectreeResponse(HTTP_201=PartResponseSchema, HTTP_400=ErrorResponseSchema))
 @handle_api_errors
-def create_part():
+@inject
+def create_part(part_service=Provide[ServiceContainer.part_service]):
     """Create new part."""
     data = PartCreateSchema.model_validate(request.get_json())
-    part = PartService.create_part(
-        g.db,
+    part = part_service.create_part(
         description=data.description,
         manufacturer_code=data.manufacturer_code,
         type_id=data.type_id,
@@ -42,14 +42,15 @@ def create_part():
 @parts_bp.route("", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=list[PartWithTotalSchema]))
 @handle_api_errors
-def list_parts():
+@inject
+def list_parts(inventory_service=Provide[ServiceContainer.inventory_service]):
     """List parts with pagination and total quantities."""
     limit = int(request.args.get("limit", 50))
     offset = int(request.args.get("offset", 0))
     type_filter = request.args.get("type_id", type=int)
 
     # Get parts with calculated total quantities
-    parts_with_totals = InventoryService.get_all_parts_with_totals(g.db, limit, offset, type_filter)
+    parts_with_totals = inventory_service.get_all_parts_with_totals(limit, offset, type_filter)
 
     result = []
     for part_with_total in parts_with_totals:
@@ -76,21 +77,22 @@ def list_parts():
 @parts_bp.route("/<string:part_key>", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=PartResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
-def get_part(part_key: str):
+@inject
+def get_part(part_key: str, part_service=Provide[ServiceContainer.part_service]):
     """Get single part with full details."""
-    part = PartService.get_part(g.db, part_key)
+    part = part_service.get_part(part_key)
     return PartResponseSchema.model_validate(part).model_dump()
 
 
 @parts_bp.route("/<string:part_key>", methods=["PUT"])
 @api.validate(json=PartUpdateSchema, resp=SpectreeResponse(HTTP_200=PartResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
-def update_part(part_key: str):
+@inject
+def update_part(part_key: str, part_service=Provide[ServiceContainer.part_service]):
     """Update part details."""
     data = PartUpdateSchema.model_validate(request.get_json())
 
-    part = PartService.update_part_details(
-        g.db,
+    part = part_service.update_part_details(
         part_key,
         manufacturer_code=data.manufacturer_code,
         type_id=data.type_id,
@@ -106,20 +108,22 @@ def update_part(part_key: str):
 @parts_bp.route("/<string:part_key>", methods=["DELETE"])
 @api.validate(resp=SpectreeResponse(HTTP_204=None, HTTP_404=ErrorResponseSchema, HTTP_409=ErrorResponseSchema))
 @handle_api_errors
-def delete_part(part_key: str):
+@inject
+def delete_part(part_key: str, part_service=Provide[ServiceContainer.part_service]):
     """Delete part if total quantity is zero."""
-    PartService.delete_part(g.db, part_key)
+    part_service.delete_part(part_key)
     return "", 204
 
 
 @parts_bp.route("/<string:part_key>/locations", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=list[PartLocationResponseSchema], HTTP_404=ErrorResponseSchema))
 @handle_api_errors
-def get_part_locations(part_key: str):
+@inject
+def get_part_locations(part_key: str, part_service=Provide[ServiceContainer.part_service], inventory_service=Provide[ServiceContainer.inventory_service]):
     """Get all locations for a part."""
     # Ensure part exists
-    part = PartService.get_part(g.db, part_key)
-    locations = InventoryService.get_part_locations(g.db, part_key)
+    part = part_service.get_part(part_key)
+    locations = inventory_service.get_part_locations(part_key)
 
     return [
         PartLocationResponseSchema(
@@ -135,9 +139,10 @@ def get_part_locations(part_key: str):
 @parts_bp.route("/<string:part_key>/history", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=list[QuantityHistoryResponseSchema], HTTP_404=ErrorResponseSchema))
 @handle_api_errors
-def get_part_history(part_key: str):
+@inject
+def get_part_history(part_key: str, part_service=Provide[ServiceContainer.part_service]):
     """Get quantity change history for a part."""
-    part = PartService.get_part(g.db, part_key)
+    part = part_service.get_part(part_key)
 
     # History is loaded with the part via relationship
     return [

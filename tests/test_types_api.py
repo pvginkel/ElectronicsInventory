@@ -6,8 +6,7 @@ from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
-from app.services.part_service import PartService
-from app.services.type_service import TypeService
+from app.services.container import ServiceContainer
 
 
 class TestTypesAPI:
@@ -41,13 +40,13 @@ class TestTypesAPI:
         response = client.post("/api/types", json=data)
         assert response.status_code == 400
 
-    def test_list_types(self, app: Flask, client: FlaskClient, session: Session):
+    def test_list_types(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test listing all types."""
         with app.app_context():
             # Create some types
-            TypeService.create_type(session, "Resistor")
-            TypeService.create_type(session, "Capacitor")
-            TypeService.create_type(session, "Inductor")
+            container.type_service().create_type("Resistor")
+            container.type_service().create_type("Capacitor")
+            container.type_service().create_type("Inductor")
             session.commit()
 
             response = client.get("/api/types")
@@ -69,10 +68,10 @@ class TestTypesAPI:
         response_data = json.loads(response.data)
         assert response_data == []
 
-    def test_get_type_existing(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_type_existing(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test getting an existing type."""
         with app.app_context():
-            type_obj = TypeService.create_type(session, "Capacitor")
+            type_obj = container.type_service().create_type("Capacitor")
             session.commit()
 
             response = client.get(f"/api/types/{type_obj.id}")
@@ -88,10 +87,10 @@ class TestTypesAPI:
         response = client.get("/api/types/999")
         assert response.status_code == 404
 
-    def test_update_type(self, app: Flask, client: FlaskClient, session: Session):
+    def test_update_type(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test updating a type."""
         with app.app_context():
-            type_obj = TypeService.create_type(session, "Resistor")
+            type_obj = container.type_service().create_type("Resistor")
             session.commit()
 
             update_data = {"name": "Fixed Resistor"}
@@ -111,10 +110,10 @@ class TestTypesAPI:
         response = client.put("/api/types/999", json=update_data)
         assert response.status_code == 404
 
-    def test_update_type_invalid_data(self, app: Flask, client: FlaskClient, session: Session):
+    def test_update_type_invalid_data(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test updating a type with invalid data."""
         with app.app_context():
-            type_obj = TypeService.create_type(session, "Resistor")
+            type_obj = container.type_service().create_type("Resistor")
             session.commit()
 
             # Empty name
@@ -123,24 +122,23 @@ class TestTypesAPI:
             response = client.put(f"/api/types/{type_obj.id}", json=update_data)
             assert response.status_code == 400
 
-    def test_delete_type_unused(self, app: Flask, client: FlaskClient, session: Session):
+    def test_delete_type_unused(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test deleting an unused type."""
         with app.app_context():
-            type_obj = TypeService.create_type(session, "Temporary")
+            type_obj = container.type_service().create_type("Temporary")
             session.commit()
 
             response = client.delete(f"/api/types/{type_obj.id}")
             assert response.status_code == 204
 
-    def test_delete_type_in_use(self, app: Flask, client: FlaskClient, session: Session):
+    def test_delete_type_in_use(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test deleting a type that's in use by parts."""
         with app.app_context():
             # Create type and part that uses it
-            type_obj = TypeService.create_type(session, "Resistor")
+            type_obj = container.type_service().create_type("Resistor")
             session.flush()
 
-            PartService.create_part(
-                session,
+            container.part_service().create_part(
                 description="1k resistor",
                 type_id=type_obj.id
             )
@@ -154,12 +152,12 @@ class TestTypesAPI:
         response = client.delete("/api/types/999")
         assert response.status_code == 404
 
-    def test_list_types_with_stats_false(self, app: Flask, client: FlaskClient, session: Session):
+    def test_list_types_with_stats_false(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test listing types with include_stats=false returns normal response."""
         with app.app_context():
             # Create types
-            TypeService.create_type(session, "Resistor")
-            TypeService.create_type(session, "Capacitor")
+            container.type_service().create_type("Resistor")
+            container.type_service().create_type("Capacitor")
             session.commit()
 
             response = client.get("/api/types?include_stats=false")
@@ -177,12 +175,12 @@ class TestTypesAPI:
                 assert "updated_at" in type_data
                 assert "part_count" not in type_data
 
-    def test_list_types_with_stats_true_no_parts(self, app: Flask, client: FlaskClient, session: Session):
+    def test_list_types_with_stats_true_no_parts(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test listing types with include_stats=true when no parts exist."""
         with app.app_context():
             # Create types but no parts
-            resistor_type = TypeService.create_type(session, "Resistor")
-            capacitor_type = TypeService.create_type(session, "Capacitor")
+            resistor_type = container.type_service().create_type("Resistor")
+            capacitor_type = container.type_service().create_type("Capacitor")
             session.commit()
 
             response = client.get("/api/types?include_stats=true")
@@ -201,23 +199,23 @@ class TestTypesAPI:
                 assert "part_count" in type_data
                 assert type_data["part_count"] == 0
 
-    def test_list_types_with_stats_true_with_parts(self, app: Flask, client: FlaskClient, session: Session):
+    def test_list_types_with_stats_true_with_parts(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test listing types with include_stats=true when parts exist."""
         with app.app_context():
             # Create types
-            resistor_type = TypeService.create_type(session, "Resistor")
-            capacitor_type = TypeService.create_type(session, "Capacitor")
-            inductor_type = TypeService.create_type(session, "Inductor")
+            resistor_type = container.type_service().create_type("Resistor")
+            capacitor_type = container.type_service().create_type("Capacitor")
+            inductor_type = container.type_service().create_type("Inductor")
             session.flush()
 
             # Create parts with different type distributions
             # 3 resistor parts
-            PartService.create_part(session, "1k resistor", type_id=resistor_type.id)
-            PartService.create_part(session, "10k resistor", type_id=resistor_type.id)
-            PartService.create_part(session, "100k resistor", type_id=resistor_type.id)
+            container.part_service().create_part("1k resistor", type_id=resistor_type.id)
+            container.part_service().create_part("10k resistor", type_id=resistor_type.id)
+            container.part_service().create_part("100k resistor", type_id=resistor_type.id)
             
             # 1 capacitor part
-            PartService.create_part(session, "10uF capacitor", type_id=capacitor_type.id)
+            container.part_service().create_part("10uF capacitor", type_id=capacitor_type.id)
             
             # 0 inductor parts (type exists but unused)
             session.commit()
@@ -246,13 +244,13 @@ class TestTypesAPI:
                 assert isinstance(type_data["part_count"], int)
                 assert type_data["part_count"] >= 0
 
-    def test_list_types_default_behavior_no_stats(self, app: Flask, client: FlaskClient, session: Session):
+    def test_list_types_default_behavior_no_stats(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test that default behavior (no query param) returns normal response without stats."""
         with app.app_context():
             # Create types and parts
-            resistor_type = TypeService.create_type(session, "Resistor")
+            resistor_type = container.type_service().create_type("Resistor")
             session.flush()
-            PartService.create_part(session, "1k resistor", type_id=resistor_type.id)
+            container.part_service().create_part("1k resistor", type_id=resistor_type.id)
             session.commit()
 
             # No query parameter should default to no stats
@@ -271,11 +269,11 @@ class TestTypesAPI:
             assert "updated_at" in type_data
             assert "part_count" not in type_data
 
-    def test_list_types_stats_case_insensitive(self, app: Flask, client: FlaskClient, session: Session):
+    def test_list_types_stats_case_insensitive(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test that include_stats parameter is case insensitive."""
         with app.app_context():
             # Create types
-            TypeService.create_type(session, "Resistor")
+            container.type_service().create_type("Resistor")
             session.commit()
 
             # Test various case combinations

@@ -6,10 +6,7 @@ from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
-from app.services.box_service import BoxService
-from app.services.inventory_service import InventoryService
-from app.services.part_service import PartService
-from app.services.type_service import TypeService
+from app.services.container import ServiceContainer
 
 
 class TestPartsAPI:
@@ -30,11 +27,11 @@ class TestPartsAPI:
             assert response_data["manufacturer_code"] is None
             assert response_data["total_quantity"] == 0
 
-    def test_create_part_full_data(self, app: Flask, client: FlaskClient, session: Session):
+    def test_create_part_full_data(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test creating a part with full data."""
         with app.app_context():
             # Create type first
-            type_obj = TypeService.create_type(session, "Resistor")
+            type_obj = container.type_service().create_type("Resistor")
             session.commit()
 
             data = {
@@ -65,12 +62,12 @@ class TestPartsAPI:
         response = client.post("/api/parts", json=data)
         assert response.status_code == 400
 
-    def test_list_parts(self, app: Flask, client: FlaskClient, session: Session):
+    def test_list_parts(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test listing parts."""
         with app.app_context():
             # Create some parts
-            PartService.create_part(session, "Part 1")
-            PartService.create_part(session, "Part 2")
+            container.part_service().create_part("Part 1")
+            container.part_service().create_part("Part 2")
             session.commit()
 
             response = client.get("/api/parts")
@@ -82,12 +79,12 @@ class TestPartsAPI:
             assert all("key" in part for part in response_data)
             assert all("description" in part for part in response_data)
 
-    def test_list_parts_with_pagination(self, app: Flask, client: FlaskClient, session: Session):
+    def test_list_parts_with_pagination(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test listing parts with pagination parameters."""
         with app.app_context():
             # Create multiple parts
             for i in range(5):
-                PartService.create_part(session, f"Part {i}")
+                container.part_service().create_part(f"Part {i}")
             session.commit()
 
             # Test with limit
@@ -102,17 +99,17 @@ class TestPartsAPI:
             response_data = json.loads(response.data)
             assert len(response_data) == 2
 
-    def test_list_parts_with_type_filter(self, app: Flask, client: FlaskClient, session: Session):
+    def test_list_parts_with_type_filter(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test listing parts with type filter parameter."""
         with app.app_context():
             # Create types and parts
-            resistor_type = TypeService.create_type(session, "Resistor")
-            capacitor_type = TypeService.create_type(session, "Capacitor")
+            resistor_type = container.type_service().create_type("Resistor")
+            capacitor_type = container.type_service().create_type("Capacitor")
             session.flush()
 
-            PartService.create_part(session, "1k resistor", type_id=resistor_type.id)
-            PartService.create_part(session, "2k resistor", type_id=resistor_type.id)
-            PartService.create_part(session, "100uF capacitor", type_id=capacitor_type.id)
+            container.part_service().create_part("1k resistor", type_id=resistor_type.id)
+            container.part_service().create_part("2k resistor", type_id=resistor_type.id)
+            container.part_service().create_part("100uF capacitor", type_id=capacitor_type.id)
             session.commit()
 
             # Test filtering by resistor type
@@ -133,13 +130,12 @@ class TestPartsAPI:
             response_data = json.loads(response.data)
             assert len(response_data) == 0
 
-    def test_get_part_existing(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_part_existing(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test getting an existing part."""
         with app.app_context():
             # Create a part with type
-            type_obj = TypeService.create_type(session, "Resistor")
-            part = PartService.create_part(
-                session,
+            type_obj = container.type_service().create_type("Resistor")
+            part = container.part_service().create_part(
                 "1k resistor",
                 manufacturer_code="RES-1K",
                 type_id=type_obj.id
@@ -162,10 +158,10 @@ class TestPartsAPI:
         response = client.get("/api/parts/AAAA")
         assert response.status_code == 404
 
-    def test_update_part(self, app: Flask, client: FlaskClient, session: Session):
+    def test_update_part(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test updating a part."""
         with app.app_context():
-            part = PartService.create_part(session, "Original description")
+            part = container.part_service().create_part("Original description")
             session.commit()
 
             update_data = {
@@ -190,24 +186,24 @@ class TestPartsAPI:
         response = client.put("/api/parts/AAAA", json=update_data)
         assert response.status_code == 404
 
-    def test_delete_part_zero_quantity(self, app: Flask, client: FlaskClient, session: Session):
+    def test_delete_part_zero_quantity(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test deleting a part with zero quantity."""
         with app.app_context():
-            part = PartService.create_part(session, "To be deleted")
+            part = container.part_service().create_part("To be deleted")
             session.commit()
 
             response = client.delete(f"/api/parts/{part.key}")
             assert response.status_code == 204
 
-    def test_delete_part_with_quantity(self, app: Flask, client: FlaskClient, session: Session):
+    def test_delete_part_with_quantity(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test deleting a part that has quantity."""
         with app.app_context():
             # Create part with stock
-            box = BoxService.create_box(session, "Test Box", 10)
-            part = PartService.create_part(session, "Has quantity")
+            box = container.box_service().create_box("Test Box", 10)
+            part = container.part_service().create_part("Has quantity")
             session.commit()
 
-            InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
+            container.inventory_service().add_stock(part.key, box.box_no, 1, 5)
             session.commit()
 
             response = client.delete(f"/api/parts/{part.key}")
@@ -218,16 +214,16 @@ class TestPartsAPI:
         response = client.delete("/api/parts/AAAA")
         assert response.status_code == 404
 
-    def test_get_part_locations(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_part_locations(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test getting locations for a part."""
         with app.app_context():
             # Create part with stock in multiple locations
-            box = BoxService.create_box(session, "Test Box", 10)
-            part = PartService.create_part(session, "Multi-location part")
+            box = container.box_service().create_box("Test Box", 10)
+            part = container.part_service().create_part("Multi-location part")
             session.commit()
 
-            InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
-            InventoryService.add_stock(session, part.key, box.box_no, 3, 10)
+            container.inventory_service().add_stock(part.key, box.box_no, 1, 5)
+            container.inventory_service().add_stock(part.key, box.box_no, 3, 10)
             session.commit()
 
             response = client.get(f"/api/parts/{part.key}/locations")
@@ -245,17 +241,17 @@ class TestPartsAPI:
         response = client.get("/api/parts/AAAA/locations")
         assert response.status_code == 404
 
-    def test_get_part_history(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_part_history(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test getting quantity history for a part."""
         with app.app_context():
             # Create part and perform some stock operations
-            box = BoxService.create_box(session, "Test Box", 10)
-            part = PartService.create_part(session, "History part")
+            box = container.box_service().create_box("Test Box", 10)
+            part = container.part_service().create_part("History part")
             session.commit()
 
             # Add and remove stock to create history
-            InventoryService.add_stock(session, part.key, box.box_no, 1, 10)
-            InventoryService.remove_stock(session, part.key, box.box_no, 1, 3)
+            container.inventory_service().add_stock(part.key, box.box_no, 1, 10)
+            container.inventory_service().remove_stock(part.key, box.box_no, 1, 3)
             session.commit()
 
             response = client.get(f"/api/parts/{part.key}/history")

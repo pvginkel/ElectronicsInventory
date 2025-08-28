@@ -96,3 +96,12 @@ def client(app: Flask):
 def runner(app: Flask):
     """Create test CLI runner."""
     return app.test_cli_runner()
+
+
+@pytest.fixture
+def container(app: Flask, session: Session):
+    """Access to the DI container for testing with session provided."""
+    container = app.container
+    # Provide the test session to the container
+    container.db_session.override(session)
+    return container
