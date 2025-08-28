@@ -127,8 +127,8 @@ function generateQueryHook(path, method, operation, operationId, summary, spec, 
   const pathParams = extractPathParams(path);
   const hasParams = pathParams.length > 0 || (operation.parameters && operation.parameters.length > 0);
   
-  // Check if the endpoint supports query parameters (even if not defined in spec)
-  const supportsQueryParams = operation.description && operation.description.includes('Query parameters:');
+  // Assume all endpoints support query parameters
+  const supportsQueryParams = true;
   
   let paramsType = 'void';
   let paramsArg = '';
@@ -147,7 +147,7 @@ function generateQueryHook(path, method, operation, operationId, summary, spec, 
       paramsType = 'any';
     }
     
-    paramsArg = `params: ${paramsType}`;
+    paramsArg = `params?: ${paramsType}`;
     
     if (pathParams.length > 0) {
       pathWithParams = `'${path}'`;

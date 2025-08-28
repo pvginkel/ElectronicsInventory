@@ -1,27 +1,21 @@
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import {
+  useGetTypes,
   usePostTypes,
   usePutTypesByTypeId,
   useDeleteTypesByTypeId,
   useGetInventorySuggestionsByTypeId
 } from '@/lib/api/generated/hooks';
-import { api } from '@/lib/api/generated/client';
 
-export function useGetTypesWithStats(includeStats = false) {
-  return useQuery<Array<{ id: number; name: string; part_count?: number; created_at: string; updated_at: string }>>({
-    queryKey: ['getTypes', includeStats],
-    queryFn: async () => {
-      const searchParams = includeStats ? '?include_stats=true' : '';
-      const { data, error } = await api.GET(`/api/types${searchParams}` as '/api/types');
-      if (error) throw error;
-      return data as Array<{ id: number; name: string; part_count?: number; created_at: string; updated_at: string }>;
-    },
+export function useGetTypesWithStats() {
+  // Use the generated API hook with query parameters for stats
+  return useGetTypes({
+    query: { include_stats: 'true' }
   });
 }
 
 export function useTypesSearch(searchTerm: string) {
-  const { data: allTypes, ...rest } = useGetTypesWithStats(true);
+  const { data: allTypes, ...rest } = useGetTypesWithStats();
 
   const filteredTypes = useMemo(() => {
     if (!allTypes || !searchTerm.trim()) {

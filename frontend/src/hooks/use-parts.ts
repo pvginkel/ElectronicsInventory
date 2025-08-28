@@ -1,10 +1,8 @@
 import { useMemo } from 'react';
 import {
   useGetPartsLocationsByPartId4,
-  useGetPartsHistoryByPartId4,
   usePostInventoryPartsStockByPartId4,
   useDeleteInventoryPartsStockByPartId4,
-  usePostInventoryPartsMoveByPartId4,
   type PartLocationResponseSchemaList_a9993e3_PartLocationResponseSchema,
 } from '@/lib/api/generated/hooks';
 import { calculateTotalQuantity } from '@/lib/utils/locations';
@@ -30,33 +28,10 @@ export function usePartLocations(partId: string) {
   };
 }
 
-export function usePartHistory(partId: string) {
-  return useGetPartsHistoryByPartId4(
-    { path: { part_id4: partId } },
-    { enabled: !!partId }
-  );
-}
-
 export function useAddStock() {
-  return usePostInventoryPartsStockByPartId4({
-    onError: (error: unknown) => {
-      console.error('Failed to add stock:', error);
-    },
-  });
+  return usePostInventoryPartsStockByPartId4();
 }
 
 export function useRemoveStock() {
-  return useDeleteInventoryPartsStockByPartId4({
-    onError: (error: unknown) => {
-      console.error('Failed to remove stock:', error);
-    },
-  });
-}
-
-export function useMoveStock() {
-  return usePostInventoryPartsMoveByPartId4({
-    onError: (error: unknown) => {
-      console.error('Failed to move stock:', error);
-    },
-  });
+  return useDeleteInventoryPartsStockByPartId4();
 }
