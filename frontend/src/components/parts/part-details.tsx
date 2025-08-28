@@ -93,8 +93,8 @@ export function PartDetails({ partId }: PartDetailsProps) {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold font-mono">{displayId}</h1>
-          <p className="text-lg text-muted-foreground">{displayDescription}</p>
+          <h1 className="text-3xl font-bold">{displayDescription}</h1>
+          <p className="text-lg text-muted-foreground font-mono">{displayId}</p>
         </div>
         <div className="flex space-x-2">
           <Button variant="outline" onClick={() => setIsEditing(true)}>

@@ -143,13 +143,13 @@ function PartListItem({ part, onClick }: PartListItemProps) {
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-4 mb-2">
-            <span className="font-mono font-semibold text-lg">{displayId}</span>
+            <span className="font-semibold text-lg">{displayDescription}</span>
             <span className="text-muted-foreground">
               Total Quantity: {part.total_quantity ?? part.quantity ?? 0}
             </span>
           </div>
           
-          <p className="text-sm mb-2">{displayDescription}</p>
+          <p className="font-mono text-sm mb-2">{displayId}</p>
           
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             {displayManufacturerCode && (
