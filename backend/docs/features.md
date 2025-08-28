@@ -4,18 +4,24 @@
 - [x] Generate unique 4-letter part IDs (A-Z format)
 - [x] Store parts with manufacturer codes, types, descriptions, quantities
 - [x] Manage numbered boxes with configurable capacity
-- [x] Track numbered locations within boxes (BOX-LOCATION format)
+- [x] Track numbered locations within boxes (BOX-LOCATION format)  
 - [x] Handle part-location assignments with quantities
 - [x] Auto-clear location assignments when total quantity reaches zero
 - [x] Maintain part records even when quantity is zero
+- [x] Store part tags as arrays for categorization
+- [x] Track seller information and product links per part
+- [x] Maintain comprehensive test dataset with realistic electronics inventory
 
 ## Inventory Operations
 - [x] Add new parts to inventory
-- [x] Receive items for existing parts
-- [x] Use/remove items from specific locations
+- [x] Add stock for existing parts to specific locations
+- [x] Remove stock from specific locations
 - [x] Move items between locations
 - [x] Split quantities across multiple locations
 - [x] Track quantity change history with timestamps
+- [x] Get location suggestions for part types
+- [x] Calculate total quantities across all locations for parts
+- [x] List parts with filtering by type and pagination
 
 ## Search & Discovery
 - [ ] Implement PostgreSQL pg_trgm search across all text fields
@@ -59,12 +65,26 @@
 - [ ] Discover and fetch datasheets based on part numbers
 - [ ] Store fetched datasheets in S3
 
+## Box & Location Management
+- [x] Create boxes with configurable capacity
+- [x] Update box capacity and descriptions
+- [x] Delete empty boxes
+- [x] List boxes with usage statistics (occupied vs available locations)
+- [x] Get detailed box information with locations
+- [x] Calculate box usage percentages
+- [x] List locations within boxes with optional part assignment data
+- [x] Auto-generate sequential location numbers within boxes
+
 ## API Infrastructure
 - [x] Implement Flask blueprints for all resource endpoints
 - [x] Use Pydantic v2 models for request/response validation
 - [x] Generate OpenAPI documentation with Spectree
 - [x] Handle centralized error responses with structured JSON
 - [x] Manage database sessions per request
+- [x] CORS support for frontend integration
+- [x] Health check endpoint for container orchestration
+- [x] Testing endpoints for development/QA environments
+- [x] CLI commands for database operations and test data loading
 
 ## Background Job Processing
 - [ ] Configure Celery with RabbitMQ broker
