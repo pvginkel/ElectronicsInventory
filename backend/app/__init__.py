@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 from app.config import get_settings
 from app.extensions import SessionLocal, db
+from app.services.container import ServiceContainer
 
 
 def create_app(settings: "Settings | None" = None) -> Flask:
@@ -44,6 +45,11 @@ def create_app(settings: "Settings | None" = None) -> Flask:
 
     configure_spectree(app)
 
+    # Initialize service container after SpecTree
+    container = ServiceContainer()
+    container.wire(modules=['app.api.parts', 'app.api.boxes', 'app.api.inventory', 'app.api.types', 'app.api.testing'])
+    app.container = container
+
     # Configure CORS
     CORS(app, origins=settings.CORS_ORIGINS)
 
@@ -70,6 +76,8 @@ def create_app(settings: "Settings | None" = None) -> Flask:
 
         if SessionLocal:
             g.db = SessionLocal()
+            # Provide database session to container
+            container.db_session.override(g.db)
 
     @app.teardown_request
     def close_session(exc):

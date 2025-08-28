@@ -6,97 +6,104 @@ from sqlalchemy.orm import Session
 
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.type import Type
-from app.services.part_service import PartService
-from app.services.type_service import TypeService
+from app.services.container import ServiceContainer
 
 
 class TestTypeService:
     """Test cases for TypeService."""
 
-    def test_create_type(self, app: Flask, session: Session):
+    def test_create_type(self, app: Flask, session: Session, container: ServiceContainer):
         """Test creating a new type."""
         with app.app_context():
-            type_obj = TypeService.create_type(session, "Resistor")
+            type_service = container.type_service()
+            type_obj = type_service.create_type("Resistor")
 
             assert isinstance(type_obj, Type)
             assert type_obj.name == "Resistor"
             assert type_obj.id is not None
 
-    def test_get_type_existing(self, app: Flask, session: Session):
+    def test_get_type_existing(self, app: Flask, session: Session, container: ServiceContainer):
         """Test getting an existing type."""
         with app.app_context():
             # Create a type
-            created_type = TypeService.create_type(session, "Capacitor")
+            type_service = container.type_service()
+            created_type = type_service.create_type("Capacitor")
             session.commit()
 
             # Retrieve it
-            retrieved_type = TypeService.get_type(session, created_type.id)
+            retrieved_type = type_service.get_type(created_type.id)
 
             assert retrieved_type is not None
             assert retrieved_type.id == created_type.id
             assert retrieved_type.name == "Capacitor"
 
-    def test_get_type_nonexistent(self, app: Flask, session: Session):
+    def test_get_type_nonexistent(self, app: Flask, session: Session, container: ServiceContainer):
         """Test getting a non-existent type."""
         with app.app_context():
+            type_service = container.type_service()
             with pytest.raises(RecordNotFoundException, match="Type 999 was not found"):
-                TypeService.get_type(session, 999)
+                type_service.get_type(999)
 
-    def test_get_all_types(self, app: Flask, session: Session):
+    def test_get_all_types(self, app: Flask, session: Session, container: ServiceContainer):
         """Test listing all types."""
         with app.app_context():
             # Create multiple types
-            TypeService.create_type(session, "Resistor")
-            TypeService.create_type(session, "Capacitor")
-            TypeService.create_type(session, "Inductor")
+            type_service = container.type_service()
+            type_service.create_type("Resistor")
+            type_service.create_type("Capacitor")
+            type_service.create_type("Inductor")
             session.commit()
 
-            types = TypeService.get_all_types(session)
+            types = type_service.get_all_types()
             assert len(types) == 3
 
             # Should be ordered by name
             type_names = [t.name for t in types]
             assert type_names == sorted(type_names)
 
-    def test_update_type(self, app: Flask, session: Session):
+    def test_update_type(self, app: Flask, session: Session, container: ServiceContainer):
         """Test updating a type name."""
         with app.app_context():
             # Create a type
-            type_obj = TypeService.create_type(session, "Resistor")
+            type_service = container.type_service()
+            type_obj = type_service.create_type("Resistor")
             session.commit()
 
             # Update it
-            updated_type = TypeService.update_type(session, type_obj.id, "Fixed Resistor")
+            updated_type = type_service.update_type(type_obj.id, "Fixed Resistor")
 
             assert updated_type is not None
             assert updated_type.name == "Fixed Resistor"
             assert updated_type.id == type_obj.id
 
-    def test_update_type_nonexistent(self, app: Flask, session: Session):
+    def test_update_type_nonexistent(self, app: Flask, session: Session, container: ServiceContainer):
         """Test updating a non-existent type."""
         with app.app_context():
+            type_service = container.type_service()
             with pytest.raises(RecordNotFoundException, match="Type 999 was not found"):
-                TypeService.update_type(session, 999, "New Name")
+                type_service.update_type(999, "New Name")
 
-    def test_delete_type_unused(self, app: Flask, session: Session):
+    def test_delete_type_unused(self, app: Flask, session: Session, container: ServiceContainer):
         """Test deleting an unused type."""
         with app.app_context():
             # Create a type
-            type_obj = TypeService.create_type(session, "Temporary")
+            type_service = container.type_service()
+            type_obj = type_service.create_type("Temporary")
             session.commit()
 
             # Should be able to delete (no exception thrown)
-            TypeService.delete_type(session, type_obj.id)
+            type_service.delete_type(type_obj.id)
 
-    def test_delete_type_in_use(self, app: Flask, session: Session):
+    def test_delete_type_in_use(self, app: Flask, session: Session, container: ServiceContainer):
         """Test deleting a type that's in use by parts."""
         with app.app_context():
             # Create a type and a part that uses it
-            type_obj = TypeService.create_type(session, "Resistor")
+            type_service = container.type_service()
+            part_service = container.part_service()
+            type_obj = type_service.create_type("Resistor")
             session.flush()
 
-            PartService.create_part(
-                session,
+            part_service.create_part(
                 description="1k resistor",
                 type_id=type_obj.id
             )
@@ -104,64 +111,71 @@ class TestTypeService:
 
             # Should raise InvalidOperationException
             with pytest.raises(InvalidOperationException, match="Cannot delete type .* because it is being used by existing parts"):
-                TypeService.delete_type(session, type_obj.id)
+                type_service.delete_type(type_obj.id)
 
-    def test_delete_type_nonexistent(self, app: Flask, session: Session):
+    def test_delete_type_nonexistent(self, app: Flask, session: Session, container: ServiceContainer):
         """Test deleting a non-existent type."""
         with app.app_context():
+            type_service = container.type_service()
             with pytest.raises(RecordNotFoundException, match="Type 999 was not found"):
-                TypeService.delete_type(session, 999)
+                type_service.delete_type(999)
 
-    def test_calculate_type_part_count_no_parts(self, app: Flask, session: Session):
+    def test_calculate_type_part_count_no_parts(self, app: Flask, session: Session, container: ServiceContainer):
         """Test calculating part count for a type with no parts."""
         with app.app_context():
             # Create a type
-            type_obj = TypeService.create_type(session, "Resistor")
+            type_service = container.type_service()
+            type_obj = type_service.create_type("Resistor")
             session.commit()
 
             # Count should be 0
-            count = TypeService.calculate_type_part_count(session, type_obj.id)
+            count = type_service.calculate_type_part_count(type_obj.id)
             assert count == 0
 
-    def test_calculate_type_part_count_with_parts(self, app: Flask, session: Session):
+    def test_calculate_type_part_count_with_parts(self, app: Flask, session: Session, container: ServiceContainer):
         """Test calculating part count for a type with parts."""
         with app.app_context():
             # Create a type
-            type_obj = TypeService.create_type(session, "Resistor")
+            type_service = container.type_service()
+            part_service = container.part_service()
+            type_obj = type_service.create_type("Resistor")
             session.flush()
 
             # Create parts using this type
-            PartService.create_part(session, "1k resistor", type_id=type_obj.id)
-            PartService.create_part(session, "10k resistor", type_id=type_obj.id)
-            PartService.create_part(session, "100k resistor", type_id=type_obj.id)
+            part_service.create_part("1k resistor", type_id=type_obj.id)
+            part_service.create_part("10k resistor", type_id=type_obj.id)
+            part_service.create_part("100k resistor", type_id=type_obj.id)
             session.commit()
 
             # Count should be 3
-            count = TypeService.calculate_type_part_count(session, type_obj.id)
+            count = type_service.calculate_type_part_count(type_obj.id)
             assert count == 3
 
-    def test_calculate_type_part_count_nonexistent_type(self, app: Flask, session: Session):
+    def test_calculate_type_part_count_nonexistent_type(self, app: Flask, session: Session, container: ServiceContainer):
         """Test calculating part count for a non-existent type."""
         with app.app_context():
             # Should return 0 for non-existent type
-            count = TypeService.calculate_type_part_count(session, 999)
+            type_service = container.type_service()
+            count = type_service.calculate_type_part_count(999)
             assert count == 0
 
-    def test_get_all_types_with_part_counts_empty(self, app: Flask, session: Session):
+    def test_get_all_types_with_part_counts_empty(self, app: Flask, session: Session, container: ServiceContainer):
         """Test getting all types with part counts when no types exist."""
         with app.app_context():
-            types_with_stats = TypeService.get_all_types_with_part_counts(session)
+            type_service = container.type_service()
+            types_with_stats = type_service.get_all_types_with_part_counts()
             assert types_with_stats == []
 
-    def test_get_all_types_with_part_counts_no_parts(self, app: Flask, session: Session):
+    def test_get_all_types_with_part_counts_no_parts(self, app: Flask, session: Session, container: ServiceContainer):
         """Test getting all types with part counts when no parts exist."""
         with app.app_context():
             # Create types
-            type1 = TypeService.create_type(session, "Resistor")
-            type2 = TypeService.create_type(session, "Capacitor")
+            type_service = container.type_service()
+            type1 = type_service.create_type("Resistor")
+            type2 = type_service.create_type("Capacitor")
             session.commit()
 
-            types_with_stats = TypeService.get_all_types_with_part_counts(session)
+            types_with_stats = type_service.get_all_types_with_part_counts()
 
             assert len(types_with_stats) == 2
             
@@ -171,28 +185,30 @@ class TestTypeService:
                 assert hasattr(type_with_stats, 'part_count')
                 assert type_with_stats.part_count == 0
 
-    def test_get_all_types_with_part_counts_with_parts(self, app: Flask, session: Session):
+    def test_get_all_types_with_part_counts_with_parts(self, app: Flask, session: Session, container: ServiceContainer):
         """Test getting all types with part counts when parts exist."""
         with app.app_context():
             # Create types
-            resistor_type = TypeService.create_type(session, "Resistor")
-            capacitor_type = TypeService.create_type(session, "Capacitor")
-            inductor_type = TypeService.create_type(session, "Inductor")
+            type_service = container.type_service()
+            part_service = container.part_service()
+            resistor_type = type_service.create_type("Resistor")
+            capacitor_type = type_service.create_type("Capacitor")
+            inductor_type = type_service.create_type("Inductor")
             session.flush()
 
             # Create parts with different type distributions
             # 3 resistor parts
-            PartService.create_part(session, "1k resistor", type_id=resistor_type.id)
-            PartService.create_part(session, "10k resistor", type_id=resistor_type.id)
-            PartService.create_part(session, "100k resistor", type_id=resistor_type.id)
+            part_service.create_part("1k resistor", type_id=resistor_type.id)
+            part_service.create_part("10k resistor", type_id=resistor_type.id)
+            part_service.create_part("100k resistor", type_id=resistor_type.id)
             
             # 1 capacitor part
-            PartService.create_part(session, "10uF capacitor", type_id=capacitor_type.id)
+            part_service.create_part("10uF capacitor", type_id=capacitor_type.id)
             
             # 0 inductor parts (type exists but unused)
             session.commit()
 
-            types_with_stats = TypeService.get_all_types_with_part_counts(session)
+            types_with_stats = type_service.get_all_types_with_part_counts()
 
             assert len(types_with_stats) == 3
 
@@ -210,16 +226,17 @@ class TestTypeService:
                 assert isinstance(type_with_stats.part_count, int)
                 assert type_with_stats.part_count >= 0
 
-    def test_get_all_types_with_part_counts_ordering(self, app: Flask, session: Session):
+    def test_get_all_types_with_part_counts_ordering(self, app: Flask, session: Session, container: ServiceContainer):
         """Test that types with part counts are ordered by name."""
         with app.app_context():
             # Create types in non-alphabetical order
-            TypeService.create_type(session, "Zener Diode")
-            TypeService.create_type(session, "Amplifier")
-            TypeService.create_type(session, "Battery")
+            type_service = container.type_service()
+            type_service.create_type("Zener Diode")
+            type_service.create_type("Amplifier")
+            type_service.create_type("Battery")
             session.commit()
 
-            types_with_stats = TypeService.get_all_types_with_part_counts(session)
+            types_with_stats = type_service.get_all_types_with_part_counts()
 
             assert len(types_with_stats) == 3
             

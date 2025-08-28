@@ -13,25 +13,34 @@ from app.exceptions import (
 from app.models.location import Location
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
-from app.services.part_service import PartService
+from app.services.base import BaseService
 
 if TYPE_CHECKING:
     from app.schemas.part import PartWithTotalModel
 
 
-class InventoryService:
+class InventoryService(BaseService):
     """Service class for inventory management operations."""
+    
+    def __init__(self, db: Session, part_service):
+        """Initialize service with database session and part service dependency.
+        
+        Args:
+            db: SQLAlchemy database session
+            part_service: Instance of PartService
+        """
+        super().__init__(db)
+        self.part_service = part_service
 
-    @staticmethod
     def add_stock(
-        db: Session, part_key: str, box_no: int, loc_no: int, qty: int
+        self, part_key: str, box_no: int, loc_no: int, qty: int
     ) -> PartLocation:
         """Add stock to a location."""
         if qty <= 0:
             raise InvalidOperationException("add negative or zero stock", "quantity must be positive")
 
         # Validate location exists
-        location = InventoryService._get_location(db, box_no, loc_no)
+        location = self._get_location(box_no, loc_no)
         if not location:
             raise RecordNotFoundException("Location", f"{box_no}-{loc_no}")
 
@@ -47,7 +56,7 @@ class InventoryService:
                 PartLocation.loc_no == loc_no,
             )
         )
-        existing_location = db.execute(stmt).scalar_one_or_none()
+        existing_location = self.db.execute(stmt).scalar_one_or_none()
 
         if existing_location:
             # Add to existing quantity
@@ -56,7 +65,7 @@ class InventoryService:
         else:
             # Create new location assignment
             # First get the part to get its ID
-            part = PartService.get_part(db, part_key)
+            part = self.part_service.get_part(part_key)
             part_location = PartLocation(
                 part_id=part.id,
                 box_no=box_no,
@@ -64,23 +73,22 @@ class InventoryService:
                 location_id=location.id,
                 qty=qty,
             )
-            db.add(part_location)
+            self.db.add(part_location)
 
         # Add quantity history record
-        part = PartService.get_part(db, part_key)
+        part = self.part_service.get_part(part_key)
         history = QuantityHistory(
             part_id=part.id,
             delta_qty=qty,
             location_reference=f"{box_no}-{loc_no}",
         )
-        db.add(history)
+        self.db.add(history)
 
-        db.flush()
+        self.db.flush()
         return part_location
 
-    @staticmethod
     def remove_stock(
-        db: Session, part_key: str, box_no: int, loc_no: int, qty: int
+        self, part_key: str, box_no: int, loc_no: int, qty: int
     ) -> None:
         """Remove stock from a location."""
         if qty <= 0:
@@ -97,7 +105,7 @@ class InventoryService:
                 PartLocation.loc_no == loc_no,
             )
         )
-        part_location = db.execute(stmt).scalar_one_or_none()
+        part_location = self.db.execute(stmt).scalar_one_or_none()
 
         if not part_location:
             raise RecordNotFoundException("Part location", f"{part_key} at {box_no}-{loc_no}")
@@ -110,23 +118,22 @@ class InventoryService:
 
         # Remove location assignment if quantity reaches zero
         if part_location.qty == 0:
-            db.delete(part_location)
+            self.db.delete(part_location)
 
         # Add negative quantity history record
-        part = PartService.get_part(db, part_key)
+        part = self.part_service.get_part(part_key)
         history = QuantityHistory(
             part_id=part.id,
             delta_qty=-qty,
             location_reference=f"{box_no}-{loc_no}",
         )
-        db.add(history)
+        self.db.add(history)
 
         # Check if total quantity is now zero and cleanup if needed
-        InventoryService.cleanup_zero_quantities(db, part_key)
+        self.cleanup_zero_quantities(part_key)
 
-    @staticmethod
     def move_stock(
-        db: Session,
+        self,
         part_key: str,
         from_box: int,
         from_loc: int,
@@ -149,7 +156,7 @@ class InventoryService:
                 PartLocation.loc_no == from_loc,
             )
         )
-        source_location = db.execute(stmt).scalar_one_or_none()
+        source_location = self.db.execute(stmt).scalar_one_or_none()
 
         if not source_location:
             raise RecordNotFoundException("Part location", f"{part_key} at {from_box}-{from_loc}")
@@ -158,7 +165,7 @@ class InventoryService:
             raise InsufficientQuantityException(qty, source_location.qty, f"{from_box}-{from_loc}")
 
         # Validate destination location exists
-        dest_location = InventoryService._get_location(db, to_box, to_loc)
+        dest_location = self._get_location(to_box, to_loc)
         if not dest_location:
             raise RecordNotFoundException("Location", f"{to_box}-{to_loc}")
 
@@ -167,16 +174,16 @@ class InventoryService:
             # Remove from source
             source_location.qty -= qty
             if source_location.qty == 0:
-                db.delete(source_location)
+                self.db.delete(source_location)
 
             # Add history for removal
-            part = PartService.get_part(db, part_key)
+            part = self.part_service.get_part(part_key)
             remove_history = QuantityHistory(
                 part_id=part.id,
                 delta_qty=-qty,
                 location_reference=f"{from_box}-{from_loc}",
             )
-            db.add(remove_history)
+            self.db.add(remove_history)
 
             # Add to destination
             stmt = select(PartLocation).join(
@@ -188,7 +195,7 @@ class InventoryService:
                     PartLocation.loc_no == to_loc,
                 )
             )
-            existing_dest = db.execute(stmt).scalar_one_or_none()
+            existing_dest = self.db.execute(stmt).scalar_one_or_none()
 
             if existing_dest:
                 existing_dest.qty += qty
@@ -200,7 +207,7 @@ class InventoryService:
                     location_id=dest_location.id,
                     qty=qty,
                 )
-                db.add(new_dest)
+                self.db.add(new_dest)
 
             # Add history for addition
             add_history = QuantityHistory(
@@ -208,23 +215,21 @@ class InventoryService:
                 delta_qty=qty,
                 location_reference=f"{to_box}-{to_loc}",
             )
-            db.add(add_history)
+            self.db.add(add_history)
 
         except Exception:
             # Let the caller handle transaction rollback
             raise
 
-    @staticmethod
-    def get_part_locations(db: Session, part_key: str) -> list[PartLocation]:
+    def get_part_locations(self, part_key: str) -> list[PartLocation]:
         """Get all locations where a part is stored."""
         from app.models.part import Part
         stmt = select(PartLocation).join(
             Part, PartLocation.part_id == Part.id
         ).where(Part.key == part_key)
-        return list(db.execute(stmt).scalars().all())
+        return list(self.db.execute(stmt).scalars().all())
 
-    @staticmethod
-    def suggest_location(db: Session, type_id: int | None) -> tuple[int, int]:
+    def suggest_location(self, type_id: int | None) -> tuple[int, int]:
         """Suggest a location for a part based on type and availability."""
         # For now, implement simple first-available algorithm
         # Future enhancement: prefer same-category boxes
@@ -245,38 +250,35 @@ class InventoryService:
             .limit(1)
         )
 
-        result = db.execute(stmt).first()
+        result = self.db.execute(stmt).first()
         if not result:
             raise RecordNotFoundException("Available location", "none found")
         return (result[0], result[1])
 
-    @staticmethod
-    def cleanup_zero_quantities(db: Session, part_key: str) -> None:
+    def cleanup_zero_quantities(self, part_key: str) -> None:
         """Remove all location assignments when total quantity reaches zero."""
-        total_qty = PartService.get_total_quantity(db, part_key)
+        total_qty = self.part_service.get_total_quantity(part_key)
         if total_qty == 0:
             # Delete all part_location records for this part
             from app.models.part import Part
             stmt = select(PartLocation).join(
                 Part, PartLocation.part_id == Part.id
             ).where(Part.key == part_key)
-            part_locations = list(db.execute(stmt).scalars().all())
+            part_locations = list(self.db.execute(stmt).scalars().all())
             for part_location in part_locations:
-                db.delete(part_location)
+                self.db.delete(part_location)
 
-    @staticmethod
-    def calculate_total_quantity(db: Session, part_key: str) -> int:
+    def calculate_total_quantity(self, part_key: str) -> int:
         """Calculate total quantity across all locations for a part."""
         from sqlalchemy import func
         from app.models.part import Part
         stmt = select(func.coalesce(func.sum(PartLocation.qty), 0)).join(
             Part, PartLocation.part_id == Part.id
         ).where(Part.key == part_key)
-        result = db.execute(stmt).scalar()
+        result = self.db.execute(stmt).scalar()
         return result or 0
 
-    @staticmethod
-    def get_all_parts_with_totals(db: Session, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list['PartWithTotalModel']:
+    def get_all_parts_with_totals(self, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list['PartWithTotalModel']:
         """Get all parts with their total quantities calculated."""
         from sqlalchemy import func
 
@@ -297,7 +299,7 @@ class InventoryService:
 
         stmt = stmt.order_by(Part.created_at.desc()).limit(limit).offset(offset)
 
-        results = db.execute(stmt).all()
+        results = self.db.execute(stmt).all()
 
         # Convert to list of PartWithTotalModel instances
         parts_with_totals = []
@@ -310,10 +312,9 @@ class InventoryService:
 
         return parts_with_totals
 
-    @staticmethod
-    def _get_location(db: Session, box_no: int, loc_no: int) -> Location | None:
+    def _get_location(self, box_no: int, loc_no: int) -> Location | None:
         """Get location by box_no and loc_no."""
         stmt = select(Location).where(
             and_(Location.box_no == box_no, Location.loc_no == loc_no)
         )
-        return db.execute(stmt).scalar_one_or_none()
+        return self.db.execute(stmt).scalar_one_or_none()

@@ -6,7 +6,7 @@ from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
 from app.models.box import Box
-from app.services.box_service import BoxService
+from app.services.container import ServiceContainer
 
 
 class TestBoxAPI:
@@ -87,12 +87,12 @@ class TestBoxAPI:
         assert isinstance(response_data, list)
         assert len(response_data) == 0
 
-    def test_get_all_boxes_multiple(self, client: FlaskClient, session: Session):
+    def test_get_all_boxes_multiple(self, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test getting all boxes when multiple exist."""
         # Create test boxes
-        BoxService.create_box(session, "Box 1", 5)
-        BoxService.create_box(session, "Box 2", 10)
-        BoxService.create_box(session, "Box 3", 3)
+        container.box_service().create_box("Box 1", 5)
+        container.box_service().create_box("Box 2", 10)
+        container.box_service().create_box("Box 3", 3)
 
         response = client.get("/api/boxes")
 
@@ -114,9 +114,9 @@ class TestBoxAPI:
         assert response_data[2]["description"] == "Box 3"
         assert response_data[2]["capacity"] == 3
 
-    def test_get_box_details_existing(self, client: FlaskClient, session: Session):
+    def test_get_box_details_existing(self, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test getting details of an existing box."""
-        box = BoxService.create_box(session, "Test Box", 6)
+        box = container.box_service().create_box("Test Box", 6)
         session.commit()
         box_no = box.box_no
 
@@ -143,9 +143,9 @@ class TestBoxAPI:
         response_data = json.loads(response.data)
         assert "error" in response_data
 
-    def test_update_box_existing(self, client: FlaskClient, session: Session):
+    def test_update_box_existing(self, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test updating an existing box."""
-        box = BoxService.create_box(session, "Original Box", 5)
+        box = container.box_service().create_box("Original Box", 5)
         session.commit()
         box_no = box.box_no
 
@@ -162,9 +162,9 @@ class TestBoxAPI:
         assert response_data["capacity"] == 8
         assert len(response_data["locations"]) == 8
 
-    def test_update_box_decrease_capacity(self, client: FlaskClient, session: Session):
+    def test_update_box_decrease_capacity(self, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test updating a box with decreased capacity."""
-        box = BoxService.create_box(session, "Test Box", 10)
+        box = container.box_service().create_box("Test Box", 10)
         session.commit()
         box_no = box.box_no
 
@@ -190,9 +190,9 @@ class TestBoxAPI:
         response_data = json.loads(response.data)
         assert "error" in response_data
 
-    def test_update_box_invalid_data(self, client: FlaskClient, session: Session):
+    def test_update_box_invalid_data(self, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test updating a box with invalid data."""
-        box = BoxService.create_box(session, "Test Box", 5)
+        box = container.box_service().create_box("Test Box", 5)
         box_no = box.box_no
 
         data = {
@@ -205,9 +205,9 @@ class TestBoxAPI:
 
         assert response.status_code == 400
 
-    def test_delete_box_existing(self, client: FlaskClient, session: Session):
+    def test_delete_box_existing(self, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test deleting an existing box."""
-        box = BoxService.create_box(session, "Test Box", 5)
+        box = container.box_service().create_box("Test Box", 5)
         session.commit()
         box_no = box.box_no
         box_id = box.id
@@ -231,20 +231,17 @@ class TestBoxAPI:
         response_data = json.loads(response.data)
         assert "error" in response_data
 
-    def test_delete_box_with_parts_fails(self, client: FlaskClient, session: Session):
+    def test_delete_box_with_parts_fails(self, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test that deleting a box with parts returns a 400 error."""
-        from app.services.inventory_service import InventoryService
-        from app.services.part_service import PartService
-
         # Create box
-        box = BoxService.create_box(session, "Test Box", 5)
+        box = container.box_service().create_box("Test Box", 5)
         
         # Create a part first
-        part = PartService.create_part(session, "Test part")
+        part = container.part_service().create_part("Test part")
         session.commit()
 
         # Add the part to the box
-        InventoryService.add_stock(session, part.key, box.box_no, 1, 10)
+        container.inventory_service().add_stock(part.key, box.box_no, 1, 10)
         session.commit()
 
         # Attempt to delete the box via API
@@ -264,9 +261,9 @@ class TestBoxAPI:
         verify_response = client.get(f"/api/boxes/{box.box_no}")
         assert verify_response.status_code == 200
 
-    def test_get_box_locations_existing(self, client: FlaskClient, session: Session):
+    def test_get_box_locations_existing(self, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test getting locations for an existing box."""
-        box = BoxService.create_box(session, "Test Box", 4)
+        box = container.box_service().create_box("Test Box", 4)
         session.commit()
         box_no = box.box_no
 
@@ -288,21 +285,18 @@ class TestBoxAPI:
         response_data = json.loads(response.data)
         assert "error" in response_data
 
-    def test_get_box_locations_with_parts_false(self, client: FlaskClient, session: Session):
+    def test_get_box_locations_with_parts_false(self, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test getting basic locations with include_parts=false (backward compatibility)."""
-        from app.services.inventory_service import InventoryService
-        from app.services.part_service import PartService
-
-        box = BoxService.create_box(session, "Test Box", 3)
+        box = container.box_service().create_box("Test Box", 3)
         session.commit()
         
         # Create parts and add them to test that they're not included when include_parts=false
-        part1 = PartService.create_part(session, "Resistor")
-        part2 = PartService.create_part(session, "Capacitor")
+        part1 = container.part_service().create_part("Resistor")
+        part2 = container.part_service().create_part("Capacitor")
         session.flush()
         
-        InventoryService.add_stock(session, part1.key, box.box_no, 1, 10)
-        InventoryService.add_stock(session, part2.key, box.box_no, 3, 25)
+        container.inventory_service().add_stock(part1.key, box.box_no, 1, 10)
+        container.inventory_service().add_stock(part2.key, box.box_no, 3, 25)
         session.commit()
 
         response = client.get(f"/api/boxes/{box.box_no}/locations?include_parts=false")
@@ -318,9 +312,9 @@ class TestBoxAPI:
             assert "is_occupied" not in location
             assert "part_assignments" not in location
 
-    def test_get_box_locations_with_parts_true_empty_box(self, client: FlaskClient, session: Session):
+    def test_get_box_locations_with_parts_true_empty_box(self, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test getting enhanced locations for empty box with include_parts=true."""
-        box = BoxService.create_box(session, "Empty Box", 4)
+        box = container.box_service().create_box("Empty Box", 4)
         session.commit()
 
         response = client.get(f"/api/boxes/{box.box_no}/locations?include_parts=true")
@@ -335,30 +329,25 @@ class TestBoxAPI:
             assert location["is_occupied"] == False
             assert location["part_assignments"] is None
 
-    def test_get_box_locations_with_parts_true_with_parts(self, client: FlaskClient, session: Session):
+    def test_get_box_locations_with_parts_true_with_parts(self, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test getting enhanced locations with parts using include_parts=true."""
-        from app.services.inventory_service import InventoryService
-        from app.services.part_service import PartService
-
-        box = BoxService.create_box(session, "Parts Box", 5)
+        box = container.box_service().create_box("Parts Box", 5)
         
         # Create parts with detailed information
-        part1 = PartService.create_part(
-            session,
+        part1 = container.part_service().create_part(
             "1kΩ resistor, 0603 package",
             manufacturer_code="RES-0603-1K"
         )
-        part2 = PartService.create_part(
-            session,
+        part2 = container.part_service().create_part(
             "100nF capacitor, ceramic",
             manufacturer_code="CAP-0603-100N"
         )
         session.commit()
         
         # Add parts to different locations
-        InventoryService.add_stock(session, part1.key, box.box_no, 2, 50)
-        InventoryService.add_stock(session, part2.key, box.box_no, 4, 100)
-        InventoryService.add_stock(session, part1.key, box.box_no, 5, 25)  # Same part in multiple locations
+        container.inventory_service().add_stock(part1.key, box.box_no, 2, 50)
+        container.inventory_service().add_stock(part2.key, box.box_no, 4, 100)
+        container.inventory_service().add_stock(part1.key, box.box_no, 5, 25)  # Same part in multiple locations
         session.commit()
 
         response = client.get(f"/api/boxes/{box.box_no}/locations?include_parts=true")
@@ -408,18 +397,15 @@ class TestBoxAPI:
         assert part_assignment["key"] == part1.key
         assert part_assignment["qty"] == 25
 
-    def test_get_box_locations_default_include_parts_false(self, client: FlaskClient, session: Session):
+    def test_get_box_locations_default_include_parts_false(self, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test that include_parts defaults to false for backward compatibility."""
-        from app.services.inventory_service import InventoryService
-        from app.services.part_service import PartService
-
-        box = BoxService.create_box(session, "Default Test Box", 2)
+        box = container.box_service().create_box("Default Test Box", 2)
         
         # Create and add part to verify it's not included by default
-        part = PartService.create_part(session, "Test part")
+        part = container.part_service().create_part("Test part")
         session.commit()
         
-        InventoryService.add_stock(session, part.key, box.box_no, 1, 5)
+        container.inventory_service().add_stock(part.key, box.box_no, 1, 5)
         session.commit()
 
         # Request without include_parts parameter
@@ -436,9 +422,9 @@ class TestBoxAPI:
             assert "box_no" in location
             assert "loc_no" in location
 
-    def test_get_box_locations_with_parts_parameter_validation(self, client: FlaskClient, session: Session):
+    def test_get_box_locations_with_parts_parameter_validation(self, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test various values for include_parts parameter."""
-        box = BoxService.create_box(session, "Param Test Box", 2)
+        box = container.box_service().create_box("Param Test Box", 2)
         session.commit()
 
         # Test case-insensitive true values
@@ -467,21 +453,18 @@ class TestBoxAPI:
         response_data = json.loads(response.data)
         assert "error" in response_data
 
-    def test_get_box_locations_multiple_parts_same_location(self, client: FlaskClient, session: Session):
+    def test_get_box_locations_multiple_parts_same_location(self, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test enhanced locations when different parts are in different locations."""
-        from app.services.inventory_service import InventoryService
-        from app.services.part_service import PartService
-
-        box = BoxService.create_box(session, "Multi-part Location Box", 2)
+        box = container.box_service().create_box("Multi-part Location Box", 2)
         
         # Create the parts first
-        part1 = PartService.create_part(session, "Part 1")
-        part2 = PartService.create_part(session, "Part 2")
+        part1 = container.part_service().create_part("Part 1")
+        part2 = container.part_service().create_part("Part 2")
         session.commit()
         
         # Add different parts to different locations (can't have multiple parts in same location due to unique constraint)
-        InventoryService.add_stock(session, part1.key, box.box_no, 1, 10)
-        InventoryService.add_stock(session, part2.key, box.box_no, 2, 5)
+        container.inventory_service().add_stock(part1.key, box.box_no, 1, 10)
+        container.inventory_service().add_stock(part2.key, box.box_no, 2, 5)
         session.commit()
 
         response = client.get(f"/api/boxes/{box.box_no}/locations?include_parts=true")

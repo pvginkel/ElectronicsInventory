@@ -26,6 +26,7 @@ celery = "^5.3.0"
 openai = "^1.10.0"
 psycopg2-binary = "^2.9.10"
 paste = "^3.10.1"
+dependency-injector = "^4.48.1"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.1.0"

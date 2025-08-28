@@ -2,6 +2,7 @@
 
 from flask import Blueprint, g, request
 from spectree import Response as SpectreeResponse
+from dependency_injector.wiring import Provide, inject
 
 from app.schemas.common import ErrorResponseSchema
 from app.schemas.inventory import (
@@ -11,8 +12,7 @@ from app.schemas.inventory import (
     RemoveStockSchema,
 )
 from app.schemas.part import PartLocationResponseSchema
-from app.services.inventory_service import InventoryService
-from app.services.part_service import PartService
+from app.services.container import ServiceContainer
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
@@ -22,15 +22,16 @@ inventory_bp = Blueprint("inventory", __name__, url_prefix="/inventory")
 @inventory_bp.route("/parts/<string:part_key>/stock", methods=["POST"])
 @api.validate(json=AddStockSchema, resp=SpectreeResponse(HTTP_201=PartLocationResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
-def add_stock(part_key: str):
+@inject
+def add_stock(part_key: str, part_service=Provide[ServiceContainer.part_service], inventory_service=Provide[ServiceContainer.inventory_service]):
     """Add stock to a location."""
     # Check if part exists (this will raise RecordNotFoundException if not found)
-    part = PartService.get_part(g.db, part_key)
+    part = part_service.get_part(part_key)
 
     data = AddStockSchema.model_validate(request.get_json())
 
-    part_location = InventoryService.add_stock(
-        g.db, part_key, data.box_no, data.loc_no, data.qty
+    part_location = inventory_service.add_stock(
+        part_key, data.box_no, data.loc_no, data.qty
     )
 
     return PartLocationResponseSchema(
@@ -44,15 +45,16 @@ def add_stock(part_key: str):
 @inventory_bp.route("/parts/<string:part_key>/stock", methods=["DELETE"])
 @api.validate(json=RemoveStockSchema, resp=SpectreeResponse(HTTP_204=None, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
-def remove_stock(part_key: str):
+@inject
+def remove_stock(part_key: str, part_service=Provide[ServiceContainer.part_service], inventory_service=Provide[ServiceContainer.inventory_service]):
     """Remove stock from a location."""
     # Check if part exists (this will raise RecordNotFoundException if not found)
-    PartService.get_part(g.db, part_key)
+    part_service.get_part(part_key)
 
     data = RemoveStockSchema.model_validate(request.get_json())
 
-    InventoryService.remove_stock(
-        g.db, part_key, data.box_no, data.loc_no, data.qty
+    inventory_service.remove_stock(
+        part_key, data.box_no, data.loc_no, data.qty
     )
     return "", 204
 
@@ -60,15 +62,15 @@ def remove_stock(part_key: str):
 @inventory_bp.route("/parts/<string:part_key>/move", methods=["POST"])
 @api.validate(json=MoveStockSchema, resp=SpectreeResponse(HTTP_204=None, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
-def move_stock(part_key: str):
+@inject
+def move_stock(part_key: str, part_service=Provide[ServiceContainer.part_service], inventory_service=Provide[ServiceContainer.inventory_service]):
     """Move stock between locations."""
     # Check if part exists (this will raise RecordNotFoundException if not found)
-    PartService.get_part(g.db, part_key)
+    part_service.get_part(part_key)
 
     data = MoveStockSchema.model_validate(request.get_json())
 
-    InventoryService.move_stock(
-        g.db,
+    inventory_service.move_stock(
         part_key,
         data.from_box_no,
         data.from_loc_no,
@@ -82,7 +84,8 @@ def move_stock(part_key: str):
 @inventory_bp.route("/suggestions/<int:type_id>", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=LocationSuggestionSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
-def get_location_suggestion(type_id: int):
+@inject
+def get_location_suggestion(type_id: int, inventory_service=Provide[ServiceContainer.inventory_service]):
     """Get location suggestions for part type."""
-    box_no, loc_no = InventoryService.suggest_location(g.db, type_id)
+    box_no, loc_no = inventory_service.suggest_location(type_id)
     return LocationSuggestionSchema(box_no=box_no, loc_no=loc_no).model_dump()

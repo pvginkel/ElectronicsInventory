@@ -34,33 +34,33 @@ API endpoints handle HTTP concerns only - no business logic.
 @parts_bp.route("", methods=["POST"])
 @api.validate(json=PartCreateSchema, resp=SpectreeResponse(HTTP_201=PartResponseSchema))
 @handle_api_errors
-def create_part():
+@inject
+def create_part(part_service=Provide[ServiceContainer.part_service]):
     data = PartCreateSchema.model_validate(request.get_json())
-    part = PartService.create_part(g.db, **data.model_dump())
+    part = part_service.create_part(**data.model_dump())
     return PartResponseSchema.model_validate(part).model_dump(), 201
 ```
 
 ### 2. Service Layer (`app/services/`)
 
-Services contain all business logic and database operations.
+Services contain all business logic and database operations using instance-based dependency injection.
 
 **Requirements:**
-- All methods must be `@staticmethod`
-- First parameter is always `Session` (database session)
+- Services are instance-based classes that inherit from `BaseService`
+- Database session injected via constructor (stored as `self.db`)
 - Return SQLAlchemy model instances, not dicts
 - Raise typed exceptions (`RecordNotFoundException`, `InvalidOperationException`)
 - No HTTP-specific code (no Flask imports)
-- Services can call other services
+- Services can depend on other services via dependency injection
 
 **Example pattern:**
 ```python
-class PartService:
-    @staticmethod
-    def create_part(db: Session, description: str, **kwargs) -> Part:
+class PartService(BaseService):
+    def create_part(self, description: str, **kwargs) -> Part:
         # Validation and business logic here
         part = Part(description=description, **kwargs)
-        db.add(part)
-        db.flush()  # Get ID immediately if needed
+        self.db.add(part)
+        self.db.flush()  # Get ID immediately if needed
         return part
 ```
 
@@ -128,16 +128,21 @@ When implementing new features:
 **Example service test structure:**
 ```python
 class TestPartService:
-    def test_create_part_minimal(self, app: Flask, session: Session):
+    def test_create_part_minimal(self, app: Flask, session: Session, container: ServiceContainer):
+        # Get service instance from container
+        service = container.part_service()
         # Test creating with minimum required fields
         
-    def test_create_part_full_data(self, app: Flask, session: Session):
+    def test_create_part_full_data(self, app: Flask, session: Session, container: ServiceContainer):
+        # Get service instance from container
+        service = container.part_service()
         # Test creating with all fields populated
         
-    def test_get_part_nonexistent(self, app: Flask, session: Session):
+    def test_get_part_nonexistent(self, app: Flask, session: Session, container: ServiceContainer):
         # Test error handling
+        service = container.part_service()
         with pytest.raises(RecordNotFoundException):
-            PartService.get_part(session, "INVALID")
+            service.get_part("INVALID")
 ```
 
 ### API Testing
@@ -216,8 +221,67 @@ Reference `docs/product_brief.md` for domain understanding:
 - **SpectTree** - OpenAPI documentation generation
 - **PostgreSQL** - Primary database
 - **pytest** - Testing framework
+- **dependency-injector** - Dependency injection container
 
 Focus on creating well-tested, maintainable code that follows these established patterns. The goal is a robust parts inventory system that stays organized and scales with your electronics hobby.
+
+## Dependency Injection
+
+### Service Container
+
+The project uses `dependency-injector` to manage service dependencies through a centralized container (`app/services/container.py`):
+
+```python
+class ServiceContainer(containers.DeclarativeContainer):
+    # Database session provider
+    db_session = providers.Dependency(instance_of=Session)
+    
+    # Service providers
+    part_service = providers.Factory(PartService, db=db_session)
+    inventory_service = providers.Factory(
+        InventoryService, 
+        db=db_session,
+        part_service=part_service  # Service dependency
+    )
+```
+
+### Service Dependencies
+
+Services that depend on other services receive them via constructor injection:
+
+```python
+class InventoryService(BaseService):
+    def __init__(self, db: Session, part_service: PartService):
+        super().__init__(db)
+        self.part_service = part_service
+```
+
+### API Injection
+
+API endpoints use the `@inject` decorator to receive services:
+
+```python
+from dependency_injector.wiring import Provide, inject
+from app.services.container import ServiceContainer
+
+@inject
+def create_part(part_service=Provide[ServiceContainer.part_service]):
+    # Use injected service instance
+    return part_service.create_part(...)
+```
+
+### Container Wiring
+
+The service container is wired to API modules in the application factory (`app/__init__.py`):
+
+```python
+# Initialize service container
+container = ServiceContainer()
+container.wire(modules=[
+    'app.api.parts', 'app.api.boxes', 'app.api.inventory', 
+    'app.api.types', 'app.api.testing'
+])
+```
 
 ## Test Data Management
 

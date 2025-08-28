@@ -8,17 +8,17 @@ from sqlalchemy.orm import Session
 
 from app.exceptions import RecordNotFoundException
 from app.models.part import Part
-from app.services.part_service import PartService
-from app.services.type_service import TypeService
+from app.services.container import ServiceContainer
 
 
 class TestPartService:
     """Test cases for PartService."""
 
-    def test_generate_part_key(self, app: Flask, session: Session):
+    def test_generate_part_key(self, app: Flask, session: Session, container: ServiceContainer):
         """Test part key generation."""
         with app.app_context():
-            key = PartService.generate_part_key(session)
+            part_service = container.part_service()
+            key = part_service.generate_part_key()
 
             # Should be 4 characters
             assert len(key) == 4
@@ -26,21 +26,23 @@ class TestPartService:
             # Should be all uppercase letters
             assert all(c in string.ascii_uppercase for c in key)
 
-    def test_generate_part_key_uniqueness(self, app: Flask, session: Session):
+    def test_generate_part_key_uniqueness(self, app: Flask, session: Session, container: ServiceContainer):
         """Test that generated keys are unique."""
         with app.app_context():
             # Create a part to occupy one key
-            part = PartService.create_part(session, "Test description")
+            part_service = container.part_service()
+            part = part_service.create_part("Test description")
             session.commit()
 
             # Generate new key should be different
-            new_key = PartService.generate_part_key(session)
+            new_key = part_service.generate_part_key()
             assert new_key != part.key
 
-    def test_create_part_minimal(self, app: Flask, session: Session):
+    def test_create_part_minimal(self, app: Flask, session: Session, container: ServiceContainer):
         """Test creating a part with minimal data."""
         with app.app_context():
-            part = PartService.create_part(session, "Basic resistor")
+            part_service = container.part_service()
+            part = part_service.create_part("Basic resistor")
 
             assert isinstance(part, Part)
             assert len(part.key) == 4
@@ -51,15 +53,16 @@ class TestPartService:
             assert part.seller is None
             assert part.seller_link is None
 
-    def test_create_part_full_data(self, app: Flask, session: Session):
+    def test_create_part_full_data(self, app: Flask, session: Session, container: ServiceContainer):
         """Test creating a part with all fields populated."""
         with app.app_context():
             # Create a type first
-            type_obj = TypeService.create_type(session, "Resistor")
+            type_service = container.type_service()
+            type_obj = type_service.create_type("Resistor")
             session.flush()
 
-            part = PartService.create_part(
-                session,
+            part_service = container.part_service()
+            part = part_service.create_part(
                 description="1k ohm resistor",
                 manufacturer_code="RES-1K-5%",
                 type_id=type_obj.id,
@@ -75,92 +78,98 @@ class TestPartService:
             assert part.seller == "Digi-Key"
             assert part.seller_link == "https://digikey.com/product/123"
 
-    def test_get_part_existing(self, app: Flask, session: Session):
+    def test_get_part_existing(self, app: Flask, session: Session, container: ServiceContainer):
         """Test getting an existing part."""
         with app.app_context():
             # Create a part
-            created_part = PartService.create_part(session, "Test part")
+            part_service = container.part_service()
+            created_part = part_service.create_part("Test part")
             session.commit()
 
             # Retrieve it
-            retrieved_part = PartService.get_part(session, created_part.key)
+            retrieved_part = part_service.get_part(created_part.key)
 
             assert retrieved_part is not None
             assert retrieved_part.key == created_part.key
             assert retrieved_part.description == "Test part"
 
-    def test_get_part_nonexistent(self, app: Flask, session: Session):
+    def test_get_part_nonexistent(self, app: Flask, session: Session, container: ServiceContainer):
         """Test getting a non-existent part."""
         with app.app_context():
+            part_service = container.part_service()
             with pytest.raises(RecordNotFoundException, match="Part AAAA was not found"):
-                PartService.get_part(session, "AAAA")
+                part_service.get_part("AAAA")
 
-    def test_get_parts_list(self, app: Flask, session: Session):
+    def test_get_parts_list(self, app: Flask, session: Session, container: ServiceContainer):
         """Test listing parts with pagination."""
         with app.app_context():
             # Create multiple parts
+            part_service = container.part_service()
             parts = []
             for i in range(5):
-                part = PartService.create_part(session, f"Part {i}")
+                part = part_service.create_part(f"Part {i}")
                 parts.append(part)
             session.commit()
 
             # Test default pagination
-            result = PartService.get_parts_list(session)
+            result = part_service.get_parts_list()
             assert len(result) == 5
 
             # Test with limit
-            result = PartService.get_parts_list(session, limit=3)
+            result = part_service.get_parts_list(limit=3)
             assert len(result) == 3
 
             # Test with offset
-            result = PartService.get_parts_list(session, limit=2, offset=2)
+            result = part_service.get_parts_list(limit=2, offset=2)
             assert len(result) == 2
 
-    def test_get_parts_list_with_type_filter(self, app: Flask, session: Session):
+    def test_get_parts_list_with_type_filter(self, app: Flask, session: Session, container: ServiceContainer):
         """Test listing parts with type filtering."""
         with app.app_context():
             # Create types
-            resistor_type = TypeService.create_type(session, "Resistor")
-            capacitor_type = TypeService.create_type(session, "Capacitor")
+            type_service = container.type_service()
+            resistor_type = type_service.create_type("Resistor")
+            capacitor_type = type_service.create_type("Capacitor")
             session.flush()
 
             # Create parts with different types
-            PartService.create_part(session, "1k resistor", type_id=resistor_type.id)
-            PartService.create_part(session, "2k resistor", type_id=resistor_type.id)
-            PartService.create_part(session, "100uF capacitor", type_id=capacitor_type.id)
-            PartService.create_part(session, "No type part")  # No type_id
+            part_service = container.part_service()
+            part_service.create_part("1k resistor", type_id=resistor_type.id)
+            part_service.create_part("2k resistor", type_id=resistor_type.id)
+            part_service.create_part("100uF capacitor", type_id=capacitor_type.id)
+            part_service.create_part("No type part")  # No type_id
             session.commit()
 
             # Test filtering by resistor type
-            resistors = PartService.get_parts_list(session, type_id=resistor_type.id)
+            resistors = part_service.get_parts_list(type_id=resistor_type.id)
             assert len(resistors) == 2
             assert all(part.type_id == resistor_type.id for part in resistors)
 
             # Test filtering by capacitor type
-            capacitors = PartService.get_parts_list(session, type_id=capacitor_type.id)
+            capacitors = part_service.get_parts_list(type_id=capacitor_type.id)
             assert len(capacitors) == 1
             assert capacitors[0].type_id == capacitor_type.id
 
             # Test with non-existent type
-            empty_result = PartService.get_parts_list(session, type_id=999)
+            empty_result = part_service.get_parts_list(type_id=999)
             assert len(empty_result) == 0
 
             # Test no filter (should get all parts)
-            all_parts = PartService.get_parts_list(session)
+            all_parts = part_service.get_parts_list()
             assert len(all_parts) == 4
 
-    def test_update_part_details(self, app: Flask, session: Session):
+    def test_update_part_details(self, app: Flask, session: Session, container: ServiceContainer):
         """Test updating part details."""
         with app.app_context():
             # Create type and part
-            type_obj = TypeService.create_type(session, "Capacitor")
-            part = PartService.create_part(session, "Basic part")
+            type_service = container.type_service()
+            part_service = container.part_service()
+            type_obj = type_service.create_type("Capacitor")
+            part = part_service.create_part("Basic part")
             session.flush()
 
             # Update some fields
-            updated_part = PartService.update_part_details(
-                session,
+            updated_part = part_service.update_part_details(
                 part.key,
                 manufacturer_code="CAP-100UF",
                 type_id=type_obj.id,
@@ -174,39 +183,44 @@ class TestPartService:
             # Unchanged fields should remain the same
             assert updated_part.description == "Basic part"
 
-    def test_update_part_nonexistent(self, app: Flask, session: Session):
+    def test_update_part_nonexistent(self, app: Flask, session: Session, container: ServiceContainer):
         """Test updating a non-existent part."""
         with app.app_context():
+            part_service = container.part_service()
             with pytest.raises(RecordNotFoundException, match="Part AAAA was not found"):
-                PartService.update_part_details(session, "AAAA", description="New desc")
+                part_service.update_part_details("AAAA", description="New desc")
 
-    def test_delete_part_zero_quantity(self, app: Flask, session: Session):
+    def test_delete_part_zero_quantity(self, app: Flask, session: Session, container: ServiceContainer):
         """Test deleting a part with zero quantity."""
         with app.app_context():
             # Create a part (no locations/quantity by default)
-            part = PartService.create_part(session, "To be deleted")
+            part_service = container.part_service()
+            part = part_service.create_part("To be deleted")
             session.commit()
 
             # Should be able to delete (no exception thrown)
-            PartService.delete_part(session, part.key)
+            part_service.delete_part(part.key)
 
-    def test_delete_part_nonexistent(self, app: Flask, session: Session):
+    def test_delete_part_nonexistent(self, app: Flask, session: Session, container: ServiceContainer):
         """Test deleting a non-existent part."""
         with app.app_context():
+            part_service = container.part_service()
             with pytest.raises(RecordNotFoundException, match="Part AAAA was not found"):
-                PartService.delete_part(session, "AAAA")
+                part_service.delete_part("AAAA")
 
-    def test_get_total_quantity_no_locations(self, app: Flask, session: Session):
+    def test_get_total_quantity_no_locations(self, app: Flask, session: Session, container: ServiceContainer):
         """Test getting total quantity for part with no locations."""
         with app.app_context():
-            part = PartService.create_part(session, "Empty part")
+            part_service = container.part_service()
+            part = part_service.create_part("Empty part")
             session.commit()
 
-            total_qty = PartService.get_total_quantity(session, part.key)
+            total_qty = part_service.get_total_quantity(part.key)
             assert total_qty == 0
 
-    def test_get_total_quantity_nonexistent_part(self, app: Flask, session: Session):
+    def test_get_total_quantity_nonexistent_part(self, app: Flask, session: Session, container: ServiceContainer):
         """Test getting total quantity for non-existent part."""
         with app.app_context():
-            total_qty = PartService.get_total_quantity(session, "AAAA")
+            part_service = container.part_service()
+            total_qty = part_service.get_total_quantity("AAAA")
             assert total_qty == 0
