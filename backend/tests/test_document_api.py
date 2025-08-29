@@ -525,6 +525,35 @@ class TestUrlPreviewAPI:
 
     @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
     @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata')
+    def test_attachment_preview_direct_image_title(self, mock_extract_metadata, mock_validate_url, client: FlaskClient):
+        """Test URL preview with direct image URL extracts title from filename."""
+        # Mock the metadata that would be returned for a direct image
+        mock_extract_metadata.return_value = {
+            'title': 'dht22-thermometer-temperature-and-humidity-sensor.jpg',
+            'page_title': 'dht22-thermometer-temperature-and-humidity-sensor.jpg',
+            'description': None,
+            'og_image': 'https://www.tinytronics.nl/image/catalog/products_2023/dht22-thermometer-temperature-and-humidity-sensor.jpg',
+            'favicon': None,
+            'thumbnail_source': 'direct_image',
+            'original_url': 'https://www.tinytronics.nl/image/catalog/products_2023/dht22-thermometer-temperature-and-humidity-sensor.jpg'
+        }
+
+        response = client.post(
+            '/api/parts/attachment-preview',
+            json={'url': 'https://www.tinytronics.nl/image/catalog/products_2023/dht22-thermometer-temperature-and-humidity-sensor.jpg'}
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['title'] == 'dht22-thermometer-temperature-and-humidity-sensor.jpg'
+        assert data['image_url'] is not None  # Should have an image URL since og_image exists
+        assert data['original_url'] == 'https://www.tinytronics.nl/image/catalog/products_2023/dht22-thermometer-temperature-and-humidity-sensor.jpg'
+
+        mock_validate_url.assert_called_once()
+        mock_extract_metadata.assert_called_once()
+
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata')
     def test_attachment_preview_no_image(self, mock_extract_metadata, mock_validate_url, client: FlaskClient):
         """Test URL preview with no image available."""
         mock_extract_metadata.return_value = {
@@ -581,11 +610,11 @@ class TestUrlPreviewAPI:
         assert response.status_code == 400
 
     @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_thumbnail_url')
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.get_preview_image_url')
     @patch('app.services.url_thumbnail_service.URLThumbnailService._download_image')
-    def test_attachment_preview_image_success(self, mock_download_image, mock_extract_thumbnail_url, mock_validate_url, client: FlaskClient):
+    def test_attachment_preview_image_success(self, mock_download_image, mock_get_preview_image_url, mock_validate_url, client: FlaskClient):
         """Test successful preview image retrieval."""
-        mock_extract_thumbnail_url.return_value = ('https://example.com/image.jpg', {})
+        mock_get_preview_image_url.return_value = 'https://example.com/image.jpg'
         mock_download_image.return_value = (io.BytesIO(b"fake image data"), 'image/jpeg')
 
         response = client.get('/api/parts/attachment-preview/image?url=https%3A//example.com')
@@ -595,7 +624,7 @@ class TestUrlPreviewAPI:
         assert response.data == b"fake image data"
 
         mock_validate_url.assert_called_once_with('https://example.com')
-        mock_extract_thumbnail_url.assert_called_once_with('https://example.com')
+        mock_get_preview_image_url.assert_called_once_with('https://example.com')
         mock_download_image.assert_called_once_with('https://example.com/image.jpg', 'https://example.com')
 
     def test_attachment_preview_image_no_url(self, client: FlaskClient):
@@ -616,11 +645,30 @@ class TestUrlPreviewAPI:
         assert 'Invalid or inaccessible URL' in data['error']
 
     @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_thumbnail_url', side_effect=Exception("Image extraction failed"))
-    def test_attachment_preview_image_extraction_error(self, mock_extract_thumbnail_url, mock_validate_url, client: FlaskClient):
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.get_preview_image_url', side_effect=Exception("Image extraction failed"))
+    def test_attachment_preview_image_extraction_error(self, mock_get_preview_image_url, mock_validate_url, client: FlaskClient):
         """Test preview image with extraction failure."""
         response = client.get('/api/parts/attachment-preview/image?url=https%3A//example.com')
 
         assert response.status_code == 404
         data = response.get_json()
         assert 'Failed to retrieve image' in data['error']
+
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.get_preview_image_url')
+    @patch('app.services.url_thumbnail_service.URLThumbnailService._download_image')
+    def test_attachment_preview_direct_image_url(self, mock_download_image, mock_get_preview_image_url, mock_validate_url, client: FlaskClient):
+        """Test preview image with direct image URL."""
+        # Simulate direct image URL - should return the URL itself
+        mock_get_preview_image_url.return_value = 'https://example.com/image.jpg'
+        mock_download_image.return_value = (io.BytesIO(b"direct image data"), 'image/jpeg')
+        
+        response = client.get('/api/parts/attachment-preview/image?url=https%3A//example.com/image.jpg')
+        
+        assert response.status_code == 200
+        assert response.content_type == 'image/jpeg'
+        assert response.data == b"direct image data"
+        
+        mock_validate_url.assert_called_once_with('https://example.com/image.jpg')
+        mock_get_preview_image_url.assert_called_once_with('https://example.com/image.jpg')
+        mock_download_image.assert_called_once_with('https://example.com/image.jpg', 'https://example.com/image.jpg')

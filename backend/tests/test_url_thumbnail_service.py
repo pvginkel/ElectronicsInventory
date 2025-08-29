@@ -225,3 +225,102 @@ class TestURLThumbnailService:
         assert "Cannot extract thumbnail URL" in str(exc_info.value)
 
 
+class TestContentBasedProcessing:
+    """Tests for content-based URL processing functionality."""
+
+    @patch('app.services.url_thumbnail_service.URLThumbnailService._fetch_content')
+    def test_extract_metadata_image_content(self, mock_fetch_content, container: ServiceContainer):
+        """Test extract_metadata handles image content."""
+        url_service = container.url_thumbnail_service()
+        
+        # Mock image content
+        mock_fetch_content.return_value = (b"fake_image_data", "image/jpeg")
+        
+        image_url = "https://tinytronics.nl/dht22-thermometer.jpg"
+        metadata = url_service.extract_metadata(image_url)
+        
+        assert metadata['title'] == 'dht22-thermometer.jpg'
+        assert metadata['og_image'] == image_url
+        assert metadata['thumbnail_source'] == 'direct_image'
+        assert metadata['content_type'] == 'image'
+        assert metadata['thumbnail_url'] == image_url
+
+    @patch('app.services.url_thumbnail_service.URLThumbnailService._fetch_content')
+    def test_extract_metadata_pdf_content(self, mock_fetch_content, container: ServiceContainer):
+        """Test extract_metadata handles PDF content."""
+        url_service = container.url_thumbnail_service()
+        
+        # Mock PDF content
+        mock_fetch_content.return_value = (b"fake_pdf_data", "application/pdf")
+        
+        pdf_url = "https://example.com/datasheet.pdf"
+        metadata = url_service.extract_metadata(pdf_url)
+        
+        assert metadata['title'] == 'datasheet.pdf'
+        assert metadata['thumbnail_source'] == 'pdf'
+        assert metadata['content_type'] == 'pdf'
+        assert metadata['thumbnail_url'] == 'https://upload.wikimedia.org/wikipedia/commons/8/87/PDF_file_icon.svg'
+
+    @patch('app.services.url_thumbnail_service.URLThumbnailService._fetch_content')
+    def test_extract_metadata_html_content(self, mock_fetch_content, container: ServiceContainer):
+        """Test extract_metadata handles HTML content."""
+        url_service = container.url_thumbnail_service()
+        
+        # Mock HTML content
+        html_content = b'<html><head><title>Test Page</title><meta property="og:image" content="https://example.com/og-image.jpg"></head></html>'
+        mock_fetch_content.return_value = (html_content, "text/html")
+        
+        webpage_url = "https://example.com/page"
+        metadata = url_service.extract_metadata(webpage_url)
+        
+        assert metadata['title'] == 'Test Page'
+        assert metadata['thumbnail_source'] == 'og:image'
+        assert metadata['content_type'] == 'webpage'
+        assert metadata['thumbnail_url'] == 'https://example.com/og-image.jpg'
+
+    @patch('app.services.url_thumbnail_service.URLThumbnailService._fetch_content')
+    def test_extract_metadata_other_content(self, mock_fetch_content, container: ServiceContainer):
+        """Test extract_metadata handles other content types."""
+        url_service = container.url_thumbnail_service()
+        
+        # Mock other content type
+        mock_fetch_content.return_value = (b"fake_data", "application/octet-stream")
+        
+        other_url = "https://example.com/file.bin"
+        metadata = url_service.extract_metadata(other_url)
+        
+        assert metadata['title'] == 'file.bin'
+        assert metadata['thumbnail_source'] == 'other'
+        assert metadata['content_type'] == 'application/octet-stream'
+        assert metadata['thumbnail_url'] is None
+
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata')
+    def test_get_preview_image_url_with_thumbnail(self, mock_extract_metadata, container: ServiceContainer):
+        """Test get_preview_image_url returns thumbnail URL from metadata."""
+        url_service = container.url_thumbnail_service()
+        
+        # Mock metadata with thumbnail URL
+        mock_extract_metadata.return_value = {
+            'thumbnail_url': 'https://example.com/image.jpg'
+        }
+        
+        result = url_service.get_preview_image_url("https://example.com/test")
+        assert result == 'https://example.com/image.jpg'
+
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata')
+    def test_get_preview_image_url_no_thumbnail(self, mock_extract_metadata, container: ServiceContainer):
+        """Test get_preview_image_url raises error when no thumbnail available."""
+        url_service = container.url_thumbnail_service()
+        
+        # Mock metadata without thumbnail URL
+        mock_extract_metadata.return_value = {
+            'thumbnail_url': None
+        }
+        
+        from app.exceptions import InvalidOperationException
+        with pytest.raises(InvalidOperationException) as exc_info:
+            url_service.get_preview_image_url("https://example.com/test")
+        
+        assert "No image URL available" in str(exc_info.value)
+
+
