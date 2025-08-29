@@ -54,14 +54,14 @@ class Part(db.Model):  # type: ignore[name-defined]
         "QuantityHistory", back_populates="part", cascade="all, delete-orphan", lazy="selectin"
     )
     attachments: Mapped[list["PartAttachment"]] = relationship(  # type: ignore[assignment]
-        "PartAttachment", 
-        back_populates="part", 
-        cascade="all, delete-orphan", 
+        "PartAttachment",
+        back_populates="part",
+        cascade="all, delete-orphan",
         lazy="selectin",
         foreign_keys="PartAttachment.part_id"
     )
     cover_attachment: Mapped[Optional["PartAttachment"]] = relationship(  # type: ignore[assignment]
-        "PartAttachment", 
+        "PartAttachment",
         lazy="selectin",
         post_update=True,
         foreign_keys=[cover_attachment_id]

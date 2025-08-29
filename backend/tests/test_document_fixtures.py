@@ -1,7 +1,6 @@
 """Test fixtures and utilities for document testing."""
 
 import io
-import json
 from pathlib import Path
 from typing import BinaryIO
 
@@ -19,7 +18,7 @@ def sample_part(session) -> Part:
     part_type = Type(name="Test Type")
     session.add(part_type)
     session.flush()
-    
+
     part = Part(
         key="TEST",
         manufacturer_code="TEST-001",
@@ -69,10 +68,10 @@ endobj
 endobj
 xref
 0 4
-0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000115 00000 n 
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
 trailer
 <<
 /Size 4

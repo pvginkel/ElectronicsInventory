@@ -43,12 +43,12 @@ class TestS3Service:
         assert key.startswith("parts/123/attachments/")
         assert key.endswith(".pdf")
         assert len(key.split("/")[-1]) > 10  # UUID + extension should be long
-        
+
         # Test without extension
         key = s3_service.generate_s3_key(456, "image")
         assert key.startswith("parts/456/attachments/")
         assert key.endswith(".bin")  # Default extension
-        
+
         # Test with path separators in filename (should extract extension only)
         key = s3_service.generate_s3_key(789, "folder/file.jpg")
         assert key.startswith("parts/789/attachments/")
@@ -59,11 +59,11 @@ class TestS3Service:
         file_data = io.BytesIO(b"test file content")
         s3_key = "test/key.txt"
         content_type = "text/plain"
-        
+
         mock_s3_client.upload_fileobj.return_value = None
-        
+
         result = s3_service.upload_file(file_data, s3_key, content_type)
-        
+
         assert result is True
         mock_s3_client.upload_fileobj.assert_called_once()
         args, kwargs = mock_s3_client.upload_fileobj.call_args
@@ -79,10 +79,10 @@ class TestS3Service:
             {"Error": {"Code": "AccessDenied", "Message": "Access denied"}},
             "PutObject"
         )
-        
+
         with pytest.raises(InvalidOperationException) as exc_info:
             s3_service.upload_file(file_data, "test/key", "text/plain")
-        
+
         assert "upload file to S3" in str(exc_info.value)
         assert "Access denied" in str(exc_info.value)
 
@@ -90,7 +90,7 @@ class TestS3Service:
         """Test file upload with missing credentials."""
         file_data = io.BytesIO(b"test content")
         mock_s3_client.upload_fileobj.side_effect = NoCredentialsError()
-        
+
         # NoCredentialsError is not caught by the service, so it bubbles up
         with pytest.raises(NoCredentialsError):
             s3_service.upload_file(file_data, "test/key")
@@ -98,14 +98,14 @@ class TestS3Service:
     def test_download_file_success(self, s3_service, mock_s3_client):
         """Test successful file download."""
         test_content = b"downloaded file content"
-        
+
         def mock_download(bucket, key, fileobj):
             fileobj.write(test_content)
-        
+
         mock_s3_client.download_fileobj.side_effect = mock_download
-        
+
         result = s3_service.download_file("test/key.txt")
-        
+
         assert isinstance(result, io.BytesIO)
         assert result.getvalue() == test_content
         mock_s3_client.download_fileobj.assert_called_once()
@@ -116,18 +116,18 @@ class TestS3Service:
             {"Error": {"Code": "NoSuchKey", "Message": "The specified key does not exist"}},
             "GetObject"
         )
-        
+
         with pytest.raises(InvalidOperationException) as exc_info:
             s3_service.download_file("nonexistent/key")
-        
+
         assert "download file from S3" in str(exc_info.value)
 
     def test_delete_file_success(self, s3_service, mock_s3_client):
         """Test successful file deletion."""
         mock_s3_client.delete_object.return_value = {"DeleteMarker": True}
-        
+
         result = s3_service.delete_file("test/key.txt")
-        
+
         assert result is True
         mock_s3_client.delete_object.assert_called_once()
         args, kwargs = mock_s3_client.delete_object.call_args
@@ -140,18 +140,18 @@ class TestS3Service:
             {"Error": {"Code": "NoSuchKey", "Message": "The specified key does not exist"}},
             "DeleteObject"
         )
-        
+
         with pytest.raises(InvalidOperationException) as exc_info:
             s3_service.delete_file("nonexistent/key")
-        
+
         assert "delete file from S3" in str(exc_info.value)
 
     def test_file_exists_true(self, s3_service, mock_s3_client):
         """Test checking existence of existing file."""
         mock_s3_client.head_object.return_value = {"ContentLength": 1024}
-        
+
         result = s3_service.file_exists("existing/key.txt")
-        
+
         assert result is True
         mock_s3_client.head_object.assert_called_once()
         args, kwargs = mock_s3_client.head_object.call_args
@@ -164,9 +164,9 @@ class TestS3Service:
             {"Error": {"Code": "404", "Message": "Not Found"}},
             "HeadObject"
         )
-        
+
         result = s3_service.file_exists("nonexistent/key.txt")
-        
+
         assert result is False
 
     def test_file_exists_other_error(self, s3_service, mock_s3_client):
@@ -175,18 +175,18 @@ class TestS3Service:
             {"Error": {"Code": "AccessDenied", "Message": "Access denied"}},
             "HeadObject"
         )
-        
+
         with pytest.raises(InvalidOperationException) as exc_info:
             s3_service.file_exists("test/key.txt")
-        
+
         assert "check file existence in S3" in str(exc_info.value)
 
     def test_upload_file_no_content_type(self, s3_service, mock_s3_client):
         """Test upload without explicit content type."""
         file_data = io.BytesIO(b"test content")
-        
+
         s3_service.upload_file(file_data, "test/key.bin")
-        
+
         args, kwargs = mock_s3_client.upload_fileobj.call_args
         assert "ExtraArgs" not in kwargs
 
@@ -197,7 +197,7 @@ class TestS3Service:
                 service = S3Service(session)
                 # Access the s3_client property to trigger boto3.client call
                 _ = service.s3_client
-                
+
                 # Should have been called with config values from test app
                 mock_boto3.assert_called_once()
                 call_args = mock_boto3.call_args[1]  # kwargs

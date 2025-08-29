@@ -1,20 +1,14 @@
 """Integration tests for document API endpoints."""
 
 import io
-import json
 from unittest.mock import patch
 
-import pytest
 from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
 from app.models.part_attachment import AttachmentType, PartAttachment
 from app.services.container import ServiceContainer
-from tests.test_document_fixtures import sample_image_file, sample_pdf_file
-
-
-
 
 
 class TestDocumentAPI:
@@ -30,7 +24,7 @@ class TestDocumentAPI:
         mock_process_image.return_value = (
             io.BytesIO(b"processed"), {"width": 100, "height": 100, "format": "JPEG"}
         )
-        
+
         with app.app_context():
             # Create test part using service
             part_type = container.type_service().create_type("File Test Type")
@@ -40,7 +34,7 @@ class TestDocumentAPI:
                 type_id=part_type.id
             )
             session.commit()
-            
+
             response = client.post(
                 f'/api/parts/{part.key}/attachments',
                 data={
@@ -49,7 +43,7 @@ class TestDocumentAPI:
                 },
                 content_type='multipart/form-data'
             )
-        
+
         assert response.status_code == 201
         data = response.get_json()
         assert data['title'] == 'Test Image'
@@ -71,7 +65,7 @@ class TestDocumentAPI:
                 type_id=part_type.id
             )
             session.commit()
-            
+
             response = client.post(
                 f'/api/parts/{part.key}/attachments',
                 json={
@@ -79,7 +73,7 @@ class TestDocumentAPI:
                     'url': 'https://example.com/product'
                 }
             )
-        
+
         assert response.status_code == 201
         data = response.get_json()
         assert data['title'] == 'Product Page'
@@ -96,7 +90,7 @@ class TestDocumentAPI:
             type_id=part_type.id
         )
         session.commit()
-        
+
         response = client.post(
             f'/api/parts/{part.key}/attachments',
             json={
@@ -104,7 +98,7 @@ class TestDocumentAPI:
                 # Neither 'url' nor 'file' provided
             }
         )
-        
+
         assert response.status_code == 400
 
     def test_create_attachment_part_not_found(self, client: FlaskClient):
@@ -116,7 +110,7 @@ class TestDocumentAPI:
                 'url': 'https://example.com'
             }
         )
-        
+
         assert response.status_code == 404
 
     def test_list_part_attachments(self, client: FlaskClient, container: ServiceContainer, session: Session):
@@ -129,7 +123,7 @@ class TestDocumentAPI:
             type_id=part_type.id
         )
         session.commit()
-        
+
         # Create test attachments directly (since we're testing listing, not creation)
         attachment1 = PartAttachment(
             part_id=part.id,
@@ -148,13 +142,13 @@ class TestDocumentAPI:
         )
         session.add_all([attachment1, attachment2])
         session.commit()
-        
+
         response = client.get(f'/api/parts/{part.key}/attachments')
-        
+
         assert response.status_code == 200
         data = response.get_json()
         assert len(data) == 2
-        
+
         titles = [item['title'] for item in data]
         assert 'Image 1' in titles
         assert 'URL 1' in titles
@@ -169,7 +163,7 @@ class TestDocumentAPI:
             type_id=part_type.id
         )
         session.commit()
-        
+
         attachment = PartAttachment(
             part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
@@ -181,9 +175,9 @@ class TestDocumentAPI:
         )
         session.add(attachment)
         session.commit()
-        
+
         response = client.get(f'/api/parts/{part.key}/attachments/{attachment.id}')
-        
+
         assert response.status_code == 200
         data = response.get_json()
         assert data['title'] == 'Test Attachment'
@@ -199,7 +193,7 @@ class TestDocumentAPI:
             type_id=part_type.id
         )
         session.commit()
-        
+
         attachment = PartAttachment(
             part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
@@ -208,12 +202,12 @@ class TestDocumentAPI:
         )
         session.add(attachment)
         session.commit()
-        
+
         response = client.put(
             f'/api/parts/{part.key}/attachments/{attachment.id}',
             json={'title': 'Updated Title'}
         )
-        
+
         assert response.status_code == 200
         data = response.get_json()
         assert data['title'] == 'Updated Title'
@@ -229,7 +223,7 @@ class TestDocumentAPI:
             type_id=part_type.id
         )
         session.commit()
-        
+
         attachment = PartAttachment(
             part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
@@ -239,9 +233,9 @@ class TestDocumentAPI:
         session.add(attachment)
         session.commit()
         attachment_id = attachment.id
-        
+
         response = client.delete(f'/api/parts/{part.key}/attachments/{attachment_id}')
-        
+
         assert response.status_code == 204
 
     @patch('app.services.s3_service.S3Service.download_file', return_value=io.BytesIO(b"fake pdf content"))
@@ -255,7 +249,7 @@ class TestDocumentAPI:
             type_id=part_type.id
         )
         session.commit()
-        
+
         attachment = PartAttachment(
             part_id=part.id,
             attachment_type=AttachmentType.PDF,
@@ -266,9 +260,9 @@ class TestDocumentAPI:
         )
         session.add(attachment)
         session.commit()
-        
+
         response = client.get(f'/api/parts/{part.key}/attachments/{attachment.id}/download')
-        
+
         assert response.status_code == 200
         assert response.content_type == 'application/pdf'
 
@@ -282,7 +276,7 @@ class TestDocumentAPI:
             type_id=part_type.id
         )
         session.commit()
-        
+
         attachment = PartAttachment(
             part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
@@ -291,14 +285,14 @@ class TestDocumentAPI:
         )
         session.add(attachment)
         session.commit()
-        
+
         # Create a real thumbnail file for the test
         thumbnail_file = tmp_path / "thumbnail.jpg"
         thumbnail_file.write_bytes(b"fake thumbnail data")
-        
+
         with patch('app.services.image_service.ImageService.get_thumbnail_path', return_value=str(thumbnail_file)):
             response = client.get(f'/api/parts/{part.key}/attachments/{attachment.id}/thumbnail')
-        
+
         assert response.status_code == 200
         assert response.content_type == 'image/jpeg'
 
@@ -312,7 +306,7 @@ class TestDocumentAPI:
             type_id=part_type.id
         )
         session.commit()
-        
+
         attachment = PartAttachment(
             part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
@@ -321,12 +315,12 @@ class TestDocumentAPI:
         )
         session.add(attachment)
         session.commit()
-        
+
         response = client.put(
             f'/api/parts/{part.key}/cover',
             json={'attachment_id': attachment.id}
         )
-        
+
         assert response.status_code == 200
         data = response.get_json()
         assert data['attachment_id'] == attachment.id
@@ -341,7 +335,7 @@ class TestDocumentAPI:
             type_id=part_type.id
         )
         session.commit()
-        
+
         attachment = PartAttachment(
             part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
@@ -352,9 +346,9 @@ class TestDocumentAPI:
         session.flush()
         part.cover_attachment_id = attachment.id
         session.commit()
-        
+
         response = client.get(f'/api/parts/{part.key}/cover')
-        
+
         assert response.status_code == 200
         data = response.get_json()
         assert data['attachment_id'] == attachment.id
@@ -370,7 +364,7 @@ class TestDocumentAPI:
             type_id=part_type.id
         )
         session.commit()
-        
+
         attachment = PartAttachment(
             part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
@@ -381,9 +375,9 @@ class TestDocumentAPI:
         session.flush()
         part.cover_attachment_id = attachment.id
         session.commit()
-        
+
         response = client.delete(f'/api/parts/{part.key}/cover')
-        
+
         assert response.status_code == 200
         data = response.get_json()
         assert data['attachment_id'] is None
@@ -398,14 +392,14 @@ class TestDocumentAPI:
             type_id=part_type.id
         )
         session.commit()
-        
+
         # Missing title
         response = client.post(
             f'/api/parts/{part.key}/attachments',
             json={'url': 'https://example.com'}
         )
         assert response.status_code == 400
-        
+
         # Title too long
         response = client.post(
             f'/api/parts/{part.key}/attachments',
@@ -415,7 +409,7 @@ class TestDocumentAPI:
             }
         )
         assert response.status_code == 400
-        
+
         # Invalid URL format
         response = client.post(
             f'/api/parts/{part.key}/attachments',
@@ -436,18 +430,18 @@ class TestDocumentAPI:
             type_id=part_type.id
         )
         session.commit()
-        
+
         # Get non-existent attachment
         response = client.get(f'/api/parts/{part.key}/attachments/99999')
         assert response.status_code == 404
-        
+
         # Update non-existent attachment
         response = client.put(
             f'/api/parts/{part.key}/attachments/99999',
             json={'title': 'New Title'}
         )
         assert response.status_code == 404
-        
+
         # Delete non-existent attachment
         response = client.delete(f'/api/parts/{part.key}/attachments/99999')
         assert response.status_code == 404
@@ -462,7 +456,7 @@ class TestDocumentAPI:
             type_id=part_type.id
         )
         session.commit()
-        
+
         attachment = PartAttachment(
             part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
@@ -471,16 +465,16 @@ class TestDocumentAPI:
         )
         session.add(attachment)
         session.commit()
-        
+
         # Create a real thumbnail file for the test
         thumbnail_file = tmp_path / "thumbnail.jpg"
         thumbnail_file.write_bytes(b"fake thumbnail data")
-        
+
         with patch('app.services.image_service.ImageService.get_thumbnail_path', return_value=str(thumbnail_file)) as mock_get_thumbnail:
             response = client.get(
                 f'/api/parts/{part.key}/attachments/{attachment.id}/thumbnail?size=300'
             )
-        
+
         assert response.status_code == 200
         # Verify the service was called with the custom size
         mock_get_thumbnail.assert_called_with(attachment.id, 'test.jpg', 300)
@@ -496,7 +490,137 @@ class TestDocumentAPI:
             type_id=part_type.id
         )
         session.commit()
-        
+
         response = client.get(f'/api/parts/{part.key}/attachments')
-        
+
         assert response.status_code == 500
+
+
+class TestUrlPreviewAPI:
+    """Integration tests for URL preview API endpoints."""
+
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata')
+    def test_attachment_preview_success(self, mock_extract_metadata, mock_validate_url, client: FlaskClient):
+        """Test successful URL preview metadata extraction."""
+        mock_extract_metadata.return_value = {
+            'title': 'Test Page Title',
+            'og_image': 'https://example.com/image.jpg',
+            'favicon': 'https://example.com/favicon.ico'
+        }
+
+        response = client.post(
+            '/api/parts/attachment-preview',
+            json={'url': 'https://example.com'}
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['title'] == 'Test Page Title'
+        assert data['image_url'] == '/api/parts/attachment-preview/image?url=https%3A%2F%2Fexample.com'
+        assert data['original_url'] == 'https://example.com'
+
+        mock_validate_url.assert_called_once_with('https://example.com')
+        mock_extract_metadata.assert_called_once_with('https://example.com')
+
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata')
+    def test_attachment_preview_no_image(self, mock_extract_metadata, mock_validate_url, client: FlaskClient):
+        """Test URL preview with no image available."""
+        mock_extract_metadata.return_value = {
+            'title': 'Test Page Title',
+            'og_image': None,
+            'favicon': None
+        }
+
+        response = client.post(
+            '/api/parts/attachment-preview',
+            json={'url': 'https://example.com'}
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['title'] == 'Test Page Title'
+        assert data['image_url'] is None
+        assert data['original_url'] == 'https://example.com'
+
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=False)
+    def test_attachment_preview_invalid_url(self, mock_validate_url, client: FlaskClient):
+        """Test URL preview with invalid URL."""
+        response = client.post(
+            '/api/parts/attachment-preview',
+            json={'url': 'invalid-url'}
+        )
+
+        assert response.status_code == 422
+        data = response.get_json()
+        assert data['error'] == 'Invalid or inaccessible URL'
+        assert data['details']['message'] == 'The provided URL is not valid or cannot be accessed'
+
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata', side_effect=Exception("Extraction failed"))
+    def test_attachment_preview_extraction_error(self, mock_extract_metadata, mock_validate_url, client: FlaskClient):
+        """Test URL preview with extraction failure."""
+        response = client.post(
+            '/api/parts/attachment-preview',
+            json={'url': 'https://example.com'}
+        )
+
+        assert response.status_code == 422
+        data = response.get_json()
+        assert data['error'] == 'Failed to extract URL preview'
+        assert data['details']['message'] == 'Extraction failed'
+
+    def test_attachment_preview_invalid_json(self, client: FlaskClient):
+        """Test URL preview with invalid request data."""
+        response = client.post(
+            '/api/parts/attachment-preview',
+            json={'invalid_field': 'test'}
+        )
+
+        assert response.status_code == 400
+
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_thumbnail_url')
+    @patch('app.services.url_thumbnail_service.URLThumbnailService._download_image')
+    def test_attachment_preview_image_success(self, mock_download_image, mock_extract_thumbnail_url, mock_validate_url, client: FlaskClient):
+        """Test successful preview image retrieval."""
+        mock_extract_thumbnail_url.return_value = ('https://example.com/image.jpg', {})
+        mock_download_image.return_value = (io.BytesIO(b"fake image data"), 'image/jpeg')
+
+        response = client.get('/api/parts/attachment-preview/image?url=https%3A//example.com')
+
+        assert response.status_code == 200
+        assert response.content_type == 'image/jpeg'
+        assert response.data == b"fake image data"
+
+        mock_validate_url.assert_called_once_with('https://example.com')
+        mock_extract_thumbnail_url.assert_called_once_with('https://example.com')
+        mock_download_image.assert_called_once_with('https://example.com/image.jpg', 'https://example.com')
+
+    def test_attachment_preview_image_no_url(self, client: FlaskClient):
+        """Test preview image endpoint without URL parameter."""
+        response = client.get('/api/parts/attachment-preview/image')
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert 'URL parameter required' in data['error']
+
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=False)
+    def test_attachment_preview_image_invalid_url(self, mock_validate_url, client: FlaskClient):
+        """Test preview image with invalid URL."""
+        response = client.get('/api/parts/attachment-preview/image?url=invalid-url')
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert 'Invalid or inaccessible URL' in data['error']
+
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_thumbnail_url', side_effect=Exception("Image extraction failed"))
+    def test_attachment_preview_image_extraction_error(self, mock_extract_thumbnail_url, mock_validate_url, client: FlaskClient):
+        """Test preview image with extraction failure."""
+        response = client.get('/api/parts/attachment-preview/image?url=https%3A//example.com')
+
+        assert response.status_code == 404
+        data = response.get_json()
+        assert 'Failed to retrieve image' in data['error']

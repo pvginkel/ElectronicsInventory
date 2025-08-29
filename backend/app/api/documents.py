@@ -1,5 +1,6 @@
 """Document management API endpoints."""
 
+from urllib.parse import quote
 
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, jsonify, request, send_file
@@ -15,6 +16,7 @@ from app.schemas.part_attachment import (
     PartAttachmentUpdateSchema,
     SetCoverAttachmentSchema,
 )
+from app.schemas.url_preview import UrlPreviewRequestSchema, UrlPreviewResponseSchema
 from app.services.container import ServiceContainer
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
@@ -173,7 +175,7 @@ def download_attachment(part_key: str, attachment_id: int, document_service=Prov
         file_data,
         mimetype=content_type,
         as_attachment=True,
-        download_name=filename or f"attachment_{attachment_id}"
+        download_name=filename or f"attachment_{attachment_id}"  # type: ignore[call-arg]
     )
 
 
@@ -215,3 +217,77 @@ def delete_attachment(part_key: str, attachment_id: int, document_service=Provid
     document_service.delete_attachment(attachment_id)
 
     return '', 204
+
+
+# URL Preview Endpoints
+@documents_bp.route("/attachment-preview", methods=["POST"])
+@api.validate(json=UrlPreviewRequestSchema, resp=SpectreeResponse(HTTP_200=UrlPreviewResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_422=ErrorResponseSchema))
+@handle_api_errors
+@inject
+def attachment_preview(url_thumbnail_service=Provide[ServiceContainer.url_thumbnail_service]):
+    """Get URL preview metadata (title and backend image endpoint URL)."""
+    data = UrlPreviewRequestSchema.model_validate(request.get_json())
+
+    # Validate URL
+    if not url_thumbnail_service.validate_url(data.url):
+        from app.schemas.common import ErrorDetailsSchema, ErrorResponseSchema
+        error_response = ErrorResponseSchema(
+            error='Invalid or inaccessible URL',
+            details=ErrorDetailsSchema(message='The provided URL is not valid or cannot be accessed', field=None)
+        )
+        return error_response.model_dump(), 422
+
+    # Extract metadata
+    try:
+        metadata = url_thumbnail_service.extract_metadata(data.url)
+
+        # Generate backend image endpoint URL
+        image_url = None
+        if metadata.get('og_image') or metadata.get('favicon'):
+            encoded_url = quote(data.url, safe='')
+            image_url = f"/api/parts/attachment-preview/image?url={encoded_url}"
+
+        response_data = UrlPreviewResponseSchema(
+            title=metadata.get('title'),
+            image_url=image_url,
+            original_url=data.url
+        )
+
+        return response_data.model_dump(), 200
+
+    except Exception as e:
+        from app.schemas.common import ErrorDetailsSchema, ErrorResponseSchema
+        error_response = ErrorResponseSchema(
+            error='Failed to extract URL preview',
+            details=ErrorDetailsSchema(message=str(e), field=None)
+        )
+        return error_response.model_dump(), 422
+
+
+@documents_bp.route("/attachment-preview/image", methods=["GET"])
+@handle_api_errors
+@inject
+def attachment_preview_image(url_thumbnail_service=Provide[ServiceContainer.url_thumbnail_service]):
+    """Get preview image for URL."""
+    url = request.args.get('url')
+    if not url:
+        return jsonify({'error': 'URL parameter required'}), 400
+
+    # Validate URL
+    if not url_thumbnail_service.validate_url(url):
+        return jsonify({'error': 'Invalid or inaccessible URL'}), 400
+
+    try:
+        # Extract thumbnail URL and download image
+        thumbnail_url, _ = url_thumbnail_service.extract_thumbnail_url(url)
+        image_data, content_type = url_thumbnail_service._download_image(thumbnail_url, url)
+
+        # Return image data directly
+        return send_file(
+            image_data,
+            mimetype=content_type,
+            as_attachment=False
+        )
+
+    except Exception as e:
+        return jsonify({'error': f'Failed to retrieve image: {str(e)}'}), 404
