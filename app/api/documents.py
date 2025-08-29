@@ -278,9 +278,9 @@ def attachment_preview_image(url_thumbnail_service=Provide[ServiceContainer.url_
         return jsonify({'error': 'Invalid or inaccessible URL'}), 400
 
     try:
-        # Extract thumbnail URL and download image
-        thumbnail_url, _ = url_thumbnail_service.extract_thumbnail_url(url)
-        image_data, content_type = url_thumbnail_service._download_image(thumbnail_url, url)
+        # Get appropriate image URL (direct image or extracted from webpage)
+        image_url = url_thumbnail_service.get_preview_image_url(url)
+        image_data, content_type = url_thumbnail_service._download_image(image_url, url)
 
         # Return image data directly
         return send_file(
