@@ -15,7 +15,7 @@ Implement comprehensive document management functionality for the electronics in
 
 #### `part_attachments` table  
 - `id` (primary key, auto-increment)
-- `part_key` (CHAR(4), foreign key to parts.key)
+- `part_id` (integer, foreign key to parts.id)
 - `attachment_type` (enum: 'url', 'image', 'pdf')
 - `title` (string, user-provided or extracted title)
 - `s3_key` (string, S3 object key - for uploaded files and URL thumbnail images)
@@ -36,8 +36,8 @@ New migration file: `004_add_document_tables.py`
 - `electronics-inventory-part-attachments` - All document storage (images, PDFs, URL thumbnails)
 
 ### S3 Key Structure
-- Part attachments: `parts/{part_key}/attachments/{uuid}.{ext}`
-- URL cover images: `parts/{part_key}/attachments/{uuid}.jpg` (reuses same pattern)
+- Part attachments: `parts/{part_id}/attachments/{uuid}.{ext}`
+- URL cover images: `parts/{part_id}/attachments/{uuid}.jpg` (reuses same pattern)
 
 ## Files to Create
 
@@ -244,7 +244,7 @@ Add document processing settings:
 - Delete attachments and clean up S3 storage
 - Handle attachment type validation
 - Test file size and type restrictions
-- Validate S3 key generation for parts
+- Validate S3 key generation for parts using part_id
 - Handle concurrent attachment operations
 
 #### URLThumbnailService Tests
