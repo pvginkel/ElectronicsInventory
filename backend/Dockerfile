@@ -41,7 +41,9 @@ EXPOSE 5000
 WORKDIR /app
 
 COPY *.py /app
+COPY alembic.ini /app
 COPY app /app/app
+COPY alembic /app/alembic
 
 ENV FLASK_ENV=production
 
