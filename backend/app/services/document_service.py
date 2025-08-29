@@ -310,10 +310,6 @@ class DocumentService(BaseService):
         if attachment.is_image:
             self.image_service.cleanup_thumbnails(attachment.id)
 
-        # Remove from database
-        self.db.delete(attachment)
-        self.db.flush()
-
         # If we just deleted the cover image, find a new one
         if is_cover_image:
             # Find the oldest remaining image attachment for this part
@@ -325,6 +321,10 @@ class DocumentService(BaseService):
             new_cover = self.db.scalar(stmt)
             part.cover_attachment_id = new_cover.id if new_cover else None
             self.db.flush()
+
+        # Remove from database
+        self.db.delete(attachment)
+        self.db.flush()
 
     def get_attachment_file_data(self, attachment_id: int) -> tuple[BytesIO, str, str]:
         """Get attachment file data for download.

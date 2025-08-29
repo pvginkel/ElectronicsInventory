@@ -171,10 +171,13 @@ def download_attachment(part_key: str, attachment_id: int, document_service=Prov
     """Download or stream attachment file."""
     file_data, content_type, filename = document_service.get_attachment_file_data(attachment_id)
 
+    # Check for inline query parameter to set Content-Disposition to inline
+    inline = request.args.get('inline') is not None
+    
     return send_file(
         file_data,
         mimetype=content_type,
-        as_attachment=True,
+        as_attachment=not inline,
         download_name=filename or f"attachment_{attachment_id}"  # type: ignore[call-arg]
     )
 
