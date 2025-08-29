@@ -12,7 +12,7 @@ from app.models.part import Part
 from app.models.part_attachment import AttachmentType, PartAttachment
 from app.models.type import Type
 from app.services.document_service import DocumentService
-from tests.test_document_fixtures import sample_image_file, sample_part, sample_pdf_file
+from tests.test_document_fixtures import sample_image_file, sample_part, sample_pdf_file, sample_pdf_bytes
 
 
 @pytest.fixture

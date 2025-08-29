@@ -20,6 +20,11 @@ def test_settings() -> Settings:
         DEBUG=True,
         FLASK_ENV="testing",
         CORS_ORIGINS=["http://localhost:3000"],
+        # Document service configuration
+        ALLOWED_IMAGE_TYPES=["image/jpeg", "image/png"],
+        ALLOWED_FILE_TYPES=["application/pdf"],
+        MAX_IMAGE_SIZE=10 * 1024 * 1024,  # 10MB
+        MAX_FILE_SIZE=100 * 1024 * 1024,  # 100MB
     )
 
 

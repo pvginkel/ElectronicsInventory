@@ -64,7 +64,7 @@ class URLThumbnailService(BaseService):
             return content.decode('utf-8', errors='ignore')
 
         except requests.exceptions.RequestException as e:
-            raise InvalidOperationException(f"Failed to fetch URL content: {str(e)}")
+            raise InvalidOperationException("fetch URL content", str(e))
 
     def _extract_og_image(self, soup: BeautifulSoup) -> str | None:
         """Extract og:image meta tag from HTML.
@@ -150,14 +150,29 @@ class URLThumbnailService(BaseService):
             for chunk in response.iter_content(chunk_size=8192):
                 total_size += len(chunk)
                 if total_size > max_size:
-                    raise InvalidOperationException("Image too large (>5MB)")
+                    raise InvalidOperationException("download image", "Image too large (>5MB)")
                 image_data.write(chunk)
 
             image_data.seek(0)
             return image_data, content_type
 
         except requests.exceptions.RequestException as e:
-            raise InvalidOperationException(f"Failed to download image: {str(e)}")
+            raise InvalidOperationException("download image", str(e))
+
+    def extract_metadata(self, url: str) -> dict:
+        """Extract metadata from web page.
+
+        Args:
+            url: URL to extract metadata from
+
+        Returns:
+            Dictionary containing page metadata
+
+        Raises:
+            InvalidOperationException: If extraction fails
+        """
+        _, metadata = self.extract_thumbnail_url(url)
+        return metadata
 
     def extract_thumbnail_url(self, url: str) -> tuple[str, dict]:
         """Extract thumbnail URL from web page using og:image, twitter:image, or favicon fallback.
@@ -180,8 +195,15 @@ class URLThumbnailService(BaseService):
             title_tag = soup.find('title')
             page_title = title_tag.text.strip() if title_tag else None
 
+            # Extract meta description
+            desc_tag = soup.find('meta', {'name': 'description'})
+            if not desc_tag:
+                desc_tag = soup.find('meta', {'property': 'og:description'})
+            description = desc_tag.get('content') if desc_tag else None
+
             # Try og:image first
             thumbnail_url = self._extract_og_image(soup)
+            og_image = thumbnail_url
             source = 'og:image'
 
             # Fall back to twitter:image
@@ -190,12 +212,24 @@ class URLThumbnailService(BaseService):
                 source = 'twitter:image'
 
             # Fall back to Google favicon service
+            favicon_url = None
             if not thumbnail_url:
                 thumbnail_url = self._get_favicon_fallback(url)
+                favicon_url = thumbnail_url
                 source = 'favicon'
+            else:
+                # Extract favicon separately
+                favicon_tag = soup.find('link', {'rel': 'icon'})
+                if not favicon_tag:
+                    favicon_tag = soup.find('link', {'rel': 'shortcut icon'})
+                favicon_url = favicon_tag.get('href') if favicon_tag else self._get_favicon_fallback(url)
 
             metadata = {
-                'page_title': page_title,
+                'title': page_title,
+                'page_title': page_title,  # Keep original for backward compatibility
+                'description': description,
+                'og_image': og_image,
+                'favicon': favicon_url,
                 'thumbnail_source': source,
                 'original_url': url
             }
@@ -203,7 +237,7 @@ class URLThumbnailService(BaseService):
             return thumbnail_url, metadata
 
         except Exception as e:
-            raise InvalidOperationException(f"Failed to extract thumbnail URL: {str(e)}")
+            raise InvalidOperationException("extract thumbnail URL", str(e))
 
     def download_and_store_thumbnail(self, url: str, part_id: int) -> tuple[str, str, int, dict]:
         """Download thumbnail image and store in S3.

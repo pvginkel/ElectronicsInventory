@@ -2,101 +2,53 @@
 
 import io
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from flask import Flask
+from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
-from app.models.part import Part
 from app.models.part_attachment import AttachmentType, PartAttachment
-from app.models.type import Type
-from tests.test_document_fixtures import sample_image_file, sample_part, sample_pdf_file
+from app.services.container import ServiceContainer
+from tests.test_document_fixtures import sample_image_file, sample_pdf_file
 
 
-@pytest.fixture
-def part_with_type(session: Session) -> Part:
-    """Create a part with type for API testing."""
-    part_type = Type(name="API Test Type")
-    session.add(part_type)
-    session.flush()
-    
-    part = Part(
-        key="APIP",
-        manufacturer_code="API-001",
-        type_id=part_type.id,
-        description="API test part"
-    )
-    session.add(part)
-    session.flush()
-    return part
 
-
-@pytest.fixture
-def mock_services():
-    """Create mock services for API testing."""
-    s3_service = MagicMock()
-    s3_service.generate_s3_key.return_value = "parts/123/attachments/test.jpg"
-    s3_service.upload_file.return_value = True
-    s3_service.download_file.return_value = io.BytesIO(b"file content")
-    
-    image_service = MagicMock()
-    image_service.process_uploaded_image.return_value = (
-        io.BytesIO(b"processed"), {"width": 100, "height": 100, "format": "JPEG"}
-    )
-    image_service.get_pdf_icon_data.return_value = (b"<svg>pdf</svg>", "image/svg+xml")
-    image_service.get_thumbnail_path.return_value = "/tmp/thumb.jpg"
-    
-    url_service = MagicMock()
-    url_service.validate_url.return_value = True
-    url_service.download_and_store_thumbnail.return_value = (
-        "parts/123/thumbnails/thumb.jpg", "image/jpeg", 1024, {"width": 64, "height": 64}
-    )
-    
-    return s3_service, image_service, url_service
 
 
 class TestDocumentAPI:
     """Integration tests for document API endpoints."""
 
-    def test_create_file_attachment_success(self, client, app: Flask, part_with_type, mock_services):
+    @patch('app.services.document_service.magic.from_buffer')
+    @patch('app.services.s3_service.S3Service.upload_file', return_value=True)
+    @patch('app.services.s3_service.S3Service.generate_s3_key', return_value="parts/TEST/attachments/test.jpg")
+    @patch('app.services.image_service.ImageService.process_uploaded_image')
+    def test_create_file_attachment_success(self, mock_process_image, mock_generate_key, mock_upload, mock_magic, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session, sample_image_file):
         """Test successful file attachment creation via API."""
-        s3_service, image_service, url_service = mock_services
+        mock_magic.return_value = 'image/jpeg'
+        mock_process_image.return_value = (
+            io.BytesIO(b"processed"), {"width": 100, "height": 100, "format": "JPEG"}
+        )
         
         with app.app_context():
-            with patch('app.api.documents.current_app.config') as mock_config:
-                mock_config.get.side_effect = lambda key, default=None: {
-                    'ALLOWED_IMAGE_TYPES': ['image/jpeg', 'image/png'],
-                    'ALLOWED_FILE_TYPES': ['application/pdf'],
-                    'MAX_IMAGE_SIZE': 10 * 1024 * 1024
-                }.get(key, default)
-                
-                with patch('magic.from_buffer') as mock_magic:
-                    mock_magic.return_value = 'image/jpeg'
-                    
-                    # Mock the container to return our mocked services
-                    with patch.object(app.container, 'document_service') as mock_service_factory:
-                        from app.services.document_service import DocumentService
-                        mock_document_service = DocumentService(
-                            app.container.db_session(), s3_service, image_service, url_service
-                        )
-                        mock_service_factory.return_value = mock_document_service
-                        
-                        # Create test image data
-                        from PIL import Image
-                        img = Image.new('RGB', (100, 100), color='red')
-                        img_bytes = io.BytesIO()
-                        img.save(img_bytes, format='JPEG')
-                        img_bytes.seek(0)
-                        
-                        response = client.post(
-                            f'/api/documents/{part_with_type.key}/attachments',
-                            data={
-                                'title': 'Test Image',
-                                'file': (img_bytes, 'test.jpg', 'image/jpeg')
-                            },
-                            content_type='multipart/form-data'
-                        )
+            # Create test part using service
+            part_type = container.type_service().create_type("File Test Type")
+            part = container.part_service().create_part(
+                description="File test part",
+                manufacturer_code="FILE-001",
+                type_id=part_type.id
+            )
+            session.commit()
+            
+            response = client.post(
+                f'/api/parts/{part.key}/attachments',
+                data={
+                    'title': 'Test Image',
+                    'file': (sample_image_file, 'test.jpg', 'image/jpeg')
+                },
+                content_type='multipart/form-data'
+            )
         
         assert response.status_code == 201
         data = response.get_json()
@@ -104,25 +56,29 @@ class TestDocumentAPI:
         assert data['attachment_type'] == 'image'
         assert data['filename'] == 'test.jpg'
 
-    def test_create_url_attachment_success(self, client, app: Flask, part_with_type, mock_services):
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
+    @patch('app.services.url_thumbnail_service.URLThumbnailService.download_and_store_thumbnail', return_value=(
+        "parts/123/thumbnails/thumb.jpg", "image/jpeg", 1024, {"width": 64, "height": 64}
+    ))
+    def test_create_url_attachment_success(self, mock_download, mock_validate, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
         """Test successful URL attachment creation via API."""
-        s3_service, image_service, url_service = mock_services
-        
         with app.app_context():
-            with patch.object(app.container, 'document_service') as mock_service_factory:
-                from app.services.document_service import DocumentService
-                mock_document_service = DocumentService(
-                    app.container.db_session(), s3_service, image_service, url_service
-                )
-                mock_service_factory.return_value = mock_document_service
-                
-                response = client.post(
-                    f'/api/documents/{part_with_type.key}/attachments',
-                    json={
-                        'title': 'Product Page',
-                        'url': 'https://example.com/product'
-                    }
-                )
+            # Create test part using service
+            part_type = container.type_service().create_type("URL Test Type")
+            part = container.part_service().create_part(
+                description="URL test part",
+                manufacturer_code="URL-001",
+                type_id=part_type.id
+            )
+            session.commit()
+            
+            response = client.post(
+                f'/api/parts/{part.key}/attachments',
+                json={
+                    'title': 'Product Page',
+                    'url': 'https://example.com/product'
+                }
+            )
         
         assert response.status_code == 201
         data = response.get_json()
@@ -130,10 +86,19 @@ class TestDocumentAPI:
         assert data['attachment_type'] == 'url'
         assert data['url'] == 'https://example.com/product'
 
-    def test_create_attachment_invalid_json(self, client, part_with_type):
+    def test_create_attachment_invalid_json(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test attachment creation with invalid JSON."""
+        # Create test part using service
+        part_type = container.type_service().create_type("Invalid JSON Test Type")
+        part = container.part_service().create_part(
+            description="Invalid JSON test part",
+            manufacturer_code="INV-001",
+            type_id=part_type.id
+        )
+        session.commit()
+        
         response = client.post(
-            f'/api/documents/{part_with_type.key}/attachments',
+            f'/api/parts/{part.key}/attachments',
             json={
                 'title': 'Missing URL or file'
                 # Neither 'url' nor 'file' provided
@@ -142,10 +107,10 @@ class TestDocumentAPI:
         
         assert response.status_code == 400
 
-    def test_create_attachment_part_not_found(self, client):
+    def test_create_attachment_part_not_found(self, client: FlaskClient):
         """Test attachment creation for non-existent part."""
         response = client.post(
-            '/api/documents/NONEXISTENT/attachments',
+            '/api/parts/NONEXISTENT/attachments',
             json={
                 'title': 'Test',
                 'url': 'https://example.com'
@@ -154,11 +119,20 @@ class TestDocumentAPI:
         
         assert response.status_code == 404
 
-    def test_list_part_attachments(self, client, part_with_type, session):
+    def test_list_part_attachments(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test listing attachments for a part."""
-        # Create test attachments
+        # Create test part using service
+        part_type = container.type_service().create_type("List Test Type")
+        part = container.part_service().create_part(
+            description="List test part",
+            manufacturer_code="LIST-001",
+            type_id=part_type.id
+        )
+        session.commit()
+        
+        # Create test attachments directly (since we're testing listing, not creation)
         attachment1 = PartAttachment(
-            part_id=part_with_type.id,
+            part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
             title="Image 1",
             s3_key="test1.jpg",
@@ -167,15 +141,15 @@ class TestDocumentAPI:
             file_size=1024
         )
         attachment2 = PartAttachment(
-            part_id=part_with_type.id,
+            part_id=part.id,
             attachment_type=AttachmentType.URL,
             title="URL 1",
             url="https://example.com"
         )
         session.add_all([attachment1, attachment2])
-        session.flush()
+        session.commit()
         
-        response = client.get(f'/api/documents/{part_with_type.key}/attachments')
+        response = client.get(f'/api/parts/{part.key}/attachments')
         
         assert response.status_code == 200
         data = response.get_json()
@@ -185,10 +159,19 @@ class TestDocumentAPI:
         assert 'Image 1' in titles
         assert 'URL 1' in titles
 
-    def test_get_single_attachment(self, client, part_with_type, session):
+    def test_get_single_attachment(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test getting single attachment details."""
+        # Create test part using service
+        part_type = container.type_service().create_type("Single Test Type")
+        part = container.part_service().create_part(
+            description="Single test part",
+            manufacturer_code="SING-001",
+            type_id=part_type.id
+        )
+        session.commit()
+        
         attachment = PartAttachment(
-            part_id=part_with_type.id,
+            part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
             title="Test Attachment",
             s3_key="test.jpg",
@@ -197,28 +180,37 @@ class TestDocumentAPI:
             file_size=1024
         )
         session.add(attachment)
-        session.flush()
+        session.commit()
         
-        response = client.get(f'/api/documents/{part_with_type.key}/attachments/{attachment.id}')
+        response = client.get(f'/api/parts/{part.key}/attachments/{attachment.id}')
         
         assert response.status_code == 200
         data = response.get_json()
         assert data['title'] == 'Test Attachment'
         assert data['filename'] == 'test.jpg'
 
-    def test_update_attachment(self, client, part_with_type, session):
+    def test_update_attachment(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test updating attachment metadata."""
+        # Create test part using service
+        part_type = container.type_service().create_type("Update Test Type")
+        part = container.part_service().create_part(
+            description="Update test part",
+            manufacturer_code="UPDT-001",
+            type_id=part_type.id
+        )
+        session.commit()
+        
         attachment = PartAttachment(
-            part_id=part_with_type.id,
+            part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
             title="Original Title",
             s3_key="test.jpg"
         )
         session.add(attachment)
-        session.flush()
+        session.commit()
         
         response = client.put(
-            f'/api/documents/{part_with_type.key}/attachments/{attachment.id}',
+            f'/api/parts/{part.key}/attachments/{attachment.id}',
             json={'title': 'Updated Title'}
         )
         
@@ -226,38 +218,46 @@ class TestDocumentAPI:
         data = response.get_json()
         assert data['title'] == 'Updated Title'
 
-    def test_delete_attachment(self, client, app: Flask, part_with_type, session, mock_services):
+    @patch('app.services.s3_service.S3Service.delete_file', return_value=True)
+    def test_delete_attachment(self, mock_delete, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test deleting attachment."""
-        s3_service, image_service, url_service = mock_services
+        # Create test part using service
+        part_type = container.type_service().create_type("Delete Test Type")
+        part = container.part_service().create_part(
+            description="Delete test part",
+            manufacturer_code="DELT-001",
+            type_id=part_type.id
+        )
+        session.commit()
         
         attachment = PartAttachment(
-            part_id=part_with_type.id,
+            part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
             title="To Delete",
             s3_key="test.jpg"
         )
         session.add(attachment)
-        session.flush()
+        session.commit()
         attachment_id = attachment.id
         
-        with app.app_context():
-            with patch.object(app.container, 'document_service') as mock_service_factory:
-                from app.services.document_service import DocumentService
-                mock_document_service = DocumentService(
-                    app.container.db_session(), s3_service, image_service, url_service
-                )
-                mock_service_factory.return_value = mock_document_service
-                
-                response = client.delete(f'/api/documents/{part_with_type.key}/attachments/{attachment_id}')
+        response = client.delete(f'/api/parts/{part.key}/attachments/{attachment_id}')
         
         assert response.status_code == 204
 
-    def test_download_attachment(self, client, app: Flask, part_with_type, session, mock_services):
+    @patch('app.services.s3_service.S3Service.download_file', return_value=io.BytesIO(b"fake pdf content"))
+    def test_download_attachment(self, mock_download, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test downloading attachment file."""
-        s3_service, image_service, url_service = mock_services
+        # Create test part using service
+        part_type = container.type_service().create_type("Download Test Type")
+        part = container.part_service().create_part(
+            description="Download test part",
+            manufacturer_code="DOWN-001",
+            type_id=part_type.id
+        )
+        session.commit()
         
         attachment = PartAttachment(
-            part_id=part_with_type.id,
+            part_id=part.id,
             attachment_type=AttachmentType.PDF,
             title="Test PDF",
             s3_key="test.pdf",
@@ -265,64 +265,65 @@ class TestDocumentAPI:
             content_type="application/pdf"
         )
         session.add(attachment)
-        session.flush()
+        session.commit()
         
-        with app.app_context():
-            with patch.object(app.container, 'document_service') as mock_service_factory:
-                from app.services.document_service import DocumentService
-                mock_document_service = DocumentService(
-                    app.container.db_session(), s3_service, image_service, url_service
-                )
-                mock_service_factory.return_value = mock_document_service
-                
-                response = client.get(f'/api/documents/{part_with_type.key}/attachments/{attachment.id}/download')
+        response = client.get(f'/api/parts/{part.key}/attachments/{attachment.id}/download')
         
         assert response.status_code == 200
         assert response.content_type == 'application/pdf'
 
-    def test_get_attachment_thumbnail(self, client, app: Flask, part_with_type, session, mock_services):
+    def test_get_attachment_thumbnail(self, client: FlaskClient, container: ServiceContainer, session: Session, tmp_path):
         """Test getting attachment thumbnail."""
-        s3_service, image_service, url_service = mock_services
+        # Create test part using service
+        part_type = container.type_service().create_type("Thumbnail Test Type")
+        part = container.part_service().create_part(
+            description="Thumbnail test part",
+            manufacturer_code="THMB-001",
+            type_id=part_type.id
+        )
+        session.commit()
         
         attachment = PartAttachment(
-            part_id=part_with_type.id,
+            part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
             title="Test Image",
             s3_key="test.jpg"
         )
         session.add(attachment)
-        session.flush()
+        session.commit()
         
-        with app.app_context():
-            with patch.object(app.container, 'document_service') as mock_service_factory:
-                from app.services.document_service import DocumentService
-                mock_document_service = DocumentService(
-                    app.container.db_session(), s3_service, image_service, url_service
-                )
-                mock_service_factory.return_value = mock_document_service
-                
-                # Mock file read for thumbnail
-                with patch('builtins.open', create=True) as mock_open:
-                    mock_open.return_value.__enter__.return_value.read.return_value = b"thumbnail data"
-                    
-                    response = client.get(f'/api/documents/{part_with_type.key}/attachments/{attachment.id}/thumbnail')
+        # Create a real thumbnail file for the test
+        thumbnail_file = tmp_path / "thumbnail.jpg"
+        thumbnail_file.write_bytes(b"fake thumbnail data")
+        
+        with patch('app.services.image_service.ImageService.get_thumbnail_path', return_value=str(thumbnail_file)):
+            response = client.get(f'/api/parts/{part.key}/attachments/{attachment.id}/thumbnail')
         
         assert response.status_code == 200
         assert response.content_type == 'image/jpeg'
 
-    def test_set_part_cover_attachment(self, client, part_with_type, session):
+    def test_set_part_cover_attachment(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test setting part cover attachment."""
+        # Create test part using service
+        part_type = container.type_service().create_type("Cover Set Test Type")
+        part = container.part_service().create_part(
+            description="Cover set test part",
+            manufacturer_code="COVR-001",
+            type_id=part_type.id
+        )
+        session.commit()
+        
         attachment = PartAttachment(
-            part_id=part_with_type.id,
+            part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
             title="Cover Image",
             s3_key="cover.jpg"
         )
         session.add(attachment)
-        session.flush()
+        session.commit()
         
         response = client.put(
-            f'/api/documents/{part_with_type.key}/cover',
+            f'/api/parts/{part.key}/cover',
             json={'attachment_id': attachment.id}
         )
         
@@ -330,132 +331,172 @@ class TestDocumentAPI:
         data = response.get_json()
         assert data['attachment_id'] == attachment.id
 
-    def test_get_part_cover_attachment(self, client, part_with_type, session):
+    def test_get_part_cover_attachment(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test getting part cover attachment."""
+        # Create test part using service
+        part_type = container.type_service().create_type("Cover Get Test Type")
+        part = container.part_service().create_part(
+            description="Cover get test part",
+            manufacturer_code="GETC-001",
+            type_id=part_type.id
+        )
+        session.commit()
+        
         attachment = PartAttachment(
-            part_id=part_with_type.id,
+            part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
             title="Cover Image",
             s3_key="cover.jpg"
         )
         session.add(attachment)
         session.flush()
-        part_with_type.cover_attachment_id = attachment.id
-        session.flush()
+        part.cover_attachment_id = attachment.id
+        session.commit()
         
-        response = client.get(f'/api/documents/{part_with_type.key}/cover')
+        response = client.get(f'/api/parts/{part.key}/cover')
         
         assert response.status_code == 200
         data = response.get_json()
         assert data['attachment_id'] == attachment.id
         assert data['attachment']['title'] == 'Cover Image'
 
-    def test_clear_part_cover_attachment(self, client, part_with_type, session):
+    def test_clear_part_cover_attachment(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test clearing part cover attachment."""
+        # Create test part using service
+        part_type = container.type_service().create_type("Cover Clear Test Type")
+        part = container.part_service().create_part(
+            description="Cover clear test part",
+            manufacturer_code="CLRC-001",
+            type_id=part_type.id
+        )
+        session.commit()
+        
         attachment = PartAttachment(
-            part_id=part_with_type.id,
+            part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
             title="Cover Image",
             s3_key="cover.jpg"
         )
         session.add(attachment)
         session.flush()
-        part_with_type.cover_attachment_id = attachment.id
-        session.flush()
+        part.cover_attachment_id = attachment.id
+        session.commit()
         
-        response = client.delete(f'/api/documents/{part_with_type.key}/cover')
+        response = client.delete(f'/api/parts/{part.key}/cover')
         
         assert response.status_code == 200
         data = response.get_json()
         assert data['attachment_id'] is None
 
-    def test_create_attachment_validation_errors(self, client, part_with_type):
+    def test_create_attachment_validation_errors(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test various validation errors in attachment creation."""
+        # Create test part using service
+        part_type = container.type_service().create_type("Validation Test Type")
+        part = container.part_service().create_part(
+            description="Validation test part",
+            manufacturer_code="VALD-001",
+            type_id=part_type.id
+        )
+        session.commit()
+        
         # Missing title
         response = client.post(
-            f'/api/documents/{part_with_type.key}/attachments',
+            f'/api/parts/{part.key}/attachments',
             json={'url': 'https://example.com'}
         )
-        assert response.status_code == 422
+        assert response.status_code == 400
         
         # Title too long
         response = client.post(
-            f'/api/documents/{part_with_type.key}/attachments',
+            f'/api/parts/{part.key}/attachments',
             json={
                 'title': 'x' * 300,  # Exceeds 255 character limit
                 'url': 'https://example.com'
             }
         )
-        assert response.status_code == 422
+        assert response.status_code == 400
         
         # Invalid URL format
         response = client.post(
-            f'/api/documents/{part_with_type.key}/attachments',
+            f'/api/parts/{part.key}/attachments',
             json={
                 'title': 'Invalid URL',
                 'url': 'x' * 2100  # Exceeds 2000 character limit
             }
         )
-        assert response.status_code == 422
+        assert response.status_code == 400
 
-    def test_attachment_not_found_errors(self, client, part_with_type):
+    def test_attachment_not_found_errors(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test 404 errors for non-existent attachments."""
+        # Create test part using service
+        part_type = container.type_service().create_type("Not Found Test Type")
+        part = container.part_service().create_part(
+            description="Not found test part",
+            manufacturer_code="NOTF-001",
+            type_id=part_type.id
+        )
+        session.commit()
+        
         # Get non-existent attachment
-        response = client.get(f'/api/documents/{part_with_type.key}/attachments/99999')
+        response = client.get(f'/api/parts/{part.key}/attachments/99999')
         assert response.status_code == 404
         
         # Update non-existent attachment
         response = client.put(
-            f'/api/documents/{part_with_type.key}/attachments/99999',
+            f'/api/parts/{part.key}/attachments/99999',
             json={'title': 'New Title'}
         )
         assert response.status_code == 404
         
         # Delete non-existent attachment
-        response = client.delete(f'/api/documents/{part_with_type.key}/attachments/99999')
+        response = client.delete(f'/api/parts/{part.key}/attachments/99999')
         assert response.status_code == 404
 
-    def test_thumbnail_size_parameter(self, client, app: Flask, part_with_type, session, mock_services):
+    def test_thumbnail_size_parameter(self, client: FlaskClient, container: ServiceContainer, session: Session, tmp_path):
         """Test thumbnail endpoint with custom size parameter."""
-        s3_service, image_service, url_service = mock_services
+        # Create test part using service
+        part_type = container.type_service().create_type("Thumb Size Test Type")
+        part = container.part_service().create_part(
+            description="Thumb size test part",
+            manufacturer_code="SIZE-001",
+            type_id=part_type.id
+        )
+        session.commit()
         
         attachment = PartAttachment(
-            part_id=part_with_type.id,
+            part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
             title="Test Image",
             s3_key="test.jpg"
         )
         session.add(attachment)
-        session.flush()
+        session.commit()
         
-        with app.app_context():
-            with patch.object(app.container, 'document_service') as mock_service_factory:
-                from app.services.document_service import DocumentService
-                mock_document_service = DocumentService(
-                    app.container.db_session(), s3_service, image_service, url_service
-                )
-                mock_service_factory.return_value = mock_document_service
-                
-                with patch('builtins.open', create=True) as mock_open:
-                    mock_open.return_value.__enter__.return_value.read.return_value = b"thumbnail data"
-                    
-                    response = client.get(
-                        f'/api/documents/{part_with_type.key}/attachments/{attachment.id}/thumbnail?size=300'
-                    )
+        # Create a real thumbnail file for the test
+        thumbnail_file = tmp_path / "thumbnail.jpg"
+        thumbnail_file.write_bytes(b"fake thumbnail data")
+        
+        with patch('app.services.image_service.ImageService.get_thumbnail_path', return_value=str(thumbnail_file)) as mock_get_thumbnail:
+            response = client.get(
+                f'/api/parts/{part.key}/attachments/{attachment.id}/thumbnail?size=300'
+            )
         
         assert response.status_code == 200
         # Verify the service was called with the custom size
-        image_service.get_thumbnail_path.assert_called_with(attachment.id, 'test.jpg', 300)
+        mock_get_thumbnail.assert_called_with(attachment.id, 'test.jpg', 300)
 
-    def test_error_handling_in_endpoints(self, client, app: Flask, part_with_type):
+    @patch('app.services.document_service.DocumentService.get_part_attachments', side_effect=Exception("Database error"))
+    def test_error_handling_in_endpoints(self, mock_get_attachments, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test error handling in API endpoints."""
-        with app.app_context():
-            with patch.object(app.container, 'document_service') as mock_service_factory:
-                # Mock service to raise an exception
-                mock_document_service = MagicMock()
-                mock_document_service.get_part_attachments.side_effect = Exception("Database error")
-                mock_service_factory.return_value = mock_document_service
-                
-                response = client.get(f'/api/documents/{part_with_type.key}/attachments')
+        # Create test part using service
+        part_type = container.type_service().create_type("Error Test Type")
+        part = container.part_service().create_part(
+            description="Error test part",
+            manufacturer_code="ERRO-001",
+            type_id=part_type.id
+        )
+        session.commit()
+        
+        response = client.get(f'/api/parts/{part.key}/attachments')
         
         assert response.status_code == 500

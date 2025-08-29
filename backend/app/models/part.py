@@ -34,7 +34,7 @@ class Part(db.Model):  # type: ignore[name-defined]
     seller: Mapped[str | None] = mapped_column(String(255), nullable=True)
     seller_link: Mapped[str | None] = mapped_column(String(500), nullable=True)
     cover_attachment_id: Mapped[int | None] = mapped_column(
-        ForeignKey("part_attachments.id"), nullable=True
+        ForeignKey("part_attachments.id", use_alter=True, name="fk_parts_cover_attachment"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.now()
@@ -54,10 +54,17 @@ class Part(db.Model):  # type: ignore[name-defined]
         "QuantityHistory", back_populates="part", cascade="all, delete-orphan", lazy="selectin"
     )
     attachments: Mapped[list["PartAttachment"]] = relationship(  # type: ignore[assignment]
-        "PartAttachment", back_populates="part", cascade="all, delete-orphan", lazy="selectin"
+        "PartAttachment", 
+        back_populates="part", 
+        cascade="all, delete-orphan", 
+        lazy="selectin",
+        foreign_keys="PartAttachment.part_id"
     )
     cover_attachment: Mapped[Optional["PartAttachment"]] = relationship(  # type: ignore[assignment]
-        "PartAttachment", foreign_keys=[cover_attachment_id], lazy="selectin"
+        "PartAttachment", 
+        lazy="selectin",
+        post_update=True,
+        foreign_keys=[cover_attachment_id]
     )
 
     def __repr__(self) -> str:
