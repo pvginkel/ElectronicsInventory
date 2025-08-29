@@ -111,3 +111,16 @@ def container(app: Flask, session: Session):
     # Provide the test session to the container
     container.db_session.override(session)
     return container
+
+
+# Import document fixtures to make them available to all tests
+from .test_document_fixtures import (
+    sample_part,
+    sample_image_file,
+    sample_pdf_bytes,
+    sample_pdf_file,
+    large_image_file,
+    mock_url_metadata,
+    mock_html_content,
+    temp_thumbnail_dir
+)

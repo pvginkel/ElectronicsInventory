@@ -4,6 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import ForeignKey, Integer, String, func
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -31,7 +32,10 @@ class PartAttachment(db.Model):  # type: ignore[name-defined]
     part_id: Mapped[int] = mapped_column(
         ForeignKey("parts.id", ondelete="CASCADE"), nullable=False
     )
-    attachment_type: Mapped[AttachmentType] = mapped_column(nullable=False)
+    attachment_type: Mapped[AttachmentType] = mapped_column(
+        SQLEnum(AttachmentType, name="attachment_type", values_callable=lambda obj: [e.value for e in obj]),
+        nullable=False
+    )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     s3_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
     url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
