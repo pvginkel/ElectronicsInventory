@@ -31,15 +31,53 @@ class Settings(BaseSettings):
         default=["http://localhost:3000"], description="Allowed CORS origins"
     )
 
-    # S3 settings for Ceph
+    # S3/Ceph storage configuration
     S3_ENDPOINT_URL: str = Field(
-        default="http://localhost:9000", description="Ceph RGW S3 endpoint"
+        default="http://localhost:9000",
+        description="Ceph RGW S3-compatible endpoint"
     )
-    AWS_ACCESS_KEY_ID: str = Field(default="minioadmin")
-    AWS_SECRET_ACCESS_KEY: str = Field(default="minioadmin")
-    S3_FORCE_PATH_STYLE: bool = Field(default=True)
-    S3_BUCKET_DOCS: str = Field(default="inventory-docs")
-    S3_BUCKET_IMAGES: str = Field(default="inventory-images")
+    S3_ACCESS_KEY_ID: str = Field(
+        default="admin",
+        description="S3 access key"
+    )
+    S3_SECRET_ACCESS_KEY: str = Field(
+        default="password",
+        description="S3 secret key"
+    )
+    S3_BUCKET_NAME: str = Field(
+        default="electronics-inventory-part-attachments",
+        description="Single bucket for all documents"
+    )
+    S3_REGION: str = Field(
+        default="us-east-1",
+        description="S3 region for boto3"
+    )
+    S3_USE_SSL: bool = Field(
+        default=False,
+        description="SSL for S3 connections (False for local Ceph)"
+    )
+
+    # Document processing settings
+    MAX_IMAGE_SIZE: int = Field(
+        default=10 * 1024 * 1024,  # 10MB
+        description="Maximum image file size in bytes"
+    )
+    MAX_FILE_SIZE: int = Field(
+        default=100 * 1024 * 1024,  # 100MB
+        description="Maximum file size in bytes"
+    )
+    ALLOWED_IMAGE_TYPES: list[str] = Field(
+        default=["image/jpeg", "image/png", "image/webp", "image/svg+xml"],
+        description="Allowed image MIME types"
+    )
+    ALLOWED_FILE_TYPES: list[str] = Field(
+        default=["application/pdf"],
+        description="Allowed file MIME types (excluding images)"
+    )
+    THUMBNAIL_STORAGE_PATH: str = Field(
+        default="/tmp/thumbnails",
+        description="Path for disk-based thumbnail storage"
+    )
 
     # Celery settings
     CELERY_BROKER_URL: str = Field(

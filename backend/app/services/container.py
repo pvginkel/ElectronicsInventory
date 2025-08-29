@@ -4,10 +4,14 @@ from dependency_injector import containers, providers
 from sqlalchemy.orm import Session
 
 from app.services.box_service import BoxService
+from app.services.document_service import DocumentService
+from app.services.image_service import ImageService
 from app.services.inventory_service import InventoryService
 from app.services.part_service import PartService
+from app.services.s3_service import S3Service
 from app.services.test_data_service import TestDataService
 from app.services.type_service import TypeService
+from app.services.url_thumbnail_service import URLThumbnailService
 
 
 class ServiceContainer(containers.DeclarativeContainer):
@@ -21,6 +25,18 @@ class ServiceContainer(containers.DeclarativeContainer):
     box_service = providers.Factory(BoxService, db=db_session)
     type_service = providers.Factory(TypeService, db=db_session)
     test_data_service = providers.Factory(TestDataService, db=db_session)
+
+    # Document management services
+    s3_service = providers.Factory(S3Service, db=db_session)
+    image_service = providers.Factory(ImageService, db=db_session, s3_service=s3_service)
+    url_thumbnail_service = providers.Factory(URLThumbnailService, db=db_session, s3_service=s3_service)
+    document_service = providers.Factory(
+        DocumentService,
+        db=db_session,
+        s3_service=s3_service,
+        image_service=image_service,
+        url_service=url_thumbnail_service
+    )
 
     # InventoryService depends on PartService
     inventory_service = providers.Factory(
