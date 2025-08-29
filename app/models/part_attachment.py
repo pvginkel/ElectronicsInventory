@@ -50,7 +50,8 @@ class PartAttachment(db.Model):  # type: ignore[name-defined]
 
     # Relationships
     part: Mapped["Part"] = relationship(  # type: ignore[assignment]
-        "Part", back_populates="attachments", lazy="selectin"
+        "Part", back_populates="attachments", lazy="selectin",
+        foreign_keys=[part_id]
     )
 
     def __repr__(self) -> str:

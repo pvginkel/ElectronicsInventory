@@ -25,10 +25,10 @@ def validate_image_format(file_data: bytes) -> str:
         with Image.open(BytesIO(file_data)) as img:
             # Validate format is supported
             if img.format not in ['JPEG', 'PNG', 'WEBP', 'BMP', 'TIFF']:
-                raise InvalidOperationException(f"Unsupported image format: {img.format}")
+                raise InvalidOperationException("validate image format", f"Unsupported image format: {img.format}")
             return img.format
     except Exception as e:
-        raise InvalidOperationException(f"Invalid image file: {str(e)}")
+        raise InvalidOperationException("validate image file", str(e))
 
 
 def get_image_dimensions(file_data: bytes) -> tuple[int, int]:
@@ -47,7 +47,7 @@ def get_image_dimensions(file_data: bytes) -> tuple[int, int]:
         with Image.open(BytesIO(file_data)) as img:
             return img.size
     except Exception as e:
-        raise InvalidOperationException(f"Failed to get image dimensions: {str(e)}")
+        raise InvalidOperationException("get image dimensions", str(e))
 
 
 def resize_image(file_data: bytes, max_width: int, max_height: int) -> bytes:
@@ -79,7 +79,7 @@ def resize_image(file_data: bytes, max_width: int, max_height: int) -> bytes:
             return output.getvalue()
 
     except Exception as e:
-        raise InvalidOperationException(f"Failed to resize image: {str(e)}")
+        raise InvalidOperationException("resize image", str(e))
 
 
 def create_thumbnail(file_data: bytes, size: int) -> bytes:
@@ -110,7 +110,7 @@ def create_thumbnail(file_data: bytes, size: int) -> bytes:
             return output.getvalue()
 
     except Exception as e:
-        raise InvalidOperationException(f"Failed to create thumbnail: {str(e)}")
+        raise InvalidOperationException("create thumbnail", str(e))
 
 
 def extract_image_metadata(file_data: bytes) -> dict[str, Any]:
@@ -152,7 +152,7 @@ def extract_image_metadata(file_data: bytes) -> dict[str, Any]:
             return metadata
 
     except Exception as e:
-        raise InvalidOperationException(f"Failed to extract image metadata: {str(e)}")
+        raise InvalidOperationException("extract image metadata", str(e))
 
 
 def optimize_image_for_storage(file_data: bytes, max_size_mb: float = 5.0) -> bytes:
@@ -201,7 +201,7 @@ def optimize_image_for_storage(file_data: bytes, max_size_mb: float = 5.0) -> by
             return output.getvalue()
 
     except Exception as e:
-        raise InvalidOperationException(f"Failed to optimize image: {str(e)}")
+        raise InvalidOperationException("optimize image", str(e))
 
 
 def is_image_file(filename: str) -> bool:

@@ -377,7 +377,9 @@ class DocumentService(BaseService):
                 raise InvalidOperationException("set part cover attachment", "only images can be set as cover attachments")
 
         part.cover_attachment_id = attachment_id
-        self.db.flush()
+        self.db.commit()
+        # Refresh the part to reload the relationship
+        self.db.refresh(part)
 
     def get_part_cover_attachment(self, part_key: str) -> PartAttachment | None:
         """Get part cover attachment.

@@ -105,7 +105,7 @@ class ImageService(BaseService):
             return thumbnail_path
 
         except Exception as e:
-            raise InvalidOperationException(f"Failed to generate thumbnail: {str(e)}")
+            raise InvalidOperationException("generate thumbnail", str(e))
 
     def get_thumbnail_path(self, attachment_id: int, s3_key: str, size: int) -> str:
         """Get thumbnail path, generating if necessary.
@@ -126,12 +126,11 @@ class ImageService(BaseService):
 
         return thumbnail_path
 
-    def process_uploaded_image(self, image_data: BinaryIO, max_size: int = None) -> tuple[BinaryIO, dict]:
+    def process_uploaded_image(self, image_data: BinaryIO) -> tuple[BinaryIO, dict]:
         """Process uploaded image and extract metadata.
 
         Args:
             image_data: Image file data
-            max_size: Optional maximum dimension to resize to
 
         Returns:
             Tuple of (processed_image_data, metadata_dict)
@@ -163,13 +162,6 @@ class ImageService(BaseService):
                 if img.mode not in ('RGB', 'L'):
                     img = img.convert('RGB')
 
-                # Resize if max_size is specified
-                if max_size and (img.width > max_size or img.height > max_size):
-                    img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-                    metadata['resized'] = True
-                    metadata['new_width'] = img.width
-                    metadata['new_height'] = img.height
-
                 # Save processed image
                 output = BytesIO()
                 img.save(output, 'JPEG', quality=90, optimize=True)
@@ -178,7 +170,7 @@ class ImageService(BaseService):
                 return output, metadata
 
         except Exception as e:
-            raise InvalidOperationException(f"Failed to process image: {str(e)}")
+            raise InvalidOperationException("process image", f"image processing failed: {str(e)}")
 
     def get_pdf_icon_data(self) -> tuple[bytes, str]:
         """Get PDF icon as SVG data.
