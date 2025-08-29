@@ -33,7 +33,7 @@ COPY --from=build ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 ENV DATA_PATH=/app/data
 
 RUN apt update && \
-    apt install -y tini && \
+    apt install -y tini netcat-openbsd && \
     rm -rf /var/lib/apt/lists/*
 
 EXPOSE 5000
