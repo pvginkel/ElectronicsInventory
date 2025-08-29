@@ -108,7 +108,7 @@ function AddDocumentModalContent({
             {/* URL Input */}
             <div>
               <FormLabel className="block mb-2">
-                Website URL
+                URL
               </FormLabel>
               <Input
                 placeholder="https://example.com/datasheet.pdf"
@@ -144,7 +144,7 @@ function AddDocumentModalContent({
             {/* Preview Area / File Drop */}
             <div>
               <FormLabel className="block mb-2">
-                File or Preview
+                Preview
               </FormLabel>
               
               {document && isPreviewImage ? (
@@ -220,10 +220,6 @@ function AddDocumentModalContent({
                         </svg>
                       </div>
                     )}
-                    <p className="text-sm font-medium">{document.name}</p>
-                    <p className="text-sm text-muted-foreground break-all">
-                      {document.url}
-                    </p>
                   </div>
                 </div>
               ) : (

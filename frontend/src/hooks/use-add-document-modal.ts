@@ -50,7 +50,7 @@ export function useAddDocumentModal(partId: string) {
     setDocument(prev => ({
       type: 'url',
       url: previewState.url || trimmedUrl,
-      name: prev?.name || previewState.title || trimmedUrl,
+      name: prev?.name || previewState.title,
     }));
   }, [processUrl, previewState]);
 

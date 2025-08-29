@@ -73,17 +73,15 @@ export function useUrlPreview() {
       setPreviewState(prev => ({
         ...prev,
         url: previewData.original_url,
-        title: previewData.title || previewData.original_url.replace(/^https?:\/\//, '').split('/')[0],
+        title: previewData.title || '',
         isLoading: false,
         error: null,
         imageUrl: absoluteImageUrl,
       }));
     } catch {
-      const fallbackTitle = normalizedUrl.replace(/^https?:\/\//, '').split('/')[0];
-      
       setPreviewState(prev => ({
         ...prev,
-        title: fallbackTitle,
+        title: '',
         isLoading: false,
         error: 'Could not fetch page preview',
         imageUrl: null,
