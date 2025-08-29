@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.extensions import db
 
 if TYPE_CHECKING:
+    from app.models.part_attachment import PartAttachment
     from app.models.part_location import PartLocation
     from app.models.quantity_history import QuantityHistory
     from app.models.type import Type
@@ -32,6 +33,9 @@ class Part(db.Model):  # type: ignore[name-defined]
     )
     seller: Mapped[str | None] = mapped_column(String(255), nullable=True)
     seller_link: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    cover_attachment_id: Mapped[int | None] = mapped_column(
+        ForeignKey("part_attachments.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.now()
     )
@@ -48,6 +52,12 @@ class Part(db.Model):  # type: ignore[name-defined]
     )
     quantity_history: Mapped[list["QuantityHistory"]] = relationship(  # type: ignore[assignment]
         "QuantityHistory", back_populates="part", cascade="all, delete-orphan", lazy="selectin"
+    )
+    attachments: Mapped[list["PartAttachment"]] = relationship(  # type: ignore[assignment]
+        "PartAttachment", back_populates="part", cascade="all, delete-orphan", lazy="selectin"
+    )
+    cover_attachment: Mapped[Optional["PartAttachment"]] = relationship(  # type: ignore[assignment]
+        "PartAttachment", foreign_keys=[cover_attachment_id], lazy="selectin"
     )
 
     def __repr__(self) -> str:

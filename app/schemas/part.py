@@ -6,6 +6,10 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
+from app.schemas.part_attachment import (
+    PartAttachmentListSchema,
+    PartAttachmentResponseSchema,
+)
 from app.schemas.type import TypeResponseSchema
 
 if TYPE_CHECKING:
@@ -124,6 +128,18 @@ class PartResponseSchema(BaseModel):
     seller_link: str | None = Field(
         description="Product page URL",
         json_schema_extra={"example": "https://www.digikey.com/en/products/detail/G5Q-1A4"}
+    )
+    cover_attachment_id: int | None = Field(
+        description="ID of the cover attachment image",
+        json_schema_extra={"example": 123}
+    )
+    attachments: list[PartAttachmentListSchema] = Field(
+        description="List of part attachments (images, PDFs, URLs)",
+        default=[]
+    )
+    cover_attachment: PartAttachmentResponseSchema | None = Field(
+        description="Cover attachment details",
+        default=None
     )
     created_at: datetime = Field(
         description="Timestamp when the part was created",
