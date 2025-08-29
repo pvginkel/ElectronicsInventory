@@ -2048,6 +2048,62 @@
         "title": "TypeUpdateSchema",
         "type": "object"
       },
+      "UrlPreviewRequestSchema.1ff70b0": {
+        "description": "Schema for URL preview requests.",
+        "properties": {
+          "url": {
+            "description": "URL to preview",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "UrlPreviewRequestSchema",
+        "type": "object"
+      },
+      "UrlPreviewResponseSchema.1ff70b0": {
+        "description": "Schema for URL preview responses.",
+        "properties": {
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Backend endpoint URL for preview image",
+            "title": "Image Url"
+          },
+          "original_url": {
+            "description": "Original URL",
+            "title": "Original Url",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Page title",
+            "title": "Title"
+          }
+        },
+        "required": [
+          "original_url"
+        ],
+        "title": "UrlPreviewResponseSchema",
+        "type": "object"
+      },
       "ValidationError.6a07bef": {
         "description": "Model of a validation error response.",
         "items": {
@@ -2783,6 +2839,67 @@
           }
         },
         "summary": "Create new part.",
+        "tags": []
+      }
+    },
+    "/api/parts/attachment-preview": {
+      "post": {
+        "description": "",
+        "operationId": "post__api_parts_attachment-preview",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UrlPreviewRequestSchema.1ff70b0"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UrlPreviewResponseSchema.1ff70b0"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "summary": "Get URL preview metadata (title and backend image endpoint URL).",
+        "tags": []
+      }
+    },
+    "/api/parts/attachment-preview/image": {
+      "get": {
+        "description": "",
+        "operationId": "get__api_parts_attachment-preview_image",
+        "parameters": [],
+        "responses": {},
+        "summary": "Get preview image for URL.",
         "tags": []
       }
     },

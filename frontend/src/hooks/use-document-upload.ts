@@ -1,0 +1,171 @@
+import { useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { validateFile } from '@/lib/utils/file-validation';
+
+export interface UploadProgress {
+  partId: string;
+  progress: number;
+  isUploading: boolean;
+  error?: string;
+}
+
+export interface DocumentUploadOptions {
+  partId: string;
+  file?: File;
+  url?: string;
+  name: string;
+  onProgress?: (progress: number) => void;
+}
+
+export function useDocumentUpload() {
+  const [uploadProgress, setUploadProgress] = useState<Record<string, UploadProgress>>({});
+  const queryClient = useQueryClient();
+
+  const uploadDocument = useCallback(async (options: DocumentUploadOptions) => {
+    const { partId, file, url, name, onProgress } = options;
+    
+    // Validate inputs
+    if (!file && !url) {
+      throw new Error('Either file or URL must be provided');
+    }
+
+    if (file && !url) {
+      // File upload validation
+      const validation = validateFile(file);
+      if (!validation.isValid) {
+        throw new Error(validation.error);
+      }
+    }
+
+    if (url && !file) {
+      // URL validation
+      try {
+        new URL(url);
+      } catch {
+        throw new Error('Invalid URL format');
+      }
+    }
+
+    // Set initial upload state
+    const uploadKey = `${partId}-${Date.now()}`;
+    setUploadProgress(prev => ({
+      ...prev,
+      [uploadKey]: {
+        partId,
+        progress: 0,
+        isUploading: true,
+      }
+    }));
+
+    try {
+      let response: Response;
+
+      if (file) {
+        // File upload - use multipart/form-data
+        const formData = new FormData();
+        formData.append('title', name);
+        formData.append('file', file);
+        
+        // Update progress
+        onProgress?.(25);
+        setUploadProgress(prev => ({
+          ...prev,
+          [uploadKey]: { ...prev[uploadKey], progress: 25 }
+        }));
+
+        onProgress?.(50);
+        setUploadProgress(prev => ({
+          ...prev,
+          [uploadKey]: { ...prev[uploadKey], progress: 50 }
+        }));
+
+        response = await fetch(`/api/parts/${encodeURIComponent(partId)}/attachments`, {
+          method: 'POST',
+          body: formData,
+        });
+      } else if (url) {
+        // URL attachment - use JSON
+        onProgress?.(25);
+        setUploadProgress(prev => ({
+          ...prev,
+          [uploadKey]: { ...prev[uploadKey], progress: 25 }
+        }));
+
+        onProgress?.(50);
+        setUploadProgress(prev => ({
+          ...prev,
+          [uploadKey]: { ...prev[uploadKey], progress: 50 }
+        }));
+
+        response = await fetch(`/api/parts/${encodeURIComponent(partId)}/attachments`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: name,
+            url: url,
+          }),
+        });
+      } else {
+        throw new Error('Either file or URL must be provided');
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Upload failed: ${response.status} ${errorText}`);
+      }
+
+      // Complete progress
+      onProgress?.(100);
+      setUploadProgress(prev => ({
+        ...prev,
+        [uploadKey]: { ...prev[uploadKey], progress: 100, isUploading: false }
+      }));
+
+      // Invalidate queries to refresh the UI
+      queryClient.invalidateQueries({ 
+        queryKey: ['getPartsAttachmentsByPartKey', { path: { part_key: partId } }] 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['getPartsCoverByPartKey', { path: { part_key: partId } }] 
+      });
+
+      // Clean up progress after a delay
+      setTimeout(() => {
+        setUploadProgress(prev => {
+          const { [uploadKey]: removed, ...rest } = prev;
+          return rest;
+        });
+      }, 2000);
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+      
+      setUploadProgress(prev => ({
+        ...prev,
+        [uploadKey]: {
+          ...prev[uploadKey],
+          isUploading: false,
+          error: errorMessage
+        }
+      }));
+
+      // Clean up after error display
+      setTimeout(() => {
+        setUploadProgress(prev => {
+          const { [uploadKey]: removed, ...rest } = prev;
+          return rest;
+        });
+      }, 5000);
+
+      throw error;
+    }
+  }, [queryClient]);
+
+  return {
+    uploadDocument,
+    uploadProgress,
+    isUploading: Object.values(uploadProgress).some(p => p.isUploading),
+  };
+}

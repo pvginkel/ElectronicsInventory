@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import { useGetParts, type PartWithTotalSchemaList_a9993e3_PartWithTotalSchema } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 
@@ -141,13 +142,19 @@ function PartListItem({ part, onClick }: PartListItemProps) {
       onClick={onClick}
     >
       <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-4 mb-2">
-            <span className="font-semibold text-lg">{displayDescription}</span>
-            <span className="text-muted-foreground">
-              Total Quantity: {part.total_quantity ?? part.quantity ?? 0}
-            </span>
-          </div>
+        <div className="flex items-center gap-4 flex-1">
+          <CoverImageDisplay 
+            partId={part.key} 
+            size="small" 
+            showPlaceholder={false}
+          />
+          <div className="flex-1">
+            <div className="flex items-center gap-4 mb-2">
+              <span className="font-semibold text-lg">{displayDescription}</span>
+              <span className="text-muted-foreground">
+                Total Quantity: {part.total_quantity ?? part.quantity ?? 0}
+              </span>
+            </div>
           
           <p className="font-mono text-sm mb-2">{displayId}</p>
           
@@ -177,8 +184,8 @@ function PartListItem({ part, onClick }: PartListItemProps) {
               ))}
             </div>
           )}
+          </div>
         </div>
-
       </div>
     </Card>
   );

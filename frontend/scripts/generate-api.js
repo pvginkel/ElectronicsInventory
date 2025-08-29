@@ -289,6 +289,9 @@ function transformOperationId(operationId) {
   let baseName = operationId.replace(/\{[^}]+\}/g, '_');
   baseName = baseName.replace(/__api/g, '');
   
+  // Replace hyphens with underscores
+  baseName = baseName.replace(/-/g, '_');
+  
   // Clean up multiple consecutive underscores
   baseName = baseName.replace(/_+/g, '_');
   baseName = baseName.replace(/^_|_$/g, ''); // Remove leading/trailing underscores

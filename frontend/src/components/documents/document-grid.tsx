@@ -1,0 +1,88 @@
+import { DocumentCard } from './document-card';
+import { DocumentViewer, useDocumentViewer } from './document-viewer';
+import { useCoverAttachment } from '@/hooks/use-cover-image';
+
+interface Document {
+  id: string;
+  name: string;
+  type: 'file' | 'url';
+  url?: string | null;
+  filename?: string | null;
+  fileSize?: number | null;
+  mimeType?: string | null;
+  createdAt: string;
+}
+
+interface DocumentGridProps {
+  partId: string;
+  documents: Document[];
+  onDocumentClick?: (document: Document) => void;
+  onDocumentChange?: () => void;
+}
+
+export function DocumentGrid({ 
+  partId, 
+  documents, 
+  onDocumentClick,
+  onDocumentChange 
+}: DocumentGridProps) {
+  const { coverAttachment } = useCoverAttachment(partId);
+  const { openViewer } = useDocumentViewer(documents);
+
+  const handleDocumentClick = (document: Document) => {
+    if (document.type === 'file' && document.mimeType?.startsWith('image/')) {
+      // Open images in the viewer
+      openViewer(document.id);
+    } else {
+      // Use the provided click handler for other types (URLs, PDFs)
+      onDocumentClick?.(document);
+    }
+  };
+
+  if (documents.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+          <svg 
+            width="32" 
+            height="32" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2"
+            className="text-muted-foreground"
+          >
+            <path d="M14 2H6C4.9 2 4 2.9 4 4v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/>
+            <path d="M14 2v6h6"/>
+            <path d="M16 13H8"/>
+            <path d="M16 17H8"/>
+            <path d="M10 9H8"/>
+          </svg>
+        </div>
+        <h3 className="text-lg font-medium mb-2">No documents yet</h3>
+        <p className="text-muted-foreground mb-4">
+          Add images, PDFs, or website links to document this part.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {documents.map((document) => (
+          <DocumentCard
+            key={document.id}
+            partId={partId}
+            document={document}
+            isCover={coverAttachment?.id === parseInt(document.id)}
+            onClick={() => handleDocumentClick(document)}
+            onCoverChange={onDocumentChange}
+          />
+        ))}
+      </div>
+      
+      <DocumentViewer partId={partId} documents={documents} />
+    </>
+  );
+}

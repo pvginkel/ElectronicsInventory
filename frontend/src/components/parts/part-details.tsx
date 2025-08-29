@@ -5,7 +5,11 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { PartLocationGrid } from './part-location-grid';
 import { PartForm } from './part-form';
+import { CoverImageDisplay } from '@/components/documents/cover-image-display';
+import { DocumentGrid } from '@/components/documents/document-grid';
+import { AddDocumentModal } from '@/components/documents/add-document-modal';
 import { useGetPartsByPartKey, useDeletePartsByPartKey } from '@/lib/api/generated/hooks';
+import { usePartDocuments } from '@/hooks/use-part-documents';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { useConfirm } from '@/hooks/use-confirm';
 
@@ -15,6 +19,7 @@ interface PartDetailsProps {
 
 export function PartDetails({ partId }: PartDetailsProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [showAddDocument, setShowAddDocument] = useState(false);
   const navigate = useNavigate();
   const { confirm, confirmProps } = useConfirm();
   
@@ -23,6 +28,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
     { enabled: !!partId }
   );
   
+  const { documents, refetch: refetchDocuments } = usePartDocuments(partId);
   const deletePartMutation = useDeletePartsByPartKey();
 
   const handleDeletePart = async () => {
@@ -117,9 +123,17 @@ export function PartDetails({ partId }: PartDetailsProps) {
               <CardTitle>Part Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <div className="text-sm font-medium">Part ID</div>
-                <div className="text-2xl font-bold font-mono">{displayId}</div>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Part ID</div>
+                  <div className="text-2xl font-bold font-mono">{displayId}</div>
+                </div>
+                <CoverImageDisplay 
+                  partId={partId} 
+                  size="medium" 
+                  className="ml-4" 
+                  showPlaceholder={false}
+                />
               </div>
               
               <div>
@@ -182,7 +196,36 @@ export function PartDetails({ partId }: PartDetailsProps) {
         </div>
       </div>
 
+      {/* Documents Section */}
+      <Card className="mt-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Documents</CardTitle>
+            <Button
+              onClick={() => setShowAddDocument(true)}
+              size="sm"
+            >
+              Add Document
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <DocumentGrid
+            partId={partId}
+            documents={documents}
+            onDocumentChange={refetchDocuments}
+          />
+        </CardContent>
+      </Card>
+
       <ConfirmDialog {...confirmProps} />
+      
+      <AddDocumentModal
+        partId={partId}
+        open={showAddDocument}
+        onOpenChange={setShowAddDocument}
+        onDocumentAdded={refetchDocuments}
+      />
     </div>
   );
 }
