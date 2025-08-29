@@ -5,9 +5,10 @@ interface DialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   children: ReactNode
+  className?: string
 }
 
-export function Dialog({ open, onOpenChange, children }: DialogProps) {
+export function Dialog({ open, onOpenChange, children, className }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const mouseDownOutside = useRef(false)
 
@@ -40,7 +41,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
   return (
     <dialog
       ref={dialogRef}
-      className="backdrop:bg-black/50 bg-transparent p-0 rounded-lg shadow-lg max-w-lg w-full"
+      className={`backdrop:bg-black/50 backdrop-blur-sm bg-transparent p-0 rounded-lg shadow-lg ${className || 'max-w-lg w-full'}`}
       onClose={handleClose}
       onMouseDown={handleMouseDown}
       onClick={handleClick}

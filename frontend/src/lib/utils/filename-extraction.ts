@@ -28,15 +28,6 @@ export function generateTimestampFilename(extension?: string): string {
   return extension ? `capture_${timestamp}${extension}` : `capture_${timestamp}`;
 }
 
-export function sanitizeFilename(filename: string): string {
-  // Remove or replace invalid characters for filenames
-  return filename
-    .replace(/[<>:"/\\|?*]/g, '_')
-    .replace(/\s+/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_+|_+$/g, '');
-}
-
 export function getFileExtension(filename: string): string {
   const lastDotIndex = filename.lastIndexOf('.');
   return lastDotIndex > 0 ? filename.slice(lastDotIndex) : '';

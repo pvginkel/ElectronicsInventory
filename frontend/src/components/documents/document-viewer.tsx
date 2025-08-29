@@ -12,12 +12,26 @@ interface Document {
   createdAt: string;
 }
 
-interface DocumentViewerProps {
-  partId: string;
-  documents: Document[];
+interface DocumentViewerHook {
+  isOpen: boolean;
+  currentDocument: Document | null;
+  currentIndex: number;
+  totalDocuments: number;
+  openViewer: (documentId: string) => void;
+  closeViewer: () => void;
+  goToNext: () => void;
+  goToPrevious: () => void;
+  goToIndex: (index: number) => void;
+  canGoNext: boolean;
+  canGoPrevious: boolean;
 }
 
-export function DocumentViewer({ partId, documents }: DocumentViewerProps) {
+interface DocumentViewerProps {
+  partId: string;
+  viewerHook: DocumentViewerHook;
+}
+
+export function DocumentViewer({ partId, viewerHook }: DocumentViewerProps) {
   const {
     isOpen,
     currentDocument,
@@ -28,7 +42,7 @@ export function DocumentViewer({ partId, documents }: DocumentViewerProps) {
     goToPrevious,
     canGoNext,
     canGoPrevious,
-  } = useDocumentViewer(documents);
+  } = viewerHook;
 
   return (
     <>

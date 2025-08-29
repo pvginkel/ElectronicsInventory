@@ -156,9 +156,6 @@ function AddDocumentModalContent({
                       alt="Preview"
                       className="max-w-full max-h-64 object-contain rounded mb-4"
                     />
-                    <p className="text-sm text-muted-foreground">
-                      {document.file?.name} ({(document.file?.size || 0 / 1024 / 1024).toFixed(1)}MB)
-                    </p>
                     <Button
                       variant="outline"
                       size="sm"
@@ -185,10 +182,6 @@ function AddDocumentModalContent({
                         <path d="M14 2v6h6"/>
                       </svg>
                     </div>
-                    <p className="text-sm font-medium">{document.file.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {(document.file.size / 1024 / 1024).toFixed(1)}MB
-                    </p>
                     <Button
                       variant="outline"
                       size="sm"

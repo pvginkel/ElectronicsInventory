@@ -20,6 +20,9 @@ export interface DocumentUploadOptions {
 export function useDocumentUpload() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, UploadProgress>>({});
   const queryClient = useQueryClient();
+  
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 
+    (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5000');
 
   const uploadDocument = useCallback(async (options: DocumentUploadOptions) => {
     const { partId, file, url, name, onProgress } = options;
@@ -79,7 +82,7 @@ export function useDocumentUpload() {
           [uploadKey]: { ...prev[uploadKey], progress: 50 }
         }));
 
-        response = await fetch(`/api/parts/${encodeURIComponent(partId)}/attachments`, {
+        response = await fetch(`${baseUrl}/api/parts/${encodeURIComponent(partId)}/attachments`, {
           method: 'POST',
           body: formData,
         });
@@ -97,7 +100,7 @@ export function useDocumentUpload() {
           [uploadKey]: { ...prev[uploadKey], progress: 50 }
         }));
 
-        response = await fetch(`/api/parts/${encodeURIComponent(partId)}/attachments`, {
+        response = await fetch(`${baseUrl}/api/parts/${encodeURIComponent(partId)}/attachments`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -161,7 +164,7 @@ export function useDocumentUpload() {
 
       throw error;
     }
-  }, [queryClient]);
+  }, [queryClient, baseUrl]);
 
   return {
     uploadDocument,

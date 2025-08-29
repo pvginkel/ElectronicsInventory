@@ -1,10 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useDocumentUpload } from './use-document-upload';
 import { useUrlPreview } from './use-url-preview';
-import { extractFilenameFromFile, generateTimestampFilename, sanitizeFilename } from '@/lib/utils/filename-extraction';
+import { extractFilenameFromFile, generateTimestampFilename } from '@/lib/utils/filename-extraction';
 
 export interface DocumentToAdd {
-  type: 'file' | 'url' | 'camera';
+  type?: 'file' | 'url' | 'camera';
   file?: File;
   url?: string;
   name: string;
@@ -13,50 +13,61 @@ export interface DocumentToAdd {
 
 export function useAddDocumentModal(partId: string) {
   const [isOpen, setIsOpen] = useState(false);
-  const [document, setDocument] = useState<DocumentToAdd | null>(null);
+  const [document, setDocument] = useState<DocumentToAdd>({ name: ''});
   const [uploadProgress, setUploadProgress] = useState(0);
   
   const { uploadDocument, isUploading } = useDocumentUpload();
   const { previewState, processUrl, clearPreview } = useUrlPreview();
 
+  const clearDocument = useCallback(() => {
+    setDocument({ name: '' });
+  }, []);
+
   const openModal = useCallback(() => {
     setIsOpen(true);
-    setDocument(null);
+    clearDocument();
     setUploadProgress(0);
     clearPreview();
   }, [clearPreview]);
 
   const closeModal = useCallback(() => {
     setIsOpen(false);
-    setDocument(null);
+    clearDocument();
     setUploadProgress(0);
     clearPreview();
   }, [clearPreview]);
 
-
   const handleUrlChange = useCallback(async (url: string) => {
-    if (!url.trim()) {
-      setDocument(null);
+    const trimmedUrl = url.trim();
+
+    if (!trimmedUrl) {
+      setDocument(prev => ({ ...prev, url: '', type: undefined }));
       return;
     }
 
-    const trimmedUrl = url.trim();
+    setDocument(prev => ({
+      ...prev,
+      url: trimmedUrl,
+      type: 'url'
+    }));
     
     // Process URL using backend preview
     await processUrl(trimmedUrl);
-    
-    // Backend will handle image detection automatically
-    // Always treat as URL attachment - backend decides how to process it
-    setDocument(prev => ({
-      type: 'url',
-      url: previewState.url || trimmedUrl,
-      name: prev?.name || previewState.title,
-    }));
-  }, [processUrl, previewState]);
+  }, [processUrl]);
 
   const handleFileSelect = useCallback((files: File[]) => {
     const file = files[0];
-    if (!file) return;
+    if (!file) {
+      // Clear file when no files are provided (Remove File functionality)
+      setDocument(prev => {
+        // Clean up any existing preview URL
+        if (prev?.preview) {
+          URL.revokeObjectURL(prev.preview);
+        }
+        return { name: prev?.name || '' };
+      });
+      return;
+    }
 
     const name = extractFilenameFromFile(file);
     let preview: string | undefined;
@@ -66,28 +77,28 @@ export function useAddDocumentModal(partId: string) {
       preview = URL.createObjectURL(file);
     }
 
-    setDocument({
+    setDocument(prev => ({
       type: 'file',
       file,
-      name: sanitizeFilename(name),
+      name: prev?.name || name,
       preview,
-    });
+    }));
   }, []);
 
   const handleCameraCapture = useCallback((file: File) => {
     const timestampName = generateTimestampFilename('.jpg');
     const preview = URL.createObjectURL(file);
 
-    setDocument({
+    setDocument(prev => ({
       type: 'camera',
       file,
-      name: timestampName,
+      name: prev?.name || timestampName,
       preview,
-    });
+    }));
   }, []);
 
   const handleNameChange = useCallback((name: string) => {
-    setDocument(prev => prev ? { ...prev, name: sanitizeFilename(name) } : null);
+    setDocument(prev => ({ ...prev, name }));
   }, []);
 
   const handleSubmit = useCallback(async () => {
@@ -107,6 +118,17 @@ export function useAddDocumentModal(partId: string) {
       console.error('Upload failed:', error);
     }
   }, [document, partId, uploadDocument, closeModal]);
+
+  // Sync previewState with document when URL preview data becomes available
+  useEffect(() => {
+    if (document?.type === 'url' && previewState.title) {
+      setDocument(prev => ({
+        ...prev,
+        url: previewState.url || prev?.url || '',
+        name: prev?.name || previewState.title,
+      }));
+    }
+  }, [previewState.title, previewState.url, document?.type]);
 
   // Clean up object URLs when document changes
   const previousPreview = document?.preview;

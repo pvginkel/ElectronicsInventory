@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Thumbnail } from '@/components/ui/thumbnail';
-import { HoverActions, IconButton } from '@/components/ui/hover-actions';
+import { IconButton } from '@/components/ui/hover-actions';
+import { ConfirmDialog } from '@/components/ui/dialog';
+import { useConfirm } from '@/hooks/use-confirm';
 import { useSetCoverAttachment } from '@/hooks/use-cover-image';
 import { useDeleteDocument } from '@/hooks/use-part-documents';
-import { getDownloadUrl } from '@/lib/utils/thumbnail-urls';
 
 interface DocumentCardProps {
   partId: string;
@@ -31,6 +32,7 @@ export function DocumentCard({
 }: DocumentCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   
+  const { confirm, confirmProps } = useConfirm();
   const setCoverMutation = useSetCoverAttachment();
   const deleteDocumentMutation = useDeleteDocument();
 
@@ -47,7 +49,14 @@ export function DocumentCard({
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Are you sure you want to delete "${document.name}"?`)) {
+    const confirmed = await confirm({
+      title: 'Delete Document',
+      description: `Are you sure you want to delete "${document.name}"? This action cannot be undone.`,
+      confirmText: 'Delete',
+      destructive: true
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -71,17 +80,9 @@ export function DocumentCard({
       // Open URL in new tab
       window.open(document.url, '_blank', 'noopener,noreferrer');
     } else if (document.type === 'file') {
-      const isPdf = document.mimeType === 'application/pdf' || 
-                    document.filename?.toLowerCase().endsWith('.pdf');
-      
-      if (isPdf) {
-        // Open PDF in new tab
-        const downloadUrl = getDownloadUrl(partId, document.id);
-        window.open(downloadUrl, '_blank', 'noopener,noreferrer');
-      } else {
-        // For images, trigger the onClick to open in modal viewer
-        onClick?.();
-      }
+      // For all file types (images and PDFs), use the onClick handler
+      // The parent component will decide how to handle them
+      onClick?.();
     }
   };
 
@@ -101,33 +102,7 @@ export function DocumentCard({
     <div className={`relative bg-card border rounded-lg overflow-hidden transition-all ${
       isDeleting ? 'opacity-50 pointer-events-none' : 'hover:shadow-md'
     }`}>
-      <HoverActions
-        className="aspect-square"
-        actions={
-          <>
-            <IconButton
-              onClick={handleSetCover}
-              icon={
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-                </svg>
-              }
-              tooltip={isCover ? "Current cover" : "Set as cover"}
-              variant={isCover ? "default" : "default"}
-            />
-            <IconButton
-              onClick={handleDelete}
-              icon={
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                </svg>
-              }
-              tooltip="Delete"
-              variant="destructive"
-            />
-          </>
-        }
-      >
+      <div className="relative aspect-square">
         <div 
           className="w-full h-full cursor-pointer"
           onClick={handleCardClick}
@@ -155,7 +130,31 @@ export function DocumentCard({
             />
           )}
         </div>
-      </HoverActions>
+        
+        {/* Action buttons positioned at top-right */}
+        <div className="absolute top-2 right-2 flex space-x-1">
+          <IconButton
+            onClick={handleSetCover}
+            icon={
+              <svg width="16" height="16" viewBox="0 0 24 24" fill={isCover ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" className={isCover ? "text-blue-500" : ""}>
+                <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+              </svg>
+            }
+            tooltip={isCover ? "Current cover" : "Set as cover"}
+            variant="default"
+          />
+          <IconButton
+            onClick={handleDelete}
+            icon={
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
+            }
+            tooltip="Delete"
+            variant="destructive"
+          />
+        </div>
+      </div>
 
       <div className="p-3">
         <h3 className="text-sm font-medium truncate mb-1" title={document.name}>
@@ -171,16 +170,6 @@ export function DocumentCard({
           )}
         </div>
 
-        {isCover && (
-          <div className="mt-2">
-            <span className="inline-flex items-center px-2 py-1 text-xs bg-primary/10 text-primary rounded-full">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="mr-1">
-                <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-              </svg>
-              Cover
-            </span>
-          </div>
-        )}
       </div>
 
       {isDeleting && (
@@ -188,6 +177,8 @@ export function DocumentCard({
           <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
         </div>
       )}
+
+      <ConfirmDialog {...confirmProps} />
     </div>
   );
 }

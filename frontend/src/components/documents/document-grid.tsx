@@ -27,14 +27,15 @@ export function DocumentGrid({
   onDocumentChange 
 }: DocumentGridProps) {
   const { coverAttachment } = useCoverAttachment(partId);
-  const { openViewer } = useDocumentViewer(documents);
+  const documentViewerHook = useDocumentViewer(documents);
+  const { openViewer } = documentViewerHook;
 
   const handleDocumentClick = (document: Document) => {
-    if (document.type === 'file' && document.mimeType?.startsWith('image/')) {
-      // Open images in the viewer
+    if (document.type === 'file') {
+      // Open all file types (images and PDFs) in the viewer
       openViewer(document.id);
     } else {
-      // Use the provided click handler for other types (URLs, PDFs)
+      // Use the provided click handler for URLs
       onDocumentClick?.(document);
     }
   };
@@ -82,7 +83,7 @@ export function DocumentGrid({
         ))}
       </div>
       
-      <DocumentViewer partId={partId} documents={documents} />
+      <DocumentViewer partId={partId} viewerHook={documentViewerHook} />
     </>
   );
 }

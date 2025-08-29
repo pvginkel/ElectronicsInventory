@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { IconButton } from '@/components/ui/hover-actions';
-import { getDownloadUrl } from '@/lib/utils/thumbnail-urls';
+import { getDownloadUrl, getViewUrl } from '@/lib/utils/thumbnail-urls';
 
 interface MediaViewerProps {
   partId: string;
@@ -118,71 +118,81 @@ export function MediaViewer({
 
   const isImage = document.type === 'file' && 
                  document.mimeType?.startsWith('image/');
+  
+  const isPdf = document.type === 'file' && 
+                document.mimeType === 'application/pdf';
 
-  if (!isImage) {
-    // For non-images, just close the modal (they should open in browser)
+  if (!isImage && !isPdf) {
+    // For non-images and non-PDFs, just close the modal (they should open in browser)
     onClose();
     return null;
   }
 
-  const imageUrl = getDownloadUrl(partId, document.id);
+  // Use view URL for displaying
+  const fileUrl = getViewUrl(partId, document.id);
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-full p-0 bg-black/95">
+    <Dialog open={open} onOpenChange={onClose} className="w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h-none m-[30px]">
+      <DialogContent className="w-full h-full p-0 bg-black/95">
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 z-10 bg-black/80 backdrop-blur-sm p-4">
           <div className="flex items-center justify-between text-white">
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <h2 className="text-lg font-medium truncate">{document.name}</h2>
-              {totalCount && totalCount > 1 && (
-                <p className="text-sm text-white/70">
-                  {(currentIndex ?? 0) + 1} of {totalCount}
-                </p>
-              )}
             </div>
             
             <div className="flex items-center space-x-2">
-              <IconButton
-                onClick={zoomOut}
-                icon={
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8"/>
-                    <path d="M21 21l-4.35-4.35"/>
-                    <line x1="8" y1="11" x2="14" y2="11"/>
-                  </svg>
-                }
-                tooltip="Zoom out"
-              />
-              
-              <span className="text-sm px-2">{Math.round(zoom * 100)}%</span>
-              
-              <IconButton
-                onClick={zoomIn}
-                icon={
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8"/>
-                    <path d="M21 21l-4.35-4.35"/>
-                    <line x1="11" y1="8" x2="11" y2="14"/>
-                    <line x1="8" y1="11" x2="14" y2="11"/>
-                  </svg>
-                }
-                tooltip="Zoom in"
-              />
-              
-              <IconButton
-                onClick={resetZoom}
-                icon={
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
-                    <path d="M21 3v5h-5"/>
-                    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
-                    <path d="M8 16H3v5"/>
-                  </svg>
-                }
-                tooltip="Reset zoom"
-              />
-              
+              {/* Only show zoom controls for images */}
+              {isImage && (
+                <>
+                  <IconButton
+                    onClick={zoomOut}
+                    icon={
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="M21 21l-4.35-4.35"/>
+                        <line x1="8" y1="11" x2="14" y2="11"/>
+                      </svg>
+                    }
+                    tooltip="Zoom out"
+                  />
+                  
+                  <span className="text-sm px-2">{Math.round(zoom * 100)}%</span>
+                  
+                  <IconButton
+                    onClick={zoomIn}
+                    icon={
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="M21 21l-4.35-4.35"/>
+                        <line x1="11" y1="8" x2="11" y2="14"/>
+                        <line x1="8" y1="11" x2="14" y2="11"/>
+                      </svg>
+                    }
+                    tooltip="Zoom in"
+                  />
+                  
+                  <IconButton
+                    onClick={resetZoom}
+                    icon={
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                        <path d="M21 3v5h-5"/>
+                        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                        <path d="M8 16H3v5"/>
+                      </svg>
+                    }
+                    tooltip="Reset zoom"
+                  />
+                </>
+              )}
+
+              {totalCount && totalCount > 1 && (
+                <span className="text-sm text-white/70 whitespace-nowrap">
+                  {(currentIndex ?? 0) + 1} of {totalCount}
+                </span>
+              )}
+
               <IconButton
                 onClick={handleDownload}
                 icon={
@@ -209,50 +219,62 @@ export function MediaViewer({
           </div>
         </div>
 
-        {/* Image Container */}
+        {/* Content Container */}
         <div 
           ref={containerRef}
-          className="absolute inset-0 pt-20 pb-16 flex items-center justify-center overflow-hidden"
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onWheel={handleWheel}
-          style={{ cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
+          className={`absolute inset-0 pt-16 overflow-hidden ${
+            isImage ? 'flex items-center justify-center' : ''
+          }`}
+          onMouseDown={isImage ? handleMouseDown : undefined}
+          onMouseMove={isImage ? handleMouseMove : undefined}
+          onMouseUp={isImage ? handleMouseUp : undefined}
+          onMouseLeave={isImage ? handleMouseUp : undefined}
+          onWheel={isImage ? handleWheel : undefined}
+          style={{ cursor: isImage && zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
         >
-          {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-2 border-white border-t-transparent" />
-            </div>
-          )}
-          
-          {imageError ? (
-            <div className="text-center text-white">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/20 flex items-center justify-center">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="15" y1="9" x2="9" y2="15"/>
-                  <line x1="9" y1="9" x2="15" y2="15"/>
-                </svg>
-              </div>
-              <p>Failed to load image</p>
-            </div>
-          ) : (
-            <img
-              ref={imageRef}
-              src={imageUrl}
-              alt={document.name}
-              className="max-w-full max-h-full object-contain select-none"
-              style={{
-                transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
-                transition: isDragging ? 'none' : 'transform 0.2s ease-out',
-                opacity: isLoading ? 0 : 1
-              }}
-              onLoad={handleImageLoad}
-              onError={handleImageError}
-              draggable={false}
+          {isImage ? (
+            <>
+              {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-2 border-white border-t-transparent" />
+                </div>
+              )}
+              
+              {imageError ? (
+                <div className="text-center text-white">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/20 flex items-center justify-center">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="15" y1="9" x2="9" y2="15"/>
+                      <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                  </div>
+                  <p>Failed to load image</p>
+                </div>
+              ) : (
+                <img
+                  ref={imageRef}
+                  src={fileUrl}
+                  alt={document.name}
+                  className="max-w-full max-h-full object-contain select-none"
+                  style={{
+                    transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
+                    transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+                    opacity: isLoading ? 0 : 1
+                  }}
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                  draggable={false}
+                />
+              )}
+            </>
+          ) : isPdf ? (
+            <iframe
+              src={fileUrl}
+              className="w-full h-full border-0"
+              title={document.name}
             />
-          )}
+          ) : null}
         </div>
 
         {/* Navigation */}

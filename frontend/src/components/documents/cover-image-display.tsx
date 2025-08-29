@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useCoverAttachment } from '@/hooks/use-cover-image';
 import { getCoverThumbnailUrl, generateCoverSrcSet, getSizesAttribute } from '@/lib/utils/thumbnail-urls';
 
@@ -15,8 +15,18 @@ export function CoverImageDisplay({
   className = '', 
   showPlaceholder = false 
 }: CoverImageDisplayProps) {
-  const { coverAttachment, isLoading } = useCoverAttachment(partId);
+  const { coverAttachment, isLoading, dataUpdatedAt } = useCoverAttachment(partId);
   const [imageError, setImageError] = useState(false);
+
+  // Generate cache buster based on when the cover data was last updated
+  const cacheBuster = useMemo(() => {
+    return dataUpdatedAt || Date.now();
+  }, [dataUpdatedAt]);
+
+  // Reset image error when cache buster changes (new image to load)
+  useEffect(() => {
+    setImageError(false);
+  }, [cacheBuster]);
 
   if (isLoading) {
     return (
@@ -71,8 +81,9 @@ export function CoverImageDisplay({
   return (
     <div className={`rounded-lg overflow-hidden bg-muted ${getSizeClasses(size)} ${className}`}>
       <img
-        src={getCoverThumbnailUrl(partId, size)}
-        srcSet={generateCoverSrcSet(partId)}
+        key={`cover-${partId}-${cacheBuster}`}
+        src={getCoverThumbnailUrl(partId, size, cacheBuster)}
+        srcSet={generateCoverSrcSet(partId, cacheBuster)}
         sizes={getSizesAttribute()}
         alt={coverAttachment.title}
         className="w-full h-full object-cover"
