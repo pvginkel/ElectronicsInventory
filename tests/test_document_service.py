@@ -525,3 +525,188 @@ class TestDocumentService:
         """Test getting part cover attachment when none set."""
         cover = document_service.get_part_cover_attachment(sample_part.key)
         assert cover is None
+
+
+    def test_first_image_becomes_cover_automatically(self, document_service, session, sample_part, sample_image_file):
+        """Test that the first image attachment automatically becomes the cover image."""
+        with patch('flask.current_app.config') as mock_config:
+            mock_config.get.side_effect = lambda key, default=None: {
+                'ALLOWED_IMAGE_TYPES': ['image/jpeg', 'image/png'],
+                'ALLOWED_FILE_TYPES': ['application/pdf'],
+                'MAX_IMAGE_SIZE': 10 * 1024 * 1024
+            }.get(key, default)
+
+            with patch('magic.from_buffer') as mock_magic:
+                mock_magic.return_value = 'image/jpeg'
+
+                # Verify part has no cover initially
+                assert sample_part.cover_attachment_id is None
+
+                # Create first image attachment
+                attachment = document_service.create_file_attachment(
+                    part_key=sample_part.key,
+                    title="First Image",
+                    file_data=sample_image_file,
+                    filename="first.jpg",
+                    content_type="image/jpeg"
+                )
+
+                session.refresh(sample_part)
+
+                # Verify first image became cover
+                assert sample_part.cover_attachment_id == attachment.id
+
+    def test_second_image_does_not_change_cover(self, document_service, session, sample_part, sample_image_file):
+        """Test that subsequent image attachments don't change the cover if one is already set."""
+        with patch('flask.current_app.config') as mock_config:
+            mock_config.get.side_effect = lambda key, default=None: {
+                'ALLOWED_IMAGE_TYPES': ['image/jpeg', 'image/png'],
+                'ALLOWED_FILE_TYPES': ['application/pdf'],
+                'MAX_IMAGE_SIZE': 10 * 1024 * 1024
+            }.get(key, default)
+
+            with patch('magic.from_buffer') as mock_magic:
+                mock_magic.return_value = 'image/jpeg'
+
+                # Create first image
+                first_attachment = document_service.create_file_attachment(
+                    part_key=sample_part.key,
+                    title="First Image",
+                    file_data=sample_image_file,
+                    filename="first.jpg",
+                    content_type="image/jpeg"
+                )
+
+                session.refresh(sample_part)
+                original_cover_id = sample_part.cover_attachment_id
+                assert original_cover_id == first_attachment.id
+
+                # Create second image
+                sample_image_file.seek(0)  # Reset file pointer
+                second_attachment = document_service.create_file_attachment(
+                    part_key=sample_part.key,
+                    title="Second Image",
+                    file_data=sample_image_file,
+                    filename="second.jpg",
+                    content_type="image/jpeg"
+                )
+
+                session.refresh(sample_part)
+
+                # Verify cover didn't change
+                assert sample_part.cover_attachment_id == original_cover_id
+                assert sample_part.cover_attachment_id != second_attachment.id
+
+    def test_pdf_does_not_become_cover(self, document_service, session, sample_part, sample_pdf_file):
+        """Test that PDF attachments do not automatically become cover images."""
+        with patch('flask.current_app.config') as mock_config:
+            mock_config.get.side_effect = lambda key, default=None: {
+                'ALLOWED_IMAGE_TYPES': ['image/jpeg', 'image/png'],
+                'ALLOWED_FILE_TYPES': ['application/pdf'],
+                'MAX_FILE_SIZE': 100 * 1024 * 1024
+            }.get(key, default)
+
+            with patch('magic.from_buffer') as mock_magic:
+                mock_magic.return_value = 'application/pdf'
+
+                # Verify part has no cover initially
+                assert sample_part.cover_attachment_id is None
+
+                # Create PDF attachment
+                document_service.create_file_attachment(
+                    part_key=sample_part.key,
+                    title="PDF Document",
+                    file_data=sample_pdf_file,
+                    filename="document.pdf",
+                    content_type="application/pdf"
+                )
+
+                session.refresh(sample_part)
+
+                # Verify PDF did not become cover
+                assert sample_part.cover_attachment_id is None
+
+    def test_deleting_cover_image_selects_next_oldest(self, document_service, session, sample_part, sample_image_file):
+        """Test that deleting the cover image selects the next oldest image as the new cover."""
+        from datetime import datetime, timedelta
+
+
+        with patch('flask.current_app.config') as mock_config:
+            mock_config.get.side_effect = lambda key, default=None: {
+                'ALLOWED_IMAGE_TYPES': ['image/jpeg', 'image/png'],
+                'ALLOWED_FILE_TYPES': ['application/pdf'],
+                'MAX_IMAGE_SIZE': 10 * 1024 * 1024
+            }.get(key, default)
+
+            with patch('magic.from_buffer') as mock_magic:
+                mock_magic.return_value = 'image/jpeg'
+
+                base_time = datetime.now()
+
+                # Create first image (oldest)
+                first_attachment = document_service.create_file_attachment(
+                    part_key=sample_part.key,
+                    title="First Image",
+                    file_data=sample_image_file,
+                    filename="first.jpg",
+                    content_type="image/jpeg"
+                )
+                first_attachment.created_at = base_time
+                session.flush()
+
+                # Create second image
+                sample_image_file.seek(0)
+                second_attachment = document_service.create_file_attachment(
+                    part_key=sample_part.key,
+                    title="Second Image",
+                    file_data=sample_image_file,
+                    filename="second.jpg",
+                    content_type="image/jpeg"
+                )
+                second_attachment.created_at = base_time + timedelta(minutes=1)
+                session.flush()
+
+                session.refresh(sample_part)
+
+                # Verify first is cover
+                assert sample_part.cover_attachment_id == first_attachment.id
+
+                # Delete the cover image
+                document_service.delete_attachment(first_attachment.id)
+                session.refresh(sample_part)
+
+                # Verify second image became cover
+                assert sample_part.cover_attachment_id == second_attachment.id
+
+    def test_deleting_last_image_clears_cover(self, document_service, session, sample_part, sample_image_file):
+        """Test that deleting the last image attachment clears the cover."""
+        with patch('flask.current_app.config') as mock_config:
+            mock_config.get.side_effect = lambda key, default=None: {
+                'ALLOWED_IMAGE_TYPES': ['image/jpeg', 'image/png'],
+                'ALLOWED_FILE_TYPES': ['application/pdf'],
+                'MAX_IMAGE_SIZE': 10 * 1024 * 1024
+            }.get(key, default)
+
+            with patch('magic.from_buffer') as mock_magic:
+                mock_magic.return_value = 'image/jpeg'
+
+                # Create single image
+                attachment = document_service.create_file_attachment(
+                    part_key=sample_part.key,
+                    title="Only Image",
+                    file_data=sample_image_file,
+                    filename="only.jpg",
+                    content_type="image/jpeg"
+                )
+
+                session.refresh(sample_part)
+
+                # Verify it became cover
+                assert sample_part.cover_attachment_id == attachment.id
+
+                # Delete the only image
+                document_service.delete_attachment(attachment.id)
+                session.refresh(sample_part)
+
+                # Verify cover is cleared
+                assert sample_part.cover_attachment_id is None

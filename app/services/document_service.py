@@ -158,6 +158,11 @@ class DocumentService(BaseService):
         self.db.add(attachment)
         self.db.flush()
 
+        # Auto-set as cover image if this is the first image attachment and part has no cover
+        if attachment_type == AttachmentType.IMAGE and not part.cover_attachment_id:
+            part.cover_attachment_id = attachment.id
+            self.db.flush()
+
         return attachment
 
     def create_url_attachment(self, part_key: str, title: str, url: str) -> PartAttachment:
@@ -191,10 +196,18 @@ class DocumentService(BaseService):
         except Exception as e:
             raise InvalidOperationException("create URL attachment", f"failed to process URL: {str(e)}")
 
+        # Determine attachment type based on content type (same logic as preview)
+        if metadata.get('content_type') == 'image':
+            attachment_type = AttachmentType.IMAGE
+        elif metadata.get('content_type') == 'pdf':
+            attachment_type = AttachmentType.PDF
+        else:
+            attachment_type = AttachmentType.URL
+
         # Create attachment record
         attachment = PartAttachment(
             part_id=part.id,
-            attachment_type=AttachmentType.URL,
+            attachment_type=attachment_type,
             title=title,
             s3_key=s3_key,
             url=url,
@@ -205,6 +218,11 @@ class DocumentService(BaseService):
 
         self.db.add(attachment)
         self.db.flush()
+
+        # Auto-set as cover image if this is the first image attachment and part has no cover
+        if attachment_type == AttachmentType.IMAGE and not part.cover_attachment_id:
+            part.cover_attachment_id = attachment.id
+            self.db.flush()
 
         return attachment
 
@@ -276,6 +294,10 @@ class DocumentService(BaseService):
             RecordNotFoundException: If attachment not found
         """
         attachment = self.get_attachment(attachment_id)
+        part = attachment.part
+
+        # Check if this attachment is the current cover image
+        is_cover_image = (part.cover_attachment_id == attachment_id)
 
         # Clean up S3 file if exists
         if attachment.s3_key:
@@ -291,6 +313,18 @@ class DocumentService(BaseService):
         # Remove from database
         self.db.delete(attachment)
         self.db.flush()
+
+        # If we just deleted the cover image, find a new one
+        if is_cover_image:
+            # Find the oldest remaining image attachment for this part
+            stmt = select(PartAttachment).where(
+                PartAttachment.part_id == part.id,
+                PartAttachment.attachment_type == AttachmentType.IMAGE
+            ).order_by(PartAttachment.created_at)
+
+            new_cover = self.db.scalar(stmt)
+            part.cover_attachment_id = new_cover.id if new_cover else None
+            self.db.flush()
 
     def get_attachment_file_data(self, attachment_id: int) -> tuple[BytesIO, str, str]:
         """Get attachment file data for download.
