@@ -2,7 +2,6 @@
 
 import io
 import os
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -69,16 +68,16 @@ class TestImageService:
     def test_process_uploaded_image_normal_size(self, image_service, sample_image_bytes):
         """Test processing a normal-sized image."""
         file_data = io.BytesIO(sample_image_bytes)
-        
+
         result_data, metadata = image_service.process_uploaded_image(file_data)
-        
+
         assert isinstance(result_data, io.BytesIO)
         assert isinstance(metadata, dict)
         assert 'width' in metadata
         assert 'height' in metadata
         assert 'format' in metadata
         assert metadata['format'] in ['JPEG', 'PNG', 'WEBP']
-        
+
         # Verify image was processed
         result_data.seek(0)
         processed_img = Image.open(result_data)
@@ -88,10 +87,10 @@ class TestImageService:
     def test_process_uploaded_image_invalid_format(self, image_service):
         """Test processing invalid image data."""
         invalid_data = io.BytesIO(b"not an image")
-        
+
         with pytest.raises(InvalidOperationException) as exc_info:
             image_service.process_uploaded_image(invalid_data)
-        
+
         assert "process image" in str(exc_info.value)
 
     def test_generate_thumbnail_creates_file(self, image_service, sample_image_bytes, temp_dir):
@@ -99,15 +98,15 @@ class TestImageService:
         attachment_id = 123
         s3_key = "test/image.jpg"
         size = 150
-        
+
         # Mock S3 service to return image data
         image_service.s3_service.download_file.return_value = io.BytesIO(sample_image_bytes)
-        
+
         thumbnail_path = image_service.generate_thumbnail(attachment_id, s3_key, size)
-        
+
         # Check that thumbnail file was created
         assert os.path.exists(thumbnail_path)
-        
+
         # Verify thumbnail size
         with Image.open(thumbnail_path) as thumb_img:
             assert max(thumb_img.size) <= size
@@ -116,19 +115,19 @@ class TestImageService:
         """Test generating thumbnails of different sizes."""
         attachment_id = 123
         s3_key = "test/image.jpg"
-        
+
         # Mock S3 service to return image data
         image_service.s3_service.download_file.return_value = io.BytesIO(sample_image_bytes)
-        
+
         # Generate different sizes
         path_150 = image_service.generate_thumbnail(attachment_id, s3_key, 150)
         path_300 = image_service.generate_thumbnail(attachment_id, s3_key, 300)
-        
+
         # Both should exist and be different files
         assert os.path.exists(path_150)
         assert os.path.exists(path_300)
         assert path_150 != path_300
-        
+
         # Verify sizes
         with Image.open(path_150) as thumb_150:
             with Image.open(path_300) as thumb_300:
@@ -141,22 +140,22 @@ class TestImageService:
         attachment_id = 456
         s3_key = "parts/456/test.jpg"
         size = 150
-        
+
         # Ensure thumbnail doesn't exist yet
         thumbnail_path = image_service._get_thumbnail_path(attachment_id, size)
         if os.path.exists(thumbnail_path):
             os.remove(thumbnail_path)
-        
+
         # Mock S3 service to return image data
         mock_s3_service = MagicMock()
         sample_img = Image.new('RGB', (400, 300), color='green')
         img_bytes = io.BytesIO()
         sample_img.save(img_bytes, format='JPEG')
         mock_s3_service.download_file.return_value = img_bytes
-        
+
         with patch.object(image_service, 's3_service', mock_s3_service):
             returned_path = image_service.get_thumbnail_path(attachment_id, s3_key, size)
-        
+
         assert os.path.exists(returned_path)
         mock_s3_service.download_file.assert_called_once_with(s3_key)
 
@@ -165,17 +164,17 @@ class TestImageService:
         attachment_id = 789
         size = 150
         s3_key = "test/image.jpg"
-        
-        # Mock S3 service to return image data  
+
+        # Mock S3 service to return image data
         image_service.s3_service.download_file.return_value = io.BytesIO(sample_image_bytes)
-        
+
         # Create thumbnail first
         expected_path = image_service.generate_thumbnail(attachment_id, s3_key, size)
-        
+
         # Now get the path - should return same path without regenerating
         with patch.object(image_service, 's3_service') as mock_s3:
             returned_path = image_service.get_thumbnail_path(attachment_id, "any/key", size)
-        
+
         assert returned_path == expected_path
         # S3 service should not have been called since thumbnail exists
         mock_s3.download_file.assert_not_called()
@@ -184,21 +183,21 @@ class TestImageService:
         """Test cleanup removes all thumbnails for an attachment."""
         attachment_id = 999
         s3_key = "test/image.jpg"
-        
+
         # Mock S3 service to return image data
         image_service.s3_service.download_file.return_value = io.BytesIO(sample_image_bytes)
-        
+
         # Create multiple thumbnail sizes
         path_150 = image_service.generate_thumbnail(attachment_id, s3_key, 150)
         path_300 = image_service.generate_thumbnail(attachment_id, s3_key, 300)
-        
+
         # Verify they exist
         assert os.path.exists(path_150)
         assert os.path.exists(path_300)
-        
+
         # Cleanup
         image_service.cleanup_thumbnails(attachment_id)
-        
+
         # Verify they're gone
         assert not os.path.exists(path_150)
         assert not os.path.exists(path_300)
@@ -206,7 +205,7 @@ class TestImageService:
     def test_get_pdf_icon_data_returns_svg(self, image_service):
         """Test getting PDF icon returns SVG data."""
         svg_data, content_type = image_service.get_pdf_icon_data()
-        
+
         assert isinstance(svg_data, bytes)
         assert content_type == 'image/svg+xml'
         assert b'<svg' in svg_data
@@ -216,15 +215,15 @@ class TestImageService:
         """Test thumbnail path structure is consistent."""
         attachment_id = 123
         size = 150
-        
+
         # Create service with explicit path
         with app.app_context():
             with patch('app.services.image_service.current_app') as mock_current_app:
                 mock_current_app.config = {'THUMBNAIL_STORAGE_PATH': str(temp_dir)}
                 service = ImageService(session, mock_s3_service)
-                
+
                 path = service._get_thumbnail_path(attachment_id, size)
-                
+
                 # Should be in format: {base_path}/{id}_{size}.jpg
                 expected = temp_dir / f"{attachment_id}_{size}.jpg"
                 assert path == str(expected)
@@ -235,14 +234,14 @@ class TestImageService:
         original = Image.new('RGB', (1000, 800), color='red')
         original_bytes = io.BytesIO()
         original.save(original_bytes, format='JPEG', quality=95)
-        
+
         file_data = io.BytesIO(original_bytes.getvalue())
         result_data, metadata = image_service.process_uploaded_image(file_data)
-        
+
         # Check that result is still reasonable quality (not too compressed)
         result_size = len(result_data.getvalue())
         original_size = len(original_bytes.getvalue())
-        
+
         # Result shouldn't be more than 10x smaller (indicating over-compression)
         assert result_size > original_size / 10
 
@@ -252,15 +251,15 @@ class TestImageService:
         portrait = Image.new('RGB', (400, 800), color='purple')
         portrait_bytes = io.BytesIO()
         portrait.save(portrait_bytes, format='JPEG')
-        
+
         attachment_id = 111
         s3_key = "test/portrait.jpg"
-        
+
         # Mock S3 service to return image data
         image_service.s3_service.download_file.return_value = io.BytesIO(portrait_bytes.getvalue())
-        
+
         thumbnail_path = image_service.generate_thumbnail(attachment_id, s3_key, 150)
-        
+
         # Check thumbnail maintains aspect ratio
         with Image.open(thumbnail_path) as thumb:
             # Height should be the limiting dimension
@@ -273,15 +272,15 @@ class TestImageService:
         landscape = Image.new('RGB', (800, 400), color='orange')
         landscape_bytes = io.BytesIO()
         landscape.save(landscape_bytes, format='JPEG')
-        
+
         attachment_id = 222
         s3_key = "test/landscape.jpg"
-        
+
         # Mock S3 service to return image data
         image_service.s3_service.download_file.return_value = io.BytesIO(landscape_bytes.getvalue())
-        
+
         thumbnail_path = image_service.generate_thumbnail(attachment_id, s3_key, 150)
-        
+
         # Check thumbnail maintains aspect ratio
         with Image.open(thumbnail_path) as thumb:
             # Width should be the limiting dimension
