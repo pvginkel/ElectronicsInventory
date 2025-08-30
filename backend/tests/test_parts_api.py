@@ -26,6 +26,13 @@ class TestPartsAPI:
             assert response_data["description"] == "1k ohm resistor"
             assert response_data["manufacturer_code"] is None
             assert response_data["total_quantity"] == 0
+            # Extended fields should be None by default
+            assert response_data["package"] is None
+            assert response_data["pin_count"] is None
+            assert response_data["voltage_rating"] is None
+            assert response_data["mounting_type"] is None
+            assert response_data["series"] is None
+            assert response_data["dimensions"] is None
 
     def test_create_part_full_data(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test creating a part with full data."""
@@ -40,7 +47,13 @@ class TestPartsAPI:
                 "type_id": type_obj.id,
                 "tags": ["1k", "5%"],
                 "seller": "Digi-Key",
-                "seller_link": "https://digikey.com/product/123"
+                "seller_link": "https://digikey.com/product/123",
+                "package": "0805",
+                "pin_count": 2,
+                "voltage_rating": "50V",
+                "mounting_type": "Surface Mount",
+                "series": "Standard",
+                "dimensions": "2.0x1.25mm"
             }
 
             response = client.post("/api/parts", json=data)
@@ -53,6 +66,13 @@ class TestPartsAPI:
             assert response_data["type_id"] == type_obj.id
             assert response_data["tags"] == ["1k", "5%"]
             assert response_data["seller"] == "Digi-Key"
+            # Extended fields
+            assert response_data["package"] == "0805"
+            assert response_data["pin_count"] == 2
+            assert response_data["voltage_rating"] == "50V"
+            assert response_data["mounting_type"] == "Surface Mount"
+            assert response_data["series"] == "Standard"
+            assert response_data["dimensions"] == "2.0x1.25mm"
 
     def test_create_part_invalid_data(self, app: Flask, client: FlaskClient):
         """Test creating a part with invalid data."""
@@ -271,3 +291,102 @@ class TestPartsAPI:
         """Test getting history for non-existent part."""
         response = client.get("/api/parts/AAAA/history")
         assert response.status_code == 404
+
+    def test_create_part_with_extended_fields_only(self, app: Flask, client: FlaskClient):
+        """Test creating a part with only extended fields."""
+        with app.app_context():
+            data = {
+                "description": "DIP-8 Logic IC",
+                "package": "DIP-8",
+                "pin_count": 8,
+                "voltage_rating": "5V",
+                "mounting_type": "Through-hole",
+                "series": "74HC",
+                "dimensions": "9.53x6.35mm"
+            }
+
+            response = client.post("/api/parts", json=data)
+
+            assert response.status_code == 201
+            response_data = json.loads(response.data)
+
+            assert response_data["description"] == "DIP-8 Logic IC"
+            assert response_data["package"] == "DIP-8"
+            assert response_data["pin_count"] == 8
+            assert response_data["voltage_rating"] == "5V"
+            assert response_data["mounting_type"] == "Through-hole"
+            assert response_data["series"] == "74HC"
+            assert response_data["dimensions"] == "9.53x6.35mm"
+            # Non-extended fields should be None
+            assert response_data["manufacturer_code"] is None
+            assert response_data["type_id"] is None
+            assert response_data["seller"] is None
+
+    def test_update_part_extended_fields(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test updating a part's extended fields via API."""
+        with app.app_context():
+            # Create a part first
+            part = container.part_service().create_part("Basic IC")
+            session.commit()
+
+            update_data = {
+                "package": "SOIC-16",
+                "pin_count": 16,
+                "voltage_rating": "3.3V",
+                "mounting_type": "Surface Mount",
+                "series": "STM32F4",
+                "dimensions": "10.3x7.5mm"
+            }
+
+            response = client.put(f"/api/parts/{part.key}", json=update_data)
+
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+
+            assert response_data["package"] == "SOIC-16"
+            assert response_data["pin_count"] == 16
+            assert response_data["voltage_rating"] == "3.3V"
+            assert response_data["mounting_type"] == "Surface Mount"
+            assert response_data["series"] == "STM32F4"
+            assert response_data["dimensions"] == "10.3x7.5mm"
+            # Original description should remain unchanged
+            assert response_data["description"] == "Basic IC"
+
+    def test_create_part_invalid_pin_count(self, app: Flask, client: FlaskClient):
+        """Test creating a part with invalid pin count."""
+        with app.app_context():
+            data = {
+                "description": "Invalid IC",
+                "pin_count": 0  # Should be > 0
+            }
+
+            response = client.post("/api/parts", json=data)
+
+            assert response.status_code == 400  # Validation error
+            response_data = json.loads(response.data)
+            assert "pin_count" in str(response_data).lower()
+
+    def test_create_part_field_length_validation(self, app: Flask, client: FlaskClient):
+        """Test field length validation for extended fields."""
+        with app.app_context():
+            # Test package field length (max 100 chars)
+            long_package = "x" * 101
+            data = {
+                "description": "Test part",
+                "package": long_package
+            }
+
+            response = client.post("/api/parts", json=data)
+
+            assert response.status_code == 400  # Validation error
+
+            # Test voltage_rating field length (max 50 chars)
+            long_voltage = "x" * 51
+            data = {
+                "description": "Test part",
+                "voltage_rating": long_voltage
+            }
+
+            response = client.post("/api/parts", json=data)
+
+            assert response.status_code == 400  # Validation error
