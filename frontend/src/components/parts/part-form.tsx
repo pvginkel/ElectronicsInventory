@@ -94,18 +94,7 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
     });
 
     if (!validation.isValid) {
-      const newErrors: Record<string, string> = {};
-      validation.errors.forEach((error) => {
-        if (error.includes('Description')) newErrors.description = error;
-        if (error.includes('Manufacturer')) newErrors.manufacturerCode = error;
-        if (error.includes('Dimensions')) newErrors.dimensions = error;
-        if (error.includes('Mounting type')) newErrors.mountingType = error;
-        if (error.includes('Package')) newErrors.package = error;
-        if (error.includes('Pin count')) newErrors.pinCount = error;
-        if (error.includes('Series')) newErrors.series = error;
-        if (error.includes('Voltage rating')) newErrors.voltageRating = error;
-      });
-      setErrors(newErrors);
+      setErrors(validation.errors);
       return;
     }
 
@@ -180,172 +169,197 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
       </div>
 
       <Form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField>
-            <FormLabel htmlFor="description" required>
-              Description
-            </FormLabel>
-            <Input
-              id="description"
-              value={formData.description}
-              onChange={(e) => updateFormData('description', e.target.value)}
-              error={errors.description}
-              maxLength={200}
-            />
-            <FormError message={errors.description} />
-          </FormField>
+        {/* Basic Information */}
+        <div className="space-y-4">
+          <div className="pb-2 border-b">
+            <h3 className="text-lg font-medium">Basic Information</h3>
+            <p className="text-sm text-muted-foreground">Essential part details and classification</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField>
+              <FormLabel htmlFor="description" required>
+                Description
+              </FormLabel>
+              <Input
+                id="description"
+                value={formData.description}
+                onChange={(e) => updateFormData('description', e.target.value)}
+                error={errors.description}
+                maxLength={200}
+              />
+            </FormField>
 
-          <FormField>
-            <FormLabel htmlFor="manufacturerCode">
-              Manufacturer Code
-            </FormLabel>
-            <Input
-              id="manufacturerCode"
-              value={formData.manufacturerCode}
-              onChange={(e) => updateFormData('manufacturerCode', e.target.value)}
-              error={errors.manufacturerCode}
-              maxLength={100}
-            />
-            <FormError message={errors.manufacturerCode} />
-          </FormField>
+            <FormField>
+              <FormLabel htmlFor="manufacturerCode">
+                Manufacturer Code
+              </FormLabel>
+              <Input
+                id="manufacturerCode"
+                value={formData.manufacturerCode}
+                onChange={(e) => updateFormData('manufacturerCode', e.target.value)}
+                error={errors.manufacturerCode}
+                maxLength={100}
+              />
+            </FormField>
 
-          <FormField>
-            <FormLabel>Type</FormLabel>
-            <TypeSelector
-              value={formData.typeId}
-              onChange={(value) => updateFormData('typeId', value)}
-              error={errors.typeId}
-            />
-            <FormError message={errors.typeId} />
-          </FormField>
+            <FormField>
+              <FormLabel>Type</FormLabel>
+              <TypeSelector
+                value={formData.typeId}
+                onChange={(value) => updateFormData('typeId', value)}
+                error={errors.typeId}
+              />
+            </FormField>
 
-          <FormField>
-            <FormLabel>Tags</FormLabel>
-            <TagsInput
-              value={formData.tags}
-              onChange={(tags) => updateFormData('tags', tags)}
-            />
-          </FormField>
+            <FormField>
+              <FormLabel>Tags</FormLabel>
+              <TagsInput
+                value={formData.tags}
+                onChange={(tags) => updateFormData('tags', tags)}
+              />
+            </FormField>
+          </div>
+        </div>
 
-          {/* Physical Specifications */}
-          <FormField>
-            <FormLabel htmlFor="dimensions">
-              Dimensions
-            </FormLabel>
-            <Input
-              id="dimensions"
-              value={formData.dimensions}
-              onChange={(e) => updateFormData('dimensions', e.target.value)}
-              error={errors.dimensions}
-              maxLength={100}
-              placeholder="e.g., 20x15x5mm"
-            />
-            <FormError message={errors.dimensions} />
-          </FormField>
+        {/* Physical Specifications */}
+        <div className="space-y-4">
+          <div className="pb-2 border-b">
+            <h3 className="text-lg font-medium">Physical Specifications</h3>
+            <p className="text-sm text-muted-foreground">Physical dimensions, packaging, and mounting details</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField>
+              <FormLabel htmlFor="dimensions">
+                Dimensions
+              </FormLabel>
+              <Input
+                id="dimensions"
+                value={formData.dimensions}
+                onChange={(e) => updateFormData('dimensions', e.target.value)}
+                error={errors.dimensions}
+                maxLength={100}
+                placeholder="e.g., 20x15x5mm"
+              />
+            </FormField>
 
-          <FormField>
-            <FormLabel htmlFor="package">
-              Package
-            </FormLabel>
-            <Input
-              id="package"
-              value={formData.package}
-              onChange={(e) => updateFormData('package', e.target.value)}
-              error={errors.package}
-              maxLength={100}
-              placeholder="e.g., DIP-8, SOIC-16"
-            />
-            <FormError message={errors.package} />
-          </FormField>
+            <FormField>
+              <FormLabel htmlFor="package">
+                Package
+              </FormLabel>
+              <Input
+                id="package"
+                value={formData.package}
+                onChange={(e) => updateFormData('package', e.target.value)}
+                error={errors.package}
+                maxLength={100}
+                placeholder="e.g., DIP-8, SOIC-16"
+              />
+            </FormField>
 
-          <FormField>
-            <FormLabel htmlFor="pinCount">
-              Pin Count
-            </FormLabel>
-            <Input
-              id="pinCount"
-              type="number"
-              min="1"
-              max="9999"
-              value={formData.pinCount}
-              onChange={(e) => updateFormData('pinCount', e.target.value)}
-              error={errors.pinCount}
-              placeholder="Number of pins"
-            />
-            <FormError message={errors.pinCount} />
-          </FormField>
+            <FormField>
+              <FormLabel htmlFor="pinCount">
+                Pin Count
+              </FormLabel>
+              <Input
+                id="pinCount"
+                type="number"
+                min="1"
+                max="9999"
+                value={formData.pinCount}
+                onChange={(e) => updateFormData('pinCount', e.target.value)}
+                error={errors.pinCount}
+                placeholder="Number of pins"
+              />
+            </FormField>
 
-          <FormField>
-            <FormLabel htmlFor="mountingType">
-              Mounting Type
-            </FormLabel>
-            <Input
-              id="mountingType"
-              value={formData.mountingType}
-              onChange={(e) => updateFormData('mountingType', e.target.value)}
-              error={errors.mountingType}
-              maxLength={100}
-              placeholder="e.g., Through-hole, Surface Mount"
-            />
-            <FormError message={errors.mountingType} />
-          </FormField>
+            <FormField>
+              <FormLabel htmlFor="mountingType">
+                Mounting Type
+              </FormLabel>
+              <Input
+                id="mountingType"
+                value={formData.mountingType}
+                onChange={(e) => updateFormData('mountingType', e.target.value)}
+                error={errors.mountingType}
+                maxLength={100}
+                placeholder="e.g., Through-hole, Surface Mount"
+              />
+            </FormField>
+          </div>
+        </div>
 
-          {/* Technical Specifications */}
-          <FormField>
-            <FormLabel htmlFor="voltageRating">
-              Voltage Rating
-            </FormLabel>
-            <Input
-              id="voltageRating"
-              value={formData.voltageRating}
-              onChange={(e) => updateFormData('voltageRating', e.target.value)}
-              error={errors.voltageRating}
-              maxLength={100}
-              placeholder="e.g., 3.3V, 5V"
-            />
-            <FormError message={errors.voltageRating} />
-          </FormField>
+        {/* Technical Specifications */}
+        <div className="space-y-4">
+          <div className="pb-2 border-b">
+            <h3 className="text-lg font-medium">Technical Specifications</h3>
+            <p className="text-sm text-muted-foreground">Electrical ratings and component series information</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField>
+              <FormLabel htmlFor="voltageRating">
+                Voltage Rating
+              </FormLabel>
+              <Input
+                id="voltageRating"
+                value={formData.voltageRating}
+                onChange={(e) => updateFormData('voltageRating', e.target.value)}
+                error={errors.voltageRating}
+                maxLength={100}
+                placeholder="e.g., 3.3V, 5V"
+              />
+            </FormField>
 
-          <FormField>
-            <FormLabel htmlFor="series">
-              Series
-            </FormLabel>
-            <Input
-              id="series"
-              value={formData.series}
-              onChange={(e) => updateFormData('series', e.target.value)}
-              error={errors.series}
-              maxLength={100}
-              placeholder="e.g., 74HC, LM"
-            />
-            <FormError message={errors.series} />
-          </FormField>
+            <FormField>
+              <FormLabel htmlFor="series">
+                Series
+              </FormLabel>
+              <Input
+                id="series"
+                value={formData.series}
+                onChange={(e) => updateFormData('series', e.target.value)}
+                error={errors.series}
+                maxLength={100}
+                placeholder="e.g., 74HC, LM"
+              />
+            </FormField>
+          </div>
+        </div>
 
-          <FormField>
-            <FormLabel htmlFor="seller">
-              Seller
-            </FormLabel>
-            <Input
-              id="seller"
-              value={formData.seller}
-              onChange={(e) => updateFormData('seller', e.target.value)}
-              error={errors.seller}
-            />
-            <FormError message={errors.seller} />
-          </FormField>
+        {/* Seller Information */}
+        <div className="space-y-4">
+          <div className="pb-2 border-b">
+            <h3 className="text-lg font-medium">Seller Information</h3>
+            <p className="text-sm text-muted-foreground">Vendor details and purchase links</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField>
+              <FormLabel htmlFor="seller">
+                Seller
+              </FormLabel>
+              <Input
+                id="seller"
+                value={formData.seller}
+                onChange={(e) => updateFormData('seller', e.target.value)}
+                error={errors.seller}
+              />
+            </FormField>
 
-          <FormField>
-            <FormLabel htmlFor="sellerLink">
-              Seller Link
-            </FormLabel>
-            <Input
-              id="sellerLink"
-              value={formData.sellerLink}
-              onChange={(e) => updateFormData('sellerLink', e.target.value)}
-              error={errors.sellerLink}
-            />
-            <FormError message={errors.sellerLink} />
-          </FormField>
+            <FormField>
+              <FormLabel htmlFor="sellerLink">
+                Seller Link
+              </FormLabel>
+              <Input
+                id="sellerLink"
+                value={formData.sellerLink}
+                onChange={(e) => updateFormData('sellerLink', e.target.value)}
+                error={errors.sellerLink}
+              />
+            </FormField>
+          </div>
         </div>
 
 

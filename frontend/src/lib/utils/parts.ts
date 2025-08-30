@@ -26,45 +26,54 @@ interface Part {
   voltage_rating?: string | null;
 }
 
-export function validatePartData(data: PartData): { isValid: boolean; errors: string[] } {
-  const errors: string[] = [];
+export function validatePartData(data: PartData): { 
+  isValid: boolean; 
+  errors: Partial<Record<keyof PartData, string>> 
+} {
+  const errors: Partial<Record<keyof PartData, string>> = {};
 
+  // Validate description
   if (!data.description?.trim()) {
-    errors.push('Description is required');
+    errors.description = 'Description is required';
+  } else if (data.description.length > 200) {
+    errors.description = 'Description must be 200 characters or less';
   }
 
-  if (data.description && data.description.length > 200) {
-    errors.push('Description must be 200 characters or less');
-  }
-
+  // Validate manufacturer code
   if (data.manufacturerCode && data.manufacturerCode.length > 100) {
-    errors.push('Manufacturer code must be 100 characters or less');
+    errors.manufacturerCode = 'Manufacturer code must be 100 characters or less';
   }
 
-  // Validate new string fields (max 100 characters)
-  const stringFields = [
-    { field: data.dimensions, name: 'Dimensions' },
-    { field: data.mountingType, name: 'Mounting type' },
-    { field: data.package, name: 'Package' },
-    { field: data.series, name: 'Series' },
-    { field: data.voltageRating, name: 'Voltage rating' }
-  ];
+  // Validate string fields (max 100 characters)
+  if (data.dimensions && data.dimensions.trim() && data.dimensions.length > 100) {
+    errors.dimensions = 'Dimensions must be 100 characters or less';
+  }
 
-  stringFields.forEach(({ field, name }) => {
-    if (field && field.trim() && field.length > 100) {
-      errors.push(`${name} must be 100 characters or less`);
-    }
-  });
+  if (data.mountingType && data.mountingType.trim() && data.mountingType.length > 100) {
+    errors.mountingType = 'Mounting type must be 100 characters or less';
+  }
+
+  if (data.package && data.package.trim() && data.package.length > 100) {
+    errors.package = 'Package must be 100 characters or less';
+  }
+
+  if (data.series && data.series.trim() && data.series.length > 100) {
+    errors.series = 'Series must be 100 characters or less';
+  }
+
+  if (data.voltageRating && data.voltageRating.trim() && data.voltageRating.length > 100) {
+    errors.voltageRating = 'Voltage rating must be 100 characters or less';
+  }
 
   // Validate pin count
   if (data.pinCount !== undefined && data.pinCount !== null) {
     if (!Number.isInteger(data.pinCount) || data.pinCount < 1 || data.pinCount > 9999) {
-      errors.push('Pin count must be a positive integer between 1 and 9999');
+      errors.pinCount = 'Pin count must be a positive integer between 1 and 9999';
     }
   }
 
   return {
-    isValid: errors.length === 0,
+    isValid: Object.keys(errors).length === 0,
     errors,
   };
 }
