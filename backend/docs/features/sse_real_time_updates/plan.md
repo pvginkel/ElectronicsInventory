@@ -1,138 +1,150 @@
-# Server-Sent Events (SSE) Infrastructure - Technical Plan
+# Task Management System with SSE Progress Updates - Technical Plan
 
 ## Brief Description
 
-Implement the core Server-Sent Events (SSE) infrastructure to enable real-time communication between the backend and frontend clients. This provides the foundational components for streaming events without implementing specific inventory notifications. The implementation will be based on the DHCPApp SSE architecture adapted for the Electronics Inventory backend.
+Implement a task management system that allows background jobs to be started via API endpoints and monitored through Server-Sent Events (SSE) streams. Jobs implement an abstract class with progress reporting capabilities, sending real-time updates to connected clients. When jobs complete, they return structured results and automatically clean up their SSE connections.
 
 ## Files to Create
 
-### Core SSE Implementation
-- `app/services/sse_service.py` - SSE service for managing client connections and broadcasting generic events
-- `app/models/sse_event.py` - Generic event model for SSE streaming
-- `app/schemas/sse_schema.py` - Pydantic schemas for SSE event validation and serialization
-- `app/api/sse.py` - API endpoints for SSE streaming
+### Task Management Core
+- `app/services/task_service.py` - Task management service for running background jobs with SSE progress updates
+- `app/services/base_task.py` - Abstract base class for background tasks with progress reporting
+- `app/models/task.py` - Task model for tracking job status and metadata
+- `app/schemas/task_schema.py` - Pydantic schemas for task creation, progress updates, and results
+- `app/api/tasks.py` - API endpoints for task SSE streaming (job-specific endpoints out of scope)
 
 ### Configuration and Setup
-- Add SSE service to `app/services/container.py` - Dependency injection configuration
-- Update `app/__init__.py` - Wire SSE service into application factory
+- Add task service to `app/services/container.py` - Dependency injection configuration
+- Update `app/__init__.py` - Wire task service into application factory
 
 ### Documentation
-- `docs/sse_api_usage.md` - Technical documentation on how to use the SSE infrastructure
+- `docs/task_system_usage.md` - Technical documentation on how to implement and use background tasks
 
 ## Files to Modify
 
 ### API Registration
-- `app/api/__init__.py` - Register SSE blueprint
+- `app/api/__init__.py` - Register task API blueprint
 
-## Core Event Types
+## Task System Architecture
 
-### Infrastructure Event Types
-1. **connection_established** - Client connection confirmation
-2. **heartbeat** - Keep-alive messages
-3. **generic_event** - Flexible event type for future use
+### Background Task Base Class
+Abstract base class that all background jobs must inherit from with an abstract `execute` method that:
+- Takes a progress_handle parameter for sending updates to connected clients
+- Takes **kwargs for task-specific parameters  
+- Returns a Dict[str, Any] result schema DTO to send to client
 
-### Event Structure
-- Generic event model that can accommodate any event type and data payload
-- Extensible design for future specific event implementations
+### Progress Reporting Interface
+Handle passed to tasks for sending real-time updates with methods to:
+- Send progress text updates to connected clients
+- Send progress value updates (0.0 to 1.0) to connected clients
+- Send both text and progress value together
 
-## SSE Service Architecture
+### Task Event Types
+1. **task_started** - Task execution began
+2. **progress_update** - Progress text or value update
+3. **task_completed** - Task finished successfully with result
+4. **task_failed** - Task failed with error details
 
-### Client Connection Management
-- Generate unique client IDs using UUID4
-- Maintain active connection registry with connection metadata
-- Per-client message queues for reliable delivery
-- Automatic cleanup of disconnected clients
-- Connection heartbeat mechanism (5-second intervals)
+## Task Service Architecture
 
-### Message Broadcasting
-- Thread-safe message queuing to all active clients
-- SSE-compliant message formatting with event types, data, and IDs
-- Automatic retry logic for failed message deliveries
-- Client connection health monitoring
+### Task Lifecycle Management
+- Generate unique task IDs using UUID4
+- Track active tasks in a registry with metadata (status, start time, task instance)
+- Per-task SSE connection for progress updates
+- Automatic cleanup when tasks complete or fail
+- Task timeout handling with configurable limits
+
+### Task Execution
+- Thread-safe task execution in background threads
+- Progress updates sent via SSE to connected clients
+- Result collection and delivery upon task completion
+- Error handling and failure reporting
+- Graceful task cancellation support
 
 ### Service Interface
-```python
-class SSEService:
-    def add_client(self, client_id: str) -> queue.Queue
-    def remove_client(self, client_id: str) -> None
-    def get_active_connections_count(self) -> int
-    def broadcast_event(self, event_type: str, data: Dict[str, Any]) -> None
-    def generate_client_id(self) -> str
-```
+TaskService provides methods to:
+- Start a background task and return schema DTO with task ID and SSE stream URL
+- Get current status of a task
+- Cancel a running task
+- Remove completed task from registry
 
 ## API Endpoints
 
-### SSE Stream Endpoint
-- `GET /api/sse/stream` - Main SSE endpoint for real-time event streaming
+### Task SSE Stream Endpoint
+- `GET /api/tasks/{task_id}/stream` - SSE endpoint for monitoring specific task progress
 - Returns `text/event-stream` with proper CORS headers
-- Implements heartbeat and connection management
-- Graceful handling of client disconnections
+- Automatically closes connection when task completes or fails
+- Includes task status and progress updates
+
+### Task Management Endpoints (for reference - implementation details out of scope)
+Other API modules will implement task-specific endpoints that:
+- Start background tasks using the TaskService
+- Return task ID and SSE stream URL to clients
+- Allow clients to connect to `/api/tasks/{task_id}/stream` for progress updates
 
 ## Implementation Phases
 
-### Phase 1: Core SSE Infrastructure
-1. Create SSE service with basic connection management
-2. Implement generic event models and schemas  
-3. Create SSE API endpoints with connection handling
-4. Add SSE service to dependency injection container
-5. Wire SSE into application factory
-6. Write technical usage documentation
-7. Basic testing of connection management and event broadcasting
+### Phase 1: Task Management Infrastructure
+1. Create BaseTask abstract class with progress reporting interface
+2. Implement TaskService with task lifecycle management
+3. Create task models and schemas for status tracking and results
+4. Create task API endpoints for SSE streaming
+5. Add TaskService to dependency injection container
+6. Wire task service into application factory
+7. Write technical documentation on implementing background tasks
+8. Comprehensive testing of task execution, progress updates, and completion
 
 ## Dependencies and Service Registration
 
 ### Container Configuration
-```python
-# In app/services/container.py
-sse_service = providers.Singleton(SSEService)
-```
+Add task_service as Singleton provider in app/services/container.py with db_session dependency
 
 ### Application Wiring
-```python
-# In app/__init__.py
-container.wire(modules=[
-    'app.api.parts', 'app.api.boxes', 'app.api.inventory', 
-    'app.api.types', 'app.api.testing', 'app.api.documents',
-    'app.api.sse'  # New SSE module
-])
-```
+Wire app.api.tasks module in app/__init__.py alongside existing API modules
+
+### Usage Pattern for Starting Tasks
+Other API endpoints will use dependency injection to get TaskService, start background tasks, and directly return the schema DTO from the service (containing task ID and SSE stream URL)
 
 ## Testing Strategy
 
 ### Unit Tests
-- SSE service client management (add/remove clients)
-- Event formatting and serialization
-- Message broadcasting to multiple clients
-- Connection cleanup on client disconnect
+- BaseTask abstract class implementation and validation
+- TaskService task lifecycle management (start/complete/fail/cancel)
+- Progress reporting interface functionality
+- Task result collection and cleanup
+- Task timeout handling
 
 ### Integration Tests  
-- End-to-end SSE stream functionality
-- Multiple client connections and broadcasts
-- Error scenarios and connection failures
+- End-to-end task execution with SSE progress updates
+- Multiple concurrent task execution
+- Task completion and automatic connection cleanup
+- Error scenarios and task failure handling
 
 ### Manual Testing
-- Browser EventSource connections
-- Connection persistence and reconnection
-- Performance with multiple concurrent clients
+- Browser EventSource connections to task streams
+- Real-time progress updates during task execution
+- Connection cleanup when tasks complete
+- Performance with multiple concurrent long-running tasks
 
 ## Technical Considerations
 
 ### Thread Safety
-- Use thread-safe Queue objects for message passing
-- Careful management of shared connection registry
-- Proper synchronization for client add/remove operations
+- Use thread-safe data structures for task registry management
+- Careful synchronization for task lifecycle state changes
+- Thread-safe progress update delivery to SSE streams
 
 ### Memory Management
-- Automatic cleanup of disconnected client queues
-- Bounded queue sizes to prevent memory leaks
-- Connection timeout handling
+- Automatic cleanup of completed task data and SSE connections
+- Task result storage with bounded retention periods
+- Proper cleanup of background threads when tasks complete or fail
 
 ### Performance
-- Lightweight event payloads to minimize bandwidth
-- Efficient client lookup and message routing
-- Heartbeat intervals optimized for connection detection vs overhead
+- Lightweight progress update messages to minimize bandwidth
+- Efficient task lookup and status tracking
+- Background thread pool management for concurrent task execution
 
 ### Error Recovery
-- Graceful handling of client disconnections
-- Service-level error isolation (SSE failures don't affect application stability)
-- Comprehensive logging for debugging connection issues
+- Graceful handling of task failures with proper error reporting
+- Service-level error isolation (task failures don't affect other tasks or application stability)
+- Comprehensive logging for debugging task execution and SSE connection issues
+- Task timeout mechanisms to prevent resource leaks from runaway tasks
