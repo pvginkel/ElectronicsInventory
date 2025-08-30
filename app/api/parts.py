@@ -34,6 +34,12 @@ def create_part(part_service=Provide[ServiceContainer.part_service]):
         tags=data.tags,
         seller=data.seller,
         seller_link=data.seller_link,
+        package=data.package,
+        pin_count=data.pin_count,
+        voltage_rating=data.voltage_rating,
+        mounting_type=data.mounting_type,
+        series=data.series,
+        dimensions=data.dimensions,
     )
 
     return PartResponseSchema.model_validate(part).model_dump(), 201
@@ -100,6 +106,12 @@ def update_part(part_key: str, part_service=Provide[ServiceContainer.part_servic
         tags=data.tags,
         seller=data.seller,
         seller_link=data.seller_link,
+        package=data.package,
+        pin_count=data.pin_count,
+        voltage_rating=data.voltage_rating,
+        mounting_type=data.mounting_type,
+        series=data.series,
+        dimensions=data.dimensions,
     )
 
     return PartResponseSchema.model_validate(part).model_dump()

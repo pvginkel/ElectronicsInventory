@@ -52,6 +52,13 @@ class TestPartService:
             assert part.tags is None
             assert part.seller is None
             assert part.seller_link is None
+            # Extended fields should be None by default
+            assert part.package is None
+            assert part.pin_count is None
+            assert part.voltage_rating is None
+            assert part.mounting_type is None
+            assert part.series is None
+            assert part.dimensions is None
 
     def test_create_part_full_data(self, app: Flask, session: Session, container: ServiceContainer):
         """Test creating a part with all fields populated."""
@@ -68,7 +75,13 @@ class TestPartService:
                 type_id=type_obj.id,
                 tags=["1k", "5%", "THT"],
                 seller="Digi-Key",
-                seller_link="https://digikey.com/product/123"
+                seller_link="https://digikey.com/product/123",
+                package="0805",
+                pin_count=2,
+                voltage_rating="50V",
+                mounting_type="Surface Mount",
+                series="Standard",
+                dimensions="2.0x1.25mm"
             )
 
             assert part.description == "1k ohm resistor"
@@ -77,6 +90,13 @@ class TestPartService:
             assert part.tags == ["1k", "5%", "THT"]
             assert part.seller == "Digi-Key"
             assert part.seller_link == "https://digikey.com/product/123"
+            # Extended fields
+            assert part.package == "0805"
+            assert part.pin_count == 2
+            assert part.voltage_rating == "50V"
+            assert part.mounting_type == "Surface Mount"
+            assert part.series == "Standard"
+            assert part.dimensions == "2.0x1.25mm"
 
     def test_get_part_existing(self, app: Flask, session: Session, container: ServiceContainer):
         """Test getting an existing part."""
@@ -224,3 +244,136 @@ class TestPartService:
             part_service = container.part_service()
             total_qty = part_service.get_total_quantity("AAAA")
             assert total_qty == 0
+
+    def test_create_part_with_extended_fields_only(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test creating a part with only extended fields populated."""
+        with app.app_context():
+            part_service = container.part_service()
+            part = part_service.create_part(
+                description="DIP-8 IC",
+                package="DIP-8",
+                pin_count=8,
+                voltage_rating="5V",
+                mounting_type="Through-hole",
+                series="74HC",
+                dimensions="9.53x6.35mm"
+            )
+
+            assert part.description == "DIP-8 IC"
+            assert part.package == "DIP-8"
+            assert part.pin_count == 8
+            assert part.voltage_rating == "5V"
+            assert part.mounting_type == "Through-hole"
+            assert part.series == "74HC"
+            assert part.dimensions == "9.53x6.35mm"
+            # Non-extended fields should be None
+            assert part.manufacturer_code is None
+            assert part.type_id is None
+            assert part.tags is None
+            assert part.seller is None
+            assert part.seller_link is None
+
+    def test_update_part_extended_fields(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test updating a part's extended fields."""
+        with app.app_context():
+            # Create a part first
+            part_service = container.part_service()
+            part = part_service.create_part("Basic IC")
+            session.flush()
+
+            # Update extended fields
+            updated_part = part_service.update_part_details(
+                part.key,
+                package="SOIC-16",
+                pin_count=16,
+                voltage_rating="3.3V",
+                mounting_type="Surface Mount",
+                series="STM32F4",
+                dimensions="10.3x7.5mm"
+            )
+
+            assert updated_part.package == "SOIC-16"
+            assert updated_part.pin_count == 16
+            assert updated_part.voltage_rating == "3.3V"
+            assert updated_part.mounting_type == "Surface Mount"
+            assert updated_part.series == "STM32F4"
+            assert updated_part.dimensions == "10.3x7.5mm"
+            # Original description should remain unchanged
+            assert updated_part.description == "Basic IC"
+
+    def test_update_part_partial_extended_fields(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test updating only some extended fields."""
+        with app.app_context():
+            # Create a part with all extended fields
+            part_service = container.part_service()
+            part = part_service.create_part(
+                description="Test IC",
+                package="DIP-8",
+                pin_count=8,
+                voltage_rating="5V",
+                mounting_type="Through-hole",
+                series="Original",
+                dimensions="Original size"
+            )
+            session.flush()
+
+            # Update only some fields
+            updated_part = part_service.update_part_details(
+                part.key,
+                voltage_rating="3.3V",
+                series="Updated"
+            )
+
+            # Updated fields should change
+            assert updated_part.voltage_rating == "3.3V"
+            assert updated_part.series == "Updated"
+            # Other extended fields should remain unchanged
+            assert updated_part.package == "DIP-8"
+            assert updated_part.pin_count == 8
+            assert updated_part.mounting_type == "Through-hole"
+            assert updated_part.dimensions == "Original size"
+
+    def test_pin_count_validation(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test that pin_count validation works correctly."""
+        with app.app_context():
+            part_service = container.part_service()
+            
+            # Valid pin counts should work
+            part1 = part_service.create_part("8-pin IC", pin_count=8)
+            assert part1.pin_count == 8
+            
+            part2 = part_service.create_part("Single pin", pin_count=1)
+            assert part2.pin_count == 1
+            
+            part3 = part_service.create_part("No pins", pin_count=None)
+            assert part3.pin_count is None
+
+    def test_extended_fields_in_repr(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test that extended fields appear correctly in __repr__."""
+        with app.app_context():
+            part_service = container.part_service()
+            
+            # Test part with package and voltage
+            part1 = part_service.create_part(
+                description="Test IC",
+                manufacturer_code="TEST123",
+                package="DIP-8",
+                voltage_rating="5V"
+            )
+            repr_str = repr(part1)
+            assert "DIP-8" in repr_str
+            assert "5V" in repr_str
+            assert "TEST123" in repr_str
+            
+            # Test part with pin count included
+            part2 = part_service.create_part(
+                description="Another IC", 
+                manufacturer_code="TEST456",
+                package="SOIC-16",
+                pin_count=16,
+                voltage_rating="3.3V"
+            )
+            repr_str2 = repr(part2)
+            assert "SOIC-16" in repr_str2
+            assert "3.3V" in repr_str2
+            assert "16-pin" in repr_str2
