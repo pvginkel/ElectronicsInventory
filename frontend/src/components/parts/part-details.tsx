@@ -116,14 +116,14 @@ export function PartDetails({ partId }: PartDetailsProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="lg:col-span-1">
           <Card>
             <CardHeader>
               <CardTitle>Part Information</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-start justify-between">
+            <CardContent>
+              <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <div className="text-sm font-medium">Part ID</div>
                   <div className="text-2xl font-bold font-mono">{displayId}</div>
@@ -135,53 +135,123 @@ export function PartDetails({ partId }: PartDetailsProps) {
                   showPlaceholder={false}
                 />
               </div>
-              
-              <div>
-                <div className="text-sm font-medium">Description</div>
-                <div className="text-lg">{displayDescription}</div>
-              </div>
-              
-              {displayManufacturerCode && (
-                <div>
-                  <div className="text-sm font-medium">Manufacturer Code</div>
-                  <div className="text-lg">{displayManufacturerCode}</div>
-                </div>
-              )}
-              
-              <div>
-                <div className="text-sm font-medium">Type</div>
-                <div className="text-lg">{part.type?.name || 'No type assigned'}</div>
-              </div>
 
-              <div>
-                <div className="text-sm font-medium">Tags</div>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {part.tags && part.tags.length > 0 ? (
-                    part.tags.map((tag: string, index: number) => (
-                      <span
-                        key={index}
-                        className="px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded-md"
-                      >
-                        {tag}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-muted-foreground text-sm">No tags</span>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Basic Information */}
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-sm font-medium">Description</div>
+                    <div className="text-lg">{displayDescription}</div>
+                  </div>
+                  
+                  {displayManufacturerCode && (
+                    <div>
+                      <div className="text-sm font-medium">Manufacturer Code</div>
+                      <div className="text-lg">{displayManufacturerCode}</div>
+                    </div>
                   )}
-                </div>
-              </div>
+                  
+                  <div>
+                    <div className="text-sm font-medium">Type</div>
+                    <div className="text-lg">{part.type?.name || 'No type assigned'}</div>
+                  </div>
 
-              <div>
-                <div className="text-sm font-medium">Created</div>
-                <div className="text-sm text-muted-foreground">
-                  {new Date(part.created_at).toLocaleDateString()}
+                  <div>
+                    <div className="text-sm font-medium">Tags</div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {part.tags && part.tags.length > 0 ? (
+                        part.tags.map((tag: string, index: number) => (
+                          <span
+                            key={index}
+                            className="px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded-md"
+                          >
+                            {tag}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-muted-foreground text-sm">No tags</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-sm font-medium">Created</div>
+                    <div className="text-sm text-muted-foreground">
+                      {new Date(part.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
                 </div>
+
+                {/* Technical Specifications */}
+                {(part.dimensions || part.mounting_type || part.package || part.pin_count || part.series || part.voltage_rating) && (
+                  <div>
+                    <div className="text-sm font-medium mb-3">Technical Specifications</div>
+                    
+                    {/* Physical Specifications */}
+                    {(part.dimensions || part.package || part.pin_count || part.mounting_type) && (
+                      <div className="mb-4">
+                        <div className="text-xs font-medium text-muted-foreground mb-2">Physical</div>
+                        <div className="space-y-2">
+                          {part.dimensions && (
+                            <div>
+                              <div className="text-sm font-medium">Dimensions</div>
+                              <div className="text-sm">{part.dimensions}</div>
+                            </div>
+                          )}
+                          
+                          {part.package && (
+                            <div>
+                              <div className="text-sm font-medium">Package</div>
+                              <div className="text-sm">{part.package}</div>
+                            </div>
+                          )}
+                          
+                          {part.pin_count && (
+                            <div>
+                              <div className="text-sm font-medium">Pin Count</div>
+                              <div className="text-sm">{part.pin_count}</div>
+                            </div>
+                          )}
+                          
+                          {part.mounting_type && (
+                            <div>
+                              <div className="text-sm font-medium">Mounting Type</div>
+                              <div className="text-sm">{part.mounting_type}</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Electrical/Technical Specifications */}
+                    {(part.voltage_rating || part.series) && (
+                      <div className="mb-4">
+                        <div className="text-xs font-medium text-muted-foreground mb-2">Electrical/Technical</div>
+                        <div className="space-y-2">
+                          {part.voltage_rating && (
+                            <div>
+                              <div className="text-sm font-medium">Voltage Rating</div>
+                              <div className="text-sm">{part.voltage_rating}</div>
+                            </div>
+                          )}
+                          
+                          {part.series && (
+                            <div>
+                              <div className="text-sm font-medium">Series</div>
+                              <div className="text-sm">{part.series}</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-1">
           <Card>
             <CardHeader>
               <CardTitle>Stock Locations</CardTitle>

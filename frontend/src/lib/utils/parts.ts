@@ -3,6 +3,12 @@ interface PartData {
   manufacturerCode?: string;
   typeId?: number;
   tags?: string[];
+  dimensions?: string;
+  mountingType?: string;
+  package?: string;
+  pinCount?: number;
+  series?: string;
+  voltageRating?: string;
 }
 
 interface Part {
@@ -12,6 +18,12 @@ interface Part {
   type_id?: number | null;
   tags?: string[] | null;
   quantity?: number;
+  dimensions?: string | null;
+  mounting_type?: string | null;
+  package?: string | null;
+  pin_count?: number | null;
+  series?: string | null;
+  voltage_rating?: string | null;
 }
 
 export function validatePartData(data: PartData): { isValid: boolean; errors: string[] } {
@@ -27,6 +39,28 @@ export function validatePartData(data: PartData): { isValid: boolean; errors: st
 
   if (data.manufacturerCode && data.manufacturerCode.length > 100) {
     errors.push('Manufacturer code must be 100 characters or less');
+  }
+
+  // Validate new string fields (max 100 characters)
+  const stringFields = [
+    { field: data.dimensions, name: 'Dimensions' },
+    { field: data.mountingType, name: 'Mounting type' },
+    { field: data.package, name: 'Package' },
+    { field: data.series, name: 'Series' },
+    { field: data.voltageRating, name: 'Voltage rating' }
+  ];
+
+  stringFields.forEach(({ field, name }) => {
+    if (field && field.trim() && field.length > 100) {
+      errors.push(`${name} must be 100 characters or less`);
+    }
+  });
+
+  // Validate pin count
+  if (data.pinCount !== undefined && data.pinCount !== null) {
+    if (!Number.isInteger(data.pinCount) || data.pinCount < 1 || data.pinCount > 9999) {
+      errors.push('Pin count must be a positive integer between 1 and 9999');
+    }
   }
 
   return {

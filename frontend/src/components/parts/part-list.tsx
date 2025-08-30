@@ -125,6 +125,9 @@ interface PartListItemProps {
     tags?: string[] | null;
     total_quantity?: number;
     quantity?: number; // For backwards compatibility
+    mounting_type?: string | null;
+    package?: string | null;
+    voltage_rating?: string | null;
   };
   onClick?: () => void;
 }
@@ -168,6 +171,24 @@ function PartListItem({ part, onClick }: PartListItemProps) {
             {part.type?.name && (
               <span>
                 <strong>Type:</strong> {part.type.name}
+              </span>
+            )}
+
+            {part.mounting_type && (
+              <span>
+                <strong>Mount:</strong> {part.mounting_type}
+              </span>
+            )}
+
+            {part.package && (
+              <span>
+                <strong>Package:</strong> {part.package}
+              </span>
+            )}
+
+            {part.voltage_rating && (
+              <span>
+                <strong>Voltage:</strong> {part.voltage_rating}
               </span>
             )}
           </div>

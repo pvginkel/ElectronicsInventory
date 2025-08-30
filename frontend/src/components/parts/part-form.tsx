@@ -15,6 +15,12 @@ interface PartFormData {
   tags: string[];
   seller: string;
   sellerLink: string;
+  dimensions: string;
+  mountingType: string;
+  package: string;
+  pinCount: string;
+  series: string;
+  voltageRating: string;
 }
 
 interface PartFormProps {
@@ -30,6 +36,12 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
     tags: [],
     seller: '',
     sellerLink: '',
+    dimensions: '',
+    mountingType: '',
+    package: '',
+    pinCount: '',
+    series: '',
+    voltageRating: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -54,6 +66,12 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
         tags: existingPart.tags || [],
         seller: existingPart.seller || '',
         sellerLink: existingPart.seller_link || '',
+        dimensions: existingPart.dimensions || '',
+        mountingType: existingPart.mounting_type || '',
+        package: existingPart.package || '',
+        pinCount: existingPart.pin_count?.toString() || '',
+        series: existingPart.series || '',
+        voltageRating: existingPart.voltage_rating || '',
       });
     }
   }, [existingPart, isEditing]);
@@ -67,6 +85,12 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
       manufacturerCode: formData.manufacturerCode,
       typeId: formData.typeId,
       tags: formData.tags,
+      dimensions: formData.dimensions,
+      mountingType: formData.mountingType,
+      package: formData.package,
+      pinCount: formData.pinCount ? parseInt(formData.pinCount, 10) : undefined,
+      series: formData.series,
+      voltageRating: formData.voltageRating,
     });
 
     if (!validation.isValid) {
@@ -74,6 +98,12 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
       validation.errors.forEach((error) => {
         if (error.includes('Description')) newErrors.description = error;
         if (error.includes('Manufacturer')) newErrors.manufacturerCode = error;
+        if (error.includes('Dimensions')) newErrors.dimensions = error;
+        if (error.includes('Mounting type')) newErrors.mountingType = error;
+        if (error.includes('Package')) newErrors.package = error;
+        if (error.includes('Pin count')) newErrors.pinCount = error;
+        if (error.includes('Series')) newErrors.series = error;
+        if (error.includes('Voltage rating')) newErrors.voltageRating = error;
       });
       setErrors(newErrors);
       return;
@@ -92,6 +122,12 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
           tags: formData.tags.length > 0 ? formData.tags : null,
           seller: formData.seller || null,
           seller_link: formData.sellerLink || null,
+          dimensions: formData.dimensions || null,
+          mounting_type: formData.mountingType || null,
+          package: formData.package || null,
+          pin_count: formData.pinCount ? parseInt(formData.pinCount, 10) : null,
+          series: formData.series || null,
+          voltage_rating: formData.voltageRating || null,
         }
       });
       onSuccess(result.key);
@@ -105,6 +141,12 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
           tags: formData.tags.length > 0 ? formData.tags : null,
           seller: formData.seller || null,
           seller_link: formData.sellerLink || null,
+          dimensions: formData.dimensions || null,
+          mounting_type: formData.mountingType || null,
+          package: formData.package || null,
+          pin_count: formData.pinCount ? parseInt(formData.pinCount, 10) : null,
+          series: formData.series || null,
+          voltage_rating: formData.voltageRating || null,
         }
       });
       onSuccess(result.key);
@@ -183,6 +225,100 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
               value={formData.tags}
               onChange={(tags) => updateFormData('tags', tags)}
             />
+          </FormField>
+
+          {/* Physical Specifications */}
+          <FormField>
+            <FormLabel htmlFor="dimensions">
+              Dimensions
+            </FormLabel>
+            <Input
+              id="dimensions"
+              value={formData.dimensions}
+              onChange={(e) => updateFormData('dimensions', e.target.value)}
+              error={errors.dimensions}
+              maxLength={100}
+              placeholder="e.g., 20x15x5mm"
+            />
+            <FormError message={errors.dimensions} />
+          </FormField>
+
+          <FormField>
+            <FormLabel htmlFor="package">
+              Package
+            </FormLabel>
+            <Input
+              id="package"
+              value={formData.package}
+              onChange={(e) => updateFormData('package', e.target.value)}
+              error={errors.package}
+              maxLength={100}
+              placeholder="e.g., DIP-8, SOIC-16"
+            />
+            <FormError message={errors.package} />
+          </FormField>
+
+          <FormField>
+            <FormLabel htmlFor="pinCount">
+              Pin Count
+            </FormLabel>
+            <Input
+              id="pinCount"
+              type="number"
+              min="1"
+              max="9999"
+              value={formData.pinCount}
+              onChange={(e) => updateFormData('pinCount', e.target.value)}
+              error={errors.pinCount}
+              placeholder="Number of pins"
+            />
+            <FormError message={errors.pinCount} />
+          </FormField>
+
+          <FormField>
+            <FormLabel htmlFor="mountingType">
+              Mounting Type
+            </FormLabel>
+            <Input
+              id="mountingType"
+              value={formData.mountingType}
+              onChange={(e) => updateFormData('mountingType', e.target.value)}
+              error={errors.mountingType}
+              maxLength={100}
+              placeholder="e.g., Through-hole, Surface Mount"
+            />
+            <FormError message={errors.mountingType} />
+          </FormField>
+
+          {/* Technical Specifications */}
+          <FormField>
+            <FormLabel htmlFor="voltageRating">
+              Voltage Rating
+            </FormLabel>
+            <Input
+              id="voltageRating"
+              value={formData.voltageRating}
+              onChange={(e) => updateFormData('voltageRating', e.target.value)}
+              error={errors.voltageRating}
+              maxLength={100}
+              placeholder="e.g., 3.3V, 5V"
+            />
+            <FormError message={errors.voltageRating} />
+          </FormField>
+
+          <FormField>
+            <FormLabel htmlFor="series">
+              Series
+            </FormLabel>
+            <Input
+              id="series"
+              value={formData.series}
+              onChange={(e) => updateFormData('series', e.target.value)}
+              error={errors.series}
+              maxLength={100}
+              placeholder="e.g., 74HC, LM"
+            />
+            <FormError message={errors.series} />
           </FormField>
 
           <FormField>

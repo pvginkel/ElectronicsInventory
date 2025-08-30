@@ -950,6 +950,21 @@
             "title": "Description",
             "type": "string"
           },
+          "dimensions": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Physical size of the component",
+            "example": "20x15x5mm",
+            "title": "Dimensions"
+          },
           "manufacturer_code": {
             "anyOf": [
               {
@@ -964,6 +979,51 @@
             "description": "Manufacturer's part number or code",
             "example": "OMRON G5Q-1A4",
             "title": "Manufacturer Code"
+          },
+          "mounting_type": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "How the component is physically mounted",
+            "example": "Through-hole",
+            "title": "Mounting Type"
+          },
+          "package": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Physical package type for the component",
+            "example": "DIP-8",
+            "title": "Package"
+          },
+          "pin_count": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Number of pins/connections on the component",
+            "example": 8,
+            "title": "Pin Count"
           },
           "seller": {
             "anyOf": [
@@ -994,6 +1054,21 @@
             "description": "Product page URL at seller",
             "example": "https://www.digikey.com/en/products/detail/G5Q-1A4",
             "title": "Seller Link"
+          },
+          "series": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Component family or series identification",
+            "example": "74HC",
+            "title": "Series"
           },
           "tags": {
             "anyOf": [
@@ -1029,6 +1104,21 @@
             "description": "ID of the part type/category",
             "example": 1,
             "title": "Type Id"
+          },
+          "voltage_rating": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Operating or rated voltage for the component",
+            "example": "3.3V",
+            "title": "Voltage Rating"
           }
         },
         "required": [
@@ -1168,6 +1258,20 @@
             "title": "Description",
             "type": "string"
           },
+          "dimensions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Physical dimensions",
+            "example": "20x15x5mm",
+            "title": "Dimensions"
+          },
           "key": {
             "description": "4-character unique part identifier",
             "example": "BZQP",
@@ -1186,6 +1290,48 @@
             "description": "Manufacturer's part number",
             "example": "OMRON G5Q-1A4",
             "title": "Manufacturer Code"
+          },
+          "mounting_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Physical mounting type",
+            "example": "Through-hole",
+            "title": "Mounting Type"
+          },
+          "package": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Physical package type",
+            "example": "DIP-8",
+            "title": "Package"
+          },
+          "pin_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Number of pins/connections",
+            "example": 8,
+            "title": "Pin Count"
           },
           "seller": {
             "anyOf": [
@@ -1212,6 +1358,20 @@
             "description": "Product page URL",
             "example": "https://www.digikey.com/en/products/detail/G5Q-1A4",
             "title": "Seller Link"
+          },
+          "series": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Component series identification",
+            "example": "74HC",
+            "title": "Series"
           },
           "tags": {
             "anyOf": [
@@ -1264,6 +1424,20 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "voltage_rating": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Operating or rated voltage",
+            "example": "3.3V",
+            "title": "Voltage Rating"
           }
         },
         "required": [
@@ -1582,6 +1756,21 @@
             "example": "12V SPDT automotive relay with 40A contacts",
             "title": "Description"
           },
+          "dimensions": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated physical dimensions",
+            "example": "10.3x7.5mm",
+            "title": "Dimensions"
+          },
           "manufacturer_code": {
             "anyOf": [
               {
@@ -1596,6 +1785,51 @@
             "description": "Updated manufacturer's part number",
             "example": "OMRON G5Q-1A4-DC12",
             "title": "Manufacturer Code"
+          },
+          "mounting_type": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated mounting type",
+            "example": "Surface Mount",
+            "title": "Mounting Type"
+          },
+          "package": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated physical package type",
+            "example": "SOIC-16",
+            "title": "Package"
+          },
+          "pin_count": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated number of pins/connections",
+            "example": 16,
+            "title": "Pin Count"
           },
           "seller": {
             "anyOf": [
@@ -1626,6 +1860,21 @@
             "description": "Updated product page URL",
             "example": "https://www.mouser.com/ProductDetail/G5Q-1A4",
             "title": "Seller Link"
+          },
+          "series": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated component series",
+            "example": "STM32F4",
+            "title": "Series"
           },
           "tags": {
             "anyOf": [
@@ -1662,6 +1911,21 @@
             "description": "Updated part type/category ID",
             "example": 2,
             "title": "Type Id"
+          },
+          "voltage_rating": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated operating or rated voltage",
+            "example": "5V",
+            "title": "Voltage Rating"
           }
         },
         "title": "PartUpdateSchema",
@@ -1690,6 +1954,20 @@
             "title": "Description",
             "type": "string"
           },
+          "dimensions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Physical dimensions",
+            "example": "20x15x5mm",
+            "title": "Dimensions"
+          },
           "key": {
             "description": "4-character unique part identifier",
             "example": "BZQP",
@@ -1709,6 +1987,48 @@
             "example": "OMRON G5Q-1A4",
             "title": "Manufacturer Code"
           },
+          "mounting_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Physical mounting type",
+            "example": "Through-hole",
+            "title": "Mounting Type"
+          },
+          "package": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Physical package type",
+            "example": "DIP-8",
+            "title": "Package"
+          },
+          "pin_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Number of pins/connections",
+            "example": 8,
+            "title": "Pin Count"
+          },
           "seller": {
             "anyOf": [
               {
@@ -1721,6 +2041,20 @@
             "description": "Vendor/supplier name",
             "example": "Digi-Key",
             "title": "Seller"
+          },
+          "series": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Component series identification",
+            "example": "74HC",
+            "title": "Series"
           },
           "tags": {
             "anyOf": [
@@ -1767,6 +2101,20 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "voltage_rating": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Operating or rated voltage",
+            "example": "3.3V",
+            "title": "Voltage Rating"
           }
         },
         "required": [
@@ -3654,6 +4002,86 @@
           }
         },
         "summary": "Get all locations for a part.",
+        "tags": []
+      }
+    },
+    "/api/tasks/{task_id}": {
+      "delete": {
+        "description": "Returns:     JSON with removal result",
+        "operationId": "delete__api_tasks_{task_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {},
+        "summary": "Remove a completed task from registry.",
+        "tags": []
+      }
+    },
+    "/api/tasks/{task_id}/cancel": {
+      "post": {
+        "description": "Returns:     JSON with cancellation result",
+        "operationId": "post__api_tasks_{task_id}_cancel",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {},
+        "summary": "Cancel a running task.",
+        "tags": []
+      }
+    },
+    "/api/tasks/{task_id}/status": {
+      "get": {
+        "description": "Returns:     JSON with current task status information",
+        "operationId": "get__api_tasks_{task_id}_status",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {},
+        "summary": "Get current status of a task.",
+        "tags": []
+      }
+    },
+    "/api/tasks/{task_id}/stream": {
+      "get": {
+        "description": "Returns:     Server-Sent Events stream with task progress updates",
+        "operationId": "get__api_tasks_{task_id}_stream",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {},
+        "summary": "SSE endpoint for monitoring specific task progress.",
         "tags": []
       }
     },
