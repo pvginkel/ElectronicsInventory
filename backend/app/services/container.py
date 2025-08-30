@@ -9,6 +9,7 @@ from app.services.image_service import ImageService
 from app.services.inventory_service import InventoryService
 from app.services.part_service import PartService
 from app.services.s3_service import S3Service
+from app.services.task_service import TaskService
 from app.services.test_data_service import TestDataService
 from app.services.type_service import TypeService
 from app.services.url_thumbnail_service import URLThumbnailService
@@ -44,3 +45,6 @@ class ServiceContainer(containers.DeclarativeContainer):
         db=db_session,
         part_service=part_service
     )
+
+    # TaskService - Singleton for in-memory task management
+    task_service = providers.Singleton(TaskService)
