@@ -363,6 +363,46 @@ class TestPartsAPI:
             response = client.post("/api/parts", json=data)
 
             assert response.status_code == 400  # Validation error
+
+    def test_list_parts_includes_extended_fields(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test that list parts endpoint includes extended fields in response."""
+        with app.app_context():
+            # Create a part with extended fields
+            part_service = container.part_service()
+            part = part_service.create_part(
+                description="Test IC with extended fields",
+                manufacturer_code="TEST123",
+                package="DIP-8",
+                pin_count=8,
+                voltage_rating="5V",
+                mounting_type="Through-hole",
+                series="74HC",
+                dimensions="9.53x6.35mm"
+            )
+            session.commit()
+
+            # Test the list parts endpoint
+            response = client.get("/api/parts")
+            
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+            
+            # Find our test part in the response
+            test_part = None
+            for part_data in response_data:
+                if part_data["key"] == part.key:
+                    test_part = part_data
+                    break
+            
+            assert test_part is not None, f"Part {part.key} not found in list response"
+            
+            # Verify extended fields are included and correct
+            assert test_part["package"] == "DIP-8"
+            assert test_part["pin_count"] == 8
+            assert test_part["voltage_rating"] == "5V"
+            assert test_part["mounting_type"] == "Through-hole"
+            assert test_part["series"] == "74HC"
+            assert test_part["dimensions"] == "9.53x6.35mm"
             response_data = json.loads(response.data)
             assert "pin_count" in str(response_data).lower()
 
@@ -380,6 +420,46 @@ class TestPartsAPI:
 
             assert response.status_code == 400  # Validation error
 
+    def test_list_parts_includes_extended_fields(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test that list parts endpoint includes extended fields in response."""
+        with app.app_context():
+            # Create a part with extended fields
+            part_service = container.part_service()
+            part = part_service.create_part(
+                description="Test IC with extended fields",
+                manufacturer_code="TEST123",
+                package="DIP-8",
+                pin_count=8,
+                voltage_rating="5V",
+                mounting_type="Through-hole",
+                series="74HC",
+                dimensions="9.53x6.35mm"
+            )
+            session.commit()
+
+            # Test the list parts endpoint
+            response = client.get("/api/parts")
+            
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+            
+            # Find our test part in the response
+            test_part = None
+            for part_data in response_data:
+                if part_data["key"] == part.key:
+                    test_part = part_data
+                    break
+            
+            assert test_part is not None, f"Part {part.key} not found in list response"
+            
+            # Verify extended fields are included and correct
+            assert test_part["package"] == "DIP-8"
+            assert test_part["pin_count"] == 8
+            assert test_part["voltage_rating"] == "5V"
+            assert test_part["mounting_type"] == "Through-hole"
+            assert test_part["series"] == "74HC"
+            assert test_part["dimensions"] == "9.53x6.35mm"
+
             # Test voltage_rating field length (max 50 chars)
             long_voltage = "x" * 51
             data = {
@@ -390,3 +470,111 @@ class TestPartsAPI:
             response = client.post("/api/parts", json=data)
 
             assert response.status_code == 400  # Validation error
+
+    def test_list_parts_includes_extended_fields(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test that list parts endpoint includes extended fields in response."""
+        with app.app_context():
+            # Create a part with extended fields
+            part_service = container.part_service()
+            part = part_service.create_part(
+                description="Test IC with extended fields",
+                manufacturer_code="TEST123",
+                package="DIP-8",
+                pin_count=8,
+                voltage_rating="5V",
+                mounting_type="Through-hole",
+                series="74HC",
+                dimensions="9.53x6.35mm"
+            )
+            session.commit()
+
+            # Test the list parts endpoint
+            response = client.get("/api/parts")
+            
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+            
+            # Find our test part in the response
+            test_part = None
+            for part_data in response_data:
+                if part_data["key"] == part.key:
+                    test_part = part_data
+                    break
+            
+            assert test_part is not None, f"Part {part.key} not found in list response"
+            
+            # Verify extended fields are included and correct
+            assert test_part["package"] == "DIP-8"
+            assert test_part["pin_count"] == 8
+            assert test_part["voltage_rating"] == "5V"
+            assert test_part["mounting_type"] == "Through-hole"
+            assert test_part["series"] == "74HC"
+            assert test_part["dimensions"] == "9.53x6.35mm"
+
+    def test_get_part_includes_extended_fields(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test that get single part endpoint includes extended fields in response."""
+        with app.app_context():
+            # Create a part with extended fields
+            part_service = container.part_service()
+            part = part_service.create_part(
+                description="Test IC for GET endpoint",
+                manufacturer_code="TEST456",
+                package="SOIC-8",
+                pin_count=8,
+                voltage_rating="3.3V",
+                mounting_type="Surface Mount",
+                series="LM324",
+                dimensions="4.9x3.9mm"
+            )
+            session.commit()
+
+            # Test the get part endpoint
+            response = client.get(f"/api/parts/{part.key}")
+            
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+            
+            # Verify extended fields are included and correct
+            assert response_data["package"] == "SOIC-8"
+            assert response_data["pin_count"] == 8
+            assert response_data["voltage_rating"] == "3.3V"
+            assert response_data["mounting_type"] == "Surface Mount"
+            assert response_data["series"] == "LM324"
+            assert response_data["dimensions"] == "4.9x3.9mm"
+
+    def test_put_part_updates_extended_fields(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test that PUT endpoint correctly updates extended fields."""
+        with app.app_context():
+            # Create a part first
+            part_service = container.part_service()
+            part = part_service.create_part(
+                description="IC to update",
+                package="DIP-14",
+                pin_count=14,
+                voltage_rating="5V"
+            )
+            session.commit()
+
+            # Update via PUT endpoint
+            update_data = {
+                "package": "SOIC-14",
+                "pin_count": 14,
+                "voltage_rating": "3.3V-5V",
+                "mounting_type": "Surface Mount",
+                "series": "74HC",
+                "dimensions": "8.7x3.9mm"
+            }
+            
+            response = client.put(f"/api/parts/{part.key}", json=update_data)
+            
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+            
+            # Verify all extended fields were updated
+            assert response_data["package"] == "SOIC-14"
+            assert response_data["pin_count"] == 14
+            assert response_data["voltage_rating"] == "3.3V-5V"
+            assert response_data["mounting_type"] == "Surface Mount"
+            assert response_data["series"] == "74HC"
+            assert response_data["dimensions"] == "8.7x3.9mm"
+
