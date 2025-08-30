@@ -64,7 +64,7 @@ Replace the current manual part creation dialog with an AI-powered system that a
      - Document discovery and URL finding
    - Request complete structured response:
      - manufacturer_code
-     - type (from existing categories)
+     - type (text string - either existing type name or suggested new type)
      - description
      - tags (array of strings)
      - seller and seller_link
@@ -165,19 +165,28 @@ The system will use OpenAI's **GPT-5** model family, the latest state-of-the-art
 
 The value for these must be configurable.
 
-**Structured Output:** The API request will specify a JSON schema requiring specific fields (manufacturer_code, type, description, technical specifications, document URLs, etc.) ensuring consistent, parseable responses.
+**Structured Output:** Use OpenAI's Responses API with `response_format: { type: "json_schema", json_schema: {...}, strict: true }` to ensure parseable, validated output without chatty preambles. Define schema with `additionalProperties: false` and proper enums for controlled vocabularies.
+
+### Type Handling Algorithm
+1. **Retrieve Existing Types:** Query database for all current type names (e.g., "Relay", "Microcontroller", "Sensor", etc.)
+2. **Prompt Context:** Include existing type names in prompt: "Available types in the system: [list]. Choose one that fits, or suggest a new type name following similar patterns."
+3. **AI Response:** AI returns type as text string - either exact match from existing types or suggested new type name
+4. **Type Classification:** Backend determines if returned type name matches existing type (exact string match) or is new suggestion
+5. **User Presentation:** Frontend shows user whether suggested type is "Existing: [Type Name]" or "New Suggestion: [Type Name]" with option to edit
 
 ### API Request Flow
-1. **Multipart Upload Processing:** Convert uploaded image to base64 for OpenAI API
-2. **Prompt Engineering:** Send structured prompt with electronics inventory context and required output schema
-3. **Parameter Configuration:** Set verbosity and reasoning_effort based on analysis requirements
-4. **Single API Call:** Submit text description and image (if provided) to GPT-5
-5. **Structured Response:** Receive complete part analysis with all fields populated
-6. **Document Download:** Process URLs returned by GPT-5 for additional resources
+1. **Image Processing:** Convert uploaded image to base64 data URL format (`data:image/jpeg;base64,...`)
+2. **Type Context Loading:** Retrieve all existing type names from database for prompt inclusion
+3. **Schema Definition:** Create JSON schema with strict validation, enums for controlled fields (mounting_type, package), and required fields
+4. **Parameter Configuration:** Set `reasoning: { effort: "medium" }` (configurable), `max_output_tokens: 1200`, `temperature: 0.1`
+5. **Single API Call:** Submit via Responses API with structured output format including type context
+6. **Response Validation:** Parse and validate returned JSON against schema
+7. **Type Matching:** Determine if returned type matches existing type or is new suggestion
+8. **Document Download:** HEAD-check URLs, enforce HTTPS/content-type whitelist, follow max 3 redirects
 
 ## Schema Definitions
 
-AI Analysis Request will be handled via Flask multipart form data with validation in the API endpoint for text and image inputs. AI Analysis Result schema will include all part fields (manufacturer_code, type information, description, tags, seller details, extended technical fields, document suggestions, image URL, and confidence score). Document suggestion schema will include filename, temp file path, original AI-provided URL, document type, and description.
+AI Analysis Request will be handled via Flask multipart form data with validation in the API endpoint for text and image inputs. AI Analysis Result schema will include all part fields (manufacturer_code, type as text string, description, tags, seller details, extended technical fields, document suggestions, image URL, and confidence score). The type field contains either an existing type name from the system or a new suggested type name. Document suggestion schema will include filename, temp file path, original AI-provided URL, document type, and description.
 
 ## Implementation Phases
 
@@ -188,13 +197,14 @@ AI Analysis Request will be handled via Flask multipart form data with validatio
 4. Implement mock AI service for testing
 
 ### Phase 2: OpenAI GPT-5 Integration
-1. Integrate OpenAI GPT-5 API with native multimodal input processing
-2. Implement structured output parsing from GPT-5 responses
-3. Configure verbosity and reasoning_effort parameters for optimal performance
-4. Add OpenAI API error handling (rate limits, model availability, token limits)
-5. Implement document downloading from GPT-5 provided URLs
-6. Add model size selection logic (gpt-5 vs gpt-5-mini vs gpt-5-nano)
-7. Create progress reporting throughout OpenAI pipeline
+1. Integrate OpenAI Responses API with JSON schema validation and base64 image processing
+2. Implement strict schema definition with enums for controlled vocabularies (mounting_type, package)
+3. Add existing type names to prompt context for AI type selection/suggestion
+4. Configure reasoning effort parameter (low/medium/high) and model selection logic  
+5. Add comprehensive error handling: 429/5xx retries with backoff, schema validation failures
+6. Implement secure document downloading with URL validation and content-type whitelisting
+7. Add type matching logic to determine if AI-returned type is existing or new
+8. Create progress reporting throughout OpenAI pipeline
 
 ### Phase 3: Part Creation Integration
 1. Implement part creation from AI suggestions with extended fields
@@ -205,11 +215,13 @@ AI Analysis Request will be handled via Flask multipart form data with validatio
 ## Error Handling
 
 1. **Invalid Inputs**: Return 400 with validation errors before starting task
-2. **AI Service Failures**: Task fails with descriptive error message
-3. **Document Download Failures**: Continue with partial results, log warnings for failed URLs
-4. **Invalid AI-provided URLs**: Skip invalid URLs, continue with valid ones
-5. **Temporary Storage Issues**: Fail gracefully with cleanup
-6. **Cancellation**: Properly clean up temp files and AI service calls
+2. **OpenAI API Failures**: Implement exponential backoff for 429/5xx errors, retry up to 3 times
+3. **Schema Validation Failures**: Retry once with stricter reminder prompt, then fail gracefully
+4. **Document Download Failures**: HEAD-check URLs first, enforce HTTPS and content-type whitelist, max 3 redirects
+5. **Invalid OpenAI-provided URLs**: Skip invalid URLs, continue with valid ones, log warnings
+6. **Type Matching**: Determine if AI-returned type name matches existing type or is new suggestion
+7. **Temporary Storage Issues**: Fail gracefully with cleanup
+8. **Cancellation**: Properly clean up temp files and OpenAI API calls
 
 ## Testing Requirements
 
@@ -222,8 +234,11 @@ AI Analysis Request will be handled via Flask multipart form data with validatio
 ## Security Considerations
 
 1. **Input Validation**: Sanitize all text inputs, validate image file formats and MIME types
-2. **File Size Limits**: Restrict image upload sizes (max 10MB)
+2. **File Size Limits**: Restrict image upload sizes (max 10MB)  
 3. **File Type Validation**: Only accept common image formats (JPEG, PNG, WebP)
-4. **Temp File Security**: Use secure temp directories with proper permissions
-5. **URL Validation**: Validate all discovered URLs before downloading
-6. **Resource Limits**: Prevent excessive AI service usage per session
+4. **URL Security**: Enforce HTTPS for all document downloads, validate content-type headers
+5. **Schema Constraints**: Use enums in JSON schema to prevent fabricated values for controlled fields
+6. **Type Handling**: AI receives existing type names in prompt and returns type as text string (never type_id)
+7. **Document Deduplication**: Remove duplicate URLs, prefer manufacturer domains for PDFs
+8. **Temp File Security**: Use secure temp directories with proper permissions
+9. **Resource Limits**: Prevent excessive OpenAI API usage per session
