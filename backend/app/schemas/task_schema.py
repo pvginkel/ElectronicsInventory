@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import Dict, Any, Optional
 from datetime import datetime
 from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class TaskStatus(str, Enum):
@@ -23,8 +24,8 @@ class TaskEventType(str, Enum):
 
 class TaskProgressUpdate(BaseModel):
     """Progress update data."""
-    text: Optional[str] = Field(None, description="Progress description text")
-    value: Optional[float] = Field(None, ge=0.0, le=1.0, description="Progress value from 0.0 to 1.0")
+    text: str | None = Field(None, description="Progress description text")
+    value: float | None = Field(None, ge=0.0, le=1.0, description="Progress value from 0.0 to 1.0")
 
 
 class TaskEvent(BaseModel):
@@ -32,7 +33,7 @@ class TaskEvent(BaseModel):
     event_type: TaskEventType = Field(description="Type of task event")
     task_id: str = Field(description="Unique task identifier")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Event timestamp")
-    data: Optional[Dict[str, Any]] = Field(None, description="Event-specific data")
+    data: dict[str, Any] | None = Field(None, description="Event-specific data")
 
 
 class TaskInfo(BaseModel):
@@ -40,9 +41,9 @@ class TaskInfo(BaseModel):
     task_id: str = Field(description="Unique task identifier")
     status: TaskStatus = Field(description="Current task status")
     start_time: datetime = Field(description="Task start timestamp")
-    end_time: Optional[datetime] = Field(None, description="Task completion timestamp")
-    result: Optional[Dict[str, Any]] = Field(None, description="Task result data")
-    error: Optional[str] = Field(None, description="Error message if task failed")
+    end_time: datetime | None = Field(None, description="Task completion timestamp")
+    result: dict[str, Any] | None = Field(None, description="Task result data")
+    error: str | None = Field(None, description="Error message if task failed")
 
 
 class TaskStartResponse(BaseModel):

@@ -173,7 +173,7 @@ def download_attachment(part_key: str, attachment_id: int, document_service=Prov
 
     # Check for inline query parameter to set Content-Disposition to inline
     inline = request.args.get('inline') is not None
-    
+
     return send_file(
         file_data,
         mimetype=content_type,

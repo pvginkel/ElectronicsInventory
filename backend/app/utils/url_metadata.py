@@ -126,7 +126,7 @@ def extract_page_metadata(url: str) -> dict[str, Any]:
         return metadata
 
     except Exception as e:
-        raise InvalidOperationException("extract page metadata", str(e))
+        raise InvalidOperationException("extract page metadata", str(e)) from e
 
 
 def get_best_thumbnail_url(metadata: dict[str, Any]) -> str | None:

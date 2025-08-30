@@ -114,7 +114,7 @@ def container(app: Flask, session: Session):
 
 
 # Import document fixtures to make them available to all tests
-from .test_document_fixtures import (
+from .test_document_fixtures import (  # noqa: F401
     sample_part,
     sample_image_file,
     sample_pdf_bytes,
