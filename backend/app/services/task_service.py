@@ -6,12 +6,15 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue, Empty
 import time
+import logging
 
 from app.services.base_task import BaseTask, ProgressHandle
 from app.schemas.task_schema import (
     TaskInfo, TaskStatus, TaskStartResponse, TaskEvent, 
     TaskEventType, TaskProgressUpdate
 )
+
+logger = logging.getLogger(__name__)
 
 
 class TaskProgressHandle:
@@ -42,8 +45,9 @@ class TaskProgressHandle:
         )
         try:
             self.event_queue.put_nowait(event)
-        except Exception:
-            # If queue is full or closed, ignore silently
+        except Exception as e:
+            # If queue is full or closed, log warning and ignore
+            logger.warning(f"Failed to send progress event for task {self.task_id}: {e}")
             pass
 
 
@@ -51,6 +55,13 @@ class TaskService:
     """Service for managing background tasks with SSE progress updates."""
     
     def __init__(self, max_workers: int = 4, task_timeout: int = 300, cleanup_interval: int = 600):
+        """Initialize TaskService with configurable parameters.
+        
+        Args:
+            max_workers: Maximum number of concurrent tasks
+            task_timeout: Task execution timeout in seconds
+            cleanup_interval: How often to clean up completed tasks in seconds
+        """
         self.max_workers = max_workers
         self.task_timeout = task_timeout
         self.cleanup_interval = cleanup_interval  # 10 minutes in seconds
@@ -64,6 +75,8 @@ class TaskService:
         # Start cleanup thread
         self._cleanup_thread = threading.Thread(target=self._cleanup_worker, daemon=True)
         self._cleanup_thread.start()
+        
+        logger.info(f"TaskService initialized: max_workers={max_workers}, timeout={task_timeout}s, cleanup_interval={cleanup_interval}s")
     
     def start_task(self, task: BaseTask, **kwargs) -> TaskStartResponse:
         """
@@ -93,6 +106,8 @@ class TaskService:
             
             # Submit task to thread pool
             self._executor.submit(self._execute_task, task_id, task, kwargs)
+            
+        logger.info(f"Started task {task_id} of type {type(task).__name__}")
         
         return TaskStartResponse(
             task_id=task_id,
@@ -127,6 +142,7 @@ class TaskService:
             task_info.status = TaskStatus.CANCELLED
             task_info.end_time = datetime.utcnow()
             
+            logger.info(f"Cancelled task {task_id}")
             return True
     
     def remove_completed_task(self, task_id: str) -> bool:
@@ -150,6 +166,7 @@ class TaskService:
                 except Empty:
                     pass
             
+            logger.debug(f"Removed completed task {task_id}")
             return True
     
     def get_task_events(self, task_id: str, timeout: float = 30.0) -> List[TaskEvent]:
@@ -233,11 +250,16 @@ class TaskService:
                         data=result.model_dump() if result else None
                     )
                     event_queue.put_nowait(completion_event)
+                    
+                    logger.info(f"Task {task_id} completed successfully")
             
         except Exception as e:
             # Task failed
             error_msg = str(e)
             error_trace = traceback.format_exc()
+            
+            logger.error(f"Task {task_id} failed: {error_msg}")
+            logger.debug(f"Task {task_id} error traceback: {error_trace}")
             
             with self._lock:
                 task_info = self._tasks.get(task_id)
@@ -268,10 +290,9 @@ class TaskService:
                 # Perform cleanup
                 self._cleanup_completed_tasks()
                 
-            except Exception:
+            except Exception as e:
                 # Log error but continue cleanup loop
-                # In a production environment, you'd want proper logging here
-                pass
+                logger.error(f"Error during task cleanup: {e}", exc_info=True)
     
     def _cleanup_completed_tasks(self) -> None:
         """Remove completed tasks older than cleanup_interval."""
@@ -289,11 +310,16 @@ class TaskService:
                             tasks_to_remove.append(task_id)
         
         # Remove old tasks
+        if tasks_to_remove:
+            logger.debug(f"Cleaning up {len(tasks_to_remove)} completed tasks")
+        
         for task_id in tasks_to_remove:
             self.remove_completed_task(task_id)
     
     def shutdown(self) -> None:
         """Shutdown the task service and cleanup resources."""
+        logger.info("Shutting down TaskService...")
+        
         # Signal cleanup thread to stop
         self._shutdown_event.set()
         if self._cleanup_thread.is_alive():
@@ -302,6 +328,11 @@ class TaskService:
         self._executor.shutdown(wait=True)
         
         with self._lock:
+            active_tasks = sum(1 for t in self._tasks.values() 
+                             if t.status in [TaskStatus.PENDING, TaskStatus.RUNNING])
+            if active_tasks > 0:
+                logger.warning(f"Shutting down with {active_tasks} active tasks")
+            
             # Clear all event queues
             for queue in self._event_queues.values():
                 try:
@@ -313,3 +344,5 @@ class TaskService:
             self._tasks.clear()
             self._task_instances.clear()
             self._event_queues.clear()
+            
+        logger.info("TaskService shutdown complete")

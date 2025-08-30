@@ -3,6 +3,7 @@
 from dependency_injector import containers, providers
 from sqlalchemy.orm import Session
 
+from app.config import Settings
 from app.services.box_service import BoxService
 from app.services.document_service import DocumentService
 from app.services.image_service import ImageService
@@ -18,7 +19,8 @@ from app.services.url_thumbnail_service import URLThumbnailService
 class ServiceContainer(containers.DeclarativeContainer):
     """Container for service dependency injection."""
 
-    # Database session provider
+    # Configuration and database session providers
+    config = providers.Dependency(instance_of=Settings)
     db_session = providers.Dependency(instance_of=Session)
 
     # Service providers - Factory creates new instances for each request
@@ -46,5 +48,10 @@ class ServiceContainer(containers.DeclarativeContainer):
         part_service=part_service
     )
 
-    # TaskService - Singleton for in-memory task management
-    task_service = providers.Singleton(TaskService)
+    # TaskService - Singleton for in-memory task management with configurable settings
+    task_service = providers.Singleton(
+        TaskService,
+        max_workers=config.provided.TASK_MAX_WORKERS,
+        task_timeout=config.provided.TASK_TIMEOUT_SECONDS,
+        cleanup_interval=config.provided.TASK_CLEANUP_INTERVAL_SECONDS
+    )

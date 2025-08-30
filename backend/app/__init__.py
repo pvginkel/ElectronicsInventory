@@ -47,6 +47,7 @@ def create_app(settings: "Settings | None" = None) -> Flask:
 
     # Initialize service container after SpecTree
     container = ServiceContainer()
+    container.config.override(settings)
     container.wire(modules=['app.api.parts', 'app.api.boxes', 'app.api.inventory', 'app.api.types', 'app.api.testing', 'app.api.documents', 'app.api.tasks'])
     app.container = container
 
