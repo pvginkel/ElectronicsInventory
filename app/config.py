@@ -94,6 +94,20 @@ class Settings(BaseSettings):
         default="", description="OpenAI API key for AI features"
     )
 
+    # Task management settings
+    TASK_MAX_WORKERS: int = Field(
+        default=4,
+        description="Maximum number of concurrent background tasks"
+    )
+    TASK_TIMEOUT_SECONDS: int = Field(
+        default=300,
+        description="Task execution timeout in seconds (5 minutes)"
+    )
+    TASK_CLEANUP_INTERVAL_SECONDS: int = Field(
+        default=600,
+        description="How often to clean up completed tasks in seconds (10 minutes)"
+    )
+
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         """SQLAlchemy database URI."""
