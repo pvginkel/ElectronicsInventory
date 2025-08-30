@@ -105,7 +105,7 @@ class ImageService(BaseService):
             return thumbnail_path
 
         except Exception as e:
-            raise InvalidOperationException("generate thumbnail", str(e))
+            raise InvalidOperationException("generate thumbnail", str(e)) from e
 
     def get_thumbnail_path(self, attachment_id: int, s3_key: str, size: int) -> str:
         """Get thumbnail path, generating if necessary.
@@ -170,7 +170,7 @@ class ImageService(BaseService):
                 return output, metadata
 
         except Exception as e:
-            raise InvalidOperationException("process image", f"image processing failed: {str(e)}")
+            raise InvalidOperationException("process image", f"image processing failed: {str(e)}") from e
 
     def get_pdf_icon_data(self) -> tuple[bytes, str]:
         """Get PDF icon as SVG data.

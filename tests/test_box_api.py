@@ -326,7 +326,7 @@ class TestBoxAPI:
         for i, location in enumerate(response_data, 1):
             assert location["box_no"] == box.box_no
             assert location["loc_no"] == i
-            assert location["is_occupied"] == False
+            assert location["is_occupied"] is False
             assert location["part_assignments"] is None
 
     def test_get_box_locations_with_parts_true_with_parts(self, client: FlaskClient, session: Session, container: ServiceContainer):
@@ -360,13 +360,13 @@ class TestBoxAPI:
         # Location 1: empty
         assert response_data[0]["box_no"] == box.box_no
         assert response_data[0]["loc_no"] == 1
-        assert response_data[0]["is_occupied"] == False
+        assert response_data[0]["is_occupied"] is False
         assert response_data[0]["part_assignments"] is None
 
         # Location 2: has R001
         assert response_data[1]["box_no"] == box.box_no
         assert response_data[1]["loc_no"] == 2
-        assert response_data[1]["is_occupied"] == True
+        assert response_data[1]["is_occupied"] is True
         assert len(response_data[1]["part_assignments"]) == 1
         part_assignment = response_data[1]["part_assignments"][0]
         assert part_assignment["key"] == part1.key
@@ -376,12 +376,12 @@ class TestBoxAPI:
 
         # Location 3: empty
         assert response_data[2]["loc_no"] == 3
-        assert response_data[2]["is_occupied"] == False
+        assert response_data[2]["is_occupied"] is False
         assert response_data[2]["part_assignments"] is None
 
         # Location 4: has C002
         assert response_data[3]["loc_no"] == 4
-        assert response_data[3]["is_occupied"] == True
+        assert response_data[3]["is_occupied"] is True
         assert len(response_data[3]["part_assignments"]) == 1
         part_assignment = response_data[3]["part_assignments"][0]
         assert part_assignment["key"] == part2.key
@@ -391,7 +391,7 @@ class TestBoxAPI:
 
         # Location 5: has R001 again
         assert response_data[4]["loc_no"] == 5
-        assert response_data[4]["is_occupied"] == True
+        assert response_data[4]["is_occupied"] is True
         assert len(response_data[4]["part_assignments"]) == 1
         part_assignment = response_data[4]["part_assignments"][0]
         assert part_assignment["key"] == part1.key
@@ -474,14 +474,14 @@ class TestBoxAPI:
 
         # Location 1 should have part1
         location_1 = response_data[0]
-        assert location_1["is_occupied"] == True
+        assert location_1["is_occupied"] is True
         assert len(location_1["part_assignments"]) == 1
         assert location_1["part_assignments"][0]["key"] == part1.key
         assert location_1["part_assignments"][0]["qty"] == 10
 
         # Location 2 should have part2
         location_2 = response_data[1]
-        assert location_2["is_occupied"] == True
+        assert location_2["is_occupied"] is True
         assert len(location_2["part_assignments"]) == 1
         assert location_2["part_assignments"][0]["key"] == part2.key
         assert location_2["part_assignments"][0]["qty"] == 5

@@ -1,7 +1,6 @@
 """Centralized error handling utilities."""
 
 import functools
-import logging
 from collections.abc import Callable
 from typing import Any
 
@@ -34,7 +33,7 @@ def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Response | tupl
         except Exception as e:
             # Log all exceptions with stack trace
             current_app.logger.error("Exception in %s: %s", func.__name__, str(e), exc_info=True)
-            
+
             # Handle specific exception types
             try:
                 raise

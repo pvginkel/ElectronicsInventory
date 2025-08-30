@@ -65,7 +65,7 @@ class DocumentService(BaseService):
             return final_type
 
         except Exception as e:
-            raise InvalidOperationException("validate file type", f"validation failed: {str(e)}")
+            raise InvalidOperationException("validate file type", f"validation failed: {str(e)}") from e
 
     def _validate_file_size(self, file_size: int, is_image: bool = False):
         """Validate file size against limits.
@@ -194,7 +194,7 @@ class DocumentService(BaseService):
         try:
             s3_key, content_type, file_size, metadata = self.url_service.download_and_store_thumbnail(url, part.id)
         except Exception as e:
-            raise InvalidOperationException("create URL attachment", f"failed to process URL: {str(e)}")
+            raise InvalidOperationException("create URL attachment", f"failed to process URL: {str(e)}") from e
 
         # Determine attachment type based on content type (same logic as preview)
         if metadata.get('content_type') == 'image':
@@ -312,10 +312,11 @@ class DocumentService(BaseService):
 
         # If we just deleted the cover image, find a new one
         if is_cover_image:
-            # Find the oldest remaining image attachment for this part
+            # Find the oldest remaining image attachment for this part (excluding the one being deleted)
             stmt = select(PartAttachment).where(
                 PartAttachment.part_id == part.id,
-                PartAttachment.attachment_type == AttachmentType.IMAGE
+                PartAttachment.attachment_type == AttachmentType.IMAGE,
+                PartAttachment.id != attachment_id
             ).order_by(PartAttachment.created_at)
 
             new_cover = self.db.scalar(stmt)

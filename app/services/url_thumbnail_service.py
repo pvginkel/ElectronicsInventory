@@ -56,7 +56,7 @@ class URLThumbnailService(BaseService):
             # Limit response size to 5MB
             content = b''
             max_size = 5 * 1024 * 1024  # 5MB
-            
+
             for chunk in response.iter_content(chunk_size=8192):
                 content += chunk
                 if len(content) > max_size:
@@ -64,22 +64,22 @@ class URLThumbnailService(BaseService):
 
             # Use magic to detect actual content type
             detected_type = magic.from_buffer(content, mime=True)
-            
+
             return content, detected_type
 
         except requests.exceptions.RequestException as e:
-            raise InvalidOperationException("fetch URL content", str(e))
+            raise InvalidOperationException("fetch URL content", str(e)) from e
 
     def _process_html_content(self, content: bytes, url: str) -> dict:
         """Process HTML content to extract metadata.
-        
+
         Args:
             content: HTML content as bytes
             url: Original URL
-            
+
         Returns:
             Dictionary containing page metadata
-            
+
         Raises:
             InvalidOperationException: If HTML parsing fails
         """
@@ -133,15 +133,15 @@ class URLThumbnailService(BaseService):
             }
 
         except Exception as e:
-            raise InvalidOperationException("process HTML content", str(e))
+            raise InvalidOperationException("process HTML content", str(e)) from e
 
     def _process_image_content(self, content: bytes, url: str) -> dict:
         """Process image content to extract metadata.
-        
+
         Args:
             content: Image content as bytes
             url: Original URL
-            
+
         Returns:
             Dictionary containing image metadata
         """
@@ -163,11 +163,11 @@ class URLThumbnailService(BaseService):
 
     def _process_pdf_content(self, content: bytes, url: str) -> dict:
         """Process PDF content to extract metadata.
-        
+
         Args:
             content: PDF content as bytes
             url: Original URL
-            
+
         Returns:
             Dictionary containing PDF metadata
         """
@@ -189,12 +189,12 @@ class URLThumbnailService(BaseService):
 
     def _process_other_content(self, content: bytes, url: str, detected_type: str) -> dict:
         """Process other content types.
-        
+
         Args:
             content: Content as bytes
             url: Original URL
             detected_type: MIME type detected by magic
-            
+
         Returns:
             Dictionary containing generic metadata
         """
@@ -248,7 +248,7 @@ class URLThumbnailService(BaseService):
             return content.decode('utf-8', errors='ignore')
 
         except requests.exceptions.RequestException as e:
-            raise InvalidOperationException("fetch URL content", str(e))
+            raise InvalidOperationException("fetch URL content", str(e)) from e
 
     def _extract_og_image(self, soup: BeautifulSoup) -> str | None:
         """Extract og:image meta tag from HTML.
@@ -341,7 +341,7 @@ class URLThumbnailService(BaseService):
             return image_data, content_type
 
         except requests.exceptions.RequestException as e:
-            raise InvalidOperationException("download image", str(e))
+            raise InvalidOperationException("download image", str(e)) from e
 
     def extract_metadata(self, url: str) -> dict:
         """Extract metadata by downloading content and determining its type.
@@ -358,16 +358,16 @@ class URLThumbnailService(BaseService):
         try:
             # Download content and detect its type
             content, detected_type = self._fetch_content(url)
-            
+
             # Try to process as HTML first - if it succeeds, treat as webpage
             if detected_type.startswith('text/html') or detected_type == 'application/xhtml+xml':
                 try:
                     return self._process_html_content(content, url)
                 except Exception:
-                    # If HTML processing fails but content type suggests HTML, 
+                    # If HTML processing fails but content type suggests HTML,
                     # still try other content types
                     pass
-            
+
             # Handle different content types based on magic detection
             if detected_type.startswith('image/'):
                 return self._process_image_content(content, url)
@@ -383,12 +383,12 @@ class URLThumbnailService(BaseService):
                         return self._process_html_content(content, url)
                 except Exception:
                     pass
-                
+
                 # If not HTML-like, process as other content type
                 return self._process_other_content(content, url, detected_type)
-        
+
         except Exception as e:
-            raise InvalidOperationException("extract metadata", str(e))
+            raise InvalidOperationException("extract metadata", str(e)) from e
 
     def extract_thumbnail_url(self, url: str) -> tuple[str, dict]:
         """Extract thumbnail URL from web page using og:image, twitter:image, or favicon fallback.
@@ -453,7 +453,7 @@ class URLThumbnailService(BaseService):
             return thumbnail_url, metadata
 
         except Exception as e:
-            raise InvalidOperationException("extract thumbnail URL", str(e))
+            raise InvalidOperationException("extract thumbnail URL", str(e)) from e
 
     def download_and_store_thumbnail(self, url: str, part_id: int) -> tuple[str, str, int, dict]:
         """Download thumbnail image and store in S3.
@@ -499,24 +499,24 @@ class URLThumbnailService(BaseService):
 
     def get_preview_image_url(self, url: str) -> str:
         """Get the appropriate image URL for preview based on content type.
-        
+
         Args:
             url: URL to get preview image for
-            
+
         Returns:
             Image URL to use for preview
-            
+
         Raises:
             InvalidOperationException: If no image can be found
         """
         # Extract metadata which includes the thumbnail URL
         metadata = self.extract_metadata(url)
-        
+
         # Return the thumbnail URL from metadata
         thumbnail_url = metadata.get('thumbnail_url')
         if not thumbnail_url:
             raise InvalidOperationException("get preview image URL", "No image URL available")
-            
+
         return thumbnail_url
 
     def validate_url(self, url: str) -> bool:

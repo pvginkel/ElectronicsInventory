@@ -616,7 +616,7 @@ class TestBoxService:
             for i, location_data in enumerate(locations_with_parts, 1):
                 assert location_data.box_no == box.box_no
                 assert location_data.loc_no == i
-                assert location_data.is_occupied == False
+                assert location_data.is_occupied is False
                 assert location_data.part_assignments == []
 
     def test_get_box_locations_with_parts_single_part(self, app: Flask, session: Session, container: ServiceContainer):
@@ -640,13 +640,13 @@ class TestBoxService:
             # Location 1: empty
             assert locations_with_parts[0].box_no == box.box_no
             assert locations_with_parts[0].loc_no == 1
-            assert locations_with_parts[0].is_occupied == False
+            assert locations_with_parts[0].is_occupied is False
             assert locations_with_parts[0].part_assignments == []
 
             # Location 2: has part
             assert locations_with_parts[1].box_no == box.box_no
             assert locations_with_parts[1].loc_no == 2
-            assert locations_with_parts[1].is_occupied == True
+            assert locations_with_parts[1].is_occupied is True
             assert len(locations_with_parts[1].part_assignments) == 1
 
             part_assignment = locations_with_parts[1].part_assignments[0]
@@ -658,7 +658,7 @@ class TestBoxService:
             # Location 3: empty
             assert locations_with_parts[2].box_no == box.box_no
             assert locations_with_parts[2].loc_no == 3
-            assert locations_with_parts[2].is_occupied == False
+            assert locations_with_parts[2].is_occupied is False
             assert locations_with_parts[2].part_assignments == []
 
     def test_get_box_locations_with_parts_multiple_parts(self, app: Flask, session: Session, container: ServiceContainer):
@@ -685,27 +685,27 @@ class TestBoxService:
             assert len(locations_with_parts) == 5
 
             # Location 1: has resistor
-            assert locations_with_parts[0].is_occupied == True
+            assert locations_with_parts[0].is_occupied is True
             assert len(locations_with_parts[0].part_assignments) == 1
             assert locations_with_parts[0].part_assignments[0].key == part1.key
             assert locations_with_parts[0].part_assignments[0].qty == 10
 
             # Location 2: empty
-            assert locations_with_parts[1].is_occupied == False
+            assert locations_with_parts[1].is_occupied is False
             assert locations_with_parts[1].part_assignments == []
 
             # Location 3: has capacitor
-            assert locations_with_parts[2].is_occupied == True
+            assert locations_with_parts[2].is_occupied is True
             assert len(locations_with_parts[2].part_assignments) == 1
             assert locations_with_parts[2].part_assignments[0].key == part2.key
             assert locations_with_parts[2].part_assignments[0].qty == 50
 
             # Location 4: empty
-            assert locations_with_parts[3].is_occupied == False
+            assert locations_with_parts[3].is_occupied is False
             assert locations_with_parts[3].part_assignments == []
 
             # Location 5: has inductor
-            assert locations_with_parts[4].is_occupied == True
+            assert locations_with_parts[4].is_occupied is True
             assert len(locations_with_parts[4].part_assignments) == 1
             assert locations_with_parts[4].part_assignments[0].key == part3.key
             assert locations_with_parts[4].part_assignments[0].qty == 5
@@ -732,23 +732,23 @@ class TestBoxService:
             assert len(locations_with_parts) == 4
 
             # Location 1: has resistor (qty=100)
-            assert locations_with_parts[0].is_occupied == True
+            assert locations_with_parts[0].is_occupied is True
             assert len(locations_with_parts[0].part_assignments) == 1
             assert locations_with_parts[0].part_assignments[0].key == part.key
             assert locations_with_parts[0].part_assignments[0].qty == 100
 
             # Location 2: empty
-            assert locations_with_parts[1].is_occupied == False
+            assert locations_with_parts[1].is_occupied is False
             assert locations_with_parts[1].part_assignments == []
 
             # Location 3: has R001 (qty=200)
-            assert locations_with_parts[2].is_occupied == True
+            assert locations_with_parts[2].is_occupied is True
             assert len(locations_with_parts[2].part_assignments) == 1
             assert locations_with_parts[2].part_assignments[0].key == part.key
             assert locations_with_parts[2].part_assignments[0].qty == 200
 
             # Location 4: has R001 (qty=50)
-            assert locations_with_parts[3].is_occupied == True
+            assert locations_with_parts[3].is_occupied is True
             assert len(locations_with_parts[3].part_assignments) == 1
             assert locations_with_parts[3].part_assignments[0].key == part.key
             assert locations_with_parts[3].part_assignments[0].qty == 50
@@ -774,7 +774,7 @@ class TestBoxService:
 
             # Location 2: has detailed part
             location_2 = locations_with_parts[1]
-            assert location_2.is_occupied == True
+            assert location_2.is_occupied is True
             assert len(location_2.part_assignments) == 1
 
             part_assignment = location_2.part_assignments[0]
@@ -824,21 +824,21 @@ class TestBoxService:
 
             # Verify the correct parts are at the correct locations
             # Location 1: part3
-            assert locations_with_parts[0].is_occupied == True
+            assert locations_with_parts[0].is_occupied is True
             assert locations_with_parts[0].part_assignments[0].key == part3.key
             assert locations_with_parts[0].part_assignments[0].qty == 5
 
             # Location 3: part2
-            assert locations_with_parts[2].is_occupied == True
+            assert locations_with_parts[2].is_occupied is True
             assert locations_with_parts[2].part_assignments[0].key == part2.key
             assert locations_with_parts[2].part_assignments[0].qty == 20
 
             # Location 8: part1
-            assert locations_with_parts[7].is_occupied == True
+            assert locations_with_parts[7].is_occupied is True
             assert locations_with_parts[7].part_assignments[0].key == part1.key
             assert locations_with_parts[7].part_assignments[0].qty == 10
 
             # Location 10: part4
-            assert locations_with_parts[9].is_occupied == True
+            assert locations_with_parts[9].is_occupied is True
             assert locations_with_parts[9].part_assignments[0].key == part4.key
             assert locations_with_parts[9].part_assignments[0].qty == 15

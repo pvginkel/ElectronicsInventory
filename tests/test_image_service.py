@@ -62,7 +62,7 @@ class TestImageService:
         with app.app_context():
             with patch('app.services.image_service.current_app') as mock_current_app:
                 mock_current_app.config = {'THUMBNAIL_STORAGE_PATH': str(temp_dir / "thumbnails")}
-                service = ImageService(session, mock_s3_service)
+                ImageService(session, mock_s3_service)
                 assert (temp_dir / "thumbnails").exists()
 
     def test_process_uploaded_image_normal_size(self, image_service, sample_image_bytes):

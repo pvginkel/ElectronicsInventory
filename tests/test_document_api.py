@@ -662,13 +662,13 @@ class TestUrlPreviewAPI:
         # Simulate direct image URL - should return the URL itself
         mock_get_preview_image_url.return_value = 'https://example.com/image.jpg'
         mock_download_image.return_value = (io.BytesIO(b"direct image data"), 'image/jpeg')
-        
+
         response = client.get('/api/parts/attachment-preview/image?url=https%3A//example.com/image.jpg')
-        
+
         assert response.status_code == 200
         assert response.content_type == 'image/jpeg'
         assert response.data == b"direct image data"
-        
+
         mock_validate_url.assert_called_once_with('https://example.com/image.jpg')
         mock_get_preview_image_url.assert_called_once_with('https://example.com/image.jpg')
         mock_download_image.assert_called_once_with('https://example.com/image.jpg', 'https://example.com/image.jpg')

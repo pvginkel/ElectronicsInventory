@@ -38,8 +38,8 @@ class S3Service(BaseService):
                     region_name=current_app.config['S3_REGION'],
                     use_ssl=current_app.config['S3_USE_SSL']
                 )
-            except NoCredentialsError:
-                raise InvalidOperationException("initialize S3 client", "credentials not configured")
+            except NoCredentialsError as e:
+                raise InvalidOperationException("initialize S3 client", "credentials not configured") from e
         return self._s3_client
 
     def generate_s3_key(self, part_id: int, filename: str) -> str:
@@ -85,7 +85,7 @@ class S3Service(BaseService):
             return True
 
         except ClientError as e:
-            raise InvalidOperationException("upload file to S3", str(e))
+            raise InvalidOperationException("upload file to S3", str(e)) from e
 
     def download_file(self, s3_key: str) -> BytesIO:
         """Download file from S3.
@@ -111,8 +111,8 @@ class S3Service(BaseService):
 
         except ClientError as e:
             if e.response['Error']['Code'] == 'NoSuchKey':
-                raise InvalidOperationException("download file from S3", f"file not found: {s3_key}")
-            raise InvalidOperationException("download file from S3", str(e))
+                raise InvalidOperationException("download file from S3", f"file not found: {s3_key}") from e
+            raise InvalidOperationException("download file from S3", str(e)) from e
 
     def delete_file(self, s3_key: str) -> bool:
         """Delete file from S3.
@@ -134,7 +134,7 @@ class S3Service(BaseService):
             return True
 
         except ClientError as e:
-            raise InvalidOperationException("delete file from S3", str(e))
+            raise InvalidOperationException("delete file from S3", str(e)) from e
 
     def file_exists(self, s3_key: str) -> bool:
         """Check if file exists in S3.
@@ -155,7 +155,7 @@ class S3Service(BaseService):
         except ClientError as e:
             if e.response['Error']['Code'] == '404':
                 return False
-            raise InvalidOperationException("check file existence in S3", str(e))
+            raise InvalidOperationException("check file existence in S3", str(e)) from e
 
     def get_file_metadata(self, s3_key: str) -> dict:
         """Get file metadata from S3.
@@ -184,5 +184,5 @@ class S3Service(BaseService):
 
         except ClientError as e:
             if e.response['Error']['Code'] == '404':
-                raise InvalidOperationException("get file metadata from S3", f"file not found: {s3_key}")
-            raise InvalidOperationException("get file metadata from S3", str(e))
+                raise InvalidOperationException("get file metadata from S3", f"file not found: {s3_key}") from e
+            raise InvalidOperationException("get file metadata from S3", str(e)) from e
