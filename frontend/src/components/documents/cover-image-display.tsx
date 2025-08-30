@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useCoverAttachment } from '@/hooks/use-cover-image';
 import { getCoverThumbnailUrl, generateCoverSrcSet, getSizesAttribute } from '@/lib/utils/thumbnail-urls';
+import pdfIconSvg from '@/assets/pdf-icon.svg';
 
 interface CoverImageDisplayProps {
   partId: string;
@@ -68,10 +69,7 @@ export function CoverImageDisplay({
     return (
       <div className={`rounded-lg bg-muted flex items-center justify-center ${getSizeClasses(size)} ${className}`}>
         <div className="text-center text-muted-foreground">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M14 2H6C4.9 2 4 2.9 4 4v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/>
-            <text x="12" y="15" fontSize="8" textAnchor="middle" fill="currentColor">PDF</text>
-          </svg>
+          <img src={pdfIconSvg} alt="PDF" width="40%" height="40%" />
           <div className="text-xs mt-1">{coverAttachment.title}</div>
         </div>
       </div>
