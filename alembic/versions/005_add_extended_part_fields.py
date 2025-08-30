@@ -1,6 +1,6 @@
 """Add extended part fields
 
-Revision ID: 852fac0aed49
+Revision ID: 005
 Revises: 004
 Create Date: 2025-08-30 20:24:37.083617
 

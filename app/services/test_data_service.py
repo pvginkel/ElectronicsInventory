@@ -111,7 +111,13 @@ class TestDataService(BaseService):
                 description=part_data["description"],
                 tags=part_data.get("tags"),
                 seller=part_data.get("seller"),
-                seller_link=part_data.get("seller_link")
+                seller_link=part_data.get("seller_link"),
+                package=part_data.get("package"),
+                pin_count=part_data.get("pin_count"),
+                voltage_rating=part_data.get("voltage_rating"),
+                mounting_type=part_data.get("mounting_type"),
+                series=part_data.get("series"),
+                dimensions=part_data.get("dimensions")
             )
             self.db.add(part)
             self.db.flush()  # Get ID immediately
