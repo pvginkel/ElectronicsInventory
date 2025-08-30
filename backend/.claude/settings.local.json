@@ -14,7 +14,8 @@
       "Bash(alembic:*)",
       "Bash(ruff check:*)",
       "Bash(mypy:*)",
-      "Bash(unset:*)"
+      "Bash(unset:*)",
+      "Bash(grep:*)"
     ],
     "deny": [
       "Bash(ruff format:*)",

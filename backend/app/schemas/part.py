@@ -54,6 +54,44 @@ class PartCreateSchema(BaseModel):
         json_schema_extra={"example": "https://www.digikey.com/en/products/detail/G5Q-1A4"}
     )
 
+    # Extended technical fields
+    package: str | None = Field(
+        None,
+        max_length=100,
+        description="Physical package type for the component",
+        json_schema_extra={"example": "DIP-8"}
+    )
+    pin_count: int | None = Field(
+        None,
+        gt=0,
+        description="Number of pins/connections on the component",
+        json_schema_extra={"example": 8}
+    )
+    voltage_rating: str | None = Field(
+        None,
+        max_length=50,
+        description="Operating or rated voltage for the component",
+        json_schema_extra={"example": "3.3V"}
+    )
+    mounting_type: str | None = Field(
+        None,
+        max_length=50,
+        description="How the component is physically mounted",
+        json_schema_extra={"example": "Through-hole"}
+    )
+    series: str | None = Field(
+        None,
+        max_length=100,
+        description="Component family or series identification",
+        json_schema_extra={"example": "74HC"}
+    )
+    dimensions: str | None = Field(
+        None,
+        max_length=100,
+        description="Physical size of the component",
+        json_schema_extra={"example": "20x15x5mm"}
+    )
+
 
 class PartUpdateSchema(BaseModel):
     """Schema for updating an existing part."""
@@ -91,6 +129,44 @@ class PartUpdateSchema(BaseModel):
         max_length=500,
         description="Updated product page URL",
         json_schema_extra={"example": "https://www.mouser.com/ProductDetail/G5Q-1A4"}
+    )
+
+    # Extended technical fields
+    package: str | None = Field(
+        None,
+        max_length=100,
+        description="Updated physical package type",
+        json_schema_extra={"example": "SOIC-16"}
+    )
+    pin_count: int | None = Field(
+        None,
+        gt=0,
+        description="Updated number of pins/connections",
+        json_schema_extra={"example": 16}
+    )
+    voltage_rating: str | None = Field(
+        None,
+        max_length=50,
+        description="Updated operating or rated voltage",
+        json_schema_extra={"example": "5V"}
+    )
+    mounting_type: str | None = Field(
+        None,
+        max_length=50,
+        description="Updated mounting type",
+        json_schema_extra={"example": "Surface Mount"}
+    )
+    series: str | None = Field(
+        None,
+        max_length=100,
+        description="Updated component series",
+        json_schema_extra={"example": "STM32F4"}
+    )
+    dimensions: str | None = Field(
+        None,
+        max_length=100,
+        description="Updated physical dimensions",
+        json_schema_extra={"example": "10.3x7.5mm"}
     )
 
 
@@ -141,6 +217,39 @@ class PartResponseSchema(BaseModel):
         description="Cover attachment details",
         default=None
     )
+
+    # Extended technical fields
+    package: str | None = Field(
+        default=None,
+        description="Physical package type",
+        json_schema_extra={"example": "DIP-8"}
+    )
+    pin_count: int | None = Field(
+        default=None,
+        description="Number of pins/connections",
+        json_schema_extra={"example": 8}
+    )
+    voltage_rating: str | None = Field(
+        default=None,
+        description="Operating or rated voltage",
+        json_schema_extra={"example": "3.3V"}
+    )
+    mounting_type: str | None = Field(
+        default=None,
+        description="Physical mounting type",
+        json_schema_extra={"example": "Through-hole"}
+    )
+    series: str | None = Field(
+        default=None,
+        description="Component series identification",
+        json_schema_extra={"example": "74HC"}
+    )
+    dimensions: str | None = Field(
+        default=None,
+        description="Physical dimensions",
+        json_schema_extra={"example": "20x15x5mm"}
+    )
+
     created_at: datetime = Field(
         description="Timestamp when the part was created",
         json_schema_extra={"example": "2024-01-15T10:30:00Z"}
@@ -212,6 +321,39 @@ class PartWithTotalSchema(BaseModel):
         description="Vendor/supplier name",
         json_schema_extra={"example": "Digi-Key"}
     )
+
+    # Extended technical fields
+    package: str | None = Field(
+        default=None,
+        description="Physical package type",
+        json_schema_extra={"example": "DIP-8"}
+    )
+    pin_count: int | None = Field(
+        default=None,
+        description="Number of pins/connections",
+        json_schema_extra={"example": 8}
+    )
+    voltage_rating: str | None = Field(
+        default=None,
+        description="Operating or rated voltage",
+        json_schema_extra={"example": "3.3V"}
+    )
+    mounting_type: str | None = Field(
+        default=None,
+        description="Physical mounting type",
+        json_schema_extra={"example": "Through-hole"}
+    )
+    series: str | None = Field(
+        default=None,
+        description="Component series identification",
+        json_schema_extra={"example": "74HC"}
+    )
+    dimensions: str | None = Field(
+        default=None,
+        description="Physical dimensions",
+        json_schema_extra={"example": "20x15x5mm"}
+    )
+
     created_at: datetime = Field(
         description="Timestamp when the part was created",
         json_schema_extra={"example": "2024-01-15T10:30:00Z"}

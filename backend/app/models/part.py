@@ -3,7 +3,16 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import CHAR, JSON, ForeignKey, String, Text, func
+from sqlalchemy import (
+    CHAR,
+    JSON,
+    CheckConstraint,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -36,11 +45,25 @@ class Part(db.Model):  # type: ignore[name-defined]
     cover_attachment_id: Mapped[int | None] = mapped_column(
         ForeignKey("part_attachments.id", use_alter=True, name="fk_parts_cover_attachment"), nullable=True
     )
+
+    # Extended technical fields
+    package: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    pin_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    voltage_rating: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    mounting_type: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    series: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    dimensions: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    # Table-level constraints
+    __table_args__ = (
+        CheckConstraint("pin_count > 0 OR pin_count IS NULL", name="ck_parts_pin_count_positive"),
     )
 
     # Relationships
@@ -68,4 +91,13 @@ class Part(db.Model):  # type: ignore[name-defined]
     )
 
     def __repr__(self) -> str:
-        return f"<Part {self.key}: {self.manufacturer_code or 'N/A'}>"
+        specs = []
+        if self.package:
+            specs.append(self.package)
+        if self.voltage_rating:
+            specs.append(self.voltage_rating)
+        if self.pin_count:
+            specs.append(f"{self.pin_count}-pin")
+
+        specs_str = f" ({', '.join(specs)})" if specs else ""
+        return f"<Part {self.key}: {self.manufacturer_code or 'N/A'}{specs_str}>"

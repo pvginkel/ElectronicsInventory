@@ -37,6 +37,12 @@ class PartService(BaseService):
         tags: list[str] | None = None,
         seller: str | None = None,
         seller_link: str | None = None,
+        package: str | None = None,
+        pin_count: int | None = None,
+        voltage_rating: str | None = None,
+        mounting_type: str | None = None,
+        series: str | None = None,
+        dimensions: str | None = None,
     ) -> Part:
         """Create a new part with auto-generated key."""
         key = self.generate_part_key()
@@ -49,6 +55,12 @@ class PartService(BaseService):
             tags=tags,
             seller=seller,
             seller_link=seller_link,
+            package=package,
+            pin_count=pin_count,
+            voltage_rating=voltage_rating,
+            mounting_type=mounting_type,
+            series=series,
+            dimensions=dimensions,
         )
         self.db.add(part)
         self.db.flush()  # Get the ID immediately
@@ -82,6 +94,12 @@ class PartService(BaseService):
         tags: list[str] | None = None,
         seller: str | None = None,
         seller_link: str | None = None,
+        package: str | None = None,
+        pin_count: int | None = None,
+        voltage_rating: str | None = None,
+        mounting_type: str | None = None,
+        series: str | None = None,
+        dimensions: str | None = None,
     ) -> Part:
         """Update part details."""
         stmt = select(Part).where(Part.key == part_key)
@@ -102,6 +120,18 @@ class PartService(BaseService):
             part.seller = seller
         if seller_link is not None:
             part.seller_link = seller_link
+        if package is not None:
+            part.package = package
+        if pin_count is not None:
+            part.pin_count = pin_count
+        if voltage_rating is not None:
+            part.voltage_rating = voltage_rating
+        if mounting_type is not None:
+            part.mounting_type = mounting_type
+        if series is not None:
+            part.series = series
+        if dimensions is not None:
+            part.dimensions = dimensions
 
         return part
 
