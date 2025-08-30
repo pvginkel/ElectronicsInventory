@@ -2,15 +2,14 @@
 
 ## Brief Description
 
-Implement a task management system that allows background jobs to be started via API endpoints and monitored through Server-Sent Events (SSE) streams. Jobs implement an abstract class with progress reporting capabilities, sending real-time updates to connected clients. When jobs complete, they return structured results and automatically clean up their SSE connections.
+Implement a transient task management system that allows background jobs to be started via API endpoints and monitored through Server-Sent Events (SSE) streams. Jobs implement an abstract class with progress reporting capabilities, sending real-time updates to connected clients. When jobs complete, they return structured results and automatically clean up their SSE connections. **All task state is kept in-memory and is intentionally ephemeral - it is acceptable and expected that task state is lost on application restarts.**
 
 ## Files to Create
 
 ### Task Management Core
 - `app/services/task_service.py` - Task management service for running background jobs with SSE progress updates
 - `app/services/base_task.py` - Abstract base class for background tasks with progress reporting
-- `app/models/task.py` - Task model for tracking job status and metadata
-- `app/schemas/task_schema.py` - Pydantic schemas for task creation, progress updates, and results
+- `app/schemas/task_schema.py` - Pydantic schemas for in-memory task status, progress updates, and results
 - `app/api/tasks.py` - API endpoints for task SSE streaming (job-specific endpoints out of scope)
 
 ### Configuration and Setup
@@ -49,10 +48,11 @@ Handle passed to tasks for sending real-time updates with methods to:
 
 ### Task Lifecycle Management
 - Generate unique task IDs using UUID4
-- Track active tasks in a registry with metadata (status, start time, task instance)
+- Track active tasks in an **in-memory registry** with metadata (status, start time, task instance)
 - Per-task SSE connection for progress updates
 - Automatic cleanup when tasks complete or fail
 - Task timeout handling with configurable limits
+- **All task state is transient and lost on application restart**
 
 ### Task Execution
 - Thread-safe task execution in background threads
@@ -64,7 +64,7 @@ Handle passed to tasks for sending real-time updates with methods to:
 ### Service Interface
 TaskService provides methods to:
 - Start a background task and return schema DTO with task ID and SSE stream URL
-- Get current status of a task
+- Get current status of a task (from in-memory registry only)
 - Cancel a running task
 - Remove completed task from registry
 
@@ -87,7 +87,7 @@ Other API modules will implement task-specific endpoints that:
 ### Phase 1: Task Management Infrastructure
 1. Create BaseTask abstract class with progress reporting interface
 2. Implement TaskService with task lifecycle management
-3. Create task models and schemas for status tracking and results
+3. Create schemas for in-memory status tracking and results
 4. Create task API endpoints for SSE streaming
 5. Add TaskService to dependency injection container
 6. Wire task service into application factory
@@ -97,7 +97,7 @@ Other API modules will implement task-specific endpoints that:
 ## Dependencies and Service Registration
 
 ### Container Configuration
-Add task_service as Singleton provider in app/services/container.py with db_session dependency
+Add task_service as Singleton provider in app/services/container.py (no database dependency required)
 
 ### Application Wiring
 Wire app.api.tasks module in app/__init__.py alongside existing API modules
@@ -135,8 +135,9 @@ Other API endpoints will use dependency injection to get TaskService, start back
 
 ### Memory Management
 - Automatic cleanup of completed task data and SSE connections
-- Task result storage with bounded retention periods
+- **No persistent storage** - all task data exists only during execution
 - Proper cleanup of background threads when tasks complete or fail
+- **Application restart clears all task state** (this is expected behavior)
 
 ### Performance
 - Lightweight progress update messages to minimize bandwidth
