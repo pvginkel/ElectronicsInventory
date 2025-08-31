@@ -1,6 +1,7 @@
 """Unit tests for DocumentService."""
 
 import io
+import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -12,6 +13,14 @@ from app.models.part import Part
 from app.models.part_attachment import AttachmentType, PartAttachment
 from app.models.type import Type
 from app.services.document_service import DocumentService
+from app.utils.temp_file_manager import TempFileManager
+
+
+@pytest.fixture
+def temp_file_manager():
+    """Create temporary file manager for testing."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        yield TempFileManager(base_path=temp_dir, cleanup_age_hours=1.0)
 
 
 @pytest.fixture
@@ -49,10 +58,12 @@ def mock_url_service():
 
 
 @pytest.fixture
-def document_service(app: Flask, session: Session, mock_s3_service, mock_image_service, mock_url_service):
+def document_service(app: Flask, session: Session, mock_s3_service, mock_image_service, mock_url_service, temp_file_manager):
     """Create DocumentService with mocked dependencies."""
     with app.app_context():
-        return DocumentService(session, mock_s3_service, mock_image_service, mock_url_service)
+        from app.services.download_cache_service import DownloadCacheService
+        download_cache_service = DownloadCacheService(temp_file_manager)
+        return DocumentService(session, mock_s3_service, mock_image_service, mock_url_service, download_cache_service)
 
 
 class TestDocumentService:
