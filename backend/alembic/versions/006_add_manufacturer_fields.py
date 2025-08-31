@@ -1,6 +1,6 @@
 """Add manufacturer and product_page fields to parts table
 
-Revision ID: bb3a9f797cf7
+Revision ID: 006
 Revises: 005
 Create Date: 2025-08-31 15:54:03.157480
 
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = 'bb3a9f797cf7'
+revision: str = '006'
 down_revision: Union[str, None] = '005'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

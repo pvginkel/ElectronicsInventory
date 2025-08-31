@@ -72,6 +72,7 @@ def list_parts(inventory_service=Provide[ServiceContainer.inventory_service]):
             description=part.description,
             type_id=part.type_id,
             tags=part.tags,
+            manufacturer=part.manufacturer,
             seller=part.seller,
             package=part.package,
             pin_count=part.pin_count,
