@@ -1,10 +1,11 @@
 """Centralized error handling utilities."""
 
 import functools
+import logging
 from collections.abc import Callable
 from typing import Any
 
-from flask import current_app, jsonify
+from flask import jsonify
 from flask.wrappers import Response
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -19,6 +20,7 @@ from app.exceptions import (
     ResourceConflictException,
 )
 
+logger = logging.getLogger(__name__)
 
 def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Response | tuple[Response | str, int]]:
     """Decorator to handle common API errors consistently.
@@ -32,7 +34,7 @@ def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Response | tupl
             return func(*args, **kwargs)
         except Exception as e:
             # Log all exceptions with stack trace
-            current_app.logger.error("Exception in %s: %s", func.__name__, str(e), exc_info=True)
+            logger.error("Exception in %s: %s", func.__name__, str(e), exc_info=True)
 
             # Handle specific exception types
             try:

@@ -122,7 +122,7 @@ class TestTempFileManager:
             assert not Path(base_path).exists()
 
             # Creating manager should create the path
-            manager = TempFileManager(base_path=base_path)
+            TempFileManager(base_path=base_path)
             assert Path(base_path).exists()
 
     @patch('app.utils.temp_file_manager.logger')
@@ -132,7 +132,7 @@ class TestTempFileManager:
             manager = TempFileManager(base_path=temp_base, cleanup_age_hours=0.001)
 
             # Create a temporary directory
-            temp_dir = manager.create_temp_directory()
+            manager.create_temp_directory()
 
             # Make it old enough for cleanup
             time.sleep(4)

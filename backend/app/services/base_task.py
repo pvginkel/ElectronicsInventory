@@ -1,8 +1,12 @@
 import threading
 from abc import ABC, abstractmethod
-from typing import Protocol
+from typing import Protocol, TYPE_CHECKING
 
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from app.services.container import ServiceContainer
 
 
 class ProgressHandle(Protocol):
@@ -52,3 +56,59 @@ class BaseTask(ABC):
     def is_cancelled(self) -> bool:
         """Check if the task has been cancelled."""
         return self._cancelled.is_set()
+
+class BaseSessionTask(BaseTask):
+    """Abstract base class for tasks that require a database session."""
+
+    def __init__(self, container: 'ServiceContainer'):
+        super().__init__()
+
+        self.container = container
+
+    def execute(self, progress_handle: ProgressHandle, **kwargs) -> BaseModel:
+        """
+        Execute the task with a database session and progress reporting.
+
+        Args:
+            db_session: Database session object
+            progress_handle: Interface for sending progress updates to clients
+            **kwargs: Task-specific parameters
+
+        Returns:
+            BaseModel: Result schema object to send to client
+
+        Raises:
+            Exception: Any task-specific exceptions that should be reported as failures
+        """
+
+        session = self.container.db_session()
+
+        try:
+            result = self.execute_session(session, progress_handle, **kwargs)
+            session.commit()
+
+        except Exception:
+            session.rollback()
+            raise
+
+        self.container.db_session.reset()
+
+        return result
+
+    @abstractmethod
+    def execute_session(self, session: Session, progress_handle: ProgressHandle, **kwargs) -> BaseModel:
+        """
+        Execute the task logic with a database session.
+
+        Args:
+            session: Database session object
+            progress_handle: Interface for sending progress updates to clients
+            **kwargs: Task-specific parameters
+
+        Returns:
+            BaseModel: Result schema object to send to client
+
+        Raises:
+            Exception: Any task-specific exceptions that should be reported as failures
+        """
+        pass

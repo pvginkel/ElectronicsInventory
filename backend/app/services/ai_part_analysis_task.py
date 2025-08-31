@@ -7,22 +7,21 @@ from app.schemas.ai_part_analysis import (
     AIPartAnalysisTaskCancelledResultSchema,
     AIPartAnalysisTaskResultSchema,
 )
-from app.services.base_task import BaseTask, ProgressHandle
+from app.services.base_task import BaseSessionTask, ProgressHandle
+from app.services.container import ServiceContainer
+from sqlalchemy.orm import Session
 
-if TYPE_CHECKING:
-    from app.services.ai_service import AIService
 
 logger = logging.getLogger(__name__)
 
 
-class AIPartAnalysisTask(BaseTask):
+class AIPartAnalysisTask(BaseSessionTask):
     """Background task for AI-powered part analysis."""
 
-    def __init__(self, ai_service: 'AIService'):
-        super().__init__()
-        self.ai_service = ai_service
+    def __init__(self, container: ServiceContainer):
+        super().__init__(container)
 
-    def execute(self, progress_handle: ProgressHandle, **kwargs) -> AIPartAnalysisTaskResultSchema | AIPartAnalysisTaskCancelledResultSchema:
+    def execute_session(self, session: Session, progress_handle: ProgressHandle, **kwargs) -> AIPartAnalysisTaskResultSchema | AIPartAnalysisTaskCancelledResultSchema:
         """
         Execute AI part analysis with progress reporting.
 
@@ -59,7 +58,9 @@ class AIPartAnalysisTask(BaseTask):
             progress_handle.send_progress("AI analyzing part and finding resources...", 0.05)
 
             try:
-                analysis_result = self.ai_service.analyze_part(
+                ai_service = self.container.ai_service()
+
+                analysis_result = ai_service.analyze_part(
                     text_input=text_input,
                     image_data=image_data,
                     image_mime_type=image_mime_type

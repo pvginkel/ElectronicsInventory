@@ -6,7 +6,7 @@ import logging
 import time
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 from urllib.parse import quote
 
 from openai import OpenAI
@@ -270,7 +270,7 @@ class Link(BaseModel):
 
     url: str = Field(...)
     link_type: LinkTypeEnum = Field(...)
-    description: Optional[str] = Field(...)
+    description: str | None = Field(...)
 
 
 class PdfLink(BaseModel):
@@ -278,24 +278,24 @@ class PdfLink(BaseModel):
 
     url: str = Field(...)
     link_type: LinkTypeEnum = Field(...)
-    description: Optional[str] = Field(...)
+    description: str | None = Field(...)
 
 
 class PartAnalysisSuggestion(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    manufacturer_code: Optional[str] = Field(...)
-    type: Optional[str] = Field(...)
-    description: Optional[str] = Field(...)
+    manufacturer_code: str | None = Field(...)
+    type: str | None = Field(...)
+    description: str | None = Field(...)
     tags: list[str] = Field(...)
-    manufacturer: Optional[str] = Field(...)
-    product_page: Optional[str] = Field(...)
-    package: Optional[str] = Field(...)
-    pin_count: Optional[int] = Field(...)
-    voltage_rating: Optional[str] = Field(...)
-    mounting_type: Optional[MountingTypeEnum] = Field(...)
-    series: Optional[str] = Field(...)
-    dimensions: Optional[str] = Field(...)
-    product_image: Optional[Link] = Field(...)
+    manufacturer: str | None = Field(...)
+    product_page: str | None = Field(...)
+    package: str | None = Field(...)
+    pin_count: int | None = Field(...)
+    voltage_rating: str | None = Field(...)
+    mounting_type: MountingTypeEnum | None = Field(...)
+    series: str | None = Field(...)
+    dimensions: str | None = Field(...)
+    product_image: Link | None = Field(...)
     links: list[Link] = Field(...)
     pdf_documents: list[PdfLink] = Field(...)

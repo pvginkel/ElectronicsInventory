@@ -4,10 +4,10 @@ from io import BytesIO
 from typing import BinaryIO
 
 import magic
-from flask import current_app
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.config import Settings
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.part import Part
 from app.models.part_attachment import AttachmentType, PartAttachment
@@ -21,7 +21,9 @@ from app.services.url_thumbnail_service import URLThumbnailService
 class DocumentService(BaseService):
     """Service for managing part documents and attachments."""
 
-    def __init__(self, db: Session, s3_service: S3Service, image_service: ImageService, url_service: URLThumbnailService, download_cache_service: DownloadCacheService):
+    def __init__(self, db: Session, s3_service: S3Service, image_service: ImageService,
+                 url_service: URLThumbnailService, download_cache_service: DownloadCacheService,
+                 settings: Settings):
         """Initialize document service with dependencies.
 
         Args:
@@ -36,6 +38,7 @@ class DocumentService(BaseService):
         self.image_service = image_service
         self.url_service = url_service
         self.download_cache_service = download_cache_service
+        self.settings = settings
 
     def _validate_file_type(self, content_type: str, file_data: bytes) -> str:
         """Validate file type using python-magic and MIME type.
@@ -55,8 +58,8 @@ class DocumentService(BaseService):
             detected_type = magic.from_buffer(file_data, mime=True)
 
             # Allowed file types from config
-            allowed_image_types = current_app.config.get('ALLOWED_IMAGE_TYPES', [])
-            allowed_file_types = current_app.config.get('ALLOWED_FILE_TYPES', [])
+            allowed_image_types = self.settings.ALLOWED_IMAGE_TYPES
+            allowed_file_types = self.settings.ALLOWED_FILE_TYPES
             all_allowed = allowed_image_types + allowed_file_types
 
             # Use detected type if it's more specific/reliable
@@ -81,9 +84,9 @@ class DocumentService(BaseService):
             InvalidOperationException: If file size exceeds limits
         """
         if is_image:
-            max_size = current_app.config.get('MAX_IMAGE_SIZE', 10 * 1024 * 1024)  # 10MB default
+            max_size = self.settings.MAX_IMAGE_SIZE
         else:
-            max_size = current_app.config.get('MAX_FILE_SIZE', 100 * 1024 * 1024)  # 100MB default
+            max_size = self.settings.MAX_FILE_SIZE
 
         if file_size > max_size:
             max_mb = max_size / (1024 * 1024)

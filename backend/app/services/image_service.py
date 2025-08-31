@@ -5,10 +5,10 @@ from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO
 
-from flask import current_app
 from PIL import Image
 from sqlalchemy.orm import Session
 
+from app.config import Settings
 from app.exceptions import InvalidOperationException
 from app.services.base import BaseService
 from app.services.s3_service import S3Service
@@ -17,7 +17,7 @@ from app.services.s3_service import S3Service
 class ImageService(BaseService):
     """Service for image processing and thumbnail generation."""
 
-    def __init__(self, db: Session, s3_service: S3Service):
+    def __init__(self, db: Session, s3_service: S3Service, settings: Settings):
         """Initialize image service with database session and S3 service.
 
         Args:
@@ -26,11 +26,12 @@ class ImageService(BaseService):
         """
         super().__init__(db)
         self.s3_service = s3_service
+        self.settings = settings
         self._ensure_thumbnail_directory()
 
     def _ensure_thumbnail_directory(self):
         """Ensure thumbnail storage directory exists."""
-        thumbnail_path = Path(current_app.config['THUMBNAIL_STORAGE_PATH'])
+        thumbnail_path = Path(self.settings.THUMBNAIL_STORAGE_PATH)
         thumbnail_path.mkdir(parents=True, exist_ok=True)
 
     def _get_thumbnail_path(self, attachment_id: int, size: int) -> str:
@@ -44,7 +45,7 @@ class ImageService(BaseService):
             Path to thumbnail file
         """
         return os.path.join(
-            current_app.config['THUMBNAIL_STORAGE_PATH'],
+            self.settings.THUMBNAIL_STORAGE_PATH,
             f"{attachment_id}_{size}.jpg"
         )
 
@@ -190,7 +191,7 @@ class ImageService(BaseService):
         Args:
             attachment_id: ID of the attachment
         """
-        thumbnail_dir = Path(current_app.config['THUMBNAIL_STORAGE_PATH'])
+        thumbnail_dir = Path(self.settings.THUMBNAIL_STORAGE_PATH)
         pattern = f"{attachment_id}_*.jpg"
 
         for thumbnail_file in thumbnail_dir.glob(pattern):

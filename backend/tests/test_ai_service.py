@@ -81,7 +81,7 @@ def ai_service(session: Session, ai_test_settings: Settings,
                mock_url_thumbnail_service: URLThumbnailService, mock_download_cache_service):
     """Create AI service instance for testing."""
     from app.services.download_cache_service import DownloadCacheService
-    download_cache_service = DownloadCacheService(temp_file_manager)
+    DownloadCacheService(temp_file_manager)
     return AIService(
         db=session,
         config=ai_test_settings,
