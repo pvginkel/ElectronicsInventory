@@ -53,7 +53,7 @@ def mock_type_service(session: Session):
 
 
 @pytest.fixture
-def mock_url_thumbnail_service(session: Session):
+def mock_url_thumbnail_service(session: Session, temp_file_manager: TempFileManager):
     """Create mock URL thumbnail service."""
     from unittest.mock import Mock
 
@@ -80,6 +80,8 @@ def ai_service(session: Session, ai_test_settings: Settings,
                temp_file_manager: TempFileManager, mock_type_service: TypeService,
                mock_url_thumbnail_service: URLThumbnailService, mock_download_cache_service):
     """Create AI service instance for testing."""
+    from app.services.download_cache_service import DownloadCacheService
+    download_cache_service = DownloadCacheService(temp_file_manager)
     return AIService(
         db=session,
         config=ai_test_settings,
@@ -127,7 +129,6 @@ class TestAIService:
                                   mock_download_cache_service):
         """Test AI service initialization without API key."""
         settings = Settings(DATABASE_URL="sqlite:///:memory:", OPENAI_API_KEY="")
-
         with pytest.raises(ValueError, match="OPENAI_API_KEY configuration is required"):
             AIService(
                 db=session,
