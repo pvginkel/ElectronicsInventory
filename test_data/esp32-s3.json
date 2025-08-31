@@ -1,0 +1,51 @@
+{
+"manufacturer_code": null,
+"type": "Microcontroller",
+"description": "ESP32-S3 — Espressif dual-core Xtensa® LX7 MCU (up to 240 MHz) with integrated 2.4 GHz Wi‑Fi (802.11 b/g/n) and Bluetooth 5 (LE). Supports AI/vector instructions for neural-network acceleration, USB‑OTG, hardware security (secure boot, flash encryption), ~45 programmable GPIOs and a rich set of peripherals. See Espressif datasheet for full electrical and pin information.",
+"tags": [
+    "Wi‑Fi 802.11 b/g/n",
+    "Bluetooth 5 (LE)",
+    "Xtensa LX7",
+    "Dual-core",
+    "AI acceleration (vector instructions)",
+    "USB OTG",
+    "Secure boot",
+    "AES‑XTS flash encryption",
+    "45 GPIOs",
+    "QFN 7x7 56-pin",
+    "3.3V supply"
+],
+"manufacturer": "Espressif Systems",
+"product_page": "https://www.espressif.com/products/socs/esp32-s3",
+"package": "QFN 7x7 (56-pin) — also available in LGA 7x7 SiP (PICO) module variants",
+"pin_count": 56,
+"voltage_rating": "3.0 V – 3.6 V (recommended 3.3 V)",
+"mounting_type": "Surface Mount",
+"series": "ESP32-S3",
+"dimensions": "7 x 7 mm (QFN package footprint)",
+"product_image": null,
+"links": [
+    {
+    "url": "https://www.espressif.com/products/socs/esp32-s3",
+    "link_type": "reference_design",
+    "description": "Official ESP32-S3 product overview and features (Espressif)."
+    },
+    {
+    "url": "https://docs.espressif.com/projects/esp-hardware-design-guidelines/en/latest/esp32s3/product-overview.html",
+    "link_type": "manual",
+    "description": "ESP32-S3 hardware design guidelines (schematic checklist, power supply, PCB layout)."
+    },
+    {
+    "url": "https://www.espressif.com/en/products/modules/esp32/1000",
+    "link_type": "reference_design",
+    "description": "ESP32-S3 module family and module datasheets (WROOM / MINI / PICO variants)."
+    }
+],
+"pdf_documents": [
+    {
+    "url": "https://www.espressif.com/en/support/documents/technical-documents/datasheets/ESP32-S3-Datasheet.pdf",
+    "link_type": "datasheet",
+    "description": "ESP32-S3 Series Datasheet (official) — full electrical characteristics, pinout and package details. (Espressif; datasheet v2.0, 2025-04-24)."
+    }
+]
+}
