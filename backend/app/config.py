@@ -118,6 +118,9 @@ class Settings(BaseSettings):
     OPENAI_STORE_REQUESTS: bool = Field(
         default=False, description="Store OpenAI API requests/responses for debugging (defaults to True in testing)"
     )
+    OPENAI_DUMMY_RESPONSE_PATH: str | None = Field(
+        default=None, description="Path to a JSON file containing a dummy response"
+    )
 
     # Task management settings
     TASK_MAX_WORKERS: int = Field(

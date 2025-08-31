@@ -71,38 +71,43 @@ class AIService(BaseService):
         type_names = [t.name for t in existing_types]
 
         try:
-            # Build input and instructions for Responses API
-            instructions, input_content = self._build_responses_api_input(
-                text_input, image_data, image_mime_type, type_names
-            )
+            if self.config.OPENAI_DUMMY_RESPONSE_PATH:
+                with open(self.config.OPENAI_DUMMY_RESPONSE_PATH) as f:
+                    ai_response = PartAnalysisSuggestion.model_validate(json.loads(f.read()))
 
-            logger.info("Starting OpenAI call")
+            else:
+                # Build input and instructions for Responses API
+                instructions, input_content = self._build_responses_api_input(
+                    text_input, image_data, image_mime_type, type_names
+                )
 
-            start = time.perf_counter()
+                logger.info("Starting OpenAI call")
 
-            # Call OpenAI Responses API with structured output
-            response = self.client.responses.parse(
-                model=self.config.OPENAI_MODEL,
-                instructions=instructions,
-                input=input_content,
-                text_format=PartAnalysisSuggestion,
-                text={ "verbosity": self.config.OPENAI_VERBOSITY }, # type: ignore
-                max_output_tokens=self.config.OPENAI_MAX_OUTPUT_TOKENS,
-                store=self.config.OPENAI_STORE_REQUESTS,
-                tools=[
-                    { "type": "web_search" },
-                ],
-                reasoning = {
-                    "effort": self.config.OPENAI_REASONING_EFFORT # type: ignore
-                },
-            )
+                start = time.perf_counter()
 
-            logger.info(f"OpenAI response status: {response.status}, duration {time.perf_counter() - start}, incomplete details: {response.incomplete_details}")
-            logger.info(f"Output text: {response.output_text}")
+                # Call OpenAI Responses API with structured output
+                response = self.client.responses.parse(
+                    model=self.config.OPENAI_MODEL,
+                    instructions=instructions,
+                    input=input_content,
+                    text_format=PartAnalysisSuggestion,
+                    text={ "verbosity": self.config.OPENAI_VERBOSITY }, # type: ignore
+                    max_output_tokens=self.config.OPENAI_MAX_OUTPUT_TOKENS,
+                    store=self.config.OPENAI_STORE_REQUESTS,
+                    tools=[
+                        { "type": "web_search" },
+                    ],
+                    reasoning = {
+                        "effort": self.config.OPENAI_REASONING_EFFORT # type: ignore
+                    },
+                )
 
-            ai_response = response.output_parsed
-            if not ai_response:
-                raise Exception(f"Empty response from OpenAI status {response.status}, incomplete details: {response.incomplete_details}")
+                logger.info(f"OpenAI response status: {response.status}, duration {time.perf_counter() - start}, incomplete details: {response.incomplete_details}")
+                logger.info(f"Output text: {response.output_text}")
+
+                ai_response = response.output_parsed
+                if not ai_response:
+                    raise Exception(f"Empty response from OpenAI status {response.status}, incomplete details: {response.incomplete_details}")
 
             # Create temporary directory for document downloads
             temp_dir = self.temp_file_manager.create_temp_directory()
