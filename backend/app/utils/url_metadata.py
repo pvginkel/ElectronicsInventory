@@ -1,50 +1,36 @@
 """URL metadata extraction utilities."""
 
 import re
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
 
-import requests
 from bs4 import BeautifulSoup
 
 from app.exceptions import InvalidOperationException
 
+if TYPE_CHECKING:
+    from app.services.download_cache_service import DownloadCacheService
 
-def validate_url(url: str) -> bool:
+
+def validate_url(url: str, download_cache_service: "DownloadCacheService") -> bool:
     """Validate URL format and accessibility.
 
     Args:
         url: URL to validate
+        download_cache_service: Service to use for URL validation
 
     Returns:
         True if URL is valid and accessible
     """
-    try:
-        # Basic format validation
-        parsed = urlparse(url)
-        if parsed.scheme not in ('http', 'https'):
-            return False
-        if not parsed.netloc:
-            return False
-
-        # Check accessibility with HEAD request
-        response = requests.head(
-            url,
-            timeout=5,
-            allow_redirects=True,
-            headers={'User-Agent': 'Mozilla/5.0 (Electronics Inventory Bot)'}
-        )
-        return response.status_code < 400
-
-    except Exception:
-        return False
+    return download_cache_service.validate_url(url)
 
 
-def extract_page_metadata(url: str) -> dict[str, Any]:
+def extract_page_metadata(url: str, download_cache_service: "DownloadCacheService") -> dict[str, Any]:
     """Extract metadata from web page.
 
     Args:
         url: URL to extract metadata from
+        download_cache_service: Service to use for downloading content
 
     Returns:
         Dictionary containing extracted metadata
@@ -53,17 +39,12 @@ def extract_page_metadata(url: str) -> dict[str, Any]:
         InvalidOperationException: If metadata extraction fails
     """
     try:
-        response = requests.get(
-            url,
-            timeout=10,
-            headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-        )
-        response.raise_for_status()
-
-        # Limit content size
-        content = response.content[:1024 * 1024]  # 1MB limit
+        # Download content using cache service
+        download_result = download_cache_service.get_cached_content(url)
+        content = download_result.content
+        
+        # Limit content size for parsing
+        content = content[:1024 * 1024]  # 1MB limit
         soup = BeautifulSoup(content, 'html.parser')
 
         metadata = {
@@ -129,11 +110,12 @@ def extract_page_metadata(url: str) -> dict[str, Any]:
         raise InvalidOperationException("extract page metadata", str(e)) from e
 
 
-def get_best_thumbnail_url(metadata: dict[str, Any]) -> str | None:
+def get_best_thumbnail_url(metadata: dict[str, Any], download_cache_service: "DownloadCacheService") -> str | None:
     """Get the best thumbnail URL from page metadata.
 
     Args:
         metadata: Metadata dictionary from extract_page_metadata
+        download_cache_service: Service to use for URL validation
 
     Returns:
         Best thumbnail URL or None if none found
@@ -141,7 +123,7 @@ def get_best_thumbnail_url(metadata: dict[str, Any]) -> str | None:
     # Priority order: og:image, twitter:image, favicon
     for key in ['og_image', 'twitter_image', 'favicon']:
         url = metadata.get(key)
-        if url and validate_url(url):
+        if url and validate_url(url, download_cache_service):
             return url
     return None
 

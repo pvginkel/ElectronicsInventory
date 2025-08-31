@@ -44,63 +44,65 @@ def mock_image_response():
 class TestURLThumbnailService:
     """Test URLThumbnailService functionality."""
 
-    @patch('requests.head')
-    def test_validate_url_valid_http(self, mock_head, container: ServiceContainer, session: Session):
+    def test_validate_url_valid_http(self, container: ServiceContainer, session: Session):
         """Test validation of valid HTTP URL."""
-        mock_head.return_value.status_code = 200
         url_service = container.url_thumbnail_service()
+        
+        with patch.object(url_service.download_cache_service, 'validate_url', return_value=True) as mock_validate:
+            result = url_service.validate_url("http://example.com")
+            
+            assert result is True
+            mock_validate.assert_called_once_with("http://example.com")
 
-        result = url_service.validate_url("http://example.com")
-
-        assert result is True
-        mock_head.assert_called_once_with(
-            "http://example.com",
-            headers=url_service.headers,
-            timeout=5,
-            allow_redirects=True
-        )
-
-    @patch('requests.head')
-    def test_validate_url_valid_https(self, mock_head, container: ServiceContainer, session: Session):
+    def test_validate_url_valid_https(self, container: ServiceContainer, session: Session):
         """Test validation of valid HTTPS URL."""
-        mock_head.return_value.status_code = 200
         url_service = container.url_thumbnail_service()
-
-        result = url_service.validate_url("https://example.com")
-
-        assert result is True
+        
+        with patch.object(url_service.download_cache_service, 'validate_url', return_value=True) as mock_validate:
+            result = url_service.validate_url("https://example.com")
+            
+            assert result is True
+            mock_validate.assert_called_once_with("https://example.com")
 
     def test_validate_url_invalid_scheme(self, container: ServiceContainer, session: Session):
         """Test validation of invalid URL scheme."""
         url_service = container.url_thumbnail_service()
-        result = url_service.validate_url("ftp://example.com")
-        assert result is False
+        
+        with patch.object(url_service.download_cache_service, 'validate_url', return_value=False) as mock_validate:
+            result = url_service.validate_url("ftp://example.com")
+            
+            assert result is False
+            mock_validate.assert_called_once_with("ftp://example.com")
 
     def test_validate_url_malformed(self, container: ServiceContainer, session: Session):
         """Test validation of malformed URL."""
         url_service = container.url_thumbnail_service()
-        result = url_service.validate_url("not-a-url")
-        assert result is False
+        
+        with patch.object(url_service.download_cache_service, 'validate_url', return_value=False) as mock_validate:
+            result = url_service.validate_url("not-a-url")
+            
+            assert result is False
+            mock_validate.assert_called_once_with("not-a-url")
 
-    @patch('requests.head')
-    def test_validate_url_connection_error(self, mock_head, container: ServiceContainer, session: Session):
+    def test_validate_url_connection_error(self, container: ServiceContainer, session: Session):
         """Test validation with connection error."""
-        mock_head.side_effect = requests.ConnectionError()
         url_service = container.url_thumbnail_service()
+        
+        with patch.object(url_service.download_cache_service, 'validate_url', return_value=False) as mock_validate:
+            result = url_service.validate_url("http://unreachable.com")
+            
+            assert result is False
+            mock_validate.assert_called_once_with("http://unreachable.com")
 
-        result = url_service.validate_url("http://unreachable.com")
-
-        assert result is False
-
-    @patch('requests.head')
-    def test_validate_url_http_error(self, mock_head, container: ServiceContainer, session: Session):
+    def test_validate_url_http_error(self, container: ServiceContainer, session: Session):
         """Test validation with HTTP error status."""
-        mock_head.return_value.status_code = 404
         url_service = container.url_thumbnail_service()
-
-        result = url_service.validate_url("http://example.com/notfound")
-
-        assert result is False
+        
+        with patch.object(url_service.download_cache_service, 'validate_url', return_value=False) as mock_validate:
+            result = url_service.validate_url("http://example.com/notfound")
+            
+            assert result is False
+            mock_validate.assert_called_once_with("http://example.com/notfound")
 
     @patch('requests.get')
     def test_extract_metadata_with_og_tags(self, mock_get, container: ServiceContainer, session: Session, mock_html_content):

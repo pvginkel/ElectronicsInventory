@@ -75,7 +75,7 @@ class TempFileManager:
             Path to the created temporary directory
 
         Example:
-            /tmp/electronics_inventory/ai_analysis/20240830_143022_a1b2c3d4/
+            /tmp/20240830_143022_a1b2c3d4/
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         uuid_suffix = str(uuid4())[:8]
@@ -136,47 +136,6 @@ class TempFileManager:
                 self.cleanup_old_files()
             except Exception as e:
                 logger.error(f"Error in cleanup loop: {e}")
-
-    def get_temp_file_url(self, temp_path: Path, filename: str) -> str:
-        """
-        Generate a temporary file URL for serving files.
-
-        Args:
-            temp_path: Path to the temporary directory
-            filename: Name of the file
-
-        Returns:
-            URL path for serving the temporary file
-        """
-        relative_path = temp_path.relative_to(self.base_path)
-        return f"/tmp/ai-analysis/{relative_path}/{filename}"
-
-    def resolve_temp_url(self, temp_url: str) -> Path | None:
-        """
-        Resolve a temporary URL back to a file path.
-
-        Args:
-            temp_url: Temporary URL (e.g., 
-                "/tmp/ai-analysis/20240830_143022_a1b2c3d4/datasheet.pdf")
-
-        Returns:
-            Full file path if valid, None otherwise
-        """
-        if not temp_url.startswith("/tmp/ai-analysis/"):
-            return None
-
-        # Remove the URL prefix
-        relative_path = temp_url[len("/tmp/ai-analysis/"):]
-        full_path = self.base_path / relative_path
-
-        # Security check - ensure path is within base directory
-        try:
-            full_path.resolve().relative_to(self.base_path.resolve())
-        except ValueError:
-            logger.warning(f"Attempted path traversal attack: {temp_url}")
-            return None
-
-        return full_path if full_path.exists() else None
 
     def _url_to_path(self, url: str) -> str:
         """

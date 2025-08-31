@@ -11,7 +11,6 @@ from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict
 from urllib.parse import quote
 
-import requests
 from openai import OpenAI
 
 from app.config import Settings
@@ -195,7 +194,7 @@ Focus on accuracy and technical precision. If uncertain about specific details, 
 
         return instructions, input_content
 
-    def _document_from_link(self, data: 'Link | PdfLink', temp_dir: Path, link_type: str) -> DocumentSuggestionSchema | None:
+    def _document_from_link(self, data: 'Link | PdfLink', temp_dir: Path, link_type: str) -> DocumentSuggestionSchema:
         try:
             logger.info(f"Getting preview metadata for URL {data.url}")
 
@@ -225,45 +224,6 @@ Focus on accuracy and technical precision. If uncertain about specific details, 
             description=data.description,
             preview=preview
         )
-
-    def _download_suggested_image(self, image_url: str, temp_dir: Path) -> str | None:
-        """Download AI-suggested part image using download cache service."""
-        if not image_url.startswith("https://"):
-            logger.warning(f"Skipping non-HTTPS image URL: {image_url}")
-            return None
-
-        try:
-            # Use download cache service to get cached content
-            result = self.download_cache_service.get_cached_content(image_url)
-            
-            # Verify it's an image
-            if not result.content_type.startswith("image/"):
-                logger.warning(f"URL does not serve an image: {image_url}")
-                return None
-
-            # Determine file extension from content type
-            if "jpeg" in result.content_type or "jpg" in result.content_type:
-                ext = "jpg"
-            elif "png" in result.content_type:
-                ext = "png"
-            elif "webp" in result.content_type:
-                ext = "webp"
-            else:
-                ext = "jpg"  # Default
-
-            filename = f"part_image.{ext}"
-            file_path = temp_dir / filename
-
-            # Save content to temp file
-            with open(file_path, 'wb') as f:
-                f.write(result.content)
-
-            # Generate temporary URL
-            return self.temp_file_manager.get_temp_file_url(temp_dir, filename)
-
-        except Exception as e:
-            logger.warning(f"Failed to download suggested image from {image_url}: {e}")
-            return None
 
     def _sanitize_filename(self, filename: str) -> str:
         """Sanitize filename for safe storage."""
