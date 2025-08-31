@@ -132,6 +132,8 @@ class TestTestDataService:
                     "description": "10kΩ resistor",
                     "type": "Resistor",
                     "tags": ["10k", "1/4W"],
+                    "manufacturer": "Vishay",
+                    "product_page": "https://www.vishay.com/resistors/",
                     "seller": "Digi-Key",
                     "seller_link": "https://example.com"
                 },
@@ -140,7 +142,9 @@ class TestTestDataService:
                     "manufacturer_code": "LM358",
                     "description": "Op-amp",
                     "type": "Resistor",  # Using existing type for simplicity
-                    "tags": ["Op-Amp"]
+                    "tags": ["Op-Amp"],
+                    "manufacturer": "Texas Instruments",
+                    "product_page": "https://www.ti.com/product/LM358"
                 }
             ]
 
@@ -164,8 +168,14 @@ class TestTestDataService:
                 assert part_abcd.description == "10kΩ resistor"
                 assert part_abcd.type_id == resistor_type.id
                 assert part_abcd.tags == ["10k", "1/4W"]
+                assert part_abcd.manufacturer == "Vishay"
+                assert part_abcd.product_page == "https://www.vishay.com/resistors/"
                 assert part_abcd.seller == "Digi-Key"
                 assert part_abcd.seller_link == "https://example.com"
+
+                part_efgh = parts_map["EFGH"]
+                assert part_efgh.manufacturer == "Texas Instruments"
+                assert part_efgh.product_page == "https://www.ti.com/product/LM358"
 
     def test_load_parts_invalid_type_reference(self, app: Flask, session: Session, container: ServiceContainer):
         """Test that loading parts with invalid type references raises an error."""

@@ -147,7 +147,7 @@ class Settings(BaseSettings):
     def is_testing(self) -> bool:
         """Check if running in testing environment."""
         return self.FLASK_ENV == "testing"
-    
+
     @staticmethod
     def _default_store_requests() -> bool:
         """Default value for OPENAI_STORE_REQUESTS - True in testing, False otherwise."""

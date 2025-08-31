@@ -74,6 +74,8 @@ class TestPartService:
                 manufacturer_code="RES-1K-5%",
                 type_id=type_obj.id,
                 tags=["1k", "5%", "THT"],
+                manufacturer="Vishay",
+                product_page="https://www.vishay.com/en/resistors/",
                 seller="Digi-Key",
                 seller_link="https://digikey.com/product/123",
                 package="0805",
@@ -88,6 +90,8 @@ class TestPartService:
             assert part.manufacturer_code == "RES-1K-5%"
             assert part.type_id == type_obj.id
             assert part.tags == ["1k", "5%", "THT"]
+            assert part.manufacturer == "Vishay"
+            assert part.product_page == "https://www.vishay.com/en/resistors/"
             assert part.seller == "Digi-Key"
             assert part.seller_link == "https://digikey.com/product/123"
             # Extended fields
@@ -193,13 +197,17 @@ class TestPartService:
                 part.key,
                 manufacturer_code="CAP-100UF",
                 type_id=type_obj.id,
-                tags=["100uF", "25V"]
+                tags=["100uF", "25V"],
+                manufacturer="Panasonic",
+                product_page="https://www.panasonic.com/capacitors"
             )
 
             assert updated_part is not None
             assert updated_part.manufacturer_code == "CAP-100UF"
             assert updated_part.type_id == type_obj.id
             assert updated_part.tags == ["100uF", "25V"]
+            assert updated_part.manufacturer == "Panasonic"
+            assert updated_part.product_page == "https://www.panasonic.com/capacitors"
             # Unchanged fields should remain the same
             assert updated_part.description == "Basic part"
 
@@ -337,14 +345,14 @@ class TestPartService:
         """Test that pin_count validation works correctly."""
         with app.app_context():
             part_service = container.part_service()
-            
+
             # Valid pin counts should work
             part1 = part_service.create_part("8-pin IC", pin_count=8)
             assert part1.pin_count == 8
-            
+
             part2 = part_service.create_part("Single pin", pin_count=1)
             assert part2.pin_count == 1
-            
+
             part3 = part_service.create_part("No pins", pin_count=None)
             assert part3.pin_count is None
 
@@ -352,7 +360,7 @@ class TestPartService:
         """Test that extended fields appear correctly in __repr__."""
         with app.app_context():
             part_service = container.part_service()
-            
+
             # Test part with package and voltage
             part1 = part_service.create_part(
                 description="Test IC",
@@ -364,10 +372,10 @@ class TestPartService:
             assert "DIP-8" in repr_str
             assert "5V" in repr_str
             assert "TEST123" in repr_str
-            
+
             # Test part with pin count included
             part2 = part_service.create_part(
-                description="Another IC", 
+                description="Another IC",
                 manufacturer_code="TEST456",
                 package="SOIC-16",
                 pin_count=16,

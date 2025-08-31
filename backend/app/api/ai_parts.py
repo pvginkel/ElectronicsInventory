@@ -7,18 +7,19 @@ from flask import Blueprint, jsonify, request
 from spectree import Response as SpectreeResponse
 from werkzeug.datastructures import FileStorage
 
-from app.schemas.ai_part_analysis import AIPartCreateSchema
+from app.schemas.ai_part_analysis import (
+    AIPartAnalysisTaskResultSchema,
+    AIPartCreateSchema,
+)
 from app.schemas.common import ErrorResponseSchema
 from app.schemas.part import PartResponseSchema
 from app.schemas.task_schema import TaskStartResponse
 from app.services.ai_part_analysis_task import AIPartAnalysisTask
 from app.services.container import ServiceContainer
 from app.services.document_service import DocumentService
-from app.services.image_service import ImageService
 from app.services.part_service import PartService
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
-from app.utils.temp_file_manager import TempFileManager
 
 logger = logging.getLogger(__name__)
 
@@ -114,8 +115,6 @@ def analyze_part(
 def create_part_from_ai_analysis(
     part_service : PartService = Provide[ServiceContainer.part_service],
     document_service : DocumentService = Provide[ServiceContainer.document_service],
-    image_service : ImageService = Provide[ServiceContainer.image_service],
-    temp_file_manager : TempFileManager = Provide[ServiceContainer.temp_file_manager],
 ):
     """
     Create a new part from AI analysis suggestions.
@@ -173,4 +172,63 @@ def create_part_from_ai_analysis(
             logger.warning(f"Failed to attach suggested image document {data.suggested_image_url} to part {part.key}: {e}")
 
     return PartResponseSchema.model_validate(part).model_dump(), 201
+
+
+@ai_parts_bp.route("/analyze/<task_id>/result", methods=["GET"])
+@api.validate(resp=SpectreeResponse(HTTP_200=AIPartAnalysisTaskResultSchema, HTTP_404=ErrorResponseSchema))
+@handle_api_errors
+@inject
+def get_analysis_result(
+    task_id: str,
+    task_service = Provide[ServiceContainer.task_service],
+):
+    """
+    Get the result of a completed AI part analysis task.
+
+    This endpoint provides access to the structured analysis result data
+    with proper OpenAPI schema documentation. While the same data is available
+    via SSE during task execution, this endpoint ensures the result schema
+    is included in the API documentation for client code generation.
+
+    Args:
+        task_id: The UUID of the completed analysis task
+
+    Returns:
+        AIPartAnalysisTaskResultSchema: The structured analysis result
+
+    Raises:
+        404: If task is not found or not completed
+    """
+    # Get task status
+    task_info = task_service.get_task_status(task_id)
+    if not task_info:
+        return jsonify({
+            'error': 'Task not found',
+            'details': {'message': f'No task found with ID: {task_id}', 'field': 'task_id'}
+        }), 404
+
+    # Check if task is completed
+    if task_info.status != 'completed':
+        return jsonify({
+            'error': f'Task not completed (status: {task_info.status})',
+            'details': {'message': 'Task must be completed to retrieve results', 'field': 'status'}
+        }), 404
+
+    # Check if task has result data
+    if not task_info.result:
+        return jsonify({
+            'error': 'No result data available',
+            'details': {'message': 'Task completed but no result data found', 'field': 'result'}
+        }), 404
+
+    # Validate and return the result as properly typed schema
+    try:
+        result = AIPartAnalysisTaskResultSchema.model_validate(task_info.result)
+        return result.model_dump(), 200
+    except Exception as e:
+        logger.error(f"Failed to validate task result for task {task_id}: {e}")
+        return jsonify({
+            'error': 'Invalid result data format',
+            'details': {'message': f'Task result validation failed: {str(e)}', 'field': 'result'}
+        }), 404
 

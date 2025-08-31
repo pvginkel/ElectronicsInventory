@@ -35,6 +35,8 @@ class PartService(BaseService):
         manufacturer_code: str | None = None,
         type_id: int | None = None,
         tags: list[str] | None = None,
+        manufacturer: str | None = None,
+        product_page: str | None = None,
         seller: str | None = None,
         seller_link: str | None = None,
         package: str | None = None,
@@ -53,6 +55,8 @@ class PartService(BaseService):
             type_id=type_id,
             description=description,
             tags=tags,
+            manufacturer=manufacturer,
+            product_page=product_page,
             seller=seller,
             seller_link=seller_link,
             package=package,
@@ -92,6 +96,8 @@ class PartService(BaseService):
         type_id: int | None = None,
         description: str | None = None,
         tags: list[str] | None = None,
+        manufacturer: str | None = None,
+        product_page: str | None = None,
         seller: str | None = None,
         seller_link: str | None = None,
         package: str | None = None,
@@ -116,6 +122,10 @@ class PartService(BaseService):
             part.description = description
         if tags is not None:
             part.tags = tags
+        if manufacturer is not None:
+            part.manufacturer = manufacturer
+        if product_page is not None:
+            part.product_page = product_page
         if seller is not None:
             part.seller = seller
         if seller_link is not None:

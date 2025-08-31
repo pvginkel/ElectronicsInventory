@@ -175,7 +175,7 @@ class TempFileManager:
             cached_time = datetime.fromisoformat(metadata['timestamp'])
 
             # Check if cache is still valid
-            if (datetime.now() - cached_time > 
+            if (datetime.now() - cached_time >
                 timedelta(hours=self.cleanup_age_hours)):
                 return None
 

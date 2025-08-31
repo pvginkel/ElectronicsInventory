@@ -279,7 +279,7 @@ class URLThumbnailService(BaseService):
 
             # Use download cache service for image downloads
             result = self.download_cache_service.get_cached_content(image_url)
-            
+
             # Check if content type is image
             content_type = result.content_type
             if not content_type.startswith('image/'):

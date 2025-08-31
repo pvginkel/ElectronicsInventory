@@ -41,6 +41,18 @@ class PartCreateSchema(BaseModel):
         description="Tags for categorization and search",
         json_schema_extra={"example": ["12V", "SPDT", "automotive"]}
     )
+    manufacturer: str | None = Field(
+        None,
+        max_length=255,
+        description="Manufacturer company name",
+        json_schema_extra={"example": "Texas Instruments"}
+    )
+    product_page: str | None = Field(
+        None,
+        max_length=500,
+        description="Manufacturer's product page URL",
+        json_schema_extra={"example": "https://www.ti.com/product/SN74HC595"}
+    )
     seller: str | None = Field(
         None,
         max_length=255,
@@ -117,6 +129,18 @@ class PartUpdateSchema(BaseModel):
         None,
         description="Updated tags",
         json_schema_extra={"example": ["12V", "SPDT", "automotive", "waterproof"]}
+    )
+    manufacturer: str | None = Field(
+        None,
+        max_length=255,
+        description="Updated manufacturer company name",
+        json_schema_extra={"example": "Espressif Systems"}
+    )
+    product_page: str | None = Field(
+        None,
+        max_length=500,
+        description="Updated manufacturer's product page URL",
+        json_schema_extra={"example": "https://www.espressif.com/en/products/modules/esp32"}
     )
     seller: str | None = Field(
         None,
@@ -196,6 +220,16 @@ class PartResponseSchema(BaseModel):
     tags: list[str] | None = Field(
         description="Tags for categorization",
         json_schema_extra={"example": ["12V", "SPDT", "automotive"]}
+    )
+    manufacturer: str | None = Field(
+        default=None,
+        description="Manufacturer company name",
+        json_schema_extra={"example": "Texas Instruments"}
+    )
+    product_page: str | None = Field(
+        default=None,
+        description="Manufacturer's product page URL",
+        json_schema_extra={"example": "https://www.ti.com/product/SN74HC595"}
     )
     seller: str | None = Field(
         description="Vendor/supplier name",
@@ -316,6 +350,11 @@ class PartWithTotalSchema(BaseModel):
     tags: list[str] | None = Field(
         description="Tags for categorization",
         json_schema_extra={"example": ["12V", "SPDT", "automotive"]}
+    )
+    manufacturer: str | None = Field(
+        default=None,
+        description="Manufacturer company name",
+        json_schema_extra={"example": "Texas Instruments"}
     )
     seller: str | None = Field(
         description="Vendor/supplier name",

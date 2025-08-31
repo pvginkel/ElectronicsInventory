@@ -110,6 +110,8 @@ class TestDataService(BaseService):
                 type_id=type_id,
                 description=part_data["description"],
                 tags=part_data.get("tags"),
+                manufacturer=part_data.get("manufacturer"),
+                product_page=part_data.get("product_page"),
                 seller=part_data.get("seller"),
                 seller_link=part_data.get("seller_link"),
                 package=part_data.get("package"),

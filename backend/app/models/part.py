@@ -40,6 +40,8 @@ class Part(db.Model):  # type: ignore[name-defined]
     tags: Mapped[list[str] | None] = mapped_column(
         postgresql.ARRAY(Text).with_variant(JSON, "sqlite"), nullable=True
     )
+    manufacturer: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    product_page: Mapped[str | None] = mapped_column(String(500), nullable=True)
     seller: Mapped[str | None] = mapped_column(String(255), nullable=True)
     seller_link: Mapped[str | None] = mapped_column(String(500), nullable=True)
     cover_attachment_id: Mapped[int | None] = mapped_column(

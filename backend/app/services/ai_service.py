@@ -102,8 +102,6 @@ class AIService(BaseService):
 
             # Download documents if URLs provided
             documents : list[DocumentSuggestionSchema] = []
-            if ai_response.product_page:
-                documents.append(self._document_from_link(ai_response.product_page, temp_dir, "product_page"))
             if ai_response.product_image:
                 documents.append(self._document_from_link(ai_response.product_image, temp_dir, "product_image"))
             for link in ai_response.links:
@@ -124,13 +122,14 @@ class AIService(BaseService):
                         break
 
             # Build result schema
+
             result = AIPartAnalysisResultSchema(
                 manufacturer_code=ai_response.manufacturer_code,
                 type=suggested_type,
                 description=ai_response.description,
                 tags=ai_response.tags,
-                seller=ai_response.seller,
-                seller_link=ai_response.seller_link,
+                manufacturer=ai_response.manufacturer,
+                product_page=ai_response.product_page,
                 package=ai_response.package,
                 pin_count=ai_response.pin_count,
                 voltage_rating=ai_response.voltage_rating,
@@ -282,15 +281,14 @@ class PartAnalysisSuggestion(BaseModel):
     type: Optional[str] = Field(...)
     description: Optional[str] = Field(...)
     tags: list[str] = Field(...)
-    seller: Optional[str] = Field(...)
-    seller_link: Optional[str] = Field(...)
+    manufacturer: Optional[str] = Field(...)
+    product_page: Optional[str] = Field(...)
     package: Optional[str] = Field(...)
     pin_count: Optional[int] = Field(...)
     voltage_rating: Optional[str] = Field(...)
     mounting_type: Optional[MountingTypeEnum] = Field(...)
     series: Optional[str] = Field(...)
     dimensions: Optional[str] = Field(...)
-    product_page: Optional[Link] = Field(...)
     product_image: Optional[Link] = Field(...)
     links: list[Link] = Field(...)
     pdf_documents: list[PdfLink] = Field(...)

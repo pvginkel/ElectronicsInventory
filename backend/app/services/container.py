@@ -49,9 +49,9 @@ class ServiceContainer(containers.DeclarativeContainer):
     s3_service = providers.Factory(S3Service, db=db_session)
     image_service = providers.Factory(ImageService, db=db_session, s3_service=s3_service)
     url_thumbnail_service = providers.Factory(
-        URLThumbnailService, 
-        db=db_session, 
-        s3_service=s3_service, 
+        URLThumbnailService,
+        db=db_session,
+        s3_service=s3_service,
         download_cache_service=download_cache_service
     )
     document_service = providers.Factory(
