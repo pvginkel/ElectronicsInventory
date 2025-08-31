@@ -32,6 +32,8 @@
       "Dual",
       "Low Power"
     ],
+    "manufacturer": "Texas Instruments",
+    "product_page": "https://www.ti.com/product/LM358N",
     "seller": "Mouser",
     "seller_link": "https://www.mouser.com/ProductDetail/595-LM358N",
     "package": "DIP-8",
@@ -39,9 +41,7 @@
     "voltage_rating": "3V-32V",
     "mounting_type": "Through-hole",
     "series": "LM358",
-    "dimensions": "9.53x6.35mm",
-    "manufacturer": "Texas Instruments",
-    "product_page": "https://www.ti.com/product/LM358N"
+    "dimensions": "9.53x6.35mm"
   },
   {
     "key": "IJKL",
@@ -54,6 +54,8 @@
       "32-bit",
       "Module"
     ],
+    "manufacturer": "Espressif Systems",
+    "product_page": "https://www.espressif.com/en/products/socs/esp32-wroom-32",
     "seller": "Espressif",
     "seller_link": "https://www.espressif.com/en/products/modules/esp32",
     "package": "ESP32-WROOM-32",
@@ -61,9 +63,7 @@
     "voltage_rating": "3.0V-3.6V",
     "mounting_type": "Surface Mount",
     "series": "ESP32",
-    "dimensions": "25.5x18x3.1mm",
-    "manufacturer": "Espressif Systems",
-    "product_page": "https://www.espressif.com/en/products/socs/esp32-wroom-32"
+    "dimensions": "25.5x18x3.1mm"
   },
   {
     "key": "MNOP",
@@ -76,6 +76,8 @@
       "Digital",
       "3.3V"
     ],
+    "manufacturer": "Aosong Electronics",
+    "product_page": "https://www.aosong.com/en/products-40.html",
     "seller": "Adafruit",
     "seller_link": "https://www.adafruit.com/product/385",
     "package": "SIP-4",
@@ -83,9 +85,7 @@
     "voltage_rating": "3.3V-5V",
     "mounting_type": "Breadboard Compatible",
     "series": "DHT",
-    "dimensions": "15.1x25x7.7mm",
-    "manufacturer": "Aosong Electronics",
-    "product_page": "https://www.aosong.com/en/products-40.html"
+    "dimensions": "15.1x25x7.7mm"
   },
   {
     "key": "QRST",
@@ -98,6 +98,8 @@
       "1000V",
       "1A"
     ],
+    "manufacturer": "Vishay",
+    "product_page": "https://www.vishay.com/en/product/1n4007/",
     "seller": "Digi-Key",
     "seller_link": "https://www.digikey.com/en/products/detail/on-semiconductor/1N4007RLG/917668",
     "package": "DO-41",
@@ -105,9 +107,7 @@
     "voltage_rating": "1000V",
     "mounting_type": "Through-hole",
     "series": "1N4007",
-    "dimensions": "5.2x2.7mm",
-    "manufacturer": "Vishay",
-    "product_page": "https://www.vishay.com/en/product/1n4007/"
+    "dimensions": "5.2x2.7mm"
   },
   {
     "key": "UVWX",
@@ -120,6 +120,8 @@
       "5050",
       "NeoPixel"
     ],
+    "manufacturer": "Worldsemi",
+    "product_page": null,
     "seller": "Adafruit",
     "seller_link": "https://www.adafruit.com/product/1655",
     "package": "5050",
@@ -140,6 +142,8 @@
       "10A",
       "PCB Mount"
     ],
+    "manufacturer": "Songle Relay",
+    "product_page": null,
     "seller": "Digi-Key",
     "seller_link": "https://www.digikey.com/en/products/detail/songle-relay/SRD-05VDC-SL-C/4864404",
     "package": "SRD-05VDC",
@@ -152,7 +156,7 @@
   {
     "key": "CDEF",
     "manufacturer_code": "10k",
-    "description": "10k\u03a9 carbon film resistor 1/4W",
+    "description": "10kΩ carbon film resistor 1/4W",
     "type": "Resistor",
     "tags": [
       "10k",
@@ -160,6 +164,8 @@
       "Carbon Film",
       "5%"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Digi-Key",
     "seller_link": "https://www.digikey.com/en/products/detail/stackpole-electronics-inc/CF14JT10K0/1741444",
     "package": "Axial",
@@ -172,7 +178,7 @@
   {
     "key": "GHIJ",
     "manufacturer_code": "100uF",
-    "description": "100\u00b5F electrolytic capacitor 25V",
+    "description": "100µF electrolytic capacitor 25V",
     "type": "Capacitor",
     "tags": [
       "100uF",
@@ -180,6 +186,8 @@
       "Electrolytic",
       "Radial"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Mouser",
     "seller_link": "https://www.mouser.com/ProductDetail/647-UVR1E101MDD",
     "package": "Radial",
@@ -200,6 +208,8 @@
       "2.5mm",
       "Housing"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Digi-Key",
     "seller_link": "https://www.digikey.com/en/products/detail/jst-sales-america-inc/XHP-3/555485",
     "package": "JST-XH",
@@ -220,6 +230,8 @@
       "Red",
       "Hookup Wire"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Adafruit",
     "seller_link": "https://www.adafruit.com/product/1311",
     "package": "Bulk Wire",
@@ -240,6 +252,8 @@
       "Hex Socket",
       "Cap Screw"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "McMaster-Carr",
     "seller_link": "https://www.mcmaster.com/91292A113/",
     "package": "Hex Socket",
@@ -260,6 +274,8 @@
       "3A",
       "Buck Converter"
     ],
+    "manufacturer": "Texas Instruments",
+    "product_page": "https://www.ti.com/product/LM2596",
     "seller": "Amazon",
     "seller_link": "https://www.amazon.com/LM2596-Converter-3-0-40V-1-5-35V-Efficient/dp/B008BHBEE0",
     "package": "Module",
@@ -267,9 +283,7 @@
     "voltage_rating": "3V-40V input, 1.5V-35V output",
     "mounting_type": "PCB Mount",
     "series": "LM2596",
-    "dimensions": "43x21x14mm",
-    "manufacturer": "Texas Instruments",
-    "product_page": "https://www.ti.com/product/LM2596"
+    "dimensions": "43x21x14mm"
   },
   {
     "key": "ABEF",
@@ -282,6 +296,8 @@
       "USB",
       "Development Board"
     ],
+    "manufacturer": "Arduino",
+    "product_page": null,
     "seller": "Arduino",
     "seller_link": "https://store.arduino.cc/products/arduino-uno-rev3",
     "package": "Arduino Uno",
@@ -302,13 +318,15 @@
       "5V",
       "2cm-4m"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "SparkFun",
     "seller_link": "https://www.sparkfun.com/products/15569"
   },
   {
     "key": "IJMN",
     "manufacturer_code": "0805",
-    "description": "10k\u03a9 SMD resistor 0805 package",
+    "description": "10kΩ SMD resistor 0805 package",
     "type": "Resistor",
     "tags": [
       "10k",
@@ -316,6 +334,8 @@
       "SMD",
       "1%"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Digi-Key",
     "seller_link": "https://www.digikey.com/en/products/detail/yageo/RC0805FR-0710KL/727547",
     "package": "0805",
@@ -336,6 +356,8 @@
       "Ceramic",
       "C0G"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Mouser",
     "seller_link": "https://www.mouser.com/ProductDetail/810-C0805C220J5G"
   },
@@ -350,6 +372,8 @@
       "DIP-28",
       "32KB Flash"
     ],
+    "manufacturer": "Microchip Technology",
+    "product_page": "https://www.microchip.com/en-us/product/ATmega328P",
     "seller": "Microchip",
     "seller_link": "https://www.microchip.com/en-us/product/ATmega328P",
     "package": "DIP-28",
@@ -357,9 +381,7 @@
     "voltage_rating": "1.8V-5.5V",
     "mounting_type": "Through-hole",
     "series": "ATmega",
-    "dimensions": "35.56x7.62mm",
-    "manufacturer": "Microchip Technology",
-    "product_page": "https://www.microchip.com/en-us/product/ATmega328P"
+    "dimensions": "35.56x7.62mm"
   },
   {
     "key": "BCDE",
@@ -372,6 +394,8 @@
       "I2C",
       "Display"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Adafruit",
     "seller_link": "https://www.adafruit.com/product/326"
   },
@@ -386,6 +410,8 @@
       "8-channel",
       "SPI"
     ],
+    "manufacturer": "Microchip Technology",
+    "product_page": null,
     "seller": "Microchip",
     "seller_link": "https://www.microchip.com/en-us/product/MCP3008"
   },
@@ -400,6 +426,8 @@
       "74HC",
       "DIP-14"
     ],
+    "manufacturer": "NXP Semiconductors",
+    "product_page": "https://www.nxp.com/products/74HC04",
     "seller": "Texas Instruments",
     "seller_link": "https://www.ti.com/product/SN74HC04",
     "package": "DIP-14",
@@ -407,9 +435,7 @@
     "voltage_rating": "2V-6V",
     "mounting_type": "Through-hole",
     "series": "74HC",
-    "dimensions": "17.78x6.35mm",
-    "manufacturer": "NXP Semiconductors",
-    "product_page": "https://www.nxp.com/products/74HC04"
+    "dimensions": "17.78x6.35mm"
   },
   {
     "key": "NOPQ",
@@ -422,10 +448,10 @@
       "TO-92",
       "General Purpose"
     ],
-    "seller": "ON Semiconductor",
-    "seller_link": "https://www.onsemi.com/products/discretes/bipolar-transistors/general-purpose-transistors/2n2222a",
     "manufacturer": "ON Semiconductor",
-    "product_page": "https://www.onsemi.com/products/2n2222"
+    "product_page": "https://www.onsemi.com/products/2n2222",
+    "seller": "ON Semiconductor",
+    "seller_link": "https://www.onsemi.com/products/discretes/bipolar-transistors/general-purpose-transistors/2n2222a"
   },
   {
     "key": "RSTU",
@@ -438,6 +464,8 @@
       "TO-220",
       "Power"
     ],
+    "manufacturer": "International Rectifier",
+    "product_page": null,
     "seller": "International Rectifier",
     "seller_link": "https://www.infineon.com/cms/en/product/power/mosfet/n-channel/irf540n/",
     "package": "TO-220",
@@ -450,7 +478,7 @@
   {
     "key": "VWXY",
     "manufacturer_code": "1uF",
-    "description": "1\u00b5F ceramic capacitor X7R 50V",
+    "description": "1µF ceramic capacitor X7R 50V",
     "type": "Capacitor",
     "tags": [
       "1uF",
@@ -458,13 +486,15 @@
       "Ceramic",
       "X7R"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Murata",
     "seller_link": "https://www.murata.com/en-us/products/capacitor/ceramic/overview"
   },
   {
     "key": "ZABC",
-    "manufacturer_code": "330\u03a9",
-    "description": "330\u03a9 carbon film resistor 1/4W",
+    "manufacturer_code": "330Ω",
+    "description": "330Ω carbon film resistor 1/4W",
     "type": "Resistor",
     "tags": [
       "330R",
@@ -472,6 +502,8 @@
       "Carbon Film",
       "5%"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Digi-Key",
     "seller_link": "https://www.digikey.com/en/products/detail/stackpole-electronics-inc/CF14JT330R/1741328"
   },
@@ -486,6 +518,8 @@
       "2V",
       "20mA"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Vishay",
     "seller_link": "https://www.vishay.com/en/product/83001/",
     "package": "T-1 3/4",
@@ -506,6 +540,8 @@
       "HC-49S",
       "Oscillator"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Abracon",
     "seller_link": "https://abracon.com/Resonators/ABM3B.pdf",
     "package": "HC-49S",
@@ -526,6 +562,8 @@
       "PCB Mount",
       "Through-hole"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Amphenol",
     "seller_link": "https://www.amphenol-cs.com/usb-connectors.html",
     "package": "USB-A",
@@ -546,6 +584,8 @@
       "8P8C",
       "Transformer"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Pulse Electronics",
     "seller_link": "https://www.pulseelectronics.com/ethernet/"
   },
@@ -560,6 +600,8 @@
       "20cm",
       "Breadboard"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Adafruit",
     "seller_link": "https://www.adafruit.com/product/266"
   },
@@ -574,6 +616,8 @@
       "Solderless",
       "Half-size"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "SparkFun",
     "seller_link": "https://www.sparkfun.com/products/12002",
     "package": "Breadboard",
@@ -594,6 +638,8 @@
       "Aluminum",
       "Thermal"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Aavid Thermalloy",
     "seller_link": "https://www.aavid.com/products/standard/extrusions"
   },
@@ -608,15 +654,15 @@
       "TO-220",
       "1A"
     ],
-    "seller": "Texas Instruments",
-    "seller_link": "https://www.ti.com/product/LM7805",
     "manufacturer": "Texas Instruments",
-    "product_page": "https://www.ti.com/product/LM7805"
+    "product_page": "https://www.ti.com/product/LM7805",
+    "seller": "Texas Instruments",
+    "seller_link": "https://www.ti.com/product/LM7805"
   },
   {
     "key": "MNPQ",
     "manufacturer_code": "Potentiometer 10k",
-    "description": "10k\u03a9 linear rotary potentiometer",
+    "description": "10kΩ linear rotary potentiometer",
     "type": "Resistor",
     "tags": [
       "10k",
@@ -624,6 +670,8 @@
       "Rotary",
       "Potentiometer"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Bourns",
     "seller_link": "https://www.bourns.com/products/potentiometers"
   },
@@ -638,6 +686,8 @@
       "Momentary",
       "PCB Mount"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Omron",
     "seller_link": "https://omronfs.omron.com/en_US/ecb/products/sw/12/B3F.html"
   },
@@ -652,6 +702,8 @@
       "ON-OFF-ON",
       "Panel Mount"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "NKK Switches",
     "seller_link": "https://www.nkkswitches.com/toggle-switches.aspx"
   },
@@ -666,6 +718,8 @@
       "3.2V",
       "High Brightness"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Cree",
     "seller_link": "https://www.cree.com/led-components/products/xlamp-leds"
   },
@@ -680,6 +734,8 @@
       "2.2V",
       "20mA"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Kingbright",
     "seller_link": "https://www.kingbrightusa.com/led-lamps/standard-leds.aspx"
   },
@@ -694,13 +750,15 @@
       "Light Sensor",
       "Variable"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Luna Optoelectronics",
     "seller_link": "https://lunainc.com/product-category/cds-photoresistors/"
   },
   {
     "key": "TUWX",
     "manufacturer_code": "Thermistor 10k",
-    "description": "10k\u03a9 NTC thermistor temperature sensor",
+    "description": "10kΩ NTC thermistor temperature sensor",
     "type": "Sensor",
     "tags": [
       "NTC",
@@ -708,6 +766,8 @@
       "Thermistor",
       "Temperature"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Vishay",
     "seller_link": "https://www.vishay.com/thermistors/ntc-thermistors/"
   },
@@ -722,6 +782,8 @@
       "TO-92",
       "Digital"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Allegro MicroSystems",
     "seller_link": "https://www.allegromicro.com/en/products/sense/magnetic-position-sensor-ics"
   },
@@ -736,6 +798,8 @@
       "Passive",
       "Module"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "SparkFun",
     "seller_link": "https://www.sparkfun.com/products/13285"
   },
@@ -748,8 +812,10 @@
       "Servo",
       "9g",
       "Micro",
-      "180\u00b0"
+      "180°"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Tower Pro",
     "seller_link": "http://www.towerpro.com.tw/product/sg90-7/"
   },
@@ -764,6 +830,8 @@
       "ULN2003",
       "5V"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "AdafrAudit",
     "seller_link": "https://www.adafruit.com/product/858"
   },
@@ -778,6 +846,8 @@
       "I2C",
       "Character"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "SparkFun",
     "seller_link": "https://www.sparkfun.com/products/16396"
   },
@@ -792,6 +862,8 @@
       "Common Cathode",
       "0.56 inch"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Kingbright",
     "seller_link": "https://www.kingbrightusa.com/led-displays/seven-segment-displays.aspx"
   },
@@ -806,6 +878,8 @@
       "LED",
       "Red"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Adafruit",
     "seller_link": "https://www.adafruit.com/product/454"
   },
@@ -820,6 +894,8 @@
       "13.56MHz",
       "SPI"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "SparkFun",
     "seller_link": "https://www.sparkfun.com/products/13030"
   },
@@ -834,6 +910,8 @@
       "SPI",
       "Storage"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Adafruit",
     "seller_link": "https://www.adafruit.com/product/254"
   },
@@ -848,6 +926,8 @@
       "I2C",
       "Battery Backup"
     ],
+    "manufacturer": null,
+    "product_page": null,
     "seller": "Maxim Integrated",
     "seller_link": "https://www.maximintegrated.com/en/products/analog/real-time-clocks/DS3231.html",
     "package": "Module",
