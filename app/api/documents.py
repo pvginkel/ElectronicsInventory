@@ -253,7 +253,8 @@ def attachment_preview(url_thumbnail_service=Provide[ServiceContainer.url_thumbn
         response_data = UrlPreviewResponseSchema(
             title=metadata.get('title'),
             image_url=image_url,
-            original_url=data.url
+            original_url=data.url,
+            content_type=metadata.get('content_type', None)
         )
 
         return response_data.model_dump(), 200

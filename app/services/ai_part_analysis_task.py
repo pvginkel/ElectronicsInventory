@@ -90,7 +90,6 @@ class AIPartAnalysisTask(BaseTask):
 
             # Log analysis summary
             logger.info(f"AI analysis completed - Type: {analysis_result.type}, "
-                       f"Confidence: {analysis_result.confidence_score:.2f}, "
                        f"Documents: {len(analysis_result.documents)}")
 
             progress_handle.send_progress("Analysis complete", 1.0)

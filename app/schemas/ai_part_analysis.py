@@ -3,21 +3,19 @@
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.url_preview import UrlPreviewResponseSchema
+
 
 class DocumentSuggestionSchema(BaseModel):
     """Schema for AI-suggested document."""
 
-    filename: str = Field(
-        description="Suggested filename for the document",
-        json_schema_extra={"example": "datasheet.pdf"}
-    )
-    temp_path: str = Field(
-        description="Temporary file path where document is stored",
-        json_schema_extra={"example": "/tmp/electronics_inventory/ai_analysis/20240830_143022_a1b2c3d4/datasheet.pdf"}
-    )
-    original_url: str = Field(
+    url: str = Field(
         description="Original URL from which the document was downloaded",
         json_schema_extra={"example": "https://www.example.com/datasheet.pdf"}
+    )
+    url_type: str = Field(
+        description="Type of the URL",
+        json_schema_extra={"example": "link"}
     )
     document_type: str = Field(
         description="Type of document (datasheet, manual, schematic, etc.)",
@@ -27,6 +25,10 @@ class DocumentSuggestionSchema(BaseModel):
         default=None,
         description="AI-provided description of the document content",
         json_schema_extra={"example": "Complete technical specifications and pinout diagram"}
+    )
+    preview: UrlPreviewResponseSchema | None = Field(
+        default=None,
+        description="URL preview metadata including title and image URL"
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -104,20 +106,8 @@ class AIPartAnalysisResultSchema(BaseModel):
         description="AI-suggested and downloaded documents",
         json_schema_extra={"example": []}
     )
-    suggested_image_url: str | None = Field(
-        default=None,
-        description="URL to AI-suggested part image in temporary storage",
-        json_schema_extra={"example": "/tmp/ai-analysis/20240830_143022_a1b2c3d4/part_image.jpg"}
-    )
 
     # Metadata
-    confidence_score: float = Field(
-        default=0.0,
-        ge=0.0,
-        le=1.0,
-        description="AI confidence score for the analysis (0.0 to 1.0)",
-        json_schema_extra={"example": 0.85}
-    )
     type_is_existing: bool = Field(
         default=False,
         description="Whether the suggested type matches an existing type in the system",
