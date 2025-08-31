@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from app.config import Settings
 
 from app.config import get_settings
-from app.extensions import SessionLocal, db
+from app.extensions import db
 from app.services.container import ServiceContainer
 
 
@@ -36,7 +36,7 @@ def create_app(settings: "Settings | None" = None) -> Flask:
 
         import app.extensions as ext
 
-        ext.SessionLocal = sessionmaker(  # noqa: F811  # type: ignore[assignment]
+        SessionLocal = sessionmaker(  # noqa: F811  # type: ignore[assignment]
             bind=db.engine, autoflush=True, expire_on_commit=False
         )
 
@@ -48,7 +48,8 @@ def create_app(settings: "Settings | None" = None) -> Flask:
     # Initialize service container after SpecTree
     container = ServiceContainer()
     container.config.override(settings)
-    container.wire(modules=['app.api.ai_parts', 'app.api.parts', 'app.api.boxes', 'app.api.inventory', 'app.api.types', 'app.api.testing', 'app.api.documents', 'app.api.tasks'])
+    container.session_maker.override(SessionLocal)
+    container.wire(modules=['app.api.ai_parts', 'app.api.parts', 'app.api.boxes', 'app.api.inventory', 'app.api.types', 'app.api.documents', 'app.api.tasks'])
     app.container = container
 
     # Configure CORS
@@ -64,32 +65,17 @@ def create_app(settings: "Settings | None" = None) -> Flask:
 
     app.register_blueprint(api_bp)
 
-    # Register testing blueprint only in testing environment
-    if settings.is_testing:
-        from app.api.testing import testing_bp
-        app.register_blueprint(testing_bp)
-
-    # Session per request hooks
-    @app.before_request
-    def open_session():
-        """Create a new database session for each request."""
-        from app.extensions import SessionLocal  # noqa: F811
-
-        if SessionLocal:
-            g.db = SessionLocal()
-            # Provide database session to container
-            container.db_session.override(g.db)
-
     @app.teardown_request
     def close_session(exc):
         """Close the database session after each request."""
-        db_session = getattr(g, "db", None)
-        if db_session:
-            if exc:
-                db_session.rollback()
-            else:
-                db_session.commit()
-            db_session.close()
+        db_session = container.db_session()
+        if exc:
+            db_session.rollback()
+        else:
+            db_session.commit()
+        db_session.close()
+
+        container.db_session.reset()
 
     # Start temp file manager cleanup thread during app creation
     temp_file_manager = container.temp_file_manager()

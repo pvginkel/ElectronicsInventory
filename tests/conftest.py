@@ -3,12 +3,13 @@
 from collections.abc import Generator
 
 import pytest
-from flask import Flask, g
+from flask import Flask
 from sqlalchemy.orm import Session
 
 from app import create_app
 from app.config import Settings
 from app.extensions import db
+from app.services.container import ServiceContainer
 
 
 @pytest.fixture
@@ -29,55 +30,25 @@ def test_settings() -> Settings:
 
 
 @pytest.fixture
-def app(test_settings: Settings) -> Generator[Flask, None, None]:
+def app(test_settings: Settings) -> Flask:
     """Create Flask app for testing."""
     app = create_app(test_settings)
 
     with app.app_context():
-        # Ensure SessionLocal is initialized for tests
-        from sqlalchemy.orm import sessionmaker
-
-        import app.extensions as ext
-        from app.extensions import db as flask_db
-
-        ext.SessionLocal = sessionmaker(  # type: ignore[assignment]
-            bind=flask_db.engine, autoflush=True, expire_on_commit=False
-        )
-
         # Note: Flask-SQLAlchemy doesn't easily support configuring autoflush
         # For constraint tests that use db.session directly, manual flush() is needed
         # before accessing auto-generated IDs
 
         db.create_all()
 
-        g.db = ext.SessionLocal()
-
-        exc = None
-        try:
-            yield app
-        except Exception as e:
-            exc = e
-
-        db_session = getattr(g, "db", None)
-        if db_session:
-            if exc:
-                db_session.rollback()
-            else:
-                db_session.commit()
-            db_session.close()
-
-        db.drop_all()
-
-        if exc:
-            raise exc
+    return app
 
 
 @pytest.fixture
-def session(app: Flask) -> Generator[Session, None, None]:
-    import app.extensions as ext
+def session(container: ServiceContainer) -> Generator[Session, None, None]:
+    """Create a new database session for a test."""
 
-    assert ext.SessionLocal is not None
-    session = ext.SessionLocal()
+    session = container.db_session()
 
     exc = None
     try:
@@ -90,6 +61,8 @@ def session(app: Flask) -> Generator[Session, None, None]:
     else:
         session.commit()
     session.close()
+
+    container.db_session.reset()
 
 
 @pytest.fixture
@@ -105,16 +78,33 @@ def runner(app: Flask):
 
 
 @pytest.fixture
-def container(app: Flask, session: Session):
+def container(app: Flask):
     """Access to the DI container for testing with session provided."""
     container = app.container
-    # Provide the test session to the container
-    container.db_session.override(session)
+
+    with app.app_context():
+        # Ensure SessionLocal is initialized for tests
+        from sqlalchemy.orm import sessionmaker
+
+        from app.extensions import db as flask_db
+
+        SessionLocal = sessionmaker(  # type: ignore[assignment]
+            bind=flask_db.engine, autoflush=True, expire_on_commit=False
+        )
+
+        # Note: Flask-SQLAlchemy doesn't easily support configuring autoflush
+        # For constraint tests that use db.session directly, manual flush() is needed
+        # before accessing auto-generated IDs
+
+        db.create_all()
+
+    container.session_maker.override(SessionLocal)
+
     return container
 
 
 # Import document fixtures to make them available to all tests
-from .test_document_fixtures import (  # noqa: F401
+from .test_document_fixtures import (  # noqa
     large_image_file,
     mock_html_content,
     mock_url_metadata,

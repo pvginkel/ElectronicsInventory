@@ -8,10 +8,12 @@ import pytest
 from flask import Flask
 from sqlalchemy.orm import Session
 
+from app.config import Settings
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.part import Part
 from app.models.part_attachment import AttachmentType, PartAttachment
 from app.models.type import Type
+from app.services.container import ServiceContainer
 from app.services.document_service import DocumentService
 from app.utils.temp_file_manager import TempFileManager
 
@@ -58,12 +60,12 @@ def mock_url_service():
 
 
 @pytest.fixture
-def document_service(app: Flask, session: Session, mock_s3_service, mock_image_service, mock_url_service, temp_file_manager):
+def document_service(app: Flask, session: Session, mock_s3_service, mock_image_service, mock_url_service, temp_file_manager, test_settings):
     """Create DocumentService with mocked dependencies."""
     with app.app_context():
         from app.services.download_cache_service import DownloadCacheService
         download_cache_service = DownloadCacheService(temp_file_manager)
-        return DocumentService(session, mock_s3_service, mock_image_service, mock_url_service, download_cache_service)
+        return DocumentService(session, mock_s3_service, mock_image_service, mock_url_service, download_cache_service, test_settings)
 
 
 class TestDocumentService:
@@ -71,23 +73,16 @@ class TestDocumentService:
 
     def test_create_file_attachment_image_success(self, document_service, session, sample_part, sample_image_file):
         """Test successful image attachment creation."""
-        with patch('flask.current_app.config') as mock_config:
-            mock_config.get.side_effect = lambda key, default=None: {
-                'ALLOWED_IMAGE_TYPES': ['image/jpeg', 'image/png'],
-                'ALLOWED_FILE_TYPES': ['application/pdf'],
-                'MAX_IMAGE_SIZE': 10 * 1024 * 1024
-            }.get(key, default)
+        with patch('magic.from_buffer') as mock_magic:
+            mock_magic.return_value = 'image/jpeg'
 
-            with patch('magic.from_buffer') as mock_magic:
-                mock_magic.return_value = 'image/jpeg'
-
-                attachment = document_service.create_file_attachment(
-                    part_key=sample_part.key,
-                    title="Test Image",
-                    file_data=sample_image_file,
-                    filename="test.jpg",
-                    content_type="image/jpeg"
-                )
+            attachment = document_service.create_file_attachment(
+                part_key=sample_part.key,
+                title="Test Image",
+                file_data=sample_image_file,
+                filename="test.jpg",
+                content_type="image/jpeg"
+            )
 
         assert attachment.part_id == sample_part.id
         assert attachment.attachment_type == AttachmentType.IMAGE
@@ -99,23 +94,16 @@ class TestDocumentService:
 
     def test_create_file_attachment_pdf_success(self, document_service, session, sample_part, sample_pdf_file):
         """Test successful PDF attachment creation."""
-        with patch('flask.current_app.config') as mock_config:
-            mock_config.get.side_effect = lambda key, default=None: {
-                'ALLOWED_IMAGE_TYPES': ['image/jpeg', 'image/png'],
-                'ALLOWED_FILE_TYPES': ['application/pdf'],
-                'MAX_FILE_SIZE': 100 * 1024 * 1024
-            }.get(key, default)
+        with patch('magic.from_buffer') as mock_magic:
+            mock_magic.return_value = 'application/pdf'
 
-            with patch('magic.from_buffer') as mock_magic:
-                mock_magic.return_value = 'application/pdf'
-
-                attachment = document_service.create_file_attachment(
-                    part_key=sample_part.key,
-                    title="Test PDF",
-                    file_data=sample_pdf_file,
-                    filename="datasheet.pdf",
-                    content_type="application/pdf"
-                )
+            attachment = document_service.create_file_attachment(
+                part_key=sample_part.key,
+                title="Test PDF",
+                file_data=sample_pdf_file,
+                filename="datasheet.pdf",
+                content_type="application/pdf"
+            )
 
         assert attachment.attachment_type == AttachmentType.PDF
         assert attachment.title == "Test PDF"
@@ -138,38 +126,29 @@ class TestDocumentService:
 
     def test_create_file_attachment_invalid_file_type(self, document_service, session, sample_part):
         """Test file attachment creation with invalid file type."""
-        with patch('flask.current_app.config') as mock_config:
-            mock_config.get.side_effect = lambda key, default=None: {
-                'ALLOWED_IMAGE_TYPES': ['image/jpeg', 'image/png'],
-                'ALLOWED_FILE_TYPES': ['application/pdf']
-            }.get(key, default)
+        with patch('magic.from_buffer') as mock_magic:
+            mock_magic.return_value = 'application/zip'
 
-            with patch('magic.from_buffer') as mock_magic:
-                mock_magic.return_value = 'application/zip'
+            invalid_file = io.BytesIO(b"fake zip content")
 
-                invalid_file = io.BytesIO(b"fake zip content")
-
-                with pytest.raises(InvalidOperationException) as exc_info:
-                    document_service.create_file_attachment(
-                        part_key=sample_part.key,
-                        title="Invalid File",
-                        file_data=invalid_file,
-                        filename="test.zip",
-                        content_type="application/zip"
-                    )
+            with pytest.raises(InvalidOperationException) as exc_info:
+                document_service.create_file_attachment(
+                    part_key=sample_part.key,
+                    title="Invalid File",
+                    file_data=invalid_file,
+                    filename="test.zip",
+                    content_type="application/zip"
+                )
 
         assert "validate file type" in str(exc_info.value)
         assert "not allowed" in str(exc_info.value)
 
-    def test_create_file_attachment_file_too_large(self, document_service, session, sample_part):
+    def test_create_file_attachment_file_too_large(self, document_service, container: ServiceContainer, sample_part, test_settings: Settings):
         """Test file attachment creation with file too large."""
-        with patch('flask.current_app.config') as mock_config:
-            mock_config.get.side_effect = lambda key, default=None: {
-                'ALLOWED_IMAGE_TYPES': ['image/jpeg'],
-                'ALLOWED_FILE_TYPES': ['application/pdf'],
-                'MAX_IMAGE_SIZE': 100  # Very small limit
-            }.get(key, default)
-
+        max_image_size = test_settings.MAX_IMAGE_SIZE
+        
+        test_settings.MAX_IMAGE_SIZE = 100
+        try:
             with patch('magic.from_buffer') as mock_magic:
                 mock_magic.return_value = 'image/jpeg'
 
@@ -183,6 +162,8 @@ class TestDocumentService:
                         filename="large.jpg",
                         content_type="image/jpeg"
                     )
+        finally:
+            test_settings.MAX_IMAGE_SIZE = max_image_size
 
         assert "validate file size" in str(exc_info.value)
         assert "too large" in str(exc_info.value)
@@ -540,184 +521,148 @@ class TestDocumentService:
 
     def test_first_image_becomes_cover_automatically(self, document_service, session, sample_part, sample_image_file):
         """Test that the first image attachment automatically becomes the cover image."""
-        with patch('flask.current_app.config') as mock_config:
-            mock_config.get.side_effect = lambda key, default=None: {
-                'ALLOWED_IMAGE_TYPES': ['image/jpeg', 'image/png'],
-                'ALLOWED_FILE_TYPES': ['application/pdf'],
-                'MAX_IMAGE_SIZE': 10 * 1024 * 1024
-            }.get(key, default)
+        with patch('magic.from_buffer') as mock_magic:
+            mock_magic.return_value = 'image/jpeg'
 
-            with patch('magic.from_buffer') as mock_magic:
-                mock_magic.return_value = 'image/jpeg'
+            # Verify part has no cover initially
+            assert sample_part.cover_attachment_id is None
 
-                # Verify part has no cover initially
-                assert sample_part.cover_attachment_id is None
+            # Create first image attachment
+            attachment = document_service.create_file_attachment(
+                part_key=sample_part.key,
+                title="First Image",
+                file_data=sample_image_file,
+                filename="first.jpg",
+                content_type="image/jpeg"
+            )
 
-                # Create first image attachment
-                attachment = document_service.create_file_attachment(
-                    part_key=sample_part.key,
-                    title="First Image",
-                    file_data=sample_image_file,
-                    filename="first.jpg",
-                    content_type="image/jpeg"
-                )
+            session.refresh(sample_part)
 
-                session.refresh(sample_part)
-
-                # Verify first image became cover
-                assert sample_part.cover_attachment_id == attachment.id
+            # Verify first image became cover
+            assert sample_part.cover_attachment_id == attachment.id
 
     def test_second_image_does_not_change_cover(self, document_service, session, sample_part, sample_image_file):
         """Test that subsequent image attachments don't change the cover if one is already set."""
-        with patch('flask.current_app.config') as mock_config:
-            mock_config.get.side_effect = lambda key, default=None: {
-                'ALLOWED_IMAGE_TYPES': ['image/jpeg', 'image/png'],
-                'ALLOWED_FILE_TYPES': ['application/pdf'],
-                'MAX_IMAGE_SIZE': 10 * 1024 * 1024
-            }.get(key, default)
+        with patch('magic.from_buffer') as mock_magic:
+            mock_magic.return_value = 'image/jpeg'
 
-            with patch('magic.from_buffer') as mock_magic:
-                mock_magic.return_value = 'image/jpeg'
+            # Create first image
+            first_attachment = document_service.create_file_attachment(
+                part_key=sample_part.key,
+                title="First Image",
+                file_data=sample_image_file,
+                filename="first.jpg",
+                content_type="image/jpeg"
+            )
 
-                # Create first image
-                first_attachment = document_service.create_file_attachment(
-                    part_key=sample_part.key,
-                    title="First Image",
-                    file_data=sample_image_file,
-                    filename="first.jpg",
-                    content_type="image/jpeg"
-                )
+            session.refresh(sample_part)
+            original_cover_id = sample_part.cover_attachment_id
+            assert original_cover_id == first_attachment.id
 
-                session.refresh(sample_part)
-                original_cover_id = sample_part.cover_attachment_id
-                assert original_cover_id == first_attachment.id
+            # Create second image
+            sample_image_file.seek(0)  # Reset file pointer
+            second_attachment = document_service.create_file_attachment(
+                part_key=sample_part.key,
+                title="Second Image",
+                file_data=sample_image_file,
+                filename="second.jpg",
+                content_type="image/jpeg"
+            )
 
-                # Create second image
-                sample_image_file.seek(0)  # Reset file pointer
-                second_attachment = document_service.create_file_attachment(
-                    part_key=sample_part.key,
-                    title="Second Image",
-                    file_data=sample_image_file,
-                    filename="second.jpg",
-                    content_type="image/jpeg"
-                )
+            session.refresh(sample_part)
 
-                session.refresh(sample_part)
-
-                # Verify cover didn't change
-                assert sample_part.cover_attachment_id == original_cover_id
-                assert sample_part.cover_attachment_id != second_attachment.id
+            # Verify cover didn't change
+            assert sample_part.cover_attachment_id == original_cover_id
+            assert sample_part.cover_attachment_id != second_attachment.id
 
     def test_pdf_does_not_become_cover(self, document_service, session, sample_part, sample_pdf_file):
         """Test that PDF attachments do not automatically become cover images."""
-        with patch('flask.current_app.config') as mock_config:
-            mock_config.get.side_effect = lambda key, default=None: {
-                'ALLOWED_IMAGE_TYPES': ['image/jpeg', 'image/png'],
-                'ALLOWED_FILE_TYPES': ['application/pdf'],
-                'MAX_FILE_SIZE': 100 * 1024 * 1024
-            }.get(key, default)
+        with patch('magic.from_buffer') as mock_magic:
+            mock_magic.return_value = 'application/pdf'
 
-            with patch('magic.from_buffer') as mock_magic:
-                mock_magic.return_value = 'application/pdf'
+            # Verify part has no cover initially
+            assert sample_part.cover_attachment_id is None
 
-                # Verify part has no cover initially
-                assert sample_part.cover_attachment_id is None
+            # Create PDF attachment
+            document_service.create_file_attachment(
+                part_key=sample_part.key,
+                title="PDF Document",
+                file_data=sample_pdf_file,
+                filename="document.pdf",
+                content_type="application/pdf"
+            )
 
-                # Create PDF attachment
-                document_service.create_file_attachment(
-                    part_key=sample_part.key,
-                    title="PDF Document",
-                    file_data=sample_pdf_file,
-                    filename="document.pdf",
-                    content_type="application/pdf"
-                )
+            session.refresh(sample_part)
 
-                session.refresh(sample_part)
-
-                # Verify PDF did not become cover
-                assert sample_part.cover_attachment_id is None
+            # Verify PDF did not become cover
+            assert sample_part.cover_attachment_id is None
 
     def test_deleting_cover_image_selects_next_oldest(self, document_service, session, sample_part, sample_image_file):
         """Test that deleting the cover image selects the next oldest image as the new cover."""
         from datetime import datetime, timedelta
 
+        with patch('magic.from_buffer') as mock_magic:
+            mock_magic.return_value = 'image/jpeg'
 
-        with patch('flask.current_app.config') as mock_config:
-            mock_config.get.side_effect = lambda key, default=None: {
-                'ALLOWED_IMAGE_TYPES': ['image/jpeg', 'image/png'],
-                'ALLOWED_FILE_TYPES': ['application/pdf'],
-                'MAX_IMAGE_SIZE': 10 * 1024 * 1024
-            }.get(key, default)
+            base_time = datetime.now()
 
-            with patch('magic.from_buffer') as mock_magic:
-                mock_magic.return_value = 'image/jpeg'
+            # Create first image (oldest)
+            first_attachment = document_service.create_file_attachment(
+                part_key=sample_part.key,
+                title="First Image",
+                file_data=sample_image_file,
+                filename="first.jpg",
+                content_type="image/jpeg"
+            )
+            first_attachment.created_at = base_time
+            session.flush()
 
-                base_time = datetime.now()
+            # Create second image
+            sample_image_file.seek(0)
+            second_attachment = document_service.create_file_attachment(
+                part_key=sample_part.key,
+                title="Second Image",
+                file_data=sample_image_file,
+                filename="second.jpg",
+                content_type="image/jpeg"
+            )
+            second_attachment.created_at = base_time + timedelta(minutes=1)
+            session.flush()
 
-                # Create first image (oldest)
-                first_attachment = document_service.create_file_attachment(
-                    part_key=sample_part.key,
-                    title="First Image",
-                    file_data=sample_image_file,
-                    filename="first.jpg",
-                    content_type="image/jpeg"
-                )
-                first_attachment.created_at = base_time
-                session.flush()
+            session.refresh(sample_part)
 
-                # Create second image
-                sample_image_file.seek(0)
-                second_attachment = document_service.create_file_attachment(
-                    part_key=sample_part.key,
-                    title="Second Image",
-                    file_data=sample_image_file,
-                    filename="second.jpg",
-                    content_type="image/jpeg"
-                )
-                second_attachment.created_at = base_time + timedelta(minutes=1)
-                session.flush()
+            # Verify first is cover
+            assert sample_part.cover_attachment_id == first_attachment.id
 
-                session.refresh(sample_part)
+            # Delete the cover image
+            document_service.delete_attachment(first_attachment.id)
+            session.refresh(sample_part)
 
-                # Verify first is cover
-                assert sample_part.cover_attachment_id == first_attachment.id
-
-                # Delete the cover image
-                document_service.delete_attachment(first_attachment.id)
-                session.refresh(sample_part)
-
-                # Verify second image became cover
-                assert sample_part.cover_attachment_id == second_attachment.id
+            # Verify second image became cover
+            assert sample_part.cover_attachment_id == second_attachment.id
 
     def test_deleting_last_image_clears_cover(self, document_service, session, sample_part, sample_image_file):
         """Test that deleting the last image attachment clears the cover."""
-        with patch('flask.current_app.config') as mock_config:
-            mock_config.get.side_effect = lambda key, default=None: {
-                'ALLOWED_IMAGE_TYPES': ['image/jpeg', 'image/png'],
-                'ALLOWED_FILE_TYPES': ['application/pdf'],
-                'MAX_IMAGE_SIZE': 10 * 1024 * 1024
-            }.get(key, default)
+        with patch('magic.from_buffer') as mock_magic:
+            mock_magic.return_value = 'image/jpeg'
 
-            with patch('magic.from_buffer') as mock_magic:
-                mock_magic.return_value = 'image/jpeg'
+            # Create single image
+            attachment = document_service.create_file_attachment(
+                part_key=sample_part.key,
+                title="Only Image",
+                file_data=sample_image_file,
+                filename="only.jpg",
+                content_type="image/jpeg"
+            )
 
-                # Create single image
-                attachment = document_service.create_file_attachment(
-                    part_key=sample_part.key,
-                    title="Only Image",
-                    file_data=sample_image_file,
-                    filename="only.jpg",
-                    content_type="image/jpeg"
-                )
+            session.refresh(sample_part)
 
-                session.refresh(sample_part)
+            # Verify it became cover
+            assert sample_part.cover_attachment_id == attachment.id
 
-                # Verify it became cover
-                assert sample_part.cover_attachment_id == attachment.id
+            # Delete the only image
+            document_service.delete_attachment(attachment.id)
+            session.refresh(sample_part)
 
-                # Delete the only image
-                document_service.delete_attachment(attachment.id)
-                session.refresh(sample_part)
-
-                # Verify cover is cleared
-                assert sample_part.cover_attachment_id is None
+            # Verify cover is cleared
+            assert sample_part.cover_attachment_id is None

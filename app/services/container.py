@@ -1,7 +1,7 @@
 """Dependency injection container for services."""
 
 from dependency_injector import containers, providers
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import sessionmaker
 
 from app.config import Settings
 from app.services.ai_service import AIService
@@ -24,7 +24,10 @@ class ServiceContainer(containers.DeclarativeContainer):
 
     # Configuration and database session providers
     config = providers.Dependency(instance_of=Settings)
-    db_session = providers.Dependency(instance_of=Session)
+    session_maker = providers.Dependency(instance_of=sessionmaker)
+    db_session = providers.ContextLocalSingleton(
+        session_maker.provided.call()
+    )
 
     # Service providers - Factory creates new instances for each request
     part_service = providers.Factory(PartService, db=db_session)
@@ -46,8 +49,13 @@ class ServiceContainer(containers.DeclarativeContainer):
     )
 
     # Document management services
-    s3_service = providers.Factory(S3Service, db=db_session)
-    image_service = providers.Factory(ImageService, db=db_session, s3_service=s3_service)
+    s3_service = providers.Factory(S3Service, db=db_session, settings=config)
+    image_service = providers.Factory(
+        ImageService,
+        db=db_session,
+        s3_service=s3_service,
+        settings=config
+    )
     url_thumbnail_service = providers.Factory(
         URLThumbnailService,
         db=db_session,
@@ -60,7 +68,8 @@ class ServiceContainer(containers.DeclarativeContainer):
         s3_service=s3_service,
         image_service=image_service,
         url_service=url_thumbnail_service,
-        download_cache_service=download_cache_service
+        download_cache_service=download_cache_service,
+        settings=config
     )
 
     # InventoryService depends on PartService

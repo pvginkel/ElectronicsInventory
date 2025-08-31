@@ -15,9 +15,11 @@ from app.schemas.common import ErrorResponseSchema
 from app.schemas.part import PartResponseSchema
 from app.schemas.task_schema import TaskStartResponse
 from app.services.ai_part_analysis_task import AIPartAnalysisTask
+from app.services.ai_service import AIService
 from app.services.container import ServiceContainer
 from app.services.document_service import DocumentService
 from app.services.part_service import PartService
+from app.services.task_service import TaskService
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
@@ -33,7 +35,8 @@ ai_parts_bp = Blueprint("ai_parts", __name__, url_prefix="/ai-parts")
 @handle_api_errors
 @inject
 def analyze_part(
-    task_service = Provide[ServiceContainer.task_service],
+    task_service : TaskService = Provide[ServiceContainer.task_service],
+    container : ServiceContainer = Provide[ServiceContainer],
 ):
     """
     Start AI analysis task for part creation.
@@ -90,13 +93,8 @@ def analyze_part(
             'details': {'message': 'Either text field or image file must be provided', 'field': None}
         }), 400
 
-    # Lazy-create AI service only after validation to avoid requiring API key for invalid inputs
-    from flask import current_app
-    container: ServiceContainer = current_app.container
-    ai_service = container.ai_service()
-
     # Create and start the AI analysis task
-    task = AIPartAnalysisTask(ai_service=ai_service)
+    task = AIPartAnalysisTask(container=container)
 
     task_start_response = task_service.start_task(
         task=task,

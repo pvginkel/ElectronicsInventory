@@ -2,6 +2,7 @@
 
 import io
 import os
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -9,12 +10,13 @@ from flask import Flask
 from PIL import Image
 from sqlalchemy.orm import Session
 
+from app.config import Settings
 from app.exceptions import InvalidOperationException
 from app.services.image_service import ImageService
 
 
 @pytest.fixture
-def temp_dir(tmp_path):
+def temp_dir(tmp_path: Path) -> Path:
     """Create temporary directory for thumbnails."""
     return tmp_path
 
@@ -24,16 +26,17 @@ def mock_s3_service():
     """Create mock S3Service for ImageService."""
     return MagicMock()
 
+@pytest.fixture
+def test_settings(temp_dir: Path):
+    return Settings(
+        THUMBNAIL_STORAGE_PATH=str(temp_dir)
+    )
+
 
 @pytest.fixture
-def image_service(app: Flask, session, temp_dir, mock_s3_service):
+def image_service(app: Flask, session, mock_s3_service, test_settings):
     """Create ImageService with temporary directory."""
-    with app.app_context():
-        with patch('app.services.image_service.current_app') as mock_current_app:
-            mock_current_app.config = {'THUMBNAIL_STORAGE_PATH': str(temp_dir)}
-            service = ImageService(session, mock_s3_service)
-            service.thumbnail_base_path = temp_dir
-            return service
+    return ImageService(session, mock_s3_service, test_settings)
 
 
 @pytest.fixture
@@ -57,13 +60,10 @@ def large_image_bytes():
 class TestImageService:
     """Test ImageService functionality."""
 
-    def test_init_creates_thumbnail_directory(self, app: Flask, session: Session, temp_dir, mock_s3_service):
+    def test_init_creates_thumbnail_directory(self, session: Session, temp_dir, mock_s3_service, test_settings):
         """Test that ImageService creates thumbnail directory."""
-        with app.app_context():
-            with patch('app.services.image_service.current_app') as mock_current_app:
-                mock_current_app.config = {'THUMBNAIL_STORAGE_PATH': str(temp_dir / "thumbnails")}
-                ImageService(session, mock_s3_service)
-                assert (temp_dir / "thumbnails").exists()
+        ImageService(session, mock_s3_service, test_settings)
+        assert Path(test_settings.THUMBNAIL_STORAGE_PATH).exists()
 
     def test_process_uploaded_image_normal_size(self, image_service, sample_image_bytes):
         """Test processing a normal-sized image."""
@@ -211,22 +211,19 @@ class TestImageService:
         assert b'<svg' in svg_data
         assert b'</svg>' in svg_data
 
-    def test_thumbnail_path_structure(self, app: Flask, session, temp_dir, mock_s3_service):
+    def test_thumbnail_path_structure(self, app: Flask, session, temp_dir, mock_s3_service, test_settings):
         """Test thumbnail path structure is consistent."""
         attachment_id = 123
         size = 150
 
         # Create service with explicit path
-        with app.app_context():
-            with patch('app.services.image_service.current_app') as mock_current_app:
-                mock_current_app.config = {'THUMBNAIL_STORAGE_PATH': str(temp_dir)}
-                service = ImageService(session, mock_s3_service)
+        service = ImageService(session, mock_s3_service, test_settings)
 
-                path = service._get_thumbnail_path(attachment_id, size)
+        path = service._get_thumbnail_path(attachment_id, size)
 
-                # Should be in format: {base_path}/{id}_{size}.jpg
-                expected = temp_dir / f"{attachment_id}_{size}.jpg"
-                assert path == str(expected)
+        # Should be in format: {base_path}/{id}_{size}.jpg
+        expected = temp_dir / f"{attachment_id}_{size}.jpg"
+        assert path == str(expected)
 
     def test_process_image_preserves_quality(self, image_service):
         """Test that image processing preserves reasonable quality."""

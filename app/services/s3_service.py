@@ -6,9 +6,9 @@ from typing import BinaryIO
 
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
-from flask import current_app
 from sqlalchemy.orm import Session
 
+from app.config import Settings
 from app.exceptions import InvalidOperationException
 from app.services.base import BaseService
 
@@ -16,7 +16,7 @@ from app.services.base import BaseService
 class S3Service(BaseService):
     """Service for S3-compatible storage operations using Ceph backend."""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, settings: Settings):
         """Initialize S3 service with database session.
 
         Args:
@@ -24,6 +24,7 @@ class S3Service(BaseService):
         """
         super().__init__(db)
         self._s3_client = None
+        self.settings = settings
 
     @property
     def s3_client(self):
@@ -32,11 +33,11 @@ class S3Service(BaseService):
             try:
                 self._s3_client = boto3.client(
                     's3',
-                    endpoint_url=current_app.config['S3_ENDPOINT_URL'],
-                    aws_access_key_id=current_app.config['S3_ACCESS_KEY_ID'],
-                    aws_secret_access_key=current_app.config['S3_SECRET_ACCESS_KEY'],
-                    region_name=current_app.config['S3_REGION'],
-                    use_ssl=current_app.config['S3_USE_SSL']
+                    endpoint_url=self.settings.S3_ENDPOINT_URL,
+                    aws_access_key_id=self.settings.S3_ACCESS_KEY_ID,
+                    aws_secret_access_key=self.settings.S3_SECRET_ACCESS_KEY,
+                    region_name=self.settings.S3_REGION,
+                    use_ssl=self.settings.S3_USE_SSL
                 )
             except NoCredentialsError as e:
                 raise InvalidOperationException("initialize S3 client", "credentials not configured") from e
@@ -74,7 +75,7 @@ class S3Service(BaseService):
         try:
             upload_args = {
                 'Fileobj': file_obj,
-                'Bucket': current_app.config['S3_BUCKET_NAME'],
+                'Bucket': self.settings.S3_BUCKET_NAME,
                 'Key': s3_key
             }
 
@@ -102,7 +103,7 @@ class S3Service(BaseService):
         try:
             file_obj = BytesIO()
             self.s3_client.download_fileobj(
-                current_app.config['S3_BUCKET_NAME'],
+                self.settings.S3_BUCKET_NAME,
                 s3_key,
                 file_obj
             )
@@ -128,7 +129,7 @@ class S3Service(BaseService):
         """
         try:
             self.s3_client.delete_object(
-                Bucket=current_app.config['S3_BUCKET_NAME'],
+                Bucket=self.settings.S3_BUCKET_NAME,
                 Key=s3_key
             )
             return True
@@ -147,7 +148,7 @@ class S3Service(BaseService):
         """
         try:
             self.s3_client.head_object(
-                Bucket=current_app.config['S3_BUCKET_NAME'],
+                Bucket=self.settings.S3_BUCKET_NAME,
                 Key=s3_key
             )
             return True
@@ -171,7 +172,7 @@ class S3Service(BaseService):
         """
         try:
             response = self.s3_client.head_object(
-                Bucket=current_app.config['S3_BUCKET_NAME'],
+                Bucket=self.settings.S3_BUCKET_NAME,
                 Key=s3_key
             )
 
