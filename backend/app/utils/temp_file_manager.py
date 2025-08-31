@@ -1,12 +1,22 @@
 """Temporary file storage management for AI analysis features."""
 
+import hashlib
+import json
 import logging
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import NamedTuple
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
+
+
+class CachedContent(NamedTuple):
+    """Cached download content with metadata."""
+    content: bytes
+    content_type: str
+    timestamp: datetime
 
 
 class TempFileManager:
@@ -17,7 +27,11 @@ class TempFileManager:
     and runs a background cleanup thread to remove old files.
     """
 
-    def __init__(self, base_path: str = "/tmp/electronics_inventory/ai_analysis", cleanup_age_hours: float = 2.0):
+    def __init__(
+        self,
+        base_path: str = "/tmp/electronics_inventory/ai_analysis",
+        cleanup_age_hours: float = 2.0
+    ):
         """
         Initialize the temporary file manager.
 
@@ -33,10 +47,16 @@ class TempFileManager:
         # Ensure base directory exists
         self.base_path.mkdir(parents=True, exist_ok=True)
 
+        # Ensure download cache directory exists
+        self.cache_path = self.base_path / "download_cache"
+        self.cache_path.mkdir(parents=True, exist_ok=True)
+
     def start_cleanup_thread(self) -> None:
         """Start the background cleanup thread."""
         if self._cleanup_thread is None or not self._cleanup_thread.is_alive():
-            self._cleanup_thread = threading.Thread(target=self._cleanup_loop, daemon=True)
+            self._cleanup_thread = threading.Thread(
+                target=self._cleanup_loop, daemon=True
+            )
             self._cleanup_thread.start()
             logger.info("Started temporary file cleanup thread")
 
@@ -136,7 +156,8 @@ class TempFileManager:
         Resolve a temporary URL back to a file path.
 
         Args:
-            temp_url: Temporary URL (e.g., "/tmp/ai-analysis/20240830_143022_a1b2c3d4/datasheet.pdf")
+            temp_url: Temporary URL (e.g., 
+                "/tmp/ai-analysis/20240830_143022_a1b2c3d4/datasheet.pdf")
 
         Returns:
             Full file path if valid, None otherwise
@@ -156,4 +177,99 @@ class TempFileManager:
             return None
 
         return full_path if full_path.exists() else None
+
+    def _url_to_path(self, url: str) -> str:
+        """
+        Convert URL to cache file path using SHA256 hash.
+
+        Args:
+            url: URL to convert
+
+        Returns:
+            SHA256 hash of the URL for use as filename
+        """
+        return hashlib.sha256(url.encode('utf-8')).hexdigest()
+
+    def get_cached(self, url: str) -> CachedContent | None:
+        """
+        Retrieve cached content for a URL if it exists and is valid.
+
+        Args:
+            url: URL to look up in cache
+
+        Returns:
+            CachedContent if cached and valid, None otherwise
+        """
+        cache_key = self._url_to_path(url)
+        content_file = self.cache_path / f"{cache_key}.bin"
+        metadata_file = self.cache_path / f"{cache_key}.json"
+
+        # Check if both files exist
+        if not content_file.exists() or not metadata_file.exists():
+            return None
+
+        try:
+            # Load metadata
+            with open(metadata_file, encoding='utf-8') as f:
+                metadata = json.load(f)
+
+            cached_time = datetime.fromisoformat(metadata['timestamp'])
+
+            # Check if cache is still valid
+            if (datetime.now() - cached_time > 
+                timedelta(hours=self.cleanup_age_hours)):
+                return None
+
+            # Load content
+            with open(content_file, 'rb') as f:
+                content = f.read()
+
+            return CachedContent(
+                content=content,
+                content_type=metadata['content_type'],
+                timestamp=cached_time
+            )
+
+        except (OSError, json.JSONDecodeError, KeyError, ValueError) as e:
+            logger.warning(f"Failed to load cached content for {url}: {e}")
+            return None
+
+    def cache(self, url: str, content: bytes, content_type: str) -> bool:
+        """
+        Store content in cache for the given URL.
+
+        Args:
+            url: URL to cache content for
+            content: Raw bytes of the content
+            content_type: MIME type of the content
+
+        Returns:
+            True if caching succeeded, False otherwise
+        """
+        try:
+            cache_key = self._url_to_path(url)
+            content_file = self.cache_path / f"{cache_key}.bin"
+            metadata_file = self.cache_path / f"{cache_key}.json"
+
+            # Store content
+            with open(content_file, 'wb') as f:
+                f.write(content)
+
+            # Store metadata
+            metadata = {
+                'url': url,
+                'content_type': content_type,
+                'timestamp': datetime.now().isoformat(),
+                'size': len(content)
+            }
+
+            with open(metadata_file, 'w', encoding='utf-8') as f:
+                json.dump(metadata, f, indent=2)
+
+            logger.debug(f"Cached content for URL {url} ({len(content)} bytes)")
+            return True
+
+        except OSError as e:
+            logger.error(f"Failed to cache content for {url}: {e}")
+            return False
 

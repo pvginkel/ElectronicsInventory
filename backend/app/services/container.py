@@ -7,6 +7,7 @@ from app.config import Settings
 from app.services.ai_service import AIService
 from app.services.box_service import BoxService
 from app.services.document_service import DocumentService
+from app.services.download_cache_service import DownloadCacheService
 from app.services.image_service import ImageService
 from app.services.inventory_service import InventoryService
 from app.services.part_service import PartService
@@ -31,16 +32,35 @@ class ServiceContainer(containers.DeclarativeContainer):
     type_service = providers.Factory(TypeService, db=db_session)
     test_data_service = providers.Factory(TestDataService, db=db_session)
 
+    # Utility services
+    temp_file_manager = providers.Singleton(
+        TempFileManager,
+        base_path=config.provided.DOWNLOAD_CACHE_BASE_PATH,
+        cleanup_age_hours=config.provided.DOWNLOAD_CACHE_CLEANUP_HOURS
+    )
+    download_cache_service = providers.Factory(
+        DownloadCacheService,
+        temp_file_manager=temp_file_manager,
+        max_download_size=config.provided.MAX_FILE_SIZE,
+        download_timeout=30
+    )
+
     # Document management services
     s3_service = providers.Factory(S3Service, db=db_session)
     image_service = providers.Factory(ImageService, db=db_session, s3_service=s3_service)
-    url_thumbnail_service = providers.Factory(URLThumbnailService, db=db_session, s3_service=s3_service)
+    url_thumbnail_service = providers.Factory(
+        URLThumbnailService, 
+        db=db_session, 
+        s3_service=s3_service, 
+        download_cache_service=download_cache_service
+    )
     document_service = providers.Factory(
         DocumentService,
         db=db_session,
         s3_service=s3_service,
         image_service=image_service,
-        url_service=url_thumbnail_service
+        url_service=url_thumbnail_service,
+        download_cache_service=download_cache_service
     )
 
     # InventoryService depends on PartService
@@ -58,12 +78,13 @@ class ServiceContainer(containers.DeclarativeContainer):
         cleanup_interval=config.provided.TASK_CLEANUP_INTERVAL_SECONDS
     )
 
-    # AI and temporary file management services
-    temp_file_manager = providers.Singleton(TempFileManager)
+    # AI service
     ai_service = providers.Factory(
         AIService,
         db=db_session,
         config=config,
         temp_file_manager=temp_file_manager,
-        type_service=type_service
+        type_service=type_service,
+        url_thumbnail_service=url_thumbnail_service,
+        download_cache_service=download_cache_service
     )

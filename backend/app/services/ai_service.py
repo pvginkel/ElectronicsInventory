@@ -18,6 +18,7 @@ from app.config import Settings
 from app.schemas.ai_part_analysis import AIPartAnalysisResultSchema, DocumentSuggestionSchema
 from app.schemas.url_preview import UrlPreviewResponseSchema
 from app.services.base import BaseService
+from app.services.download_cache_service import DownloadCacheService
 from app.services.url_thumbnail_service import URLThumbnailService
 from app.utils.temp_file_manager import TempFileManager
 
@@ -30,12 +31,13 @@ logger = logging.getLogger(__name__)
 class AIService(BaseService):
     """Service for AI-powered part analysis using OpenAI."""
 
-    def __init__(self, db, config: Settings, temp_file_manager: TempFileManager, type_service: 'TypeService', url_thumbnail_service: URLThumbnailService):
+    def __init__(self, db, config: Settings, temp_file_manager: TempFileManager, type_service: 'TypeService', url_thumbnail_service: URLThumbnailService, download_cache_service: DownloadCacheService):
         super().__init__(db)
         self.config = config
         self.temp_file_manager = temp_file_manager
         self.type_service = type_service
         self.url_thumbnail_service = url_thumbnail_service
+        self.download_cache_service = download_cache_service
 
         # Initialize OpenAI client
         if not config.OPENAI_API_KEY:
@@ -225,27 +227,26 @@ Focus on accuracy and technical precision. If uncertain about specific details, 
         )
 
     def _download_suggested_image(self, image_url: str, temp_dir: Path) -> str | None:
-        """Download AI-suggested part image."""
+        """Download AI-suggested part image using download cache service."""
         if not image_url.startswith("https://"):
             logger.warning(f"Skipping non-HTTPS image URL: {image_url}")
             return None
 
         try:
-            response = requests.get(image_url, timeout=15, stream=True)
-            response.raise_for_status()
-
+            # Use download cache service to get cached content
+            result = self.download_cache_service.get_cached_content(image_url)
+            
             # Verify it's an image
-            content_type = response.headers.get("content-type", "").lower()
-            if not content_type.startswith("image/"):
+            if not result.content_type.startswith("image/"):
                 logger.warning(f"URL does not serve an image: {image_url}")
                 return None
 
-            # Determine file extension
-            if "jpeg" in content_type or "jpg" in content_type:
+            # Determine file extension from content type
+            if "jpeg" in result.content_type or "jpg" in result.content_type:
                 ext = "jpg"
-            elif "png" in content_type:
+            elif "png" in result.content_type:
                 ext = "png"
-            elif "webp" in content_type:
+            elif "webp" in result.content_type:
                 ext = "webp"
             else:
                 ext = "jpg"  # Default
@@ -253,10 +254,9 @@ Focus on accuracy and technical precision. If uncertain about specific details, 
             filename = f"part_image.{ext}"
             file_path = temp_dir / filename
 
-            # Download and save
+            # Save content to temp file
             with open(file_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
+                f.write(result.content)
 
             # Generate temporary URL
             return self.temp_file_manager.get_temp_file_url(temp_dir, filename)
