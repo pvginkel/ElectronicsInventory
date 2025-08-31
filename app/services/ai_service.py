@@ -63,12 +63,6 @@ class AIService(BaseService):
         existing_types = self.type_service.get_all_types()
         type_names = [t.name for t in existing_types]
 
-        # Create JSON schema for structured output
-        schema = self._create_analysis_schema()
-
-        # Build messages for OpenAI
-        messages = self._build_openai_messages(text_input, image_data, image_mime_type, type_names)
-
         try:
             # Build input and instructions for Responses API
             instructions, input_content = self._build_responses_api_input(
@@ -84,7 +78,10 @@ class AIService(BaseService):
                 text={"verbosity": self.config.OPENAI_VERBOSITY},
                 max_output_tokens=self.config.OPENAI_MAX_OUTPUT_TOKENS,
                 temperature=self.config.OPENAI_TEMPERATURE,
-                store=self.config.OPENAI_STORE_REQUESTS
+                store=self.config.OPENAI_STORE_REQUESTS,
+                tools=[
+                    { "type": "web_search" },
+                ],
             )
 
             from pprint import pprint
@@ -157,139 +154,18 @@ class AIService(BaseService):
             logger.error(f"Failed to parse OpenAI response as JSON: {e}")
             raise Exception("Invalid response format from AI service") from e
 
-    def _create_analysis_schema(self) -> dict:
-        """Create JSON schema for OpenAI structured output."""
-        return {
-            "type": "object",
-            "properties": {
-                "manufacturer_code": {"type": ["string", "null"]},
-                "type": {"type": ["string", "null"]},
-                "description": {"type": ["string", "null"]},
-                "tags": {"type": "array", "items": {"type": "string"}},
-                "seller": {"type": ["string", "null"]},
-                "seller_link": {"type": ["string", "null"]},
-                "package": {"type": ["string", "null"]},
-                "pin_count": {"type": ["integer", "null"]},
-                "voltage_rating": {"type": ["string", "null"]},
-                "mounting_type": {"type": ["string", "null"], "enum": [
-                    "Through-hole", "Surface Mount", "Breadboard Compatible",
-                    "DIN Rail", "Panel Mount", "PCB Mount", None
-                ]},
-                "series": {"type": ["string", "null"]},
-                "dimensions": {"type": ["string", "null"]},
-                "documents": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "filename": {"type": "string"},
-                            "url": {"type": "string"},
-                            "document_type": {"type": "string", "enum": [
-                                "datasheet", "manual", "schematic", "application_note", "reference_design"
-                            ]},
-                            "description": {"type": ["string", "null"]}
-                        },
-                        "required": ["filename", "url", "document_type", "description"],
-                        "additionalProperties": False
-                    }
-                },
-                "suggested_image_url": {"type": ["string", "null"]},
-                "confidence_score": {"type": "number", "minimum": 0.0, "maximum": 1.0}
-            },
-            "required": [
-                "manufacturer_code", "type", "description", "tags", "seller", "seller_link",
-                "package", "pin_count", "voltage_rating", "mounting_type", "series", 
-                "dimensions", "documents", "suggested_image_url", "confidence_score"
-            ],
-            "additionalProperties": False
-        }
-
-    def _build_openai_messages(self, text_input: str | None, image_data: bytes | None,
-                              image_mime_type: str | None, type_names: list[str]) -> list[dict]:
-        """Build messages for OpenAI API call."""
-
-        system_prompt = f"""You are an expert electronics component analyzer. Analyze the provided text and/or image to identify and extract detailed information about an electronics part.
-
-Available part types in the system: {', '.join(type_names)}
-
-Choose an existing type that fits best, or suggest a new type name following similar patterns.
-
-Provide structured information about:
-- Manufacturer part number/code
-- Component type/category
-- Detailed technical description
-- Relevant tags for search and categorization
-- Seller information and product page if identifiable
-- Technical specifications (package, pins, voltage, mounting, series, dimensions)
-- Document URLs (datasheets, manuals, schematics) - HTTPS only, prefer manufacturer domains
-- High-quality product image URL if different from input
-
-Focus on accuracy and technical precision. If uncertain about specific details, omit them rather than guessing.
-
-For mounting_type, use standard terms: "Through-hole", "Surface Mount", "Breadboard Compatible", "DIN Rail", "Panel Mount", or "PCB Mount".
-
-Provide confidence score (0.0-1.0) based on how certain you are about the analysis."""
-
-        messages = [{"role": "system", "content": system_prompt}]
-
-        # Build user message content
-        content_parts = []
-
-        if text_input:
-            content_parts.append({
-                "type": "text",
-                "text": f"Text description: {text_input}"
-            })
-
-        if image_data and image_mime_type:
-            # Convert image to base64
-            base64_image = base64.b64encode(image_data).decode('utf-8')
-            data_url = f"data:{image_mime_type};base64,{base64_image}"
-
-            content_parts.append({
-                "type": "image_url",
-                "image_url": {"url": data_url}
-            })
-
-        if not content_parts:
-            content_parts.append({
-                "type": "text",
-                "text": "Please analyze the provided information."
-            })
-
-        messages.append({
-            "role": "user",
-            "content": content_parts
-        })
-
-        return messages
-
     def _build_responses_api_input(self, text_input: str | None, image_data: bytes | None,
                                  image_mime_type: str | None, type_names: list[str]) -> tuple[str, str | list]:
         """Build instructions and input for OpenAI Responses API."""
         
         # Build system instructions
-        instructions = f"""You are an expert electronics component analyzer. Analyze the provided text and/or image to identify and extract detailed information about an electronics part.
+        instructions = f"""You are an expert electronics component analyzer. Analyze the provided text and/or image to identify and find the requested information on the internet.
 
 Available part types in the system: {', '.join(type_names)}
 
 Choose an existing type that fits best, or suggest a new type name following similar patterns.
 
-Provide structured information about:
-- Manufacturer part number/code
-- Component type/category
-- Detailed technical description
-- Relevant tags for search and categorization
-- Seller information and product page if identifiable
-- Technical specifications (package, pins, voltage, mounting, series, dimensions)
-- Document URLs (datasheets, manuals, schematics) - HTTPS only, prefer manufacturer domains
-- High-quality product image URL if different from input
-
-Focus on accuracy and technical precision. If uncertain about specific details, omit them rather than guessing.
-
-For mounting_type, use standard terms: "Through-hole", "Surface Mount", "Breadboard Compatible", "DIN Rail", "Panel Mount", or "PCB Mount".
-
-Provide confidence score (0.0-1.0) based on how certain you are about the analysis."""
+Focus on accuracy and technical precision. If uncertain about specific details, omit them rather than guessing."""
 
         # Build input content
         if text_input and image_data and image_mime_type:
