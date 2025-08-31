@@ -95,9 +95,8 @@ class TestAIPartAnalysisTask:
             type_is_existing=True,
             existing_type_id=2,
             documents=[{
-                "filename": "datasheet.pdf",
-                "temp_path": "/tmp/path/datasheet.pdf",
-                "original_url": "https://example.com/datasheet.pdf",
+                "url": "https://example.com/datasheet.pdf",
+                "url_type": "link",
                 "document_type": "datasheet",
                 "description": "Complete datasheet"
             }],
@@ -275,16 +274,14 @@ class TestAIPartAnalysisTask:
             type_is_existing=False,
             documents=[
                 {
-                    "filename": "datasheet1.pdf",
-                    "temp_path": "/tmp/path1/datasheet1.pdf",
-                    "original_url": "https://example.com/datasheet1.pdf",
+                    "url": "https://example.com/datasheet1.pdf",
+                    "url_type": "link",
                     "document_type": "datasheet",
                     "description": None
                 },
                 {
-                    "filename": "manual.pdf",
-                    "temp_path": "/tmp/path2/manual.pdf",
-                    "original_url": "https://example.com/manual.pdf",
+                    "url": "https://example.com/manual.pdf",
+                    "url_type": "link", 
                     "document_type": "manual",
                     "description": "User manual"
                 }
