@@ -4,8 +4,11 @@ import base64
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from urllib.parse import urlparse
+from enum import Enum
+from typing import Optional, List
+from pydantic import BaseModel, Field, ConfigDict
 
 import requests
 from openai import OpenAI
@@ -67,59 +70,56 @@ class AIService(BaseService):
         messages = self._build_openai_messages(text_input, image_data, image_mime_type, type_names)
 
         try:
-            # Call OpenAI with structured output
-            response = self.client.chat.completions.create(
+            # Build input and instructions for Responses API
+            instructions, input_content = self._build_responses_api_input(
+                text_input, image_data, image_mime_type, type_names
+            )
+            
+            # Call OpenAI Responses API with structured output
+            response = self.client.responses.parse(
                 model=self.config.OPENAI_MODEL,
-                messages=messages,
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "part_analysis",
-                        "schema": schema,
-                        "strict": True
-                    }
-                },
-                max_completion_tokens=self.config.OPENAI_MAX_OUTPUT_TOKENS,
+                instructions=instructions,
+                input=input_content,
+                text_format=PartAnalysisSuggestion,
+                text={"verbosity": self.config.OPENAI_VERBOSITY},
+                max_output_tokens=self.config.OPENAI_MAX_OUTPUT_TOKENS,
                 temperature=self.config.OPENAI_TEMPERATURE,
-                reasoning={
-                    "effort": self.config.OPENAI_REASONING_EFFORT
-                }
+                store=self.config.OPENAI_STORE_REQUESTS
             )
 
-            # Parse the structured response
-            content = response.choices[0].message.content
-            if not content:
-                raise Exception("Empty response from OpenAI")
+            from pprint import pprint
+            pprint(response.output_parsed)
 
-            ai_response = json.loads(content)
+            ai_response = response.output_parsed
+            if not ai_response:
+                raise Exception("Empty response from OpenAI")
 
             # Create temporary directory for document downloads
             temp_dir = self.temp_file_manager.create_temp_directory()
 
             # Download documents if URLs provided
-            documents = []
-            for doc_data in ai_response.get("documents", []):
+            documents : List[DocumentSuggestionSchema] = []
+            for doc_data in ai_response.documents:
                 try:
-                    document_dict = self._download_document(doc_data, temp_dir)
-                    if document_dict:
+                    document_schema = self._download_document(doc_data, temp_dir)
+                    if document_schema:
                         # Convert to schema object
-                        document_schema = DocumentSuggestionSchema(**document_dict)
                         documents.append(document_schema)
                 except Exception as e:
-                    logger.warning(f"Failed to download document {doc_data.get('url', 'unknown')}: {e}")
+                    logger.warning(f"Failed to download document {doc_data.url or 'unknown'}: {e}")
 
             # Download suggested image if URL provided
             suggested_image_url = None
-            if ai_response.get("suggested_image_url"):
+            if ai_response.suggested_image_url:
                 try:
                     suggested_image_url = self._download_suggested_image(
-                        ai_response["suggested_image_url"], temp_dir
+                        ai_response.suggested_image_url, temp_dir
                     )
                 except Exception as e:
                     logger.warning(f"Failed to download suggested image: {e}")
 
             # Determine if type is existing or new
-            suggested_type = ai_response.get("type")
+            suggested_type = ai_response.type
             type_is_existing = False
             existing_type_id = None
 
@@ -132,21 +132,21 @@ class AIService(BaseService):
 
             # Build result schema
             result = AIPartAnalysisResultSchema(
-                manufacturer_code=ai_response.get("manufacturer_code"),
+                manufacturer_code=ai_response.manufacturer_code,
                 type=suggested_type,
-                description=ai_response.get("description"),
-                tags=ai_response.get("tags", []),
-                seller=ai_response.get("seller"),
-                seller_link=ai_response.get("seller_link"),
-                package=ai_response.get("package"),
-                pin_count=ai_response.get("pin_count"),
-                voltage_rating=ai_response.get("voltage_rating"),
-                mounting_type=ai_response.get("mounting_type"),
-                series=ai_response.get("series"),
-                dimensions=ai_response.get("dimensions"),
+                description=ai_response.description,
+                tags=ai_response.tags,
+                seller=ai_response.seller,
+                seller_link=ai_response.seller_link,
+                package=ai_response.package,
+                pin_count=ai_response.pin_count,
+                voltage_rating=ai_response.voltage_rating,
+                mounting_type=ai_response.mounting_type,
+                series=ai_response.series,
+                dimensions=ai_response.dimensions,
                 documents=documents,
                 suggested_image_url=suggested_image_url,
-                confidence_score=ai_response.get("confidence_score", 0.8),
+                confidence_score=ai_response.confidence_score,
                 type_is_existing=type_is_existing,
                 existing_type_id=existing_type_id
             )
@@ -156,9 +156,6 @@ class AIService(BaseService):
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse OpenAI response as JSON: {e}")
             raise Exception("Invalid response format from AI service") from e
-        except Exception as e:
-            logger.error(f"OpenAI API call failed: {e}")
-            raise Exception(f"AI analysis failed: {str(e)}") from e
 
     def _create_analysis_schema(self) -> dict:
         """Create JSON schema for OpenAI structured output."""
@@ -192,14 +189,18 @@ class AIService(BaseService):
                             ]},
                             "description": {"type": ["string", "null"]}
                         },
-                        "required": ["filename", "url", "document_type"],
+                        "required": ["filename", "url", "document_type", "description"],
                         "additionalProperties": False
                     }
                 },
                 "suggested_image_url": {"type": ["string", "null"]},
                 "confidence_score": {"type": "number", "minimum": 0.0, "maximum": 1.0}
             },
-            "required": [],
+            "required": [
+                "manufacturer_code", "type", "description", "tags", "seller", "seller_link",
+                "package", "pin_count", "voltage_rating", "mounting_type", "series", 
+                "dimensions", "documents", "suggested_image_url", "confidence_score"
+            ],
             "additionalProperties": False
         }
 
@@ -263,26 +264,81 @@ Provide confidence score (0.0-1.0) based on how certain you are about the analys
 
         return messages
 
-    def _download_document(self, doc_data: dict, temp_dir: Path) -> dict | None:
-        """Download a document from AI-provided URL."""
-        url = doc_data.get("url", "")
-        filename = doc_data.get("filename", "document.pdf")
-        document_type = doc_data.get("document_type", "datasheet")
-        description = doc_data.get("description")
+    def _build_responses_api_input(self, text_input: str | None, image_data: bytes | None,
+                                 image_mime_type: str | None, type_names: list[str]) -> tuple[str, str | list]:
+        """Build instructions and input for OpenAI Responses API."""
+        
+        # Build system instructions
+        instructions = f"""You are an expert electronics component analyzer. Analyze the provided text and/or image to identify and extract detailed information about an electronics part.
 
-        # Security checks
-        if not url.startswith("https://"):
-            logger.warning(f"Skipping non-HTTPS URL: {url}")
+Available part types in the system: {', '.join(type_names)}
+
+Choose an existing type that fits best, or suggest a new type name following similar patterns.
+
+Provide structured information about:
+- Manufacturer part number/code
+- Component type/category
+- Detailed technical description
+- Relevant tags for search and categorization
+- Seller information and product page if identifiable
+- Technical specifications (package, pins, voltage, mounting, series, dimensions)
+- Document URLs (datasheets, manuals, schematics) - HTTPS only, prefer manufacturer domains
+- High-quality product image URL if different from input
+
+Focus on accuracy and technical precision. If uncertain about specific details, omit them rather than guessing.
+
+For mounting_type, use standard terms: "Through-hole", "Surface Mount", "Breadboard Compatible", "DIN Rail", "Panel Mount", or "PCB Mount".
+
+Provide confidence score (0.0-1.0) based on how certain you are about the analysis."""
+
+        # Build input content
+        if text_input and image_data and image_mime_type:
+            # Both text and image - use array format
+            base64_image = base64.b64encode(image_data).decode('utf-8')
+            data_url = f"data:{image_mime_type};base64,{base64_image}"
+            
+            input_content = [
+                {"role": "user", "content": [
+                    {"type": "text", "text": f"Text description: {text_input}"},
+                    {"type": "image_url", "image_url": {"url": data_url}}
+                ]}
+            ]
+        elif text_input:
+            # Text only - simple string
+            input_content = f"Text description: {text_input}"
+        elif image_data and image_mime_type:
+            # Image only - array format
+            base64_image = base64.b64encode(image_data).decode('utf-8')
+            data_url = f"data:{image_mime_type};base64,{base64_image}"
+            
+            input_content = [
+                {"role": "user", "content": [
+                    {"type": "image_url", "image_url": {"url": data_url}}
+                ]}
+            ]
+        else:
+            input_content = "Please analyze the provided information."
+
+        return instructions, input_content
+
+    def _download_document(self, doc_data: 'Document', temp_dir: Path) -> DocumentSuggestionSchema | None:
+        """Download a document from AI-provided URL."""
+        if not doc_data.url:
             return None
 
-        parsed_url = urlparse(url)
+        # Security checks
+        if not doc_data.url.startswith("https://"):
+            logger.warning(f"Skipping non-HTTPS URL: {doc_data.url}")
+            return None
+
+        parsed_url = urlparse(doc_data.url)
         if not parsed_url.netloc:
-            logger.warning(f"Invalid URL: {url}")
+            logger.warning(f"Invalid URL: {doc_data.url}")
             return None
 
         try:
             # HEAD request first to check content type and size
-            head_response = requests.head(url, timeout=10, allow_redirects=True)
+            head_response = requests.head(doc_data.url, timeout=10, allow_redirects=True)
             head_response.raise_for_status()
 
             content_type = head_response.headers.get("content-type", "").lower()
@@ -291,20 +347,20 @@ Provide confidence score (0.0-1.0) based on how certain you are about the analys
             # Check content type
             allowed_types = ["application/pdf", "image/jpeg", "image/png", "image/webp"]
             if not any(allowed_type in content_type for allowed_type in allowed_types):
-                logger.warning(f"Unsupported content type {content_type} for URL: {url}")
+                logger.warning(f"Unsupported content type {content_type} for URL: {doc_data.url}")
                 return None
 
             # Check file size (max 50MB)
             if content_length and int(content_length) > 50 * 1024 * 1024:
-                logger.warning(f"File too large ({content_length} bytes) for URL: {url}")
+                logger.warning(f"File too large ({content_length} bytes) for URL: {doc_data.url}")
                 return None
 
             # Download the file
-            response = requests.get(url, timeout=30, stream=True)
+            response = requests.get(doc_data.url, timeout=30, stream=True)
             response.raise_for_status()
 
             # Save to temporary directory
-            safe_filename = self._sanitize_filename(filename)
+            safe_filename = self._sanitize_filename(doc_data.filename)
             file_path = temp_dir / safe_filename
 
             with open(file_path, 'wb') as f:
@@ -314,16 +370,16 @@ Provide confidence score (0.0-1.0) based on how certain you are about the analys
             # Generate temporary URL
             self.temp_file_manager.get_temp_file_url(temp_dir, safe_filename)
 
-            return {
-                "filename": safe_filename,
-                "temp_path": str(file_path),
-                "original_url": url,
-                "document_type": document_type,
-                "description": description
-            }
+            return DocumentSuggestionSchema(
+                filename=safe_filename,
+                temp_path=str(file_path),
+                original_url=doc_data.url,
+                document_type=doc_data.document_type,
+                description=doc_data.description
+            )
 
         except Exception as e:
-            logger.warning(f"Failed to download document from {url}: {e}")
+            logger.warning(f"Failed to download document from {doc_data.url}: {e}")
             return None
 
     def _download_suggested_image(self, image_url: str, temp_dir: Path) -> str | None:
@@ -384,3 +440,49 @@ Provide confidence score (0.0-1.0) based on how certain you are about the analys
 
         return filename or "document.pdf"
 
+class MountingTypeEnum(str, Enum):
+    THROUGH_HOLE = "Through-hole"
+    SURFACE_MOUNT = "Surface Mount"
+    BREADBOARD_COMPATIBLE = "Breadboard Compatible"
+    DIN_RAIL = "DIN Rail"
+    PANEL_MOUNT = "Panel Mount"
+    PCB_MOUNT = "PCB Mount"
+
+
+class DocumentTypeEnum(str, Enum):
+    DATASHEET = "datasheet"
+    MANUAL = "manual"
+    SCHEMATIC = "schematic"
+    APPLICATION_NOTE = "application_note"
+    REFERENCE_DESIGN = "reference_design"
+
+
+class Document(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    filename: str = Field(...)
+    url: str = Field(...)
+    document_type: DocumentTypeEnum = Field(...)
+    # Required key, but value may be null
+    description: Optional[str] = Field(...)
+
+
+class PartAnalysisSuggestion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    manufacturer_code: Optional[str] = Field(...)
+    type: Optional[str] = Field(...)
+    description: Optional[str] = Field(...)
+    tags: List[str] = Field(...)
+    seller: Optional[str] = Field(...)
+    seller_link: Optional[str] = Field(...)
+    package: Optional[str] = Field(...)
+    pin_count: Optional[int] = Field(...)
+    voltage_rating: Optional[str] = Field(...)
+    # Required key; value may be one of enum values or null
+    mounting_type: Optional[MountingTypeEnum] = Field(...)
+    series: Optional[str] = Field(...)
+    dimensions: Optional[str] = Field(...)
+    documents: List[Document] = Field(...)
+    suggested_image_url: Optional[str] = Field(...)
+    confidence_score: float = Field(..., ge=0.0, le=1.0)
