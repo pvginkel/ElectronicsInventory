@@ -94,7 +94,7 @@ class Settings(BaseSettings):
         default="", description="OpenAI API key for AI features"
     )
     OPENAI_MODEL: str = Field(
-        default="gpt-4o-mini", description="OpenAI model to use for AI analysis"
+        default="gpt-5-mini", description="OpenAI model to use for AI analysis"
     )
     OPENAI_REASONING_EFFORT: str = Field(
         default="medium", description="OpenAI reasoning effort level (low/medium/high)"
@@ -102,11 +102,8 @@ class Settings(BaseSettings):
     OPENAI_VERBOSITY: str = Field(
         default="medium", description="OpenAI response verbosity (low/medium/high)"
     )
-    OPENAI_MAX_OUTPUT_TOKENS: int = Field(
-        default=1200, description="Maximum output tokens for OpenAI responses"
-    )
-    OPENAI_TEMPERATURE: float = Field(
-        default=0.1, description="OpenAI temperature setting for consistency"
+    OPENAI_MAX_OUTPUT_TOKENS: int | None = Field(
+        default=None, description="Maximum output tokens for OpenAI responses"
     )
     OPENAI_STORE_REQUESTS: bool = Field(
         default=False, description="Store OpenAI API requests/responses for debugging (defaults to True in testing)"

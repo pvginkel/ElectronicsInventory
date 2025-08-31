@@ -25,11 +25,10 @@ def ai_test_settings() -> Settings:
     return Settings(
         DATABASE_URL="sqlite:///:memory:",
         OPENAI_API_KEY="test-api-key",
-        OPENAI_MODEL="gpt-4o-mini",
+        OPENAI_MODEL="gpt-5-mini",
         OPENAI_REASONING_EFFORT="medium",
         OPENAI_VERBOSITY="medium",
-        OPENAI_MAX_OUTPUT_TOKENS=1200,
-        OPENAI_TEMPERATURE=0.1,
+        OPENAI_MAX_OUTPUT_TOKENS=None,
     )
 
 
@@ -111,8 +110,7 @@ class TestAIService:
             "series": "Test Series",
             "dimensions": "10x8x5mm",
             "documents": [],
-            "suggested_image_url": None,
-            "confidence_score": 0.9
+            "suggested_image_url": None
         })
         mock_client.responses.create.return_value = mock_response
         
@@ -129,7 +127,6 @@ class TestAIService:
         assert result.tags == ["relay", "12V"]
         assert result.type_is_existing is True
         assert result.existing_type_id is not None
-        assert result.confidence_score == 0.9
 
     @patch('app.services.ai_service.OpenAI')
     def test_analyze_part_with_image(self, mock_openai_class, ai_service: AIService):
@@ -142,8 +139,7 @@ class TestAIService:
             "manufacturer_code": "IMG123",
             "type": "Microcontroller",
             "description": "Arduino-like microcontroller",
-            "tags": ["microcontroller", "arduino"],
-            "confidence_score": 0.8
+            "tags": ["microcontroller", "arduino"]
         })
         mock_client.responses.create.return_value = mock_response
         
@@ -178,8 +174,7 @@ class TestAIService:
         mock_response = Mock()
         mock_response.output_text = json.dumps({
             "type": "Power Supply",  # Not in existing types
-            "description": "Switching power supply",
-            "confidence_score": 0.85
+            "description": "Switching power supply"
         })
         mock_client.responses.create.return_value = mock_response
         
@@ -212,8 +207,7 @@ class TestAIService:
                     "document_type": "datasheet",
                     "description": "Complete datasheet"
                 }
-            ],
-            "confidence_score": 0.9
+            ]
         })
         mock_client.responses.create.return_value = mock_response
         
@@ -240,7 +234,7 @@ class TestAIService:
         assert len(result.documents) == 1
         doc = result.documents[0]
         assert doc.filename == "datasheet.pdf"
-        assert doc.original_url == "https://example.com/datasheet.pdf"
+        assert doc.url == "https://example.com/datasheet.pdf"
         assert doc.document_type == "datasheet"
 
     @patch('app.services.ai_service.OpenAI')

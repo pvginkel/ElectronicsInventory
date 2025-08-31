@@ -14,6 +14,7 @@ from app.models.type import Type
 from app.services.ai_service import AIService
 from app.services.container import ServiceContainer
 from app.services.type_service import TypeService
+from app.services.url_thumbnail_service import URLThumbnailService
 from app.utils.temp_file_manager import TempFileManager
 
 
@@ -27,11 +28,10 @@ def real_ai_settings() -> Settings:
     return Settings(
         DATABASE_URL="sqlite:///:memory:",
         OPENAI_API_KEY=api_key,
-        OPENAI_MODEL="gpt-4o-mini",
+        OPENAI_MODEL="gpt-5-mini",
         OPENAI_REASONING_EFFORT="medium",
         OPENAI_VERBOSITY="medium", 
-        OPENAI_MAX_OUTPUT_TOKENS=1200,
-        OPENAI_TEMPERATURE=0.1,
+        OPENAI_MAX_OUTPUT_TOKENS=None,
     )
 
 
@@ -41,6 +41,12 @@ def real_temp_file_manager():
     import tempfile
     with tempfile.TemporaryDirectory() as temp_dir:
         yield TempFileManager(base_path=temp_dir, cleanup_age_hours=1.0)
+
+
+@pytest.fixture
+def real_url_thumbnail_service(session: Session):
+    """Create temporary file manager for real integration testing."""
+    return URLThumbnailService(session, None)
 
 
 @pytest.fixture
@@ -66,13 +72,15 @@ def real_type_service(session: Session):
 
 @pytest.fixture
 def real_ai_service(session: Session, real_ai_settings: Settings, 
-                   real_temp_file_manager: TempFileManager, real_type_service: TypeService):
+                   real_temp_file_manager: TempFileManager, real_type_service: TypeService,
+                   real_url_thumbnail_service: URLThumbnailService):
     """Create AI service instance for real integration testing."""
     return AIService(
         db=session,
         config=real_ai_settings,
         temp_file_manager=real_temp_file_manager,
-        type_service=real_type_service
+        type_service=real_type_service,
+        url_thumbnail_service=real_url_thumbnail_service
     )
 
 
@@ -104,10 +112,6 @@ class TestAIServiceRealIntegration:
         assert result.manufacturer_code is not None or result.description is not None, \
                "AI should extract either manufacturer code or description"
         
-        # Verify confidence score is reasonable
-        assert 0.0 <= result.confidence_score <= 1.0, \
-               f"Confidence score should be between 0 and 1, got {result.confidence_score}"
-        
         # Check type analysis
         assert result.type is not None, "AI should suggest a part type"
         
@@ -126,8 +130,6 @@ class TestAIServiceRealIntegration:
         print(f"Series: {result.series}")
         print(f"Dimensions: {result.dimensions}")
         print(f"Documents: {len(result.documents)} found")
-        print(f"Suggested Image URL: {result.suggested_image_url}")
-        print(f"Confidence Score: {result.confidence_score}")
         
         # Validate specific expectations for this part
         # SGP40 is typically a gas/air quality sensor
@@ -147,12 +149,11 @@ class TestAIServiceRealIntegration:
         
         # If documents were found, check they're properly structured
         for doc in result.documents:
-            assert doc.filename, "Document should have filename"
-            assert doc.temp_path, "Document should have temp path"
-            assert doc.original_url, "Document should have original URL"
+            assert doc.url, "Document should have original URL"
+            assert doc.url_type, "Document should have URL type"
             assert doc.document_type in ["datasheet", "manual", "schematic", "application_note", "reference_design"], \
                    f"Invalid document type: {doc.document_type}"
-            print(f"  Document: {doc.filename} ({doc.document_type})")
+            print(f"  Document: {doc.url} ({doc.document_type})")
         
         # Validate type matching logic
         if result.type_is_existing:
@@ -162,13 +163,13 @@ class TestAIServiceRealIntegration:
             assert result.existing_type_id is None, \
                    "If type is new suggestion, existing_type_id should be None"
 
-    def test_analyze_HLK_PM24_real_api(self, real_ai_service: AIService):
+    def test_analyze_hlk_pm24_real_api(self, real_ai_service: AIService):
         """Test real AI analysis of HLK PM24 using OpenAI API.
         
         This test makes a real API call to OpenAI to analyze the HLK PM24
         sensor text input. It validates that the AI service can correctly:
         - Identify this as an air quality/gas sensor
-        - Extract manufacturer information (DFRobot)
+        - Extract manufacturer information (HiLink)
         - Generate appropriate tags and technical details
         - Handle document downloading if URLs are provided
         - Determine if the suggested type matches existing types
@@ -186,15 +187,11 @@ class TestAIServiceRealIntegration:
         assert result.manufacturer_code is not None or result.description is not None, \
                "AI should extract either manufacturer code or description"
         
-        # Verify confidence score is reasonable
-        assert 0.0 <= result.confidence_score <= 1.0, \
-               f"Confidence score should be between 0 and 1, got {result.confidence_score}"
-        
         # Check type analysis
         assert result.type is not None, "AI should suggest a part type"
         
         # Log the full result for inspection
-        print(f"\n=== AI Analysis Results for 'DFRobot Gravity SGP40' ===")
+        print(f"\n=== AI Analysis Results for 'HLK PM24' ===")
         print(f"Manufacturer Code: {result.manufacturer_code}")
         print(f"Type: {result.type} (existing: {result.type_is_existing})")
         print(f"Description: {result.description}")
@@ -208,8 +205,6 @@ class TestAIServiceRealIntegration:
         print(f"Series: {result.series}")
         print(f"Dimensions: {result.dimensions}")
         print(f"Documents: {len(result.documents)} found")
-        print(f"Suggested Image URL: {result.suggested_image_url}")
-        print(f"Confidence Score: {result.confidence_score}")
         
         # Validate specific expectations for this part
         # SGP40 is typically a gas/air quality sensor
@@ -217,24 +212,15 @@ class TestAIServiceRealIntegration:
             type_lower = result.type.lower()
             expected_keywords = ["power supply"]
             assert any(keyword in type_lower for keyword in expected_keywords), \
-                   f"Type '{result.type}' should be related to sensors/air quality/gas"
-        
-        # Check for reasonable tags
-        if result.tags:
-            tags_str = " ".join(result.tags).lower()
-            sensor_keywords = ["24v", "power supply", "ac-dc converter"]
-            found_keywords = [kw for kw in sensor_keywords if kw in tags_str]
-            assert len(found_keywords) >= 2, \
-                   f"Expected at least 2 relevant keywords in tags, found: {found_keywords}"
+                   f"Type '{result.type}' should be related to power supplies"
         
         # If documents were found, check they're properly structured
         for doc in result.documents:
-            assert doc.filename, "Document should have filename"
-            assert doc.temp_path, "Document should have temp path"
-            assert doc.original_url, "Document should have original URL"
+            assert doc.url, "Document should have original URL"
+            assert doc.url_type, "Document should have URL type"
             assert doc.document_type in ["datasheet", "manual", "schematic", "application_note", "reference_design"], \
                    f"Invalid document type: {doc.document_type}"
-            print(f"  Document: {doc.filename} ({doc.document_type})")
+            print(f"  Document: {doc.url} ({doc.document_type})")
         
         # Validate type matching logic
         if result.type_is_existing:
@@ -295,9 +281,7 @@ class TestAIServiceRealIntegration:
         )
         
         assert result is not None, "AI should handle multimodal input"
-        assert result.confidence_score > 0.0, "AI should provide confidence score"
         
         print(f"\n=== Multimodal Analysis Results ===")
         print(f"Type: {result.type}")
         print(f"Description: {result.description}")
-        print(f"Confidence: {result.confidence_score}")

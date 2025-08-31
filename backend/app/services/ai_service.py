@@ -9,13 +9,16 @@ from urllib.parse import urlparse
 from enum import Enum
 from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict
+from urllib.parse import quote
 
 import requests
 from openai import OpenAI
 
 from app.config import Settings
 from app.schemas.ai_part_analysis import AIPartAnalysisResultSchema, DocumentSuggestionSchema
+from app.schemas.url_preview import UrlPreviewResponseSchema
 from app.services.base import BaseService
+from app.services.url_thumbnail_service import URLThumbnailService
 from app.utils.temp_file_manager import TempFileManager
 
 if TYPE_CHECKING:
@@ -27,11 +30,12 @@ logger = logging.getLogger(__name__)
 class AIService(BaseService):
     """Service for AI-powered part analysis using OpenAI."""
 
-    def __init__(self, db, config: Settings, temp_file_manager: TempFileManager, type_service: 'TypeService'):
+    def __init__(self, db, config: Settings, temp_file_manager: TempFileManager, type_service: 'TypeService', url_thumbnail_service: URLThumbnailService):
         super().__init__(db)
         self.config = config
         self.temp_file_manager = temp_file_manager
         self.type_service = type_service
+        self.url_thumbnail_service = url_thumbnail_service
 
         # Initialize OpenAI client
         if not config.OPENAI_API_KEY:
@@ -77,43 +81,33 @@ class AIService(BaseService):
                 text_format=PartAnalysisSuggestion,
                 text={"verbosity": self.config.OPENAI_VERBOSITY},
                 max_output_tokens=self.config.OPENAI_MAX_OUTPUT_TOKENS,
-                temperature=self.config.OPENAI_TEMPERATURE,
                 store=self.config.OPENAI_STORE_REQUESTS,
                 tools=[
                     { "type": "web_search" },
                 ],
             )
 
-            from pprint import pprint
-            pprint(response.output_parsed)
+            logger.info(f"OpenAI response.status: {response.status}")
+            logger.info(f"OpenAI response.output_text: {response.output_text}")
+            logger.info(f"OpenAI response.incomplete_details: {response.incomplete_details}")
 
             ai_response = response.output_parsed
             if not ai_response:
-                raise Exception("Empty response from OpenAI")
+                raise Exception(f"Empty response from OpenAI status {response.status}, incomplete details: {response.incomplete_details}")
 
             # Create temporary directory for document downloads
             temp_dir = self.temp_file_manager.create_temp_directory()
 
             # Download documents if URLs provided
             documents : List[DocumentSuggestionSchema] = []
-            for doc_data in ai_response.documents:
-                try:
-                    document_schema = self._download_document(doc_data, temp_dir)
-                    if document_schema:
-                        # Convert to schema object
-                        documents.append(document_schema)
-                except Exception as e:
-                    logger.warning(f"Failed to download document {doc_data.url or 'unknown'}: {e}")
-
-            # Download suggested image if URL provided
-            suggested_image_url = None
-            if ai_response.suggested_image_url:
-                try:
-                    suggested_image_url = self._download_suggested_image(
-                        ai_response.suggested_image_url, temp_dir
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to download suggested image: {e}")
+            if ai_response.product_page:
+                documents.append(self._document_from_link(ai_response.product_page, temp_dir, "product_page"))
+            if ai_response.product_image:
+                documents.append(self._document_from_link(ai_response.product_image, temp_dir, "product_image"))
+            for link in ai_response.links:
+                documents.append(self._document_from_link(link, temp_dir, "link"))
+            for document in ai_response.pdf_documents:
+                documents.append(self._document_from_link(document, temp_dir, "pdf_document"))
 
             # Determine if type is existing or new
             suggested_type = ai_response.type
@@ -142,8 +136,6 @@ class AIService(BaseService):
                 series=ai_response.series,
                 dimensions=ai_response.dimensions,
                 documents=documents,
-                suggested_image_url=suggested_image_url,
-                confidence_score=ai_response.confidence_score,
                 type_is_existing=type_is_existing,
                 existing_type_id=existing_type_id
             )
@@ -165,7 +157,11 @@ Available part types in the system: {', '.join(type_names)}
 
 Choose an existing type that fits best, or suggest a new type name following similar patterns.
 
-Focus on accuracy and technical precision. If uncertain about specific details, omit them rather than guessing."""
+Only return links to English-language resources.
+
+Only put links to downloadable PDF documents in the 'pdf_documents' field. Do not include links to webpages or images. Use other fields for those.
+
+Focus on accuracy and technical precision. If uncertain about specific details, omit them rather than guessing. Use tags for important information you can't put into one of the other fields."""
 
         # Build input content
         if text_input and image_data and image_mime_type:
@@ -197,66 +193,36 @@ Focus on accuracy and technical precision. If uncertain about specific details, 
 
         return instructions, input_content
 
-    def _download_document(self, doc_data: 'Document', temp_dir: Path) -> DocumentSuggestionSchema | None:
-        """Download a document from AI-provided URL."""
-        if not doc_data.url:
-            return None
-
-        # Security checks
-        if not doc_data.url.startswith("https://"):
-            logger.warning(f"Skipping non-HTTPS URL: {doc_data.url}")
-            return None
-
-        parsed_url = urlparse(doc_data.url)
-        if not parsed_url.netloc:
-            logger.warning(f"Invalid URL: {doc_data.url}")
-            return None
-
+    def _document_from_link(self, data: 'Link | PdfLink', temp_dir: Path, link_type: str) -> DocumentSuggestionSchema | None:
         try:
-            # HEAD request first to check content type and size
-            head_response = requests.head(doc_data.url, timeout=10, allow_redirects=True)
-            head_response.raise_for_status()
+            logger.info(f"Getting preview metadata for URL {data.url}")
 
-            content_type = head_response.headers.get("content-type", "").lower()
-            content_length = head_response.headers.get("content-length")
+            """Download a document from AI-provided URL."""
+            metadata = self.url_thumbnail_service.extract_metadata(data.url)
 
-            # Check content type
-            allowed_types = ["application/pdf", "image/jpeg", "image/png", "image/webp"]
-            if not any(allowed_type in content_type for allowed_type in allowed_types):
-                logger.warning(f"Unsupported content type {content_type} for URL: {doc_data.url}")
-                return None
+            # Generate backend image endpoint URL
+            image_url = None
+            if metadata.get('og_image') or metadata.get('favicon'):
+                encoded_url = quote(data.url, safe='')
+                image_url = f"/api/parts/attachment-preview/image?url={encoded_url}"
 
-            # Check file size (max 50MB)
-            if content_length and int(content_length) > 50 * 1024 * 1024:
-                logger.warning(f"File too large ({content_length} bytes) for URL: {doc_data.url}")
-                return None
-
-            # Download the file
-            response = requests.get(doc_data.url, timeout=30, stream=True)
-            response.raise_for_status()
-
-            # Save to temporary directory
-            safe_filename = self._sanitize_filename(doc_data.filename)
-            file_path = temp_dir / safe_filename
-
-            with open(file_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-
-            # Generate temporary URL
-            self.temp_file_manager.get_temp_file_url(temp_dir, safe_filename)
-
-            return DocumentSuggestionSchema(
-                filename=safe_filename,
-                temp_path=str(file_path),
-                original_url=doc_data.url,
-                document_type=doc_data.document_type,
-                description=doc_data.description
+            preview = UrlPreviewResponseSchema(
+                title=metadata.get('title'),
+                image_url=image_url,
+                original_url=data.url,
+                content_type=metadata.get('content_type', None)
             )
-
         except Exception as e:
-            logger.warning(f"Failed to download document from {doc_data.url}: {e}")
-            return None
+            logger.warning(f"Failed to extract metadata for URL {data.url}: {e}")
+            preview = None
+
+        return DocumentSuggestionSchema(
+            url=data.url,
+            url_type=link_type,
+            document_type=data.link_type,
+            description=data.description,
+            preview=preview
+        )
 
     def _download_suggested_image(self, image_url: str, temp_dir: Path) -> str | None:
         """Download AI-suggested part image."""
@@ -324,22 +290,27 @@ class MountingTypeEnum(str, Enum):
     PANEL_MOUNT = "Panel Mount"
     PCB_MOUNT = "PCB Mount"
 
-
-class DocumentTypeEnum(str, Enum):
+class LinkTypeEnum(str, Enum):
     DATASHEET = "datasheet"
     MANUAL = "manual"
     SCHEMATIC = "schematic"
     APPLICATION_NOTE = "application_note"
     REFERENCE_DESIGN = "reference_design"
+    
 
-
-class Document(BaseModel):
+class Link(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    filename: str = Field(...)
     url: str = Field(...)
-    document_type: DocumentTypeEnum = Field(...)
-    # Required key, but value may be null
+    link_type: LinkTypeEnum = Field(...)
+    description: Optional[str] = Field(...)
+
+
+class PdfLink(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    url: str = Field(...)
+    link_type: LinkTypeEnum = Field(...)
     description: Optional[str] = Field(...)
 
 
@@ -355,10 +326,10 @@ class PartAnalysisSuggestion(BaseModel):
     package: Optional[str] = Field(...)
     pin_count: Optional[int] = Field(...)
     voltage_rating: Optional[str] = Field(...)
-    # Required key; value may be one of enum values or null
     mounting_type: Optional[MountingTypeEnum] = Field(...)
     series: Optional[str] = Field(...)
     dimensions: Optional[str] = Field(...)
-    documents: List[Document] = Field(...)
-    suggested_image_url: Optional[str] = Field(...)
-    confidence_score: float = Field(..., ge=0.0, le=1.0)
+    product_page: Optional[Link] = Field(...)
+    product_image: Optional[Link] = Field(...)
+    links: List[Link] = Field(...)
+    pdf_documents: List[PdfLink] = Field(...)

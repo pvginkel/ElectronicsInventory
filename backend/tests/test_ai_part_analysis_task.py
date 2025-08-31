@@ -47,7 +47,6 @@ class TestAIPartAnalysisTask:
             type="Relay",
             description="Test relay",
             tags=["relay", "12V"],
-            confidence_score=0.9,
             type_is_existing=True,
             existing_type_id=1,
             documents=[],
@@ -93,7 +92,6 @@ class TestAIPartAnalysisTask:
             type="Microcontroller",
             description="Arduino board",
             tags=["microcontroller", "arduino"],
-            confidence_score=0.85,
             type_is_existing=True,
             existing_type_id=2,
             documents=[{
@@ -174,7 +172,6 @@ class TestAIPartAnalysisTask:
                 manufacturer_code="CANCELLED",
                 type="Test",
                 description="Test part",
-                confidence_score=0.5,
                 type_is_existing=False
             )
         
@@ -222,7 +219,6 @@ class TestAIPartAnalysisTask:
             manufacturer_code="PROG123",
             type="Sensor",
             description="Test sensor",
-            confidence_score=0.8,
             type_is_existing=False,
             documents=[]
         )
@@ -276,7 +272,6 @@ class TestAIPartAnalysisTask:
             manufacturer_code="DOC123",
             type="Component",
             description="Component with docs",
-            confidence_score=0.85,
             type_is_existing=False,
             documents=[
                 {

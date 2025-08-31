@@ -19,3 +19,4 @@ class UrlPreviewResponseSchema(BaseModel):
     title: str | None = Field(None, description="Page title")
     image_url: str | None = Field(None, description="Backend endpoint URL for preview image")
     original_url: str = Field(..., description="Original URL")
+    content_type: str | None = Field(..., description="Content type")
