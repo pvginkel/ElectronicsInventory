@@ -2,13 +2,17 @@
 
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, jsonify, request
+from spectree import Response as SpectreeResponse
 from werkzeug.datastructures import FileStorage
 
 from app.schemas.ai_part_analysis import AIPartCreateSchema
+from app.schemas.common import ErrorResponseSchema
 from app.schemas.part import PartResponseSchema
+from app.schemas.task_schema import TaskStartResponse
 from app.services.ai_part_analysis_task import AIPartAnalysisTask
 from app.services.container import ServiceContainer
 from app.utils.error_handling import handle_api_errors
+from app.utils.spectree_config import api
 
 # Note: SpecTree validation skipped for multipart endpoints due to complexity
 
@@ -16,6 +20,7 @@ ai_parts_bp = Blueprint("ai_parts", __name__, url_prefix="/ai-parts")
 
 
 @ai_parts_bp.route("/analyze", methods=["POST"])
+@api.validate(resp=SpectreeResponse(HTTP_201=TaskStartResponse, HTTP_400=ErrorResponseSchema))
 @handle_api_errors
 @inject
 def analyze_part(
@@ -92,6 +97,7 @@ def analyze_part(
 
 
 @ai_parts_bp.route("/create", methods=["POST"])
+@api.validate(json=AIPartCreateSchema, resp=SpectreeResponse(HTTP_201=PartResponseSchema, HTTP_400=ErrorResponseSchema))
 @handle_api_errors
 @inject
 def create_part_from_ai_analysis(
@@ -182,33 +188,3 @@ def create_part_from_ai_analysis(
     return PartResponseSchema.model_validate(part).model_dump(), 201
 
 
-# Temporary file serving endpoint for AI analysis results
-@ai_parts_bp.route("/temp/<path:temp_path>", methods=["GET"])
-@handle_api_errors
-@inject
-def serve_temp_file(temp_path: str, temp_file_manager=Provide[ServiceContainer.temp_file_manager]):
-    """
-    Serve temporary files from AI analysis.
-
-    Security: Files are only accessible for a limited time and within the temp directory.
-    """
-    from flask import send_file
-
-    temp_url = f"/tmp/ai-analysis/{temp_path}"
-    file_path = temp_file_manager.resolve_temp_url(temp_url)
-
-    if not file_path or not file_path.exists():
-        return jsonify({'error': 'File not found or expired'}), 404
-
-    # Determine MIME type based on extension
-    suffix = file_path.suffix.lower()
-    mime_type = {
-        '.pdf': 'application/pdf',
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.png': 'image/png',
-        '.webp': 'image/webp',
-        '.gif': 'image/gif'
-    }.get(suffix, 'application/octet-stream')
-
-    return send_file(file_path, mimetype=mime_type)
