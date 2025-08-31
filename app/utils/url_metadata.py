@@ -1,7 +1,7 @@
 """URL metadata extraction utilities."""
 
 import re
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
@@ -42,7 +42,7 @@ def extract_page_metadata(url: str, download_cache_service: "DownloadCacheServic
         # Download content using cache service
         download_result = download_cache_service.get_cached_content(url)
         content = download_result.content
-        
+
         # Limit content size for parsing
         content = content[:1024 * 1024]  # 1MB limit
         soup = BeautifulSoup(content, 'html.parser')

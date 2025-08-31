@@ -47,60 +47,60 @@ class TestURLThumbnailService:
     def test_validate_url_valid_http(self, container: ServiceContainer, session: Session):
         """Test validation of valid HTTP URL."""
         url_service = container.url_thumbnail_service()
-        
+
         with patch.object(url_service.download_cache_service, 'validate_url', return_value=True) as mock_validate:
             result = url_service.validate_url("http://example.com")
-            
+
             assert result is True
             mock_validate.assert_called_once_with("http://example.com")
 
     def test_validate_url_valid_https(self, container: ServiceContainer, session: Session):
         """Test validation of valid HTTPS URL."""
         url_service = container.url_thumbnail_service()
-        
+
         with patch.object(url_service.download_cache_service, 'validate_url', return_value=True) as mock_validate:
             result = url_service.validate_url("https://example.com")
-            
+
             assert result is True
             mock_validate.assert_called_once_with("https://example.com")
 
     def test_validate_url_invalid_scheme(self, container: ServiceContainer, session: Session):
         """Test validation of invalid URL scheme."""
         url_service = container.url_thumbnail_service()
-        
+
         with patch.object(url_service.download_cache_service, 'validate_url', return_value=False) as mock_validate:
             result = url_service.validate_url("ftp://example.com")
-            
+
             assert result is False
             mock_validate.assert_called_once_with("ftp://example.com")
 
     def test_validate_url_malformed(self, container: ServiceContainer, session: Session):
         """Test validation of malformed URL."""
         url_service = container.url_thumbnail_service()
-        
+
         with patch.object(url_service.download_cache_service, 'validate_url', return_value=False) as mock_validate:
             result = url_service.validate_url("not-a-url")
-            
+
             assert result is False
             mock_validate.assert_called_once_with("not-a-url")
 
     def test_validate_url_connection_error(self, container: ServiceContainer, session: Session):
         """Test validation with connection error."""
         url_service = container.url_thumbnail_service()
-        
+
         with patch.object(url_service.download_cache_service, 'validate_url', return_value=False) as mock_validate:
             result = url_service.validate_url("http://unreachable.com")
-            
+
             assert result is False
             mock_validate.assert_called_once_with("http://unreachable.com")
 
     def test_validate_url_http_error(self, container: ServiceContainer, session: Session):
         """Test validation with HTTP error status."""
         url_service = container.url_thumbnail_service()
-        
+
         with patch.object(url_service.download_cache_service, 'validate_url', return_value=False) as mock_validate:
             result = url_service.validate_url("http://example.com/notfound")
-            
+
             assert result is False
             mock_validate.assert_called_once_with("http://example.com/notfound")
 
@@ -134,7 +134,7 @@ class TestURLThumbnailService:
                 content=html.encode('utf-8'),
                 content_type='text/html'
             )
-            
+
             metadata = url_service.extract_metadata("http://example.com")
 
             assert metadata['title'] == 'Fallback Title'
@@ -153,7 +153,7 @@ class TestURLThumbnailService:
                 content=html.encode('utf-8'),
                 content_type='text/html'
             )
-            
+
             metadata = url_service.extract_metadata("http://example.com")
 
             assert metadata.get('title') is None
@@ -165,10 +165,10 @@ class TestURLThumbnailService:
         url_service = container.url_thumbnail_service()
         with patch.object(url_service.download_cache_service, 'get_cached_content') as mock_get_content:
             mock_get_content.side_effect = Exception("Connection failed")
-            
+
             with pytest.raises(InvalidOperationException) as exc_info:
                 url_service.extract_metadata("http://example.com")
-            
+
             assert "Cannot fetch URL content" in str(exc_info.value)
 
     @patch('requests.get')
@@ -221,7 +221,7 @@ class TestURLThumbnailService:
         url_service = container.url_thumbnail_service()
         with patch.object(url_service.download_cache_service, 'get_cached_content') as mock_get_content:
             mock_get_content.side_effect = Exception("Connection failed")
-            
+
             with pytest.raises(InvalidOperationException) as exc_info:
                 url_service.download_and_store_thumbnail("http://example.com", 123)
 

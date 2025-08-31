@@ -1,16 +1,14 @@
 """Tests for the download cache service."""
 
-import json
 import tempfile
-from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 import pytest
 import requests
 
 from app.services.download_cache_service import DownloadCacheService, DownloadResult
-from app.utils.temp_file_manager import TempFileManager, CachedContent
+from app.utils.temp_file_manager import TempFileManager
 
 
 class TestDownloadCacheService:
@@ -43,7 +41,7 @@ class TestDownloadCacheService:
             max_download_size=5 * 1024 * 1024,
             download_timeout=30
         )
-        
+
         assert service.temp_file_manager == temp_file_manager
         assert service.max_download_size == 5 * 1024 * 1024
         assert service.download_timeout == 30
@@ -59,18 +57,18 @@ class TestDownloadCacheService:
         mock_response.iter_content.return_value = [b'test content']
         mock_response.raise_for_status.return_value = None
         mock_requests.return_value = mock_response
-        
+
         # Mock magic detection
         mock_magic.return_value = 'text/plain'
-        
+
         url = 'https://example.com/test.txt'
         result = download_service.get_cached_content(url)
-        
+
         # Verify result
         assert isinstance(result, DownloadResult)
         assert result.content == b'test content'
         assert result.content_type == 'text/plain'
-        
+
         # Verify request was made
         mock_requests.assert_called_once()
         call_args = mock_requests.call_args
@@ -83,13 +81,13 @@ class TestDownloadCacheService:
         url = 'https://example.com/test.txt'
         cached_content = b'cached test content'
         content_type = 'text/plain'
-        
+
         # Manually cache content
         temp_file_manager.cache(url, cached_content, content_type)
-        
+
         # Get cached content
         result = download_service.get_cached_content(url)
-        
+
         # Verify result
         assert isinstance(result, DownloadResult)
         assert result.content == cached_content
@@ -101,7 +99,7 @@ class TestDownloadCacheService:
         # Test empty URL
         with pytest.raises(ValueError, match="Invalid URL"):
             download_service.get_cached_content("")
-            
+
         # Test invalid scheme
         with pytest.raises(ValueError, match="Invalid URL"):
             download_service.get_cached_content("ftp://example.com/test.txt")
@@ -110,7 +108,7 @@ class TestDownloadCacheService:
     def test_download_network_error(self, mock_requests, download_service):
         """Test download with network error."""
         mock_requests.side_effect = requests.RequestException("Network error")
-        
+
         with pytest.raises(requests.RequestException):
             download_service.get_cached_content("https://example.com/test.txt")
 
@@ -120,7 +118,7 @@ class TestDownloadCacheService:
         mock_response = Mock()
         mock_response.headers = {'content-length': str(2 * 1024 * 1024)}  # 2MB, over 1MB limit
         mock_requests.return_value = mock_response
-        
+
         with pytest.raises(ValueError, match="Content too large"):
             download_service.get_cached_content("https://example.com/test.txt")
 
@@ -135,7 +133,7 @@ class TestDownloadCacheService:
         large_chunk = b'x' * (1024 * 1024 + 1)  # 1MB + 1 byte
         mock_response.iter_content.return_value = [large_chunk]
         mock_requests.return_value = mock_response
-        
+
         with pytest.raises(ValueError, match="Content too large"):
             download_service.get_cached_content("https://example.com/test.txt")
 
@@ -150,11 +148,11 @@ class TestDownloadCacheService:
         # Return content in multiple chunks
         mock_response.iter_content.return_value = [b'chunk1', b'chunk2', b'chunk3']
         mock_requests.return_value = mock_response
-        
+
         mock_magic.return_value = 'application/octet-stream'
-        
+
         result = download_service.get_cached_content("https://example.com/test.bin")
-        
+
         assert result.content == b'chunk1chunk2chunk3'
         assert result.content_type == 'application/octet-stream'
 
@@ -164,7 +162,7 @@ class TestDownloadCacheService:
         mock_response = Mock()
         mock_response.raise_for_status.side_effect = requests.HTTPError("404 Not Found")
         mock_requests.return_value = mock_response
-        
+
         with pytest.raises(requests.HTTPError):
             download_service.get_cached_content("https://example.com/notfound.txt")
 
@@ -178,27 +176,27 @@ class TestDownloadCacheService:
         mock_response.raise_for_status.return_value = None
         mock_response.iter_content.return_value = [b'test content for caching']
         mock_requests.return_value = mock_response
-        
+
         mock_magic.return_value = 'text/plain'
-        
+
         url = 'https://example.com/cache-test.txt'
-        
+
         # First call - should download and cache
         result1 = download_service.get_cached_content(url)
         assert result1.content == b'test content for caching'
-        
+
         # Verify content was cached
         cached = temp_file_manager.get_cached(url)
         assert cached is not None
         assert cached.content == b'test content for caching'
         assert cached.content_type == 'text/plain'
-        
+
         # Second call - should use cache (reset mock to verify no new request)
         mock_requests.reset_mock()
         result2 = download_service.get_cached_content(url)
         assert result2.content == b'test content for caching'
         assert result2.content_type == 'text/plain'
-        
+
         # Verify no new request was made
         mock_requests.assert_not_called()
 
@@ -206,14 +204,14 @@ class TestDownloadCacheService:
     def test_download_unexpected_error(self, mock_requests, download_service):
         """Test download with unexpected error."""
         mock_requests.side_effect = Exception("Unexpected error")
-        
+
         with pytest.raises(ValueError, match="Download failed"):
             download_service.get_cached_content("https://example.com/test.txt")
 
     def test_download_result_namedtuple(self):
         """Test DownloadResult namedtuple structure."""
         result = DownloadResult(content=b'test', content_type='text/plain')
-        
+
         assert result.content == b'test'
         assert result.content_type == 'text/plain'
         assert len(result) == 2
@@ -228,12 +226,12 @@ class TestDownloadCacheService:
         mock_response.raise_for_status.return_value = None
         mock_response.iter_content.return_value = [b'{"key": "value"}']  # But content is JSON
         mock_requests.return_value = mock_response
-        
+
         # Magic should detect it as JSON
         mock_magic.return_value = 'application/json'
-        
+
         result = download_service.get_cached_content("https://example.com/data.json")
-        
+
         # Should use detected type from magic, not server header
         assert result.content_type == 'application/json'
         mock_magic.assert_called_once_with(b'{"key": "value"}', mime=True)
@@ -248,13 +246,13 @@ class TestDownloadCacheService:
         mock_response.raise_for_status.return_value = None
         mock_response.iter_content.return_value = [b'test content']
         mock_requests.return_value = mock_response
-        
+
         mock_magic.return_value = 'text/plain'
-        
+
         # Mock cache to fail
         with patch.object(download_service.temp_file_manager, 'cache', return_value=False):
             result = download_service.get_cached_content("https://example.com/test.txt")
-            
+
             # Download should still succeed even if caching failed
             assert result.content == b'test content'
 
@@ -264,38 +262,38 @@ class TestDownloadCacheService:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_head.return_value = mock_response
-        
+
         result = download_service.validate_url("https://example.com/test.html")
-        
+
         assert result is True
         mock_head.assert_called_once()
-        
+
     @patch('requests.head')
     def test_validate_url_invalid_status(self, mock_head, download_service):
         """Test URL validation with invalid status code."""
         mock_response = Mock()
         mock_response.status_code = 404
         mock_head.return_value = mock_response
-        
+
         result = download_service.validate_url("https://example.com/notfound.html")
-        
+
         assert result is False
-        
+
     def test_validate_url_invalid_format(self, download_service):
         """Test URL validation with invalid URL format."""
         result = download_service.validate_url("not-a-url")
         assert result is False
-        
+
         result = download_service.validate_url("ftp://example.com/test")
         assert result is False
-        
+
     @patch('requests.head')
     def test_validate_url_network_error(self, mock_head, download_service):
         """Test URL validation with network error."""
         mock_head.side_effect = requests.exceptions.RequestException("Network error")
-        
+
         result = download_service.validate_url("https://example.com/test.html")
-        
+
         assert result is False
 
     def test_service_configuration(self, temp_file_manager):
@@ -305,6 +303,6 @@ class TestDownloadCacheService:
             max_download_size=500 * 1024,  # 500KB
             download_timeout=5
         )
-        
+
         assert service.max_download_size == 500 * 1024
         assert service.download_timeout == 5

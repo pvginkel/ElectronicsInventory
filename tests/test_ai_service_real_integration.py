@@ -5,6 +5,7 @@ They are marked as integration tests and can be run separately from unit tests.
 """
 
 import os
+
 import pytest
 from flask import Flask
 from sqlalchemy.orm import Session
@@ -24,13 +25,13 @@ def real_ai_settings() -> Settings:
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         pytest.skip("OPENAI_API_KEY environment variable required for integration tests")
-    
+
     return Settings(
         DATABASE_URL="sqlite:///:memory:",
         OPENAI_API_KEY=api_key,
         OPENAI_MODEL="gpt-5-mini",
         OPENAI_REASONING_EFFORT="medium",
-        OPENAI_VERBOSITY="medium", 
+        OPENAI_VERBOSITY="medium",
         OPENAI_MAX_OUTPUT_TOKENS=None,
     )
 
@@ -53,7 +54,7 @@ def real_url_thumbnail_service(session: Session):
 def real_type_service(session: Session):
     """Create type service with realistic electronics types."""
     type_service = TypeService(db=session)
-    
+
     # Create comprehensive list of electronics part types
     types_to_create = [
         "Sensor", "Air Quality Sensor", "Gas Sensor", "Environmental Sensor",
@@ -61,17 +62,17 @@ def real_type_service(session: Session):
         "Module", "Relay", "Capacitor", "Resistor", "LED", "IC", "Connector",
         "Power Supply", "Voltage Regulator", "Transistor", "Diode"
     ]
-    
+
     for type_name in types_to_create:
         part_type = Type(name=type_name)
         session.add(part_type)
-    
+
     session.flush()
     return type_service
 
 
 @pytest.fixture
-def real_ai_service(session: Session, real_ai_settings: Settings, 
+def real_ai_service(session: Session, real_ai_settings: Settings,
                    real_temp_file_manager: TempFileManager, real_type_service: TypeService,
                    real_url_thumbnail_service: URLThumbnailService):
     """Create AI service instance for real integration testing."""
@@ -90,7 +91,7 @@ class TestAIServiceRealIntegration:
 
     def test_analyze_dfrobot_gravity_sgp40_real_api(self, real_ai_service: AIService):
         """Test real AI analysis of DFRobot Gravity SGP40 using OpenAI API.
-        
+
         This test makes a real API call to OpenAI to analyze the DFRobot Gravity SGP40
         sensor text input. It validates that the AI service can correctly:
         - Identify this as an air quality/gas sensor
@@ -101,22 +102,22 @@ class TestAIServiceRealIntegration:
         """
         # Test input - a real electronics part
         text_input = "DFRobot Gravity SGP40"
-        
+
         # Perform real AI analysis
         result = real_ai_service.analyze_part(text_input=text_input)
-        
+
         # Validate the analysis results
         assert result is not None, "AI analysis should return a result"
-        
+
         # Check that some basic information was extracted
         assert result.manufacturer_code is not None or result.description is not None, \
                "AI should extract either manufacturer code or description"
-        
+
         # Check type analysis
         assert result.type is not None, "AI should suggest a part type"
-        
+
         # Log the full result for inspection
-        print(f"\n=== AI Analysis Results for 'DFRobot Gravity SGP40' ===")
+        print("\n=== AI Analysis Results for 'DFRobot Gravity SGP40' ===")
         print(f"Manufacturer Code: {result.manufacturer_code}")
         print(f"Type: {result.type} (existing: {result.type_is_existing})")
         print(f"Description: {result.description}")
@@ -130,7 +131,7 @@ class TestAIServiceRealIntegration:
         print(f"Series: {result.series}")
         print(f"Dimensions: {result.dimensions}")
         print(f"Documents: {len(result.documents)} found")
-        
+
         # Validate specific expectations for this part
         # SGP40 is typically a gas/air quality sensor
         if result.type:
@@ -138,7 +139,7 @@ class TestAIServiceRealIntegration:
             expected_keywords = ["sensor", "air", "quality", "gas", "environmental"]
             assert any(keyword in type_lower for keyword in expected_keywords), \
                    f"Type '{result.type}' should be related to sensors/air quality/gas"
-        
+
         # Check for reasonable tags
         if result.tags:
             tags_str = " ".join(result.tags).lower()
@@ -146,7 +147,7 @@ class TestAIServiceRealIntegration:
             found_keywords = [kw for kw in sensor_keywords if kw in tags_str]
             assert len(found_keywords) >= 2, \
                    f"Expected at least 2 relevant keywords in tags, found: {found_keywords}"
-        
+
         # If documents were found, check they're properly structured
         for doc in result.documents:
             assert doc.url, "Document should have original URL"
@@ -154,7 +155,7 @@ class TestAIServiceRealIntegration:
             assert doc.document_type in ["datasheet", "manual", "schematic", "application_note", "reference_design"], \
                    f"Invalid document type: {doc.document_type}"
             print(f"  Document: {doc.url} ({doc.document_type})")
-        
+
         # Validate type matching logic
         if result.type_is_existing:
             assert result.existing_type_id is not None, \
@@ -165,7 +166,7 @@ class TestAIServiceRealIntegration:
 
     def test_analyze_hlk_pm24_real_api(self, real_ai_service: AIService):
         """Test real AI analysis of HLK PM24 using OpenAI API.
-        
+
         This test makes a real API call to OpenAI to analyze the HLK PM24
         sensor text input. It validates that the AI service can correctly:
         - Identify this as an air quality/gas sensor
@@ -176,22 +177,22 @@ class TestAIServiceRealIntegration:
         """
         # Test input - a real electronics part
         text_input = "HLK PM24"
-        
+
         # Perform real AI analysis
         result = real_ai_service.analyze_part(text_input=text_input)
-        
+
         # Validate the analysis results
         assert result is not None, "AI analysis should return a result"
-        
+
         # Check that some basic information was extracted
         assert result.manufacturer_code is not None or result.description is not None, \
                "AI should extract either manufacturer code or description"
-        
+
         # Check type analysis
         assert result.type is not None, "AI should suggest a part type"
-        
+
         # Log the full result for inspection
-        print(f"\n=== AI Analysis Results for 'HLK PM24' ===")
+        print("\n=== AI Analysis Results for 'HLK PM24' ===")
         print(f"Manufacturer Code: {result.manufacturer_code}")
         print(f"Type: {result.type} (existing: {result.type_is_existing})")
         print(f"Description: {result.description}")
@@ -205,7 +206,7 @@ class TestAIServiceRealIntegration:
         print(f"Series: {result.series}")
         print(f"Dimensions: {result.dimensions}")
         print(f"Documents: {len(result.documents)} found")
-        
+
         # Validate specific expectations for this part
         # SGP40 is typically a gas/air quality sensor
         if result.type:
@@ -213,7 +214,7 @@ class TestAIServiceRealIntegration:
             expected_keywords = ["power supply"]
             assert any(keyword in type_lower for keyword in expected_keywords), \
                    f"Type '{result.type}' should be related to power supplies"
-        
+
         # If documents were found, check they're properly structured
         for doc in result.documents:
             assert doc.url, "Document should have original URL"
@@ -221,7 +222,7 @@ class TestAIServiceRealIntegration:
             assert doc.document_type in ["datasheet", "manual", "schematic", "application_note", "reference_design"], \
                    f"Invalid document type: {doc.document_type}"
             print(f"  Document: {doc.url} ({doc.document_type})")
-        
+
         # Validate type matching logic
         if result.type_is_existing:
             assert result.existing_type_id is not None, \
@@ -232,21 +233,21 @@ class TestAIServiceRealIntegration:
 
     def test_ai_service_container_integration(self, app: Flask, session: Session):
         """Test that AI service can be properly instantiated through the service container.
-        
+
         This validates the dependency injection setup works correctly for AI services.
         """
         # Skip if no API key
         if not os.environ.get("OPENAI_API_KEY"):
             pytest.skip("OPENAI_API_KEY environment variable required")
-        
+
         # Get service from container
         container: ServiceContainer = app.container
         ai_service = container.ai_service()
-        
+
         assert ai_service is not None, "Container should provide AI service"
         assert hasattr(ai_service, 'analyze_part'), "AI service should have analyze_part method"
         assert ai_service.config.OPENAI_API_KEY, "AI service should have API key configured"
-        
+
         # Test basic functionality
         try:
             result = ai_service.analyze_part(text_input="test component")
@@ -259,29 +260,30 @@ class TestAIServiceRealIntegration:
     @pytest.mark.slow
     def test_analyze_with_multiple_inputs_real_api(self, real_ai_service: AIService):
         """Test AI analysis with both text and image inputs using real API.
-        
+
         This test validates the multimodal capabilities work correctly.
         Note: This test is marked as slow since it makes multiple API calls.
         """
         # Create a simple test image (1x1 pixel JPEG)
         import io
+
         from PIL import Image
-        
+
         # Create minimal test image
         img = Image.new('RGB', (1, 1), color='red')
         img_bytes = io.BytesIO()
         img.save(img_bytes, format='JPEG')
         image_data = img_bytes.getvalue()
-        
+
         # Test with both text and image
         result = real_ai_service.analyze_part(
             text_input="DFRobot Gravity SGP40",
             image_data=image_data,
             image_mime_type="image/jpeg"
         )
-        
+
         assert result is not None, "AI should handle multimodal input"
-        
-        print(f"\n=== Multimodal Analysis Results ===")
+
+        print("\n=== Multimodal Analysis Results ===")
         print(f"Type: {result.type}")
         print(f"Description: {result.description}")

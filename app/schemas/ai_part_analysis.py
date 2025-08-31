@@ -57,15 +57,15 @@ class AIPartAnalysisResultSchema(BaseModel):
         description="AI-suggested tags for the part",
         json_schema_extra={"example": ["arduino", "microcontroller", "ATmega328P", "development"]}
     )
-    seller: str | None = Field(
+    manufacturer: str | None = Field(
         default=None,
-        description="AI-suggested seller/vendor name",
-        json_schema_extra={"example": "Arduino Store"}
+        description="AI-suggested manufacturer company name",
+        json_schema_extra={"example": "Arduino"}
     )
-    seller_link: str | None = Field(
+    product_page: str | None = Field(
         default=None,
-        description="AI-suggested product page URL",
-        json_schema_extra={"example": "https://store.arduino.cc/uno-rev3"}
+        description="AI-suggested manufacturer product page URL",
+        json_schema_extra={"example": "https://www.arduino.cc/en/Main/arduinoBoardUno"}
     )
 
     # Extended technical fields
@@ -183,17 +183,29 @@ class AIPartCreateSchema(BaseModel):
         description="Tags for the part (can be edited from AI suggestion)",
         json_schema_extra={"example": ["arduino", "microcontroller", "development"]}
     )
+    manufacturer: str | None = Field(
+        default=None,
+        max_length=255,
+        description="Manufacturer company name from AI analysis",
+        json_schema_extra={"example": "Arduino"}
+    )
+    product_page: str | None = Field(
+        default=None,
+        max_length=500,
+        description="Manufacturer product page URL from AI analysis",
+        json_schema_extra={"example": "https://www.arduino.cc/en/Main/arduinoBoardUno"}
+    )
     seller: str | None = Field(
         default=None,
         max_length=255,
-        description="Seller/vendor name",
-        json_schema_extra={"example": "Arduino Store"}
+        description="Seller/vendor name (user provided)",
+        json_schema_extra={"example": "Digi-Key"}
     )
     seller_link: str | None = Field(
         default=None,
         max_length=500,
-        description="Product page URL",
-        json_schema_extra={"example": "https://store.arduino.cc/uno-rev3"}
+        description="Seller product page URL (user provided)",
+        json_schema_extra={"example": "https://www.digikey.com/en/products/detail/arduino/A000066"}
     )
 
     # Extended technical fields

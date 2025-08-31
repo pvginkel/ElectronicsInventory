@@ -25,6 +25,8 @@ class TestPartsAPI:
             assert len(response_data["key"]) == 4
             assert response_data["description"] == "1k ohm resistor"
             assert response_data["manufacturer_code"] is None
+            assert response_data["manufacturer"] is None
+            assert response_data["product_page"] is None
             assert response_data["total_quantity"] == 0
             # Extended fields should be None by default
             assert response_data["package"] is None
@@ -46,6 +48,8 @@ class TestPartsAPI:
                 "manufacturer_code": "RES-1K-5%",
                 "type_id": type_obj.id,
                 "tags": ["1k", "5%"],
+                "manufacturer": "Vishay",
+                "product_page": "https://www.vishay.com/en/resistors/",
                 "seller": "Digi-Key",
                 "seller_link": "https://digikey.com/product/123",
                 "package": "0805",
@@ -65,6 +69,8 @@ class TestPartsAPI:
             assert response_data["manufacturer_code"] == "RES-1K-5%"
             assert response_data["type_id"] == type_obj.id
             assert response_data["tags"] == ["1k", "5%"]
+            assert response_data["manufacturer"] == "Vishay"
+            assert response_data["product_page"] == "https://www.vishay.com/en/resistors/"
             assert response_data["seller"] == "Digi-Key"
             # Extended fields
             assert response_data["package"] == "0805"
@@ -187,7 +193,9 @@ class TestPartsAPI:
             update_data = {
                 "description": "Updated description",
                 "manufacturer_code": "NEW-CODE",
-                "tags": ["updated"]
+                "tags": ["updated"],
+                "manufacturer": "Updated Manufacturer",
+                "product_page": "https://example.com/product"
             }
 
             response = client.put(f"/api/parts/{part.key}", json=update_data)
@@ -198,6 +206,8 @@ class TestPartsAPI:
             assert response_data["description"] == "Updated description"
             assert response_data["manufacturer_code"] == "NEW-CODE"
             assert response_data["tags"] == ["updated"]
+            assert response_data["manufacturer"] == "Updated Manufacturer"
+            assert response_data["product_page"] == "https://example.com/product"
 
     def test_update_part_nonexistent(self, app: Flask, client: FlaskClient):
         """Test updating a non-existent part."""
@@ -383,19 +393,19 @@ class TestPartsAPI:
 
             # Test the list parts endpoint
             response = client.get("/api/parts")
-            
+
             assert response.status_code == 200
             response_data = json.loads(response.data)
-            
+
             # Find our test part in the response
             test_part = None
             for part_data in response_data:
                 if part_data["key"] == part.key:
                     test_part = part_data
                     break
-            
+
             assert test_part is not None, f"Part {part.key} not found in list response"
-            
+
             # Verify extended fields are included and correct
             assert test_part["package"] == "DIP-8"
             assert test_part["pin_count"] == 8
@@ -439,19 +449,19 @@ class TestPartsAPI:
 
             # Test the list parts endpoint
             response = client.get("/api/parts")
-            
+
             assert response.status_code == 200
             response_data = json.loads(response.data)
-            
+
             # Find our test part in the response
             test_part = None
             for part_data in response_data:
                 if part_data["key"] == part.key:
                     test_part = part_data
                     break
-            
+
             assert test_part is not None, f"Part {part.key} not found in list response"
-            
+
             # Verify extended fields are included and correct
             assert test_part["package"] == "DIP-8"
             assert test_part["pin_count"] == 8
@@ -490,19 +500,19 @@ class TestPartsAPI:
 
             # Test the list parts endpoint
             response = client.get("/api/parts")
-            
+
             assert response.status_code == 200
             response_data = json.loads(response.data)
-            
+
             # Find our test part in the response
             test_part = None
             for part_data in response_data:
                 if part_data["key"] == part.key:
                     test_part = part_data
                     break
-            
+
             assert test_part is not None, f"Part {part.key} not found in list response"
-            
+
             # Verify extended fields are included and correct
             assert test_part["package"] == "DIP-8"
             assert test_part["pin_count"] == 8
@@ -530,10 +540,10 @@ class TestPartsAPI:
 
             # Test the get part endpoint
             response = client.get(f"/api/parts/{part.key}")
-            
+
             assert response.status_code == 200
             response_data = json.loads(response.data)
-            
+
             # Verify extended fields are included and correct
             assert response_data["package"] == "SOIC-8"
             assert response_data["pin_count"] == 8
@@ -564,12 +574,12 @@ class TestPartsAPI:
                 "series": "74HC",
                 "dimensions": "8.7x3.9mm"
             }
-            
+
             response = client.put(f"/api/parts/{part.key}", json=update_data)
-            
+
             assert response.status_code == 200
             response_data = json.loads(response.data)
-            
+
             # Verify all extended fields were updated
             assert response_data["package"] == "SOIC-14"
             assert response_data["pin_count"] == 14
