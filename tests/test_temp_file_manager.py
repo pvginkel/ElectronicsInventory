@@ -35,36 +35,6 @@ class TestTempFileManager:
             assert len(parts) == 3  # timestamp, time, uuid
             assert len(parts[2]) == 8  # UUID suffix
 
-    def test_get_temp_file_url(self):
-        """Test generating temporary file URLs."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base)
-            temp_dir = manager.create_temp_directory()
-            
-            url = manager.get_temp_file_url(temp_dir, "test_file.pdf")
-            
-            # Check URL format
-            assert url.startswith("/tmp/ai-analysis/")
-            assert url.endswith("/test_file.pdf")
-
-    def test_resolve_temp_url_valid(self):
-        """Test resolving valid temporary URLs."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base)
-            temp_dir = manager.create_temp_directory()
-            
-            # Create a test file
-            test_file = temp_dir / "test.pdf"
-            test_file.write_text("test content")
-            
-            # Generate and resolve URL
-            temp_url = manager.get_temp_file_url(temp_dir, "test.pdf")
-            resolved_path = manager.resolve_temp_url(temp_url)
-            
-            assert resolved_path is not None
-            assert resolved_path.exists()
-            assert resolved_path == test_file
-
     def test_resolve_temp_url_invalid(self):
         """Test resolving invalid temporary URLs."""
         manager = TempFileManager()

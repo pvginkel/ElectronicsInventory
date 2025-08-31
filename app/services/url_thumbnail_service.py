@@ -3,7 +3,6 @@
 from io import BytesIO
 from urllib.parse import urljoin, urlparse
 
-import requests
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
@@ -278,34 +277,23 @@ class URLThumbnailService(BaseService):
             elif not image_url.startswith(('http://', 'https://')):
                 image_url = urljoin(base_url, image_url)
 
-            response = requests.get(
-                image_url,
-                headers=self.headers,
-                timeout=10,
-                stream=True
-            )
-            response.raise_for_status()
-
-            # Check content type
-            content_type = response.headers.get('content-type', 'image/jpeg')
+            # Use download cache service for image downloads
+            result = self.download_cache_service.get_cached_content(image_url)
+            
+            # Check if content type is image
+            content_type = result.content_type
             if not content_type.startswith('image/'):
                 content_type = 'image/jpeg'  # Default fallback
 
-            # Download image with size limit (5MB)
-            image_data = BytesIO()
+            # Check size limit (5MB)
             max_size = 5 * 1024 * 1024  # 5MB
-            total_size = 0
+            if len(result.content) > max_size:
+                raise InvalidOperationException("download image", "Image too large (>5MB)")
 
-            for chunk in response.iter_content(chunk_size=8192):
-                total_size += len(chunk)
-                if total_size > max_size:
-                    raise InvalidOperationException("download image", "Image too large (>5MB)")
-                image_data.write(chunk)
-
-            image_data.seek(0)
+            image_data = BytesIO(result.content)
             return image_data, content_type
 
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             raise InvalidOperationException("download image", str(e)) from e
 
     def extract_metadata(self, url: str) -> dict:
@@ -493,26 +481,4 @@ class URLThumbnailService(BaseService):
         Returns:
             True if URL is valid and accessible
         """
-        try:
-            parsed = urlparse(url)
-
-            # Check for valid scheme
-            if parsed.scheme not in ('http', 'https'):
-                return False
-
-            # Check for valid netloc
-            if not parsed.netloc:
-                return False
-
-            # Try to access URL with HEAD request
-            response = requests.head(
-                url,
-                headers=self.headers,
-                timeout=5,
-                allow_redirects=True
-            )
-
-            return response.status_code < 400
-
-        except Exception:
-            return False
+        return self.download_cache_service.validate_url(url)

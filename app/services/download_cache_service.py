@@ -77,6 +77,33 @@ class DownloadCacheService:
 
         return result
 
+    def validate_url(self, url: str) -> bool:
+        """
+        Validate URL format and accessibility using HEAD request.
+        
+        Args:
+            url: URL to validate
+            
+        Returns:
+            True if URL is valid and accessible
+        """
+        try:
+            # Basic format validation
+            if not url or not url.startswith(('http://', 'https://')):
+                return False
+                
+            # Check accessibility with HEAD request
+            response = requests.head(
+                url,
+                timeout=5,
+                allow_redirects=True,
+                headers={'User-Agent': 'Mozilla/5.0 (Electronics Inventory Bot)'}
+            )
+            return response.status_code < 400
+            
+        except Exception:
+            return False
+
     def _download_url(self, url: str) -> DownloadResult:
         """
         Download content from a URL with size and timeout limits.

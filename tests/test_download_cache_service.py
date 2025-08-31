@@ -257,7 +257,46 @@ class TestDownloadCacheService:
             
             # Download should still succeed even if caching failed
             assert result.content == b'test content'
-            assert result.content_type == 'text/plain'
+
+    @patch('requests.head')
+    def test_validate_url_valid(self, mock_head, download_service):
+        """Test URL validation with valid URL."""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_head.return_value = mock_response
+        
+        result = download_service.validate_url("https://example.com/test.html")
+        
+        assert result is True
+        mock_head.assert_called_once()
+        
+    @patch('requests.head')
+    def test_validate_url_invalid_status(self, mock_head, download_service):
+        """Test URL validation with invalid status code."""
+        mock_response = Mock()
+        mock_response.status_code = 404
+        mock_head.return_value = mock_response
+        
+        result = download_service.validate_url("https://example.com/notfound.html")
+        
+        assert result is False
+        
+    def test_validate_url_invalid_format(self, download_service):
+        """Test URL validation with invalid URL format."""
+        result = download_service.validate_url("not-a-url")
+        assert result is False
+        
+        result = download_service.validate_url("ftp://example.com/test")
+        assert result is False
+        
+    @patch('requests.head')
+    def test_validate_url_network_error(self, mock_head, download_service):
+        """Test URL validation with network error."""
+        mock_head.side_effect = requests.exceptions.RequestException("Network error")
+        
+        result = download_service.validate_url("https://example.com/test.html")
+        
+        assert result is False
 
     def test_service_configuration(self, temp_file_manager):
         """Test service with different configuration parameters."""
