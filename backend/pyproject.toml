@@ -97,7 +97,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --cov=app --cov-report=term-missing"
+addopts = "-v --cov=app --cov-report=term-missing -m 'not integration'"
 markers = [
     "integration: marks tests as integration tests (requires external dependencies)",
     "slow: marks tests as slow running tests"
