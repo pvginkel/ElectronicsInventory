@@ -96,8 +96,8 @@ class TestAIService:
         mock_openai_class.return_value = mock_client
         
         mock_response = Mock()
-        mock_choice = Mock()
-        mock_choice.message.content = json.dumps({
+        # Simulate Responses API returning structured JSON as text
+        mock_response.output_text = json.dumps({
             "manufacturer_code": "TEST123",
             "type": "Relay",
             "description": "Test relay component",
@@ -114,8 +114,7 @@ class TestAIService:
             "suggested_image_url": None,
             "confidence_score": 0.9
         })
-        mock_response.choices = [mock_choice]
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.responses.create.return_value = mock_response
         
         # Initialize the client
         ai_service.client = mock_client
@@ -139,16 +138,14 @@ class TestAIService:
         mock_openai_class.return_value = mock_client
         
         mock_response = Mock()
-        mock_choice = Mock()
-        mock_choice.message.content = json.dumps({
+        mock_response.output_text = json.dumps({
             "manufacturer_code": "IMG123",
             "type": "Microcontroller",
             "description": "Arduino-like microcontroller",
             "tags": ["microcontroller", "arduino"],
             "confidence_score": 0.8
         })
-        mock_response.choices = [mock_choice]
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.responses.create.return_value = mock_response
         
         ai_service.client = mock_client
         
@@ -162,15 +159,15 @@ class TestAIService:
         )
         
         # Verify OpenAI was called with image
-        call_args = mock_client.chat.completions.create.call_args
-        messages = call_args.kwargs['messages']
-        
-        # Check that user message contains both text and image
-        user_message = messages[1]
-        content_parts = user_message['content']
-        
+        call_args = mock_client.responses.create.call_args
+        input_arg = call_args.kwargs['input']
+        assert isinstance(input_arg, list)
+        # First message is system, second is user
+        assert input_arg[0]['role'] == 'system'
+        assert input_arg[1]['role'] == 'user'
+        content_parts = input_arg[1]['content']
         assert any(part['type'] == 'text' for part in content_parts)
-        assert any(part['type'] == 'image_url' for part in content_parts)
+        assert any(part['type'] == 'input_image' for part in content_parts)
 
     @patch('app.services.ai_service.OpenAI')
     def test_analyze_part_new_type_suggestion(self, mock_openai_class, ai_service: AIService):
@@ -179,14 +176,12 @@ class TestAIService:
         mock_openai_class.return_value = mock_client
         
         mock_response = Mock()
-        mock_choice = Mock()
-        mock_choice.message.content = json.dumps({
+        mock_response.output_text = json.dumps({
             "type": "Power Supply",  # Not in existing types
             "description": "Switching power supply",
             "confidence_score": 0.85
         })
-        mock_response.choices = [mock_choice]
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.responses.create.return_value = mock_response
         
         ai_service.client = mock_client
         
@@ -206,8 +201,7 @@ class TestAIService:
         mock_openai_class.return_value = mock_client
         
         mock_response = Mock()
-        mock_choice = Mock()
-        mock_choice.message.content = json.dumps({
+        mock_response.output_text = json.dumps({
             "manufacturer_code": "DOC123",
             "type": "Relay",
             "description": "Relay with datasheet",
@@ -221,8 +215,7 @@ class TestAIService:
             ],
             "confidence_score": 0.9
         })
-        mock_response.choices = [mock_choice]
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.responses.create.return_value = mock_response
         
         # Mock document download
         mock_head_response = Mock()
@@ -257,7 +250,7 @@ class TestAIService:
         mock_openai_class.return_value = mock_client
         
         # Simulate API error
-        mock_client.chat.completions.create.side_effect = Exception("API Error")
+        mock_client.responses.create.side_effect = Exception("API Error")
         
         ai_service.client = mock_client
         
@@ -271,10 +264,8 @@ class TestAIService:
         mock_openai_class.return_value = mock_client
         
         mock_response = Mock()
-        mock_choice = Mock()
-        mock_choice.message.content = "invalid json content"
-        mock_response.choices = [mock_choice]
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response.output_text = "invalid json content"
+        mock_client.responses.create.return_value = mock_response
         
         ai_service.client = mock_client
         
@@ -374,41 +365,43 @@ class TestAIService:
         assert "enum" in mounting_type_prop
         assert "Through-hole" in mounting_type_prop["enum"]
 
-    def test_build_openai_messages_text_only(self, ai_service: AIService):
-        """Test building OpenAI messages with text input only."""
+    def test_build_responses_api_input_text_only(self, ai_service: AIService):
+        """Test building Responses API input with text input only."""
         type_names = ["Relay", "Microcontroller"]
-        messages = ai_service._build_openai_messages("Arduino Uno", None, None, type_names)
-        
-        assert len(messages) == 2  # system + user
+        messages = ai_service._build_responses_api_input("Arduino Uno", None, None, type_names)
+
+        assert isinstance(messages, list)
         assert messages[0]["role"] == "system"
-        assert "Relay, Microcontroller" in messages[0]["content"]
-        
+        # system content is a list of blocks
+        assert any("Relay, Microcontroller" in block.get("text", "") for block in messages[0]["content"])
+
         user_message = messages[1]
         assert user_message["role"] == "user"
         assert len(user_message["content"]) == 1
         assert user_message["content"][0]["type"] == "text"
 
-    def test_build_openai_messages_with_image(self, ai_service: AIService):
-        """Test building OpenAI messages with image input."""
+    def test_build_responses_api_input_with_image(self, ai_service: AIService):
+        """Test building Responses API input with image input."""
         type_names = ["Relay"]
         image_data = b"fake_image_data"
-        
-        messages = ai_service._build_openai_messages(
+
+        messages = ai_service._build_responses_api_input(
             "Arduino", image_data, "image/jpeg", type_names
         )
-        
+
         user_message = messages[1]
         content_parts = user_message["content"]
-        
+
         assert len(content_parts) == 2  # text + image
-        
+
         # Check text part
         text_part = next(part for part in content_parts if part["type"] == "text")
         assert "Arduino" in text_part["text"]
-        
-        # Check image part
-        image_part = next(part for part in content_parts if part["type"] == "image_url")
-        assert image_part["image_url"]["url"].startswith("data:image/jpeg;base64,")
+
+        # Check image part is input_image with inline base64
+        image_part = next(part for part in content_parts if part["type"] == "input_image")
+        assert "data" in image_part["image_data"]
+        assert image_part["image_data"]["mime_type"] == "image/jpeg"
 
     @patch('app.services.ai_service.requests')
     def test_download_suggested_image_success(self, mock_requests, ai_service: AIService):

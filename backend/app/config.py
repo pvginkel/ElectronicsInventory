@@ -108,6 +108,9 @@ class Settings(BaseSettings):
     OPENAI_TEMPERATURE: float = Field(
         default=0.1, description="OpenAI temperature setting for consistency"
     )
+    OPENAI_STORE_REQUESTS: bool = Field(
+        default=False, description="Store OpenAI API requests/responses for debugging (defaults to True in testing)"
+    )
 
     # Task management settings
     TASK_MAX_WORKERS: int = Field(
@@ -137,6 +140,12 @@ class Settings(BaseSettings):
     def is_testing(self) -> bool:
         """Check if running in testing environment."""
         return self.FLASK_ENV == "testing"
+    
+    @staticmethod
+    def _default_store_requests() -> bool:
+        """Default value for OPENAI_STORE_REQUESTS - True in testing, False otherwise."""
+        import os
+        return os.getenv("FLASK_ENV") == "testing"
 
 
 @lru_cache

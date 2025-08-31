@@ -98,6 +98,10 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --cov=app --cov-report=term-missing"
+markers = [
+    "integration: marks tests as integration tests (requires external dependencies)",
+    "slow: marks tests as slow running tests"
+]
 filterwarnings = [
     "ignore::pydantic.warnings.PydanticDeprecatedSince20",
     "ignore::pluggy._warnings.PluggyTeardownRaisedWarning"

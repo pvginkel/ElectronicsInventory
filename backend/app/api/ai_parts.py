@@ -20,7 +20,6 @@ ai_parts_bp = Blueprint("ai_parts", __name__, url_prefix="/ai-parts")
 @inject
 def analyze_part(
     task_service=Provide[ServiceContainer.task_service],
-    ai_service=Provide[ServiceContainer.ai_service],
 ):
     """
     Start AI analysis task for part creation.
@@ -73,6 +72,11 @@ def analyze_part(
         return jsonify({
             'error': 'At least one of text or image input must be provided'
         }), 400
+
+    # Lazy-create AI service only after validation to avoid requiring API key for invalid inputs
+    from flask import current_app
+    container: ServiceContainer = current_app.container
+    ai_service = container.ai_service()
 
     # Create and start the AI analysis task
     task = AIPartAnalysisTask(ai_service=ai_service)
@@ -208,4 +212,3 @@ def serve_temp_file(temp_path: str, temp_file_manager=Provide[ServiceContainer.t
     }.get(suffix, 'application/octet-stream')
 
     return send_file(file_path, mimetype=mime_type)
-

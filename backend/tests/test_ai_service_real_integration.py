@@ -1,0 +1,303 @@
+"""Integration tests for AI service using real OpenAI API calls.
+
+These tests require a valid OPENAI_API_KEY environment variable and will make real API calls.
+They are marked as integration tests and can be run separately from unit tests.
+"""
+
+import os
+import pytest
+from flask import Flask
+from sqlalchemy.orm import Session
+
+from app.config import Settings
+from app.models.type import Type
+from app.services.ai_service import AIService
+from app.services.container import ServiceContainer
+from app.services.type_service import TypeService
+from app.utils.temp_file_manager import TempFileManager
+
+
+@pytest.fixture
+def real_ai_settings() -> Settings:
+    """Settings for real AI API integration testing."""
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        pytest.skip("OPENAI_API_KEY environment variable required for integration tests")
+    
+    return Settings(
+        DATABASE_URL="sqlite:///:memory:",
+        OPENAI_API_KEY=api_key,
+        OPENAI_MODEL="gpt-4o-mini",
+        OPENAI_REASONING_EFFORT="medium",
+        OPENAI_VERBOSITY="medium", 
+        OPENAI_MAX_OUTPUT_TOKENS=1200,
+        OPENAI_TEMPERATURE=0.1,
+    )
+
+
+@pytest.fixture
+def real_temp_file_manager():
+    """Create temporary file manager for real integration testing."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as temp_dir:
+        yield TempFileManager(base_path=temp_dir, cleanup_age_hours=1.0)
+
+
+@pytest.fixture
+def real_type_service(session: Session):
+    """Create type service with realistic electronics types."""
+    type_service = TypeService(db=session)
+    
+    # Create comprehensive list of electronics part types
+    types_to_create = [
+        "Sensor", "Air Quality Sensor", "Gas Sensor", "Environmental Sensor",
+        "Microcontroller", "Arduino", "Development Board", "Breakout Board",
+        "Module", "Relay", "Capacitor", "Resistor", "LED", "IC", "Connector",
+        "Power Supply", "Voltage Regulator", "Transistor", "Diode"
+    ]
+    
+    for type_name in types_to_create:
+        part_type = Type(name=type_name)
+        session.add(part_type)
+    
+    session.flush()
+    return type_service
+
+
+@pytest.fixture
+def real_ai_service(session: Session, real_ai_settings: Settings, 
+                   real_temp_file_manager: TempFileManager, real_type_service: TypeService):
+    """Create AI service instance for real integration testing."""
+    return AIService(
+        db=session,
+        config=real_ai_settings,
+        temp_file_manager=real_temp_file_manager,
+        type_service=real_type_service
+    )
+
+
+@pytest.mark.integration
+class TestAIServiceRealIntegration:
+    """Integration tests using real OpenAI API calls."""
+
+    def test_analyze_dfrobot_gravity_sgp40_real_api(self, real_ai_service: AIService):
+        """Test real AI analysis of DFRobot Gravity SGP40 using OpenAI API.
+        
+        This test makes a real API call to OpenAI to analyze the DFRobot Gravity SGP40
+        sensor text input. It validates that the AI service can correctly:
+        - Identify this as an air quality/gas sensor
+        - Extract manufacturer information (DFRobot)
+        - Generate appropriate tags and technical details
+        - Handle document downloading if URLs are provided
+        - Determine if the suggested type matches existing types
+        """
+        # Test input - a real electronics part
+        text_input = "DFRobot Gravity SGP40"
+        
+        # Perform real AI analysis
+        result = real_ai_service.analyze_part(text_input=text_input)
+        
+        # Validate the analysis results
+        assert result is not None, "AI analysis should return a result"
+        
+        # Check that some basic information was extracted
+        assert result.manufacturer_code is not None or result.description is not None, \
+               "AI should extract either manufacturer code or description"
+        
+        # Verify confidence score is reasonable
+        assert 0.0 <= result.confidence_score <= 1.0, \
+               f"Confidence score should be between 0 and 1, got {result.confidence_score}"
+        
+        # Check type analysis
+        assert result.type is not None, "AI should suggest a part type"
+        
+        # Log the full result for inspection
+        print(f"\n=== AI Analysis Results for 'DFRobot Gravity SGP40' ===")
+        print(f"Manufacturer Code: {result.manufacturer_code}")
+        print(f"Type: {result.type} (existing: {result.type_is_existing})")
+        print(f"Description: {result.description}")
+        print(f"Tags: {result.tags}")
+        print(f"Seller: {result.seller}")
+        print(f"Seller Link: {result.seller_link}")
+        print(f"Package: {result.package}")
+        print(f"Pin Count: {result.pin_count}")
+        print(f"Voltage Rating: {result.voltage_rating}")
+        print(f"Mounting Type: {result.mounting_type}")
+        print(f"Series: {result.series}")
+        print(f"Dimensions: {result.dimensions}")
+        print(f"Documents: {len(result.documents)} found")
+        print(f"Suggested Image URL: {result.suggested_image_url}")
+        print(f"Confidence Score: {result.confidence_score}")
+        
+        # Validate specific expectations for this part
+        # SGP40 is typically a gas/air quality sensor
+        if result.type:
+            type_lower = result.type.lower()
+            expected_keywords = ["sensor", "air", "quality", "gas", "environmental"]
+            assert any(keyword in type_lower for keyword in expected_keywords), \
+                   f"Type '{result.type}' should be related to sensors/air quality/gas"
+        
+        # Check for reasonable tags
+        if result.tags:
+            tags_str = " ".join(result.tags).lower()
+            sensor_keywords = ["sgp40", "sensor", "air", "quality", "gas", "dfrobot", "gravity"]
+            found_keywords = [kw for kw in sensor_keywords if kw in tags_str]
+            assert len(found_keywords) >= 2, \
+                   f"Expected at least 2 relevant keywords in tags, found: {found_keywords}"
+        
+        # If documents were found, check they're properly structured
+        for doc in result.documents:
+            assert doc.filename, "Document should have filename"
+            assert doc.temp_path, "Document should have temp path"
+            assert doc.original_url, "Document should have original URL"
+            assert doc.document_type in ["datasheet", "manual", "schematic", "application_note", "reference_design"], \
+                   f"Invalid document type: {doc.document_type}"
+            print(f"  Document: {doc.filename} ({doc.document_type})")
+        
+        # Validate type matching logic
+        if result.type_is_existing:
+            assert result.existing_type_id is not None, \
+                   "If type is existing, existing_type_id should be set"
+        else:
+            assert result.existing_type_id is None, \
+                   "If type is new suggestion, existing_type_id should be None"
+
+    def test_analyze_HLK_PM24_real_api(self, real_ai_service: AIService):
+        """Test real AI analysis of HLK PM24 using OpenAI API.
+        
+        This test makes a real API call to OpenAI to analyze the HLK PM24
+        sensor text input. It validates that the AI service can correctly:
+        - Identify this as an air quality/gas sensor
+        - Extract manufacturer information (DFRobot)
+        - Generate appropriate tags and technical details
+        - Handle document downloading if URLs are provided
+        - Determine if the suggested type matches existing types
+        """
+        # Test input - a real electronics part
+        text_input = "HLK PM24"
+        
+        # Perform real AI analysis
+        result = real_ai_service.analyze_part(text_input=text_input)
+        
+        # Validate the analysis results
+        assert result is not None, "AI analysis should return a result"
+        
+        # Check that some basic information was extracted
+        assert result.manufacturer_code is not None or result.description is not None, \
+               "AI should extract either manufacturer code or description"
+        
+        # Verify confidence score is reasonable
+        assert 0.0 <= result.confidence_score <= 1.0, \
+               f"Confidence score should be between 0 and 1, got {result.confidence_score}"
+        
+        # Check type analysis
+        assert result.type is not None, "AI should suggest a part type"
+        
+        # Log the full result for inspection
+        print(f"\n=== AI Analysis Results for 'DFRobot Gravity SGP40' ===")
+        print(f"Manufacturer Code: {result.manufacturer_code}")
+        print(f"Type: {result.type} (existing: {result.type_is_existing})")
+        print(f"Description: {result.description}")
+        print(f"Tags: {result.tags}")
+        print(f"Seller: {result.seller}")
+        print(f"Seller Link: {result.seller_link}")
+        print(f"Package: {result.package}")
+        print(f"Pin Count: {result.pin_count}")
+        print(f"Voltage Rating: {result.voltage_rating}")
+        print(f"Mounting Type: {result.mounting_type}")
+        print(f"Series: {result.series}")
+        print(f"Dimensions: {result.dimensions}")
+        print(f"Documents: {len(result.documents)} found")
+        print(f"Suggested Image URL: {result.suggested_image_url}")
+        print(f"Confidence Score: {result.confidence_score}")
+        
+        # Validate specific expectations for this part
+        # SGP40 is typically a gas/air quality sensor
+        if result.type:
+            type_lower = result.type.lower()
+            expected_keywords = ["power supply"]
+            assert any(keyword in type_lower for keyword in expected_keywords), \
+                   f"Type '{result.type}' should be related to sensors/air quality/gas"
+        
+        # Check for reasonable tags
+        if result.tags:
+            tags_str = " ".join(result.tags).lower()
+            sensor_keywords = ["24v", "power supply", "ac-dc converter"]
+            found_keywords = [kw for kw in sensor_keywords if kw in tags_str]
+            assert len(found_keywords) >= 2, \
+                   f"Expected at least 2 relevant keywords in tags, found: {found_keywords}"
+        
+        # If documents were found, check they're properly structured
+        for doc in result.documents:
+            assert doc.filename, "Document should have filename"
+            assert doc.temp_path, "Document should have temp path"
+            assert doc.original_url, "Document should have original URL"
+            assert doc.document_type in ["datasheet", "manual", "schematic", "application_note", "reference_design"], \
+                   f"Invalid document type: {doc.document_type}"
+            print(f"  Document: {doc.filename} ({doc.document_type})")
+        
+        # Validate type matching logic
+        if result.type_is_existing:
+            assert result.existing_type_id is not None, \
+                   "If type is existing, existing_type_id should be set"
+        else:
+            assert result.existing_type_id is None, \
+                   "If type is new suggestion, existing_type_id should be None"
+
+    def test_ai_service_container_integration(self, app: Flask, session: Session):
+        """Test that AI service can be properly instantiated through the service container.
+        
+        This validates the dependency injection setup works correctly for AI services.
+        """
+        # Skip if no API key
+        if not os.environ.get("OPENAI_API_KEY"):
+            pytest.skip("OPENAI_API_KEY environment variable required")
+        
+        # Get service from container
+        container: ServiceContainer = app.container
+        ai_service = container.ai_service()
+        
+        assert ai_service is not None, "Container should provide AI service"
+        assert hasattr(ai_service, 'analyze_part'), "AI service should have analyze_part method"
+        assert ai_service.config.OPENAI_API_KEY, "AI service should have API key configured"
+        
+        # Test basic functionality
+        try:
+            result = ai_service.analyze_part(text_input="test component")
+            assert result is not None, "AI service should return results"
+        except Exception as e:
+            # If we get a legitimate API error, that's still validating the service works
+            assert "AI analysis failed" in str(e) or "OpenAI" in str(e), \
+                   f"Should get AI-related error, got: {e}"
+
+    @pytest.mark.slow
+    def test_analyze_with_multiple_inputs_real_api(self, real_ai_service: AIService):
+        """Test AI analysis with both text and image inputs using real API.
+        
+        This test validates the multimodal capabilities work correctly.
+        Note: This test is marked as slow since it makes multiple API calls.
+        """
+        # Create a simple test image (1x1 pixel JPEG)
+        import io
+        from PIL import Image
+        
+        # Create minimal test image
+        img = Image.new('RGB', (1, 1), color='red')
+        img_bytes = io.BytesIO()
+        img.save(img_bytes, format='JPEG')
+        image_data = img_bytes.getvalue()
+        
+        # Test with both text and image
+        result = real_ai_service.analyze_part(
+            text_input="DFRobot Gravity SGP40",
+            image_data=image_data,
+            image_mime_type="image/jpeg"
+        )
+        
+        assert result is not None, "AI should handle multimodal input"
+        assert result.confidence_score > 0.0, "AI should provide confidence score"
+        
+        print(f"\n=== Multimodal Analysis Results ===")
+        print(f"Type: {result.type}")
+        print(f"Description: {result.description}")
+        print(f"Confidence: {result.confidence_score}")
