@@ -4,6 +4,7 @@ from dependency_injector import containers, providers
 from sqlalchemy.orm import Session
 
 from app.config import Settings
+from app.services.ai_service import AIService
 from app.services.box_service import BoxService
 from app.services.document_service import DocumentService
 from app.services.image_service import ImageService
@@ -14,6 +15,7 @@ from app.services.task_service import TaskService
 from app.services.test_data_service import TestDataService
 from app.services.type_service import TypeService
 from app.services.url_thumbnail_service import URLThumbnailService
+from app.utils.temp_file_manager import TempFileManager
 
 
 class ServiceContainer(containers.DeclarativeContainer):
@@ -54,4 +56,14 @@ class ServiceContainer(containers.DeclarativeContainer):
         max_workers=config.provided.TASK_MAX_WORKERS,
         task_timeout=config.provided.TASK_TIMEOUT_SECONDS,
         cleanup_interval=config.provided.TASK_CLEANUP_INTERVAL_SECONDS
+    )
+
+    # AI and temporary file management services
+    temp_file_manager = providers.Singleton(TempFileManager)
+    ai_service = providers.Factory(
+        AIService,
+        db=db_session,
+        config=config,
+        temp_file_manager=temp_file_manager,
+        type_service=type_service
     )

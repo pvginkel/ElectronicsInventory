@@ -93,6 +93,21 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = Field(
         default="", description="OpenAI API key for AI features"
     )
+    OPENAI_MODEL: str = Field(
+        default="gpt-4o-mini", description="OpenAI model to use for AI analysis"
+    )
+    OPENAI_REASONING_EFFORT: str = Field(
+        default="medium", description="OpenAI reasoning effort level (low/medium/high)"
+    )
+    OPENAI_VERBOSITY: str = Field(
+        default="medium", description="OpenAI response verbosity (low/medium/high)"
+    )
+    OPENAI_MAX_OUTPUT_TOKENS: int = Field(
+        default=1200, description="Maximum output tokens for OpenAI responses"
+    )
+    OPENAI_TEMPERATURE: float = Field(
+        default=0.1, description="OpenAI temperature setting for consistency"
+    )
 
     # Task management settings
     TASK_MAX_WORKERS: int = Field(

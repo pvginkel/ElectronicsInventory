@@ -48,7 +48,7 @@ def create_app(settings: "Settings | None" = None) -> Flask:
     # Initialize service container after SpecTree
     container = ServiceContainer()
     container.config.override(settings)
-    container.wire(modules=['app.api.parts', 'app.api.boxes', 'app.api.inventory', 'app.api.types', 'app.api.testing', 'app.api.documents', 'app.api.tasks'])
+    container.wire(modules=['app.api.ai_parts', 'app.api.parts', 'app.api.boxes', 'app.api.inventory', 'app.api.types', 'app.api.testing', 'app.api.documents', 'app.api.tasks'])
     app.container = container
 
     # Configure CORS
@@ -90,5 +90,16 @@ def create_app(settings: "Settings | None" = None) -> Flask:
             else:
                 db_session.commit()
             db_session.close()
+
+    # Start temp file manager cleanup thread during app creation
+    temp_file_manager = container.temp_file_manager()
+    temp_file_manager.start_cleanup_thread()
+
+    @app.teardown_appcontext
+    def stop_temp_file_cleanup(error):
+        """Stop background cleanup thread on app teardown."""
+        if hasattr(app, 'container'):
+            temp_file_manager = app.container.temp_file_manager()
+            temp_file_manager.stop_cleanup_thread()
 
     return app
