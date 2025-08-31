@@ -3,18 +3,19 @@
 import base64
 import json
 import logging
-from pathlib import Path
-from typing import TYPE_CHECKING, cast
-from urllib.parse import urlparse
 from enum import Enum
-from typing import Optional, List
-from pydantic import BaseModel, Field, ConfigDict
+from pathlib import Path
+from typing import TYPE_CHECKING, Optional
 from urllib.parse import quote
 
 from openai import OpenAI
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.config import Settings
-from app.schemas.ai_part_analysis import AIPartAnalysisResultSchema, DocumentSuggestionSchema
+from app.schemas.ai_part_analysis import (
+    AIPartAnalysisResultSchema,
+    DocumentSuggestionSchema,
+)
 from app.schemas.url_preview import UrlPreviewResponseSchema
 from app.services.base import BaseService
 from app.services.download_cache_service import DownloadCacheService
@@ -73,7 +74,7 @@ class AIService(BaseService):
             instructions, input_content = self._build_responses_api_input(
                 text_input, image_data, image_mime_type, type_names
             )
-            
+
             # Call OpenAI Responses API with structured output
             response = self.client.responses.parse(
                 model=self.config.OPENAI_MODEL,
@@ -100,7 +101,7 @@ class AIService(BaseService):
             temp_dir = self.temp_file_manager.create_temp_directory()
 
             # Download documents if URLs provided
-            documents : List[DocumentSuggestionSchema] = []
+            documents : list[DocumentSuggestionSchema] = []
             if ai_response.product_page:
                 documents.append(self._document_from_link(ai_response.product_page, temp_dir, "product_page"))
             if ai_response.product_image:
@@ -150,7 +151,7 @@ class AIService(BaseService):
     def _build_responses_api_input(self, text_input: str | None, image_data: bytes | None,
                                  image_mime_type: str | None, type_names: list[str]) -> tuple[str, str | list]:
         """Build instructions and input for OpenAI Responses API."""
-        
+
         # Build system instructions
         instructions = f"""You are an expert electronics component analyzer. Analyze the provided text and/or image to identify and find the requested information on the internet.
 
@@ -169,7 +170,7 @@ Focus on accuracy and technical precision. If uncertain about specific details, 
             # Both text and image - use array format
             base64_image = base64.b64encode(image_data).decode('utf-8')
             data_url = f"data:{image_mime_type};base64,{base64_image}"
-            
+
             input_content = [
                 {"role": "user", "content": [
                     {"type": "text", "text": f"Text description: {text_input}"},
@@ -183,7 +184,7 @@ Focus on accuracy and technical precision. If uncertain about specific details, 
             # Image only - array format
             base64_image = base64.b64encode(image_data).decode('utf-8')
             data_url = f"data:{image_mime_type};base64,{base64_image}"
-            
+
             input_content = [
                 {"role": "user", "content": [
                     {"type": "image_url", "image_url": {"url": data_url}}
@@ -256,7 +257,7 @@ class LinkTypeEnum(str, Enum):
     SCHEMATIC = "schematic"
     APPLICATION_NOTE = "application_note"
     REFERENCE_DESIGN = "reference_design"
-    
+
 
 class Link(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -280,7 +281,7 @@ class PartAnalysisSuggestion(BaseModel):
     manufacturer_code: Optional[str] = Field(...)
     type: Optional[str] = Field(...)
     description: Optional[str] = Field(...)
-    tags: List[str] = Field(...)
+    tags: list[str] = Field(...)
     seller: Optional[str] = Field(...)
     seller_link: Optional[str] = Field(...)
     package: Optional[str] = Field(...)
@@ -291,5 +292,5 @@ class PartAnalysisSuggestion(BaseModel):
     dimensions: Optional[str] = Field(...)
     product_page: Optional[Link] = Field(...)
     product_image: Optional[Link] = Field(...)
-    links: List[Link] = Field(...)
-    pdf_documents: List[PdfLink] = Field(...)
+    links: list[Link] = Field(...)
+    pdf_documents: list[PdfLink] = Field(...)

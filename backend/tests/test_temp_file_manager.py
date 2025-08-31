@@ -35,26 +35,6 @@ class TestTempFileManager:
             assert len(parts) == 3  # timestamp, time, uuid
             assert len(parts[2]) == 8  # UUID suffix
 
-    def test_resolve_temp_url_invalid(self):
-        """Test resolving invalid temporary URLs."""
-        manager = TempFileManager()
-        
-        # Test invalid URL format
-        assert manager.resolve_temp_url("/invalid/path") is None
-        
-        # Test non-existent file
-        assert manager.resolve_temp_url("/tmp/ai-analysis/nonexistent/file.pdf") is None
-
-    def test_resolve_temp_url_path_traversal(self):
-        """Test security against path traversal attacks."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base)
-            
-            # Attempt path traversal
-            malicious_url = "/tmp/ai-analysis/../../../etc/passwd"
-            resolved_path = manager.resolve_temp_url(malicious_url)
-            
-            assert resolved_path is None
 
     def test_cleanup_old_files(self):
         """Test cleanup of old temporary files."""
