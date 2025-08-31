@@ -1,5 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useState } from 'react'
 import { PartList } from '@/components/parts/part-list'
+import { AIPartDialog } from '@/components/parts/ai-part-dialog'
 
 export const Route = createFileRoute('/parts/')({
   component: Parts,
@@ -7,6 +9,7 @@ export const Route = createFileRoute('/parts/')({
 
 function Parts() {
   const navigate = useNavigate()
+  const [showAIDialog, setShowAIDialog] = useState(false)
 
   const handleSelectPart = (partId: string) => {
     navigate({ to: '/parts/$partId', params: { partId } })
@@ -14,6 +17,24 @@ function Parts() {
 
   const handleCreatePart = () => {
     navigate({ to: '/parts/new' })
+  }
+
+  const handleCreateWithAI = () => {
+    setShowAIDialog(true)
+  }
+
+  const handleAIDialogClose = () => {
+    setShowAIDialog(false)
+  }
+
+  const handlePartCreated = (partId: string, createAnother: boolean) => {
+    if (createAnother) {
+      // Keep dialog open and reset for another part
+      return
+    } else {
+      // Navigate to the created part
+      navigate({ to: '/parts/$partId', params: { partId } })
+    }
   }
 
   return (
@@ -26,6 +47,13 @@ function Parts() {
       <PartList 
         onSelectPart={handleSelectPart}
         onCreatePart={handleCreatePart}
+        onCreateWithAI={handleCreateWithAI}
+      />
+
+      <AIPartDialog
+        open={showAIDialog}
+        onClose={handleAIDialogClose}
+        onPartCreated={handlePartCreated}
       />
     </div>
   )

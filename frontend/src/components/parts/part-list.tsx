@@ -9,9 +9,10 @@ import { formatPartForDisplay } from '@/lib/utils/parts';
 interface PartListProps {
   onSelectPart?: (partId: string) => void;
   onCreatePart?: () => void;
+  onCreateWithAI?: () => void;
 }
 
-export function PartList({ onSelectPart, onCreatePart }: PartListProps) {
+export function PartList({ onSelectPart, onCreatePart, onCreateWithAI }: PartListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const { data: parts = [], isLoading, error } = useGetParts();
 
@@ -48,10 +49,19 @@ export function PartList({ onSelectPart, onCreatePart }: PartListProps) {
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Parts</h1>
-        {onCreatePart && (
-          <Button onClick={onCreatePart}>
-            Add Part
-          </Button>
+        {(onCreatePart || onCreateWithAI) && (
+          <div className="flex gap-2">
+            {onCreateWithAI && (
+              <Button onClick={onCreateWithAI} variant="outline">
+                Add with AI
+              </Button>
+            )}
+            {onCreatePart && (
+              <Button onClick={onCreatePart}>
+                Add Part
+              </Button>
+            )}
+          </div>
         )}
       </div>
 

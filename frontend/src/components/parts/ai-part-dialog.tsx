@@ -1,0 +1,155 @@
+import { useState, useCallback, useEffect } from 'react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { AIPartInputStep } from './ai-part-input-step';
+import { AIPartProgressStep } from './ai-part-progress-step';
+import { AIPartReviewStep } from './ai-part-review-step';
+import { useAIPartAnalysis } from '@/hooks/use-ai-part-analysis';
+import { transformToCreateSchema } from '@/lib/utils/ai-parts';
+import { usePostAiPartsCreate } from '@/lib/api/generated/hooks';
+
+type DialogStep = 'input' | 'progress' | 'review';
+
+interface AIPartDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onPartCreated?: (partId: string, createAnother: boolean) => void;
+}
+
+export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps) {
+  const [currentStep, setCurrentStep] = useState<DialogStep>('input');
+  const [isCreatingPart, setIsCreatingPart] = useState(false);
+
+  const createPartMutation = usePostAiPartsCreate();
+
+  const {
+    analyzePartFromData,
+    cancelAnalysis,
+    isAnalyzing,
+    progress,
+    result: analysisResult,
+    error: analysisError
+  } = useAIPartAnalysis({
+    onSuccess: () => {
+      setCurrentStep('review');
+    },
+    onError: (error) => {
+      console.error('Analysis failed:', error);
+      // Stay on progress step to show error
+    }
+  });
+
+  // Reset state when dialog opens/closes
+  useEffect(() => {
+    if (open) {
+      setCurrentStep('input');
+      setIsCreatingPart(false);
+    }
+  }, [open]);
+
+  const handleInputSubmit = useCallback((data: { text?: string; image?: File }) => {
+    setCurrentStep('progress');
+    analyzePartFromData(data);
+  }, [analyzePartFromData]);
+
+  const handleCancelAnalysis = useCallback(() => {
+    cancelAnalysis();
+    setCurrentStep('input');
+  }, [cancelAnalysis]);
+
+  const handleRetryAnalysis = useCallback(() => {
+    setCurrentStep('input');
+  }, []);
+
+  const handleCreatePart = useCallback(async (
+    createData: ReturnType<typeof transformToCreateSchema>, 
+    createAnother: boolean
+  ) => {
+    if (isCreatingPart) return;
+
+    try {
+      setIsCreatingPart(true);
+      
+      const createdPart = await createPartMutation.mutateAsync({
+        body: createData
+      });
+      
+      const partId = createdPart.key;
+
+      if (createAnother) {
+        // Reset to input step for another part
+        setCurrentStep('input');
+        onPartCreated?.(partId, true);
+      } else {
+        // Close dialog and navigate
+        onClose();
+        onPartCreated?.(partId, false);
+      }
+    } catch (error) {
+      console.error('Failed to create part:', error);
+      // Error handling is automatic per architecture
+    } finally {
+      setIsCreatingPart(false);
+    }
+  }, [isCreatingPart, onClose, onPartCreated, createPartMutation]);
+
+  const handleBackToInput = useCallback(() => {
+    setCurrentStep('input');
+  }, []);
+
+  const handleDialogClose = useCallback(() => {
+    if (isAnalyzing) {
+      cancelAnalysis();
+    }
+    onClose();
+  }, [isAnalyzing, cancelAnalysis, onClose]);
+
+  const renderCurrentStep = () => {
+    switch (currentStep) {
+      case 'input':
+        return (
+          <AIPartInputStep
+            onSubmit={handleInputSubmit}
+            isLoading={false}
+          />
+        );
+        
+      case 'progress':
+        return (
+          <AIPartProgressStep
+            progress={progress}
+            error={analysisError}
+            onCancel={handleCancelAnalysis}
+            onRetry={handleRetryAnalysis}
+          />
+        );
+        
+      case 'review':
+        if (!analysisResult) {
+          // Fallback - should not happen
+          setCurrentStep('input');
+          return null;
+        }
+        return (
+          <AIPartReviewStep
+            analysisResult={analysisResult}
+            onCreatePart={handleCreatePart}
+            onBack={handleBackToInput}
+            isCreating={isCreatingPart}
+          />
+        );
+        
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleDialogClose}>
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
+        <div className="overflow-y-auto">
+          {renderCurrentStep()}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
