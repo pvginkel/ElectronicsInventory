@@ -11,6 +11,11 @@ from app.config import get_settings
 
 
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+
     settings = get_settings()
     app = create_app(settings)
 
@@ -21,11 +26,11 @@ def main():
     debug_mode = settings.FLASK_ENV in ("development", "testing")
 
     if debug_mode:
+        app.logger.info("Running in debug mode")
+
         app.run(host=host, port=port, debug=True)
     else:
         # Production: Use Waitress WSGI server
-        logging.basicConfig(level=logging.INFO)
-
         wsgi = TransLogger(app, setup_console_handler=False)
 
         wsgi.logger.info("Using Waitress WSGI server for production")

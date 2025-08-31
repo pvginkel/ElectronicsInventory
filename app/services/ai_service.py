@@ -3,6 +3,7 @@
 import base64
 import json
 import logging
+import time
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
@@ -75,23 +76,29 @@ class AIService(BaseService):
                 text_input, image_data, image_mime_type, type_names
             )
 
+            logger.info("Starting OpenAI call")
+
+            start = time.perf_counter()
+
             # Call OpenAI Responses API with structured output
             response = self.client.responses.parse(
                 model=self.config.OPENAI_MODEL,
                 instructions=instructions,
                 input=input_content,
                 text_format=PartAnalysisSuggestion,
-                text={"verbosity": self.config.OPENAI_VERBOSITY},
+                text={ "verbosity": self.config.OPENAI_VERBOSITY }, # type: ignore
                 max_output_tokens=self.config.OPENAI_MAX_OUTPUT_TOKENS,
                 store=self.config.OPENAI_STORE_REQUESTS,
                 tools=[
                     { "type": "web_search" },
                 ],
+                reasoning = {
+                    "effort": self.config.OPENAI_REASONING_EFFORT # type: ignore
+                },
             )
 
-            logger.info(f"OpenAI response.status: {response.status}")
-            logger.info(f"OpenAI response.output_text: {response.output_text}")
-            logger.info(f"OpenAI response.incomplete_details: {response.incomplete_details}")
+            logger.info(f"OpenAI response status: {response.status}, duration {time.perf_counter() - start}, incomplete details: {response.incomplete_details}")
+            logger.info(f"Output text: {response.output_text}")
 
             ai_response = response.output_parsed
             if not ai_response:
