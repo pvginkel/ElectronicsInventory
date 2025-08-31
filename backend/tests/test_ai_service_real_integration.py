@@ -14,6 +14,7 @@ from app.config import Settings
 from app.models.type import Type
 from app.services.ai_service import AIService
 from app.services.container import ServiceContainer
+from app.services.download_cache_service import DownloadCacheService
 from app.services.type_service import TypeService
 from app.services.url_thumbnail_service import URLThumbnailService
 from app.utils.temp_file_manager import TempFileManager
@@ -31,7 +32,7 @@ def real_ai_settings() -> Settings:
         OPENAI_API_KEY=api_key,
         OPENAI_MODEL="gpt-5-mini",
         OPENAI_REASONING_EFFORT="medium",
-        OPENAI_VERBOSITY="medium",
+        OPENAI_VERBOSITY="low",
         OPENAI_MAX_OUTPUT_TOKENS=None,
     )
 
@@ -45,9 +46,18 @@ def real_temp_file_manager():
 
 
 @pytest.fixture
-def real_url_thumbnail_service(session: Session):
+def real_download_cache_service(real_ai_settings: Settings, real_temp_file_manager: TempFileManager):
+    """Create download cache service for real integration testing."""
+    return DownloadCacheService(
+        temp_file_manager=real_temp_file_manager,
+        max_download_size=real_ai_settings.MAX_FILE_SIZE,
+        download_timeout=30
+    )
+
+@pytest.fixture
+def real_url_thumbnail_service(session: Session, real_download_cache_service: DownloadCacheService):
     """Create temporary file manager for real integration testing."""
-    return URLThumbnailService(session, None)
+    return URLThumbnailService(session, None, real_download_cache_service)
 
 
 @pytest.fixture
@@ -74,14 +84,16 @@ def real_type_service(session: Session):
 @pytest.fixture
 def real_ai_service(session: Session, real_ai_settings: Settings,
                    real_temp_file_manager: TempFileManager, real_type_service: TypeService,
-                   real_url_thumbnail_service: URLThumbnailService):
+                   real_url_thumbnail_service: URLThumbnailService,
+                   real_download_cache_service: DownloadCacheService):
     """Create AI service instance for real integration testing."""
     return AIService(
         db=session,
         config=real_ai_settings,
         temp_file_manager=real_temp_file_manager,
         type_service=real_type_service,
-        url_thumbnail_service=real_url_thumbnail_service
+        url_thumbnail_service=real_url_thumbnail_service,
+        download_cache_service=real_download_cache_service
     )
 
 
@@ -122,8 +134,8 @@ class TestAIServiceRealIntegration:
         print(f"Type: {result.type} (existing: {result.type_is_existing})")
         print(f"Description: {result.description}")
         print(f"Tags: {result.tags}")
-        print(f"Seller: {result.seller}")
-        print(f"Seller Link: {result.seller_link}")
+        print(f"Manufacturer: {result.manufacturer}")
+        print(f"Product Page: {result.product_page}")
         print(f"Package: {result.package}")
         print(f"Pin Count: {result.pin_count}")
         print(f"Voltage Rating: {result.voltage_rating}")
@@ -197,8 +209,8 @@ class TestAIServiceRealIntegration:
         print(f"Type: {result.type} (existing: {result.type_is_existing})")
         print(f"Description: {result.description}")
         print(f"Tags: {result.tags}")
-        print(f"Seller: {result.seller}")
-        print(f"Seller Link: {result.seller_link}")
+        print(f"Manufacturer: {result.manufacturer}")
+        print(f"Product Page: {result.product_page}")
         print(f"Package: {result.package}")
         print(f"Pin Count: {result.pin_count}")
         print(f"Voltage Rating: {result.voltage_rating}")
