@@ -12,6 +12,7 @@ from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.part import Part
 from app.models.part_attachment import AttachmentType, PartAttachment
 from app.services.base import BaseService
+from app.services.download_cache_service import DownloadCacheService
 from app.services.image_service import ImageService
 from app.services.s3_service import S3Service
 from app.services.url_thumbnail_service import URLThumbnailService
@@ -20,7 +21,7 @@ from app.services.url_thumbnail_service import URLThumbnailService
 class DocumentService(BaseService):
     """Service for managing part documents and attachments."""
 
-    def __init__(self, db: Session, s3_service: S3Service, image_service: ImageService, url_service: URLThumbnailService):
+    def __init__(self, db: Session, s3_service: S3Service, image_service: ImageService, url_service: URLThumbnailService, download_cache_service: DownloadCacheService):
         """Initialize document service with dependencies.
 
         Args:
@@ -28,11 +29,13 @@ class DocumentService(BaseService):
             s3_service: S3 service for file operations
             image_service: Image processing service
             url_service: URL thumbnail extraction service
+            download_cache_service: Download cache service for URL content
         """
         super().__init__(db)
         self.s3_service = s3_service
         self.image_service = image_service
         self.url_service = url_service
+        self.download_cache_service = download_cache_service
 
     def _validate_file_type(self, content_type: str, file_data: bytes) -> str:
         """Validate file type using python-magic and MIME type.

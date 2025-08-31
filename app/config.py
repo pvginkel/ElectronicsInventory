@@ -79,6 +79,16 @@ class Settings(BaseSettings):
         description="Path for disk-based thumbnail storage"
     )
 
+    # Download cache settings
+    DOWNLOAD_CACHE_BASE_PATH: str = Field(
+        default="/tmp/download_cache",
+        description="Base path for download cache storage"
+    )
+    DOWNLOAD_CACHE_CLEANUP_HOURS: int = Field(
+        default=24,
+        description="Hours after which cached downloads are cleaned up"
+    )
+
     # Celery settings
     CELERY_BROKER_URL: str = Field(
         default="pyamqp://guest@localhost//",

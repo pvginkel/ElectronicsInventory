@@ -3,28 +3,30 @@
 from io import BytesIO
 from urllib.parse import urljoin, urlparse
 
-import magic
 import requests
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
 from app.exceptions import InvalidOperationException
 from app.services.base import BaseService
+from app.services.download_cache_service import DownloadCacheService
 from app.services.s3_service import S3Service
 
 
 class URLThumbnailService(BaseService):
     """Service for extracting thumbnails from web URLs."""
 
-    def __init__(self, db: Session, s3_service: S3Service):
-        """Initialize URL thumbnail service with database session and S3 service.
+    def __init__(self, db: Session, s3_service: S3Service, download_cache_service: DownloadCacheService):
+        """Initialize URL thumbnail service with database session, S3 service, and download cache service.
 
         Args:
             db: SQLAlchemy database session
             s3_service: S3 service for file operations
+            download_cache_service: Download cache service for URL content
         """
         super().__init__(db)
         self.s3_service = s3_service
+        self.download_cache_service = download_cache_service
 
         # Request headers to appear as a regular browser
         self.headers = {
@@ -44,30 +46,10 @@ class URLThumbnailService(BaseService):
             InvalidOperationException: If fetch fails or times out
         """
         try:
-            response = requests.get(
-                url,
-                headers=self.headers,
-                timeout=10,  # 10 second timeout
-                stream=True,
-                allow_redirects=True
-            )
-            response.raise_for_status()
+            result = self.download_cache_service.get_cached_content(url)
+            return result.content, result.content_type
 
-            # Limit response size to 5MB
-            content = b''
-            max_size = 5 * 1024 * 1024  # 5MB
-
-            for chunk in response.iter_content(chunk_size=8192):
-                content += chunk
-                if len(content) > max_size:
-                    break
-
-            # Use magic to detect actual content type
-            detected_type = magic.from_buffer(content, mime=True)
-
-            return content, detected_type
-
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             raise InvalidOperationException("fetch URL content", str(e)) from e
 
     def _process_html_content(self, content: bytes, url: str) -> dict:
@@ -227,27 +209,10 @@ class URLThumbnailService(BaseService):
             InvalidOperationException: If fetch fails or times out
         """
         try:
-            response = requests.get(
-                url,
-                headers=self.headers,
-                timeout=10,  # 10 second timeout
-                stream=True,
-                allow_redirects=True
-            )
-            response.raise_for_status()
+            result = self.download_cache_service.get_cached_content(url)
+            return result.content.decode('utf-8', errors='ignore')
 
-            # Limit response size to 1MB
-            content = b''
-            max_size = 1024 * 1024  # 1MB
-
-            for chunk in response.iter_content(chunk_size=8192):
-                content += chunk
-                if len(content) > max_size:
-                    break
-
-            return content.decode('utf-8', errors='ignore')
-
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             raise InvalidOperationException("fetch URL content", str(e)) from e
 
     def _extract_og_image(self, soup: BeautifulSoup) -> str | None:
