@@ -9,6 +9,8 @@ interface PartData {
   pinCount?: number;
   series?: string;
   voltageRating?: string;
+  manufacturer?: string;
+  productPage?: string;
 }
 
 interface Part {
@@ -24,6 +26,8 @@ interface Part {
   pin_count?: number | null;
   series?: string | null;
   voltage_rating?: string | null;
+  manufacturer?: string | null;
+  product_page?: string | null;
 }
 
 export function validatePartData(data: PartData): { 
@@ -65,6 +69,16 @@ export function validatePartData(data: PartData): {
     errors.voltageRating = 'Voltage rating must be 100 characters or less';
   }
 
+  // Validate manufacturer
+  if (data.manufacturer && data.manufacturer.trim() && data.manufacturer.length > 255) {
+    errors.manufacturer = 'Manufacturer must be 255 characters or less';
+  }
+
+  // Validate product page
+  if (data.productPage && data.productPage.trim() && data.productPage.length > 500) {
+    errors.productPage = 'Product page must be 500 characters or less';
+  }
+
   // Validate pin count
   if (data.pinCount !== undefined && data.pinCount !== null) {
     if (!Number.isInteger(data.pinCount) || data.pinCount < 1 || data.pinCount > 9999) {
@@ -82,11 +96,15 @@ export function formatPartForDisplay(part: Part): {
   displayId: string;
   displayDescription: string;
   displayManufacturerCode?: string;
+  displayManufacturer?: string;
+  displayProductPage?: string;
 } {
   return {
     displayId: part.key.toUpperCase(),
     displayDescription: part.description,
     displayManufacturerCode: part.manufacturer_code || undefined,
+    displayManufacturer: part.manufacturer || undefined,
+    displayProductPage: part.product_page || undefined,
   };
 }
 

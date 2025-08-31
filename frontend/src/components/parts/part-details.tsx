@@ -93,7 +93,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
     );
   }
 
-  const { displayId, displayDescription, displayManufacturerCode } = formatPartForDisplay(part);
+  const { displayId, displayDescription, displayManufacturerCode, displayManufacturer, displayProductPage } = formatPartForDisplay(part);
 
   return (
     <div>
@@ -143,6 +143,37 @@ export function PartDetails({ partId }: PartDetailsProps) {
                     <div className="text-sm font-medium">Description</div>
                     <div className="text-lg">{displayDescription}</div>
                   </div>
+                  
+                  {/* Manufacturer Information */}
+                  {(displayManufacturer || displayProductPage) && (
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground mb-2">Manufacturer Information</div>
+                      <div className="space-y-2">
+                        {displayManufacturer && (
+                          <div>
+                            <div className="text-sm font-medium">Manufacturer</div>
+                            <div className="text-lg">{displayManufacturer}</div>
+                          </div>
+                        )}
+                        
+                        {displayProductPage && (
+                          <div>
+                            <div className="text-sm font-medium">Product Page</div>
+                            <div className="text-sm">
+                              <a 
+                                href={displayProductPage} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-blue-600 hover:text-blue-800 underline break-all"
+                              >
+                                {displayProductPage}
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   
                   {displayManufacturerCode && (
                     <div>

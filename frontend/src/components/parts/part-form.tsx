@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Form, FormField, FormLabel, FormError } from '@/components/ui/form';
+import { Form, FormField, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -13,6 +13,8 @@ interface PartFormData {
   manufacturerCode: string;
   typeId?: number;
   tags: string[];
+  manufacturer: string;
+  productPage: string;
   seller: string;
   sellerLink: string;
   dimensions: string;
@@ -34,6 +36,8 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
     description: '',
     manufacturerCode: '',
     tags: [],
+    manufacturer: '',
+    productPage: '',
     seller: '',
     sellerLink: '',
     dimensions: '',
@@ -64,6 +68,8 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
         manufacturerCode: existingPart.manufacturer_code || '',
         typeId: existingPart.type_id || undefined,
         tags: existingPart.tags || [],
+        manufacturer: existingPart.manufacturer || '',
+        productPage: existingPart.product_page || '',
         seller: existingPart.seller || '',
         sellerLink: existingPart.seller_link || '',
         dimensions: existingPart.dimensions || '',
@@ -85,6 +91,8 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
       manufacturerCode: formData.manufacturerCode,
       typeId: formData.typeId,
       tags: formData.tags,
+      manufacturer: formData.manufacturer,
+      productPage: formData.productPage,
       dimensions: formData.dimensions,
       mountingType: formData.mountingType,
       package: formData.package,
@@ -109,6 +117,8 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
           manufacturer_code: formData.manufacturerCode || null,
           type_id: formData.typeId || null,
           tags: formData.tags.length > 0 ? formData.tags : null,
+          manufacturer: formData.manufacturer || null,
+          product_page: formData.productPage || null,
           seller: formData.seller || null,
           seller_link: formData.sellerLink || null,
           dimensions: formData.dimensions || null,
@@ -128,6 +138,8 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
           manufacturer_code: formData.manufacturerCode || null,
           type_id: formData.typeId || null,
           tags: formData.tags.length > 0 ? formData.tags : null,
+          manufacturer: formData.manufacturer || null,
+          product_page: formData.productPage || null,
           seller: formData.seller || null,
           seller_link: formData.sellerLink || null,
           dimensions: formData.dimensions || null,
@@ -332,10 +344,38 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
         <div className="space-y-4">
           <div className="pb-2 border-b">
             <h3 className="text-lg font-medium">Seller Information</h3>
-            <p className="text-sm text-muted-foreground">Vendor details and purchase links</p>
+            <p className="text-sm text-muted-foreground">Manufacturer and vendor details</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField>
+              <FormLabel htmlFor="manufacturer">
+                Manufacturer
+              </FormLabel>
+              <Input
+                id="manufacturer"
+                value={formData.manufacturer}
+                onChange={(e) => updateFormData('manufacturer', e.target.value)}
+                error={errors.manufacturer}
+                maxLength={255}
+                placeholder="e.g., Texas Instruments, Arduino"
+              />
+            </FormField>
+
+            <FormField>
+              <FormLabel htmlFor="productPage">
+                Product Page
+              </FormLabel>
+              <Input
+                id="productPage"
+                value={formData.productPage}
+                onChange={(e) => updateFormData('productPage', e.target.value)}
+                error={errors.productPage}
+                maxLength={500}
+                placeholder="e.g., https://www.ti.com/product/SN74HC595"
+              />
+            </FormField>
+
             <FormField>
               <FormLabel htmlFor="seller">
                 Seller
