@@ -143,12 +143,16 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
     }
   };
 
+  const isReviewStep = currentStep === 'review';
+  
   return (
-    <Dialog open={open} onOpenChange={handleDialogClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
-        <div className="overflow-y-auto">
-          {renderCurrentStep()}
-        </div>
+    <Dialog 
+      open={open} 
+      onOpenChange={handleDialogClose} 
+      className={isReviewStep ? "w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h m-[30px]" : undefined}
+    >
+      <DialogContent>
+        {renderCurrentStep()}
       </DialogContent>
     </Dialog>
   );

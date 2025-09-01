@@ -11,6 +11,8 @@ interface MediaViewerProps {
     type: 'file' | 'url';
     mimeType?: string | null;
     filename?: string | null;
+    originalUrl?: string | null; // For AI documents
+    contentType?: string | null; // For AI documents
   } | null;
   open: boolean;
   onClose: () => void;
@@ -105,22 +107,34 @@ export function MediaViewer({
   }, []);
 
   const handleDownload = useCallback(() => {
-    if (document && document.type === 'file') {
-      const downloadUrl = getDownloadUrl(partId, document.id);
-      const a = globalThis.document.createElement('a');
-      a.href = downloadUrl;
-      a.download = document.filename || document.name;
-      a.click();
+    if (document) {
+      if (document.originalUrl) {
+        // For AI documents, use the original URL
+        const a = globalThis.document.createElement('a');
+        a.href = document.originalUrl;
+        a.download = document.filename || document.name;
+        a.click();
+      } else if (document.type === 'file') {
+        // For regular documents, use the download URL
+        const downloadUrl = getDownloadUrl(partId, document.id);
+        const a = globalThis.document.createElement('a');
+        a.href = downloadUrl;
+        a.download = document.filename || document.name;
+        a.click();
+      }
     }
   }, [partId, document]);
 
   if (!document || !open) return null;
 
-  const isImage = document.type === 'file' && 
-                 document.mimeType?.startsWith('image/');
+  // Handle AI documents that have originalUrl and contentType
+  const effectiveMimeType = document.contentType || document.mimeType;
   
-  const isPdf = document.type === 'file' && 
-                document.mimeType === 'application/pdf';
+  const isImage = (document.type === 'file' && effectiveMimeType?.startsWith('image/')) ||
+                  document.originalUrl?.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i);
+  
+  const isPdf = (document.type === 'file' && effectiveMimeType === 'application/pdf') ||
+                document.originalUrl?.match(/\.pdf(\?|$)/i);
 
   if (!isImage && !isPdf) {
     // For non-images and non-PDFs, just close the modal (they should open in browser)
@@ -128,8 +142,8 @@ export function MediaViewer({
     return null;
   }
 
-  // Use view URL for displaying
-  const fileUrl = getViewUrl(partId, document.id);
+  // Use originalUrl for AI documents, otherwise use view URL
+  const fileUrl = document.originalUrl || getViewUrl(partId, document.id);
 
   return (
     <Dialog open={open} onOpenChange={onClose} className="w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h-none m-[30px]">

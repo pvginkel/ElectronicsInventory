@@ -79,7 +79,6 @@ export function transformToCreateSchema(data: {
     series: data.series ?? null,
     product_page: data.productPageUrl ?? null,
     seller: data.seller ?? null,
-    seller_link: data.sellerLink ?? null,
-    suggested_image_url: null, // Not handling image uploads for now
+    seller_link: data.sellerLink ?? null
   };
 }

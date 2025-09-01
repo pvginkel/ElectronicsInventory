@@ -17,10 +17,17 @@ interface DocumentCardProps {
     fileSize?: number | null;
     mimeType?: string | null;
     createdAt: string;
+    previewImageUrl?: string | null; // For AI documents with preview images
+    originalUrl?: string | null; // For AI documents - original URL for media viewer
+    contentType?: string | null; // For AI documents - content type for media viewer
+    isCoverImage?: boolean; // For AI documents - whether this should be the cover image
   };
   isCover?: boolean;
   onClick?: () => void;
   onCoverChange?: () => void;
+  onDelete?: () => void; // Custom delete handler for AI documents
+  readOnly?: boolean; // Disable delete/cover controls for AI preview
+  hideCoverActions?: boolean; // Hide cover actions completely
 }
 
 export function DocumentCard({ 
@@ -28,7 +35,10 @@ export function DocumentCard({
   document, 
   isCover = false, 
   onClick,
-  onCoverChange
+  onCoverChange,
+  onDelete,
+  readOnly = false,
+  hideCoverActions = false
 }: DocumentCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   
@@ -37,18 +47,31 @@ export function DocumentCard({
   const deleteDocumentMutation = useDeleteDocument();
 
   const handleSetCover = async () => {
-    try {
-      await setCoverMutation.mutateAsync({
-        path: { part_key: partId },
-        body: { attachment_id: parseInt(document.id) }
-      });
+    if (onDelete && document.isCoverImage !== undefined) {
+      // For AI documents, use custom cover change handler
       onCoverChange?.();
-    } catch (error) {
-      console.error('Failed to set cover:', error);
+    } else {
+      // For regular documents, use the API mutation
+      try {
+        await setCoverMutation.mutateAsync({
+          path: { part_key: partId },
+          body: { attachment_id: parseInt(document.id) }
+        });
+        onCoverChange?.();
+      } catch (error) {
+        console.error('Failed to set cover:', error);
+      }
     }
   };
 
   const handleDelete = async () => {
+    if (onDelete) {
+      // Use custom delete handler for AI documents
+      onDelete();
+      return;
+    }
+
+    // Default delete handler for regular documents
     const confirmed = await confirm({
       title: 'Delete Document',
       description: `Are you sure you want to delete "${document.name}"? This action cannot be undone.`,
@@ -107,7 +130,14 @@ export function DocumentCard({
           className="w-full h-full cursor-pointer"
           onClick={handleCardClick}
         >
-          {isUrl ? (
+          {document.previewImageUrl ? (
+            // AI document with preview image
+            <img
+              src={document.previewImageUrl}
+              alt={document.name}
+              className="w-full h-full object-cover"
+            />
+          ) : isUrl ? (
             // URL attachment display
             <div className="w-full h-full flex items-center justify-center bg-muted">
               <div className="text-center p-4">
@@ -132,28 +162,32 @@ export function DocumentCard({
         </div>
         
         {/* Action buttons positioned at top-right */}
-        <div className="absolute top-2 right-2 flex space-x-1">
-          <IconButton
-            onClick={handleSetCover}
-            icon={
-              <svg width="16" height="16" viewBox="0 0 24 24" fill={isCover ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" className={isCover ? "text-blue-500" : ""}>
-                <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-              </svg>
-            }
-            tooltip={isCover ? "Current cover" : "Set as cover"}
-            variant="default"
-          />
-          <IconButton
-            onClick={handleDelete}
-            icon={
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-              </svg>
-            }
-            tooltip="Delete"
-            variant="destructive"
-          />
-        </div>
+        {!readOnly && (
+          <div className="absolute top-2 right-2 flex space-x-1">
+            {!hideCoverActions && (
+              <IconButton
+                onClick={handleSetCover}
+                icon={
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill={(isCover || document.isCoverImage) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" className={(isCover || document.isCoverImage) ? "text-blue-500" : ""}>
+                    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                  </svg>
+                }
+                tooltip={(isCover || document.isCoverImage) ? "Current cover" : "Set as cover"}
+                variant="default"
+              />
+            )}
+            <IconButton
+              onClick={handleDelete}
+              icon={
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                </svg>
+              }
+              tooltip="Delete"
+              variant="destructive"
+            />
+          </div>
+        )}
       </div>
 
       <div className="p-3">

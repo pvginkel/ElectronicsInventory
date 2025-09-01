@@ -273,6 +273,12 @@
             "title": "Document Type",
             "type": "string"
           },
+          "is_cover_image": {
+            "default": false,
+            "description": "Image to become the cover image",
+            "title": "Is Cover Image",
+            "type": "boolean"
+          },
           "preview": {
             "anyOf": [
               {
@@ -529,20 +535,6 @@
             "example": "Arduino Uno",
             "title": "Series"
           },
-          "suggested_image_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Temporary image URL to use as part cover image",
-            "example": "/tmp/ai-analysis/20240830_143022_a1b2c3d4/part_image.jpg",
-            "title": "Suggested Image Url"
-          },
           "tags": {
             "default": [],
             "description": "Tags for the part (can be edited from AI suggestion)",
@@ -615,6 +607,12 @@
             "example": "datasheet",
             "title": "Document Type",
             "type": "string"
+          },
+          "is_cover_image": {
+            "default": false,
+            "description": "Image to become the cover image",
+            "title": "Is Cover Image",
+            "type": "boolean"
           },
           "preview": {
             "anyOf": [
@@ -3078,44 +3076,6 @@
         ],
         "title": "TaskStatus",
         "type": "string"
-      },
-      "TestHealthResponseSchema.355d24f": {
-        "description": "Response schema for test health endpoint.",
-        "properties": {
-          "environment": {
-            "title": "Environment",
-            "type": "string"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "status",
-          "environment",
-          "message"
-        ],
-        "title": "TestHealthResponseSchema",
-        "type": "object"
-      },
-      "TestResetResponseSchema.355d24f": {
-        "description": "Response schema for database reset endpoint.",
-        "properties": {
-          "message": {
-            "title": "Message",
-            "type": "string"
-          }
-        },
-        "required": [
-          "message"
-        ],
-        "title": "TestResetResponseSchema",
-        "type": "object"
       },
       "TypeCreateSchema.50492c8": {
         "description": "Schema for creating a new type.",

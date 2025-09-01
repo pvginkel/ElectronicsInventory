@@ -18,13 +18,19 @@ interface DocumentGridProps {
   documents: Document[];
   onDocumentClick?: (document: Document) => void;
   onDocumentChange?: () => void;
+  onDocumentDelete?: (documentId: string) => void;
+  onCoverChange?: (documentId: string) => void; // For AI documents
+  hideCoverActions?: boolean;
 }
 
 export function DocumentGrid({ 
   partId, 
   documents, 
   onDocumentClick,
-  onDocumentChange 
+  onDocumentChange,
+  onDocumentDelete,
+  onCoverChange,
+  hideCoverActions = false
 }: DocumentGridProps) {
   const { coverAttachment } = useCoverAttachment(partId);
   const documentViewerHook = useDocumentViewer(documents);
@@ -78,7 +84,9 @@ export function DocumentGrid({
             document={document}
             isCover={coverAttachment?.id === parseInt(document.id)}
             onClick={() => handleDocumentClick(document)}
-            onCoverChange={onDocumentChange}
+            onCoverChange={onCoverChange ? () => onCoverChange(document.id) : onDocumentChange}
+            onDelete={onDocumentDelete ? () => onDocumentDelete(document.id) : undefined}
+            hideCoverActions={hideCoverActions}
           />
         ))}
       </div>

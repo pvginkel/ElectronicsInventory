@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { SplitButton } from '@/components/ui/split-button';
 import { TypeSelector } from '@/components/types/type-selector';
 import { TagsInput } from './tags-input';
-import { AIDocumentPreview } from './ai-document-preview';
+import { AIDocumentGrid } from './ai-document-grid';
 import { transformAIPartAnalysisResult, transformToCreateSchema } from '@/lib/utils/ai-parts';
 import type { components } from '@/lib/api/generated/types';
 
@@ -87,6 +87,16 @@ export function AIPartReviewStep({
     }));
   }, []);
 
+  const setCoverDocument = useCallback((index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      documents: prev.documents.map((doc, i) => ({
+        ...doc,
+        is_cover_image: i === index
+      }))
+    }));
+  }, []);
+
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
     
@@ -141,15 +151,16 @@ export function AIPartReviewStep({
   }, [updateField]);
 
   return (
-    <div className="space-y-6">
-      <div className="text-center">
+    <div className="flex flex-col">
+      <div className="text-center mb-6">
         <h2 className="text-2xl font-semibold mb-2">Review & Edit Part Details</h2>
         <p className="text-muted-foreground">
           Review the AI suggestions and make any necessary edits
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="flex-1 overflow-y-auto pb-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {/* Part Information */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Part Information</h3>
@@ -334,48 +345,42 @@ export function AIPartReviewStep({
         </Card>
 
         {/* Documents */}
-        <Card className="p-6">
+        <Card className="p-6 xl:col-span-3">
           <h3 className="text-lg font-semibold mb-4">
             Documents ({formData.documents.length})
           </h3>
-          {formData.documents.length > 0 ? (
-            <div className="space-y-3">
-              {formData.documents.map((document, index) => (
-                <AIDocumentPreview
-                  key={`${document.url}-${index}`}
-                  document={document}
-                  onDelete={() => removeDocument(index)}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-sm">
-              No documents were found or suggested by AI analysis.
-            </p>
-          )}
+          <AIDocumentGrid
+            documents={formData.documents}
+            onDocumentDelete={removeDocument}
+            onCoverChange={setCoverDocument}
+            readOnly={false}
+          />
         </Card>
+        </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex justify-between items-center">
-        {onBack && (
-          <Button variant="outline" onClick={onBack} disabled={isCreating}>
-            Back
-          </Button>
-        )}
-        
-        <div className="flex gap-3">
-          <SplitButton
-            primaryLabel={isCreating ? 'Creating...' : 'Add Part'}
-            onPrimaryClick={() => handleCreatePart(false)}
-            actions={[
-              {
-                label: 'Add & Create Another',
-                onClick: () => handleCreatePart(true)
-              }
-            ]}
-            disabled={isCreating}
-          />
+      {/* Actions - Sticky Footer */}
+      <div className="flex-shrink-0 mt-8 pt-6 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex justify-between items-center">
+          {onBack && (
+            <Button variant="outline" onClick={onBack} disabled={isCreating}>
+              Back
+            </Button>
+          )}
+          
+          <div className="flex gap-3">
+            <SplitButton
+              primaryLabel={isCreating ? 'Creating...' : 'Add Part'}
+              onPrimaryClick={() => handleCreatePart(false)}
+              actions={[
+                {
+                  label: 'Add & Create Another',
+                  onClick: () => handleCreatePart(true)
+                }
+              ]}
+              disabled={isCreating}
+            />
+          </div>
         </div>
       </div>
     </div>
