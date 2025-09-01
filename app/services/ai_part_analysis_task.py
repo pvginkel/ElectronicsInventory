@@ -49,13 +49,13 @@ class AIPartAnalysisTask(BaseSessionTask):
                 )
 
             # Phase 1: Initialize and validate (0-5%)
-            progress_handle.send_progress("Initializing AI analysis...", 0.0)
+            progress_handle.send_progress_text("Initializing AI analysis...")
 
             if self.is_cancelled:
                 return AIPartAnalysisTaskCancelledResultSchema()
 
             # Phase 2: AI Analysis (5-80%)
-            progress_handle.send_progress("AI analyzing part and finding resources...", 0.05)
+            progress_handle.send_progress_text("AI analyzing part and finding resources...")
 
             try:
                 ai_service = self.container.ai_service()
@@ -63,7 +63,8 @@ class AIPartAnalysisTask(BaseSessionTask):
                 analysis_result = ai_service.analyze_part(
                     text_input=text_input,
                     image_data=image_data,
-                    image_mime_type=image_mime_type
+                    image_mime_type=image_mime_type,
+                    progress_handle=progress_handle
                 )
             except Exception as e:
                 logger.error(f"AI analysis failed: {e}")
