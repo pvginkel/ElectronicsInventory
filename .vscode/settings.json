@@ -13,5 +13,6 @@
   "editor.formatOnSave": false,
   "[python]": {
     "editor.formatOnSave": false
-  }
+  },
+  "python.REPL.enableREPLSmartSend": false
 }

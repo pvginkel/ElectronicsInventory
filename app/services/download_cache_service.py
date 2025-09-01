@@ -5,6 +5,7 @@ from typing import NamedTuple
 
 import magic
 import requests
+import validators
 
 from app.utils.temp_file_manager import TempFileManager
 
@@ -79,30 +80,15 @@ class DownloadCacheService:
 
     def validate_url(self, url: str) -> bool:
         """
-        Validate URL format and accessibility using HEAD request.
+        Validate URL format.
 
         Args:
             url: URL to validate
 
         Returns:
-            True if URL is valid and accessible
+            True if URL is valid
         """
-        try:
-            # Basic format validation
-            if not url or not url.startswith(('http://', 'https://')):
-                return False
-
-            # Check accessibility with HEAD request
-            response = requests.head(
-                url,
-                timeout=5,
-                allow_redirects=True,
-                headers={'User-Agent': 'Mozilla/5.0 (Electronics Inventory Bot)'}
-            )
-            return response.status_code < 400
-
-        except Exception:
-            return False
+        return validators.url(url) is True
 
     def _download_url(self, url: str) -> DownloadResult:
         """
@@ -118,12 +104,21 @@ class DownloadCacheService:
             requests.RequestException: On network errors
             ValueError: On invalid URLs or oversized content
         """
-        if not url or not url.startswith(('http://', 'https://')):
+        if not url or not self.validate_url(url):
             raise ValueError(f"Invalid URL: {url}")
 
         try:
             # Use streaming to check content length
-            response = requests.get(url, stream=True, timeout=self.download_timeout)
+            response = requests.get(
+                url,
+                stream=True,
+                timeout=self.download_timeout,
+                headers={
+                    "Accept": "*/*",
+                    "Accept-Language": "nl,en-US;q=0.9,en;q=0.8",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+                }
+            )
             response.raise_for_status()
 
             # Check content length if provided

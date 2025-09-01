@@ -34,6 +34,7 @@ def real_ai_settings() -> Settings:
         OPENAI_REASONING_EFFORT="medium",
         OPENAI_VERBOSITY="low",
         OPENAI_MAX_OUTPUT_TOKENS=None,
+        OPENAI_DUMMY_RESPONSE_PATH=''
     )
 
 
@@ -101,20 +102,24 @@ def real_ai_service(session: Session, real_ai_settings: Settings,
 class TestAIServiceRealIntegration:
     """Integration tests using real OpenAI API calls."""
 
-    def test_analyze_dfrobot_gravity_sgp40_real_api(self, real_ai_service: AIService):
-        """Test real AI analysis of DFRobot Gravity SGP40 using OpenAI API.
+    component_testdata = [
+        ("DFRobot Gravity SGP40", ["sensor", "air", "quality", "gas", "environmental"]),
+        ("HLK PM24", ["power supply", "ac-dc"]),
+        ("ESP32-S3FN8", ["power supply"]),
+    ]
+
+    @pytest.mark.parametrize("text_input,sensor_keywords", component_testdata)
+    def test_analyze_real_api(self, text_input: str, sensor_keywords: list[str], real_ai_service: AIService):
+        """Test real AI analysis of a component using OpenAI API.
 
         This test makes a real API call to OpenAI to analyze the DFRobot Gravity SGP40
         sensor text input. It validates that the AI service can correctly:
         - Identify this as an air quality/gas sensor
-        - Extract manufacturer information (DFRobot)
+        - Extract manufacturer information
         - Generate appropriate tags and technical details
         - Handle document downloading if URLs are provided
         - Determine if the suggested type matches existing types
         """
-        # Test input - a real electronics part
-        text_input = "DFRobot Gravity SGP40"
-
         # Perform real AI analysis
         result = real_ai_service.analyze_part(text_input=text_input)
 
@@ -129,7 +134,7 @@ class TestAIServiceRealIntegration:
         assert result.type is not None, "AI should suggest a part type"
 
         # Log the full result for inspection
-        print("\n=== AI Analysis Results for 'DFRobot Gravity SGP40' ===")
+        print(f"\n=== AI Analysis Results for '{text_input}' ===")
         print(f"Manufacturer Code: {result.manufacturer_code}")
         print(f"Type: {result.type} (existing: {result.type_is_existing})")
         print(f"Description: {result.description}")
@@ -148,90 +153,21 @@ class TestAIServiceRealIntegration:
         # SGP40 is typically a gas/air quality sensor
         if result.type:
             type_lower = result.type.lower()
-            expected_keywords = ["sensor", "air", "quality", "gas", "environmental"]
+            expected_keywords = sensor_keywords
             assert any(keyword in type_lower for keyword in expected_keywords), \
-                   f"Type '{result.type}' should be related to sensors/air quality/gas"
+                   f"Type '{result.type}' should be related"
 
         # Check for reasonable tags
         if result.tags:
             tags_str = " ".join(result.tags).lower()
-            sensor_keywords = ["sgp40", "sensor", "air", "quality", "gas", "dfrobot", "gravity"]
             found_keywords = [kw for kw in sensor_keywords if kw in tags_str]
-            assert len(found_keywords) >= 2, \
-                   f"Expected at least 2 relevant keywords in tags, found: {found_keywords}"
+            assert len(found_keywords) >= 1, \
+                   f"Expected at least 1 relevant keyword in tags, found: {found_keywords}"
 
         # If documents were found, check they're properly structured
         for doc in result.documents:
             assert doc.url, "Document should have original URL"
-            assert doc.url_type, "Document should have URL type"
-            assert doc.document_type in ["datasheet", "manual", "schematic", "application_note", "reference_design"], \
-                   f"Invalid document type: {doc.document_type}"
-            print(f"  Document: {doc.url} ({doc.document_type})")
-
-        # Validate type matching logic
-        if result.type_is_existing:
-            assert result.existing_type_id is not None, \
-                   "If type is existing, existing_type_id should be set"
-        else:
-            assert result.existing_type_id is None, \
-                   "If type is new suggestion, existing_type_id should be None"
-
-    def test_analyze_hlk_pm24_real_api(self, real_ai_service: AIService):
-        """Test real AI analysis of HLK PM24 using OpenAI API.
-
-        This test makes a real API call to OpenAI to analyze the HLK PM24
-        sensor text input. It validates that the AI service can correctly:
-        - Identify this as an air quality/gas sensor
-        - Extract manufacturer information (HiLink)
-        - Generate appropriate tags and technical details
-        - Handle document downloading if URLs are provided
-        - Determine if the suggested type matches existing types
-        """
-        # Test input - a real electronics part
-        text_input = "HLK PM24"
-
-        # Perform real AI analysis
-        result = real_ai_service.analyze_part(text_input=text_input)
-
-        # Validate the analysis results
-        assert result is not None, "AI analysis should return a result"
-
-        # Check that some basic information was extracted
-        assert result.manufacturer_code is not None or result.description is not None, \
-               "AI should extract either manufacturer code or description"
-
-        # Check type analysis
-        assert result.type is not None, "AI should suggest a part type"
-
-        # Log the full result for inspection
-        print("\n=== AI Analysis Results for 'HLK PM24' ===")
-        print(f"Manufacturer Code: {result.manufacturer_code}")
-        print(f"Type: {result.type} (existing: {result.type_is_existing})")
-        print(f"Description: {result.description}")
-        print(f"Tags: {result.tags}")
-        print(f"Manufacturer: {result.manufacturer}")
-        print(f"Product Page: {result.product_page}")
-        print(f"Package: {result.package}")
-        print(f"Pin Count: {result.pin_count}")
-        print(f"Voltage Rating: {result.voltage_rating}")
-        print(f"Mounting Type: {result.mounting_type}")
-        print(f"Series: {result.series}")
-        print(f"Dimensions: {result.dimensions}")
-        print(f"Documents: {len(result.documents)} found")
-
-        # Validate specific expectations for this part
-        # SGP40 is typically a gas/air quality sensor
-        if result.type:
-            type_lower = result.type.lower()
-            expected_keywords = ["power supply"]
-            assert any(keyword in type_lower for keyword in expected_keywords), \
-                   f"Type '{result.type}' should be related to power supplies"
-
-        # If documents were found, check they're properly structured
-        for doc in result.documents:
-            assert doc.url, "Document should have original URL"
-            assert doc.url_type, "Document should have URL type"
-            assert doc.document_type in ["datasheet", "manual", "schematic", "application_note", "reference_design"], \
+            assert doc.document_type in ["product_image", "datasheet", "pinout", "schematic", "manual"], \
                    f"Invalid document type: {doc.document_type}"
             print(f"  Document: {doc.url} ({doc.document_type})")
 

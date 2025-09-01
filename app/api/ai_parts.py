@@ -7,6 +7,7 @@ from flask import Blueprint, jsonify, request
 from spectree import Response as SpectreeResponse
 from werkzeug.datastructures import FileStorage
 
+from app.models.part_attachment import PartAttachment
 from app.schemas.ai_part_analysis import (
     AIPartAnalysisTaskResultSchema,
     AIPartCreateSchema,
@@ -138,36 +139,29 @@ def create_part_from_ai_analysis(
         dimensions=data.dimensions
     )
 
+    cover_image : PartAttachment | None = None
+
     # Attach documents from AI suggestions using proper document service methods
     for doc in data.documents:
         try:
             # Create document attachment from URL - this will handle downloading and processing
-            document_service.create_url_attachment(
+            attachment = document_service.create_url_attachment(
                 part_key=part.key,  # Use part key, not ID
                 title=doc.description or f"AI suggested {doc.document_type}",
                 url=doc.url
             )
             logger.info(f"Successfully attached document from {doc.url} to part {part.key}")
+
+            if not cover_image and doc.is_cover_image and attachment.attachment_type == "image":
+                cover_image = attachment
         except Exception as e:
             logger.warning(f"Failed to attach document {doc.url} to part {part.key}: {e}")
             # Continue processing other documents even if one fails
 
-    # Handle suggested image URL if provided
-    if data.suggested_image_url:
-        try:
-            logger.info(f"Processing suggested image for part {part.key} from {data.suggested_image_url}")
-
-            suggested_image = document_service.create_url_attachment(
-                part_key=part.key,  # Use part key, not ID
-                title="AI suggested image",
-                url=data.suggested_image_url
-            )
-            if suggested_image.attachment_type == "image":
-                logger.info(f"Setting suggested image as cover for part {part.key}")
-                # Set as cover image if it's the first image attachment
-                document_service.set_part_cover_attachment(part.key, suggested_image.id)
-        except Exception as e:
-            logger.warning(f"Failed to attach suggested image document {data.suggested_image_url} to part {part.key}: {e}")
+    if cover_image:
+        logger.info(f"Setting suggested image as cover for part {part.key}")
+        # Set as cover image if it's the first image attachment
+        document_service.set_part_cover_attachment(part.key, cover_image.id)
 
     return PartResponseSchema.model_validate(part).model_dump(), 201
 

@@ -194,7 +194,7 @@ class TestDocumentService:
             )
 
         assert "create URL attachment" in str(exc_info.value)
-        assert "invalid or inaccessible" in str(exc_info.value)
+        assert "invalid" in str(exc_info.value)
 
     def test_create_url_attachment_processing_failure(self, document_service, session, sample_part, mock_url_service):
         """Test URL attachment creation with processing failure."""
