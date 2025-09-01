@@ -13,18 +13,13 @@ class DocumentSuggestionSchema(BaseModel):
         description="Original URL from which the document was downloaded",
         json_schema_extra={"example": "https://www.example.com/datasheet.pdf"}
     )
-    url_type: str = Field(
-        description="Type of the URL",
-        json_schema_extra={"example": "link"}
-    )
     document_type: str = Field(
         description="Type of document (datasheet, manual, schematic, etc.)",
         json_schema_extra={"example": "datasheet"}
     )
-    description: str | None = Field(
-        default=None,
-        description="AI-provided description of the document content",
-        json_schema_extra={"example": "Complete technical specifications and pinout diagram"}
+    is_cover_image: bool = Field(
+        default=False,
+        description="Image to become the cover image"
     )
     preview: UrlPreviewResponseSchema | None = Field(
         default=None,
@@ -245,16 +240,9 @@ class AIPartCreateSchema(BaseModel):
         description="Physical dimensions",
         json_schema_extra={"example": "68.6x53.4mm"}
     )
-
-    # Document and image references
     documents: list[DocumentSuggestionSchema] = Field(
         default=[],
         description="Documents to attach from temporary storage"
-    )
-    suggested_image_url: str | None = Field(
-        default=None,
-        description="Temporary image URL to use as part cover image",
-        json_schema_extra={"example": "/tmp/ai-analysis/20240830_143022_a1b2c3d4/part_image.jpg"}
     )
 
     model_config = ConfigDict(from_attributes=True)

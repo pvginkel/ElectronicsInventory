@@ -194,7 +194,7 @@ class DocumentService(BaseService):
 
         # Validate URL
         if not self.url_service.validate_url(url):
-            raise InvalidOperationException("create URL attachment", f"invalid or inaccessible URL: {url}")
+            raise InvalidOperationException("create URL attachment", f"invalid URL: {url}")
 
         # Download and store thumbnail
         try:

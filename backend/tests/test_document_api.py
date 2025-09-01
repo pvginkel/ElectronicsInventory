@@ -583,7 +583,7 @@ class TestUrlPreviewAPI:
 
         assert response.status_code == 422
         data = response.get_json()
-        assert data['error'] == 'Invalid or inaccessible URL'
+        assert data['error'] == 'Invalid URL'
         assert data['details']['message'] == 'The provided URL is not valid or cannot be accessed'
 
     @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
@@ -642,7 +642,7 @@ class TestUrlPreviewAPI:
 
         assert response.status_code == 400
         data = response.get_json()
-        assert 'Invalid or inaccessible URL' in data['error']
+        assert 'Invalid URL' in data['error']
 
     @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
     @patch('app.services.url_thumbnail_service.URLThumbnailService.get_preview_image_url', side_effect=Exception("Image extraction failed"))

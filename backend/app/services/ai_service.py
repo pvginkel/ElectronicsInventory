@@ -114,15 +114,21 @@ class AIService(BaseService):
 
             # Download documents if URLs provided
             documents : list[DocumentSuggestionSchema] = []
-            if ai_response.product_image:
-                documents.append(self._document_from_link(ai_response.product_image, temp_dir, "product_image"))
-            for link in ai_response.links:
-                documents.append(self._document_from_link(link, temp_dir, "link"))
-            for document in ai_response.pdf_documents:
-                documents.append(self._document_from_link(document, temp_dir, "pdf_document"))
+
+            for url, type in [
+                (ai_response.product_image_url, 'product_image'),
+                (ai_response.datasheet_url, 'datasheet'),
+                (ai_response.pinout_url, 'pinout'),
+                (ai_response.schematic_url, 'schematic'),
+                (ai_response.manual_url, 'manual'),
+            ]:
+                if url:
+                    document = self._document_from_link(url, type)
+                    if document:
+                        documents.append(document)
 
             # Determine if type is existing or new
-            suggested_type = ai_response.type
+            suggested_type = ai_response.component_type
             type_is_existing = False
             existing_type_id = None
 
@@ -138,16 +144,16 @@ class AIService(BaseService):
             result = AIPartAnalysisResultSchema(
                 manufacturer_code=ai_response.manufacturer_code,
                 type=suggested_type,
-                description=ai_response.description,
+                description=ai_response.product_name,
                 tags=ai_response.tags,
                 manufacturer=ai_response.manufacturer,
-                product_page=ai_response.product_page,
-                package=ai_response.package,
-                pin_count=ai_response.pin_count,
+                product_page=ai_response.product_page_url,
+                package=ai_response.component_packaging_type_acronym,
+                pin_count=ai_response.component_pin_count,
                 voltage_rating=ai_response.voltage_rating,
                 mounting_type=ai_response.mounting_type,
-                series=ai_response.series,
-                dimensions=ai_response.dimensions,
+                series=ai_response.product_series,
+                dimensions=ai_response.physical_dimensions,
                 documents=documents,
                 type_is_existing=type_is_existing,
                 existing_type_id=existing_type_id
@@ -166,13 +172,11 @@ class AIService(BaseService):
         # Build system instructions
         instructions = f"""You are an expert electronics component analyzer. Analyze the provided text and/or image to identify and find the requested information on the internet.
 
-Available part types in the system: {', '.join(type_names)}
+Available component types in the system: {', '.join(type_names)}
 
-Choose an existing type that fits best, or suggest a new type name following similar patterns.
+Choose an existing component type that fits best, or suggest a new component type name following similar patterns.
 
-Only return links to English-language resources.
-
-Only put links to downloadable PDF documents in the 'pdf_documents' field. Do not include links to webpages or images. Use other fields for those.
+Tags are used as filtering dimensions. Use short labels, lower case, hyphenated if necessary. Allowed categories are the role/function, feature presence and interfaces. Don't duplicate data you can assign to other fields. Disallowed are any numerical values like voltages, currents, frequencies, memory sizing, ratings, tolerances, etc.
 
 Focus on accuracy and technical precision. If uncertain about specific details, omit them rather than guessing. Use tags for important information you can't put into one of the other fields."""
 
@@ -206,36 +210,34 @@ Focus on accuracy and technical precision. If uncertain about specific details, 
 
         return instructions, input_content
 
-    def _document_from_link(self, data: 'Link | PdfLink', temp_dir: Path, link_type: str) -> DocumentSuggestionSchema:
+    def _document_from_link(self, url: str, document_type: str) -> DocumentSuggestionSchema | None:
         try:
-            logger.info(f"Getting preview metadata for URL {data.url}")
+            logger.info(f"Getting preview metadata for URL {url}")
 
             """Download a document from AI-provided URL."""
-            metadata = self.url_thumbnail_service.extract_metadata(data.url)
+            metadata = self.url_thumbnail_service.extract_metadata(url)
 
             # Generate backend image endpoint URL
             image_url = None
             if metadata.get('og_image') or metadata.get('favicon'):
-                encoded_url = quote(data.url, safe='')
+                encoded_url = quote(url, safe='')
                 image_url = f"/api/parts/attachment-preview/image?url={encoded_url}"
 
             preview = UrlPreviewResponseSchema(
                 title=metadata.get('title'),
                 image_url=image_url,
-                original_url=data.url,
+                original_url=url,
                 content_type=metadata.get('content_type', None)
             )
-        except Exception as e:
-            logger.warning(f"Failed to extract metadata for URL {data.url}: {e}")
-            preview = None
 
-        return DocumentSuggestionSchema(
-            url=data.url,
-            url_type=link_type,
-            document_type=data.link_type,
-            description=data.description,
-            preview=preview
-        )
+            return DocumentSuggestionSchema(
+                url=url,
+                document_type=document_type,
+                preview=preview
+            )
+        except Exception as e:
+            logger.warning(f"Failed to extract metadata for URL {url}: {e}")
+            return None
 
     def _sanitize_filename(self, filename: str) -> str:
         """Sanitize filename for safe storage."""
@@ -262,45 +264,24 @@ class MountingTypeEnum(str, Enum):
     PANEL_MOUNT = "Panel Mount"
     PCB_MOUNT = "PCB Mount"
 
-class LinkTypeEnum(str, Enum):
-    DATASHEET = "datasheet"
-    MANUAL = "manual"
-    SCHEMATIC = "schematic"
-    APPLICATION_NOTE = "application_note"
-    REFERENCE_DESIGN = "reference_design"
-
-
-class Link(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    url: str = Field(...)
-    link_type: LinkTypeEnum = Field(...)
-    description: str | None = Field(...)
-
-
-class PdfLink(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    url: str = Field(...)
-    link_type: LinkTypeEnum = Field(...)
-    description: str | None = Field(...)
-
 
 class PartAnalysisSuggestion(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    manufacturer_code: str | None = Field(...)
-    type: str | None = Field(...)
-    description: str | None = Field(...)
-    tags: list[str] = Field(...)
+    product_name: str | None = Field(...)
+    product_series: str | None = Field(...)
+    component_type: str | None = Field(...)
     manufacturer: str | None = Field(...)
-    product_page: str | None = Field(...)
-    package: str | None = Field(...)
-    pin_count: int | None = Field(...)
+    manufacturer_code: str | None = Field(...)
+    tags: list[str] = Field(...)
+    component_packaging_type_acronym: str | None = Field(...)
+    component_pin_count: int | None = Field(...)
     voltage_rating: str | None = Field(...)
     mounting_type: MountingTypeEnum | None = Field(...)
-    series: str | None = Field(...)
-    dimensions: str | None = Field(...)
-    product_image: Link | None = Field(...)
-    links: list[Link] = Field(...)
-    pdf_documents: list[PdfLink] = Field(...)
+    physical_dimensions: str | None = Field(...)
+    product_page_url: str | None = Field(...)
+    product_image_url: str | None = Field(..., description="URL to a marketing image of the product")
+    datasheet_url: str | None = Field(..., description="URL to a PDF document that has the English language data sheet")
+    pinout_url: str | None = Field(..., description="URL to a PDF or image document with the pinout of the component")
+    schematic_url: str | None = Field(..., description="URL to a PDF document that has the schematic of the component")
+    manual_url: str | None = Field(..., description="URL to the manual or usage page of the document")

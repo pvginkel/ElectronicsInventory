@@ -12,7 +12,7 @@ from app.models.type import Type
 from app.schemas.ai_part_analysis import (
     DocumentSuggestionSchema,
 )
-from app.services.ai_service import AIService, PartAnalysisSuggestion, PdfLink
+from app.services.ai_service import AIService, PartAnalysisSuggestion
 from app.services.type_service import TypeService
 from app.services.url_thumbnail_service import URLThumbnailService
 from app.utils.temp_file_manager import TempFileManager

@@ -235,7 +235,7 @@ def attachment_preview(url_thumbnail_service=Provide[ServiceContainer.url_thumbn
     if not url_thumbnail_service.validate_url(data.url):
         from app.schemas.common import ErrorDetailsSchema, ErrorResponseSchema
         error_response = ErrorResponseSchema(
-            error='Invalid or inaccessible URL',
+            error='Invalid URL',
             details=ErrorDetailsSchema(message='The provided URL is not valid or cannot be accessed', field=None)
         )
         return error_response.model_dump(), 422
@@ -279,7 +279,7 @@ def attachment_preview_image(url_thumbnail_service=Provide[ServiceContainer.url_
 
     # Validate URL
     if not url_thumbnail_service.validate_url(url):
-        return jsonify({'error': 'Invalid or inaccessible URL'}), 400
+        return jsonify({'error': 'Invalid URL'}), 400
 
     try:
         # Get appropriate image URL (direct image or extracted from webpage)

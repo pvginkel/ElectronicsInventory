@@ -49,8 +49,7 @@ class TestAIPartAnalysisTask:
             tags=["relay", "12V"],
             type_is_existing=True,
             existing_type_id=1,
-            documents=[],
-            suggested_image_url=None
+            documents=[]
         )
         mock_ai_service.analyze_part.return_value = mock_analysis_result
 
@@ -99,8 +98,7 @@ class TestAIPartAnalysisTask:
                 "url_type": "link",
                 "document_type": "datasheet",
                 "description": "Complete datasheet"
-            }],
-            suggested_image_url="/tmp/path/image.jpg"
+            }]
         )
         mock_ai_service.analyze_part.return_value = mock_analysis_result
 
