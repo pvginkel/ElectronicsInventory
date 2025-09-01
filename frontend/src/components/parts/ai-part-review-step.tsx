@@ -108,15 +108,6 @@ export function AIPartReviewStep({
       newErrors.type = 'Type is required';
     }
 
-    // Seller and seller link must be provided by user
-    if (!formData.seller.trim()) {
-      newErrors.seller = 'Seller must be provided';
-    }
-
-    if (!formData.sellerLink.trim()) {
-      newErrors.sellerLink = 'Seller link must be provided';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [formData]);
@@ -174,9 +165,6 @@ export function AIPartReviewStep({
                 placeholder="Enter part description"
                 error={errors.description}
               />
-              {errors.description && (
-                <p className="text-sm text-destructive mt-1">{errors.description}</p>
-              )}
             </div>
 
             <div>
@@ -214,9 +202,6 @@ export function AIPartReviewStep({
                   placeholder="Enter part type"
                   error={errors.type}
                 />
-              )}
-              {errors.type && (
-                <p className="text-sm text-destructive mt-1">{errors.type}</p>
               )}
             </div>
 
@@ -322,9 +307,6 @@ export function AIPartReviewStep({
                 placeholder="e.g., Mouser, DigiKey, Amazon"
                 error={errors.seller}
               />
-              {errors.seller && (
-                <p className="text-sm text-destructive mt-1">{errors.seller}</p>
-              )}
             </div>
 
             <div>
@@ -337,9 +319,6 @@ export function AIPartReviewStep({
                 placeholder="https://seller.com/product-page"
                 error={errors.sellerLink}
               />
-              {errors.sellerLink && (
-                <p className="text-sm text-destructive mt-1">{errors.sellerLink}</p>
-              )}
             </div>
           </div>
         </Card>
