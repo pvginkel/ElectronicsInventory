@@ -7,6 +7,7 @@ They are marked as integration tests and can be run separately from unit tests.
 import os
 
 import pytest
+import logging
 from flask import Flask
 from sqlalchemy.orm import Session
 
@@ -18,6 +19,8 @@ from app.services.download_cache_service import DownloadCacheService
 from app.services.type_service import TypeService
 from app.services.url_thumbnail_service import URLThumbnailService
 from app.utils.temp_file_manager import TempFileManager
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -32,7 +35,7 @@ def real_ai_settings() -> Settings:
         OPENAI_API_KEY=api_key,
         OPENAI_MODEL="gpt-5-mini",
         OPENAI_REASONING_EFFORT="medium",
-        OPENAI_VERBOSITY="low",
+        OPENAI_VERBOSITY="medium",
         OPENAI_MAX_OUTPUT_TOKENS=None,
         OPENAI_DUMMY_RESPONSE_PATH=''
     )
@@ -97,6 +100,17 @@ def real_ai_service(session: Session, real_ai_settings: Settings,
         download_cache_service=real_download_cache_service
     )
 
+class TestProgressHandle:
+    def send_progress_text(self, text: str) -> None:
+        logger.info(f"Progress: {text}")
+
+    def send_progress_value(self, value: float) -> None:
+        logger.info(f"Progress: {value * 100}%")
+
+    def send_progress(self, text: str, value: float) -> None:
+        logger.info(f"Progress: {text} {value * 100}%")
+
+
 
 @pytest.mark.integration
 class TestAIServiceRealIntegration:
@@ -121,7 +135,12 @@ class TestAIServiceRealIntegration:
         - Determine if the suggested type matches existing types
         """
         # Perform real AI analysis
-        result = real_ai_service.analyze_part(text_input=text_input)
+        result = real_ai_service.analyze_part(
+            text_input=text_input,
+            image_data=None,
+            image_mime_type=None,
+            progress_handle=TestProgressHandle()
+        )
 
         # Validate the analysis results
         assert result is not None, "AI analysis should return a result"
@@ -227,7 +246,8 @@ class TestAIServiceRealIntegration:
         result = real_ai_service.analyze_part(
             text_input="DFRobot Gravity SGP40",
             image_data=image_data,
-            image_mime_type="image/jpeg"
+            image_mime_type="image/jpeg",
+            progress_handle=TestProgressHandle()
         )
 
         assert result is not None, "AI should handle multimodal input"

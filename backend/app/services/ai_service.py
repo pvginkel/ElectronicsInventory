@@ -6,10 +6,12 @@ import logging
 import time
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from urllib.parse import quote
 
 from openai import OpenAI
+from openai.types.responses import ResponseOutputItemDoneEvent, ResponseFunctionWebSearch, ResponseCompletedEvent, ParsedResponseOutputMessage, ParsedResponseOutputText, ResponseOutputMessage,  ResponseOutputText, ResponseContentPartAddedEvent
+from openai.types.responses.response_function_web_search import ActionSearch
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.config import Settings
@@ -19,6 +21,7 @@ from app.schemas.ai_part_analysis import (
 )
 from app.schemas.url_preview import UrlPreviewResponseSchema
 from app.services.base import BaseService
+from app.services.base_task import ProgressHandle
 from app.services.download_cache_service import DownloadCacheService
 from app.services.url_thumbnail_service import URLThumbnailService
 from app.utils.temp_file_manager import TempFileManager
@@ -46,8 +49,8 @@ class AIService(BaseService):
 
         self.client = OpenAI(api_key=config.OPENAI_API_KEY)
 
-    def analyze_part(self, text_input: str | None = None, image_data: bytes | None = None,
-                     image_mime_type: str | None = None) -> AIPartAnalysisResultSchema:
+    def analyze_part(self, text_input: str | None, image_data: bytes | None,
+                     image_mime_type: str | None, progress_handle: ProgressHandle) -> AIPartAnalysisResultSchema:
         """
         Analyze part information from text and/or image using OpenAI.
 
@@ -84,9 +87,13 @@ class AIService(BaseService):
                 logger.info("Starting OpenAI call")
 
                 start = time.perf_counter()
+                status = None
+                ai_response = None
+                output_text = None
+                incomplete_details = None
 
                 # Call OpenAI Responses API with structured output
-                response = self.client.responses.parse(
+                with self.client.responses.stream(
                     model=self.config.OPENAI_MODEL,
                     instructions=instructions,
                     input=input_content,
@@ -97,17 +104,43 @@ class AIService(BaseService):
                     tools=[
                         { "type": "web_search" },
                     ],
+                    # tool_choice="required",
                     reasoning = {
                         "effort": self.config.OPENAI_REASONING_EFFORT # type: ignore
                     },
-                )
+                ) as stream:
+                    logger.info("Streaming events")
 
-                logger.info(f"OpenAI response status: {response.status}, duration {time.perf_counter() - start}, incomplete details: {response.incomplete_details}")
-                logger.info(f"Output text: {response.output_text}")
+                    for event in stream:
+                        if isinstance(event, ResponseOutputItemDoneEvent):
+                            if isinstance(event.item, ResponseFunctionWebSearch):
+                                if isinstance(event.item.action, ActionSearch):
+                                    if event.item.action.query:
+                                        progress_handle.send_progress(f"Searched for {event.item.action.query}", 0.2)
+                            if isinstance(event.item, ResponseOutputMessage):
+                                for content in event.item.content:
+                                    if isinstance(content, ResponseOutputText):
+                                        output_text = content.text
+                        if isinstance(event, ResponseContentPartAddedEvent):
+                            progress_handle.send_progress("Writing response...", 0.5)
+                        if isinstance(event, ResponseCompletedEvent):
+                            incomplete_details = event.response.incomplete_details
 
-                ai_response = response.output_parsed
+                            for output in event.response.output:
+                                if isinstance(output, ParsedResponseOutputMessage):
+                                    status = output.status
+                                    for content in output.content:
+                                        if isinstance(content, ParsedResponseOutputText):
+                                            ai_response = cast(PartAnalysisSuggestion, content.parsed)
+
+                        # logger.info(event)
+                        # logger.info(event.model_dump_json())
+
+                logger.info(f"OpenAI response status: {status}, duration {time.perf_counter() - start}, incomplete details: {incomplete_details}")
+                logger.info(f"Output text: {output_text}")
+
                 if not ai_response:
-                    raise Exception(f"Empty response from OpenAI status {response.status}, incomplete details: {response.incomplete_details}")
+                    raise Exception(f"Empty response from OpenAI status {status}, incomplete details: {incomplete_details}")
 
             # Create temporary directory for document downloads
             temp_dir = self.temp_file_manager.create_temp_directory()
