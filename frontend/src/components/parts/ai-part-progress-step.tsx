@@ -79,9 +79,9 @@ export function AIPartProgressStep({
           {/* Progress Bar */}
           {progress?.percentage !== undefined && (
             <div className="space-y-2">
-              <ProgressBar value={progress.percentage} className="w-full" />
+              <ProgressBar value={progress.percentage * 100} className="w-full" />
               <p className="text-center text-sm text-muted-foreground">
-                {progress.percentage}% complete
+                {Math.round(progress.percentage * 100)}% complete
               </p>
             </div>
           )}
