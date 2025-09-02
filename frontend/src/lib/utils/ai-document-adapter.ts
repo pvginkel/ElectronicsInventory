@@ -85,17 +85,20 @@ export function transformAIDocumentToGridFormat(
     return url;
   };
   
+  const previewImageUrl = getFullUrl(doc.preview?.image_url);
+  const originalUrl = getFullUrl(doc.preview?.original_url) || doc.url;
+  
   return {
     id: `ai-doc-${index}`,
     name: doc.preview?.title || filename,
-    type: doc.url_type === 'link' ? 'url' : 'file',
+    type: 'file', // AI documents are downloaded files, not external URLs
     url: doc.url,
     filename: filename,
     fileSize: null, // Not available in AI response
     mimeType: doc.preview?.content_type || getMimeTypeFromDocType(doc.document_type),
     createdAt: new Date().toISOString(),
-    previewImageUrl: getFullUrl(doc.preview?.image_url),
-    originalUrl: getFullUrl(doc.preview?.original_url) || doc.url,
+    previewImageUrl,
+    originalUrl,
     contentType: doc.preview?.content_type || null,
     isCoverImage: doc.is_cover_image || false,
   };

@@ -4,7 +4,8 @@
       "Bash(pnpm generate:api:*)",
       "Read(/home/pvginkel/source/ElectronicsInventory/backend/docs/**)",
       "Bash(pnpm type-check:*)",
-      "Bash(pnpm lint:*)"
+      "Bash(pnpm lint:*)",
+      "Read(/home/pvginkel/source/ElectronicsInventory/backend/app/schemas/**)"
     ],
     "deny": [],
     "ask": []

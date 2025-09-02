@@ -253,20 +253,6 @@
       "AIPartAnalysisTaskResultSchema.63ff6da.DocumentSuggestionSchema": {
         "description": "Schema for AI-suggested document.",
         "properties": {
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-provided description of the document content",
-            "example": "Complete technical specifications and pinout diagram",
-            "title": "Description"
-          },
           "document_type": {
             "description": "Type of document (datasheet, manual, schematic, etc.)",
             "example": "datasheet",
@@ -296,17 +282,10 @@
             "example": "https://www.example.com/datasheet.pdf",
             "title": "Url",
             "type": "string"
-          },
-          "url_type": {
-            "description": "Type of the URL",
-            "example": "link",
-            "title": "Url Type",
-            "type": "string"
           }
         },
         "required": [
           "url",
-          "url_type",
           "document_type"
         ],
         "title": "DocumentSuggestionSchema",
@@ -588,20 +567,6 @@
       "AIPartCreateSchema.63ff6da.DocumentSuggestionSchema": {
         "description": "Schema for AI-suggested document.",
         "properties": {
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-provided description of the document content",
-            "example": "Complete technical specifications and pinout diagram",
-            "title": "Description"
-          },
           "document_type": {
             "description": "Type of document (datasheet, manual, schematic, etc.)",
             "example": "datasheet",
@@ -631,17 +596,10 @@
             "example": "https://www.example.com/datasheet.pdf",
             "title": "Url",
             "type": "string"
-          },
-          "url_type": {
-            "description": "Type of the URL",
-            "example": "link",
-            "title": "Url Type",
-            "type": "string"
           }
         },
         "required": [
           "url",
-          "url_type",
           "document_type"
         ],
         "title": "DocumentSuggestionSchema",
@@ -2719,6 +2677,285 @@
         "title": "PartUpdateSchema",
         "type": "object"
       },
+      "PartWithTotalAndLocationsSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/PartWithTotalAndLocationsSchemaList.a9993e3.PartWithTotalAndLocationsSchema"
+        },
+        "title": "PartWithTotalAndLocationsSchemaList",
+        "type": "array"
+      },
+      "PartWithTotalAndLocationsSchemaList.a9993e3.PartLocationListSchema": {
+        "description": "Schema for simplified location data in part responses.",
+        "properties": {
+          "box_no": {
+            "description": "Box number",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "loc_no": {
+            "description": "Location number within box",
+            "example": 3,
+            "title": "Loc No",
+            "type": "integer"
+          },
+          "qty": {
+            "description": "Quantity at this location",
+            "example": 25,
+            "title": "Qty",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "box_no",
+          "loc_no",
+          "qty"
+        ],
+        "title": "PartLocationListSchema",
+        "type": "object"
+      },
+      "PartWithTotalAndLocationsSchemaList.a9993e3.PartWithTotalAndLocationsSchema": {
+        "description": "Schema for part with calculated total quantity and location details.",
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when the part was created",
+            "example": "2024-01-15T10:30:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "description": "Free text description",
+            "example": "12V SPDT relay with 40A contacts",
+            "title": "Description",
+            "type": "string"
+          },
+          "dimensions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Physical dimensions",
+            "example": "20x15x5mm",
+            "title": "Dimensions"
+          },
+          "key": {
+            "description": "4-character unique part identifier",
+            "example": "BZQP",
+            "title": "Key",
+            "type": "string"
+          },
+          "locations": {
+            "description": "Location details with quantities",
+            "example": [
+              {
+                "box_no": 7,
+                "loc_no": 3,
+                "qty": 25
+              },
+              {
+                "box_no": 8,
+                "loc_no": 12,
+                "qty": 50
+              }
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PartWithTotalAndLocationsSchemaList.a9993e3.PartLocationListSchema"
+            },
+            "title": "Locations",
+            "type": "array"
+          },
+          "manufacturer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Manufacturer company name",
+            "example": "Texas Instruments",
+            "title": "Manufacturer"
+          },
+          "manufacturer_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Manufacturer's part number",
+            "example": "OMRON G5Q-1A4",
+            "title": "Manufacturer Code"
+          },
+          "mounting_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Physical mounting type",
+            "example": "Through-hole",
+            "title": "Mounting Type"
+          },
+          "package": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Physical package type",
+            "example": "DIP-8",
+            "title": "Package"
+          },
+          "pin_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Number of pins/connections",
+            "example": 8,
+            "title": "Pin Count"
+          },
+          "seller": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vendor/supplier name",
+            "example": "Digi-Key",
+            "title": "Seller"
+          },
+          "seller_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Product page URL at seller",
+            "example": "https://www.digikey.com/product-detail/...",
+            "title": "Seller Link"
+          },
+          "series": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Component series identification",
+            "example": "74HC",
+            "title": "Series"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tags for categorization",
+            "example": [
+              "12V",
+              "SPDT",
+              "automotive"
+            ],
+            "title": "Tags"
+          },
+          "total_quantity": {
+            "description": "Total quantity across all locations",
+            "example": 150,
+            "title": "Total Quantity",
+            "type": "integer"
+          },
+          "type_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Part type/category ID",
+            "example": 1,
+            "title": "Type Id"
+          },
+          "updated_at": {
+            "description": "Timestamp when the part was last modified",
+            "example": "2024-01-15T14:45:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "voltage_rating": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Operating or rated voltage",
+            "example": "3.3V",
+            "title": "Voltage Rating"
+          }
+        },
+        "required": [
+          "key",
+          "manufacturer_code",
+          "description",
+          "type_id",
+          "tags",
+          "seller",
+          "created_at",
+          "updated_at",
+          "total_quantity",
+          "locations"
+        ],
+        "title": "PartWithTotalAndLocationsSchema",
+        "type": "object"
+      },
       "PartWithTotalSchemaList.a9993e3": {
         "items": {
           "$ref": "#/components/schemas/PartWithTotalSchemaList.a9993e3.PartWithTotalSchema"
@@ -2843,6 +3080,20 @@
             "description": "Vendor/supplier name",
             "example": "Digi-Key",
             "title": "Seller"
+          },
+          "seller_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Product page URL at seller",
+            "example": "https://www.digikey.com/product-detail/...",
+            "title": "Seller Link"
           },
           "series": {
             "anyOf": [
@@ -4186,6 +4437,47 @@
         "parameters": [],
         "responses": {},
         "summary": "Get preview image for URL.",
+        "tags": []
+      }
+    },
+    "/api/parts/attachment-proxy/content": {
+      "get": {
+        "description": "",
+        "operationId": "get__api_parts_attachment-proxy_content",
+        "parameters": [],
+        "responses": {},
+        "summary": "Proxy external URL content to avoid CORS issues when displaying PDFs and images in iframes.",
+        "tags": []
+      }
+    },
+    "/api/parts/with-locations": {
+      "get": {
+        "description": "",
+        "operationId": "get__api_parts_with-locations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartWithTotalAndLocationsSchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "List parts with pagination, total quantities, and location details.",
         "tags": []
       }
     },

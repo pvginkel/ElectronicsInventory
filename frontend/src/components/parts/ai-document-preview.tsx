@@ -56,12 +56,10 @@ export function AIDocumentPreview({ document, onDelete, className }: AIDocumentP
               )}
             </div>
 
-            {/* Description */}
-            {document.description && (
-              <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                {document.description}
-              </p>
-            )}
+            {/* Document Type */}
+            <p className="text-sm text-muted-foreground mb-2">
+              {document.document_type}
+            </p>
 
             {/* Document Type Badge and External Link */}
             <div className="flex items-center gap-2">
