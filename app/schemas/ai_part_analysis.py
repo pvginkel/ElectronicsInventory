@@ -218,7 +218,7 @@ class AIPartCreateSchema(BaseModel):
     )
     voltage_rating: str | None = Field(
         default=None,
-        max_length=50,
+        max_length=100,
         description="Operating voltage",
         json_schema_extra={"example": "5V/3.3V"}
     )
