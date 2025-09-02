@@ -360,6 +360,11 @@ class PartWithTotalSchema(BaseModel):
         description="Vendor/supplier name",
         json_schema_extra={"example": "Digi-Key"}
     )
+    seller_link: str | None = Field(
+        default=None,
+        description="Product page URL at seller",
+        json_schema_extra={"example": "https://www.digikey.com/product-detail/..."}
+    )
 
     # Extended technical fields
     package: str | None = Field(
@@ -407,6 +412,37 @@ class PartWithTotalSchema(BaseModel):
     )
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PartLocationListSchema(BaseModel):
+    """Schema for simplified location data in part responses."""
+
+    box_no: int = Field(
+        description="Box number",
+        json_schema_extra={"example": 7}
+    )
+    loc_no: int = Field(
+        description="Location number within box",
+        json_schema_extra={"example": 3}
+    )
+    qty: int = Field(
+        description="Quantity at this location",
+        json_schema_extra={"example": 25}
+    )
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PartWithTotalAndLocationsSchema(PartWithTotalSchema):
+    """Schema for part with calculated total quantity and location details."""
+
+    locations: list[PartLocationListSchema] = Field(
+        description="Location details with quantities",
+        json_schema_extra={"example": [
+            {"box_no": 7, "loc_no": 3, "qty": 25},
+            {"box_no": 8, "loc_no": 12, "qty": 50}
+        ]}
+    )
 
 
 class PartLocationResponseSchema(BaseModel):

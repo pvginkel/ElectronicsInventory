@@ -314,6 +314,43 @@ class InventoryService(BaseService):
 
         return parts_with_totals
 
+    def get_all_parts_with_totals_and_locations(self, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list['PartWithTotalModel']:
+        """Get all parts with their total quantities and eager-loaded location data."""
+        from sqlalchemy import func
+        from sqlalchemy.orm import selectinload
+
+        from app.models.part import Part
+        from app.schemas.part import PartWithTotalModel
+
+        # Base query for parts with total quantity calculation and eager-loaded locations
+        stmt = select(
+            Part,
+            func.coalesce(func.sum(PartLocation.qty), 0).label('total_quantity')
+        ).outerjoin(
+            PartLocation, Part.id == PartLocation.part_id
+        ).group_by(Part.id).options(
+            selectinload(Part.part_locations)
+        )
+
+        # Apply type filter if specified
+        if type_id is not None:
+            stmt = stmt.where(Part.type_id == type_id)
+
+        stmt = stmt.order_by(Part.created_at.desc()).limit(limit).offset(offset)
+
+        results = self.db.execute(stmt).all()
+
+        # Convert to list of PartWithTotalModel instances
+        parts_with_totals = []
+        for part, total_qty in results:
+            part_with_total = PartWithTotalModel(
+                part=part,
+                total_quantity=int(total_qty)
+            )
+            parts_with_totals.append(part_with_total)
+
+        return parts_with_totals
+
     def _get_location(self, box_no: int, loc_no: int) -> Location | None:
         """Get location by box_no and loc_no."""
         stmt = select(Location).where(
