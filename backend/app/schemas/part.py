@@ -81,7 +81,7 @@ class PartCreateSchema(BaseModel):
     )
     voltage_rating: str | None = Field(
         None,
-        max_length=50,
+        max_length=100,
         description="Operating or rated voltage for the component",
         json_schema_extra={"example": "3.3V"}
     )
@@ -170,7 +170,7 @@ class PartUpdateSchema(BaseModel):
     )
     voltage_rating: str | None = Field(
         None,
-        max_length=50,
+        max_length=100,
         description="Updated operating or rated voltage",
         json_schema_extra={"example": "5V"}
     )

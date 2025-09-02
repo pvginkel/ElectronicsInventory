@@ -15,7 +15,9 @@
       "Bash(ruff check:*)",
       "Bash(mypy:*)",
       "Bash(unset:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Read(/home/pvginkel/source/ElectronicsInventory/frontend/src/hooks/**)",
+      "Read(/home/pvginkel/source/ElectronicsInventory/frontend/src/components/documents/**)"
     ],
     "deny": [
       "Bash(ruff format:*)",
