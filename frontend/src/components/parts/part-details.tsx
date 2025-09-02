@@ -6,10 +6,9 @@ import { ConfirmDialog } from '@/components/ui/dialog';
 import { PartLocationGrid } from './part-location-grid';
 import { PartForm } from './part-form';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
-import { DocumentGrid } from '@/components/documents/document-grid';
+import { PartDocumentGrid } from './part-document-grid';
 import { AddDocumentModal } from '@/components/documents/add-document-modal';
 import { useGetPartsByPartKey, useDeletePartsByPartKey } from '@/lib/api/generated/hooks';
-import { usePartDocuments } from '@/hooks/use-part-documents';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { useConfirm } from '@/hooks/use-confirm';
 
@@ -28,7 +27,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
     { enabled: !!partId }
   );
   
-  const { documents, refetch: refetchDocuments } = usePartDocuments(partId);
+  const [documentKey, setDocumentKey] = useState(0); // Force refresh by changing key
   const deletePartMutation = useDeletePartsByPartKey();
 
   const handleDeletePart = async () => {
@@ -311,10 +310,10 @@ export function PartDetails({ partId }: PartDetailsProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <DocumentGrid
+          <PartDocumentGrid
+            key={documentKey}
             partId={partId}
-            documents={documents}
-            onDocumentChange={refetchDocuments}
+            onDocumentChange={() => setDocumentKey(prev => prev + 1)}
           />
         </CardContent>
       </Card>
@@ -325,7 +324,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
         partId={partId}
         open={showAddDocument}
         onOpenChange={setShowAddDocument}
-        onDocumentAdded={refetchDocuments}
+        onDocumentAdded={() => setDocumentKey(prev => prev + 1)}
       />
     </div>
   );

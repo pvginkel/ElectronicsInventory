@@ -1,16 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
+import type { DocumentItem } from '@/types/documents';
 
-interface Document {
-  id: string;
-  name: string;
-  type: 'file' | 'url';
-  url?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  createdAt: string;
-}
-
-export function useDocumentViewer(documents: Document[]) {
+export function useDocumentViewer(documents: DocumentItem[]) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   

@@ -1,43 +1,17 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { IconButton } from '@/components/ui/hover-actions';
-import { getDownloadUrl, getViewUrl } from '@/lib/utils/thumbnail-urls';
 import { ZoomInIcon } from '@/components/icons/ZoomInIcon';
 import { ZoomOutIcon } from '@/components/icons/ZoomOutIcon';
 import { ZoomResetIcon } from '@/components/icons/ZoomResetIcon';
+import type { MediaViewerProps } from '@/types/documents';
 
-interface MediaViewerProps {
-  partId: string;
-  document: {
-    id: string;
-    name: string;
-    type: 'file' | 'url';
-    mimeType?: string | null;
-    filename?: string | null;
-    originalUrl?: string | null; // For AI documents
-    contentType?: string | null; // For AI documents
-  } | null;
-  open: boolean;
-  onClose: () => void;
-  onNext?: () => void;
-  onPrevious?: () => void;
-  canGoNext?: boolean;
-  canGoPrevious?: boolean;
-  currentIndex?: number;
-  totalCount?: number;
-}
-
-export function MediaViewer({ 
-  partId,
-  document, 
-  open, 
+export function MediaViewerBase({ 
+  documents,
+  currentDocumentId,
+  isOpen,
   onClose,
-  onNext,
-  onPrevious,
-  canGoNext = false,
-  canGoPrevious = false,
-  currentIndex,
-  totalCount
+  onNavigate
 }: MediaViewerProps) {
   const [zoom, setZoom] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -49,13 +23,16 @@ export function MediaViewer({
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const currentDocument = documents.find(doc => doc.id === currentDocumentId) || null;
+  const currentIndex = currentDocument ? documents.findIndex(doc => doc.id === currentDocumentId) : -1;
+
   // Reset viewer state when document changes
   useEffect(() => {
     setZoom(1);
     setPosition({ x: 0, y: 0 });
     setIsLoading(true);
     setImageError(false);
-  }, [document?.id]);
+  }, [currentDocumentId]);
 
   const handleImageLoad = useCallback(() => {
     setIsLoading(false);
@@ -110,52 +87,83 @@ export function MediaViewer({
   }, []);
 
   const handleDownload = useCallback(() => {
-    if (document) {
-      if (document.originalUrl) {
-        // For AI documents, use the original URL
-        const a = globalThis.document.createElement('a');
-        a.href = document.originalUrl;
-        a.download = document.filename || document.name;
-        a.click();
-      } else if (document.type === 'file') {
-        // For regular documents, use the download URL
-        const downloadUrl = getDownloadUrl(partId, document.id);
-        const a = globalThis.document.createElement('a');
-        a.href = downloadUrl;
-        a.download = document.filename || document.name;
-        a.click();
-      }
+    if (currentDocument) {
+      const a = globalThis.document.createElement('a');
+      a.href = currentDocument.assetUrl;
+      a.download = currentDocument.title;
+      a.click();
     }
-  }, [partId, document]);
+  }, [currentDocument]);
 
-  if (!document || !open) return null;
+  const goToNext = useCallback(() => {
+    if (documents.length > 1 && currentIndex < documents.length - 1) {
+      const nextDocument = documents[currentIndex + 1];
+      onNavigate?.(nextDocument.id);
+    } else if (documents.length > 1) {
+      // Wrap to first document
+      const firstDocument = documents[0];
+      onNavigate?.(firstDocument.id);
+    }
+  }, [documents, currentIndex, onNavigate]);
 
-  // Handle AI documents that have originalUrl and contentType
-  const effectiveMimeType = document.contentType || document.mimeType;
-  
-  const isImage = (document.type === 'file' && effectiveMimeType?.startsWith('image/')) ||
-                  document.originalUrl?.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i);
-  
-  const isPdf = (document.type === 'file' && effectiveMimeType === 'application/pdf') ||
-                document.originalUrl?.match(/\.pdf(\?|$)/i);
+  const goToPrevious = useCallback(() => {
+    if (documents.length > 1 && currentIndex > 0) {
+      const prevDocument = documents[currentIndex - 1];
+      onNavigate?.(prevDocument.id);
+    } else if (documents.length > 1) {
+      // Wrap to last document
+      const lastDocument = documents[documents.length - 1];
+      onNavigate?.(lastDocument.id);
+    }
+  }, [documents, currentIndex, onNavigate]);
 
-  if (!isImage && !isPdf) {
-    // For non-images and non-PDFs, just close the modal (they should open in browser)
+  // Handle keyboard navigation
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case 'Escape':
+          onClose();
+          break;
+        case 'ArrowLeft':
+          goToPrevious();
+          break;
+        case 'ArrowRight':
+          goToNext();
+          break;
+        default:
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose, goToPrevious, goToNext]);
+
+  if (!currentDocument || !isOpen) return null;
+
+  const isImage = currentDocument.type === 'image';
+  const isPdf = currentDocument.type === 'pdf';
+  const isWebsite = currentDocument.type === 'website';
+
+  // For websites, just close the modal - they should open in browser
+  if (isWebsite) {
     onClose();
     return null;
   }
 
-  // Use originalUrl for AI documents, otherwise use view URL
-  const fileUrl = document.originalUrl || getViewUrl(partId, document.id);
+  const canGoNext = documents.length > 1;
+  const canGoPrevious = documents.length > 1;
 
   return (
-    <Dialog open={open} onOpenChange={onClose} className="w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h-none m-[30px]">
+    <Dialog open={isOpen} onOpenChange={onClose} className="w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h-none m-[30px]">
       <DialogContent className="w-full h-full p-0 bg-black/95">
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 z-10 bg-black/80 backdrop-blur-sm p-4">
           <div className="flex items-center justify-between text-white">
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-medium truncate">{document.name}</h2>
+              <h2 className="text-lg font-medium truncate">{currentDocument.title}</h2>
             </div>
             
             <div className="flex items-center space-x-2">
@@ -184,9 +192,9 @@ export function MediaViewer({
                 </>
               )}
 
-              {totalCount && totalCount > 1 && (
+              {documents.length > 1 && (
                 <span className="text-sm text-white/70 whitespace-nowrap">
-                  {(currentIndex ?? 0) + 1} of {totalCount}
+                  {currentIndex + 1} of {documents.length}
                 </span>
               )}
 
@@ -251,8 +259,8 @@ export function MediaViewer({
               ) : (
                 <img
                   ref={imageRef}
-                  src={fileUrl}
-                  alt={document.name}
+                  src={currentDocument.assetUrl}
+                  alt={currentDocument.title}
                   className="max-w-full max-h-full object-contain select-none"
                   style={{
                     transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
@@ -267,9 +275,9 @@ export function MediaViewer({
             </>
           ) : isPdf ? (
             <iframe
-              src={fileUrl}
+              src={currentDocument.assetUrl}
               className="w-full h-full border-0"
-              title={document.name}
+              title={currentDocument.title}
             />
           ) : null}
         </div>
@@ -277,7 +285,7 @@ export function MediaViewer({
         {/* Navigation */}
         {canGoPrevious && (
           <button
-            onClick={onPrevious}
+            onClick={goToPrevious}
             className="absolute left-4 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white transition-colors"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -288,7 +296,7 @@ export function MediaViewer({
         
         {canGoNext && (
           <button
-            onClick={onNext}
+            onClick={goToNext}
             className="absolute right-4 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white transition-colors"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

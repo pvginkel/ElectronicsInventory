@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { SplitButton } from '@/components/ui/split-button';
 import { TypeSelector } from '@/components/types/type-selector';
 import { TagsInput } from './tags-input';
-import { AIDocumentGrid } from './ai-document-grid';
+import { AIDocumentGridWrapper } from './ai-document-grid-wrapper';
 import { transformAIPartAnalysisResult, transformToCreateSchema } from '@/lib/utils/ai-parts';
 import type { components } from '@/lib/api/generated/types';
 import { ExternalLinkIcon } from '@/components/icons/ExternalLinkIcon';
@@ -379,7 +379,7 @@ export function AIPartReviewStep({
           <h3 className="text-lg font-semibold mb-4">
             Documents ({formData.documents.length})
           </h3>
-          <AIDocumentGrid
+          <AIDocumentGridWrapper
             documents={formData.documents}
             onDocumentDelete={removeDocument}
             onCoverChange={setCoverDocument}
