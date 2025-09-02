@@ -151,7 +151,7 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
       onOpenChange={handleDialogClose} 
       className={isReviewStep ? "w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h m-[30px]" : undefined}
     >
-      <DialogContent>
+      <DialogContent className={isReviewStep ? "h-full flex flex-col" : ""}>
         {renderCurrentStep()}
       </DialogContent>
     </Dialog>

@@ -142,15 +142,15 @@ export function AIPartReviewStep({
   }, [updateField]);
 
   return (
-    <div className="flex flex-col">
-      <div className="text-center mb-6">
+    <div className="flex flex-col h-full">
+      <div className="flex-shrink-0 text-center mb-6">
         <h2 className="text-2xl font-semibold mb-2">Review & Edit Part Details</h2>
         <p className="text-muted-foreground">
           Review the AI suggestions and make any necessary edits
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-4">
+      <div className="flex-1 overflow-y-auto pb-4 min-h-0">
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {/* Part Information */}
         <Card className="p-6">
@@ -164,6 +164,8 @@ export function AIPartReviewStep({
                 onChange={(e) => updateField('description', e.target.value)}
                 placeholder="Enter part description"
                 error={errors.description}
+                clearable
+                onClear={() => updateField('description', '')}
               />
             </div>
 
@@ -174,6 +176,8 @@ export function AIPartReviewStep({
                 value={formData.manufacturer}
                 onChange={(e) => updateField('manufacturer', e.target.value)}
                 placeholder="Enter manufacturer name"
+                clearable
+                onClear={() => updateField('manufacturer', '')}
               />
             </div>
 
@@ -184,6 +188,8 @@ export function AIPartReviewStep({
                 value={formData.manufacturerCode}
                 onChange={(e) => updateField('manufacturerCode', e.target.value)}
                 placeholder="Enter manufacturer part number"
+                clearable
+                onClear={() => updateField('manufacturerCode', '')}
               />
             </div>
 
@@ -201,6 +207,8 @@ export function AIPartReviewStep({
                   onChange={(e) => updateField('type', e.target.value)}
                   placeholder="Enter part type"
                   error={errors.type}
+                  clearable
+                  onClear={() => updateField('type', '')}
                 />
               )}
             </div>
@@ -227,6 +235,8 @@ export function AIPartReviewStep({
                 value={formData.dimensions}
                 onChange={(e) => updateField('dimensions', e.target.value)}
                 placeholder="e.g., 10mm x 5mm x 3mm"
+                clearable
+                onClear={() => updateField('dimensions', '')}
               />
             </div>
 
@@ -237,6 +247,8 @@ export function AIPartReviewStep({
                 value={formData.voltageRating}
                 onChange={(e) => updateField('voltageRating', e.target.value)}
                 placeholder="e.g., 5V, 3.3V-12V"
+                clearable
+                onClear={() => updateField('voltageRating', '')}
               />
             </div>
 
@@ -247,6 +259,8 @@ export function AIPartReviewStep({
                 value={formData.mountingType}
                 onChange={(e) => updateField('mountingType', e.target.value)}
                 placeholder="e.g., SMD, THT, Panel Mount"
+                clearable
+                onClear={() => updateField('mountingType', '')}
               />
             </div>
 
@@ -257,6 +271,8 @@ export function AIPartReviewStep({
                 value={formData.package}
                 onChange={(e) => updateField('package', e.target.value)}
                 placeholder="e.g., SOIC-8, DIP-14, 0603"
+                clearable
+                onClear={() => updateField('package', '')}
               />
             </div>
 
@@ -268,6 +284,8 @@ export function AIPartReviewStep({
                 value={formData.pinCount}
                 onChange={(e) => updateField('pinCount', e.target.value)}
                 placeholder="Number of pins"
+                clearable
+                onClear={() => updateField('pinCount', '')}
               />
             </div>
 
@@ -278,6 +296,8 @@ export function AIPartReviewStep({
                 value={formData.series}
                 onChange={(e) => updateField('series', e.target.value)}
                 placeholder="Product series or family"
+                clearable
+                onClear={() => updateField('series', '')}
               />
             </div>
           </div>
@@ -295,6 +315,33 @@ export function AIPartReviewStep({
                 value={formData.productPageUrl}
                 onChange={(e) => updateField('productPageUrl', e.target.value)}
                 placeholder="https://manufacturer.com/product"
+                clearable
+                onClear={() => updateField('productPageUrl', '')}
+                action={
+                  formData.productPageUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => window.open(formData.productPageUrl, '_blank')}
+                      className="p-1 text-muted-foreground hover:text-foreground focus:outline-none"
+                      aria-label="Open URL in new tab"
+                    >
+                      <svg 
+                        width="14" 
+                        height="14" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        strokeWidth="2"
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      >
+                        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                        <polyline points="15,3 21,3 21,9" />
+                        <line x1="10" y1="14" x2="21" y2="3" />
+                      </svg>
+                    </button>
+                  ) : null
+                }
               />
             </div>
 
@@ -306,6 +353,8 @@ export function AIPartReviewStep({
                 onChange={(e) => updateField('seller', e.target.value)}
                 placeholder="e.g., Mouser, DigiKey, Amazon"
                 error={errors.seller}
+                clearable
+                onClear={() => updateField('seller', '')}
               />
             </div>
 
@@ -318,6 +367,33 @@ export function AIPartReviewStep({
                 onChange={(e) => updateField('sellerLink', e.target.value)}
                 placeholder="https://seller.com/product-page"
                 error={errors.sellerLink}
+                clearable
+                onClear={() => updateField('sellerLink', '')}
+                action={
+                  formData.sellerLink ? (
+                    <button
+                      type="button"
+                      onClick={() => window.open(formData.sellerLink, '_blank')}
+                      className="p-1 text-muted-foreground hover:text-foreground focus:outline-none"
+                      aria-label="Open URL in new tab"
+                    >
+                      <svg 
+                        width="14" 
+                        height="14" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        strokeWidth="2"
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      >
+                        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                        <polyline points="15,3 21,3 21,9" />
+                        <line x1="10" y1="14" x2="21" y2="3" />
+                      </svg>
+                    </button>
+                  ) : null
+                }
               />
             </div>
           </div>

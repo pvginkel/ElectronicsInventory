@@ -46,7 +46,7 @@ export function Dialog({ open, onOpenChange, children, className }: DialogProps)
       onMouseDown={handleMouseDown}
       onClick={handleClick}
     >
-      <div className="bg-card text-card-foreground border rounded-lg shadow-lg">
+      <div className="bg-card text-card-foreground border rounded-lg shadow-lg h-full">
         {children}
       </div>
     </dialog>
