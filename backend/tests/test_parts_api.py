@@ -497,3 +497,257 @@ class TestPartsAPI:
             assert response_data["series"] == "74HC"
             assert response_data["dimensions"] == "8.7x3.9mm"
 
+    def test_list_parts_includes_seller_link(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test that list parts endpoint includes seller_link field."""
+        with app.app_context():
+            # Create a part with seller_link
+            part_service = container.part_service()
+            part = part_service.create_part(
+                description="Part with seller link",
+                seller="Digi-Key",
+                seller_link="https://www.digikey.com/product/123"
+            )
+            session.commit()
+
+            response = client.get("/api/parts")
+
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+
+            # Find our test part in the response
+            test_part = None
+            for part_data in response_data:
+                if part_data["key"] == part.key:
+                    test_part = part_data
+                    break
+
+            assert test_part is not None
+            assert test_part["seller"] == "Digi-Key"
+            assert test_part["seller_link"] == "https://www.digikey.com/product/123"
+
+    def test_list_parts_with_locations_basic(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test listing parts with location details."""
+        with app.app_context():
+            # Create test data
+            box = container.box_service().create_box("Test Box", 10)
+            part = container.part_service().create_part(
+                description="Part with locations",
+                seller="Test Seller",
+                seller_link="https://example.com/product"
+            )
+            session.commit()
+
+            # Add stock in multiple locations
+            container.inventory_service().add_stock(part.key, box.box_no, 1, 25)
+            container.inventory_service().add_stock(part.key, box.box_no, 3, 50)
+            session.commit()
+
+            response = client.get("/api/parts/with-locations")
+
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+
+            assert len(response_data) == 1
+            part_data = response_data[0]
+
+            # Check basic part fields
+            assert part_data["key"] == part.key
+            assert part_data["description"] == "Part with locations"
+            assert part_data["seller"] == "Test Seller"
+            assert part_data["seller_link"] == "https://example.com/product"
+            assert part_data["total_quantity"] == 75
+
+            # Check locations array
+            assert "locations" in part_data
+            assert len(part_data["locations"]) == 2
+
+            # Sort locations by location number for predictable testing
+            locations = sorted(part_data["locations"], key=lambda x: x["loc_no"])
+
+            assert locations[0]["box_no"] == box.box_no
+            assert locations[0]["loc_no"] == 1
+            assert locations[0]["qty"] == 25
+
+            assert locations[1]["box_no"] == box.box_no
+            assert locations[1]["loc_no"] == 3
+            assert locations[1]["qty"] == 50
+
+    def test_list_parts_with_locations_empty_locations(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test listing parts with locations when part has no stock."""
+        with app.app_context():
+            # Create part without any stock
+            part = container.part_service().create_part("Part without stock")
+            session.commit()
+
+            response = client.get("/api/parts/with-locations")
+
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+
+            assert len(response_data) == 1
+            part_data = response_data[0]
+
+            assert part_data["key"] == part.key
+            assert part_data["total_quantity"] == 0
+            assert part_data["locations"] == []
+
+    def test_list_parts_with_locations_pagination(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test listing parts with locations using pagination parameters."""
+        with app.app_context():
+            box = container.box_service().create_box("Test Box", 10)
+
+            # Create multiple parts with locations
+            for i in range(5):
+                part = container.part_service().create_part(f"Part {i}")
+                container.inventory_service().add_stock(part.key, box.box_no, i+1, 10)
+            session.commit()
+
+            # Test with limit
+            response = client.get("/api/parts/with-locations?limit=3")
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+            assert len(response_data) == 3
+
+            # Test with offset
+            response = client.get("/api/parts/with-locations?limit=2&offset=2")
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+            assert len(response_data) == 2
+
+    def test_list_parts_with_locations_type_filter(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test listing parts with locations using type filter."""
+        with app.app_context():
+            # Create types and parts
+            resistor_type = container.type_service().create_type("Resistor")
+            capacitor_type = container.type_service().create_type("Capacitor")
+            box = container.box_service().create_box("Test Box", 10)
+            session.flush()
+
+            # Create parts with different types
+            resistor_part = container.part_service().create_part("1k resistor", type_id=resistor_type.id)
+            capacitor_part = container.part_service().create_part("100uF capacitor", type_id=capacitor_type.id)
+
+            container.inventory_service().add_stock(resistor_part.key, box.box_no, 1, 10)
+            container.inventory_service().add_stock(capacitor_part.key, box.box_no, 2, 20)
+            session.commit()
+
+            # Test filtering by resistor type
+            response = client.get(f"/api/parts/with-locations?type_id={resistor_type.id}")
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+            assert len(response_data) == 1
+            assert response_data[0]["type_id"] == resistor_type.id
+
+            # Test filtering by capacitor type
+            response = client.get(f"/api/parts/with-locations?type_id={capacitor_type.id}")
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+            assert len(response_data) == 1
+            assert response_data[0]["type_id"] == capacitor_type.id
+
+    def test_list_parts_with_locations_multiple_boxes(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test listing parts with locations across multiple boxes."""
+        with app.app_context():
+            # Create multiple boxes
+            box1 = container.box_service().create_box("Box 1", 10)
+            box2 = container.box_service().create_box("Box 2", 10)
+
+            part = container.part_service().create_part("Multi-box part")
+            session.commit()
+
+            # Add stock in different boxes
+            container.inventory_service().add_stock(part.key, box1.box_no, 1, 15)
+            container.inventory_service().add_stock(part.key, box2.box_no, 1, 35)
+            session.commit()
+
+            response = client.get("/api/parts/with-locations")
+
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+
+            assert len(response_data) == 1
+            part_data = response_data[0]
+
+            assert part_data["total_quantity"] == 50
+            assert len(part_data["locations"]) == 2
+
+            # Sort by box number for predictable testing
+            locations = sorted(part_data["locations"], key=lambda x: x["box_no"])
+
+            assert locations[0]["box_no"] == box1.box_no
+            assert locations[0]["qty"] == 15
+
+            assert locations[1]["box_no"] == box2.box_no
+            assert locations[1]["qty"] == 35
+
+    def test_list_parts_with_locations_includes_all_fields(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test that parts with locations includes all extended fields."""
+        with app.app_context():
+            type_obj = container.type_service().create_type("Resistor")
+            box = container.box_service().create_box("Test Box", 10)
+
+            part = container.part_service().create_part(
+                description="Full featured part",
+                manufacturer_code="TEST-123",
+                type_id=type_obj.id,
+                tags=["test", "resistor"],
+                manufacturer="Test Manufacturer",
+                seller="Test Seller",
+                seller_link="https://example.com/product",
+                package="0805",
+                pin_count=2,
+                voltage_rating="50V",
+                mounting_type="Surface Mount",
+                series="Standard",
+                dimensions="2.0x1.25mm"
+            )
+
+            container.inventory_service().add_stock(part.key, box.box_no, 1, 100)
+            session.commit()
+
+            response = client.get("/api/parts/with-locations")
+
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+
+            assert len(response_data) == 1
+            part_data = response_data[0]
+
+            # Check all fields are present
+            assert part_data["key"] == part.key
+            assert part_data["description"] == "Full featured part"
+            assert part_data["manufacturer_code"] == "TEST-123"
+            assert part_data["type_id"] == type_obj.id
+            assert part_data["tags"] == ["test", "resistor"]
+            assert part_data["manufacturer"] == "Test Manufacturer"
+            assert part_data["seller"] == "Test Seller"
+            assert part_data["seller_link"] == "https://example.com/product"
+            assert part_data["package"] == "0805"
+            assert part_data["pin_count"] == 2
+            assert part_data["voltage_rating"] == "50V"
+            assert part_data["mounting_type"] == "Surface Mount"
+            assert part_data["series"] == "Standard"
+            assert part_data["dimensions"] == "2.0x1.25mm"
+            assert part_data["total_quantity"] == 100
+            assert len(part_data["locations"]) == 1
+
+    def test_list_parts_with_locations_no_results(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test listing parts with locations when no parts exist."""
+        with app.app_context():
+            response = client.get("/api/parts/with-locations")
+
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+
+            assert response_data == []
+
+    def test_list_parts_with_locations_invalid_type_filter(self, app: Flask, client: FlaskClient):
+        """Test listing parts with locations using invalid type filter."""
+        with app.app_context():
+            response = client.get("/api/parts/with-locations?type_id=999")
+
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+
+            assert response_data == []
+
