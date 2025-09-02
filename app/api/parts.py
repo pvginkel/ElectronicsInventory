@@ -165,10 +165,18 @@ def get_part_locations(part_key: str, part_service=Provide[ServiceContainer.part
 @inject
 def get_part_history(part_key: str, part_service=Provide[ServiceContainer.part_service]):
     """Get quantity change history for a part."""
+    # Ensure part exists first
     part = part_service.get_part(part_key)
+    
+    # Query history directly instead of relying on relationship
+    from sqlalchemy import select
+    from app.models.quantity_history import QuantityHistory
+    
+    db_session = part_service.db
+    stmt = select(QuantityHistory).where(QuantityHistory.part_id == part.id).order_by(QuantityHistory.timestamp.desc())
+    history_records = list(db_session.execute(stmt).scalars().all())
 
-    # History is loaded with the part via relationship
     return [
         QuantityHistoryResponseSchema.model_validate(history).model_dump()
-        for history in part.quantity_history
+        for history in history_records
     ]

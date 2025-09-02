@@ -47,16 +47,22 @@ class TestDownloadCacheService:
         assert service.download_timeout == 30
 
     @patch('requests.get')
+    @patch('requests.head')
     @patch('magic.from_buffer')
-    def test_get_cached_content_cache_miss(self, mock_magic, mock_requests, download_service):
+    def test_get_cached_content_cache_miss(self, mock_magic, mock_head, mock_get, download_service):
         """Test get_cached_content when content is not cached."""
-        # Mock response
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.headers = {'content-length': '100'}
-        mock_response.iter_content.return_value = [b'test content']
-        mock_response.raise_for_status.return_value = None
-        mock_requests.return_value = mock_response
+        # Mock head response for URL validation
+        mock_head_response = Mock()
+        mock_head_response.status_code = 200
+        mock_head.return_value = mock_head_response
+
+        # Mock get response
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.headers = {'content-length': '100'}
+        mock_get_response.iter_content.return_value = [b'test content']
+        mock_get_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_get_response
 
         # Mock magic detection
         mock_magic.return_value = 'text/plain'
@@ -70,8 +76,8 @@ class TestDownloadCacheService:
         assert result.content_type == 'text/plain'
 
         # Verify request was made
-        mock_requests.assert_called_once()
-        call_args = mock_requests.call_args
+        mock_get.assert_called_once()
+        call_args = mock_get.call_args
         assert call_args[0][0] == url
         assert call_args[1]['stream'] is True
         assert call_args[1]['timeout'] == 10
@@ -105,49 +111,73 @@ class TestDownloadCacheService:
             download_service.get_cached_content("ftp://example.com/test.txt")
 
     @patch('requests.get')
-    def test_download_network_error(self, mock_requests, download_service):
+    @patch('requests.head')
+    def test_download_network_error(self, mock_head, mock_get, download_service):
         """Test download with network error."""
-        mock_requests.side_effect = requests.RequestException("Network error")
+        # Mock head response for URL validation
+        mock_head_response = Mock()
+        mock_head_response.status_code = 200
+        mock_head.return_value = mock_head_response
+        
+        mock_get.side_effect = requests.RequestException("Network error")
 
         with pytest.raises(requests.RequestException):
             download_service.get_cached_content("https://example.com/test.txt")
 
     @patch('requests.get')
-    def test_download_content_too_large_header(self, mock_requests, download_service):
+    @patch('requests.head')
+    def test_download_content_too_large_header(self, mock_head, mock_get, download_service):
         """Test download when content-length header indicates oversized content."""
-        mock_response = Mock()
-        mock_response.headers = {'content-length': str(2 * 1024 * 1024)}  # 2MB, over 1MB limit
-        mock_requests.return_value = mock_response
+        # Mock head response for URL validation
+        mock_head_response = Mock()
+        mock_head_response.status_code = 200
+        mock_head.return_value = mock_head_response
+        
+        mock_get_response = Mock()
+        mock_get_response.headers = {'content-length': str(2 * 1024 * 1024)}  # 2MB, over 1MB limit
+        mock_get.return_value = mock_get_response
 
         with pytest.raises(ValueError, match="Content too large"):
             download_service.get_cached_content("https://example.com/test.txt")
 
     @patch('requests.get')
-    def test_download_content_too_large_streaming(self, mock_requests, download_service):
+    @patch('requests.head')
+    def test_download_content_too_large_streaming(self, mock_head, mock_get, download_service):
         """Test download when actual content exceeds size limit during streaming."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.headers = {}  # No content-length header
-        mock_response.raise_for_status.return_value = None
+        # Mock head response for URL validation
+        mock_head_response = Mock()
+        mock_head_response.status_code = 200
+        mock_head.return_value = mock_head_response
+        
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.headers = {}  # No content-length header
+        mock_get_response.raise_for_status.return_value = None
         # Return chunks that exceed the 1MB limit
         large_chunk = b'x' * (1024 * 1024 + 1)  # 1MB + 1 byte
-        mock_response.iter_content.return_value = [large_chunk]
-        mock_requests.return_value = mock_response
+        mock_get_response.iter_content.return_value = [large_chunk]
+        mock_get.return_value = mock_get_response
 
         with pytest.raises(ValueError, match="Content too large"):
             download_service.get_cached_content("https://example.com/test.txt")
 
     @patch('requests.get')
+    @patch('requests.head')
     @patch('magic.from_buffer')
-    def test_download_success_with_chunked_content(self, mock_magic, mock_requests, download_service):
+    def test_download_success_with_chunked_content(self, mock_magic, mock_head, mock_get, download_service):
         """Test successful download with chunked content."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.headers = {}
-        mock_response.raise_for_status.return_value = None
+        # Mock head response for URL validation
+        mock_head_response = Mock()
+        mock_head_response.status_code = 200
+        mock_head.return_value = mock_head_response
+        
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.headers = {}
+        mock_get_response.raise_for_status.return_value = None
         # Return content in multiple chunks
-        mock_response.iter_content.return_value = [b'chunk1', b'chunk2', b'chunk3']
-        mock_requests.return_value = mock_response
+        mock_get_response.iter_content.return_value = [b'chunk1', b'chunk2', b'chunk3']
+        mock_get.return_value = mock_get_response
 
         mock_magic.return_value = 'application/octet-stream'
 
@@ -157,25 +187,37 @@ class TestDownloadCacheService:
         assert result.content_type == 'application/octet-stream'
 
     @patch('requests.get')
-    def test_download_http_error(self, mock_requests, download_service):
+    @patch('requests.head')
+    def test_download_http_error(self, mock_head, mock_get, download_service):
         """Test download with HTTP error response."""
-        mock_response = Mock()
-        mock_response.raise_for_status.side_effect = requests.HTTPError("404 Not Found")
-        mock_requests.return_value = mock_response
+        # Mock head response for URL validation
+        mock_head_response = Mock()
+        mock_head_response.status_code = 200
+        mock_head.return_value = mock_head_response
+        
+        mock_get_response = Mock()
+        mock_get_response.raise_for_status.side_effect = requests.HTTPError("404 Not Found")
+        mock_get.return_value = mock_get_response
 
         with pytest.raises(requests.HTTPError):
             download_service.get_cached_content("https://example.com/notfound.txt")
 
     @patch('requests.get')
+    @patch('requests.head')
     @patch('magic.from_buffer')
-    def test_caching_behavior(self, mock_magic, mock_requests, download_service, temp_file_manager):
+    def test_caching_behavior(self, mock_magic, mock_head, mock_get, download_service, temp_file_manager):
         """Test that content is properly cached after download."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.headers = {}
-        mock_response.raise_for_status.return_value = None
-        mock_response.iter_content.return_value = [b'test content for caching']
-        mock_requests.return_value = mock_response
+        # Mock head response for URL validation
+        mock_head_response = Mock()
+        mock_head_response.status_code = 200
+        mock_head.return_value = mock_head_response
+        
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.headers = {}
+        mock_get_response.raise_for_status.return_value = None
+        mock_get_response.iter_content.return_value = [b'test content for caching']
+        mock_get.return_value = mock_get_response
 
         mock_magic.return_value = 'text/plain'
 
@@ -192,18 +234,24 @@ class TestDownloadCacheService:
         assert cached.content_type == 'text/plain'
 
         # Second call - should use cache (reset mock to verify no new request)
-        mock_requests.reset_mock()
+        mock_get.reset_mock()
         result2 = download_service.get_cached_content(url)
         assert result2.content == b'test content for caching'
         assert result2.content_type == 'text/plain'
 
         # Verify no new request was made
-        mock_requests.assert_not_called()
+        mock_get.assert_not_called()
 
     @patch('requests.get')
-    def test_download_unexpected_error(self, mock_requests, download_service):
+    @patch('requests.head')
+    def test_download_unexpected_error(self, mock_head, mock_get, download_service):
         """Test download with unexpected error."""
-        mock_requests.side_effect = Exception("Unexpected error")
+        # Mock head response for URL validation
+        mock_head_response = Mock()
+        mock_head_response.status_code = 200
+        mock_head.return_value = mock_head_response
+        
+        mock_get.side_effect = Exception("Unexpected error")
 
         with pytest.raises(ValueError, match="Download failed"):
             download_service.get_cached_content("https://example.com/test.txt")
@@ -217,15 +265,21 @@ class TestDownloadCacheService:
         assert len(result) == 2
 
     @patch('requests.get')
+    @patch('requests.head')
     @patch('magic.from_buffer')
-    def test_content_type_detection(self, mock_magic, mock_requests, download_service):
+    def test_content_type_detection(self, mock_magic, mock_head, mock_get, download_service):
         """Test that content type is properly detected using python-magic."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.headers = {'content-type': 'text/html'}  # Server reports HTML
-        mock_response.raise_for_status.return_value = None
-        mock_response.iter_content.return_value = [b'{"key": "value"}']  # But content is JSON
-        mock_requests.return_value = mock_response
+        # Mock head response for URL validation
+        mock_head_response = Mock()
+        mock_head_response.status_code = 200
+        mock_head.return_value = mock_head_response
+        
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.headers = {'content-type': 'text/html'}  # Server reports HTML
+        mock_get_response.raise_for_status.return_value = None
+        mock_get_response.iter_content.return_value = [b'{"key": "value"}']  # But content is JSON
+        mock_get.return_value = mock_get_response
 
         # Magic should detect it as JSON
         mock_magic.return_value = 'application/json'
@@ -237,15 +291,21 @@ class TestDownloadCacheService:
         mock_magic.assert_called_once_with(b'{"key": "value"}', mime=True)
 
     @patch('requests.get')
+    @patch('requests.head')
     @patch('magic.from_buffer')
-    def test_cache_failure_doesnt_prevent_download(self, mock_magic, mock_requests, download_service):
+    def test_cache_failure_doesnt_prevent_download(self, mock_magic, mock_head, mock_get, download_service):
         """Test that cache storage failure doesn't prevent successful download."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.headers = {}
-        mock_response.raise_for_status.return_value = None
-        mock_response.iter_content.return_value = [b'test content']
-        mock_requests.return_value = mock_response
+        # Mock head response for URL validation
+        mock_head_response = Mock()
+        mock_head_response.status_code = 200
+        mock_head.return_value = mock_head_response
+        
+        mock_get_response = Mock()
+        mock_get_response.status_code = 200
+        mock_get_response.headers = {}
+        mock_get_response.raise_for_status.return_value = None
+        mock_get_response.iter_content.return_value = [b'test content']
+        mock_get.return_value = mock_get_response
 
         mock_magic.return_value = 'text/plain'
 

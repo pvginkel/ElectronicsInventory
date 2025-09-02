@@ -78,70 +78,14 @@ class AIService(BaseService):
             if self.config.OPENAI_DUMMY_RESPONSE_PATH:
                 with open(self.config.OPENAI_DUMMY_RESPONSE_PATH) as f:
                     ai_response = PartAnalysisSuggestion.model_validate(json.loads(f.read()))
-
             else:
                 # Build input and instructions for Responses API
                 prompt = self._build_prompt(type_names)
                 input_content = self._build_responses_api_input(
                     text_input, image_data, image_mime_type, prompt
                 )
-
-                logger.info("Starting OpenAI call")
-
-                start = time.perf_counter()
-                status = None
-                ai_response = None
-                output_text = None
-                incomplete_details = None
-
-                # Call OpenAI Responses API with structured output
-                with self.client.responses.stream(
-                    model=self.config.OPENAI_MODEL,
-                    input=input_content,
-                    text_format=PartAnalysisSuggestion,
-                    text={ "verbosity": self.config.OPENAI_VERBOSITY }, # type: ignore
-                    max_output_tokens=self.config.OPENAI_MAX_OUTPUT_TOKENS,
-                    store=self.config.OPENAI_STORE_REQUESTS,
-                    tools=[
-                        { "type": "web_search" },
-                    ],
-                    # tool_choice="required",
-                    reasoning = {
-                        "effort": self.config.OPENAI_REASONING_EFFORT # type: ignore
-                    },
-                ) as stream:
-                    logger.info("Streaming events")
-
-                    for event in stream:
-                        if isinstance(event, ResponseOutputItemDoneEvent):
-                            if isinstance(event.item, ResponseFunctionWebSearch):
-                                if isinstance(event.item.action, ActionSearch):
-                                    if event.item.action.query:
-                                        progress_handle.send_progress(f"Searched for {event.item.action.query}", 0.2)
-                            if isinstance(event.item, ResponseOutputMessage):
-                                for content in event.item.content:
-                                    if isinstance(content, ResponseOutputText):
-                                        output_text = content.text
-                        if isinstance(event, ResponseContentPartAddedEvent):
-                            progress_handle.send_progress("Writing response...", 0.5)
-                        if isinstance(event, ResponseCompletedEvent):
-                            incomplete_details = event.response.incomplete_details
-
-                            for output in event.response.output:
-                                if isinstance(output, ParsedResponseOutputMessage):
-                                    status = output.status
-                                    for content in output.content:
-                                        if isinstance(content, ParsedResponseOutputText):
-                                            ai_response = cast(PartAnalysisSuggestion, content.parsed)
-
-                        # logger.info(event)
-                        # logger.info(event.model_dump_json())
-
-                logger.info(f"OpenAI response status: {status}, duration {time.perf_counter() - start}, incomplete details: {incomplete_details}")
-                logger.info(f"Output text: {output_text}")
-
-                if not ai_response:
-                    raise Exception(f"Empty response from OpenAI status {status}, incomplete details: {incomplete_details}")
+                
+                ai_response = self._call_openai_api(input_content, prompt, progress_handle)
 
             # Create temporary directory for document downloads
             temp_dir = self.temp_file_manager.create_temp_directory()
@@ -216,6 +160,79 @@ class AIService(BaseService):
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse OpenAI response as JSON: {e}")
             raise Exception("Invalid response format from AI service") from e
+
+    def _call_openai_api(self, input_content: list, prompt: str, progress_handle: ProgressHandle) -> PartAnalysisSuggestion:
+        """Call OpenAI Responses API and handle streaming response.
+        
+        Args:
+            input_content: Formatted input for OpenAI API
+            prompt: Generated prompt string
+            progress_handle: Interface for sending progress updates
+            
+        Returns:
+            PartAnalysisSuggestion: Parsed response from OpenAI
+            
+        Raises:
+            Exception: If API call fails or response is invalid
+        """
+        logger.info("Starting OpenAI call")
+
+        start = time.perf_counter()
+        status = None
+        ai_response = None
+        output_text = None
+        incomplete_details = None
+
+        # Call OpenAI Responses API with structured output
+        with self.client.responses.stream(
+            model=self.config.OPENAI_MODEL,
+            input=input_content,
+            text_format=PartAnalysisSuggestion,
+            text={ "verbosity": self.config.OPENAI_VERBOSITY }, # type: ignore
+            max_output_tokens=self.config.OPENAI_MAX_OUTPUT_TOKENS,
+            store=self.config.OPENAI_STORE_REQUESTS,
+            tools=[
+                { "type": "web_search" },
+            ],
+            # tool_choice="required",
+            reasoning = {
+                "effort": self.config.OPENAI_REASONING_EFFORT # type: ignore
+            },
+        ) as stream:
+            logger.info("Streaming events")
+
+            for event in stream:
+                if isinstance(event, ResponseOutputItemDoneEvent):
+                    if isinstance(event.item, ResponseFunctionWebSearch):
+                        if isinstance(event.item.action, ActionSearch):
+                            if event.item.action.query:
+                                progress_handle.send_progress(f"Searched for {event.item.action.query}", 0.2)
+                    if isinstance(event.item, ResponseOutputMessage):
+                        for content in event.item.content:
+                            if isinstance(content, ResponseOutputText):
+                                output_text = content.text
+                if isinstance(event, ResponseContentPartAddedEvent):
+                    progress_handle.send_progress("Writing response...", 0.5)
+                if isinstance(event, ResponseCompletedEvent):
+                    incomplete_details = event.response.incomplete_details
+
+                    for output in event.response.output:
+                        if isinstance(output, ParsedResponseOutputMessage):
+                            status = output.status
+                            for content in output.content:
+                                if isinstance(content, ParsedResponseOutputText):
+                                    ai_response = cast(PartAnalysisSuggestion, content.parsed)
+
+                # logger.info(event)
+                # logger.info(event.model_dump_json())
+
+        logger.info(f"OpenAI response status: {status}, duration {time.perf_counter() - start}, incomplete details: {incomplete_details}")
+        logger.info(f"Output text: {output_text}")
+
+        if not ai_response:
+            raise Exception(f"Empty response from OpenAI status {status}, incomplete details: {incomplete_details}")
+
+        return ai_response
 
     def _build_prompt(self, categories: list[str]) -> str:
         context = {
