@@ -34,7 +34,7 @@ def real_ai_settings() -> Settings:
         DATABASE_URL="sqlite:///:memory:",
         OPENAI_API_KEY=api_key,
         OPENAI_MODEL="gpt-5-mini",
-        OPENAI_REASONING_EFFORT="medium",
+        OPENAI_REASONING_EFFORT="low",
         OPENAI_VERBOSITY="medium",
         OPENAI_MAX_OUTPUT_TOKENS=None,
         OPENAI_DUMMY_RESPONSE_PATH=''

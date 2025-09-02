@@ -25,7 +25,7 @@ def ai_test_settings() -> Settings:
         DATABASE_URL="sqlite:///:memory:",
         OPENAI_API_KEY="test-api-key",
         OPENAI_MODEL="gpt-5-mini",
-        OPENAI_REASONING_EFFORT="medium",
+        OPENAI_REASONING_EFFORT="low",
         OPENAI_VERBOSITY="medium",
         OPENAI_MAX_OUTPUT_TOKENS=None,
     )

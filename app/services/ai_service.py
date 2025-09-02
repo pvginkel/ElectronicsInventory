@@ -4,15 +4,15 @@ import base64
 import json
 import logging
 import time
-from enum import Enum
-from pathlib import Path
+import os
+
 from typing import TYPE_CHECKING, cast
 from urllib.parse import quote
+from jinja2 import Environment
 
 from openai import OpenAI
 from openai.types.responses import ResponseOutputItemDoneEvent, ResponseFunctionWebSearch, ResponseCompletedEvent, ParsedResponseOutputMessage, ParsedResponseOutputText, ResponseOutputMessage,  ResponseOutputText, ResponseContentPartAddedEvent
 from openai.types.responses.response_function_web_search import ActionSearch
-from pydantic import BaseModel, ConfigDict, Field
 
 from app.config import Settings
 from app.schemas.ai_part_analysis import (
@@ -20,6 +20,7 @@ from app.schemas.ai_part_analysis import (
     DocumentSuggestionSchema,
 )
 from app.schemas.url_preview import UrlPreviewResponseSchema
+from app.services.ai_model import PartAnalysisSuggestion
 from app.services.base import BaseService
 from app.services.base_task import ProgressHandle
 from app.services.download_cache_service import DownloadCacheService
@@ -80,8 +81,9 @@ class AIService(BaseService):
 
             else:
                 # Build input and instructions for Responses API
-                instructions, input_content = self._build_responses_api_input(
-                    text_input, image_data, image_mime_type, type_names
+                prompt = self._build_prompt(type_names)
+                input_content = self._build_responses_api_input(
+                    text_input, image_data, image_mime_type, prompt
                 )
 
                 logger.info("Starting OpenAI call")
@@ -95,7 +97,6 @@ class AIService(BaseService):
                 # Call OpenAI Responses API with structured output
                 with self.client.responses.stream(
                     model=self.config.OPENAI_MODEL,
-                    instructions=instructions,
                     input=input_content,
                     text_format=PartAnalysisSuggestion,
                     text={ "verbosity": self.config.OPENAI_VERBOSITY }, # type: ignore
@@ -148,24 +149,29 @@ class AIService(BaseService):
             # Download documents if URLs provided
             documents : list[DocumentSuggestionSchema] = []
 
-            for url, type in [
-                (ai_response.product_image_url, 'product_image'),
-                (ai_response.datasheet_url, 'datasheet'),
-                (ai_response.pinout_url, 'pinout'),
-                (ai_response.schematic_url, 'schematic'),
-                (ai_response.manual_url, 'manual'),
+            for urls, type in [
+                (ai_response.product_page_urls, 'product_page'),
+                (ai_response.product_image_urls, 'product_image'),
+                (ai_response.datasheet_urls, 'datasheet'),
+                (ai_response.pinout_urls, 'pinout'),
+                (ai_response.schematic_urls, 'schematic'),
+                (ai_response.manual_urls, 'manual'),
             ]:
-                if url:
+                for url in urls:
                     document = self._document_from_link(url, type)
                     if document:
                         documents.append(document)
 
             # Determine if type is existing or new
-            suggested_type = ai_response.component_type
+            suggested_type = ai_response.product_category
             type_is_existing = False
             existing_type_id = None
 
             if suggested_type:
+                proposed_prefix = "Proposed:"
+                if suggested_type.startswith(proposed_prefix):
+                    suggested_type = suggested_type[len(proposed_prefix):].strip()
+
                 for type_obj in existing_types:
                     if type_obj.name.lower() == suggested_type.lower():
                         type_is_existing = True
@@ -174,18 +180,31 @@ class AIService(BaseService):
 
             # Build result schema
 
+            voltage_rating_list : list[str] = []
+            if ai_response.voltage_rating:
+                voltage_rating_list.append(ai_response.voltage_rating)
+            if ai_response.input_voltage:
+                voltage_rating_list.append(f"Input: {ai_response.input_voltage}")
+            if ai_response.output_voltage:
+                voltage_rating_list.append(f"Output: {ai_response.output_voltage}")
+            voltage_rating = ", ".join(voltage_rating_list)
+
+            product_page : str | None = None
+            if len(ai_response.product_page_urls) > 0:
+                product_page = ai_response.product_page_urls[0]
+
             result = AIPartAnalysisResultSchema(
-                manufacturer_code=ai_response.manufacturer_code,
+                manufacturer_code=ai_response.manufacturer_part_number,
                 type=suggested_type,
                 description=ai_response.product_name,
                 tags=ai_response.tags,
                 manufacturer=ai_response.manufacturer,
-                product_page=ai_response.product_page_url,
-                package=ai_response.component_packaging_type_acronym,
+                product_page=product_page,
+                package=ai_response.package_type,
                 pin_count=ai_response.component_pin_count,
-                voltage_rating=ai_response.voltage_rating,
+                voltage_rating=voltage_rating,
                 mounting_type=ai_response.mounting_type,
-                series=ai_response.product_series,
+                series=ai_response.product_family,
                 dimensions=ai_response.physical_dimensions,
                 documents=documents,
                 type_is_existing=type_is_existing,
@@ -198,50 +217,41 @@ class AIService(BaseService):
             logger.error(f"Failed to parse OpenAI response as JSON: {e}")
             raise Exception("Invalid response format from AI service") from e
 
+    def _build_prompt(self, categories: list[str]) -> str:
+        context = {
+            "categories": categories
+        }
+
+        with open(os.path.join(os.path.dirname(__file__), "prompt.md")) as f:
+            template_str = f.read()
+
+        env_inline = Environment()
+        template_inline = env_inline.from_string(template_str)
+
+        return template_inline.render(**context)
+
     def _build_responses_api_input(self, text_input: str | None, image_data: bytes | None,
-                                 image_mime_type: str | None, type_names: list[str]) -> tuple[str, str | list]:
+                                   image_mime_type: str | None, prompt: str) -> list:
         """Build instructions and input for OpenAI Responses API."""
 
-        # Build system instructions
-        instructions = f"""You are an expert electronics component analyzer. Analyze the provided text and/or image to identify and find the requested information on the internet.
+        if image_data and image_mime_type:
+            raise Exception("Image data currently not supported")
 
-Available component types in the system: {', '.join(type_names)}
-
-Choose an existing component type that fits best, or suggest a new component type name following similar patterns.
-
-Tags are used as filtering dimensions. Use short labels, lower case, hyphenated if necessary. Allowed categories are the role/function, feature presence and interfaces. Don't duplicate data you can assign to other fields. Disallowed are any numerical values like voltages, currents, frequencies, memory sizing, ratings, tolerances, etc.
-
-Focus on accuracy and technical precision. If uncertain about specific details, omit them rather than guessing. Use tags for important information you can't put into one of the other fields."""
-
-        # Build input content
-        if text_input and image_data and image_mime_type:
-            # Both text and image - use array format
-            base64_image = base64.b64encode(image_data).decode('utf-8')
-            data_url = f"data:{image_mime_type};base64,{base64_image}"
-
-            input_content = [
-                {"role": "user", "content": [
-                    {"type": "text", "text": f"Text description: {text_input}"},
-                    {"type": "image_url", "image_url": {"url": data_url}}
-                ]}
-            ]
-        elif text_input:
-            # Text only - simple string
-            input_content = f"Text description: {text_input}"
-        elif image_data and image_mime_type:
-            # Image only - array format
-            base64_image = base64.b64encode(image_data).decode('utf-8')
-            data_url = f"data:{image_mime_type};base64,{base64_image}"
-
-            input_content = [
-                {"role": "user", "content": [
-                    {"type": "image_url", "image_url": {"url": data_url}}
-                ]}
-            ]
-        else:
-            input_content = "Please analyze the provided information."
-
-        return instructions, input_content
+        return [
+            {
+                "role": "developer",
+                "content": [
+                    {"type": "input_text", "text": prompt}
+                ]
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": text_input},
+                    # Add an image later, e.g. {"type": "image_url", "image_url": {"url": "https://..."}}
+                ]
+            }
+        ]
 
     def _document_from_link(self, url: str, document_type: str) -> DocumentSuggestionSchema | None:
         try:
@@ -288,33 +298,3 @@ Focus on accuracy and technical precision. If uncertain about specific details, 
             filename = name[:90] + ('.' + ext if ext else '')
 
         return filename or "document.pdf"
-
-class MountingTypeEnum(str, Enum):
-    THROUGH_HOLE = "Through-hole"
-    SURFACE_MOUNT = "Surface Mount"
-    BREADBOARD_COMPATIBLE = "Breadboard Compatible"
-    DIN_RAIL = "DIN Rail"
-    PANEL_MOUNT = "Panel Mount"
-    PCB_MOUNT = "PCB Mount"
-
-
-class PartAnalysisSuggestion(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    product_name: str | None = Field(...)
-    product_series: str | None = Field(...)
-    component_type: str | None = Field(...)
-    manufacturer: str | None = Field(...)
-    manufacturer_code: str | None = Field(...)
-    tags: list[str] = Field(...)
-    component_packaging_type_acronym: str | None = Field(...)
-    component_pin_count: int | None = Field(...)
-    voltage_rating: str | None = Field(...)
-    mounting_type: MountingTypeEnum | None = Field(...)
-    physical_dimensions: str | None = Field(...)
-    product_page_url: str | None = Field(...)
-    product_image_url: str | None = Field(..., description="URL to a marketing image of the product")
-    datasheet_url: str | None = Field(..., description="URL to a PDF document that has the English language data sheet")
-    pinout_url: str | None = Field(..., description="URL to a PDF or image document with the pinout of the component")
-    schematic_url: str | None = Field(..., description="URL to a PDF document that has the schematic of the component")
-    manual_url: str | None = Field(..., description="URL to the manual or usage page of the document")
