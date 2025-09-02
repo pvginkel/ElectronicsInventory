@@ -124,12 +124,18 @@ export function MediaViewerBase({
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
         case 'Escape':
+          e.preventDefault();
+          e.stopPropagation();
           onClose();
           break;
         case 'ArrowLeft':
+          e.preventDefault();
+          e.stopPropagation();
           goToPrevious();
           break;
         case 'ArrowRight':
+          e.preventDefault();
+          e.stopPropagation();
           goToNext();
           break;
         default:
