@@ -3,8 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
-import { useGetParts, type PartWithTotalSchemaList_a9993e3_PartWithTotalSchema } from '@/lib/api/generated/hooks';
+import { useGetPartsWithLocations, useGetTypes, type PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
+import { QuantityBadge } from './quantity-badge';
+import { MetadataBadge } from './metadata-badge';
+import { LocationSummary } from './location-summary';
+import { VendorInfo } from './vendor-info';
 
 interface PartListProps {
   onSelectPart?: (partId: string) => void;
@@ -14,22 +18,35 @@ interface PartListProps {
 
 export function PartList({ onSelectPart, onCreatePart, onCreateWithAI }: PartListProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const { data: parts = [], isLoading, error } = useGetParts();
+  const { data: parts = [], isLoading, error } = useGetPartsWithLocations();
+  const { data: types = [] } = useGetTypes();
+
+  // Create a lookup map for type names
+  const typeMap = useMemo(() => {
+    const map = new Map();
+    types.forEach(type => {
+      map.set(type.id, type.name);
+    });
+    return map;
+  }, [types]);
 
   const filteredParts = useMemo(() => {
     if (!searchTerm.trim()) return parts;
 
     const term = searchTerm.toLowerCase();
-    return parts.filter((part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema) => {
+    return parts.filter((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => {
       const { displayId, displayDescription, displayManufacturerCode } = formatPartForDisplay(part);
+      const typeName = part.type_id ? typeMap.get(part.type_id) : '';
       
       return (
         displayId.toLowerCase().includes(term) ||
         displayDescription.toLowerCase().includes(term) ||
-        (displayManufacturerCode && displayManufacturerCode.toLowerCase().includes(term))
+        (displayManufacturerCode && displayManufacturerCode.toLowerCase().includes(term)) ||
+        (typeName && typeName.toLowerCase().includes(term)) ||
+        (part.tags && part.tags.some(tag => tag.toLowerCase().includes(term)))
       );
     });
-  }, [parts, searchTerm]);
+  }, [parts, searchTerm, typeMap]);
 
   if (error) {
     return (
@@ -85,12 +102,12 @@ export function PartList({ onSelectPart, onCreatePart, onCreateWithAI }: PartLis
       </div>
 
       {/* Parts List */}
-      <div className="space-y-2">
+      <div>
         {isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="animate-pulse">
-                <div className="h-20 bg-muted rounded-md"></div>
+                <div className="h-48 bg-muted rounded-lg"></div>
               </div>
             ))}
           </div>
@@ -113,13 +130,16 @@ export function PartList({ onSelectPart, onCreatePart, onCreateWithAI }: PartLis
             </div>
           </Card>
         ) : (
-          filteredParts.sort((a, b) => a.description.localeCompare(b.description, undefined, { numeric: true, sensitivity: 'base' })).map((part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema) => (
-            <PartListItem
-              key={part.key}
-              part={part}
-              onClick={() => onSelectPart?.(part.key)}
-            />
-          ))
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filteredParts.sort((a, b) => a.description.localeCompare(b.description, undefined, { numeric: true, sensitivity: 'base' })).map((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => (
+              <PartListItem
+                key={part.key}
+                part={part}
+                typeMap={typeMap}
+                onClick={() => onSelectPart?.(part.key)}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>
@@ -127,96 +147,86 @@ export function PartList({ onSelectPart, onCreatePart, onCreateWithAI }: PartLis
 }
 
 interface PartListItemProps {
-  part: {
-    key: string;
-    description: string;
-    manufacturer_code?: string | null;
-    type?: { name: string } | null;
-    tags?: string[] | null;
-    total_quantity?: number;
-    quantity?: number; // For backwards compatibility
-    mounting_type?: string | null;
-    package?: string | null;
-    voltage_rating?: string | null;
-  };
+  part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema;
+  typeMap: Map<number, string>;
   onClick?: () => void;
 }
 
-function PartListItem({ part, onClick }: PartListItemProps) {
+function PartListItem({ part, typeMap, onClick }: PartListItemProps) {
   const { displayId, displayDescription, displayManufacturerCode } = formatPartForDisplay(part);
 
   return (
     <Card 
-      className={`p-4 transition-colors ${
+      className={`p-4 transition-all duration-200 rounded-lg shadow-sm border ${
         onClick 
-          ? 'cursor-pointer hover:bg-accent hover:text-accent-foreground' 
+          ? 'cursor-pointer hover:shadow-md hover:scale-[1.02] hover:border-primary/50' 
           : ''
-      }`}
+      } active:scale-[0.98]`}
       onClick={onClick}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-1">
+      {/* Header Section */}
+      <div className="flex items-start gap-3 mb-3">
+        {/* Cover Image */}
+        <div className="flex-shrink-0">
           <CoverImageDisplay 
             partId={part.key} 
-            size="small" 
-            showPlaceholder={false}
+            size="medium"
+            className="w-16 h-16 rounded-md shadow-sm"
+            showPlaceholder={true}
           />
-          <div className="flex-1">
-            <div className="flex items-center gap-4 mb-2">
-              <span className="font-semibold text-lg">{displayDescription}</span>
-              <span className="text-muted-foreground">
-                Total Quantity: {part.total_quantity ?? part.quantity ?? 0}
-              </span>
-            </div>
-          
-          <p className="font-mono text-sm mb-2">{displayId}</p>
-          
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            {displayManufacturerCode && (
-              <span>
-                <strong>Manufacturer Code:</strong> {displayManufacturerCode}
-              </span>
-            )}
-            
-            {part.type?.name && (
-              <span>
-                <strong>Type:</strong> {part.type.name}
-              </span>
-            )}
-
-            {part.mounting_type && (
-              <span>
-                <strong>Mount:</strong> {part.mounting_type}
-              </span>
-            )}
-
-            {part.package && (
-              <span>
-                <strong>Package:</strong> {part.package}
-              </span>
-            )}
-
-            {part.voltage_rating && (
-              <span>
-                <strong>Voltage:</strong> {part.voltage_rating}
-              </span>
-            )}
-          </div>
-
-          {part.tags && part.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {part.tags.map((tag: string, index: number) => (
-                <span
-                  key={index}
-                  className="px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded-md"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-          </div>
         </div>
+        
+        {/* Main Info */}
+        <div className="flex-1 min-w-0">
+          <h3 className="text-lg font-semibold text-foreground mb-1 leading-tight">
+            {displayDescription}
+          </h3>
+          {displayManufacturerCode && (
+            <p className="text-sm text-muted-foreground mb-2">
+              {displayManufacturerCode}
+            </p>
+          )}
+        </div>
+        
+        {/* Quantity Badge */}
+        <div className="flex-shrink-0">
+          <QuantityBadge quantity={part.total_quantity} />
+        </div>
+      </div>
+
+      {/* Part ID Section */}
+      <div className="mb-3">
+        <div className="inline-block bg-muted px-2 py-1 rounded font-mono text-sm">
+          {displayId}
+        </div>
+      </div>
+
+      {/* Metadata Badges Row */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        {part.type_id && typeMap.get(part.type_id) && (
+          <MetadataBadge icon="🏷️" label={typeMap.get(part.type_id)!} />
+        )}
+        {part.package && (
+          <MetadataBadge icon="📏" label={part.package} />
+        )}
+        {part.voltage_rating && (
+          <MetadataBadge icon="⚡" label={part.voltage_rating} />
+        )}
+        {part.mounting_type && (
+          <MetadataBadge icon="📐" label={part.mounting_type} />
+        )}
+      </div>
+
+      {/* Vendor and Location Section */}
+      <div className="flex flex-wrap gap-2 text-sm">
+        <VendorInfo 
+          seller={part.seller} 
+          sellerLink={part.seller_link} 
+        />
+        
+        <LocationSummary 
+          locations={part.locations || []} 
+        />
       </div>
     </Card>
   );
