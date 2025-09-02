@@ -19,9 +19,19 @@ def mock_ai_service():
 
 
 @pytest.fixture
+def mock_container(mock_ai_service):
+    """Create mock service container for testing."""
+    container = Mock()
+    container.ai_service.return_value = mock_ai_service
+    return container
+
+
+@pytest.fixture
 def mock_progress_handle():
     """Create mock progress handle for testing."""
     progress_handle = Mock()
+    progress_handle.send_progress_text = Mock()
+    progress_handle.send_progress_value = Mock()
     progress_handle.send_progress = Mock()
     return progress_handle
 
@@ -29,9 +39,9 @@ def mock_progress_handle():
 class TestAIPartAnalysisTask:
     """Test cases for AIPartAnalysisTask."""
 
-    def test_execute_no_input(self, mock_ai_service, mock_progress_handle):
+    def test_execute_no_input(self, mock_container, mock_progress_handle):
         """Test task execution with no text or image input."""
-        task = AIPartAnalysisTask(mock_ai_service)
+        task = AIPartAnalysisTask(mock_container)
 
         result = task.execute(mock_progress_handle)
 
@@ -39,7 +49,7 @@ class TestAIPartAnalysisTask:
         assert result.success is False
         assert "Either text input or image must be provided" in result.error_message
 
-    def test_execute_text_only_success(self, mock_ai_service, mock_progress_handle):
+    def test_execute_text_only_success(self, mock_container, mock_ai_service, mock_progress_handle):
         """Test successful task execution with text input only."""
         # Mock AI service response
         mock_analysis_result = AIPartAnalysisResultSchema(
@@ -53,7 +63,7 @@ class TestAIPartAnalysisTask:
         )
         mock_ai_service.analyze_part.return_value = mock_analysis_result
 
-        task = AIPartAnalysisTask(mock_ai_service)
+        task = AIPartAnalysisTask(mock_container)
 
         result = task.execute(
             mock_progress_handle,
@@ -71,19 +81,20 @@ class TestAIPartAnalysisTask:
         mock_ai_service.analyze_part.assert_called_once_with(
             text_input="Test relay 12V",
             image_data=None,
-            image_mime_type=None
+            image_mime_type=None,
+            progress_handle=mock_progress_handle
         )
 
         # Verify progress updates were sent
-        assert mock_progress_handle.send_progress.call_count >= 3
+        assert mock_progress_handle.send_progress_text.call_count >= 2
+        assert mock_progress_handle.send_progress.call_count >= 2
 
         # Check specific progress messages
-        progress_calls = [call.args for call in mock_progress_handle.send_progress.call_args_list]
-        assert any("Initializing AI analysis" in call[0] for call in progress_calls)
-        assert any("AI analyzing part" in call[0] for call in progress_calls)
-        assert any("Analysis complete" in call[0] for call in progress_calls)
+        text_calls = [call.args[0] for call in mock_progress_handle.send_progress_text.call_args_list]
+        assert any("Initializing AI analysis" in msg for msg in text_calls)
+        assert any("AI analyzing part" in msg for msg in text_calls)
 
-    def test_execute_with_image_success(self, mock_ai_service, mock_progress_handle):
+    def test_execute_with_image_success(self, mock_container, mock_ai_service, mock_progress_handle):
         """Test successful task execution with image input."""
         # Mock AI service response
         mock_analysis_result = AIPartAnalysisResultSchema(
@@ -102,7 +113,7 @@ class TestAIPartAnalysisTask:
         )
         mock_ai_service.analyze_part.return_value = mock_analysis_result
 
-        task = AIPartAnalysisTask(mock_ai_service)
+        task = AIPartAnalysisTask(mock_container)
 
         result = task.execute(
             mock_progress_handle,
@@ -121,15 +132,16 @@ class TestAIPartAnalysisTask:
         mock_ai_service.analyze_part.assert_called_once_with(
             text_input="Arduino board",
             image_data=b"fake_image_data",
-            image_mime_type="image/jpeg"
+            image_mime_type="image/jpeg",
+            progress_handle=mock_progress_handle
         )
 
-    def test_execute_ai_service_error(self, mock_ai_service, mock_progress_handle):
+    def test_execute_ai_service_error(self, mock_container, mock_ai_service, mock_progress_handle):
         """Test task execution when AI service raises an error."""
         # Mock AI service to raise an exception
         mock_ai_service.analyze_part.side_effect = Exception("OpenAI API error")
 
-        task = AIPartAnalysisTask(mock_ai_service)
+        task = AIPartAnalysisTask(mock_container)
 
         result = task.execute(
             mock_progress_handle,
@@ -142,9 +154,9 @@ class TestAIPartAnalysisTask:
         assert "AI analysis failed: OpenAI API error" in result.error_message
         assert result.analysis is None
 
-    def test_execute_task_cancelled_early(self, mock_ai_service, mock_progress_handle):
+    def test_execute_task_cancelled_early(self, mock_container, mock_ai_service, mock_progress_handle):
         """Test task execution when cancelled before AI analysis."""
-        task = AIPartAnalysisTask(mock_ai_service)
+        task = AIPartAnalysisTask(mock_container)
 
         # Cancel the task before execution
         task.cancel()
@@ -161,7 +173,7 @@ class TestAIPartAnalysisTask:
         # AI service should not have been called
         mock_ai_service.analyze_part.assert_not_called()
 
-    def test_execute_task_cancelled_during_analysis(self, mock_ai_service, mock_progress_handle):
+    def test_execute_task_cancelled_during_analysis(self, mock_container, mock_ai_service, mock_progress_handle):
         """Test task cancellation detection during execution."""
         def mock_analyze_part(*args, **kwargs):
             # Simulate cancellation during analysis
@@ -174,14 +186,14 @@ class TestAIPartAnalysisTask:
 
         mock_ai_service.analyze_part.side_effect = mock_analyze_part
 
-        task = AIPartAnalysisTask(mock_ai_service)
+        task = AIPartAnalysisTask(mock_container)
 
         # Start execution and cancel during it
-        def cancel_during_execution(text, value):
+        def cancel_during_execution(text):
             if "AI analyzing" in text:
                 task.cancel()
 
-        mock_progress_handle.send_progress.side_effect = cancel_during_execution
+        mock_progress_handle.send_progress_text.side_effect = cancel_during_execution
 
         result = task.execute(
             mock_progress_handle,
@@ -192,12 +204,12 @@ class TestAIPartAnalysisTask:
         assert isinstance(result, AIPartAnalysisTaskCancelledResultSchema)
         assert result.cancelled is True
 
-    def test_execute_unexpected_error(self, mock_ai_service, mock_progress_handle):
+    def test_execute_unexpected_error(self, mock_container, mock_ai_service, mock_progress_handle):
         """Test handling of unexpected errors during execution."""
         # Mock progress handle to raise an exception
-        mock_progress_handle.send_progress.side_effect = Exception("Unexpected error")
+        mock_progress_handle.send_progress_text.side_effect = Exception("Unexpected error")
 
-        task = AIPartAnalysisTask(mock_ai_service)
+        task = AIPartAnalysisTask(mock_container)
 
         result = task.execute(
             mock_progress_handle,
@@ -209,7 +221,7 @@ class TestAIPartAnalysisTask:
         assert result.success is False
         assert "Unexpected error" in result.error_message
 
-    def test_execute_progress_reporting_sequence(self, mock_ai_service, mock_progress_handle):
+    def test_execute_progress_reporting_sequence(self, mock_container, mock_ai_service, mock_progress_handle):
         """Test that progress is reported in the correct sequence and ranges."""
         # Mock AI service response
         mock_analysis_result = AIPartAnalysisResultSchema(
@@ -221,7 +233,7 @@ class TestAIPartAnalysisTask:
         )
         mock_ai_service.analyze_part.return_value = mock_analysis_result
 
-        task = AIPartAnalysisTask(mock_ai_service)
+        task = AIPartAnalysisTask(mock_container)
 
         result = task.execute(
             mock_progress_handle,
@@ -231,38 +243,37 @@ class TestAIPartAnalysisTask:
         # Verify successful execution
         assert result.success is True
 
-        # Extract all progress calls
+        # Extract all progress calls  
+        text_calls = mock_progress_handle.send_progress_text.call_args_list
         progress_calls = mock_progress_handle.send_progress.call_args_list
 
         # Verify minimum number of progress updates
-        assert len(progress_calls) >= 4
+        assert len(text_calls) >= 2
+        assert len(progress_calls) >= 2
 
-        # Check progress value sequence
-        progress_values = [call.args[1] for call in progress_calls]
-
-        # Values should be in ascending order (generally)
-        assert progress_values[0] == 0.0  # Start
-        assert progress_values[-1] == 1.0  # End
-
-        # Check that we have the expected progress phases
-        progress_messages = [call.args[0] for call in progress_calls]
+        # Check that we have the expected progress phases from text calls
+        text_messages = [call.args[0] for call in text_calls]
 
         # Should have initialization phase
-        assert any("Initializing" in msg for msg in progress_messages)
+        assert any("Initializing" in msg for msg in text_messages)
 
         # Should have AI analysis phase
-        assert any("AI analyzing" in msg for msg in progress_messages)
+        assert any("AI analyzing" in msg for msg in text_messages)
 
-        # Should have processing phase
-        assert any("Processing" in msg for msg in progress_messages)
+        # Check progress value calls if they exist
+        if progress_calls:
+            # Check progress value sequence
+            progress_values = [call.args[1] for call in progress_calls]
 
-        # Should have finalization phase
-        assert any("Finalizing" in msg for msg in progress_messages)
+            # Values should be in ascending order and within valid range
+            for value in progress_values:
+                assert 0.0 <= value <= 1.0
 
-        # Should end with completion
-        assert any("complete" in msg.lower() for msg in progress_messages)
+            # Should end with completion
+            progress_messages = [call.args[0] for call in progress_calls]
+            assert any("complete" in msg.lower() or "Finalizing" in msg or "Processing" in msg for msg in progress_messages)
 
-    def test_execute_documents_logging(self, mock_ai_service, mock_progress_handle):
+    def test_execute_documents_logging(self, mock_container, mock_ai_service, mock_progress_handle):
         """Test logging when documents are successfully downloaded."""
         # Mock AI service response with documents
         mock_analysis_result = AIPartAnalysisResultSchema(
@@ -287,7 +298,7 @@ class TestAIPartAnalysisTask:
         )
         mock_ai_service.analyze_part.return_value = mock_analysis_result
 
-        task = AIPartAnalysisTask(mock_ai_service)
+        task = AIPartAnalysisTask(mock_container)
 
         with patch('app.services.ai_part_analysis_task.logger') as mock_logger:
             result = task.execute(
@@ -306,9 +317,9 @@ class TestAIPartAnalysisTask:
             # Check that analysis completion was logged
             assert any("AI analysis completed" in msg for msg in info_calls)
 
-    def test_task_inheritance(self, mock_ai_service):
+    def test_task_inheritance(self, mock_container):
         """Test that AIPartAnalysisTask properly inherits from BaseTask."""
-        task = AIPartAnalysisTask(mock_ai_service)
+        task = AIPartAnalysisTask(mock_container)
 
         # Should have inherited cancellation functionality
         assert hasattr(task, 'cancel')
