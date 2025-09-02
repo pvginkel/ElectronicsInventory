@@ -1,5 +1,6 @@
 """Document management API endpoints."""
 
+import io
 from urllib.parse import quote
 
 from dependency_injector.wiring import Provide, inject
@@ -246,15 +247,15 @@ def attachment_preview(url_thumbnail_service=Provide[ServiceContainer.url_thumbn
 
         # Generate backend image endpoint URL
         image_url = None
-        if metadata.get('og_image') or metadata.get('favicon'):
+        if metadata.og_image or metadata.favicon:
             encoded_url = quote(data.url, safe='')
             image_url = f"/api/parts/attachment-preview/image?url={encoded_url}"
 
         response_data = UrlPreviewResponseSchema(
-            title=metadata.get('title'),
+            title=metadata.title,
             image_url=image_url,
             original_url=data.url,
-            content_type=metadata.get('content_type', None)
+            content_type=metadata.content_type.value
         )
 
         return response_data.model_dump(), 200
@@ -295,3 +296,30 @@ def attachment_preview_image(url_thumbnail_service=Provide[ServiceContainer.url_
 
     except Exception as e:
         return jsonify({'error': f'Failed to retrieve image: {str(e)}'}), 404
+
+
+@documents_bp.route("/attachment-proxy/content", methods=["GET"])
+@handle_api_errors
+@inject
+def attachment_proxy_content(url_thumbnail_service=Provide[ServiceContainer.url_thumbnail_service]):
+    """Proxy external URL content to avoid CORS issues when displaying PDFs and images in iframes."""
+    url = request.args.get('url')
+    if not url:
+        return jsonify({'error': 'URL parameter required'}), 400
+
+    # Validate URL for security
+    if not url_thumbnail_service.validate_url(url):
+        return jsonify({'error': 'Invalid URL'}), 400
+
+    try:
+        # Use download cache service to get content with proper MIME type detection
+        result = url_thumbnail_service.download_cache_service.get_cached_content(url)
+        # Return the content with appropriate headers for iframe display
+        return send_file(
+            io.BytesIO(result.content),
+            mimetype=result.content_type,
+            as_attachment=False  # Use Content-Disposition: inline for iframe display
+        )
+
+    except Exception as e:
+        return jsonify({'error': f'Failed to retrieve content: {str(e)}'}), 404

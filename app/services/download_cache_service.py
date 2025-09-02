@@ -80,15 +80,27 @@ class DownloadCacheService:
 
     def validate_url(self, url: str) -> bool:
         """
-        Validate URL format.
+        Validate URL format and accessibility.
 
         Args:
             url: URL to validate
 
         Returns:
-            True if URL is valid
+            True if URL is valid, uses HTTP/HTTPS, and is accessible
         """
-        return validators.url(url) is True
+        if not validators.url(url):
+            return False
+
+        # Only allow HTTP/HTTPS URLs
+        if not url.startswith(('http://', 'https://')):
+            return False
+
+        # Test accessibility with HEAD request
+        try:
+            response = requests.head(url, timeout=5, allow_redirects=True)
+            return response.status_code == 200
+        except Exception:
+            return False
 
     def _download_url(self, url: str) -> DownloadResult:
         """

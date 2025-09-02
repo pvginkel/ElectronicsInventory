@@ -9,6 +9,7 @@ from PIL import Image
 from sqlalchemy.orm import Session
 
 from app.exceptions import InvalidOperationException
+from app.schemas.url_metadata import URLContentType, ThumbnailSourceType
 from app.services.container import ServiceContainer
 
 
@@ -117,10 +118,10 @@ class TestURLThumbnailService:
         url_service = container.url_thumbnail_service()
         metadata = url_service.extract_metadata("http://example.com")
 
-        assert metadata['title'] == 'Test Product Page'
-        assert metadata['description'] == 'Test description'
-        assert metadata['og_image'] == 'https://example.com/image.jpg'
-        assert metadata['favicon'] == 'https://example.com/favicon.ico'
+        assert metadata.title == 'Test Product Page'
+        assert metadata.description == 'Test description'
+        assert metadata.og_image == 'https://example.com/image.jpg'
+        assert metadata.favicon == 'https://example.com/favicon.ico'
 
     def test_extract_metadata_fallback_title(self, container: ServiceContainer, session: Session):
         """Test metadata extraction with fallback to HTML title."""
@@ -137,9 +138,9 @@ class TestURLThumbnailService:
 
             metadata = url_service.extract_metadata("http://example.com")
 
-            assert metadata['title'] == 'Fallback Title'
-            assert metadata.get('description') is None
-            assert metadata.get('og_image') is None
+            assert metadata.title == 'Fallback Title'
+            assert metadata.description is None
+            assert metadata.og_image is None
 
     def test_extract_metadata_no_content(self, container: ServiceContainer, session: Session):
         """Test metadata extraction with minimal HTML."""
@@ -156,8 +157,8 @@ class TestURLThumbnailService:
 
             metadata = url_service.extract_metadata("http://example.com")
 
-            assert metadata.get('title') is None
-            assert metadata.get('description') is None
+            assert metadata.title is None
+            assert metadata.description is None
 
     def test_extract_metadata_request_error(self, container: ServiceContainer, session: Session):
         """Test metadata extraction with request error."""
@@ -242,11 +243,11 @@ class TestContentBasedProcessing:
         image_url = "https://tinytronics.nl/dht22-thermometer.jpg"
         metadata = url_service.extract_metadata(image_url)
 
-        assert metadata['title'] == 'dht22-thermometer.jpg'
-        assert metadata['og_image'] == image_url
-        assert metadata['thumbnail_source'] == 'direct_image'
-        assert metadata['content_type'] == 'image'
-        assert metadata['thumbnail_url'] == image_url
+        assert metadata.title == 'dht22-thermometer.jpg'
+        assert metadata.og_image == image_url
+        assert metadata.thumbnail_source == ThumbnailSourceType.DIRECT_IMAGE
+        assert metadata.content_type == URLContentType.IMAGE
+        assert metadata.thumbnail_url == image_url
 
     @patch('app.services.url_thumbnail_service.URLThumbnailService._fetch_content')
     def test_extract_metadata_pdf_content(self, mock_fetch_content, container: ServiceContainer):
@@ -259,10 +260,10 @@ class TestContentBasedProcessing:
         pdf_url = "https://example.com/datasheet.pdf"
         metadata = url_service.extract_metadata(pdf_url)
 
-        assert metadata['title'] == 'datasheet.pdf'
-        assert metadata['thumbnail_source'] == 'pdf'
-        assert metadata['content_type'] == 'pdf'
-        assert metadata['thumbnail_url'] == 'https://upload.wikimedia.org/wikipedia/commons/8/87/PDF_file_icon.svg'
+        assert metadata.title == 'datasheet.pdf'
+        assert metadata.thumbnail_source == ThumbnailSourceType.PDF
+        assert metadata.content_type == URLContentType.PDF
+        assert metadata.thumbnail_url == 'https://upload.wikimedia.org/wikipedia/commons/8/87/PDF_file_icon.svg'
 
     @patch('app.services.url_thumbnail_service.URLThumbnailService._fetch_content')
     def test_extract_metadata_html_content(self, mock_fetch_content, container: ServiceContainer):
@@ -276,10 +277,10 @@ class TestContentBasedProcessing:
         webpage_url = "https://example.com/page"
         metadata = url_service.extract_metadata(webpage_url)
 
-        assert metadata['title'] == 'Test Page'
-        assert metadata['thumbnail_source'] == 'og:image'
-        assert metadata['content_type'] == 'webpage'
-        assert metadata['thumbnail_url'] == 'https://example.com/og-image.jpg'
+        assert metadata.title == 'Test Page'
+        assert metadata.thumbnail_source == ThumbnailSourceType.PREVIEW_IMAGE
+        assert metadata.content_type == URLContentType.WEBPAGE
+        assert metadata.thumbnail_url == 'https://example.com/og-image.jpg'
 
     @patch('app.services.url_thumbnail_service.URLThumbnailService._fetch_content')
     def test_extract_metadata_other_content(self, mock_fetch_content, container: ServiceContainer):
@@ -292,20 +293,26 @@ class TestContentBasedProcessing:
         other_url = "https://example.com/file.bin"
         metadata = url_service.extract_metadata(other_url)
 
-        assert metadata['title'] == 'file.bin'
-        assert metadata['thumbnail_source'] == 'other'
-        assert metadata['content_type'] == 'application/octet-stream'
-        assert metadata['thumbnail_url'] is None
+        assert metadata.title == 'file.bin'
+        assert metadata.thumbnail_source == ThumbnailSourceType.OTHER
+        assert metadata.content_type == URLContentType.OTHER
+        assert metadata.mime_type == 'application/octet-stream'
+        assert metadata.thumbnail_url is None
 
     @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata')
     def test_get_preview_image_url_with_thumbnail(self, mock_extract_metadata, container: ServiceContainer):
         """Test get_preview_image_url returns thumbnail URL from metadata."""
         url_service = container.url_thumbnail_service()
 
+        from app.schemas.url_metadata import URLMetadataSchema, URLContentType, ThumbnailSourceType
         # Mock metadata with thumbnail URL
-        mock_extract_metadata.return_value = {
-            'thumbnail_url': 'https://example.com/image.jpg'
-        }
+        mock_extract_metadata.return_value = URLMetadataSchema(
+            title='Test',
+            thumbnail_source=ThumbnailSourceType.PREVIEW_IMAGE,
+            original_url='https://example.com/test',
+            content_type=URLContentType.WEBPAGE,
+            thumbnail_url='https://example.com/image.jpg'
+        )
 
         result = url_service.get_preview_image_url("https://example.com/test")
         assert result == 'https://example.com/image.jpg'
@@ -315,10 +322,15 @@ class TestContentBasedProcessing:
         """Test get_preview_image_url raises error when no thumbnail available."""
         url_service = container.url_thumbnail_service()
 
+        from app.schemas.url_metadata import URLMetadataSchema, URLContentType, ThumbnailSourceType
         # Mock metadata without thumbnail URL
-        mock_extract_metadata.return_value = {
-            'thumbnail_url': None
-        }
+        mock_extract_metadata.return_value = URLMetadataSchema(
+            title='Test',
+            thumbnail_source=ThumbnailSourceType.OTHER,
+            original_url='https://example.com/test',
+            content_type=URLContentType.OTHER,
+            thumbnail_url=None
+        )
 
         from app.exceptions import InvalidOperationException
         with pytest.raises(InvalidOperationException) as exc_info:

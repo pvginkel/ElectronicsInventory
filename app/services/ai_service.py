@@ -262,15 +262,21 @@ class AIService(BaseService):
 
             # Generate backend image endpoint URL
             image_url = None
-            if metadata.get('og_image') or metadata.get('favicon'):
+            if metadata.og_image or metadata.favicon:
                 encoded_url = quote(url, safe='')
                 image_url = f"/api/parts/attachment-preview/image?url={encoded_url}"
 
+            # For PDFs and images, set original_url to proxy endpoint for iframe display
+            original_url = url  # Keep actual URL for document saving
+            if metadata.is_pdf or metadata.is_image:
+                encoded_url = quote(url, safe='')
+                original_url = f"/api/parts/attachment-proxy/content?url={encoded_url}"
+
             preview = UrlPreviewResponseSchema(
-                title=metadata.get('title'),
+                title=metadata.title,
                 image_url=image_url,
-                original_url=url,
-                content_type=metadata.get('content_type', None)
+                original_url=original_url,
+                content_type=metadata.content_type.value
             )
 
             return DocumentSuggestionSchema(
