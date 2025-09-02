@@ -315,39 +315,32 @@ class InventoryService(BaseService):
         return parts_with_totals
 
     def get_all_parts_with_totals_and_locations(self, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list['PartWithTotalModel']:
-        """Get all parts with their total quantities and eager-loaded location data."""
-        from sqlalchemy import func
-        from sqlalchemy.orm import selectinload
+        """Get all parts with their total quantities and location data."""
 
-        from app.models.part import Part
-        from app.schemas.part import PartWithTotalModel
 
-        # Base query for parts with total quantity calculation and eager-loaded locations
-        stmt = select(
-            Part,
-            func.coalesce(func.sum(PartLocation.qty), 0).label('total_quantity')
-        ).outerjoin(
-            PartLocation, Part.id == PartLocation.part_id
-        ).group_by(Part.id).options(
-            selectinload(Part.part_locations)
-        )
+        # First get parts with total quantities
+        parts_with_totals = self.get_all_parts_with_totals(limit, offset, type_id)
 
-        # Apply type filter if specified
-        if type_id is not None:
-            stmt = stmt.where(Part.type_id == type_id)
+        # Get part IDs for location lookup
+        part_ids = [part_with_total.part.id for part_with_total in parts_with_totals]
 
-        stmt = stmt.order_by(Part.created_at.desc()).limit(limit).offset(offset)
+        if part_ids:
+            # Get all locations for these parts
+            location_stmt = select(PartLocation).where(PartLocation.part_id.in_(part_ids))
+            locations = self.db.execute(location_stmt).scalars().all()
 
-        results = self.db.execute(stmt).all()
+            # Group locations by part_id
+            locations_by_part_id: dict[int, list[PartLocation]] = {}
+            for location in locations:
+                if location.part_id not in locations_by_part_id:
+                    locations_by_part_id[location.part_id] = []
+                locations_by_part_id[location.part_id].append(location)
 
-        # Convert to list of PartWithTotalModel instances
-        parts_with_totals = []
-        for part, total_qty in results:
-            part_with_total = PartWithTotalModel(
-                part=part,
-                total_quantity=int(total_qty)
-            )
-            parts_with_totals.append(part_with_total)
+            # Attach location data to parts
+            for part_with_total in parts_with_totals:
+                part_locations = locations_by_part_id.get(part_with_total.part.id, [])
+                # Manually set the part_locations to ensure they're available
+                part_with_total.part._part_locations_data = part_locations
 
         return parts_with_totals
 

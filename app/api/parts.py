@@ -22,6 +22,29 @@ from app.utils.spectree_config import api
 parts_bp = Blueprint("parts", __name__, url_prefix="/parts")
 
 
+def _convert_part_to_schema_data(part, total_quantity: int) -> dict:
+    """Convert Part model to PartWithTotalSchema data dict."""
+    return {
+        "key": part.key,
+        "manufacturer_code": part.manufacturer_code,
+        "description": part.description,
+        "type_id": part.type_id,
+        "tags": part.tags,
+        "manufacturer": part.manufacturer,
+        "seller": part.seller,
+        "seller_link": part.seller_link,
+        "package": part.package,
+        "pin_count": part.pin_count,
+        "voltage_rating": part.voltage_rating,
+        "mounting_type": part.mounting_type,
+        "series": part.series,
+        "dimensions": part.dimensions,
+        "created_at": part.created_at,
+        "updated_at": part.updated_at,
+        "total_quantity": total_quantity
+    }
+
+
 @parts_bp.route("", methods=["POST"])
 @api.validate(json=PartCreateSchema, resp=SpectreeResponse(HTTP_201=PartResponseSchema, HTTP_400=ErrorResponseSchema))
 @handle_api_errors
@@ -67,27 +90,9 @@ def list_parts(inventory_service=Provide[ServiceContainer.inventory_service]):
         part = part_with_total.part
         total_qty = part_with_total.total_quantity
 
-        # Create schema instance with calculated total (now including seller_link)
-        part_data = PartWithTotalSchema(
-            key=part.key,
-            manufacturer_code=part.manufacturer_code,
-            description=part.description,
-            type_id=part.type_id,
-            tags=part.tags,
-            manufacturer=part.manufacturer,
-            seller=part.seller,
-            seller_link=part.seller_link,
-            package=part.package,
-            pin_count=part.pin_count,
-            voltage_rating=part.voltage_rating,
-            mounting_type=part.mounting_type,
-            series=part.series,
-            dimensions=part.dimensions,
-            created_at=part.created_at,
-            updated_at=part.updated_at,
-            total_quantity=total_qty
-        )
-        result.append(part_data.model_dump())
+        # Convert using helper function
+        part_data = _convert_part_to_schema_data(part, total_qty)
+        result.append(part_data)
 
     return result
 
@@ -110,38 +115,21 @@ def list_parts_with_locations(inventory_service=Provide[ServiceContainer.invento
         part = part_with_total.part
         total_qty = part_with_total.total_quantity
 
-        # Extract location data from part.part_locations relationship
+        # Extract location data from part._part_locations_data (manually attached by service)
         locations = []
-        for part_location in part.part_locations:
+        part_locations_data = getattr(part, '_part_locations_data', [])
+        for part_location in part_locations_data:
             location_data = PartLocationListSchema(
-                box_no=part_location.location.box_no,
-                loc_no=part_location.location.loc_no,
+                box_no=part_location.box_no,
+                loc_no=part_location.loc_no,
                 qty=part_location.qty
             )
             locations.append(location_data)
 
         # Create schema instance with calculated total and locations
-        part_with_locations_data = PartWithTotalAndLocationsSchema(
-            key=part.key,
-            manufacturer_code=part.manufacturer_code,
-            description=part.description,
-            type_id=part.type_id,
-            tags=part.tags,
-            manufacturer=part.manufacturer,
-            seller=part.seller,
-            seller_link=part.seller_link,
-            package=part.package,
-            pin_count=part.pin_count,
-            voltage_rating=part.voltage_rating,
-            mounting_type=part.mounting_type,
-            series=part.series,
-            dimensions=part.dimensions,
-            created_at=part.created_at,
-            updated_at=part.updated_at,
-            total_quantity=total_qty,
-            locations=locations
-        )
-        result.append(part_with_locations_data.model_dump())
+        part_data = _convert_part_to_schema_data(part, total_qty)
+        part_data["locations"] = [loc.model_dump() for loc in locations]
+        result.append(part_data)
 
     return result
 
