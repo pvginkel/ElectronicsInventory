@@ -1,6 +1,7 @@
 import { DocumentCard } from './document-card';
 import { DocumentViewer, useDocumentViewer } from './document-viewer';
 import { useCoverAttachment } from '@/hooks/use-cover-image';
+import { DocumentIcon } from '@/components/icons/DocumentIcon';
 
 interface Document {
   id: string;
@@ -50,21 +51,7 @@ export function DocumentGrid({
     return (
       <div className="text-center py-12">
         <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-          <svg 
-            width="32" 
-            height="32" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2"
-            className="text-muted-foreground"
-          >
-            <path d="M14 2H6C4.9 2 4 2.9 4 4v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6z"/>
-            <path d="M14 2v6h6"/>
-            <path d="M16 13H8"/>
-            <path d="M16 17H8"/>
-            <path d="M10 9H8"/>
-          </svg>
+          <DocumentIcon className="w-8 h-8 text-muted-foreground" />
         </div>
         <h3 className="text-lg font-medium mb-2">No documents yet</h3>
         <p className="text-muted-foreground mb-4">
@@ -77,7 +64,7 @@ export function DocumentGrid({
   return (
     <>
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
-        {documents.map((document) => (
+        {documents.sort((a, b) => a.id.localeCompare(b.id)).map((document) => (
           <DocumentCard
             key={document.id}
             partId={partId}

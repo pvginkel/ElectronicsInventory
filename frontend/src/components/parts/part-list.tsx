@@ -113,7 +113,7 @@ export function PartList({ onSelectPart, onCreatePart, onCreateWithAI }: PartLis
             </div>
           </Card>
         ) : (
-          filteredParts.map((part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema) => (
+          filteredParts.sort((a, b) => a.description.localeCompare(b.description, undefined, { numeric: true, sensitivity: 'base' })).map((part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema) => (
             <PartListItem
               key={part.key}
               part={part}

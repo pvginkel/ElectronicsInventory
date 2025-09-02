@@ -132,7 +132,7 @@ export function TypeList() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredTypes.map((type: { id: number; name: string; part_count?: number }) => (
+          {filteredTypes.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })).map((type: { id: number; name: string; part_count?: number }) => (
             <TypeCard
               key={type.id}
               type={type}

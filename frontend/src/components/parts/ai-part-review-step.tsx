@@ -9,6 +9,7 @@ import { TagsInput } from './tags-input';
 import { AIDocumentGrid } from './ai-document-grid';
 import { transformAIPartAnalysisResult, transformToCreateSchema } from '@/lib/utils/ai-parts';
 import type { components } from '@/lib/api/generated/types';
+import { ExternalLinkIcon } from '@/components/icons/ExternalLinkIcon';
 
 type DocumentSuggestionSchema = components['schemas']['AIPartCreateSchema.63ff6da.DocumentSuggestionSchema'];
 type TransformedResult = ReturnType<typeof transformAIPartAnalysisResult>;
@@ -325,20 +326,7 @@ export function AIPartReviewStep({
                       className="p-1 text-muted-foreground hover:text-foreground focus:outline-none"
                       aria-label="Open URL in new tab"
                     >
-                      <svg 
-                        width="14" 
-                        height="14" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        strokeWidth="2"
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
-                      >
-                        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-                        <polyline points="15,3 21,3 21,9" />
-                        <line x1="10" y1="14" x2="21" y2="3" />
-                      </svg>
+                      <ExternalLinkIcon />
                     </button>
                   ) : null
                 }
@@ -377,20 +365,7 @@ export function AIPartReviewStep({
                       className="p-1 text-muted-foreground hover:text-foreground focus:outline-none"
                       aria-label="Open URL in new tab"
                     >
-                      <svg 
-                        width="14" 
-                        height="14" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        strokeWidth="2"
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
-                      >
-                        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-                        <polyline points="15,3 21,3 21,9" />
-                        <line x1="10" y1="14" x2="21" y2="3" />
-                      </svg>
+                      <ExternalLinkIcon />
                     </button>
                   ) : null
                 }

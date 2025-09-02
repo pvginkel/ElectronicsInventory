@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(pnpm generate:api:*)",
-      "Read(/home/pvginkel/source/ElectronicsInventory/backend/docs/**)"
+      "Read(/home/pvginkel/source/ElectronicsInventory/backend/docs/**)",
+      "Bash(pnpm type-check:*)",
+      "Bash(pnpm lint:*)"
     ],
     "deny": [],
     "ask": []

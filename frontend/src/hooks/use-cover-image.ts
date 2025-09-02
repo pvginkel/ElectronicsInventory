@@ -7,7 +7,10 @@ import {
 export function useCoverAttachment(partId: string) {
   const query = useGetPartsCoverByPartKey(
     { path: { part_key: partId } },
-    { enabled: !!partId }
+    { 
+      enabled: !!partId,
+      retry: false // Don't retry cover image requests - 404 is normal when no cover exists
+    }
   );
 
   return {

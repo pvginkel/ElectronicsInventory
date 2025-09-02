@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { validateFile } from '@/lib/utils/file-validation';
+import { UploadIcon } from '@/components/icons/UploadIcon';
 
 interface DropZoneProps {
   onFilesSelected: (files: File[]) => void;
@@ -123,19 +124,9 @@ export function DropZone({
       {children || (
         <div className="flex flex-col items-center justify-center p-6 text-center">
           <div className="mb-2">
-            <svg
+            <UploadIcon 
               className={`w-8 h-8 ${isDragActive ? 'text-primary' : 'text-muted-foreground'}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-              />
-            </svg>
+            />
           </div>
           <p className={`text-sm ${isDragActive ? 'text-primary' : 'text-muted-foreground'}`}>
             {isDragActive 

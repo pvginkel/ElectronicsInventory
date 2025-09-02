@@ -117,7 +117,7 @@ export function BoxList() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {boxes!.map((box: BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema) => (
+          {boxes!.sort((a, b) => a.box_no - b.box_no).map((box: BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema) => (
             <BoxCard
               key={box.box_no}
               box={box}

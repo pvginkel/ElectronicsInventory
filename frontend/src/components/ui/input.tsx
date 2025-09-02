@@ -1,4 +1,5 @@
 import { type ReactNode, forwardRef } from 'react'
+import { XIcon } from '@/components/icons/XIcon'
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   icon?: ReactNode
@@ -47,18 +48,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                 className="p-1 text-muted-foreground hover:text-foreground focus:outline-none"
                 aria-label="Clear"
               >
-                <svg 
-                  width="14" 
-                  height="14" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="2"
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                >
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
+                <XIcon />
               </button>
             )}
             {action}
