@@ -107,7 +107,7 @@ class Settings(BaseSettings):
         default="gpt-5-mini", description="OpenAI model to use for AI analysis"
     )
     OPENAI_REASONING_EFFORT: str = Field(
-        default="medium", description="OpenAI reasoning effort level (low/medium/high)"
+        default="low", description="OpenAI reasoning effort level (low/medium/high)"
     )
     OPENAI_VERBOSITY: str = Field(
         default="medium", description="OpenAI response verbosity (low/medium/high)"
