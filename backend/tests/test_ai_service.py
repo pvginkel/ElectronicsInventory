@@ -140,8 +140,10 @@ class TestAIService:
 
     def test_analyze_part_no_input(self, ai_service: AIService):
         """Test analyze_part with no text or image input."""
+        from unittest.mock import Mock
+        mock_progress = Mock()
         with pytest.raises(ValueError, match="Either text_input or image_data must be provided"):
-            ai_service.analyze_part()
+            ai_service.analyze_part(None, None, None, mock_progress)
 
     @patch('app.services.ai_service.OpenAI')
     def test_analyze_part_text_only_success(self, mock_openai_class, ai_service: AIService):
@@ -168,7 +170,8 @@ class TestAIService:
         ai_service.client = mock_client
 
         # Perform analysis
-        result = ai_service.analyze_part(text_input="Test relay 12V")
+        mock_progress = Mock()
+        result = ai_service.analyze_part("Test relay 12V", None, None, mock_progress)
 
         # Verify result
         assert result.manufacturer_code == "TEST123"
@@ -204,10 +207,12 @@ class TestAIService:
         # Create test image data
         image_data = b"fake_image_data"
 
+        mock_progress = Mock()
         result = ai_service.analyze_part(
-            text_input="Arduino board",
-            image_data=image_data,
-            image_mime_type="image/jpeg"
+            "Arduino board",
+            image_data,
+            "image/jpeg",
+            mock_progress
         )
 
         # Verify result
@@ -240,7 +245,8 @@ class TestAIService:
         mock_client.responses.parse.return_value = mock_response
         ai_service.client = mock_client
 
-        result = ai_service.analyze_part(text_input="12V power supply")
+        mock_progress = Mock()
+        result = ai_service.analyze_part("12V power supply", None, None, mock_progress)
 
         assert result.type == "Power Supply"
         assert result.type_is_existing is False
@@ -284,7 +290,8 @@ class TestAIService:
                 description="Complete datasheet"
             )
 
-            result = ai_service.analyze_part(text_input="Test relay with docs")
+            mock_progress = Mock()
+            result = ai_service.analyze_part("Test relay with docs", None, None, mock_progress)
 
             # Verify result includes document
             assert result.manufacturer_code == "DOC123"
@@ -305,7 +312,8 @@ class TestAIService:
         ai_service.client = mock_client
 
         with pytest.raises(Exception, match="API Error"):
-            ai_service.analyze_part(text_input="Test component")
+            mock_progress = Mock()
+            ai_service.analyze_part("Test component", None, None, mock_progress)
 
     @patch('app.services.ai_service.OpenAI')
     def test_analyze_part_invalid_json_response(self, mock_openai_class, ai_service: AIService):
@@ -324,7 +332,8 @@ class TestAIService:
         ai_service.client = mock_client
 
         with pytest.raises(Exception, match="Empty response from OpenAI"):
-            ai_service.analyze_part(text_input="Test component")
+            mock_progress = Mock()
+            ai_service.analyze_part("Test component", None, None, mock_progress)
 
     def test_download_document_non_https(self, ai_service: AIService):
         """Test that non-HTTPS URLs are rejected for document download."""
@@ -333,13 +342,11 @@ class TestAIService:
         mock_link.link_type = "datasheet"
         mock_link.description = "Test doc"
 
-        temp_dir = Path("/tmp/test")
-
         # Mock URL thumbnail service to avoid actual network calls
         with patch.object(ai_service.url_thumbnail_service, 'extract_metadata') as mock_extract:
             mock_extract.side_effect = Exception("Non-HTTPS URLs not supported")
 
-            result = ai_service._document_from_link(mock_link, temp_dir, "test")
+            result = ai_service._document_from_link(mock_link.url, mock_link.link_type)
 
             # Should still return a document but with no preview
             assert result.url == "http://example.com/datasheet.pdf"
@@ -353,16 +360,17 @@ class TestAIService:
         mock_link.link_type = "datasheet"
         mock_link.description = "Test doc"
 
-        temp_dir = Path("/tmp/test")
-
         # Mock URL thumbnail service to return HTML content type
         with patch.object(ai_service.url_thumbnail_service, 'extract_metadata') as mock_extract:
-            mock_extract.return_value = {
-                'title': 'HTML Page',
-                'content_type': 'text/html'
-            }
+            from app.schemas.url_metadata import URLMetadataSchema, URLContentType, ThumbnailSourceType
+            mock_extract.return_value = URLMetadataSchema(
+                title='HTML Page',
+                thumbnail_source=ThumbnailSourceType.OTHER,
+                original_url="https://example.com/not-a-doc.html",
+                content_type=URLContentType.WEBPAGE
+            )
 
-            result = ai_service._document_from_link(mock_link, temp_dir, "test")
+            result = ai_service._document_from_link(mock_link.url, mock_link.link_type)
 
             # Should still return a document
             assert result.url == "https://example.com/not-a-doc.html"
@@ -375,13 +383,11 @@ class TestAIService:
         mock_link.link_type = "datasheet"
         mock_link.description = "Huge doc"
 
-        temp_dir = Path("/tmp/test")
-
         # Mock URL thumbnail service to simulate large file
         with patch.object(ai_service.url_thumbnail_service, 'extract_metadata') as mock_extract:
             mock_extract.side_effect = Exception("File too large")
 
-            result = ai_service._document_from_link(mock_link, temp_dir, "test")
+            result = ai_service._document_from_link(mock_link.url, mock_link.link_type)
 
             # Should still return a document but with no preview
             assert result.url == "https://example.com/huge-file.pdf"
@@ -436,7 +442,8 @@ class TestAIService:
         mock_client.responses.parse.return_value = mock_response
         ai_service.client = mock_client
 
-        result = ai_service.analyze_part(text_input="Test component for schema")
+        mock_progress = Mock()
+        result = ai_service.analyze_part("Test component for schema", None, None, mock_progress)
 
         # Verify all fields are properly mapped
         assert result.manufacturer_code == "SCHEMA123"
@@ -460,7 +467,8 @@ class TestAIService:
         mock_client.responses.parse.return_value = mock_response
         ai_service.client = mock_client
 
-        ai_service.analyze_part(text_input="Test component")
+        mock_progress = Mock()
+        ai_service.analyze_part("Test component", None, None, mock_progress)
 
         # Verify the API was called with text input
         mock_client.responses.parse.assert_called_once()
@@ -485,10 +493,12 @@ class TestAIService:
         mock_client.responses.parse.return_value = mock_response
         ai_service.client = mock_client
 
+        mock_progress = Mock()
         ai_service.analyze_part(
-            text_input="Test component",
-            image_data=b"fake_image",
-            image_mime_type="image/jpeg"
+            "Test component",
+            b"fake_image",
+            "image/jpeg",
+            mock_progress
         )
 
         # Verify the API was called with image input

@@ -503,11 +503,15 @@ class TestUrlPreviewAPI:
     @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata')
     def test_attachment_preview_success(self, mock_extract_metadata, mock_validate_url, client: FlaskClient):
         """Test successful URL preview metadata extraction."""
-        mock_extract_metadata.return_value = {
-            'title': 'Test Page Title',
-            'og_image': 'https://example.com/image.jpg',
-            'favicon': 'https://example.com/favicon.ico'
-        }
+        from app.schemas.url_metadata import URLMetadataSchema, URLContentType, ThumbnailSourceType
+        mock_extract_metadata.return_value = URLMetadataSchema(
+            title='Test Page Title',
+            og_image='https://example.com/image.jpg',
+            favicon='https://example.com/favicon.ico',
+            thumbnail_source=ThumbnailSourceType.PREVIEW_IMAGE,
+            original_url='https://example.com',
+            content_type=URLContentType.WEBPAGE
+        )
 
         response = client.post(
             '/api/parts/attachment-preview',
@@ -527,16 +531,18 @@ class TestUrlPreviewAPI:
     @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata')
     def test_attachment_preview_direct_image_title(self, mock_extract_metadata, mock_validate_url, client: FlaskClient):
         """Test URL preview with direct image URL extracts title from filename."""
+        from app.schemas.url_metadata import URLMetadataSchema, URLContentType, ThumbnailSourceType
         # Mock the metadata that would be returned for a direct image
-        mock_extract_metadata.return_value = {
-            'title': 'dht22-thermometer-temperature-and-humidity-sensor.jpg',
-            'page_title': 'dht22-thermometer-temperature-and-humidity-sensor.jpg',
-            'description': None,
-            'og_image': 'https://www.tinytronics.nl/image/catalog/products_2023/dht22-thermometer-temperature-and-humidity-sensor.jpg',
-            'favicon': None,
-            'thumbnail_source': 'direct_image',
-            'original_url': 'https://www.tinytronics.nl/image/catalog/products_2023/dht22-thermometer-temperature-and-humidity-sensor.jpg'
-        }
+        mock_extract_metadata.return_value = URLMetadataSchema(
+            title='dht22-thermometer-temperature-and-humidity-sensor.jpg',
+            page_title='dht22-thermometer-temperature-and-humidity-sensor.jpg',
+            description=None,
+            og_image='https://www.tinytronics.nl/image/catalog/products_2023/dht22-thermometer-temperature-and-humidity-sensor.jpg',
+            favicon=None,
+            thumbnail_source=ThumbnailSourceType.DIRECT_IMAGE,
+            original_url='https://www.tinytronics.nl/image/catalog/products_2023/dht22-thermometer-temperature-and-humidity-sensor.jpg',
+            content_type=URLContentType.IMAGE
+        )
 
         response = client.post(
             '/api/parts/attachment-preview',
@@ -556,11 +562,15 @@ class TestUrlPreviewAPI:
     @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata')
     def test_attachment_preview_no_image(self, mock_extract_metadata, mock_validate_url, client: FlaskClient):
         """Test URL preview with no image available."""
-        mock_extract_metadata.return_value = {
-            'title': 'Test Page Title',
-            'og_image': None,
-            'favicon': None
-        }
+        from app.schemas.url_metadata import URLMetadataSchema, URLContentType, ThumbnailSourceType
+        mock_extract_metadata.return_value = URLMetadataSchema(
+            title='Test Page Title',
+            og_image=None,
+            favicon=None,
+            thumbnail_source=ThumbnailSourceType.OTHER,
+            original_url='https://example.com',
+            content_type=URLContentType.WEBPAGE
+        )
 
         response = client.post(
             '/api/parts/attachment-preview',
