@@ -7,9 +7,11 @@ from spectree import Response as SpectreeResponse
 from app.schemas.common import ErrorResponseSchema
 from app.schemas.part import (
     PartCreateSchema,
+    PartLocationListSchema,
     PartLocationResponseSchema,
     PartResponseSchema,
     PartUpdateSchema,
+    PartWithTotalAndLocationsSchema,
     PartWithTotalSchema,
 )
 from app.schemas.quantity_history import QuantityHistoryResponseSchema
@@ -57,7 +59,7 @@ def list_parts(inventory_service=Provide[ServiceContainer.inventory_service]):
     offset = int(request.args.get("offset", 0))
     type_filter = request.args.get("type_id", type=int)
 
-    # Get parts with calculated total quantities
+    # Get parts with calculated total quantities only
     parts_with_totals = inventory_service.get_all_parts_with_totals(limit, offset, type_filter)
 
     result = []
@@ -65,7 +67,7 @@ def list_parts(inventory_service=Provide[ServiceContainer.inventory_service]):
         part = part_with_total.part
         total_qty = part_with_total.total_quantity
 
-        # Create schema instance with calculated total
+        # Create schema instance with calculated total (now including seller_link)
         part_data = PartWithTotalSchema(
             key=part.key,
             manufacturer_code=part.manufacturer_code,
@@ -74,6 +76,7 @@ def list_parts(inventory_service=Provide[ServiceContainer.inventory_service]):
             tags=part.tags,
             manufacturer=part.manufacturer,
             seller=part.seller,
+            seller_link=part.seller_link,
             package=part.package,
             pin_count=part.pin_count,
             voltage_rating=part.voltage_rating,
@@ -85,6 +88,60 @@ def list_parts(inventory_service=Provide[ServiceContainer.inventory_service]):
             total_quantity=total_qty
         )
         result.append(part_data.model_dump())
+
+    return result
+
+
+@parts_bp.route("/with-locations", methods=["GET"])
+@api.validate(resp=SpectreeResponse(HTTP_200=list[PartWithTotalAndLocationsSchema]))
+@handle_api_errors
+@inject
+def list_parts_with_locations(inventory_service=Provide[ServiceContainer.inventory_service]):
+    """List parts with pagination, total quantities, and location details."""
+    limit = int(request.args.get("limit", 50))
+    offset = int(request.args.get("offset", 0))
+    type_filter = request.args.get("type_id", type=int)
+
+    # Get parts with calculated total quantities and location data
+    parts_with_totals = inventory_service.get_all_parts_with_totals_and_locations(limit, offset, type_filter)
+
+    result = []
+    for part_with_total in parts_with_totals:
+        part = part_with_total.part
+        total_qty = part_with_total.total_quantity
+
+        # Extract location data from part.part_locations relationship
+        locations = []
+        for part_location in part.part_locations:
+            location_data = PartLocationListSchema(
+                box_no=part_location.location.box_no,
+                loc_no=part_location.location.loc_no,
+                qty=part_location.qty
+            )
+            locations.append(location_data)
+
+        # Create schema instance with calculated total and locations
+        part_with_locations_data = PartWithTotalAndLocationsSchema(
+            key=part.key,
+            manufacturer_code=part.manufacturer_code,
+            description=part.description,
+            type_id=part.type_id,
+            tags=part.tags,
+            manufacturer=part.manufacturer,
+            seller=part.seller,
+            seller_link=part.seller_link,
+            package=part.package,
+            pin_count=part.pin_count,
+            voltage_rating=part.voltage_rating,
+            mounting_type=part.mounting_type,
+            series=part.series,
+            dimensions=part.dimensions,
+            created_at=part.created_at,
+            updated_at=part.updated_at,
+            total_quantity=total_qty,
+            locations=locations
+        )
+        result.append(part_with_locations_data.model_dump())
 
     return result
 
@@ -167,11 +224,12 @@ def get_part_history(part_key: str, part_service=Provide[ServiceContainer.part_s
     """Get quantity change history for a part."""
     # Ensure part exists first
     part = part_service.get_part(part_key)
-    
+
     # Query history directly instead of relying on relationship
     from sqlalchemy import select
+
     from app.models.quantity_history import QuantityHistory
-    
+
     db_session = part_service.db
     stmt = select(QuantityHistory).where(QuantityHistory.part_id == part.id).order_by(QuantityHistory.timestamp.desc())
     history_records = list(db_session.execute(stmt).scalars().all())
