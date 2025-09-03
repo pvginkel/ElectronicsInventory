@@ -185,6 +185,20 @@ class ImageService(BaseService):
 </svg>"""
         return pdf_icon_svg.encode('utf-8'), 'image/svg+xml'
 
+    def get_link_icon_data(self) -> tuple[bytes, str]:
+        """Get link icon as SVG data.
+
+        Returns:
+            Tuple of (svg_data, content_type)
+        """
+        try:
+            link_icon_path = Path(__file__).parent.parent / "assets" / "link-icon.svg"
+            with open(link_icon_path, 'rb') as f:
+                link_icon_svg = f.read()
+            return link_icon_svg, 'image/svg+xml'
+        except Exception as e:
+            raise InvalidOperationException("get link icon data", f"failed to read link icon: {str(e)}") from e
+
     def cleanup_thumbnails(self, attachment_id: int):
         """Clean up all thumbnails for an attachment.
 

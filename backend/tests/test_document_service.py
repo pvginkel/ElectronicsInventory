@@ -448,8 +448,8 @@ class TestDocumentService:
         session.refresh(sample_part)
         assert sample_part.cover_attachment_id is None
 
-    def test_set_part_cover_attachment_not_image(self, document_service, session, sample_part):
-        """Test setting non-image as cover attachment."""
+    def test_set_part_cover_attachment_pdf(self, document_service, session, sample_part):
+        """Test setting PDF as cover attachment."""
         attachment = PartAttachment(
             part_id=sample_part.id,
             attachment_type=AttachmentType.PDF,
@@ -459,11 +459,11 @@ class TestDocumentService:
         session.add(attachment)
         session.flush()
 
-        with pytest.raises(InvalidOperationException) as exc_info:
-            document_service.set_part_cover_attachment(sample_part.key, attachment.id)
+        # Should now succeed
+        document_service.set_part_cover_attachment(sample_part.key, attachment.id)
 
-        assert "set part cover attachment" in str(exc_info.value)
-        assert "only images" in str(exc_info.value)
+        session.refresh(sample_part)
+        assert sample_part.cover_attachment_id == attachment.id
 
     def test_set_part_cover_attachment_wrong_part(self, document_service, session):
         """Test setting cover attachment from different part."""
@@ -666,3 +666,61 @@ class TestDocumentService:
 
             # Verify cover is cleared
             assert sample_part.cover_attachment_id is None
+
+    def test_set_part_cover_attachment_url(self, document_service, session, sample_part):
+        """Test setting URL attachment as cover."""
+        attachment = PartAttachment(
+            part_id=sample_part.id,
+            attachment_type=AttachmentType.URL,
+            title="URL Document",
+            url="https://example.com/datasheet.pdf"
+        )
+        session.add(attachment)
+        session.flush()
+
+        # Should succeed
+        document_service.set_part_cover_attachment(sample_part.key, attachment.id)
+
+        session.refresh(sample_part)
+        assert sample_part.cover_attachment_id == attachment.id
+
+    def test_get_attachment_thumbnail_url_no_s3_key(self, document_service, session, sample_part, mock_image_service):
+        """Test getting thumbnail for URL attachment without stored thumbnail."""
+        attachment = PartAttachment(
+            part_id=sample_part.id,
+            attachment_type=AttachmentType.URL,
+            title="URL Document",
+            url="https://example.com/datasheet.pdf"
+        )
+        session.add(attachment)
+        session.flush()
+
+        # Mock the link icon return
+        mock_image_service.get_link_icon_data.return_value = (b"<svg>link icon</svg>", "image/svg+xml")
+
+        thumbnail_path, content_type = document_service.get_attachment_thumbnail(attachment.id, 150)
+
+        assert thumbnail_path == "<svg>link icon</svg>"
+        assert content_type == "image/svg+xml"
+        mock_image_service.get_link_icon_data.assert_called_once()
+
+    def test_get_attachment_thumbnail_url_with_s3_key(self, document_service, session, sample_part, mock_image_service):
+        """Test getting thumbnail for URL attachment with stored thumbnail."""
+        attachment = PartAttachment(
+            part_id=sample_part.id,
+            attachment_type=AttachmentType.URL,
+            title="URL Document",
+            url="https://example.com/image.jpg",
+            s3_key="url_thumbnails/123/thumb.jpg"
+        )
+        session.add(attachment)
+        session.flush()
+
+        # Mock thumbnail path return
+        mock_image_service.get_thumbnail_path.return_value = "/tmp/thumbnail.jpg"
+
+        thumbnail_path, content_type = document_service.get_attachment_thumbnail(attachment.id, 150)
+
+        assert thumbnail_path == "/tmp/thumbnail.jpg"
+        assert content_type == "image/jpeg"
+        mock_image_service.get_thumbnail_path.assert_called_once_with(attachment.id, attachment.s3_key, 150)
