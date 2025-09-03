@@ -61,7 +61,8 @@ def run_tests(prompt_template: str, response_model: Type[BaseModel], queries: li
                 try:
                     logger.info(f"Run: query {query}, query_key {query_key}, model {model}, reasoning_effort {reasoning_effort}")
 
-                    result = runner.run(model, "medium", reasoning_effort, prompt, query)
+                    streaming = True
+                    result = runner.run(streaming, model, "medium", reasoning_effort, prompt, query)
 
                     with open(os.path.join(output_path, f"{filename}.json"), "w", encoding="utf-8") as f:
                         json.dump(json.loads(result.output_text), f, indent=4, ensure_ascii=False)                    
@@ -101,9 +102,9 @@ def main():
     }
     queries = [
         ("HLK PM24", "hlk-pm24"),
-        ("ESP32-S3FN8", "esp32-s3fn8"),
-        ("Arduino Nano Every", "arduino-nano-every"),
-        ("DFRobot Gravity SGP40", "dfrobot-gravity-sgp40"),
+        # ("ESP32-S3FN8", "esp32-s3fn8"),
+        # ("Arduino Nano Every", "arduino-nano-every"),
+        # ("DFRobot Gravity SGP40", "dfrobot-gravity-sgp40"),
     ]
 
     run_tests(

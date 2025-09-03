@@ -3,15 +3,35 @@ import os
 import logging
 import json
 
-from typing import Type
+from typing import Any, Protocol, Type
 from openai import OpenAI
 from openai.types.responses.response_usage import ResponseUsage
 from openai.types.responses.function_tool_param import FunctionToolParam
+from openai.types.responses import ResponseOutputItemDoneEvent, ResponseFunctionWebSearch, ResponseCompletedEvent, ParsedResponseOutputMessage, ParsedResponseOutputText, ResponseOutputMessage,  ResponseOutputText, ResponseContentPartAddedEvent, ResponseFunctionCallArgumentsDoneEvent
+from openai.types.responses.response_function_web_search import ActionSearch
+from openai.types.responses.parsed_response import ParsedResponse, ParsedResponseFunctionToolCall
+
 from pydantic import BaseModel
 
-from tools.prompttester.url_classifier_service import ClassifyUrlsRequest, URLClassifierService
+from url_classifier_service import ClassifyUrlsRequest, URLClassifierService
 
 logger = logging.getLogger(__name__)
+
+
+class ProgressHandle():
+    """Interface for sending progress updates to connected clients."""
+
+    def send_progress_text(self, text: str) -> None:
+        """Send a text progress update to connected clients."""
+        logger.info(f"Progress {text}")
+
+    def send_progress_value(self, value: float) -> None:
+        """Send a progress value update (0.0 to 1.0) to connected clients."""
+        logger.info(f"Progress {int(value * 100)}%")
+
+    def send_progress(self, text: str, value: float) -> None:
+        """Send both text and progress value update to connected clients."""
+        logger.info(f"Progress {text} {int(value * 100)}%")
 
 
 class AIResponse(BaseModel):
@@ -27,7 +47,7 @@ class AIRunner:
         self.model = model
         self.url_classifier = url_classifier
 
-    def run(self, model: str, verbosity: str, reasoning_effort: str | None, prompt: str, text_input: str) -> AIResponse:
+    def run(self, streaming: bool, model: str, verbosity: str, reasoning_effort: str | None, prompt: str, text_input: str) -> AIResponse:
         # Build input and instructions for Responses API
         input_content = self._build_responses_api_input(prompt, text_input)
 
@@ -54,25 +74,17 @@ class AIRunner:
             }
         }
 
+        progress_handle = ProgressHandle()
+
         while True:
             logger.info("Starting OpenAI call")
 
             again = False
 
-            # Call OpenAI Responses API with structured output
-            response = self.client.responses.parse(
-                model=model,
-                input=input_content,
-                text_format=self.model,
-                text={ "verbosity": verbosity }, # type: ignore
-                tools=[
-                    { "type": "web_search" },
-                    function_tool
-                ],
-                reasoning = {
-                    "effort": reasoning_effort # type: ignore
-                },
-            )
+            if streaming:
+                response = self._call_openai_api_streamed(model, reasoning_effort, verbosity, function_tool, input_content, progress_handle)
+            else:
+                response = self._call_openai_api(model, reasoning_effort, verbosity, function_tool, input_content, progress_handle)
 
             input_content += response.output
 
@@ -81,6 +93,8 @@ class AIRunner:
             for item in response.output:
                 if item.type == "function_call":
                     if item.name == "classify_urls":
+                        progress_handle.send_progress_text("Checking URLs...")
+
                         logger.info("Request to classify URLs call ID")
 
                         logger.info(f"Request JSON: {item.arguments}")
@@ -96,6 +110,8 @@ class AIRunner:
                             "call_id": item.call_id,
                             "output": result_json
                         })
+
+                        progress_handle.send_progress_text("Thinking...")
                         again = True
             
             if not again:
@@ -116,6 +132,71 @@ class AIRunner:
             output_text=response.output_text,
             usage=response.usage
         )
+
+
+    def _call_openai_api(self, model: str, reasoning_effort: str | None, verbosity: str, function_tool: FunctionToolParam, input_content: list, progress_handle: ProgressHandle) -> ParsedResponse:
+        # Call OpenAI Responses API with structured output
+        return self.client.responses.parse(
+            model=model,
+            input=input_content,
+            text_format=self.model,
+            text={ "verbosity": verbosity }, # type: ignore
+            tools=[
+                { "type": "web_search" },
+                function_tool
+            ],
+            reasoning = {
+                "effort": reasoning_effort # type: ignore
+            },
+        )
+
+    def _call_openai_api_streamed(self, model: str, reasoning_effort: str | None, verbosity: str, function_tool: FunctionToolParam, input_content: list, progress_handle: ProgressHandle) -> ParsedResponse:
+        """Call OpenAI Responses API and handle streaming response.
+        
+        Args:
+            input_content: Formatted input for OpenAI API
+            prompt: Generated prompt string
+            progress_handle: Interface for sending progress updates
+            
+        Returns:
+            PartAnalysisSuggestion: Parsed response from OpenAI
+            
+        Raises:
+            Exception: If API call fails or response is invalid
+        """
+
+        # Call OpenAI Responses API with structured output
+        with self.client.responses.stream(
+            model=model,
+            input=input_content,
+            text_format=self.model,
+            text={ "verbosity": verbosity }, # type: ignore
+            tools=[
+                { "type": "web_search" },
+                function_tool
+            ],
+            # tool_choice="required",
+            reasoning = {
+                "effort": reasoning_effort # type: ignore
+            },
+        ) as stream:
+            logger.info("Streaming events")
+
+            for event in stream:
+                if isinstance(event, ResponseOutputItemDoneEvent):
+                    if isinstance(event.item, ResponseFunctionWebSearch):
+                        if isinstance(event.item.action, ActionSearch):
+                            if event.item.action.query:
+                                progress_handle.send_progress(f"Searched for {event.item.action.query}", 0.2)
+                if isinstance(event, ResponseContentPartAddedEvent):
+                    progress_handle.send_progress("Writing response...", 0.5)
+                if isinstance(event, ResponseCompletedEvent):
+                    return event.response
+
+                # logger.info(event)
+                # logger.info(event.model_dump_json())
+
+        raise Exception("Did not get ResponseCompletedEvent")
 
     def _build_responses_api_input(self, prompt: str, text_input: str) -> list:
         """Build instructions and input for OpenAI Responses API."""
