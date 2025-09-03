@@ -55,7 +55,7 @@ class AIPartAnalysisTask(BaseSessionTask):
                 return AIPartAnalysisTaskCancelledResultSchema()
 
             # Phase 2: AI Analysis (5-80%)
-            progress_handle.send_progress_text("AI analyzing part and finding resources...")
+            progress_handle.send_progress("AI analyzing part and finding resources...", 0.05)
 
             try:
                 ai_service = self.container.ai_service()
@@ -77,7 +77,7 @@ class AIPartAnalysisTask(BaseSessionTask):
                 return AIPartAnalysisTaskCancelledResultSchema()
 
             # Phase 3: Document processing already happened in AI service (80-95%)
-            progress_handle.send_progress("Processing downloaded documentation...", 0.80)
+            progress_handle.send_progress("Processing downloaded documentation...", 0.8)
 
             # Check if any documents were downloaded
             doc_count = len(analysis_result.documents)

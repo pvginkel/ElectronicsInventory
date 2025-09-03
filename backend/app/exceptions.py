@@ -49,6 +49,8 @@ class CapacityExceededException(InventoryException):
 class InvalidOperationException(InventoryException):
     """Exception raised when an operation cannot be performed due to business rules."""
 
-    def __init__(self, operation: str, reason: str) -> None:
-        message = f"Cannot {operation} because {reason}"
+    def __init__(self, operation: str, cause: str) -> None:
+        self.operation = operation
+        self.cause = cause
+        message = f"Cannot {operation} because {cause}"
         super().__init__(message)
