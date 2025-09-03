@@ -21,23 +21,23 @@ const navigationItems: SidebarItem[] = [
 
 export function Sidebar({ isCollapsed = false, onToggle }: SidebarProps) {
   return (
-    <div className={`bg-card border-r border-border transition-all duration-300 h-full ${isCollapsed ? 'w-16' : 'w-64'}`}>
+    <div className={`bg-card border-r border-border transition-all duration-300 h-full ${isCollapsed ? 'w-19' : 'w-64'}`}>
       <div className="flex h-full flex-col">
         {/* Logo/Header */}
         <div className="flex h-16 items-center border-b border-border px-4">
           {!isCollapsed && (
             <div className="flex items-center gap-2">
-              <span className="text-2xl">⚡</span>
+              <span className="text-3xl">⚡</span>
               <span className="font-semibold text-foreground">Electronics</span>
             </div>
           )}
           {onToggle && (
             <button
               onClick={onToggle}
-              className="ml-auto rounded-md p-2 hover:bg-accent transition-colors"
+              className={`${isCollapsed ? 'mx-auto' : 'ml-auto'} flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground`}
               title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
-              <span className="text-lg">☰</span>
+              <span className="text-xl">☰</span>
             </button>
           )}
         </div>
@@ -51,7 +51,7 @@ export function Sidebar({ isCollapsed = false, onToggle }: SidebarProps) {
                   to={item.to}
                   className="flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground [&.active]:bg-accent [&.active]:text-accent-foreground [&.active]:font-medium"
                 >
-                  <span className="text-lg">{item.icon}</span>
+                  <span className="text-xl">{item.icon}</span>
                   {!isCollapsed && <span>{item.label}</span>}
                 </Link>
               </li>
