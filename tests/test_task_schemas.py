@@ -41,18 +41,18 @@ class TestTaskEventType:
 class TestTaskProgressUpdate:
     """Test TaskProgressUpdate schema."""
 
-    def test_progress_update_with_text_only(self):
-        """Test progress update with text only."""
-        update = TaskProgressUpdate(text="Processing data...")
+    def test_progress_update_with_text_and_value(self):
+        """Test progress update with text and value."""
+        update = TaskProgressUpdate(text="Processing data...", value=0.5)
 
         assert update.text == "Processing data..."
-        assert update.value is None
+        assert update.value == 0.5
 
-    def test_progress_update_with_value_only(self):
-        """Test progress update with value only."""
-        update = TaskProgressUpdate(value=0.75)
+    def test_progress_update_required_fields(self):
+        """Test progress update with required fields."""
+        update = TaskProgressUpdate(text="75% complete", value=0.75)
 
-        assert update.text is None
+        assert update.text == "75% complete"
         assert update.value == 0.75
 
     def test_progress_update_with_both(self):
@@ -62,26 +62,29 @@ class TestTaskProgressUpdate:
         assert update.text == "75% complete"
         assert update.value == 0.75
 
-    def test_progress_update_empty(self):
-        """Test progress update with no data."""
-        update = TaskProgressUpdate()
+    def test_progress_update_missing_text(self):
+        """Test progress update with missing text field."""
+        with pytest.raises(ValidationError):
+            TaskProgressUpdate(value=0.5)
 
-        assert update.text is None
-        assert update.value is None
+    def test_progress_update_missing_value(self):
+        """Test progress update with missing value field."""
+        with pytest.raises(ValidationError):
+            TaskProgressUpdate(text="Processing...")
 
     def test_progress_value_validation(self):
         """Test progress value validation (0.0 to 1.0)."""
         # Valid values
-        TaskProgressUpdate(value=0.0)
-        TaskProgressUpdate(value=0.5)
-        TaskProgressUpdate(value=1.0)
+        TaskProgressUpdate(text="Starting", value=0.0)
+        TaskProgressUpdate(text="Half done", value=0.5)
+        TaskProgressUpdate(text="Complete", value=1.0)
 
         # Invalid values
         with pytest.raises(ValidationError):
-            TaskProgressUpdate(value=-0.1)
+            TaskProgressUpdate(text="Invalid", value=-0.1)
 
         with pytest.raises(ValidationError):
-            TaskProgressUpdate(value=1.1)
+            TaskProgressUpdate(text="Invalid", value=1.1)
 
 
 class TestTaskEvent:

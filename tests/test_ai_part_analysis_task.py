@@ -86,13 +86,12 @@ class TestAIPartAnalysisTask:
         )
 
         # Verify progress updates were sent
-        assert mock_progress_handle.send_progress_text.call_count >= 2
         assert mock_progress_handle.send_progress.call_count >= 2
 
         # Check specific progress messages
-        text_calls = [call.args[0] for call in mock_progress_handle.send_progress_text.call_args_list]
-        assert any("Initializing AI analysis" in msg for msg in text_calls)
-        assert any("AI analyzing part" in msg for msg in text_calls)
+        progress_calls = [call.args[0] for call in mock_progress_handle.send_progress.call_args_list]
+        assert any("Initializing AI analysis" in msg for msg in progress_calls)
+        assert any("AI analyzing part" in msg for msg in progress_calls)
 
     def test_execute_with_image_success(self, mock_container, mock_ai_service, mock_progress_handle):
         """Test successful task execution with image input."""
@@ -189,11 +188,11 @@ class TestAIPartAnalysisTask:
         task = AIPartAnalysisTask(mock_container)
 
         # Start execution and cancel during it
-        def cancel_during_execution(text):
+        def cancel_during_execution(text, value):
             if "AI analyzing" in text:
                 task.cancel()
 
-        mock_progress_handle.send_progress_text.side_effect = cancel_during_execution
+        mock_progress_handle.send_progress.side_effect = cancel_during_execution
 
         result = task.execute(
             mock_progress_handle,
@@ -207,7 +206,7 @@ class TestAIPartAnalysisTask:
     def test_execute_unexpected_error(self, mock_container, mock_ai_service, mock_progress_handle):
         """Test handling of unexpected errors during execution."""
         # Mock progress handle to raise an exception
-        mock_progress_handle.send_progress_text.side_effect = Exception("Unexpected error")
+        mock_progress_handle.send_progress.side_effect = Exception("Unexpected error")
 
         task = AIPartAnalysisTask(mock_container)
 
@@ -244,23 +243,21 @@ class TestAIPartAnalysisTask:
         assert result.success is True
 
         # Extract all progress calls  
-        text_calls = mock_progress_handle.send_progress_text.call_args_list
         progress_calls = mock_progress_handle.send_progress.call_args_list
 
         # Verify minimum number of progress updates
-        assert len(text_calls) >= 2
         assert len(progress_calls) >= 2
 
         # Check that we have the expected progress phases from text calls
-        text_messages = [call.args[0] for call in text_calls]
+        progress_messages = [call.args[0] for call in progress_calls]
 
         # Should have initialization phase
-        assert any("Initializing" in msg for msg in text_messages)
+        assert any("Initializing" in msg for msg in progress_messages)
 
         # Should have AI analysis phase
-        assert any("AI analyzing" in msg for msg in text_messages)
+        assert any("AI analyzing" in msg for msg in progress_messages)
 
-        # Check progress value calls if they exist
+        # Check progress value calls
         if progress_calls:
             # Check progress value sequence
             progress_values = [call.args[1] for call in progress_calls]
@@ -270,7 +267,6 @@ class TestAIPartAnalysisTask:
                 assert 0.0 <= value <= 1.0
 
             # Should end with completion
-            progress_messages = [call.args[0] for call in progress_calls]
             assert any("complete" in msg.lower() or "Finalizing" in msg or "Processing" in msg for msg in progress_messages)
 
     def test_execute_documents_logging(self, mock_container, mock_ai_service, mock_progress_handle):

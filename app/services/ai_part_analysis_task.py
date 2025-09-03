@@ -49,7 +49,7 @@ class AIPartAnalysisTask(BaseSessionTask):
                 )
 
             # Phase 1: Initialize and validate (0-5%)
-            progress_handle.send_progress_text("Initializing AI analysis...")
+            progress_handle.send_progress("Initializing AI analysis...", 0.0)
 
             if self.is_cancelled:
                 return AIPartAnalysisTaskCancelledResultSchema()
