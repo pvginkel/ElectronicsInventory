@@ -16,7 +16,6 @@ from app.schemas.common import ErrorResponseSchema
 from app.schemas.part import PartResponseSchema
 from app.schemas.task_schema import TaskStartResponse
 from app.services.ai_part_analysis_task import AIPartAnalysisTask
-from app.services.ai_service import AIService
 from app.services.container import ServiceContainer
 from app.services.document_service import DocumentService
 from app.services.part_service import PartService
@@ -121,6 +120,7 @@ def create_part_from_ai_analysis(
     Accepts AI analysis results and creates a part with attached documents
     and suggested image from temporary storage.
     """
+
     data = AIPartCreateSchema.model_validate(request.get_json())
 
     # Create the part with extended fields
@@ -143,20 +143,39 @@ def create_part_from_ai_analysis(
 
     # Attach documents from AI suggestions using proper document service methods
     for doc in data.documents:
-        try:
-            # Create document attachment from URL - this will handle downloading and processing
-            attachment = document_service.create_url_attachment(
-                part_key=part.key,  # Use part key, not ID
-                title=doc.description or f"AI suggested {doc.document_type}",
-                url=doc.url
-            )
-            logger.info(f"Successfully attached document from {doc.url} to part {part.key}")
+        # Resolve document title using the following priority:
+        # 1. Use doc.preview.title if available
+        # 2. Extract filename from URL path
+        # 3. Fallback to "AI suggested {doc.document_type}"
+        title = None
+        if doc.preview and doc.preview.title:
+            title = doc.preview.title
+        else:
+            # Try to extract filename from URL path
+            try:
+                import os
+                from urllib.parse import urlparse
+                parsed_url = urlparse(doc.url)
+                filename = os.path.basename(parsed_url.path)
+                if filename and filename != '/':
+                    title = filename
+            except Exception:
+                pass  # Ignore URL parsing errors, will use fallback
 
-            if not cover_image and doc.is_cover_image and attachment.attachment_type == "image":
-                cover_image = attachment
-        except Exception as e:
-            logger.warning(f"Failed to attach document {doc.url} to part {part.key}: {e}")
-            # Continue processing other documents even if one fails
+        # Use fallback if no title was resolved
+        if not title:
+            title = f"AI suggested {doc.document_type}"
+
+        # Create document attachment from URL - this will handle downloading and processing
+        attachment = document_service.create_url_attachment(
+            part_key=part.key,  # Use part key, not ID
+            title=title,
+            url=doc.url
+        )
+        logger.info(f"Successfully attached document from {doc.url} to part {part.key}")
+
+        if not cover_image and doc.is_cover_image and attachment.attachment_type == "image":
+            cover_image = attachment
 
     if cover_image:
         logger.info(f"Setting suggested image as cover for part {part.key}")
