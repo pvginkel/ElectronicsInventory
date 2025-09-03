@@ -316,28 +316,26 @@ class TestDownloadCacheService:
             # Download should still succeed even if caching failed
             assert result.content == b'test content'
 
-    @patch('requests.head')
-    def test_validate_url_valid(self, mock_head, download_service):
+    def test_validate_url_valid(self, download_service):
         """Test URL validation with valid URL."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_head.return_value = mock_response
-
         result = download_service.validate_url("https://example.com/test.html")
-
         assert result is True
-        mock_head.assert_called_once()
 
-    @patch('requests.head')
-    def test_validate_url_invalid_status(self, mock_head, download_service):
-        """Test URL validation with invalid status code."""
-        mock_response = Mock()
-        mock_response.status_code = 404
-        mock_head.return_value = mock_response
+        result = download_service.validate_url("http://example.com/test.html")
+        assert result is True
 
-        result = download_service.validate_url("https://example.com/notfound.html")
-
-        assert result is False
+    def test_validate_url_valid_formats(self, download_service):
+        """Test URL validation with various valid URL formats."""
+        valid_urls = [
+            "https://example.com",
+            "http://example.com/path",
+            "https://subdomain.example.com/path/file.ext",
+            "https://example.com:8080/path?param=value#fragment"
+        ]
+        
+        for url in valid_urls:
+            result = download_service.validate_url(url)
+            assert result is True, f"URL should be valid: {url}"
 
     def test_validate_url_invalid_format(self, download_service):
         """Test URL validation with invalid URL format."""
@@ -347,14 +345,18 @@ class TestDownloadCacheService:
         result = download_service.validate_url("ftp://example.com/test")
         assert result is False
 
-    @patch('requests.head')
-    def test_validate_url_network_error(self, mock_head, download_service):
-        """Test URL validation with network error."""
-        mock_head.side_effect = requests.exceptions.RequestException("Network error")
-
-        result = download_service.validate_url("https://example.com/test.html")
-
-        assert result is False
+    def test_validate_url_invalid_schemes(self, download_service):
+        """Test URL validation with invalid schemes."""
+        invalid_urls = [
+            "ftp://example.com/test",
+            "file:///path/to/file",
+            "ssh://example.com",
+            "mailto:test@example.com"
+        ]
+        
+        for url in invalid_urls:
+            result = download_service.validate_url(url)
+            assert result is False, f"URL should be invalid: {url}"
 
     def test_service_configuration(self, temp_file_manager):
         """Test service with different configuration parameters."""

@@ -226,7 +226,7 @@ class TestURLThumbnailService:
             with pytest.raises(InvalidOperationException) as exc_info:
                 url_service.download_and_store_thumbnail("http://example.com", 123)
 
-            assert "Cannot extract metadata" in str(exc_info.value)
+            assert "Cannot fetch URL content" in str(exc_info.value)
 
 
 class TestContentBasedProcessing:

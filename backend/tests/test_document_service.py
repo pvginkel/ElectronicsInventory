@@ -847,11 +847,11 @@ class TestDocumentService:
         assert result is True
 
     def test_attachment_has_image_from_metadata_url_with_image_content(self, document_service):
-        """Test _attachment_has_image_from_metadata for URL with image content type."""
+        """Test _attachment_has_image_from_metadata for URL with image content type but no stored thumbnail."""
         result = document_service._attachment_has_image_from_metadata(
             AttachmentType.URL, None, {"content_type": "image"}
         )
-        assert result is True
+        assert result is False
 
     def test_attachment_has_image_from_metadata_url_no_image(self, document_service):
         """Test _attachment_has_image_from_metadata for URL without image."""

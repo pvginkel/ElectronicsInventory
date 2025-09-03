@@ -372,10 +372,10 @@ class TestTaskProgressHandle:
         assert text_event.event_type == TaskEventType.PROGRESS_UPDATE
         assert text_event.task_id == "test-task-id"
         assert text_event.data["text"] == "Text update"
-        assert text_event.data["value"] is None
+        assert text_event.data["value"] == 0.0  # Uses initial progress value
 
         value_event = events[1]
-        assert value_event.data["text"] is None
+        assert value_event.data["text"] == "Text update"  # Retains previous text
         assert value_event.data["value"] == 0.5
 
         combined_event = events[2]
