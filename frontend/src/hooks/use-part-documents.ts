@@ -24,6 +24,7 @@ export function usePartDocuments(partId: string) {
       fileSize: attachment.file_size || null,
       mimeType: attachment.content_type || null,
       createdAt: attachment.created_at,
+      has_image: attachment.has_image,
     }));
   }, [query.data]);
 

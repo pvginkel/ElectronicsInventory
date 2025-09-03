@@ -545,7 +545,7 @@
           "voltage_rating": {
             "anyOf": [
               {
-                "maxLength": 50,
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -1064,6 +1064,12 @@
             "example": "omron_g5q_datasheet.pdf",
             "title": "Filename"
           },
+          "has_image": {
+            "description": "Whether this attachment has an associated image for display",
+            "example": true,
+            "title": "Has Image",
+            "type": "boolean"
+          },
           "id": {
             "description": "Unique attachment identifier",
             "example": 123,
@@ -1128,7 +1134,8 @@
           "file_size",
           "attachment_metadata",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "has_image"
         ],
         "title": "PartAttachmentResponseSchema",
         "type": "object"
@@ -1385,6 +1392,12 @@
             "example": "omron_g5q_datasheet.pdf",
             "title": "Filename"
           },
+          "has_image": {
+            "description": "Whether this attachment has an associated image for display",
+            "example": true,
+            "title": "Has Image",
+            "type": "boolean"
+          },
           "id": {
             "description": "Unique attachment identifier",
             "example": 123,
@@ -1419,7 +1432,8 @@
           "filename",
           "content_type",
           "file_size",
-          "created_at"
+          "created_at",
+          "has_image"
         ],
         "title": "PartAttachmentListSchema",
         "type": "object"
@@ -1496,6 +1510,12 @@
             "example": "omron_g5q_datasheet.pdf",
             "title": "Filename"
           },
+          "has_image": {
+            "description": "Whether this attachment has an associated image for display",
+            "example": true,
+            "title": "Has Image",
+            "type": "boolean"
+          },
           "id": {
             "description": "Unique attachment identifier",
             "example": 123,
@@ -1560,7 +1580,8 @@
           "file_size",
           "attachment_metadata",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "has_image"
         ],
         "title": "PartAttachmentResponseSchema",
         "type": "object"
@@ -1796,7 +1817,7 @@
           "voltage_rating": {
             "anyOf": [
               {
-                "maxLength": 50,
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -2235,6 +2256,12 @@
             "example": "omron_g5q_datasheet.pdf",
             "title": "Filename"
           },
+          "has_image": {
+            "description": "Whether this attachment has an associated image for display",
+            "example": true,
+            "title": "Has Image",
+            "type": "boolean"
+          },
           "id": {
             "description": "Unique attachment identifier",
             "example": 123,
@@ -2269,7 +2296,8 @@
           "filename",
           "content_type",
           "file_size",
-          "created_at"
+          "created_at",
+          "has_image"
         ],
         "title": "PartAttachmentListSchema",
         "type": "object"
@@ -2346,6 +2374,12 @@
             "example": "omron_g5q_datasheet.pdf",
             "title": "Filename"
           },
+          "has_image": {
+            "description": "Whether this attachment has an associated image for display",
+            "example": true,
+            "title": "Has Image",
+            "type": "boolean"
+          },
           "id": {
             "description": "Unique attachment identifier",
             "example": 123,
@@ -2410,7 +2444,8 @@
           "file_size",
           "attachment_metadata",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "has_image"
         ],
         "title": "PartAttachmentResponseSchema",
         "type": "object"
@@ -2661,7 +2696,7 @@
           "voltage_rating": {
             "anyOf": [
               {
-                "maxLength": 50,
+                "maxLength": 100,
                 "type": "string"
               },
               {

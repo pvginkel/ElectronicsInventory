@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { DocumentGridBase } from '@/components/documents/document-grid-base';
 import { MediaViewerBase } from '@/components/documents/media-viewer-base';
+import { getApiBaseUrl } from '@/lib/utils/api-config';
 import type { DocumentItem } from '@/types/documents';
 import type { components } from '@/lib/api/generated/types';
 
@@ -13,13 +14,6 @@ interface AIDocumentGridWrapperProps {
   readOnly?: boolean;
 }
 
-function getApiBaseUrl(): string {
-  return import.meta.env.VITE_API_BASE_URL || (
-    process.env.NODE_ENV === 'production' 
-      ? ''  // Production: assume API is served from same origin
-      : 'http://localhost:5000'  // Development: backend on different port
-  );
-}
 
 function getFilenameFromUrl(url: string): string {
   try {
@@ -100,6 +94,7 @@ export function AIDocumentGridWrapper({
         previewImageUrl,
         assetUrl: originalUrl,
         isCover: doc.is_cover_image || false,
+        hasImage: type === 'website' ? !!previewImageUrl : undefined,
       };
     });
   }, [documents]);

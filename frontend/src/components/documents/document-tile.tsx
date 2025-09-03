@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { IconButton } from '@/components/ui/hover-actions';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { useConfirm } from '@/hooks/use-confirm';
+import { useToast } from '@/hooks/use-toast';
 import type { DocumentItem } from '@/types/documents';
 
 interface DocumentTileProps {
@@ -21,6 +22,7 @@ export function DocumentTile({
 }: DocumentTileProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const { confirm, confirmProps } = useConfirm();
+  const { showError } = useToast();
 
   const handleTileClick = () => {
     onTileClick(document);
@@ -47,10 +49,10 @@ export function DocumentTile({
     try {
       const success = await onDelete(document.id);
       if (!success) {
-        console.error('Failed to delete document');
+        showError('Failed to delete document');
       }
-    } catch (error) {
-      console.error('Error deleting document:', error);
+    } catch {
+      showError('Failed to delete document');
     } finally {
       setIsDeleting(false);
     }

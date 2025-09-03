@@ -4,6 +4,7 @@ import { MediaViewerBase } from '@/components/documents/media-viewer-base';
 import { useCoverAttachment, useSetCoverAttachment } from '@/hooks/use-cover-image';
 import { usePartDocuments, useDeleteDocument } from '@/hooks/use-part-documents';
 import { getThumbnailUrl, getViewUrl } from '@/lib/utils/thumbnail-urls';
+import { useToast } from '@/hooks/use-toast';
 import type { DocumentItem } from '@/types/documents';
 
 interface PartDocumentGridProps {
@@ -22,6 +23,7 @@ export function PartDocumentGrid({
   const { coverAttachment } = useCoverAttachment(partId);
   const setCoverMutation = useSetCoverAttachment();
   const deleteDocumentMutation = useDeleteDocument();
+  const { showError } = useToast();
 
   // Transform API documents to DocumentItem format
   const documents: DocumentItem[] = useMemo(() => {
@@ -41,13 +43,22 @@ export function PartDocumentGrid({
         type = 'image';
       }
 
+      // Determine preview image URL based on type and has_image
+      let previewImageUrl: string | null = null;
+      if (type === 'image') {
+        previewImageUrl = getThumbnailUrl(partId, doc.id, 'medium');
+      } else if (type === 'website' && doc.has_image) {
+        previewImageUrl = getThumbnailUrl(partId, doc.id, 'medium');
+      }
+
       return {
         id: doc.id,
         title: doc.name,
         type,
-        previewImageUrl: type === 'image' ? getThumbnailUrl(partId, doc.id, 'medium') : null,
+        previewImageUrl,
         assetUrl: type === 'website' && doc.url ? doc.url : getViewUrl(partId, doc.id),
-        isCover
+        isCover,
+        hasImage: doc.has_image
       };
     });
   }, [apiDocuments, coverAttachment, partId]);
@@ -70,8 +81,8 @@ export function PartDocumentGrid({
         body: { attachment_id: parseInt(documentId) }
       });
       onDocumentChange?.();
-    } catch (error) {
-      console.error('Failed to set cover:', error);
+    } catch {
+      showError('Failed to set cover');
     }
   };
 
@@ -85,8 +96,8 @@ export function PartDocumentGrid({
       });
       onDocumentChange?.();
       return true;
-    } catch (error) {
-      console.error('Failed to delete document:', error);
+    } catch {
+      showError('Failed to delete document');
       return false;
     }
   };

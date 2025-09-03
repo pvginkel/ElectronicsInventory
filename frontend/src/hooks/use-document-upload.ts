@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { validateFile } from '@/lib/utils/file-validation';
+import { getApiBaseUrl } from '@/lib/utils/api-config';
 
 export interface UploadProgress {
   partId: string;
@@ -21,8 +22,7 @@ export function useDocumentUpload() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, UploadProgress>>({});
   const queryClient = useQueryClient();
   
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 
-    (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5000');
+  const baseUrl = getApiBaseUrl();
 
   const uploadDocument = useCallback(async (options: DocumentUploadOptions) => {
     const { partId, file, url, name, onProgress } = options;
@@ -137,7 +137,7 @@ export function useDocumentUpload() {
       // Clean up progress after a delay
       setTimeout(() => {
         setUploadProgress(prev => {
-          const { [uploadKey]: removed, ...rest } = prev;
+          const { [uploadKey]: _, ...rest } = prev;
           return rest;
         });
       }, 2000);
@@ -157,7 +157,7 @@ export function useDocumentUpload() {
       // Clean up after error display
       setTimeout(() => {
         setUploadProgress(prev => {
-          const { [uploadKey]: removed, ...rest } = prev;
+          const { [uploadKey]: _, ...rest } = prev;
           return rest;
         });
       }, 5000);

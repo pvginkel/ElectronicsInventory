@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { isValidUrl, normalizeUrl } from '@/lib/utils/url-metadata';
 import { usePostPartsAttachmentPreview } from '@/lib/api/generated/hooks';
+import { getApiBaseUrl } from '@/lib/utils/api-config';
 
 export interface UrlPreviewState {
   url: string;
@@ -61,8 +62,7 @@ export function useUrlPreview() {
       });
       
       // Convert relative image_url to absolute URL pointing to backend
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || 
-        (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5000');
+      const baseUrl = getApiBaseUrl();
       
       const absoluteImageUrl = previewData.image_url 
         ? (previewData.image_url.startsWith('http') 

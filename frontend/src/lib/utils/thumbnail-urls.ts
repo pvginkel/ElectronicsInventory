@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from './api-config';
+
 export interface ThumbnailSizes {
   small: number;
   medium: number;
@@ -9,14 +11,6 @@ export const THUMBNAIL_SIZES: ThumbnailSizes = {
   medium: 300,
   large: 500,
 };
-
-function getApiBaseUrl(): string {
-  return import.meta.env.VITE_API_BASE_URL || (
-    process.env.NODE_ENV === 'production' 
-      ? ''  // Production: assume API is served from same origin
-      : 'http://localhost:5000'  // Development: backend on different port
-  );
-}
 
 export function getThumbnailUrl(
   partKey: string, 

@@ -118,10 +118,10 @@ export function MediaViewerBase({
   }, [documents, currentIndex, onNavigate]);
 
   // Handle keyboard navigation
+  const handleKeyDownRef = useRef<((e: KeyboardEvent) => void) | undefined>(undefined);
+  
   useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
+    handleKeyDownRef.current = (e: KeyboardEvent) => {
       switch (e.key) {
         case 'Escape':
           e.preventDefault();
@@ -142,10 +142,18 @@ export function MediaViewerBase({
           break;
       }
     };
+  }, [onClose, goToPrevious, goToNext]);
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose, goToPrevious, goToNext]);
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const eventListener = (e: KeyboardEvent) => {
+      handleKeyDownRef.current?.(e);
+    };
+
+    document.addEventListener('keydown', eventListener);
+    return () => document.removeEventListener('keydown', eventListener);
+  }, [isOpen]);
 
   if (!currentDocument || !isOpen) return null;
 

@@ -10,6 +10,7 @@ export interface DocumentItem {
   previewImageUrl: string | null;
   assetUrl: string;
   isCover: boolean;
+  hasImage?: boolean; // For website attachments, indicates if they have a thumbnail
 }
 
 export interface DocumentGridProps {

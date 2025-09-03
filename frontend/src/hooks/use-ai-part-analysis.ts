@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import type { components } from '@/lib/api/generated/types';
 import { useSSETask } from './use-sse-task';
 import { transformAIPartAnalysisResult } from '@/lib/utils/ai-parts';
+import { getApiBaseUrl } from '@/lib/utils/api-config';
 
 type AIPartAnalysisResult = components['schemas']['AIPartAnalysisTaskResultSchema.63ff6da.AIPartAnalysisResultSchema'];
 
@@ -23,8 +24,7 @@ interface UseAIPartAnalysisReturn {
 export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAIPartAnalysisReturn {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 
-    (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5000');
+  const baseUrl = getApiBaseUrl();
   
   const {
     connect: connectSSE,
@@ -101,7 +101,7 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
       setIsAnalyzing(false);
       options.onError?.(error instanceof Error ? error.message : 'Failed to start analysis');
     }
-  }, [isAnalyzing, connectSSE, options]);
+  }, [isAnalyzing, connectSSE, options, baseUrl]);
 
   const cancelAnalysis = useCallback(() => {
     disconnectSSE();
