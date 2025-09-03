@@ -388,6 +388,16 @@ class DocumentService(BaseService):
             # Generate thumbnail for image
             thumbnail_path = self.image_service.get_thumbnail_path(attachment.id, attachment.s3_key, size)
             return thumbnail_path, 'image/jpeg'
+        elif attachment.is_url:
+            # For URL attachments
+            if attachment.s3_key:
+                # If we have a stored thumbnail, use it
+                thumbnail_path = self.image_service.get_thumbnail_path(attachment.id, attachment.s3_key, size)
+                return thumbnail_path, 'image/jpeg'
+            else:
+                # No stored thumbnail, return link icon
+                link_data, content_type = self.image_service.get_link_icon_data()
+                return link_data.decode('utf-8'), content_type
         else:
             raise InvalidOperationException("get attachment thumbnail", "thumbnail not available for this attachment type")
 
@@ -412,10 +422,6 @@ class DocumentService(BaseService):
             attachment = self.get_attachment(attachment_id)
             if attachment.part_id != part.id:
                 raise InvalidOperationException("set part cover attachment", "attachment does not belong to this part")
-
-            # Only images can be cover attachments
-            if not attachment.is_image:
-                raise InvalidOperationException("set part cover attachment", "only images can be set as cover attachments")
 
         part.cover_attachment_id = attachment_id
         self.db.commit()
