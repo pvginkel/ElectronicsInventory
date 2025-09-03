@@ -38,7 +38,11 @@ class AIResponse(BaseModel):
     response: BaseModel
     output_text: str
     elapsed_time: float
-    usage: ResponseUsage | None
+    input_tokens: int
+    cached_input_tokens: int
+    output_tokens: int
+    reasoning_tokens: int
+    cost: float | None
 
 
 class AIRunner:
@@ -52,7 +56,12 @@ class AIRunner:
         input_content = self._build_responses_api_input(prompt, text_input)
 
         start = time.perf_counter()
+
         ai_response = None
+        input_tokens = 0
+        cached_input_tokens = 0
+        output_tokens = 0
+        reasoning_tokens = 0
 
         function_tool : FunctionToolParam = {
             "type": "function",
@@ -86,9 +95,16 @@ class AIRunner:
             else:
                 response = self._call_openai_api(model, reasoning_effort, verbosity, function_tool, input_content, progress_handle)
 
+            if response.usage:
+                input_tokens += response.usage.input_tokens
+                cached_input_tokens += response.usage.input_tokens_details.cached_tokens
+                output_tokens += response.usage.output_tokens
+                reasoning_tokens += response.usage.output_tokens_details.reasoning_tokens
+
             input_content += response.output
 
-            logger.info(f"Input tokens {response.usage.input_tokens}, cached {response.usage.input_tokens_details.cached_tokens}, output {response.usage.output_tokens}, reasoning {response.usage.output_tokens_details.reasoning_tokens}")
+            if response.usage:
+                logger.info(f"Input tokens {response.usage.input_tokens}, cached {response.usage.input_tokens_details.cached_tokens}, output {response.usage.output_tokens}, reasoning {response.usage.output_tokens_details.reasoning_tokens}")
 
             for item in response.output:
                 if item.type == "function_call":
@@ -130,7 +146,11 @@ class AIRunner:
             response=ai_response,
             elapsed_time=elapsed_time,
             output_text=response.output_text,
-            usage=response.usage
+            input_tokens=input_tokens,
+            cached_input_tokens=cached_input_tokens,
+            output_tokens=output_tokens,
+            reasoning_tokens=reasoning_tokens,
+            cost=self._calculate_cost(model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
         )
 
 
@@ -216,3 +236,27 @@ class AIRunner:
                 ]
             }
         ]
+    
+
+    def _calculate_cost(self, model: str, input_tokens: int, cached_input_tokens: int, output_tokens: int, reasoning_tokens: int) -> float | None:
+        match model:
+            case "gpt-5":
+                input_tokens_pm = 1.25
+                cached_input_pm = 0.125
+                output_pm = 10
+            case "gpt-5-mini":
+                input_tokens_pm = 0.25
+                cached_input_pm = 0.025
+                output_pm = 2
+            case "gpt-5-nano":
+                input_tokens_pm = 0.05
+                cached_input_pm = 0.005
+                output_pm = 0.4
+            case _:
+                return None
+
+        return (
+            cached_input_tokens * (cached_input_pm / 1_000_000) +
+            (input_tokens - cached_input_tokens) * (input_tokens_pm / 1_000_000) +
+            output_tokens * (output_pm / 1_000_000)
+        )

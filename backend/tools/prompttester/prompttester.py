@@ -69,11 +69,12 @@ def run_tests(prompt_template: str, response_model: Type[BaseModel], queries: li
                     
                     with open(os.path.join(output_path, f"{filename}.txt"), "w", encoding="utf-8") as f:
                         f.write(f"Elapsed time: {result.elapsed_time}\n")
-                        if result.usage:
-                            f.write(f"Input tokens: {result.usage.input_tokens}\n")
-                            f.write(f"Input tokens cached: {result.usage.input_tokens_details.cached_tokens}\n")
-                            f.write(f"Output tokens: {result.usage.output_tokens}\n")
-                            f.write(f"Output reasoning tokens: {result.usage.output_tokens_details.reasoning_tokens}\n")
+                        f.write(f"Input tokens: {result.input_tokens}\n")
+                        f.write(f"Input tokens cached: {result.cached_input_tokens}\n")
+                        f.write(f"Output tokens: {result.output_tokens}\n")
+                        f.write(f"Output reasoning tokens: {result.reasoning_tokens}\n")
+                        if result.cost:
+                            f.write(f"Cost: ${result.cost:.3f}")
                 except Exception as e:
                     logger.error("Run failed {e}", e)
 
