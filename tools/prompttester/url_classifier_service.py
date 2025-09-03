@@ -89,4 +89,4 @@ class URLClassifierService:
             # Network error, timeout, DNS, etc.
             logger.info(f"Request failed: {e}")
 
-            return ClassifyUrlsEntry(url=url, classification="invalid", reason=f"Unknown error {e}")
+            return ClassifyUrlsEntry(url=url, classification="invalid", reason=f"Unknown error of type {type(e).__name__}")
