@@ -173,10 +173,13 @@ poetry run pytest          # Full test suite
 - Use `| None` for optional types (not `Optional[]`)
 - Import types in `TYPE_CHECKING` blocks when needed for forward references
 
-### Error Handling
+### Error Handling Philosophy
+- **Fail fast and fail often** - Don't swallow exceptions or hide errors from users
 - Use custom exceptions from `app.exceptions`
 - Include context in error messages
 - Let `@handle_api_errors` convert exceptions to HTTP responses
+- **Avoid defensive try/catch blocks** that silently continue on errors
+- If an operation fails, the user should know about it immediately
 
 ## Database Patterns
 
