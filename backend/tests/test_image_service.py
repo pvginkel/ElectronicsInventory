@@ -308,3 +308,14 @@ def test_get_link_icon_data_file_not_found(image_service):
         
         assert "get link icon data" in str(exc_info.value)
         assert "failed to read link icon" in str(exc_info.value)
+
+
+def test_get_pdf_icon_data_file_not_found(image_service):
+    """Test PDF icon data when file doesn't exist."""
+    # Mock the builtin open function to raise an exception
+    with patch('builtins.open', side_effect=FileNotFoundError("File not found")):
+        with pytest.raises(InvalidOperationException) as exc_info:
+            image_service.get_pdf_icon_data()
+        
+        assert "get pdf icon data" in str(exc_info.value)
+        assert "failed to read pdf icon" in str(exc_info.value)
