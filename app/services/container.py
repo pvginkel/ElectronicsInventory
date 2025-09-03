@@ -12,6 +12,7 @@ from app.services.image_service import ImageService
 from app.services.inventory_service import InventoryService
 from app.services.part_service import PartService
 from app.services.s3_service import S3Service
+from app.services.setup_service import SetupService
 from app.services.task_service import TaskService
 from app.services.test_data_service import TestDataService
 from app.services.type_service import TypeService
@@ -33,6 +34,7 @@ class ServiceContainer(containers.DeclarativeContainer):
     part_service = providers.Factory(PartService, db=db_session)
     box_service = providers.Factory(BoxService, db=db_session)
     type_service = providers.Factory(TypeService, db=db_session)
+    setup_service = providers.Factory(SetupService, db=db_session)
     test_data_service = providers.Factory(TestDataService, db=db_session)
 
     # Utility services
