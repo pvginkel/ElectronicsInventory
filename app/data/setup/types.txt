@@ -1,0 +1,101 @@
+# Types used to initialize a new database with.
+
+AC-DC Power Modules
+Adapters - Power & Signal
+Analog Switches & Multiplexers
+Antennas & RF Connectors
+Audio Amplifiers
+Audio Components (Mics/Speakers/Buzzers)
+Batteries & Holders
+Battery Chargers (ICs & Modules)
+Battery Protection & BMS
+BJTs
+Breadboards
+Breakout Boards
+Bridge Rectifiers
+Cable Management
+Cables - Hook-Up Wire
+Cables - Jumper Wires
+Cables - Ribbon Cable
+Camera Modules
+Capacitors
+Chemicals (IPA/Flux Remover)
+Comparators
+Connectors - Barrel Jack & DC Plug
+Connectors - Dupont Jumper
+Connectors - IDC & Ribbon
+Connectors - JST & Crimp
+Connectors - Pin Headers & Sockets
+Connectors - RF (SMA/u.FL)
+Connectors - RJ45 Ethernet
+Connectors - Terminal Blocks
+Connectors - USB
+Crystals & Resonators
+Data Converters (ADC/DAC)
+DC-DC Converters (ICs & Modules)
+Development Boards & Kits
+DIN Rail & Accessories
+Diodes (Rectifier/General)
+Displays - Character LCD
+Displays - E-Paper
+Displays - Graphic LCD & TFT
+Displays - OLED
+Enclosures
+Ethernet Controllers & Modules
+Flip-Flops & Latches
+FPGA & CPLD
+GNSS/GPS Modules
+Heat-Shrink & Sleeving
+Heatsinks & Thermal Interface Materials
+Inductors & Chokes
+Interface ICs (RS-232/RS-485/CAN/LIN)
+IR Components (Emitters/Receivers)
+LED Matrices & Segment Displays
+LED Strips & Drivers
+LEDs (Discrete)
+Level Shifters & Digital Isolators
+Linear & LDO Regulators
+Logic ICs (74xx/4000)
+Memory - EEPROM & Flash
+Memory Cards & Sockets
+Microcontrollers
+MOSFETs
+Motor Drivers & H-Bridges
+Motors
+Mounting Hardware (Standoffs/Screws/Nuts)
+Op-Amps
+Optocouplers
+Oscillators & Clock Generators
+Perfboard & Stripboard
+Potentiometers
+Power Management (PMICs/Supervisors)
+Programmers & Debuggers
+Proto PCBs & Shields
+Relays (Electromechanical)
+Resistors
+Rotary Encoders & Keypads
+Schottky Diodes
+Sensors
+Shields & HATs
+Shift Registers & Counters
+Single-Board Computers
+Solder & Flux
+Solder Paste & Stencils
+Solenoids & Actuators
+Solid-State Relays
+Switches - DIP & Slide
+Switches - Limit & Reed
+Switches - Tactile & Pushbutton
+Switches - Toggle & Rocker
+Thermistors (NTC/PTC)
+Transformers
+Transient & ESD Protection (TVS/MOV/GDT)
+Transistor Arrays & Drivers
+USB Interface ICs
+Voltage References
+Wall Adapters & Power Bricks
+Wireless Modules - Bluetooth
+Wireless Modules - Sub-GHz RF
+Wireless Modules - Wi-Fi
+Wireless Modules - Zigbee/Thread
+Zener Diodes
