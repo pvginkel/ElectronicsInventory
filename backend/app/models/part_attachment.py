@@ -75,3 +75,16 @@ class PartAttachment(db.Model):  # type: ignore[name-defined]
     def is_url(self) -> bool:
         """Check if this attachment is a URL."""
         return self.attachment_type == AttachmentType.URL
+
+    @property
+    def has_image(self) -> bool:
+        """Check if this attachment has an associated image for display."""
+        if self.attachment_type == AttachmentType.IMAGE:
+            return True
+        elif self.attachment_type == AttachmentType.PDF:
+            return False
+        else:  # URL attachment
+            # Check if we have a stored thumbnail or if URL points directly to an image
+            if self.s3_key:
+                return True
+            return False

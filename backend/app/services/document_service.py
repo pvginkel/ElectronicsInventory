@@ -210,6 +210,13 @@ class DocumentService(BaseService):
         else:
             attachment_type = AttachmentType.URL
 
+        # Determine if this attachment has an image and cache it in metadata
+        has_image = self._attachment_has_image_from_metadata(attachment_type, s3_key, metadata)
+        if metadata:
+            metadata['has_image'] = has_image
+        else:
+            metadata = {'has_image': has_image}
+
         # Create attachment record
         attachment = PartAttachment(
             part_id=part.id,
@@ -446,3 +453,39 @@ class DocumentService(BaseService):
             raise RecordNotFoundException("Part", part_key)
 
         return part.cover_attachment
+
+    def _attachment_has_image_from_metadata(self, attachment_type: AttachmentType, s3_key: str | None, metadata: dict | None) -> bool:
+        """Determine if an attachment has an associated image based on type and metadata.
+
+        Args:
+            attachment_type: Type of the attachment
+            s3_key: S3 key if image is stored
+            metadata: Attachment metadata
+
+        Returns:
+            True if attachment has an associated image
+        """
+        if attachment_type == AttachmentType.IMAGE:
+            return True
+        elif attachment_type == AttachmentType.PDF:
+            return False
+        else:  # URL attachment
+            # If we have a stored thumbnail
+            if s3_key:
+                return True
+            return False
+
+    def attachment_has_image(self, attachment_id: int) -> bool:
+        """Check if an attachment has an associated image for display.
+
+        Args:
+            attachment_id: ID of the attachment
+
+        Returns:
+            True if attachment has an associated image
+
+        Raises:
+            RecordNotFoundException: If attachment not found
+        """
+        attachment = self.get_attachment(attachment_id)
+        return attachment.has_image

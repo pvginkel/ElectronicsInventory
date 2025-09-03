@@ -49,6 +49,7 @@ class TestDocumentAPI:
         assert data['title'] == 'Test Image'
         assert data['attachment_type'] == 'image'
         assert data['filename'] == 'test.jpg'
+        assert data['has_image'] is True
 
     @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
     @patch('app.services.url_thumbnail_service.URLThumbnailService.download_and_store_thumbnail', return_value=(
@@ -79,6 +80,7 @@ class TestDocumentAPI:
         assert data['title'] == 'Product Page'
         assert data['attachment_type'] == 'url'
         assert data['url'] == 'https://example.com/product'
+        assert data['has_image'] is True  # Should be True because mock returns s3_key
 
     def test_create_attachment_invalid_json(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test attachment creation with invalid JSON."""
@@ -153,6 +155,14 @@ class TestDocumentAPI:
         assert 'Image 1' in titles
         assert 'URL 1' in titles
 
+        # Verify has_image field is present and correct
+        for item in data:
+            assert 'has_image' in item
+            if item['title'] == 'Image 1':
+                assert item['has_image'] is True
+            elif item['title'] == 'URL 1':
+                assert item['has_image'] is False  # No s3_key or metadata set
+
     def test_get_single_attachment(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test getting single attachment details."""
         # Create test part using service
@@ -182,6 +192,7 @@ class TestDocumentAPI:
         data = response.get_json()
         assert data['title'] == 'Test Attachment'
         assert data['filename'] == 'test.jpg'
+        assert data['has_image'] is True
 
     def test_update_attachment(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test updating attachment metadata."""
@@ -211,6 +222,7 @@ class TestDocumentAPI:
         assert response.status_code == 200
         data = response.get_json()
         assert data['title'] == 'Updated Title'
+        assert 'has_image' in data  # Field should be present in update responses
 
     @patch('app.services.s3_service.S3Service.delete_file', return_value=True)
     def test_delete_attachment(self, mock_delete, client: FlaskClient, container: ServiceContainer, session: Session):
@@ -503,7 +515,11 @@ class TestUrlPreviewAPI:
     @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata')
     def test_attachment_preview_success(self, mock_extract_metadata, mock_validate_url, client: FlaskClient):
         """Test successful URL preview metadata extraction."""
-        from app.schemas.url_metadata import URLMetadataSchema, URLContentType, ThumbnailSourceType
+        from app.schemas.url_metadata import (
+            ThumbnailSourceType,
+            URLContentType,
+            URLMetadataSchema,
+        )
         mock_extract_metadata.return_value = URLMetadataSchema(
             title='Test Page Title',
             og_image='https://example.com/image.jpg',
@@ -531,7 +547,11 @@ class TestUrlPreviewAPI:
     @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata')
     def test_attachment_preview_direct_image_title(self, mock_extract_metadata, mock_validate_url, client: FlaskClient):
         """Test URL preview with direct image URL extracts title from filename."""
-        from app.schemas.url_metadata import URLMetadataSchema, URLContentType, ThumbnailSourceType
+        from app.schemas.url_metadata import (
+            ThumbnailSourceType,
+            URLContentType,
+            URLMetadataSchema,
+        )
         # Mock the metadata that would be returned for a direct image
         mock_extract_metadata.return_value = URLMetadataSchema(
             title='dht22-thermometer-temperature-and-humidity-sensor.jpg',
@@ -562,7 +582,11 @@ class TestUrlPreviewAPI:
     @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata')
     def test_attachment_preview_no_image(self, mock_extract_metadata, mock_validate_url, client: FlaskClient):
         """Test URL preview with no image available."""
-        from app.schemas.url_metadata import URLMetadataSchema, URLContentType, ThumbnailSourceType
+        from app.schemas.url_metadata import (
+            ThumbnailSourceType,
+            URLContentType,
+            URLMetadataSchema,
+        )
         mock_extract_metadata.return_value = URLMetadataSchema(
             title='Test Page Title',
             og_image=None,

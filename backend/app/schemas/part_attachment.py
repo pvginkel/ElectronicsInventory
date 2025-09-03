@@ -101,6 +101,10 @@ class PartAttachmentResponseSchema(BaseModel):
         description="Timestamp when the attachment was last modified",
         json_schema_extra={"example": "2024-01-15T14:45:00Z"}
     )
+    has_image: bool = Field(
+        description="Whether this attachment has an associated image for display",
+        json_schema_extra={"example": True}
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -139,6 +143,10 @@ class PartAttachmentListSchema(BaseModel):
     created_at: datetime = Field(
         description="Timestamp when the attachment was created",
         json_schema_extra={"example": "2024-01-15T10:30:00Z"}
+    )
+    has_image: bool = Field(
+        description="Whether this attachment has an associated image for display",
+        json_schema_extra={"example": True}
     )
 
     model_config = ConfigDict(from_attributes=True)
