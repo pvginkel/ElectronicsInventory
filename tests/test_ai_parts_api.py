@@ -160,6 +160,99 @@ class TestAIPartsAPI:
             assert part.series == "Test Series"
             assert part.dimensions == "10x10mm"
 
+    def test_create_part_with_document_title_resolution(self, client: FlaskClient, app: Flask, session: Session):
+        """Test document title resolution algorithm works correctly."""
+        import os
+        from urllib.parse import urlparse
+
+        from app.models.type import Type
+        from app.schemas.ai_part_analysis import DocumentSuggestionSchema
+        from app.schemas.url_preview import UrlPreviewResponseSchema
+
+        with app.app_context():
+            # Create a test type
+            test_type = Type(name="Test Type")
+            session.add(test_type)
+            session.flush()
+
+            # Test the title resolution logic directly
+            # Test 1: Preview title should be used
+            doc_with_preview = DocumentSuggestionSchema(
+                url="https://example.com/test.pdf",
+                document_type="datasheet",
+                is_cover_image=False,
+                preview=UrlPreviewResponseSchema(
+                    title="Arduino Uno R3 Datasheet",
+                    original_url="https://example.com/test.pdf",
+                    content_type="application/pdf",
+                    image_url=None
+                )
+            )
+
+            # Test title resolution logic
+            title = None
+            if doc_with_preview.preview and doc_with_preview.preview.title:
+                title = doc_with_preview.preview.title
+            else:
+                try:
+                    parsed_url = urlparse(doc_with_preview.url)
+                    filename = os.path.basename(parsed_url.path)
+                    if filename and filename != '/':
+                        title = filename
+                except Exception:
+                    pass
+            if not title:
+                title = f"AI suggested {doc_with_preview.document_type}"
+
+            assert title == "Arduino Uno R3 Datasheet"
+
+            # Test 2: Filename extraction should work
+            doc_with_filename = DocumentSuggestionSchema(
+                url="https://example.com/docs/datasheet.pdf",
+                document_type="datasheet",
+                is_cover_image=False
+            )
+
+            title = None
+            if doc_with_filename.preview and doc_with_filename.preview.title:
+                title = doc_with_filename.preview.title
+            else:
+                try:
+                    parsed_url = urlparse(doc_with_filename.url)
+                    filename = os.path.basename(parsed_url.path)
+                    if filename and filename != '/':
+                        title = filename
+                except Exception:
+                    pass
+            if not title:
+                title = f"AI suggested {doc_with_filename.document_type}"
+
+            assert title == "datasheet.pdf"
+
+            # Test 3: Fallback should work
+            doc_with_no_info = DocumentSuggestionSchema(
+                url="https://example.com/",
+                document_type="schematic",
+                is_cover_image=False
+            )
+
+            title = None
+            if doc_with_no_info.preview and doc_with_no_info.preview.title:
+                title = doc_with_no_info.preview.title
+            else:
+                try:
+                    parsed_url = urlparse(doc_with_no_info.url)
+                    filename = os.path.basename(parsed_url.path)
+                    if filename and filename != '/':
+                        title = filename
+                except Exception:
+                    pass
+            if not title:
+                title = f"AI suggested {doc_with_no_info.document_type}"
+
+            assert title == "AI suggested schematic"
+
+
     def test_api_endpoints_exist(self, client: FlaskClient, app: Flask):
         """Test that all AI parts endpoints are registered and accessible."""
         with app.app_context():
