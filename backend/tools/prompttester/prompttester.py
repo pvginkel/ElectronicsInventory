@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from data import PRODUCT_CATEGORIES
 from ai_runner import AIRunner
 import current_model
+from tools.prompttester.url_classifier_service import URLClassifierService
 
 load_dotenv()
 
@@ -35,7 +36,10 @@ def render_template(prompt_template: str) -> str:
     return template_inline.render(**context)
 
 def run_tests(prompt_template: str, response_model: Type[BaseModel], queries: list[tuple[str, str]], models: dict[str, list[str] | None]):
-    runner = AIRunner(response_model)
+    tmp_path = os.path.join(os.path.dirname(__file__), "tmp")
+    os.makedirs(tmp_path, exist_ok=True)
+
+    runner = AIRunner(response_model, URLClassifierService(tmp_path))
     prompt = render_template(prompt_template)
 
     output_path = os.path.join(os.path.dirname(__file__), "output")
@@ -64,8 +68,11 @@ def run_tests(prompt_template: str, response_model: Type[BaseModel], queries: li
                     
                     with open(os.path.join(output_path, f"{filename}.txt"), "w", encoding="utf-8") as f:
                         f.write(f"Elapsed time: {result.elapsed_time}\n")
-                        f.write(f"Input tokens: {result.input_tokens}\n")
-                        f.write(f"Output tokens: {result.output_tokens}\n")
+                        if result.usage:
+                            f.write(f"Input tokens: {result.usage.input_tokens}\n")
+                            f.write(f"Input tokens cached: {result.usage.input_tokens_details.cached_tokens}\n")
+                            f.write(f"Output tokens: {result.usage.output_tokens}\n")
+                            f.write(f"Output reasoning tokens: {result.usage.output_tokens_details.reasoning_tokens}\n")
                 except Exception as e:
                     logger.error("Run failed {e}", e)
 
