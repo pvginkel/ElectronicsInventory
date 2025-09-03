@@ -24,8 +24,8 @@ class TaskEventType(str, Enum):
 
 class TaskProgressUpdate(BaseModel):
     """Progress update data."""
-    text: str | None = Field(None, description="Progress description text")
-    value: float | None = Field(None, ge=0.0, le=1.0, description="Progress value from 0.0 to 1.0")
+    text: str = Field(..., description="Progress description text")
+    value: float = Field(..., ge=0.0, le=1.0, description="Progress value from 0.0 to 1.0")
 
 
 class TaskEvent(BaseModel):
