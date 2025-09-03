@@ -320,3 +320,105 @@ class TestAIService:
             else:
                 assert result == expected
 
+    def test_classify_urls_internal_method(self, ai_service: AIService):
+        """Test the internal _classify_urls method."""
+        # Mock the URL thumbnail service
+        with patch.object(ai_service.url_thumbnail_service, 'extract_metadata') as mock_extract:
+            from app.schemas.url_metadata import URLMetadataSchema, URLContentType, ThumbnailSourceType
+            
+            # Mock responses for different content types
+            mock_extract.side_effect = [
+                URLMetadataSchema(
+                    title='PDF Document',
+                    thumbnail_source=ThumbnailSourceType.PDF,
+                    original_url="https://example.com/datasheet.pdf",
+                    content_type=URLContentType.PDF
+                ),
+                URLMetadataSchema(
+                    title='Product Image',
+                    thumbnail_source=ThumbnailSourceType.DIRECT_IMAGE,
+                    original_url="https://example.com/image.jpg",
+                    content_type=URLContentType.IMAGE
+                ),
+                URLMetadataSchema(
+                    title='Product Page',
+                    thumbnail_source=ThumbnailSourceType.PREVIEW_IMAGE,
+                    original_url="https://example.com/product.html",
+                    content_type=URLContentType.WEBPAGE
+                )
+            ]
+            
+            # Test with multiple URLs
+            request = ai_service.ClassifyUrlsRequest(urls=[
+                "https://example.com/datasheet.pdf",
+                "https://example.com/image.jpg",
+                "https://example.com/product.html"
+            ])
+            
+            result = ai_service._classify_urls(request)
+            
+            # Verify classification results
+            assert len(result.urls) == 3
+            assert result.urls[0].classification == "pdf"
+            assert result.urls[0].url == "https://example.com/datasheet.pdf"
+            assert result.urls[1].classification == "image"
+            assert result.urls[1].url == "https://example.com/image.jpg"
+            assert result.urls[2].classification == "webpage"
+            assert result.urls[2].url == "https://example.com/product.html"
+
+    def test_classify_urls_with_error(self, ai_service: AIService):
+        """Test _classify_urls method with URL extraction errors."""
+        # Mock the URL thumbnail service to raise an exception
+        with patch.object(ai_service.url_thumbnail_service, 'extract_metadata') as mock_extract:
+            mock_extract.side_effect = Exception("Network error")
+            
+            request = ai_service.ClassifyUrlsRequest(urls=["https://invalid.url"])
+            result = ai_service._classify_urls(request)
+            
+            # Should return invalid classification for error case
+            assert len(result.urls) == 1
+            assert result.urls[0].classification == "invalid"
+            assert result.urls[0].url == "https://invalid.url"
+            assert result.urls[0].reason == "Error of type Exception"
+
+    def test_classify_urls_with_http_error(self, ai_service: AIService):
+        """Test _classify_urls method with HTTP status code errors."""
+        # Mock the URL thumbnail service to raise an InvalidOperationException with HTTP status
+        from app.exceptions import InvalidOperationException
+        with patch.object(ai_service.url_thumbnail_service, 'extract_metadata') as mock_extract:
+            mock_extract.side_effect = InvalidOperationException(
+                "extract metadata", 
+                "HTTP error 404 reason Not Found"
+            )
+            
+            request = ai_service.ClassifyUrlsRequest(urls=["https://example.com/missing"])
+            result = ai_service._classify_urls(request)
+            
+            # Should return invalid classification with HTTP status information
+            assert len(result.urls) == 1
+            assert result.urls[0].classification == "invalid"
+            assert result.urls[0].url == "https://example.com/missing"
+            assert "HTTP error 404 reason Not Found" in result.urls[0].reason
+
+    @patch.object(AIService, '_call_openai_api')
+    def test_function_calling_flow_via_analyze_part(self, mock_call_api, ai_service: AIService):
+        """Test that analyze_part can still work with the new function calling implementation."""
+        # Mock the entire OpenAI API call to return a structured response
+        mock_call_api.return_value = create_mock_ai_response(
+            manufacturer_part_number="FUNC123",
+            product_category="Relay",
+            product_name="Function call test relay"
+        )
+        
+        # Test the function calling flow
+        mock_progress = Mock()
+        result = ai_service.analyze_part("Test relay with datasheet URL", None, None, mock_progress)
+        
+        # Verify the API was called
+        mock_call_api.assert_called_once()
+        
+        # Verify final result 
+        assert result.manufacturer_code == "FUNC123"
+        assert result.type == "Relay"
+        assert result.description == "Function call test relay"
+

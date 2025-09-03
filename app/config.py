@@ -115,9 +115,6 @@ class Settings(BaseSettings):
     OPENAI_MAX_OUTPUT_TOKENS: int | None = Field(
         default=None, description="Maximum output tokens for OpenAI responses"
     )
-    OPENAI_STORE_REQUESTS: bool = Field(
-        default=False, description="Store OpenAI API requests/responses for debugging (defaults to True in testing)"
-    )
     OPENAI_DUMMY_RESPONSE_PATH: str | None = Field(
         default=None, description="Path to a JSON file containing a dummy response"
     )
@@ -150,12 +147,6 @@ class Settings(BaseSettings):
     def is_testing(self) -> bool:
         """Check if running in testing environment."""
         return self.FLASK_ENV == "testing"
-
-    @staticmethod
-    def _default_store_requests() -> bool:
-        """Default value for OPENAI_STORE_REQUESTS - True in testing, False otherwise."""
-        import os
-        return os.getenv("FLASK_ENV") == "testing"
 
 
 @lru_cache

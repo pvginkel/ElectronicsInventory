@@ -1,24 +1,31 @@
 """AI service for part analysis using OpenAI."""
 
-import base64
 import json
 import logging
-import time
 import os
-
+import time
 from typing import TYPE_CHECKING, cast
 from urllib.parse import quote
-from jinja2 import Environment
 
+from jinja2 import Environment
 from openai import OpenAI
-from openai.types.responses import ResponseOutputItemDoneEvent, ResponseFunctionWebSearch, ResponseCompletedEvent, ParsedResponseOutputMessage, ParsedResponseOutputText, ResponseOutputMessage,  ResponseOutputText, ResponseContentPartAddedEvent
+from openai.types.responses import (
+    ResponseCompletedEvent,
+    ResponseContentPartAddedEvent,
+    ResponseFunctionWebSearch,
+    ResponseOutputItemDoneEvent,
+)
+from openai.types.responses.function_tool_param import FunctionToolParam
+from openai.types.responses.parsed_response import ParsedResponse
 from openai.types.responses.response_function_web_search import ActionSearch
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.config import Settings
 from app.schemas.ai_part_analysis import (
     AIPartAnalysisResultSchema,
     DocumentSuggestionSchema,
 )
+from app.schemas.url_metadata import URLContentType
 from app.schemas.url_preview import UrlPreviewResponseSchema
 from app.services.ai_model import PartAnalysisSuggestion
 from app.services.base import BaseService
@@ -35,6 +42,23 @@ logger = logging.getLogger(__name__)
 
 class AIService(BaseService):
     """Service for AI-powered part analysis using OpenAI."""
+
+    class ClassifyUrlsRequest(BaseModel):
+        """Request schema for URL classification function."""
+        model_config = ConfigDict(extra="forbid")
+        urls: list[str] = Field(...)
+
+    class ClassifyUrlsEntry(BaseModel):
+        """Schema for each URL's classification result."""
+        model_config = ConfigDict(extra="forbid")
+        url: str
+        classification: str
+        reason: str
+
+    class ClassifyUrlsResponse(BaseModel):
+        """Response schema with list of classified URLs."""
+        model_config = ConfigDict(extra="forbid")
+        urls: list['AIService.ClassifyUrlsEntry'] = Field(...)
 
     def __init__(self, db, config: Settings, temp_file_manager: TempFileManager, type_service: 'TypeService', url_thumbnail_service: URLThumbnailService, download_cache_service: DownloadCacheService):
         super().__init__(db)
@@ -84,11 +108,8 @@ class AIService(BaseService):
                 input_content = self._build_responses_api_input(
                     text_input, image_data, image_mime_type, prompt
                 )
-                
-                ai_response = self._call_openai_api(input_content, prompt, progress_handle)
 
-            # Create temporary directory for document downloads
-            temp_dir = self.temp_file_manager.create_temp_directory()
+                ai_response = self._call_openai_api(input_content, prompt, progress_handle)
 
             # Download documents if URLs provided
             documents : list[DocumentSuggestionSchema] = []
@@ -162,26 +183,101 @@ class AIService(BaseService):
             raise Exception("Invalid response format from AI service") from e
 
     def _call_openai_api(self, input_content: list, prompt: str, progress_handle: ProgressHandle) -> PartAnalysisSuggestion:
-        """Call OpenAI Responses API and handle streaming response.
-        
+        """Call OpenAI Responses API with function calling support.
+
         Args:
             input_content: Formatted input for OpenAI API
             prompt: Generated prompt string
             progress_handle: Interface for sending progress updates
-            
+
         Returns:
             PartAnalysisSuggestion: Parsed response from OpenAI
-            
+
         Raises:
             Exception: If API call fails or response is invalid
         """
         logger.info("Starting OpenAI call")
 
         start = time.perf_counter()
-        status = None
-        ai_response = None
-        output_text = None
-        incomplete_details = None
+
+        # Define the classify_urls function tool
+        function_tool: FunctionToolParam = {
+            "type": "function",
+            "name": "classify_urls",
+            "strict": True,
+            "description": "Classify the URLs as PDF, image, webpage or invalid.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "urls": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": ["urls"],
+                "additionalProperties": False
+            }
+        }
+
+        # Function calling loop
+        while True:
+            logger.info("Making API call")
+
+            response = self._stream_openai_response(
+                input_content, function_tool, progress_handle
+            )
+
+            # Add the response to the conversation
+            input_content += response.output
+
+            logger.info(f"Input tokens {response.usage.input_tokens if response.usage else 0}, "
+                       f"output {response.usage.output_tokens if response.usage else 0}")
+
+            # Check for function calls
+            function_called = False
+            for item in response.output:
+                if item.type == "function_call" and item.name == "classify_urls":
+                    progress_handle.send_progress_text("Classifying URLs...")
+                    logger.info(f"Classify URLs function called with: {item.arguments}")
+
+                    # Parse the arguments and call our internal method
+                    request = self.ClassifyUrlsRequest.model_validate_json(item.arguments)
+                    result = self._classify_urls(request)
+                    result_json = result.model_dump_json()
+
+                    logger.info(f"Classification result: {result_json}")
+
+                    # Add function result to conversation
+                    input_content.append({
+                        "type": "function_call_output",
+                        "call_id": item.call_id,
+                        "output": result_json
+                    })
+
+                    progress_handle.send_progress_text("Continuing analysis...")
+                    function_called = True
+
+            # If no function was called, we're done
+            if not function_called:
+                break
+
+        elapsed_time = time.perf_counter() - start
+        logger.info(f"OpenAI response completed in {elapsed_time:.2f}s, "
+                   f"status: {response.status}, incomplete details: {response.incomplete_details}")
+
+        # Extract the final parsed response
+        ai_response = response.output_parsed
+        if not ai_response:
+            raise Exception(f"Empty response from OpenAI status {response.status}, "
+                          f"incomplete details: {response.incomplete_details}")
+
+        return cast(PartAnalysisSuggestion, ai_response)
+
+    def _stream_openai_response(self, input_content: list, function_tool: FunctionToolParam,
+                               progress_handle: ProgressHandle) -> ParsedResponse:
+        """Stream a single OpenAI API call and return the parsed response."""
 
         # Call OpenAI Responses API with structured output
         with self.client.responses.stream(
@@ -190,14 +286,14 @@ class AIService(BaseService):
             text_format=PartAnalysisSuggestion,
             text={ "verbosity": self.config.OPENAI_VERBOSITY }, # type: ignore
             max_output_tokens=self.config.OPENAI_MAX_OUTPUT_TOKENS,
-            store=self.config.OPENAI_STORE_REQUESTS,
             tools=[
                 { "type": "web_search" },
+                function_tool
             ],
             # tool_choice="required",
             reasoning = {
                 "effort": self.config.OPENAI_REASONING_EFFORT # type: ignore
-            },
+            }
         ) as stream:
             logger.info("Streaming events")
 
@@ -206,33 +302,13 @@ class AIService(BaseService):
                     if isinstance(event.item, ResponseFunctionWebSearch):
                         if isinstance(event.item.action, ActionSearch):
                             if event.item.action.query:
-                                progress_handle.send_progress(f"Searched for {event.item.action.query}", 0.2)
-                    if isinstance(event.item, ResponseOutputMessage):
-                        for content in event.item.content:
-                            if isinstance(content, ResponseOutputText):
-                                output_text = content.text
+                                progress_handle.send_progress_text(f"Searched for {event.item.action.query}")
                 if isinstance(event, ResponseContentPartAddedEvent):
-                    progress_handle.send_progress("Writing response...", 0.5)
+                    progress_handle.send_progress("Writing response...", 0.6)
                 if isinstance(event, ResponseCompletedEvent):
-                    incomplete_details = event.response.incomplete_details
+                    return event.response
 
-                    for output in event.response.output:
-                        if isinstance(output, ParsedResponseOutputMessage):
-                            status = output.status
-                            for content in output.content:
-                                if isinstance(content, ParsedResponseOutputText):
-                                    ai_response = cast(PartAnalysisSuggestion, content.parsed)
-
-                # logger.info(event)
-                # logger.info(event.model_dump_json())
-
-        logger.info(f"OpenAI response status: {status}, duration {time.perf_counter() - start}, incomplete details: {incomplete_details}")
-        logger.info(f"Output text: {output_text}")
-
-        if not ai_response:
-            raise Exception(f"Empty response from OpenAI status {status}, incomplete details: {incomplete_details}")
-
-        return ai_response
+        raise Exception("Did not receive ResponseCompletedEvent")
 
     def _build_prompt(self, categories: list[str]) -> str:
         context = {
@@ -321,3 +397,53 @@ class AIService(BaseService):
             filename = name[:90] + ('.' + ext if ext else '')
 
         return filename or "document.pdf"
+
+    def _classify_urls(self, request: ClassifyUrlsRequest) -> ClassifyUrlsResponse:
+        """Classify URLs using the URLThumbnailService.
+
+        Args:
+            request: ClassifyUrlsRequest with list of URLs to classify
+
+        Returns:
+            ClassifyUrlsResponse with classification results for each URL
+        """
+        classified_urls = []
+
+        for url in request.urls:
+            try:
+                metadata = self.url_thumbnail_service.extract_metadata(url)
+
+                # Map URLContentType enum to classification strings
+                classification_map = {
+                    URLContentType.PDF: "pdf",
+                    URLContentType.IMAGE: "image",
+                    URLContentType.WEBPAGE: "webpage",
+                    URLContentType.OTHER: "invalid"
+                }
+
+                classification = classification_map.get(metadata.content_type, "invalid")
+                reason = f"Content type detected as {metadata.content_type.value}"
+
+                classified_urls.append(self.ClassifyUrlsEntry(
+                    url=url,
+                    classification=classification,
+                    reason=reason
+                ))
+
+            except Exception as e:
+                logger.warning(f"Failed to classify URL {url}: {e}")
+                
+                # Extract clean error message from InvalidOperationException
+                from app.exceptions import InvalidOperationException
+                if isinstance(e, InvalidOperationException):
+                    error_reason = e.cause
+                else:
+                    error_reason = f"Error of type {type(e).__name__}"
+                
+                classified_urls.append(self.ClassifyUrlsEntry(
+                    url=url,
+                    classification="invalid",
+                    reason=error_reason
+                ))
+
+        return self.ClassifyUrlsResponse(urls=classified_urls)

@@ -7,7 +7,11 @@ from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
 from app.exceptions import InvalidOperationException
-from app.schemas.url_metadata import ThumbnailSourceType, URLContentType, URLMetadataSchema
+from app.schemas.url_metadata import (
+    ThumbnailSourceType,
+    URLContentType,
+    URLMetadataSchema,
+)
 from app.services.base import BaseService
 from app.services.download_cache_service import DownloadCacheService
 from app.services.s3_service import S3Service
@@ -50,7 +54,15 @@ class URLThumbnailService(BaseService):
             return result.content, result.content_type
 
         except Exception as e:
-            raise InvalidOperationException("fetch URL content", str(e)) from e
+            # Check if this is an HTTP error with status code
+            import requests
+            if isinstance(e, requests.HTTPError) and hasattr(e, 'response') and e.response is not None:
+                status_code = e.response.status_code
+                reason = e.response.reason or "Unknown"
+                error_msg = f"HTTP error {status_code} reason {reason}"
+            else:
+                error_msg = f"Error of type {type(e).__name__}"
+            raise InvalidOperationException("fetch URL content", error_msg) from e
 
     def _process_html_content(self, content: bytes, url: str) -> URLMetadataSchema:
         """Process HTML content to extract metadata.
@@ -351,8 +363,20 @@ class URLThumbnailService(BaseService):
                 # If not HTML-like, process as other content type
                 return self._process_other_content(content, url, detected_type)
 
+        except InvalidOperationException:
+            # If it's already an InvalidOperationException, re-raise it directly
+            raise
+
         except Exception as e:
-            raise InvalidOperationException("extract metadata", str(e)) from e
+            # Check if this is an HTTP error with status code
+            import requests
+            if isinstance(e, requests.HTTPError) and hasattr(e, 'response') and e.response is not None:
+                status_code = e.response.status_code
+                reason = e.response.reason or "Unknown"
+                error_msg = f"HTTP error {status_code} reason {reason}"
+            else:
+                error_msg = f"Error of type {type(e).__name__}"
+            raise InvalidOperationException("extract metadata", error_msg) from e
 
     def extract_thumbnail_url(self, url: str) -> tuple[str, URLMetadataSchema]:
         """Extract thumbnail URL from web page using og:image, twitter:image, or favicon fallback.
