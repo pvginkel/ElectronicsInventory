@@ -24,20 +24,25 @@ logger = logging.getLogger(__name__)
 class TaskProgressHandle:
     """Implementation of ProgressHandle for sending updates via SSE."""
 
-    def __init__(self, task_id: str, event_queue: Queue):
+    def __init__(self, task_id: str, event_queue: Queue[TaskEvent]):
         self.task_id = task_id
         self.event_queue = event_queue
+        self.progress = 0.0
+        self.progress_text = ""
 
     def send_progress_text(self, text: str) -> None:
         """Send a text progress update to connected clients."""
-        self._send_progress_event(TaskProgressUpdate(text=text))
+        self.send_progress(text, self.progress)
 
     def send_progress_value(self, value: float) -> None:
         """Send a progress value update (0.0 to 1.0) to connected clients."""
-        self._send_progress_event(TaskProgressUpdate(value=value))
+        self.send_progress(self.progress_text, value)
 
     def send_progress(self, text: str, value: float) -> None:
         """Send both text and progress value update to connected clients."""
+        self.progress_text = text
+        self.progress = value
+
         self._send_progress_event(TaskProgressUpdate(text=text, value=value))
 
     def _send_progress_event(self, progress: TaskProgressUpdate) -> None:
