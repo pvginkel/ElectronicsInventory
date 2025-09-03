@@ -146,7 +146,7 @@ class TestDocumentService:
     def test_create_file_attachment_file_too_large(self, document_service, container: ServiceContainer, sample_part, test_settings: Settings):
         """Test file attachment creation with file too large."""
         max_image_size = test_settings.MAX_IMAGE_SIZE
-        
+
         test_settings.MAX_IMAGE_SIZE = 100
         try:
             with patch('magic.from_buffer') as mock_magic:
@@ -724,3 +724,145 @@ class TestDocumentService:
         assert thumbnail_path == "/tmp/thumbnail.jpg"
         assert content_type == "image/jpeg"
         mock_image_service.get_thumbnail_path.assert_called_once_with(attachment.id, attachment.s3_key, 150)
+
+    def test_has_image_property_image_attachment(self, document_service, session, sample_part, sample_image_file):
+        """Test has_image property returns True for image attachments."""
+        with patch('magic.from_buffer') as mock_magic:
+            mock_magic.return_value = 'image/jpeg'
+
+            attachment = document_service.create_file_attachment(
+                part_key=sample_part.key,
+                title="Test Image",
+                file_data=sample_image_file,
+                filename="test.jpg",
+                content_type="image/jpeg"
+            )
+
+        assert attachment.has_image is True
+
+    def test_has_image_property_pdf_attachment(self, document_service, session, sample_part, sample_pdf_file):
+        """Test has_image property returns False for PDF attachments."""
+        with patch('magic.from_buffer') as mock_magic:
+            mock_magic.return_value = 'application/pdf'
+
+            attachment = document_service.create_file_attachment(
+                part_key=sample_part.key,
+                title="Test PDF",
+                file_data=sample_pdf_file,
+                filename="test.pdf",
+                content_type="application/pdf"
+            )
+
+        assert attachment.has_image is False
+
+    def test_has_image_property_url_with_stored_thumbnail(self, document_service, session, sample_part):
+        """Test has_image property returns True for URL attachments with stored thumbnails."""
+        attachment = document_service.create_url_attachment(
+            part_key=sample_part.key,
+            title="URL with Thumbnail",
+            url="https://example.com/image"
+        )
+
+        # The mock returns s3_key, so has_image should be True
+        assert attachment.has_image is True
+        assert attachment.attachment_metadata is not None
+        assert attachment.attachment_metadata.get('has_image') is True
+
+    def test_has_image_property_url_without_stored_thumbnail(self, document_service, session, sample_part, mock_url_service):
+        """Test has_image property for URL attachments without stored thumbnails."""
+        # Mock URL service to return no S3 key but with image content type
+        mock_url_service.download_and_store_thumbnail.return_value = (
+            None, None, 0, {"content_type": "image", "has_image": True}
+        )
+
+        attachment = document_service.create_url_attachment(
+            part_key=sample_part.key,
+            title="URL without Thumbnail",
+            url="https://example.com/webpage"
+        )
+
+        assert attachment.has_image is True
+        assert attachment.attachment_metadata.get('has_image') is True
+
+    def test_has_image_property_url_no_image(self, document_service, session, sample_part, mock_url_service):
+        """Test has_image property returns False for URL attachments without images."""
+        # Mock URL service to return no image content
+        mock_url_service.download_and_store_thumbnail.return_value = (
+            None, None, 0, {"content_type": "webpage", "has_image": False}
+        )
+
+        attachment = document_service.create_url_attachment(
+            part_key=sample_part.key,
+            title="URL No Image",
+            url="https://example.com/text-page"
+        )
+
+        assert attachment.has_image is False
+        assert attachment.attachment_metadata.get('has_image') is False
+
+    def test_attachment_has_image_method_success(self, document_service, session, sample_part):
+        """Test the attachment_has_image service method."""
+        # Create an image attachment
+        attachment = PartAttachment(
+            part_id=sample_part.id,
+            attachment_type=AttachmentType.IMAGE,
+            title="Test Image",
+            s3_key="test/image.jpg",
+            filename="image.jpg",
+            content_type="image/jpeg",
+            file_size=1024
+        )
+        session.add(attachment)
+        session.flush()
+
+        result = document_service.attachment_has_image(attachment.id)
+        assert result is True
+
+    def test_attachment_has_image_method_not_found(self, document_service, session):
+        """Test attachment_has_image method with non-existent attachment."""
+        with pytest.raises(RecordNotFoundException) as exc_info:
+            document_service.attachment_has_image(99999)
+
+        assert "Attachment" in str(exc_info.value)
+
+    def test_attachment_has_image_from_metadata_image_type(self, document_service):
+        """Test _attachment_has_image_from_metadata for image attachments."""
+        result = document_service._attachment_has_image_from_metadata(
+            AttachmentType.IMAGE, "some_key", {}
+        )
+        assert result is True
+
+    def test_attachment_has_image_from_metadata_pdf_type(self, document_service):
+        """Test _attachment_has_image_from_metadata for PDF attachments."""
+        result = document_service._attachment_has_image_from_metadata(
+            AttachmentType.PDF, "some_key", {}
+        )
+        assert result is False
+
+    def test_attachment_has_image_from_metadata_url_with_s3_key(self, document_service):
+        """Test _attachment_has_image_from_metadata for URL with stored thumbnail."""
+        result = document_service._attachment_has_image_from_metadata(
+            AttachmentType.URL, "stored_thumbnail", {}
+        )
+        assert result is True
+
+    def test_attachment_has_image_from_metadata_url_with_image_content(self, document_service):
+        """Test _attachment_has_image_from_metadata for URL with image content type."""
+        result = document_service._attachment_has_image_from_metadata(
+            AttachmentType.URL, None, {"content_type": "image"}
+        )
+        assert result is True
+
+    def test_attachment_has_image_from_metadata_url_no_image(self, document_service):
+        """Test _attachment_has_image_from_metadata for URL without image."""
+        result = document_service._attachment_has_image_from_metadata(
+            AttachmentType.URL, None, {"content_type": "webpage"}
+        )
+        assert result is False
+
+    def test_attachment_has_image_from_metadata_url_no_metadata(self, document_service):
+        """Test _attachment_has_image_from_metadata for URL without metadata."""
+        result = document_service._attachment_has_image_from_metadata(
+            AttachmentType.URL, None, None
+        )
+        assert result is False
