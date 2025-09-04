@@ -3,22 +3,10 @@
 import json
 import logging
 import os
-import time
 from typing import TYPE_CHECKING, cast
 from urllib.parse import quote
 
 from jinja2 import Environment
-from openai import OpenAI
-from openai.types.responses import (
-    ResponseCompletedEvent,
-    ResponseContentPartAddedEvent,
-    ResponseFunctionWebSearch,
-    ResponseOutputItemDoneEvent,
-)
-from openai.types.responses.function_tool_param import FunctionToolParam
-from openai.types.responses.parsed_response import ParsedResponse
-from openai.types.responses.response_function_web_search import ActionSearch
-from pydantic import BaseModel, ConfigDict, Field
 
 from app.config import Settings
 from app.schemas.ai_part_analysis import (
@@ -32,6 +20,8 @@ from app.services.base import BaseService
 from app.services.base_task import ProgressHandle
 from app.services.download_cache_service import DownloadCacheService
 from app.services.url_thumbnail_service import URLThumbnailService
+from app.utils.ai.ai_runner import AIRequest, AIRunner
+from app.utils.ai.url_classification import ClassifyUrlsEntry, ClassifyUrlsRequest, ClassifyUrlsResponse, URLClassifierFunction
 from app.utils.temp_file_manager import TempFileManager
 
 if TYPE_CHECKING:
@@ -43,23 +33,6 @@ logger = logging.getLogger(__name__)
 class AIService(BaseService):
     """Service for AI-powered part analysis using OpenAI."""
 
-    class ClassifyUrlsRequest(BaseModel):
-        """Request schema for URL classification function."""
-        model_config = ConfigDict(extra="forbid")
-        urls: list[str] = Field(...)
-
-    class ClassifyUrlsEntry(BaseModel):
-        """Schema for each URL's classification result."""
-        model_config = ConfigDict(extra="forbid")
-        url: str
-        classification: str
-        reason: str
-
-    class ClassifyUrlsResponse(BaseModel):
-        """Response schema with list of classified URLs."""
-        model_config = ConfigDict(extra="forbid")
-        urls: list['AIService.ClassifyUrlsEntry'] = Field(...)
-
     def __init__(self, db, config: Settings, temp_file_manager: TempFileManager, type_service: 'TypeService', url_thumbnail_service: URLThumbnailService, download_cache_service: DownloadCacheService):
         super().__init__(db)
         self.config = config
@@ -67,14 +40,15 @@ class AIService(BaseService):
         self.type_service = type_service
         self.url_thumbnail_service = url_thumbnail_service
         self.download_cache_service = download_cache_service
+        self.url_classifier_function = URLClassifierFunctionImpl(url_thumbnail_service)
 
         # Initialize OpenAI client
         if not config.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY configuration is required for AI features")
 
-        self.client = OpenAI(api_key=config.OPENAI_API_KEY)
+        self.runner = AIRunner(config.OPENAI_API_KEY)
 
-    def analyze_part(self, text_input: str | None, image_data: bytes | None,
+    def analyze_part(self, user_prompt: str | None, image_data: bytes | None,
                      image_mime_type: str | None, progress_handle: ProgressHandle) -> AIPartAnalysisResultSchema:
         """
         Analyze part information from text and/or image using OpenAI.
@@ -91,8 +65,8 @@ class AIService(BaseService):
             ValueError: If neither text nor image is provided
             Exception: If OpenAI API call fails
         """
-        if not text_input and not image_data:
-            raise ValueError("Either text_input or image_data must be provided")
+        if not user_prompt:
+            raise NotImplementedError("Image input is not yet implemented; user_prompt is required")
 
         # Get existing type names for context
         existing_types = self.type_service.get_all_types()
@@ -104,12 +78,20 @@ class AIService(BaseService):
                     ai_response = PartAnalysisSuggestion.model_validate(json.loads(f.read()))
             else:
                 # Build input and instructions for Responses API
-                prompt = self._build_prompt(type_names)
-                input_content = self._build_responses_api_input(
-                    text_input, image_data, image_mime_type, prompt
+                system_prompt = self._build_prompt(type_names)
+
+                request = AIRequest(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    model=self.config.OPENAI_MODEL,
+                    verbosity=self.config.OPENAI_VERBOSITY,
+                    reasoning_effort=self.config.OPENAI_REASONING_EFFORT,
+                    response_model=PartAnalysisSuggestion,
                 )
 
-                ai_response = self._call_openai_api(input_content, prompt, progress_handle)
+                response = self.runner.run(request, [self.url_classifier_function], progress_handle, True)
+
+                ai_response = cast(PartAnalysisSuggestion, response.response)
 
             # Download documents if URLs provided
             documents : list[DocumentSuggestionSchema] = []
@@ -176,151 +158,6 @@ class AIService(BaseService):
             logger.error(f"Failed to parse OpenAI response as JSON: {e}")
             raise Exception("Invalid response format from AI service") from e
 
-    def _call_openai_api(self, input_content: list, prompt: str, progress_handle: ProgressHandle) -> PartAnalysisSuggestion:
-        """Call OpenAI Responses API with function calling support.
-
-        Args:
-            input_content: Formatted input for OpenAI API
-            prompt: Generated prompt string
-            progress_handle: Interface for sending progress updates
-
-        Returns:
-            PartAnalysisSuggestion: Parsed response from OpenAI
-
-        Raises:
-            Exception: If API call fails or response is invalid
-        """
-        logger.info("Starting OpenAI call")
-
-        start = time.perf_counter()
-
-        input_tokens = 0
-        cached_input_tokens = 0
-        output_tokens = 0
-        reasoning_tokens = 0
-
-        # Define the classify_urls function tool
-        function_tool: FunctionToolParam = {
-            "type": "function",
-            "name": "classify_urls",
-            "strict": True,
-            "description": "Classify the URLs as PDF, image, webpage or invalid.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "urls": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "required": ["urls"],
-                "additionalProperties": False
-            }
-        }
-
-        # Function calling loop
-        while True:
-            logger.info("Making API call")
-
-            response = self._stream_openai_response(
-                input_content, function_tool, progress_handle
-            )
-
-            if response.usage:
-                input_tokens += response.usage.input_tokens
-                cached_input_tokens += response.usage.input_tokens_details.cached_tokens
-                output_tokens += response.usage.output_tokens
-                reasoning_tokens += response.usage.output_tokens_details.reasoning_tokens
-
-            # Add the response to the conversation
-            input_content += response.output
-
-            logger.info(f"Input tokens {response.usage.input_tokens if response.usage else 0}, "
-                       f"output {response.usage.output_tokens if response.usage else 0}")
-
-            # Check for function calls
-            function_called = False
-            for item in response.output:
-                if item.type == "function_call" and item.name == "classify_urls":
-                    progress_handle.send_progress_text("Classifying URLs...")
-                    logger.info(f"Classify URLs function called with: {item.arguments}")
-
-                    # Parse the arguments and call our internal method
-                    request = self.ClassifyUrlsRequest.model_validate_json(item.arguments)
-                    result = self._classify_urls(request)
-                    result_json = result.model_dump_json()
-
-                    logger.info(f"Classification result: {result_json}")
-
-                    # Add function result to conversation
-                    input_content.append({
-                        "type": "function_call_output",
-                        "call_id": item.call_id,
-                        "output": result_json
-                    })
-
-                    progress_handle.send_progress_text("Continuing analysis...")
-                    function_called = True
-
-            # If no function was called, we're done
-            if not function_called:
-                break
-
-        elapsed_time = time.perf_counter() - start
-        logger.info(f"OpenAI response completed in {elapsed_time:.2f}s, "
-                   f"status: {response.status}, incomplete details: {response.incomplete_details}")
-
-        logger.info(f"Input tokens {input_tokens} of which cached {cached_input_tokens}, output tokens {output_tokens} of which reasoning {reasoning_tokens}")
-
-        cost = self._calculate_cost(input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
-        if cost:
-            logger.info(f"Total cost ${cost:.3f}")
-
-        # Extract the final parsed response
-        ai_response = response.output_parsed
-        if not ai_response:
-            raise Exception(f"Empty response from OpenAI status {response.status}, "
-                          f"incomplete details: {response.incomplete_details}")
-
-        return cast(PartAnalysisSuggestion, ai_response)
-
-    def _stream_openai_response(self, input_content: list, function_tool: FunctionToolParam,
-                               progress_handle: ProgressHandle) -> ParsedResponse:
-        """Stream a single OpenAI API call and return the parsed response."""
-
-        # Call OpenAI Responses API with structured output
-        with self.client.responses.stream(
-            model=self.config.OPENAI_MODEL,
-            input=input_content,
-            text_format=PartAnalysisSuggestion,
-            text={ "verbosity": self.config.OPENAI_VERBOSITY }, # type: ignore
-            max_output_tokens=self.config.OPENAI_MAX_OUTPUT_TOKENS,
-            tools=[
-                { "type": "web_search" },
-                function_tool
-            ],
-            # tool_choice="required",
-            reasoning = {
-                "effort": self.config.OPENAI_REASONING_EFFORT # type: ignore
-            }
-        ) as stream:
-            logger.info("Streaming events")
-
-            for event in stream:
-                if isinstance(event, ResponseOutputItemDoneEvent):
-                    if isinstance(event.item, ResponseFunctionWebSearch):
-                        if isinstance(event.item.action, ActionSearch):
-                            if event.item.action.query:
-                                progress_handle.send_progress_text(f"Searched for {event.item.action.query}")
-                if isinstance(event, ResponseContentPartAddedEvent):
-                    progress_handle.send_progress("Writing response...", 0.6)
-                if isinstance(event, ResponseCompletedEvent):
-                    return event.response
-
-        raise Exception("Did not receive ResponseCompletedEvent")
-
     def _build_prompt(self, categories: list[str]) -> str:
         context = {
             "categories": categories
@@ -333,29 +170,6 @@ class AIService(BaseService):
         template_inline = env_inline.from_string(template_str)
 
         return template_inline.render(**context)
-
-    def _build_responses_api_input(self, text_input: str | None, image_data: bytes | None,
-                                   image_mime_type: str | None, prompt: str) -> list:
-        """Build instructions and input for OpenAI Responses API."""
-
-        if image_data and image_mime_type:
-            raise Exception("Image data currently not supported")
-
-        return [
-            {
-                "role": "developer",
-                "content": [
-                    {"type": "input_text", "text": prompt}
-                ]
-            },
-            {
-                "role": "user",
-                "content": [
-                    {"type": "input_text", "text": text_input},
-                    # Add an image later, e.g. {"type": "image_url", "image_url": {"url": "https://..."}}
-                ]
-            }
-        ]
 
     def _document_from_link(self, url: str, document_type: str) -> DocumentSuggestionSchema | None:
         try:
@@ -409,56 +223,6 @@ class AIService(BaseService):
 
         return filename or "document.pdf"
 
-    def _classify_urls(self, request: ClassifyUrlsRequest) -> ClassifyUrlsResponse:
-        """Classify URLs using the URLThumbnailService.
-
-        Args:
-            request: ClassifyUrlsRequest with list of URLs to classify
-
-        Returns:
-            ClassifyUrlsResponse with classification results for each URL
-        """
-        classified_urls = []
-
-        for url in request.urls:
-            try:
-                metadata = self.url_thumbnail_service.extract_metadata(url)
-
-                # Map URLContentType enum to classification strings
-                classification_map = {
-                    URLContentType.PDF: "pdf",
-                    URLContentType.IMAGE: "image",
-                    URLContentType.WEBPAGE: "webpage",
-                    URLContentType.OTHER: "invalid"
-                }
-
-                classification = classification_map.get(metadata.content_type, "invalid")
-                reason = f"Content type detected as {metadata.content_type.value}"
-
-                classified_urls.append(self.ClassifyUrlsEntry(
-                    url=url,
-                    classification=classification,
-                    reason=reason
-                ))
-
-            except Exception as e:
-                logger.warning(f"Failed to classify URL {url}: {e}")
-                
-                # Extract clean error message from InvalidOperationException
-                from app.exceptions import InvalidOperationException
-                if isinstance(e, InvalidOperationException):
-                    error_reason = e.cause
-                else:
-                    error_reason = f"Error of type {type(e).__name__}"
-                
-                classified_urls.append(self.ClassifyUrlsEntry(
-                    url=url,
-                    classification="invalid",
-                    reason=error_reason
-                ))
-
-        return self.ClassifyUrlsResponse(urls=classified_urls)
-
     def _calculate_cost(self, input_tokens: int, cached_input_tokens: int, output_tokens: int, reasoning_tokens: int) -> float | None:
         match self.config.OPENAI_MODEL:
             case "gpt-5":
@@ -481,3 +245,41 @@ class AIService(BaseService):
             (input_tokens - cached_input_tokens) * (input_tokens_pm / 1_000_000) +
             output_tokens * (output_pm / 1_000_000)
         )
+
+class URLClassifierFunctionImpl(URLClassifierFunction):
+    def __init__(self, url_thumbnail_service: URLThumbnailService):
+        self.url_thumbnail_service = url_thumbnail_service
+
+    def classify_url(self, request: ClassifyUrlsRequest, progress_handle: ProgressHandle) -> ClassifyUrlsResponse:
+        progress_handle.send_progress_text("Classifying URLs...")
+
+        # Map URLContentType enum to classification strings
+        classification_map = {
+            URLContentType.PDF: "pdf",
+            URLContentType.IMAGE: "image",
+            URLContentType.WEBPAGE: "webpage",
+            URLContentType.OTHER: "invalid"
+        }
+        
+        classified_urls: list[ClassifyUrlsEntry] = []
+
+        for url in request.urls:
+            try:
+                metadata = self.url_thumbnail_service.extract_metadata(url)
+
+                classification = classification_map.get(metadata.content_type, "invalid")
+
+                classified_urls.append(ClassifyUrlsEntry(
+                    url=url,
+                    classification=classification
+                ))
+
+            except Exception as e:
+                logger.warning(f"Error while classifying URL {url}: {e}")
+                
+                classified_urls.append(ClassifyUrlsEntry(
+                    url=url,
+                    classification="invalid"
+                ))
+
+        return ClassifyUrlsResponse(urls=classified_urls)

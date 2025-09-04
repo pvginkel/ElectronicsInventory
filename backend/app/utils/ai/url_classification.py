@@ -18,7 +18,6 @@ class ClassifyUrlsEntry(BaseModel):
     model_config = ConfigDict(extra="forbid")
     url: str
     classification: str
-    reason: str
 
 
 class ClassifyUrlsResponse(BaseModel):
