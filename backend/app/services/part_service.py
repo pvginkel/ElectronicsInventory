@@ -95,68 +95,17 @@ class PartService(BaseService):
         stmt = stmt.limit(limit).offset(offset)
         return list(self.db.execute(stmt).scalars().all())
 
-    def update_part_details(
-        self,
-        part_key: str,
-        manufacturer_code: str | None = None,
-        type_id: int | None = None,
-        description: str | None = None,
-        tags: list[str] | None = None,
-        manufacturer: str | None = None,
-        product_page: str | None = None,
-        seller: str | None = None,
-        seller_link: str | None = None,
-        package: str | None = None,
-        pin_count: int | None = None,
-        pin_pitch: str | None = None,
-        voltage_rating: str | None = None,
-        input_voltage: str | None = None,
-        output_voltage: str | None = None,
-        mounting_type: str | None = None,
-        series: str | None = None,
-        dimensions: str | None = None,
-    ) -> Part:
-        """Update part details."""
+    def update_part_details(self, part_key: str, **updates) -> Part:
+        """Update part details with only provided fields."""
         stmt = select(Part).where(Part.key == part_key)
         part = self.db.execute(stmt).scalar_one_or_none()
         if not part:
             raise RecordNotFoundException("Part", part_key)
 
-        # Update fields if provided
-        if manufacturer_code is not None:
-            part.manufacturer_code = manufacturer_code
-        if type_id is not None:
-            part.type_id = type_id
-        if description is not None:
-            part.description = description
-        if tags is not None:
-            part.tags = tags
-        if manufacturer is not None:
-            part.manufacturer = manufacturer
-        if product_page is not None:
-            part.product_page = product_page
-        if seller is not None:
-            part.seller = seller
-        if seller_link is not None:
-            part.seller_link = seller_link
-        if package is not None:
-            part.package = package
-        if pin_count is not None:
-            part.pin_count = pin_count
-        if pin_pitch is not None:
-            part.pin_pitch = pin_pitch
-        if voltage_rating is not None:
-            part.voltage_rating = voltage_rating
-        if input_voltage is not None:
-            part.input_voltage = input_voltage
-        if output_voltage is not None:
-            part.output_voltage = output_voltage
-        if mounting_type is not None:
-            part.mounting_type = mounting_type
-        if series is not None:
-            part.series = series
-        if dimensions is not None:
-            part.dimensions = dimensions
+        # Update only the fields that were provided
+        for field_name, value in updates.items():
+            if hasattr(part, field_name):
+                setattr(part, field_name, value)
 
         return part
 

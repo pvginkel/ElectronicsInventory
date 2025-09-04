@@ -895,7 +895,7 @@ class TestPartsAPI:
             assert len(part_data["locations"]) == 1
 
     def test_update_part_pin_count_null_value_not_cleared(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
-        """Test that sending null for pin_count doesn't clear existing value in database."""
+        """Test that sending null for pin_count clears existing value in database."""
         with app.app_context():
             # Create a part with pin_count initially set
             part = container.part_service().create_part(
@@ -924,7 +924,111 @@ class TestPartsAPI:
             assert response.status_code == 200
             updated_data = json.loads(response.data)
             
-            # This test demonstrates the bug - pin_count should be None but remains 16
+            # Verify that pin_count was cleared as expected
             assert updated_data["description"] == "Updated IC description"
-            assert updated_data["pin_count"] == 16  # BUG: Should be None but keeps original value
+            assert updated_data["pin_count"] is None  # Now works correctly - null value clears the field
+
+    def test_update_part_nullable_fields_can_be_cleared(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test that all nullable fields can be cleared by sending null values."""
+        with app.app_context():
+            # Create a part with all optional fields set
+            part = container.part_service().create_part(
+                description="Test part with all fields",
+                manufacturer_code="TEST123",
+                manufacturer="Test Manufacturer",
+                product_page="https://example.com/product",
+                seller="Test Seller",
+                seller_link="https://seller.com/item",
+                package="DIP-8",
+                pin_count=8,
+                pin_pitch="2.54mm",
+                voltage_rating="5V",
+                input_voltage="4.5V-5.5V",
+                output_voltage="3.3V",
+                mounting_type="THT",
+                series="Test Series",
+                dimensions="10x8x5mm",
+                tags=["test", "component"]
+            )
+            session.commit()
+            
+            # Clear all nullable fields by sending null values
+            update_data = {
+                "description": "Updated description",  # Required field - keep it
+                "manufacturer_code": None,
+                "manufacturer": None,
+                "product_page": None,
+                "seller": None,
+                "seller_link": None,
+                "package": None,
+                "pin_count": None,
+                "pin_pitch": None,
+                "voltage_rating": None,
+                "input_voltage": None,
+                "output_voltage": None,
+                "mounting_type": None,
+                "series": None,
+                "dimensions": None,
+                "tags": None
+            }
+            
+            response = client.put(f"/api/parts/{part.key}", json=update_data)
+            assert response.status_code == 200
+            
+            # Verify all nullable fields were cleared
+            response = client.get(f"/api/parts/{part.key}")
+            assert response.status_code == 200
+            updated_data = json.loads(response.data)
+            
+            assert updated_data["description"] == "Updated description"
+            assert updated_data["manufacturer_code"] is None
+            assert updated_data["manufacturer"] is None
+            assert updated_data["product_page"] is None
+            assert updated_data["seller"] is None
+            assert updated_data["seller_link"] is None
+            assert updated_data["package"] is None
+            assert updated_data["pin_count"] is None
+            assert updated_data["pin_pitch"] is None
+            assert updated_data["voltage_rating"] is None
+            assert updated_data["input_voltage"] is None
+            assert updated_data["output_voltage"] is None
+            assert updated_data["mounting_type"] is None
+            assert updated_data["series"] is None
+            assert updated_data["dimensions"] is None
+            assert updated_data["tags"] is None
+
+    def test_update_part_multiple_fields_partial_null(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test that multiple fields can be cleared in a single update while keeping others."""
+        with app.app_context():
+            # Create a part with some fields set
+            part = container.part_service().create_part(
+                description="Test part",
+                manufacturer="Original Manufacturer",
+                pin_count=16,
+                voltage_rating="5V",
+                package="QFP-16"
+            )
+            session.commit()
+            
+            # Clear some fields while updating others
+            update_data = {
+                "manufacturer": None,  # Clear this
+                "pin_count": 24,       # Update this
+                "voltage_rating": None,  # Clear this
+                "package": "QFP-24"    # Update this
+                # Note: not setting description to null since it's a required field
+            }
+            
+            response = client.put(f"/api/parts/{part.key}", json=update_data)
+            assert response.status_code == 200
+            
+            # Verify selective clearing and updating worked
+            response = client.get(f"/api/parts/{part.key}")
+            assert response.status_code == 200
+            updated_data = json.loads(response.data)
+            
+            assert updated_data["manufacturer"] is None  # Cleared
+            assert updated_data["pin_count"] == 24       # Updated
+            assert updated_data["voltage_rating"] is None  # Cleared
+            assert updated_data["package"] == "QFP-24"  # Updated
 
