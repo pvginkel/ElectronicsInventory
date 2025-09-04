@@ -291,8 +291,7 @@ class DocumentService(BaseService):
         """
         attachment = self.get_attachment(attachment_id)
 
-        if title is not None:
-            attachment.title = title
+        attachment.title = title
 
         self.db.flush()
         return attachment

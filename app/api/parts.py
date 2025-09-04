@@ -158,26 +158,9 @@ def update_part(part_key: str, part_service=Provide[ServiceContainer.part_servic
     """Update part details."""
     data = PartUpdateSchema.model_validate(request.get_json())
 
-    part = part_service.update_part_details(
-        part_key,
-        manufacturer_code=data.manufacturer_code,
-        type_id=data.type_id,
-        description=data.description,
-        tags=data.tags,
-        manufacturer=data.manufacturer,
-        product_page=data.product_page,
-        seller=data.seller,
-        seller_link=data.seller_link,
-        package=data.package,
-        pin_count=data.pin_count,
-        pin_pitch=data.pin_pitch,
-        voltage_rating=data.voltage_rating,
-        input_voltage=data.input_voltage,
-        output_voltage=data.output_voltage,
-        mounting_type=data.mounting_type,
-        series=data.series,
-        dimensions=data.dimensions,
-    )
+    # Only pass fields that were explicitly provided in the request
+    update_fields = data.model_dump(exclude_unset=True)
+    part = part_service.update_part_details(part_key, **update_fields)
 
     return PartResponseSchema.model_validate(part).model_dump()
 
