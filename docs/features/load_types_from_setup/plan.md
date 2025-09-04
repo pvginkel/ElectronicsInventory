@@ -119,17 +119,13 @@ The following mappings must be applied to all parts in `parts.json`:
 
 | Current Type Value | New Type Value from types.txt |
 |-------------------|-------------------------------|
-| "IC" | "Logic ICs (74xx/4000)" |
-| "Resistor" | "Resistors" |
-| "Capacitor" | "Capacitors" |
-| "LED" | "LEDs (Discrete)" |
-| "Relay" | "Relays (Electromechanical)" |
-| "Power Module" | "DC-DC Converters (ICs & Modules)" |
-| "Connector" | "Connectors - Pin Headers & Sockets" |
-| "Cable" | "Cables - Jumper Wires" |
-| "Sensor" | "Sensors" |
-| "Microcontroller" | "Microcontrollers" |
-| "Mechanical" | "Mounting Hardware (Standoffs/Screws/Nuts)" |
+| "IC" | "Logic IC (74xx/4000)" |
+| "LED" | "LED (Discrete)" |
+| "Relay" | "Relay (Electromechanical)" |
+| "Power Module" | "DC-DC Converter (IC & Module)" |
+| "Connector" | "Connector - Pin Header & Socket" |
+| "Cable" | "Cable - Jumper Wire" |
+| "Mechanical" | "Mounting Hardware (Standoff/Screw/Nut)" |
 
 Note: Some mappings may need refinement based on specific part characteristics (e.g., different connector or cable types).
 

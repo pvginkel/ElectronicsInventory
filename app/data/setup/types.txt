@@ -1,101 +1,101 @@
 # Types used to initialize a new database with.
 
-AC-DC Power Modules
-Adapters - Power & Signal
-Analog Switches & Multiplexers
-Antennas & RF Connectors
-Audio Amplifiers
-Audio Components (Mics/Speakers/Buzzers)
-Batteries & Holders
-Battery Chargers (ICs & Modules)
+AC-DC Power Module
+Adapter - Power & Signal
+Analog Switch & Multiplexer
+Antenna & RF Connector
+Audio Amplifier
+Audio Component (Mic/Speaker/Buzzer)
+Battery & Holder
+Battery Charger (IC & Module)
 Battery Protection & BMS
-BJTs
-Breadboards
-Breakout Boards
-Bridge Rectifiers
+BJT
+Breadboard
+Breakout Board
+Bridge Rectifier
 Cable Management
-Cables - Hook-Up Wire
-Cables - Jumper Wires
-Cables - Ribbon Cable
-Camera Modules
-Capacitors
-Chemicals (IPA/Flux Remover)
-Comparators
-Connectors - Barrel Jack & DC Plug
-Connectors - Dupont Jumper
-Connectors - IDC & Ribbon
-Connectors - JST & Crimp
-Connectors - Pin Headers & Sockets
-Connectors - RF (SMA/u.FL)
-Connectors - RJ45 Ethernet
-Connectors - Terminal Blocks
-Connectors - USB
-Crystals & Resonators
-Data Converters (ADC/DAC)
-DC-DC Converters (ICs & Modules)
-Development Boards & Kits
-DIN Rail & Accessories
-Diodes (Rectifier/General)
-Displays - Character LCD
-Displays - E-Paper
-Displays - Graphic LCD & TFT
-Displays - OLED
-Enclosures
-Ethernet Controllers & Modules
-Flip-Flops & Latches
+Cable - Hook-Up Wire
+Cable - Jumper Wire
+Cable - Ribbon Cable
+Camera Module
+Capacitor
+Chemical (IPA/Flux Remover)
+Comparator
+Connector - Barrel Jack & DC Plug
+Connector - Dupont Jumper
+Connector - IDC & Ribbon
+Connector - JST & Crimp
+Connector - Pin Header & Socket
+Connector - RF (SMA/u.FL)
+Connector - RJ45 Ethernet
+Connector - Terminal Block
+Connector - USB
+Crystal & Resonator
+Data Converter (ADC/DAC)
+DC-DC Converter (IC & Module)
+Development Board & Kit
+DIN Rail & Accessory
+Diode (Rectifier/General)
+Display - Character LCD
+Display - E-Paper
+Display - Graphic LCD & TFT
+Display - OLED
+Enclosure
+Ethernet Controller & Module
+Flip-Flop & Latch
 FPGA & CPLD
-GNSS/GPS Modules
+GNSS/GPS Module
 Heat-Shrink & Sleeving
-Heatsinks & Thermal Interface Materials
-Inductors & Chokes
-Interface ICs (RS-232/RS-485/CAN/LIN)
-IR Components (Emitters/Receivers)
-LED Matrices & Segment Displays
-LED Strips & Drivers
-LEDs (Discrete)
-Level Shifters & Digital Isolators
-Linear & LDO Regulators
-Logic ICs (74xx/4000)
+Heatsink & Thermal Interface Material
+Inductor & Choke
+Interface IC (RS-232/RS-485/CAN/LIN)
+IR Component (Emitter/Receiver)
+LED Matrix & Segment Display
+LED Strip & Driver
+LED (Discrete)
+Level Shifter & Digital Isolator
+Linear & LDO Regulator
+Logic IC (74xx/4000)
 Memory - EEPROM & Flash
-Memory Cards & Sockets
-Microcontrollers
-MOSFETs
-Motor Drivers & H-Bridges
-Motors
-Mounting Hardware (Standoffs/Screws/Nuts)
-Op-Amps
-Optocouplers
-Oscillators & Clock Generators
+Memory Card & Socket
+Microcontroller
+MOSFET
+Motor Driver & H-Bridge
+Motor
+Mounting Hardware (Standoff/Screw/Nut)
+Op-Amp
+Optocoupler
+Oscillator & Clock Generator
 Perfboard & Stripboard
-Potentiometers
-Power Management (PMICs/Supervisors)
-Programmers & Debuggers
-Proto PCBs & Shields
-Relays (Electromechanical)
-Resistors
-Rotary Encoders & Keypads
-Schottky Diodes
-Sensors
-Shields & HATs
-Shift Registers & Counters
-Single-Board Computers
+Potentiometer
+Power Management (PMIC/Supervisor)
+Programmer & Debugger
+Proto PCB & Shield
+Relay (Electromechanical)
+Resistor
+Rotary Encoder & Keypad
+Schottky Diode
+Sensor
+Shield & HAT
+Shift Register & Counter
+Single-Board Computer
 Solder & Flux
-Solder Paste & Stencils
-Solenoids & Actuators
-Solid-State Relays
-Switches - DIP & Slide
-Switches - Limit & Reed
-Switches - Tactile & Pushbutton
-Switches - Toggle & Rocker
-Thermistors (NTC/PTC)
-Transformers
+Solder Paste & Stencil
+Solenoid & Actuator
+Solid-State Relay
+Switch - DIP & Slide
+Switch - Limit & Reed
+Switch - Tactile & Pushbutton
+Switch - Toggle & Rocker
+Thermistor (NTC/PTC)
+Transformer
 Transient & ESD Protection (TVS/MOV/GDT)
-Transistor Arrays & Drivers
-USB Interface ICs
-Voltage References
-Wall Adapters & Power Bricks
-Wireless Modules - Bluetooth
-Wireless Modules - Sub-GHz RF
-Wireless Modules - Wi-Fi
-Wireless Modules - Zigbee/Thread
-Zener Diodes
+Transistor Array & Driver
+USB Interface IC
+Voltage Reference
+Wall Adapter & Power Brick
+Wireless Module - Bluetooth
+Wireless Module - Sub-GHz RF
+Wireless Module - Wi-Fi
+Wireless Module - Zigbee/Thread
+Zener Diode
