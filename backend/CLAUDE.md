@@ -324,12 +324,40 @@ This command:
 - Include edge cases (empty locations, various quantities, different part types)
 - Be consistent and reproducible across all development environments
 
-**JSON Data Files Location**: `app/data/test_data/`
-- `types.json` - Electronics part categories
+**Test Data Files Location**: `app/data/test_data/`
 - `boxes.json` - Storage box configurations  
 - `parts.json` - Realistic electronics parts data
 - `part_locations.json` - Part distribution across storage locations
 - `quantity_history.json` - Historical stock changes
+
+**Note**: Electronics part categories are loaded from `app/data/setup/types.txt` during database initialization, not from test data files.
+
+## Database Initialization & Type Sync
+
+The system automatically syncs electronics part types from `app/data/setup/types.txt` during database upgrades. This ensures all environments have consistent type definitions without manual intervention.
+
+### Production Database Setup
+For a new production database:
+```bash
+# Creates database schema AND automatically loads all 99 predefined types
+poetry run python -m app.cli upgrade-db
+```
+
+### Schema Updates  
+For subsequent migrations:
+```bash
+# Applies new migrations AND syncs any new types from setup file
+poetry run python -m app.cli upgrade-db
+```
+
+### Development Workflow
+For development with test data:
+```bash  
+# Loads schema, syncs types from setup file, and loads realistic test data
+poetry run python -m app.cli load-test-data --yes-i-am-sure
+```
+
+The type sync is fully **idempotent** - running multiple times will only add missing types, never create duplicates.
 
 ## Command Templates
 

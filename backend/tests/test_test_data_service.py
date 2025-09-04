@@ -22,63 +22,56 @@ class TestTestDataService:
     """Test cases for TestDataService."""
 
     def test_load_types_success(self, app: Flask, session: Session, container: ServiceContainer):
-        """Test successful loading of types from JSON."""
+        """Test successful loading of types from database (assumes types already loaded)."""
         with app.app_context():
-            # Create temporary test data
-            test_data = [
-                {"name": "Resistor"},
-                {"name": "Capacitor"},
-                {"name": "IC"}
-            ]
+            # First, create some types in the database (simulating what SetupService does)
+            test_types = ["Resistor", "Capacitor", "Logic IC (74xx/4000)"]
+            for type_name in test_types:
+                type_obj = Type(name=type_name)
+                session.add(type_obj)
+            session.flush()
+            
+            # Load types from database
+            data_dir = Path("/unused")  # Not used anymore
+            types_map = container.test_data_service().load_types(data_dir)
+            
+            # Verify results - should return the existing types from database
+            assert len(types_map) == 3
+            assert "Resistor" in types_map
+            assert "Capacitor" in types_map
+            assert "Logic IC (74xx/4000)" in types_map
+            
+            # Verify all returned objects are from the database
+            for type_obj in types_map.values():
+                assert type_obj.id is not None  # Should have database IDs
 
-            with tempfile.TemporaryDirectory() as temp_dir:
-                data_dir = Path(temp_dir)
-                types_file = data_dir / "types.json"
-
-                with types_file.open("w") as f:
-                    json.dump(test_data, f)
-
-                # Load types
-                types_map = container.test_data_service().load_types(data_dir)
-
-                # Verify results
-                assert len(types_map) == 3
-                assert "Resistor" in types_map
-                assert "Capacitor" in types_map
-                assert "IC" in types_map
-
-                # Verify database records
-                all_types = session.query(Type).all()
-                assert len(all_types) == 3
-                type_names = {t.name for t in all_types}
-                assert type_names == {"Resistor", "Capacitor", "IC"}
-
-    def test_load_types_file_not_found(self, app: Flask, session: Session, container: ServiceContainer):
-        """Test error handling when types.json doesn't exist."""
+    def test_load_types_no_types_in_database(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test error handling when no types exist in database."""
         with app.app_context():
-            with tempfile.TemporaryDirectory() as temp_dir:
-                data_dir = Path(temp_dir)
+            # Don't create any types in the database
+            data_dir = Path("/unused")
+            
+            with pytest.raises(InvalidOperationException) as exc_info:
+                container.test_data_service().load_types(data_dir)
+                
+            assert "No types found in database" in str(exc_info.value)
 
-                with pytest.raises(InvalidOperationException) as exc_info:
-                    container.test_data_service().load_types(data_dir)
-
-                assert "failed to read" in str(exc_info.value)
-
-    def test_load_types_invalid_json(self, app: Flask, session: Session, container: ServiceContainer):
-        """Test error handling with malformed JSON."""
+    def test_load_types_returns_database_objects(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test that load_types returns proper database objects with IDs."""
         with app.app_context():
-            with tempfile.TemporaryDirectory() as temp_dir:
-                data_dir = Path(temp_dir)
-                types_file = data_dir / "types.json"
-
-                # Write invalid JSON
-                with types_file.open("w") as f:
-                    f.write("{invalid json")
-
-                with pytest.raises(InvalidOperationException) as exc_info:
-                    container.test_data_service().load_types(data_dir)
-
-                assert "failed to read" in str(exc_info.value)
+            # Create types in database with known IDs
+            resistor_type = Type(name="Resistor")
+            capacitor_type = Type(name="Capacitor") 
+            session.add(resistor_type)
+            session.add(capacitor_type)
+            session.flush()  # Get IDs
+            
+            types_map = container.test_data_service().load_types(Path("/unused"))
+            
+            # Verify we get the same objects back
+            assert len(types_map) == 2
+            assert types_map["Resistor"].id == resistor_type.id
+            assert types_map["Capacitor"].id == capacitor_type.id
 
     def test_load_boxes_success(self, app: Flask, session: Session, container: ServiceContainer):
         """Test successful loading of boxes and locations."""
@@ -385,13 +378,17 @@ class TestTestDataService:
     def test_load_full_dataset_integration(self, app: Flask, session: Session, container: ServiceContainer):
         """Test loading complete dataset integration."""
         with app.app_context():
+            # First create a Resistor type in database (simulating what SetupService does)
+            resistor_type = Type(name="Resistor")
+            session.add(resistor_type)
+            session.flush()
+            
             # Create minimal test dataset
-            types_data = [{"name": "Resistor"}]
             boxes_data = [{"box_no": 1, "description": "Test Box", "capacity": 5}]
             parts_data = [{
                 "key": "ABCD",
                 "description": "Test resistor",
-                "type": "Resistor"
+                "type": "Resistor"  # This type exists in database
             }]
             part_locations_data = [{"part_key": "ABCD", "box_no": 1, "loc_no": 1, "qty": 10}]
             history_data = [{
@@ -404,9 +401,7 @@ class TestTestDataService:
             with tempfile.TemporaryDirectory() as temp_dir:
                 data_dir = Path(temp_dir)
 
-                # Create all JSON files
-                with (data_dir / "types.json").open("w") as f:
-                    json.dump(types_data, f)
+                # Create JSON files (no types.json since we load from setup file)
                 with (data_dir / "boxes.json").open("w") as f:
                     json.dump(boxes_data, f)
                 with (data_dir / "parts.json").open("w") as f:
@@ -418,7 +413,7 @@ class TestTestDataService:
 
                 # Load full dataset using container
                 service = container.test_data_service()
-                types = service.load_types(data_dir)
+                types = service.load_types(data_dir)  # Loads existing types from database
                 boxes = service.load_boxes(data_dir)
                 parts = service.load_parts(data_dir, types)
                 service.load_part_locations(data_dir, parts, boxes)
@@ -426,7 +421,7 @@ class TestTestDataService:
                 session.commit()
 
                 # Verify all data was loaded
-                assert session.query(Type).count() == 1
+                assert session.query(Type).count() == 1  # Just the one type we created
                 assert session.query(Box).count() == 1
                 assert session.query(Location).count() == 5  # box capacity
                 assert session.query(Part).count() == 1
