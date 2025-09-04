@@ -61,7 +61,7 @@ class AIPartAnalysisTask(BaseSessionTask):
                 ai_service = self.container.ai_service()
 
                 analysis_result = ai_service.analyze_part(
-                    text_input=text_input,
+                    user_prompt=text_input,
                     image_data=image_data,
                     image_mime_type=image_mime_type,
                     progress_handle=progress_handle

@@ -1,10 +1,12 @@
-from abc import ABC, abstractmethod
 import time
 import logging
+import httpx
+import json
 
+from abc import ABC, abstractmethod
 from typing import Any, Type
-from openai import OpenAI
-from openai.types.responses import ResponseOutputItemDoneEvent, ResponseFunctionWebSearch, ResponseCompletedEvent, ResponseContentPartAddedEvent
+from openai import APIError, OpenAI
+from openai.types.responses import ResponseOutputItemDoneEvent, ResponseFunctionWebSearch, ResponseCompletedEvent, ResponseContentPartAddedEvent, ResponseReasoningSummaryTextDoneEvent
 from openai.types.responses.function_tool_param import FunctionToolParam
 from openai.types.responses.parsed_response import ParsedResponse
 from openai.types.responses.response_function_web_search import ActionSearch
@@ -51,6 +53,7 @@ class AIRequest(BaseModel):
     model: str
     verbosity: str
     reasoning_effort: str | None = None
+    reasoning_summary: str | None = None
 
     # Function calling response model
     response_model: Type[BaseModel]
@@ -69,7 +72,16 @@ class AIResponse(BaseModel):
 
 class AIRunner:
     def __init__(self, api_key: str):
-        self.client = OpenAI(api_key=api_key)
+        def on_request(request):
+            logger.info(f"Sending request to URL {request.method} {request.url}")
+            logger.info(f"Body {request.content}")
+
+        self.http_client = httpx.Client(
+            event_hooks={
+                # "request": [on_request],
+            }
+        )
+        self.client = OpenAI(api_key=api_key, http_client=self.http_client)
 
     def run(self, request: AIRequest, function_tools: list[AIFunction], progress_handle: ProgressHandle, streaming: bool) -> AIResponse:
         # Build input and instructions for Responses API
@@ -77,7 +89,6 @@ class AIRunner:
 
         start = time.perf_counter()
 
-        ai_response = None
         input_tokens = 0
         cached_input_tokens = 0
         output_tokens = 0
@@ -86,50 +97,19 @@ class AIRunner:
         while True:
             logger.info("Starting OpenAI call")
 
-            again = False
-
-            if streaming:
-                response = self._call_openai_api_streamed(request, function_tools, input_content, progress_handle)
-            else:
-                response = self._call_openai_api(request, function_tools, input_content, progress_handle)
-
-            if response.usage:
-                input_tokens += response.usage.input_tokens
-                cached_input_tokens += response.usage.input_tokens_details.cached_tokens
-                output_tokens += response.usage.output_tokens
-                reasoning_tokens += response.usage.output_tokens_details.reasoning_tokens
+            response = self._call_openai_api(streaming, request, function_tools, input_content, progress_handle)
 
             input_content += response.output
 
             if response.usage:
                 logger.info(f"Input tokens {response.usage.input_tokens}, cached {response.usage.input_tokens_details.cached_tokens}, output {response.usage.output_tokens}, reasoning {response.usage.output_tokens_details.reasoning_tokens}")
 
-            for item in response.output:
-                if item.type == "function_call":
-                    for function in function_tools:
-                        if item.name == function.get_name():
-                            logger.info(f"Request to {item.name} call ID {item.call_id}")
-                            logger.info(f"Request JSON: {item.arguments}")
+                input_tokens += response.usage.input_tokens
+                cached_input_tokens += response.usage.input_tokens_details.cached_tokens
+                output_tokens += response.usage.output_tokens
+                reasoning_tokens += response.usage.output_tokens_details.reasoning_tokens
 
-                            result = function.execute(
-                                function.get_model().model_validate_json(item.arguments),
-                                progress_handle
-                            )
-
-                            result_json = result.model_dump_json()
-
-                            logger.info(f"Result JSON: {result_json}")
-
-                            input_content.append({
-                                "type": "function_call_output",
-                                "call_id": item.call_id,
-                                "output": result_json
-                            })
-
-                            progress_handle.send_progress_text("Continuing analysis...")
-                            again = True
-            
-            if not again:
+            if not self._handle_function_call(response, function_tools, input_content, progress_handle):
                 break
 
         elapsed_time = int(time.perf_counter() - start)
@@ -139,7 +119,7 @@ class AIRunner:
 
         if not response.output_parsed or not response.output_text:
             raise Exception(f"Empty response from OpenAI status {response.status}, incomplete details: {response.incomplete_details}")
-
+        
         return AIResponse(
             response=response.output_parsed, # type: ignore
             elapsed_time=elapsed_time,
@@ -151,7 +131,53 @@ class AIRunner:
             cost=self._calculate_cost(request.model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
         )
 
-    def _call_openai_api(self, request: AIRequest, function_tools: list[AIFunction], input_content: Any, progress_handle: ProgressHandle) -> ParsedResponse:
+    def _handle_function_call(self, response: ParsedResponse, function_tools: list[AIFunction], input_content: Any, progress_handle: ProgressHandle) -> bool:
+        for item in response.output:
+            if item.type == "function_call":
+                for function in function_tools:
+                    if item.name == function.get_name():
+                        logger.info(f"Request to {item.name} call ID {item.call_id}")
+                        logger.info(f"Request JSON: {item.arguments}")
+
+                        result = function.execute(
+                            function.get_model().model_validate_json(item.arguments),
+                            progress_handle
+                        )
+
+                        result_json = result.model_dump_json()
+
+                        logger.info(f"Result JSON: {result_json}")
+
+                        input_content.append({
+                            "type": "function_call_output",
+                            "call_id": item.call_id,
+                            "output": result_json
+                        })
+
+                        progress_handle.send_progress_text("Continuing analysis...")
+                        return True
+
+        return False
+
+    def _call_openai_api(self, streaming: bool, request: AIRequest, function_tools: list[AIFunction], input_content: Any, progress_handle: ProgressHandle) -> ParsedResponse:
+        attempt = 1
+
+        while True:
+            try:
+                if streaming:
+                    return self._call_openai_api_streamed(request, function_tools, input_content, progress_handle)
+                else:
+                    return self._call_openai_api_non_streamed(request, function_tools, input_content, progress_handle)
+
+            except APIError as e:
+                if attempt >= 3:
+                    raise
+                attempt += 1
+
+                logger.warning(f"OpenAI API error on attempt {attempt}, retrying: {e}")
+                time.sleep(2 ** attempt)
+
+    def _call_openai_api_non_streamed(self, request: AIRequest, function_tools: list[AIFunction], input_content: Any, progress_handle: ProgressHandle) -> ParsedResponse:
         # Call OpenAI Responses API with structured output
         return self.client.responses.parse(
             model=request.model,
@@ -194,7 +220,8 @@ class AIRunner:
             ],
             # tool_choice="required",
             reasoning = {
-                "effort": request.reasoning_effort # type: ignore
+                "effort": request.reasoning_effort, # type: ignore
+                "summary": request.reasoning_summary
             },
         ) as stream:
             logger.info("Streaming events")
@@ -207,6 +234,8 @@ class AIRunner:
                                 progress_handle.send_progress(f"Searched for {event.item.action.query}", 0.2)
                 if isinstance(event, ResponseContentPartAddedEvent):
                     progress_handle.send_progress("Writing response...", 0.5)
+                if isinstance(event, ResponseReasoningSummaryTextDoneEvent):
+                    logger.info(f"Reasoning summary: {event.text}")
                 if isinstance(event, ResponseCompletedEvent):
                     return event.response
 
@@ -248,6 +277,14 @@ class AIRunner:
                 input_tokens_pm = 0.05
                 cached_input_pm = 0.005
                 output_pm = 0.4
+            case "gpt-4.1":
+                input_tokens_pm = 3
+                cached_input_pm = 0.75
+                output_pm = 12
+            case "gpt-4.1-mini":
+                input_tokens_pm = 0.8
+                cached_input_pm = 0.2
+                output_pm = 3.2
             case _:
                 return None
 

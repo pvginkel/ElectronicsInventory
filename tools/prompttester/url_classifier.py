@@ -50,7 +50,16 @@ class URLClassifierFunctionImpl(URLClassifierFunction):
     def _classify_url(self, url: str) -> ClassifyUrlsEntry:
         logger.info(f"Classifying url {url}")
         try:
-            response = requests.head(url, allow_redirects=True, timeout=10)
+            response = requests.head(
+                url,
+                allow_redirects=True,
+                timeout=30,
+                headers={
+                    "Accept": "*/*",
+                    "Accept-Language": "nl,en-US;q=0.9,en;q=0.8",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+                }
+            )
 
             # Raise for HTTP errors (4xx/5xx)
             response.raise_for_status()
@@ -59,10 +68,10 @@ class URLClassifierFunctionImpl(URLClassifierFunction):
             logger.info(f"Content-Type: {content_type}")
 
             if content_type.startswith("image/"):
-                return ClassifyUrlsEntry(url=url, classification="image", reason=f"Content type is {content_type}")
+                return ClassifyUrlsEntry(url=url, classification="image")
             if content_type == "application/pdf":
-                return ClassifyUrlsEntry(url=url, classification="pdf", reason=f"Content type is {content_type}")
-            return ClassifyUrlsEntry(url=url, classification="webpage", reason=f"Content type is {content_type}")
+                return ClassifyUrlsEntry(url=url, classification="pdf")
+            return ClassifyUrlsEntry(url=url, classification="webpage")
 
         except requests.exceptions.HTTPError as e:
             # HTTP error code returned
@@ -70,10 +79,10 @@ class URLClassifierFunctionImpl(URLClassifierFunction):
             reason = e.response.reason if e.response else None
             logger.info(f"HTTP error {status_code} reason {reason}: {e}")
 
-            return ClassifyUrlsEntry(url=url, classification="invalid", reason=f"HTTP error is {status_code} reason {reason}")
+            return ClassifyUrlsEntry(url=url, classification="invalid")
 
         except requests.exceptions.RequestException as e:
             # Network error, timeout, DNS, etc.
             logger.info(f"Request failed: {e}")
 
-            return ClassifyUrlsEntry(url=url, classification="invalid", reason=f"Unknown error of type {type(e).__name__}")
+            return ClassifyUrlsEntry(url=url, classification="invalid")

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import json
 import csv
 import os
@@ -6,6 +7,35 @@ import locale
 
 from pathlib import Path
 
+
+@dataclass
+class Filename:
+    query: str
+    model: str
+    reasoning_effort: str
+    run: str
+    key: str
+
+    @staticmethod
+    def parse(stem: str) -> 'Filename':
+        parts = stem.split("_")
+
+        key = parts.pop()
+
+        if parts[-1].isdigit():
+            run = parts.pop()
+        else:
+            run = "1"
+
+        query = parts[0]
+        model = parts[1]
+
+        if len(parts) >= 3:
+            reasoning_effort = parts[2]
+        else:
+            reasoning_effort = ""
+
+        return Filename(query, model, reasoning_effort, run, key)
 
 def normalize_value(value) -> str:
     """Convert values for CSV CSV."""
@@ -38,15 +68,19 @@ def main():
     merged_path.mkdir(exist_ok=True)
 
     data_by_file = {}
-    all_keys = set()
-    queries = set()
+    queries : dict[tuple[str, str], set[str]] = dict()
 
     for p in files:
         if p.stem == "schema":
             continue
 
-        parts = p.stem.split('_')
-        queries.add(parts[0])
+        parts = Filename.parse(p.stem)
+        key = (parts.query, parts.key)
+        if key not in queries:
+            all_keys : set[str] = set()
+            queries[key] = all_keys
+        else:
+            all_keys = queries[key]
         
         with p.open("r", encoding="utf-8") as f:
             try:
@@ -59,11 +93,11 @@ def main():
         data_by_file[p.stem] = obj
         all_keys.update(obj.keys())
 
-    keys_sorted = sorted(all_keys)
-    stems_sorted = sorted(data_by_file.keys())
+    stems_sorted : list[str] = sorted(data_by_file.keys())
 
-    for query in queries:
-        output_csv = merged_path / f"{query}.csv"
+    for query, all_keys in queries.items():
+        keys_sorted = sorted(all_keys)
+        output_csv = merged_path / f"{query[0]}_{query[1]}.csv"
 
         # utf-8-sig -> better for Excel
         with output_csv.open("w", newline="", encoding="utf-8-sig") as f:
@@ -72,17 +106,8 @@ def main():
             # headers = keys
             writer.writerow(["model", "run", "reasoning_effort", "elapsed", "cost"] + keys_sorted)
             for stem in stems_sorted:
-                if stem.startswith(f"{query}_"):
-                    parts = stem.split("_")
-
-                    # Parse run number - check if last part is numeric
-                    if len(parts) >= 4 and parts[-1].isdigit():
-                        run = parts[-1]
-                        reasoning_effort = parts[2] if len(parts) > 3 else ""
-                    else:
-                        run = "1"
-                        reasoning_effort = parts[2] if len(parts) > 2 else ""
-
+                parts = Filename.parse(stem)
+                if stem.startswith(f"{query[0]}_") and stem.endswith(f"_{query[1]}"):
                     with open(output_path / f"{stem}.txt") as f:
                         info = f.read()
                         # Extract elapsed time
@@ -93,7 +118,7 @@ def main():
                         cost_match = re.search(r"Cost: \$([0-9.]+)", info)
                         cost = float(cost_match.group(1)) if cost_match else ""
 
-                    row = [parts[1], run, reasoning_effort, elapsed, normalize_value(cost)]
+                    row = [parts.model, parts.run, parts.reasoning_effort, elapsed, normalize_value(cost)]
                     for k in keys_sorted:
                         row.append(normalize_value(data_by_file[stem].get(k, "")))
                     writer.writerow(row)

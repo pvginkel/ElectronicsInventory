@@ -136,7 +136,7 @@ class TestAIServiceRealIntegration:
         """
         # Perform real AI analysis
         result = real_ai_service.analyze_part(
-            text_input=text_input,
+            user_prompt=text_input,
             image_data=None,
             image_mime_type=None,
             progress_handle=TestProgressHandle()
@@ -244,7 +244,7 @@ class TestAIServiceRealIntegration:
 
         # Test with both text and image
         result = real_ai_service.analyze_part(
-            text_input="DFRobot Gravity SGP40",
+            user_prompt="DFRobot Gravity SGP40",
             image_data=image_data,
             image_mime_type="image/jpeg",
             progress_handle=TestProgressHandle()
