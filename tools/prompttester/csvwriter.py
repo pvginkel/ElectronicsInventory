@@ -49,7 +49,11 @@ def main():
         queries.add(parts[0])
         
         with p.open("r", encoding="utf-8") as f:
-            obj = json.load(f)
+            try:
+                obj = json.load(f)
+            except Exception as e:
+                print(f"Failed to parse {p}: {e}")
+                raise
         if not isinstance(obj, dict):
             raise ValueError(f"{p.name} doesn't contain JSON")
         data_by_file[p.stem] = obj
