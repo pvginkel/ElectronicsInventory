@@ -1,37 +1,59 @@
+from abc import ABC, abstractmethod
 import time
-import os
 import logging
-import json
 
-from typing import Any, Protocol, Type
+from typing import Any, Type
 from openai import OpenAI
-from openai.types.responses.response_usage import ResponseUsage
+from openai.types.responses import ResponseOutputItemDoneEvent, ResponseFunctionWebSearch, ResponseCompletedEvent, ResponseContentPartAddedEvent
 from openai.types.responses.function_tool_param import FunctionToolParam
-from openai.types.responses import ResponseOutputItemDoneEvent, ResponseFunctionWebSearch, ResponseCompletedEvent, ParsedResponseOutputMessage, ParsedResponseOutputText, ResponseOutputMessage,  ResponseOutputText, ResponseContentPartAddedEvent, ResponseFunctionCallArgumentsDoneEvent
+from openai.types.responses.parsed_response import ParsedResponse
 from openai.types.responses.response_function_web_search import ActionSearch
-from openai.types.responses.parsed_response import ParsedResponse, ParsedResponseFunctionToolCall
-
 from pydantic import BaseModel
+from app.services.base_task import ProgressHandle
 
-from url_classifier_service import ClassifyUrlsRequest, URLClassifierService
 
 logger = logging.getLogger(__name__)
 
 
-class ProgressHandle():
-    """Interface for sending progress updates to connected clients."""
+class AIFunction(ABC):
+    @abstractmethod
+    def get_name(self) -> str:
+        pass
+    
+    @abstractmethod
+    def get_description(self) -> str:
+        pass
 
-    def send_progress_text(self, text: str) -> None:
-        """Send a text progress update to connected clients."""
-        logger.info(f"Progress {text}")
+    @abstractmethod
+    def get_model(self) -> Type[BaseModel]:
+        pass
 
-    def send_progress_value(self, value: float) -> None:
-        """Send a progress value update (0.0 to 1.0) to connected clients."""
-        logger.info(f"Progress {int(value * 100)}%")
+    @abstractmethod
+    def execute(self, request: BaseModel, progress_handle: ProgressHandle) -> BaseModel:
+        pass
 
-    def send_progress(self, text: str, value: float) -> None:
-        """Send both text and progress value update to connected clients."""
-        logger.info(f"Progress {text} {int(value * 100)}%")
+    def get_function_tool(self) -> FunctionToolParam:
+        return {
+            "type": "function",
+            "name": "classify_urls",
+            "strict": True,
+            "description": self.get_description(),
+            "parameters": self.get_model().model_json_schema()
+        }
+
+
+class AIRequest(BaseModel):
+    # Input parameters
+    system_prompt: str
+    user_prompt: str
+
+    # Model parameters
+    model: str
+    verbosity: str
+    reasoning_effort: str | None = None
+
+    # Function calling response model
+    response_model: Type[BaseModel]
 
 
 class AIResponse(BaseModel):
@@ -46,14 +68,12 @@ class AIResponse(BaseModel):
 
 
 class AIRunner:
-    def __init__(self, model: Type[BaseModel], url_classifier: URLClassifierService):
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.model = model
-        self.url_classifier = url_classifier
+    def __init__(self, api_key: str):
+        self.client = OpenAI(api_key=api_key)
 
-    def run(self, streaming: bool, model: str, verbosity: str, reasoning_effort: str | None, prompt: str, text_input: str) -> AIResponse:
+    def run(self, request: AIRequest, function_tools: list[AIFunction], progress_handle: ProgressHandle, streaming: bool) -> AIResponse:
         # Build input and instructions for Responses API
-        input_content = self._build_responses_api_input(prompt, text_input)
+        input_content = self._build_responses_api_input(request)
 
         start = time.perf_counter()
 
@@ -63,37 +83,15 @@ class AIRunner:
         output_tokens = 0
         reasoning_tokens = 0
 
-        function_tool : FunctionToolParam = {
-            "type": "function",
-            "name": "classify_urls",
-            "strict": True,
-            "description": "Classify the URLs as PDF, image, webpage or invalid.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "urls": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    }
-                },
-                "required": ["urls"],
-                "additionalProperties": False
-            }
-        }
-
-        progress_handle = ProgressHandle()
-
         while True:
             logger.info("Starting OpenAI call")
 
             again = False
 
             if streaming:
-                response = self._call_openai_api_streamed(model, reasoning_effort, verbosity, function_tool, input_content, progress_handle)
+                response = self._call_openai_api_streamed(request, function_tools, input_content, progress_handle)
             else:
-                response = self._call_openai_api(model, reasoning_effort, verbosity, function_tool, input_content, progress_handle)
+                response = self._call_openai_api(request, function_tools, input_content, progress_handle)
 
             if response.usage:
                 input_tokens += response.usage.input_tokens
@@ -108,27 +106,28 @@ class AIRunner:
 
             for item in response.output:
                 if item.type == "function_call":
-                    if item.name == "classify_urls":
-                        progress_handle.send_progress_text("Checking URLs...")
+                    for function in function_tools:
+                        if item.name == function.get_name():
+                            logger.info(f"Request to {item.name} call ID {item.call_id}")
+                            logger.info(f"Request JSON: {item.arguments}")
 
-                        logger.info("Request to classify URLs call ID")
+                            result = function.execute(
+                                function.get_model().model_validate_json(item.arguments),
+                                progress_handle
+                            )
 
-                        logger.info(f"Request JSON: {item.arguments}")
+                            result_json = result.model_dump_json()
 
-                        result = self.url_classifier.classify_urls(ClassifyUrlsRequest.model_validate_json(item.arguments))
+                            logger.info(f"Result JSON: {result_json}")
 
-                        result_json = result.model_dump_json()
+                            input_content.append({
+                                "type": "function_call_output",
+                                "call_id": item.call_id,
+                                "output": result_json
+                            })
 
-                        logger.info(f"Result JSON: {result_json}")
-
-                        input_content.append({
-                            "type": "function_call_output",
-                            "call_id": item.call_id,
-                            "output": result_json
-                        })
-
-                        progress_handle.send_progress_text("Thinking...")
-                        again = True
+                            progress_handle.send_progress_text("Continuing analysis...")
+                            again = True
             
             if not again:
                 break
@@ -138,39 +137,37 @@ class AIRunner:
         logger.info(f"OpenAI response status: {response.status}, duration {elapsed_time}, incomplete details: {response.incomplete_details}")
         logger.info(f"Output text: {response.output_text}")
 
-        ai_response = response.output_parsed
-        if not ai_response or not response.output_text:
+        if not response.output_parsed or not response.output_text:
             raise Exception(f"Empty response from OpenAI status {response.status}, incomplete details: {response.incomplete_details}")
 
         return AIResponse(
-            response=ai_response,
+            response=response.output_parsed, # type: ignore
             elapsed_time=elapsed_time,
             output_text=response.output_text,
             input_tokens=input_tokens,
             cached_input_tokens=cached_input_tokens,
             output_tokens=output_tokens,
             reasoning_tokens=reasoning_tokens,
-            cost=self._calculate_cost(model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
+            cost=self._calculate_cost(request.model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
         )
 
-
-    def _call_openai_api(self, model: str, reasoning_effort: str | None, verbosity: str, function_tool: FunctionToolParam, input_content: list, progress_handle: ProgressHandle) -> ParsedResponse:
+    def _call_openai_api(self, request: AIRequest, function_tools: list[AIFunction], input_content: Any, progress_handle: ProgressHandle) -> ParsedResponse:
         # Call OpenAI Responses API with structured output
         return self.client.responses.parse(
-            model=model,
-            input=input_content,
-            text_format=self.model,
-            text={ "verbosity": verbosity }, # type: ignore
+            model=request.model,
+            input=input_content, # type: ignore
+            text_format=request.response_model,
+            text={ "verbosity": request.verbosity }, # type: ignore
             tools=[
                 { "type": "web_search" },
-                function_tool
+                *[ft.get_function_tool() for ft in function_tools]
             ],
             reasoning = {
-                "effort": reasoning_effort # type: ignore
+                "effort": request.reasoning_effort # type: ignore
             },
         )
 
-    def _call_openai_api_streamed(self, model: str, reasoning_effort: str | None, verbosity: str, function_tool: FunctionToolParam, input_content: list, progress_handle: ProgressHandle) -> ParsedResponse:
+    def _call_openai_api_streamed(self, request: AIRequest, function_tools: list[AIFunction], input_content: Any, progress_handle: ProgressHandle) -> ParsedResponse:
         """Call OpenAI Responses API and handle streaming response.
         
         Args:
@@ -187,17 +184,17 @@ class AIRunner:
 
         # Call OpenAI Responses API with structured output
         with self.client.responses.stream(
-            model=model,
+            model=request.model,
             input=input_content,
-            text_format=self.model,
-            text={ "verbosity": verbosity }, # type: ignore
+            text_format=request.response_model,
+            text={ "verbosity": request.verbosity }, # type: ignore
             tools=[
                 { "type": "web_search" },
-                function_tool
+                *[ft.get_function_tool() for ft in function_tools]
             ],
             # tool_choice="required",
             reasoning = {
-                "effort": reasoning_effort # type: ignore
+                "effort": request.reasoning_effort # type: ignore
             },
         ) as stream:
             logger.info("Streaming events")
@@ -218,26 +215,25 @@ class AIRunner:
 
         raise Exception("Did not get ResponseCompletedEvent")
 
-    def _build_responses_api_input(self, prompt: str, text_input: str) -> list:
+    def _build_responses_api_input(self, request: AIRequest) -> Any:
         """Build instructions and input for OpenAI Responses API."""
 
         return [
             {
                 "role": "developer",
                 "content": [
-                    {"type": "input_text", "text": prompt}
+                    { "type": "input_text", "text": request.system_prompt }
                 ]
             },
             {
                 "role": "user",
                 "content": [
-                    {"type": "input_text", "text": text_input},
+                    { "type": "input_text", "text": request.user_prompt },
                     # Add an image later, e.g. {"type": "image_url", "image_url": {"url": "https://..."}}
                 ]
             }
         ]
     
-
     def _calculate_cost(self, model: str, input_tokens: int, cached_input_tokens: int, output_tokens: int, reasoning_tokens: int) -> float | None:
         match model:
             case "gpt-5":

@@ -3,33 +3,20 @@ import logging
 import os
 import hashlib
 
-from pydantic import BaseModel, ConfigDict, Field
+from app.services.base_task import ProgressHandle
+from app.utils.ai.url_classification import ClassifyUrlsEntry, ClassifyUrlsRequest, ClassifyUrlsResponse, URLClassifierFunction
 
 logger = logging.getLogger(__name__)
 
 
-class ClassifyUrlsRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    urls: list[str] = Field(...)
-
-
-class ClassifyUrlsEntry(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    url: str
-    classification: str
-    reason: str
-
-
-class ClassifyUrlsResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    urls: list[ClassifyUrlsEntry] = Field(...)
-
-class URLClassifierService:
+class URLClassifierFunctionImpl(URLClassifierFunction):
     def __init__(self, cache_path: str):
         self.cache_path = cache_path
         os.makedirs(self.cache_path, exist_ok=True)
 
-    def classify_urls(self, request: ClassifyUrlsRequest):
+    def classify_url(self, request: ClassifyUrlsRequest, progress_handle: ProgressHandle) -> ClassifyUrlsResponse:
+        progress_handle.send_progress_text("Classifying URLs...")
+        
         urls: list[ClassifyUrlsEntry] = []
 
         for url in request.urls:
