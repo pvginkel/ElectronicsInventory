@@ -79,6 +79,10 @@ class TestPartsAPI:
             assert response_data["mounting_type"] == "Surface Mount"
             assert response_data["series"] == "Standard"
             assert response_data["dimensions"] == "2.0x1.25mm"
+            # Check new voltage fields are None by default
+            assert response_data["pin_pitch"] is None
+            assert response_data["input_voltage"] is None
+            assert response_data["output_voltage"] is None
 
     def test_create_part_invalid_data(self, app: Flask, client: FlaskClient):
         """Test creating a part with invalid data."""
@@ -750,4 +754,143 @@ class TestPartsAPI:
             response_data = json.loads(response.data)
 
             assert response_data == []
+
+    def test_create_part_with_new_voltage_fields(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test creating a part with pin_pitch, input_voltage, and output_voltage fields."""
+        with app.app_context():
+            # Create type first
+            type_obj = container.type_service().create_type("Power Module")
+            session.commit()
+
+            data = {
+                "description": "LM2596 step-down module",
+                "manufacturer_code": "LM2596",
+                "type_id": type_obj.id,
+                "tags": ["step-down", "adjustable"],
+                "manufacturer": "Texas Instruments",
+                "seller": "Digi-Key",
+                "seller_link": "https://digikey.com/product/lm2596",
+                "package": "TO-220",
+                "pin_count": 5,
+                "pin_pitch": "2.54mm",
+                "voltage_rating": "40V",
+                "input_voltage": "4.5V-40V",
+                "output_voltage": "1.2V-35V",
+                "mounting_type": "Through-hole",
+                "series": "LM2596",
+                "dimensions": "10.16x13.21mm"
+            }
+
+            response = client.post("/api/parts", json=data)
+
+            assert response.status_code == 201
+            response_data = json.loads(response.data)
+
+            assert response_data["description"] == "LM2596 step-down module"
+            assert response_data["manufacturer_code"] == "LM2596"
+            assert response_data["type_id"] == type_obj.id
+            assert response_data["tags"] == ["step-down", "adjustable"]
+            assert response_data["manufacturer"] == "Texas Instruments"
+            assert response_data["seller"] == "Digi-Key"
+            assert response_data["seller_link"] == "https://digikey.com/product/lm2596"
+            # Extended fields
+            assert response_data["package"] == "TO-220"
+            assert response_data["pin_count"] == 5
+            assert response_data["pin_pitch"] == "2.54mm"
+            assert response_data["voltage_rating"] == "40V"
+            assert response_data["input_voltage"] == "4.5V-40V"
+            assert response_data["output_voltage"] == "1.2V-35V"
+            assert response_data["mounting_type"] == "Through-hole"
+            assert response_data["series"] == "LM2596"
+            assert response_data["dimensions"] == "10.16x13.21mm"
+
+    def test_update_part_with_new_voltage_fields(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test updating a part with pin_pitch, input_voltage, and output_voltage fields."""
+        with app.app_context():
+            # Create a basic part first
+            part = container.part_service().create_part("Basic power supply")
+            session.commit()
+
+            update_data = {
+                "description": "Updated power supply module",
+                "pin_pitch": "1.27mm",
+                "input_voltage": "5V-12V",
+                "output_voltage": "3.3V",
+                "voltage_rating": "15V"
+            }
+
+            response = client.put(f"/api/parts/{part.key}", json=update_data)
+
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+
+            assert response_data["description"] == "Updated power supply module"
+            assert response_data["pin_pitch"] == "1.27mm"
+            assert response_data["input_voltage"] == "5V-12V"
+            assert response_data["output_voltage"] == "3.3V"
+            assert response_data["voltage_rating"] == "15V"
+
+    def test_list_parts_includes_new_voltage_fields(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test that list parts endpoint includes pin_pitch, input_voltage, and output_voltage fields."""
+        with app.app_context():
+            # Create a part with the new fields
+            part_service = container.part_service()
+            part = part_service.create_part(
+                description="Test IC with new fields",
+                pin_pitch="0.65mm",
+                input_voltage="3.0V-3.6V",
+                output_voltage="1.8V"
+            )
+            session.commit()
+
+            response = client.get("/api/parts")
+
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+
+            # Find our test part in the response
+            test_part = None
+            for part_data in response_data:
+                if part_data["key"] == part.key:
+                    test_part = part_data
+                    break
+
+            assert test_part is not None, f"Part {part.key} not found in list response"
+
+            # Verify new fields are included and correct
+            assert test_part["pin_pitch"] == "0.65mm"
+            assert test_part["input_voltage"] == "3.0V-3.6V"
+            assert test_part["output_voltage"] == "1.8V"
+
+    def test_list_parts_with_locations_includes_new_voltage_fields(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test that parts with locations includes the new voltage fields."""
+        with app.app_context():
+            box = container.box_service().create_box("Test Box", 10)
+
+            part = container.part_service().create_part(
+                description="Power IC with locations",
+                pin_pitch="0.5mm",
+                input_voltage="4.75V-5.25V",
+                output_voltage="3.3V",
+                package="QFN-20"
+            )
+
+            container.inventory_service().add_stock(part.key, box.box_no, 1, 50)
+            session.commit()
+
+            response = client.get("/api/parts/with-locations")
+
+            assert response.status_code == 200
+            response_data = json.loads(response.data)
+
+            assert len(response_data) == 1
+            part_data = response_data[0]
+
+            # Check all new fields are present and correct
+            assert part_data["pin_pitch"] == "0.5mm"
+            assert part_data["input_voltage"] == "4.75V-5.25V"
+            assert part_data["output_voltage"] == "3.3V"
+            assert part_data["package"] == "QFN-20"
+            assert part_data["total_quantity"] == 50
+            assert len(part_data["locations"]) == 1
 
