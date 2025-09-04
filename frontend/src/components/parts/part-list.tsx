@@ -222,7 +222,7 @@ function PartListItem({ part, typeMap, onClick }: PartListItemProps) {
                 part.output_voltage ? `O: ${part.output_voltage}` : null
               ]
               .filter(Boolean)
-              .join(' | ')
+              .join(' ∣ ')
             }
             className="font-mono"
           />
