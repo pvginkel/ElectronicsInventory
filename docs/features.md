@@ -24,18 +24,24 @@
 - [x] List parts with filtering by type and pagination
 
 ## Document Management
-- [ ] Store PDFs in S3 (inventory-docs bucket)
-- [ ] Store images in S3 (inventory-images bucket)
-- [ ] Handle document uploads through backend API
-- [ ] Link multiple documents per part
-- [ ] Store document metadata and original filenames
+- [x] Store PDFs and images in S3 (unified bucket approach)
+- [x] Handle document uploads through backend API
+- [x] Link multiple documents per part (PartAttachment model)
+- [x] Store document metadata and original filenames
+- [x] Support URL, image, and PDF attachment types
 
-## AI Integration (Celery Jobs)
-- [ ] Auto-tag parts from descriptions and manufacturer codes
-- [ ] Suggest categories from part information
-- [ ] Extract part numbers from uploaded photos
-- [ ] Discover and fetch datasheets based on part numbers
-- [ ] Store fetched datasheets in S3
+## AI Integration
+- [x] AI service infrastructure with OpenAI integration
+- [x] Task system for background job processing
+- [x] Part analysis capabilities (auto-tagging, categorization)
+- [x] Document suggestion system
+- [x] AI part analysis tasks with progress tracking
+
+## Background Job Processing
+- [x] Task service with ThreadPoolExecutor for concurrent processing
+- [x] Progress tracking and status updates via SSE
+- [x] Base task classes for extensible background operations
+- [x] AI part analysis task implementation
 
 ## Box & Location Management
 - [x] Create boxes with configurable capacity
@@ -58,11 +64,10 @@
 - [x] Testing endpoints for development/QA environments
 - [x] CLI commands for database operations and test data loading
 
-## Background Job Processing
-- [ ] Configure Celery with RabbitMQ broker
-- [ ] Set up PostgreSQL result backend for Celery
-- [ ] Implement job retry logic for failed AI operations
-- [ ] Handle asynchronous datasheet fetching and storage
+## Extended Part Features
+- [x] Additional part fields (voltage_rating, pin_pitch) added via migrations
+- [x] Enhanced part filtering capabilities in PartService
+- [x] Comprehensive part search functionality
 
 # Phase 2
 
