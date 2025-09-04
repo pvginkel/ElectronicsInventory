@@ -116,7 +116,10 @@ class TestDataService(BaseService):
                 seller_link=part_data.get("seller_link"),
                 package=part_data.get("package"),
                 pin_count=part_data.get("pin_count"),
+                pin_pitch=part_data.get("pin_pitch"),
                 voltage_rating=part_data.get("voltage_rating"),
+                input_voltage=part_data.get("input_voltage"),
+                output_voltage=part_data.get("output_voltage"),
                 mounting_type=part_data.get("mounting_type"),
                 series=part_data.get("series"),
                 dimensions=part_data.get("dimensions")
