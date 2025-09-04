@@ -8,9 +8,10 @@
 - [x] Tags input with manual entry support
 - [x] Display seller information and product page links
 - [x] Delete parts with confirmation (only if zero quantity)
-- [ ] Photo capture (mobile camera integration)
+- [x] Additional part fields (voltage ratings, dimensions, mounting type, package, pin count, pin pitch, series)
+- [x] Photo capture (mobile camera integration)
 - [ ] Show part image gallery with main photo selection
-- [ ] Auto-suggest tags from AI analysis results
+- [x] Auto-suggest tags from AI analysis results
 
 ## Inventory Visualization
 - [x] Show numbered boxes with capacity indicators
@@ -33,6 +34,10 @@
 - [x] Navigate to individual part pages from search results
 
 ## Document Viewing
+- [x] Document viewing infrastructure with base components
+- [x] Document grid display with tile-based interface
+- [x] Cover image selection and display functionality
+- [x] Document attachment and management system
 - [ ] PDF viewer using PDF.js for in-app datasheet viewing
 - [ ] Image gallery for part photos and documentation
 - [ ] Document upload interface with drag-and-drop
@@ -47,14 +52,18 @@
 - [x] Visual location list with occupancy status
 
 ## Mobile Optimization
-- [ ] Camera integration for part photos
+- [x] Camera integration for part photos
 - [x] Touch-friendly quantity input (large buttons)
 - [x] Responsive layout for phone/tablet usage
 
 ## AI Assistant Integration
+- [x] AI part review step with comprehensive form editing
+- [x] AI analysis result transformation and display
+- [x] Part data validation and transformation utilities
+- [x] Document suggestion integration with AI analysis
 - [ ] Photo analysis interface with part number extraction
-- [ ] Category suggestion acceptance/rejection
-- [ ] Auto-tagging review and editing
+- [x] Category suggestion acceptance/rejection
+- [x] Auto-tagging review and editing
 - [ ] Datasheet discovery progress indicators
 
 ## Performance & UX
