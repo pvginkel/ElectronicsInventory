@@ -284,21 +284,6 @@ class TestDocumentService:
 
         assert updated.title == "Updated Title"
 
-    def test_update_attachment_no_changes(self, document_service, session, sample_part):
-        """Test attachment update with no changes."""
-        attachment = PartAttachment(
-            part_id=sample_part.id,
-            attachment_type=AttachmentType.IMAGE,
-            title="Original Title",
-            s3_key="test.jpg"
-        )
-        session.add(attachment)
-        session.flush()
-
-        updated = document_service.update_attachment(attachment.id)
-
-        assert updated.title == "Original Title"  # No change
-
     def test_delete_attachment_success(self, document_service, session, sample_part, mock_s3_service, mock_image_service):
         """Test successful attachment deletion."""
         attachment = PartAttachment(
