@@ -7,8 +7,11 @@ interface PartData {
   mountingType?: string;
   package?: string;
   pinCount?: number;
+  pinPitch?: string;
   series?: string;
   voltageRating?: string;
+  inputVoltage?: string;
+  outputVoltage?: string;
   manufacturer?: string;
   productPage?: string;
 }
@@ -24,8 +27,11 @@ interface Part {
   mounting_type?: string | null;
   package?: string | null;
   pin_count?: number | null;
+  pin_pitch?: string | null;
   series?: string | null;
   voltage_rating?: string | null;
+  input_voltage?: string | null;
+  output_voltage?: string | null;
   manufacturer?: string | null;
   product_page?: string | null;
 }
@@ -67,6 +73,18 @@ export function validatePartData(data: PartData): {
 
   if (data.voltageRating && data.voltageRating.trim() && data.voltageRating.length > 100) {
     errors.voltageRating = 'Voltage rating must be 100 characters or less';
+  }
+
+  if (data.pinPitch && data.pinPitch.trim() && data.pinPitch.length > 100) {
+    errors.pinPitch = 'Pin pitch must be 100 characters or less';
+  }
+
+  if (data.inputVoltage && data.inputVoltage.trim() && data.inputVoltage.length > 100) {
+    errors.inputVoltage = 'Input voltage must be 100 characters or less';
+  }
+
+  if (data.outputVoltage && data.outputVoltage.trim() && data.outputVoltage.length > 100) {
+    errors.outputVoltage = 'Output voltage must be 100 characters or less';
   }
 
   // Validate manufacturer

@@ -98,6 +98,20 @@
             "example": 5,
             "title": "Existing Type Id"
           },
+          "input_voltage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "AI-suggested input voltage range/specification",
+            "example": "5-12V DC",
+            "title": "Input Voltage"
+          },
           "manufacturer": {
             "anyOf": [
               {
@@ -140,6 +154,20 @@
             "example": "Breadboard Compatible",
             "title": "Mounting Type"
           },
+          "output_voltage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "AI-suggested output voltage range/specification",
+            "example": "3.3V",
+            "title": "Output Voltage"
+          },
           "package": {
             "anyOf": [
               {
@@ -167,6 +195,20 @@
             "description": "AI-suggested number of pins/connections",
             "example": 32,
             "title": "Pin Count"
+          },
+          "pin_pitch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "AI-suggested component pin pitch/spacing",
+            "example": "2.54mm",
+            "title": "Pin Pitch"
           },
           "product_page": {
             "anyOf": [
@@ -379,6 +421,21 @@
             "title": "Documents",
             "type": "array"
           },
+          "input_voltage": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Input voltage range/specification",
+            "example": "5-12V DC",
+            "title": "Input Voltage"
+          },
           "manufacturer": {
             "anyOf": [
               {
@@ -424,6 +481,21 @@
             "example": "Breadboard Compatible",
             "title": "Mounting Type"
           },
+          "output_voltage": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Output voltage range/specification",
+            "example": "3.3V",
+            "title": "Output Voltage"
+          },
           "package": {
             "anyOf": [
               {
@@ -453,6 +525,21 @@
             "description": "Number of pins/connections",
             "example": 32,
             "title": "Pin Count"
+          },
+          "pin_pitch": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Component pin pitch/spacing",
+            "example": "2.54mm",
+            "title": "Pin Pitch"
           },
           "product_page": {
             "anyOf": [
@@ -1644,6 +1731,21 @@
             "example": "20x15x5mm",
             "title": "Dimensions"
           },
+          "input_voltage": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Input voltage range/specification",
+            "example": "5-12V DC",
+            "title": "Input Voltage"
+          },
           "manufacturer": {
             "anyOf": [
               {
@@ -1689,6 +1791,21 @@
             "example": "Through-hole",
             "title": "Mounting Type"
           },
+          "output_voltage": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Output voltage range/specification",
+            "example": "3.3V",
+            "title": "Output Voltage"
+          },
           "package": {
             "anyOf": [
               {
@@ -1718,6 +1835,21 @@
             "description": "Number of pins/connections on the component",
             "example": 8,
             "title": "Pin Count"
+          },
+          "pin_pitch": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Component pin pitch/spacing",
+            "example": "2.54mm",
+            "title": "Pin Pitch"
           },
           "product_page": {
             "anyOf": [
@@ -1981,6 +2113,20 @@
             "example": "20x15x5mm",
             "title": "Dimensions"
           },
+          "input_voltage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Input voltage range/specification",
+            "example": "5-12V DC",
+            "title": "Input Voltage"
+          },
           "key": {
             "description": "4-character unique part identifier",
             "example": "BZQP",
@@ -2028,6 +2174,20 @@
             "example": "Through-hole",
             "title": "Mounting Type"
           },
+          "output_voltage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Output voltage range/specification",
+            "example": "3.3V",
+            "title": "Output Voltage"
+          },
           "package": {
             "anyOf": [
               {
@@ -2055,6 +2215,20 @@
             "description": "Number of pins/connections",
             "example": 8,
             "title": "Pin Count"
+          },
+          "pin_pitch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Component pin pitch/spacing",
+            "example": "2.54mm",
+            "title": "Pin Pitch"
           },
           "product_page": {
             "anyOf": [
@@ -2522,6 +2696,21 @@
             "example": "10.3x7.5mm",
             "title": "Dimensions"
           },
+          "input_voltage": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated input voltage range/specification",
+            "example": "3-5V DC",
+            "title": "Input Voltage"
+          },
           "manufacturer": {
             "anyOf": [
               {
@@ -2567,6 +2756,21 @@
             "example": "Surface Mount",
             "title": "Mounting Type"
           },
+          "output_voltage": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated output voltage range/specification",
+            "example": "3.3V",
+            "title": "Output Voltage"
+          },
           "package": {
             "anyOf": [
               {
@@ -2596,6 +2800,21 @@
             "description": "Updated number of pins/connections",
             "example": 16,
             "title": "Pin Count"
+          },
+          "pin_pitch": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated component pin pitch/spacing",
+            "example": "1.27mm",
+            "title": "Pin Pitch"
           },
           "product_page": {
             "anyOf": [
@@ -2779,6 +2998,20 @@
             "example": "20x15x5mm",
             "title": "Dimensions"
           },
+          "input_voltage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Input voltage range/specification",
+            "example": "5-12V DC",
+            "title": "Input Voltage"
+          },
           "key": {
             "description": "4-character unique part identifier",
             "example": "BZQP",
@@ -2846,6 +3079,20 @@
             "example": "Through-hole",
             "title": "Mounting Type"
           },
+          "output_voltage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Output voltage range/specification",
+            "example": "3.3V",
+            "title": "Output Voltage"
+          },
           "package": {
             "anyOf": [
               {
@@ -2873,6 +3120,20 @@
             "description": "Number of pins/connections",
             "example": 8,
             "title": "Pin Count"
+          },
+          "pin_pitch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Component pin pitch/spacing",
+            "example": "2.54mm",
+            "title": "Pin Pitch"
           },
           "seller": {
             "anyOf": [
@@ -3028,6 +3289,20 @@
             "example": "20x15x5mm",
             "title": "Dimensions"
           },
+          "input_voltage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Input voltage range/specification",
+            "example": "5-12V DC",
+            "title": "Input Voltage"
+          },
           "key": {
             "description": "4-character unique part identifier",
             "example": "BZQP",
@@ -3075,6 +3350,20 @@
             "example": "Through-hole",
             "title": "Mounting Type"
           },
+          "output_voltage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Output voltage range/specification",
+            "example": "3.3V",
+            "title": "Output Voltage"
+          },
           "package": {
             "anyOf": [
               {
@@ -3102,6 +3391,20 @@
             "description": "Number of pins/connections",
             "example": 8,
             "title": "Pin Count"
+          },
+          "pin_pitch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Component pin pitch/spacing",
+            "example": "2.54mm",
+            "title": "Pin Pitch"
           },
           "seller": {
             "anyOf": [

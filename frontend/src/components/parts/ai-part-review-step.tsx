@@ -29,7 +29,10 @@ interface PartFormData {
   mountingType: string;
   package: string;
   pinCount: string;
+  pinPitch: string;
   series: string;
+  inputVoltage: string;
+  outputVoltage: string;
   productPageUrl: string;
   seller: string;
   sellerLink: string;
@@ -62,7 +65,10 @@ export function AIPartReviewStep({
     mountingType: analysisResult.mountingType || '',
     package: analysisResult.package || '',
     pinCount: analysisResult.pinCount?.toString() || '',
+    pinPitch: analysisResult.pinPitch || '',
     series: analysisResult.series || '',
+    inputVoltage: analysisResult.inputVoltage || '',
+    outputVoltage: analysisResult.outputVoltage || '',
     productPageUrl: analysisResult.productPageUrl || '',
     seller: analysisResult.seller || '',
     sellerLink: analysisResult.sellerLink || '',
@@ -128,7 +134,10 @@ export function AIPartReviewStep({
       mountingType: formData.mountingType,
       package: formData.package,
       pinCount: formData.pinCount ? parseInt(formData.pinCount) : null,
+      pinPitch: formData.pinPitch,
       series: formData.series,
+      inputVoltage: formData.inputVoltage,
+      outputVoltage: formData.outputVoltage,
       productPageUrl: formData.productPageUrl,
       seller: formData.seller,
       sellerLink: formData.sellerLink,
@@ -254,6 +263,30 @@ export function AIPartReviewStep({
             </div>
 
             <div>
+              <Label htmlFor="inputVoltage">Input Voltage</Label>
+              <Input
+                id="inputVoltage"
+                value={formData.inputVoltage}
+                onChange={(e) => updateField('inputVoltage', e.target.value)}
+                placeholder="e.g., 5V, 12-24V"
+                clearable
+                onClear={() => updateField('inputVoltage', '')}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="outputVoltage">Output Voltage</Label>
+              <Input
+                id="outputVoltage"
+                value={formData.outputVoltage}
+                onChange={(e) => updateField('outputVoltage', e.target.value)}
+                placeholder="e.g., 3.3V, 5V"
+                clearable
+                onClear={() => updateField('outputVoltage', '')}
+              />
+            </div>
+
+            <div>
               <Label htmlFor="mountingType">Mounting Type</Label>
               <Input
                 id="mountingType"
@@ -287,6 +320,18 @@ export function AIPartReviewStep({
                 placeholder="Number of pins"
                 clearable
                 onClear={() => updateField('pinCount', '')}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="pinPitch">Pin Pitch</Label>
+              <Input
+                id="pinPitch"
+                value={formData.pinPitch}
+                onChange={(e) => updateField('pinPitch', e.target.value)}
+                placeholder="e.g., 0.1mm, 2.54mm"
+                clearable
+                onClear={() => updateField('pinPitch', '')}
               />
             </div>
 

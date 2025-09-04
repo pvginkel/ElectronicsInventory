@@ -213,12 +213,12 @@ export function PartDetails({ partId }: PartDetailsProps) {
                 </div>
 
                 {/* Technical Specifications */}
-                {(part.dimensions || part.mounting_type || part.package || part.pin_count || part.series || part.voltage_rating) && (
+                {(part.dimensions || part.mounting_type || part.package || part.pin_count || part.pin_pitch || part.series || part.voltage_rating || part.input_voltage || part.output_voltage) && (
                   <div>
                     <div className="text-sm font-medium mb-3">Technical Specifications</div>
                     
                     {/* Physical Specifications */}
-                    {(part.dimensions || part.package || part.pin_count || part.mounting_type) && (
+                    {(part.dimensions || part.package || part.pin_count || part.pin_pitch || part.mounting_type) && (
                       <div className="mb-4">
                         <div className="text-xs font-medium text-muted-foreground mb-2">Physical</div>
                         <div className="space-y-2">
@@ -243,6 +243,13 @@ export function PartDetails({ partId }: PartDetailsProps) {
                             </div>
                           )}
                           
+                          {part.pin_pitch && (
+                            <div>
+                              <div className="text-sm font-medium">Pin Pitch</div>
+                              <div className="text-sm">{part.pin_pitch}</div>
+                            </div>
+                          )}
+                          
                           {part.mounting_type && (
                             <div>
                               <div className="text-sm font-medium">Mounting Type</div>
@@ -254,7 +261,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
                     )}
                     
                     {/* Electrical/Technical Specifications */}
-                    {(part.voltage_rating || part.series) && (
+                    {(part.voltage_rating || part.input_voltage || part.output_voltage || part.series) && (
                       <div className="mb-4">
                         <div className="text-xs font-medium text-muted-foreground mb-2">Electrical/Technical</div>
                         <div className="space-y-2">
@@ -262,6 +269,20 @@ export function PartDetails({ partId }: PartDetailsProps) {
                             <div>
                               <div className="text-sm font-medium">Voltage Rating</div>
                               <div className="text-sm">{part.voltage_rating}</div>
+                            </div>
+                          )}
+                          
+                          {part.input_voltage && (
+                            <div>
+                              <div className="text-sm font-medium">Input Voltage</div>
+                              <div className="text-sm">{part.input_voltage}</div>
+                            </div>
+                          )}
+                          
+                          {part.output_voltage && (
+                            <div>
+                              <div className="text-sm font-medium">Output Voltage</div>
+                              <div className="text-sm">{part.output_voltage}</div>
                             </div>
                           )}
                           

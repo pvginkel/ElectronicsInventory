@@ -209,8 +209,23 @@ function PartListItem({ part, typeMap, onClick }: PartListItemProps) {
         {part.package && (
           <MetadataBadge icon="📏" label={part.package} />
         )}
-        {part.voltage_rating && (
-          <MetadataBadge icon="⚡" label={part.voltage_rating} />
+        {part.pin_pitch && (
+          <MetadataBadge icon="📏" label={part.pin_pitch} />
+        )}
+        {(part.voltage_rating || part.input_voltage || part.output_voltage) && (
+          <MetadataBadge 
+            icon="⚡" 
+            label={
+              [
+                part.voltage_rating,
+                part.input_voltage ? `I: ${part.input_voltage}` : null,
+                part.output_voltage ? `O: ${part.output_voltage}` : null
+              ]
+              .filter(Boolean)
+              .join(' | ')
+            }
+            className="font-mono"
+          />
         )}
         {part.mounting_type && (
           <MetadataBadge icon="📐" label={part.mounting_type} />

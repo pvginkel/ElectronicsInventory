@@ -37,7 +37,10 @@ export function transformAIPartAnalysisResult(
     mountingType: result.mounting_type,
     package: result.package,
     pinCount: result.pin_count,
+    pinPitch: result.pin_pitch,
     series: result.series,
+    inputVoltage: result.input_voltage,
+    outputVoltage: result.output_voltage,
     productPageUrl: result.product_page,
     seller: null, // Seller info not provided by AI analysis
     sellerLink: null, // Must be provided by user
@@ -59,7 +62,10 @@ export function transformToCreateSchema(data: {
   mountingType?: string | null;
   package?: string | null;
   pinCount?: number | null;
+  pinPitch?: string | null;
   series?: string | null;
+  inputVoltage?: string | null;
+  outputVoltage?: string | null;
   productPageUrl?: string | null;
   seller?: string | null;
   sellerLink?: string | null;
@@ -76,7 +82,10 @@ export function transformToCreateSchema(data: {
     mounting_type: data.mountingType ?? null,
     package: data.package ?? null,
     pin_count: data.pinCount ?? null,
+    pin_pitch: data.pinPitch ?? null,
     series: data.series ?? null,
+    input_voltage: data.inputVoltage ?? null,
+    output_voltage: data.outputVoltage ?? null,
     product_page: data.productPageUrl ?? null,
     seller: data.seller ?? null,
     seller_link: data.sellerLink ?? null

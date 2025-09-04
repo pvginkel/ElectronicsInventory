@@ -21,8 +21,11 @@ interface PartFormData {
   mountingType: string;
   package: string;
   pinCount: string;
+  pinPitch: string;
   series: string;
   voltageRating: string;
+  inputVoltage: string;
+  outputVoltage: string;
 }
 
 interface PartFormProps {
@@ -44,8 +47,11 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
     mountingType: '',
     package: '',
     pinCount: '',
+    pinPitch: '',
     series: '',
     voltageRating: '',
+    inputVoltage: '',
+    outputVoltage: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -76,8 +82,11 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
         mountingType: existingPart.mounting_type || '',
         package: existingPart.package || '',
         pinCount: existingPart.pin_count?.toString() || '',
+        pinPitch: existingPart.pin_pitch || '',
         series: existingPart.series || '',
         voltageRating: existingPart.voltage_rating || '',
+        inputVoltage: existingPart.input_voltage || '',
+        outputVoltage: existingPart.output_voltage || '',
       });
     }
   }, [existingPart, isEditing]);
@@ -97,8 +106,11 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
       mountingType: formData.mountingType,
       package: formData.package,
       pinCount: formData.pinCount ? parseInt(formData.pinCount, 10) : undefined,
+      pinPitch: formData.pinPitch,
       series: formData.series,
       voltageRating: formData.voltageRating,
+      inputVoltage: formData.inputVoltage,
+      outputVoltage: formData.outputVoltage,
     });
 
     if (!validation.isValid) {
@@ -125,8 +137,11 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
           mounting_type: formData.mountingType || null,
           package: formData.package || null,
           pin_count: formData.pinCount ? parseInt(formData.pinCount, 10) : null,
+          pin_pitch: formData.pinPitch || null,
           series: formData.series || null,
           voltage_rating: formData.voltageRating || null,
+          input_voltage: formData.inputVoltage || null,
+          output_voltage: formData.outputVoltage || null,
         }
       });
       onSuccess(result.key);
@@ -146,8 +161,11 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
           mounting_type: formData.mountingType || null,
           package: formData.package || null,
           pin_count: formData.pinCount ? parseInt(formData.pinCount, 10) : null,
+          pin_pitch: formData.pinPitch || null,
           series: formData.series || null,
           voltage_rating: formData.voltageRating || null,
+          input_voltage: formData.inputVoltage || null,
+          output_voltage: formData.outputVoltage || null,
         }
       });
       onSuccess(result.key);
@@ -287,6 +305,20 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
             </FormField>
 
             <FormField>
+              <FormLabel htmlFor="pinPitch">
+                Pin Pitch
+              </FormLabel>
+              <Input
+                id="pinPitch"
+                value={formData.pinPitch}
+                onChange={(e) => updateFormData('pinPitch', e.target.value)}
+                error={errors.pinPitch}
+                maxLength={100}
+                placeholder="e.g., 0.1mm, 2.54mm"
+              />
+            </FormField>
+
+            <FormField>
               <FormLabel htmlFor="mountingType">
                 Mounting Type
               </FormLabel>
@@ -319,6 +351,34 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
                 value={formData.voltageRating}
                 onChange={(e) => updateFormData('voltageRating', e.target.value)}
                 error={errors.voltageRating}
+                maxLength={100}
+                placeholder="e.g., 3.3V, 5V"
+              />
+            </FormField>
+
+            <FormField>
+              <FormLabel htmlFor="inputVoltage">
+                Input Voltage
+              </FormLabel>
+              <Input
+                id="inputVoltage"
+                value={formData.inputVoltage}
+                onChange={(e) => updateFormData('inputVoltage', e.target.value)}
+                error={errors.inputVoltage}
+                maxLength={100}
+                placeholder="e.g., 5V, 12-24V"
+              />
+            </FormField>
+
+            <FormField>
+              <FormLabel htmlFor="outputVoltage">
+                Output Voltage
+              </FormLabel>
+              <Input
+                id="outputVoltage"
+                value={formData.outputVoltage}
+                onChange={(e) => updateFormData('outputVoltage', e.target.value)}
+                error={errors.outputVoltage}
                 maxLength={100}
                 placeholder="e.g., 3.3V, 5V"
               />
