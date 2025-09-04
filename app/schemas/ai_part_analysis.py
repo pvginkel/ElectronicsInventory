@@ -74,10 +74,25 @@ class AIPartAnalysisResultSchema(BaseModel):
         description="AI-suggested number of pins/connections",
         json_schema_extra={"example": 32}
     )
+    pin_pitch: str | None = Field(
+        default=None,
+        description="AI-suggested component pin pitch/spacing",
+        json_schema_extra={"example": "2.54mm"}
+    )
     voltage_rating: str | None = Field(
         default=None,
         description="AI-suggested operating voltage",
         json_schema_extra={"example": "5V/3.3V"}
+    )
+    input_voltage: str | None = Field(
+        default=None,
+        description="AI-suggested input voltage range/specification",
+        json_schema_extra={"example": "5-12V DC"}
+    )
+    output_voltage: str | None = Field(
+        default=None,
+        description="AI-suggested output voltage range/specification",
+        json_schema_extra={"example": "3.3V"}
     )
     mounting_type: str | None = Field(
         default=None,
@@ -216,11 +231,29 @@ class AIPartCreateSchema(BaseModel):
         description="Number of pins/connections",
         json_schema_extra={"example": 32}
     )
+    pin_pitch: str | None = Field(
+        default=None,
+        max_length=50,
+        description="Component pin pitch/spacing",
+        json_schema_extra={"example": "2.54mm"}
+    )
     voltage_rating: str | None = Field(
         default=None,
         max_length=100,
         description="Operating voltage",
         json_schema_extra={"example": "5V/3.3V"}
+    )
+    input_voltage: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Input voltage range/specification",
+        json_schema_extra={"example": "5-12V DC"}
+    )
+    output_voltage: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Output voltage range/specification",
+        json_schema_extra={"example": "3.3V"}
     )
     mounting_type: str | None = Field(
         default=None,

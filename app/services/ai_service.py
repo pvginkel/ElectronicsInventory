@@ -145,15 +145,6 @@ class AIService(BaseService):
 
             # Build result schema
 
-            voltage_rating_list : list[str] = []
-            if ai_response.voltage_rating:
-                voltage_rating_list.append(ai_response.voltage_rating)
-            if ai_response.input_voltage:
-                voltage_rating_list.append(f"Input: {ai_response.input_voltage}")
-            if ai_response.output_voltage:
-                voltage_rating_list.append(f"Output: {ai_response.output_voltage}")
-            voltage_rating = ", ".join(voltage_rating_list)
-
             product_page : str | None = None
             if len(ai_response.product_page_urls) > 0:
                 product_page = ai_response.product_page_urls[0]
@@ -167,7 +158,10 @@ class AIService(BaseService):
                 product_page=product_page,
                 package=ai_response.package_type,
                 pin_count=ai_response.component_pin_count,
-                voltage_rating=voltage_rating,
+                pin_pitch=ai_response.component_pin_pitch,
+                voltage_rating=ai_response.voltage_rating,
+                input_voltage=ai_response.input_voltage,
+                output_voltage=ai_response.output_voltage,
                 mounting_type=ai_response.mounting_type,
                 series=ai_response.product_family,
                 dimensions=ai_response.physical_dimensions,
