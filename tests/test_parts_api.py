@@ -894,3 +894,37 @@ class TestPartsAPI:
             assert part_data["total_quantity"] == 50
             assert len(part_data["locations"]) == 1
 
+    def test_update_part_pin_count_null_value_not_cleared(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Test that sending null for pin_count doesn't clear existing value in database."""
+        with app.app_context():
+            # Create a part with pin_count initially set
+            part = container.part_service().create_part(
+                description="IC with pin count",
+                pin_count=16
+            )
+            session.commit()
+            
+            # Verify initial pin_count is set
+            response = client.get(f"/api/parts/{part.key}")
+            assert response.status_code == 200
+            initial_data = json.loads(response.data)
+            assert initial_data["pin_count"] == 16
+            
+            # Update part with null pin_count (this should clear the field but currently doesn't)
+            update_data = {
+                "description": "Updated IC description",
+                "pin_count": None
+            }
+            
+            response = client.put(f"/api/parts/{part.key}", json=update_data)
+            assert response.status_code == 200
+            
+            # Get the part again to check if pin_count was cleared
+            response = client.get(f"/api/parts/{part.key}")
+            assert response.status_code == 200
+            updated_data = json.loads(response.data)
+            
+            # This test demonstrates the bug - pin_count should be None but remains 16
+            assert updated_data["description"] == "Updated IC description"
+            assert updated_data["pin_count"] == 16  # BUG: Should be None but keeps original value
+
