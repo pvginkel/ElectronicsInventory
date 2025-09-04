@@ -79,10 +79,28 @@ class PartCreateSchema(BaseModel):
         description="Number of pins/connections on the component",
         json_schema_extra={"example": 8}
     )
+    pin_pitch: str | None = Field(
+        None,
+        max_length=50,
+        description="Component pin pitch/spacing",
+        json_schema_extra={"example": "2.54mm"}
+    )
     voltage_rating: str | None = Field(
         None,
         max_length=100,
         description="Operating or rated voltage for the component",
+        json_schema_extra={"example": "3.3V"}
+    )
+    input_voltage: str | None = Field(
+        None,
+        max_length=100,
+        description="Input voltage range/specification",
+        json_schema_extra={"example": "5-12V DC"}
+    )
+    output_voltage: str | None = Field(
+        None,
+        max_length=100,
+        description="Output voltage range/specification",
         json_schema_extra={"example": "3.3V"}
     )
     mounting_type: str | None = Field(
@@ -168,11 +186,29 @@ class PartUpdateSchema(BaseModel):
         description="Updated number of pins/connections",
         json_schema_extra={"example": 16}
     )
+    pin_pitch: str | None = Field(
+        None,
+        max_length=50,
+        description="Updated component pin pitch/spacing",
+        json_schema_extra={"example": "1.27mm"}
+    )
     voltage_rating: str | None = Field(
         None,
         max_length=100,
         description="Updated operating or rated voltage",
         json_schema_extra={"example": "5V"}
+    )
+    input_voltage: str | None = Field(
+        None,
+        max_length=100,
+        description="Updated input voltage range/specification",
+        json_schema_extra={"example": "3-5V DC"}
+    )
+    output_voltage: str | None = Field(
+        None,
+        max_length=100,
+        description="Updated output voltage range/specification",
+        json_schema_extra={"example": "3.3V"}
     )
     mounting_type: str | None = Field(
         None,
@@ -263,9 +299,24 @@ class PartResponseSchema(BaseModel):
         description="Number of pins/connections",
         json_schema_extra={"example": 8}
     )
+    pin_pitch: str | None = Field(
+        default=None,
+        description="Component pin pitch/spacing",
+        json_schema_extra={"example": "2.54mm"}
+    )
     voltage_rating: str | None = Field(
         default=None,
         description="Operating or rated voltage",
+        json_schema_extra={"example": "3.3V"}
+    )
+    input_voltage: str | None = Field(
+        default=None,
+        description="Input voltage range/specification",
+        json_schema_extra={"example": "5-12V DC"}
+    )
+    output_voltage: str | None = Field(
+        default=None,
+        description="Output voltage range/specification",
         json_schema_extra={"example": "3.3V"}
     )
     mounting_type: str | None = Field(
@@ -377,9 +428,24 @@ class PartWithTotalSchema(BaseModel):
         description="Number of pins/connections",
         json_schema_extra={"example": 8}
     )
+    pin_pitch: str | None = Field(
+        default=None,
+        description="Component pin pitch/spacing",
+        json_schema_extra={"example": "2.54mm"}
+    )
     voltage_rating: str | None = Field(
         default=None,
         description="Operating or rated voltage",
+        json_schema_extra={"example": "3.3V"}
+    )
+    input_voltage: str | None = Field(
+        default=None,
+        description="Input voltage range/specification",
+        json_schema_extra={"example": "5-12V DC"}
+    )
+    output_voltage: str | None = Field(
+        default=None,
+        description="Output voltage range/specification",
         json_schema_extra={"example": "3.3V"}
     )
     mounting_type: str | None = Field(

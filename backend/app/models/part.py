@@ -51,7 +51,10 @@ class Part(db.Model):  # type: ignore[name-defined]
     # Extended technical fields
     package: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     pin_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    pin_pitch: Mapped[str | None] = mapped_column(String(50), nullable=True)
     voltage_rating: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    input_voltage: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    output_voltage: Mapped[str | None] = mapped_column(String(100), nullable=True)
     mounting_type: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     series: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     dimensions: Mapped[str | None] = mapped_column(String(100), nullable=True)

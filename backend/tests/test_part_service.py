@@ -59,6 +59,9 @@ class TestPartService:
             assert part.mounting_type is None
             assert part.series is None
             assert part.dimensions is None
+            assert part.pin_pitch is None
+            assert part.input_voltage is None
+            assert part.output_voltage is None
 
     def test_create_part_full_data(self, app: Flask, session: Session, container: ServiceContainer):
         """Test creating a part with all fields populated."""
@@ -83,7 +86,10 @@ class TestPartService:
                 voltage_rating="50V",
                 mounting_type="Surface Mount",
                 series="Standard",
-                dimensions="2.0x1.25mm"
+                dimensions="2.0x1.25mm",
+                pin_pitch="1.27mm",
+                input_voltage="5V",
+                output_voltage="3.3V"
             )
 
             assert part.description == "1k ohm resistor"
@@ -101,6 +107,9 @@ class TestPartService:
             assert part.mounting_type == "Surface Mount"
             assert part.series == "Standard"
             assert part.dimensions == "2.0x1.25mm"
+            assert part.pin_pitch == "1.27mm"
+            assert part.input_voltage == "5V"
+            assert part.output_voltage == "3.3V"
 
     def test_get_part_existing(self, app: Flask, session: Session, container: ServiceContainer):
         """Test getting an existing part."""
@@ -252,6 +261,77 @@ class TestPartService:
             part_service = container.part_service()
             total_qty = part_service.get_total_quantity("AAAA")
             assert total_qty == 0
+
+    def test_create_part_with_new_fields(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test creating parts with the new pin_pitch, input_voltage, and output_voltage fields."""
+        with app.app_context():
+            part_service = container.part_service()
+
+            # Test creating a microcontroller with all new fields
+            ic_part = part_service.create_part(
+                description="ESP32 microcontroller",
+                pin_pitch="1.27mm",
+                input_voltage="3.0V-3.6V",
+                output_voltage="3.3V"
+            )
+
+            assert ic_part.pin_pitch == "1.27mm"
+            assert ic_part.input_voltage == "3.0V-3.6V"
+            assert ic_part.output_voltage == "3.3V"
+
+            # Test creating a power module with input/output voltages
+            power_part = part_service.create_part(
+                description="LM2596 step-down module",
+                pin_pitch=None,
+                input_voltage="3V-40V",
+                output_voltage="1.5V-35V"
+            )
+
+            assert power_part.pin_pitch is None
+            assert power_part.input_voltage == "3V-40V"
+            assert power_part.output_voltage == "1.5V-35V"
+
+            # Test creating a resistor (passive component) with no voltage specs
+            resistor_part = part_service.create_part(
+                description="10k ohm resistor",
+                pin_pitch=None,
+                input_voltage=None,
+                output_voltage=None
+            )
+
+            assert resistor_part.pin_pitch is None
+            assert resistor_part.input_voltage is None
+            assert resistor_part.output_voltage is None
+
+    def test_update_part_with_new_fields(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test updating parts with the new fields."""
+        with app.app_context():
+            part_service = container.part_service()
+            part = part_service.create_part("Basic IC")
+            session.flush()
+
+            # Update with new fields
+            updated_part = part_service.update_part_details(
+                part.key,
+                pin_pitch="2.54mm",
+                input_voltage="5V",
+                output_voltage="3.3V"
+            )
+
+            assert updated_part.pin_pitch == "2.54mm"
+            assert updated_part.input_voltage == "5V"
+            assert updated_part.output_voltage == "3.3V"
+
+            # Update just one field
+            updated_part2 = part_service.update_part_details(
+                part.key,
+                pin_pitch="1.27mm"
+            )
+
+            assert updated_part2.pin_pitch == "1.27mm"
+            # Other fields should remain unchanged
+            assert updated_part2.input_voltage == "5V"
+            assert updated_part2.output_voltage == "3.3V"
 
     def test_create_part_with_extended_fields_only(self, app: Flask, session: Session, container: ServiceContainer):
         """Test creating a part with only extended fields populated."""

@@ -19,7 +19,10 @@
     "voltage_rating": "2V-6V",
     "mounting_type": "Through-hole",
     "series": "74HC",
-    "dimensions": "19.05x6.35mm"
+    "dimensions": "19.05x6.35mm",
+    "pin_pitch": "2.54mm",
+    "input_voltage": "2V-6V",
+    "output_voltage": null
   },
   {
     "key": "EFGH",
@@ -41,7 +44,10 @@
     "voltage_rating": "3V-32V",
     "mounting_type": "Through-hole",
     "series": "LM358",
-    "dimensions": "9.53x6.35mm"
+    "dimensions": "9.53x6.35mm",
+    "pin_pitch": "2.54mm",
+    "input_voltage": "3V-32V",
+    "output_voltage": null
   },
   {
     "key": "IJKL",
@@ -63,7 +69,10 @@
     "voltage_rating": "3.0V-3.6V",
     "mounting_type": "Surface Mount",
     "series": "ESP32",
-    "dimensions": "25.5x18x3.1mm"
+    "dimensions": "25.5x18x3.1mm",
+    "pin_pitch": "1.27mm",
+    "input_voltage": "3.0V-3.6V",
+    "output_voltage": null
   },
   {
     "key": "MNOP",
@@ -85,7 +94,10 @@
     "voltage_rating": "3.3V-5V",
     "mounting_type": "Breadboard Compatible",
     "series": "DHT",
-    "dimensions": "15.1x25x7.7mm"
+    "dimensions": "15.1x25x7.7mm",
+    "pin_pitch": null,
+    "input_voltage": "3.3V-5V",
+    "output_voltage": null
   },
   {
     "key": "QRST",
@@ -107,7 +119,10 @@
     "voltage_rating": "1000V",
     "mounting_type": "Through-hole",
     "series": "1N4007",
-    "dimensions": "5.2x2.7mm"
+    "dimensions": "5.2x2.7mm",
+    "pin_pitch": "2.54mm",
+    "input_voltage": "1000V",
+    "output_voltage": null
   },
   {
     "key": "UVWX",
@@ -129,7 +144,10 @@
     "voltage_rating": "5V",
     "mounting_type": "Surface Mount",
     "series": "WS2812",
-    "dimensions": "5.0x5.0x1.6mm"
+    "dimensions": "5.0x5.0x1.6mm",
+    "pin_pitch": "1.27mm",
+    "input_voltage": "5V",
+    "output_voltage": null
   },
   {
     "key": "YZAB",
@@ -151,12 +169,15 @@
     "voltage_rating": "5V",
     "mounting_type": "PCB Mount",
     "series": "SRD",
-    "dimensions": "19.5x15.5x15.5mm"
+    "dimensions": "19.5x15.5x15.5mm",
+    "pin_pitch": "5.08mm",
+    "input_voltage": "5V",
+    "output_voltage": null
   },
   {
     "key": "CDEF",
     "manufacturer_code": "10k",
-    "description": "10kΩ carbon film resistor 1/4W",
+    "description": "10k\u03a9 carbon film resistor 1/4W",
     "type": "Resistor",
     "tags": [
       "10k",
@@ -173,12 +194,15 @@
     "voltage_rating": "250V",
     "mounting_type": "Through-hole",
     "series": "CF14",
-    "dimensions": "6.4x2.3mm"
+    "dimensions": "6.4x2.3mm",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "GHIJ",
     "manufacturer_code": "100uF",
-    "description": "100µF electrolytic capacitor 25V",
+    "description": "100\u00b5F electrolytic capacitor 25V",
     "type": "Capacitor",
     "tags": [
       "100uF",
@@ -195,7 +219,10 @@
     "voltage_rating": "25V",
     "mounting_type": "Through-hole",
     "series": "UVR",
-    "dimensions": "8x11.5mm"
+    "dimensions": "8x11.5mm",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "KLMN",
@@ -217,7 +244,10 @@
     "voltage_rating": "250V",
     "mounting_type": "Panel Mount",
     "series": "XH",
-    "dimensions": "10.0x5.75mm"
+    "dimensions": "10.0x5.75mm",
+    "pin_pitch": "2.54mm",
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "OPQR",
@@ -239,7 +269,10 @@
     "voltage_rating": "300V",
     "mounting_type": "Flexible",
     "series": "22AWG",
-    "dimensions": "0.64mm diameter"
+    "dimensions": "0.64mm diameter",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "STUV",
@@ -261,7 +294,10 @@
     "voltage_rating": null,
     "mounting_type": "Threaded",
     "series": "M3",
-    "dimensions": "M3x10mm"
+    "dimensions": "M3x10mm",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "WXYZ",
@@ -283,7 +319,10 @@
     "voltage_rating": "3V-40V input, 1.5V-35V output",
     "mounting_type": "PCB Mount",
     "series": "LM2596",
-    "dimensions": "43x21x14mm"
+    "dimensions": "43x21x14mm",
+    "pin_pitch": null,
+    "input_voltage": "3v-40v",
+    "output_voltage": "1.5v-35v"
   },
   {
     "key": "ABEF",
@@ -305,7 +344,10 @@
     "voltage_rating": "5V/3.3V",
     "mounting_type": "Breadboard Compatible",
     "series": "Arduino",
-    "dimensions": "68.6x53.4mm"
+    "dimensions": "68.6x53.4mm",
+    "pin_pitch": "2.54mm",
+    "input_voltage": "5V/3.3V",
+    "output_voltage": null
   },
   {
     "key": "CDGH",
@@ -321,12 +363,15 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "SparkFun",
-    "seller_link": "https://www.sparkfun.com/products/15569"
+    "seller_link": "https://www.sparkfun.com/products/15569",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "IJMN",
     "manufacturer_code": "0805",
-    "description": "10kΩ SMD resistor 0805 package",
+    "description": "10k\u03a9 SMD resistor 0805 package",
     "type": "Resistor",
     "tags": [
       "10k",
@@ -343,7 +388,10 @@
     "voltage_rating": "150V",
     "mounting_type": "Surface Mount",
     "series": "RC0805",
-    "dimensions": "2.0x1.25mm"
+    "dimensions": "2.0x1.25mm",
+    "pin_pitch": "1.27mm",
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "OPST",
@@ -359,7 +407,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Mouser",
-    "seller_link": "https://www.mouser.com/ProductDetail/810-C0805C220J5G"
+    "seller_link": "https://www.mouser.com/ProductDetail/810-C0805C220J5G",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "UVYZ",
@@ -381,7 +432,10 @@
     "voltage_rating": "1.8V-5.5V",
     "mounting_type": "Through-hole",
     "series": "ATmega",
-    "dimensions": "35.56x7.62mm"
+    "dimensions": "35.56x7.62mm",
+    "pin_pitch": "2.54mm",
+    "input_voltage": "1.8V-5.5V",
+    "output_voltage": null
   },
   {
     "key": "BCDE",
@@ -397,7 +451,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Adafruit",
-    "seller_link": "https://www.adafruit.com/product/326"
+    "seller_link": "https://www.adafruit.com/product/326",
+    "pin_pitch": "2.54mm",
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "FGHI",
@@ -413,7 +470,10 @@
     "manufacturer": "Microchip Technology",
     "product_page": null,
     "seller": "Microchip",
-    "seller_link": "https://www.microchip.com/en-us/product/MCP3008"
+    "seller_link": "https://www.microchip.com/en-us/product/MCP3008",
+    "pin_pitch": "2.54mm",
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "JKLM",
@@ -435,7 +495,10 @@
     "voltage_rating": "2V-6V",
     "mounting_type": "Through-hole",
     "series": "74HC",
-    "dimensions": "17.78x6.35mm"
+    "dimensions": "17.78x6.35mm",
+    "pin_pitch": "2.54mm",
+    "input_voltage": "2V-6V",
+    "output_voltage": null
   },
   {
     "key": "NOPQ",
@@ -451,7 +514,10 @@
     "manufacturer": "ON Semiconductor",
     "product_page": "https://www.onsemi.com/products/2n2222",
     "seller": "ON Semiconductor",
-    "seller_link": "https://www.onsemi.com/products/discretes/bipolar-transistors/general-purpose-transistors/2n2222a"
+    "seller_link": "https://www.onsemi.com/products/discretes/bipolar-transistors/general-purpose-transistors/2n2222a",
+    "pin_pitch": "2.54mm",
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "RSTU",
@@ -473,12 +539,15 @@
     "voltage_rating": "100V",
     "mounting_type": "Through-hole",
     "series": "IRF540",
-    "dimensions": "10.4x4.8x15.9mm"
+    "dimensions": "10.4x4.8x15.9mm",
+    "pin_pitch": "2.54mm",
+    "input_voltage": "100V",
+    "output_voltage": null
   },
   {
     "key": "VWXY",
     "manufacturer_code": "1uF",
-    "description": "1µF ceramic capacitor X7R 50V",
+    "description": "1\u00b5F ceramic capacitor X7R 50V",
     "type": "Capacitor",
     "tags": [
       "1uF",
@@ -489,12 +558,15 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Murata",
-    "seller_link": "https://www.murata.com/en-us/products/capacitor/ceramic/overview"
+    "seller_link": "https://www.murata.com/en-us/products/capacitor/ceramic/overview",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "ZABC",
-    "manufacturer_code": "330Ω",
-    "description": "330Ω carbon film resistor 1/4W",
+    "manufacturer_code": "330\u03a9",
+    "description": "330\u03a9 carbon film resistor 1/4W",
     "type": "Resistor",
     "tags": [
       "330R",
@@ -505,7 +577,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Digi-Key",
-    "seller_link": "https://www.digikey.com/en/products/detail/stackpole-electronics-inc/CF14JT330R/1741328"
+    "seller_link": "https://www.digikey.com/en/products/detail/stackpole-electronics-inc/CF14JT330R/1741328",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "DEFG",
@@ -527,7 +602,10 @@
     "voltage_rating": "2V",
     "mounting_type": "Through-hole",
     "series": "TLHR",
-    "dimensions": "5mm diameter"
+    "dimensions": "5mm diameter",
+    "pin_pitch": null,
+    "input_voltage": "2V",
+    "output_voltage": null
   },
   {
     "key": "HIJK",
@@ -549,7 +627,10 @@
     "voltage_rating": "3.3V-5V",
     "mounting_type": "Through-hole",
     "series": "ABM3B",
-    "dimensions": "11.05x4.65mm"
+    "dimensions": "11.05x4.65mm",
+    "pin_pitch": "2.54mm",
+    "input_voltage": "3.3V-5V",
+    "output_voltage": null
   },
   {
     "key": "LMNO",
@@ -571,7 +652,10 @@
     "voltage_rating": "30V",
     "mounting_type": "PCB Mount",
     "series": "USB-A",
-    "dimensions": "14.5x13.3mm"
+    "dimensions": "14.5x13.3mm",
+    "pin_pitch": "2.54mm",
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "PQRS",
@@ -587,7 +671,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Pulse Electronics",
-    "seller_link": "https://www.pulseelectronics.com/ethernet/"
+    "seller_link": "https://www.pulseelectronics.com/ethernet/",
+    "pin_pitch": "2.54mm",
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "TUVW",
@@ -603,7 +690,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Adafruit",
-    "seller_link": "https://www.adafruit.com/product/266"
+    "seller_link": "https://www.adafruit.com/product/266",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "XYZA",
@@ -625,7 +715,10 @@
     "voltage_rating": null,
     "mounting_type": "Standalone",
     "series": "Half-size",
-    "dimensions": "82.6x55.9mm"
+    "dimensions": "82.6x55.9mm",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "BCEF",
@@ -641,7 +734,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Aavid Thermalloy",
-    "seller_link": "https://www.aavid.com/products/standard/extrusions"
+    "seller_link": "https://www.aavid.com/products/standard/extrusions",
+    "pin_pitch": "2.54mm",
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "GHKL",
@@ -657,12 +753,15 @@
     "manufacturer": "Texas Instruments",
     "product_page": "https://www.ti.com/product/LM7805",
     "seller": "Texas Instruments",
-    "seller_link": "https://www.ti.com/product/LM7805"
+    "seller_link": "https://www.ti.com/product/LM7805",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "MNPQ",
     "manufacturer_code": "Potentiometer 10k",
-    "description": "10kΩ linear rotary potentiometer",
+    "description": "10k\u03a9 linear rotary potentiometer",
     "type": "Resistor",
     "tags": [
       "10k",
@@ -673,7 +772,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Bourns",
-    "seller_link": "https://www.bourns.com/products/potentiometers"
+    "seller_link": "https://www.bourns.com/products/potentiometers",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "RSTV",
@@ -689,7 +791,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Omron",
-    "seller_link": "https://omronfs.omron.com/en_US/ecb/products/sw/12/B3F.html"
+    "seller_link": "https://omronfs.omron.com/en_US/ecb/products/sw/12/B3F.html",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "WXAB",
@@ -705,7 +810,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "NKK Switches",
-    "seller_link": "https://www.nkkswitches.com/toggle-switches.aspx"
+    "seller_link": "https://www.nkkswitches.com/toggle-switches.aspx",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "CDFG",
@@ -721,7 +829,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Cree",
-    "seller_link": "https://www.cree.com/led-components/products/xlamp-leds"
+    "seller_link": "https://www.cree.com/led-components/products/xlamp-leds",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "HILM",
@@ -737,7 +848,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Kingbright",
-    "seller_link": "https://www.kingbrightusa.com/led-lamps/standard-leds.aspx"
+    "seller_link": "https://www.kingbrightusa.com/led-lamps/standard-leds.aspx",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "NORS",
@@ -753,12 +867,15 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Luna Optoelectronics",
-    "seller_link": "https://lunainc.com/product-category/cds-photoresistors/"
+    "seller_link": "https://lunainc.com/product-category/cds-photoresistors/",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "TUWX",
     "manufacturer_code": "Thermistor 10k",
-    "description": "10kΩ NTC thermistor temperature sensor",
+    "description": "10k\u03a9 NTC thermistor temperature sensor",
     "type": "Sensor",
     "tags": [
       "NTC",
@@ -769,7 +886,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Vishay",
-    "seller_link": "https://www.vishay.com/thermistors/ntc-thermistors/"
+    "seller_link": "https://www.vishay.com/thermistors/ntc-thermistors/",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "YZCD",
@@ -785,7 +905,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Allegro MicroSystems",
-    "seller_link": "https://www.allegromicro.com/en/products/sense/magnetic-position-sensor-ics"
+    "seller_link": "https://www.allegromicro.com/en/products/sense/magnetic-position-sensor-ics",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "EFIJ",
@@ -801,7 +924,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "SparkFun",
-    "seller_link": "https://www.sparkfun.com/products/13285"
+    "seller_link": "https://www.sparkfun.com/products/13285",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "KLOP",
@@ -812,12 +938,15 @@
       "Servo",
       "9g",
       "Micro",
-      "180°"
+      "180\u00b0"
     ],
     "manufacturer": null,
     "product_page": null,
     "seller": "Tower Pro",
-    "seller_link": "http://www.towerpro.com.tw/product/sg90-7/"
+    "seller_link": "http://www.towerpro.com.tw/product/sg90-7/",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "QTUV",
@@ -833,7 +962,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "AdafrAudit",
-    "seller_link": "https://www.adafruit.com/product/858"
+    "seller_link": "https://www.adafruit.com/product/858",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "WXBC",
@@ -849,7 +981,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "SparkFun",
-    "seller_link": "https://www.sparkfun.com/products/16396"
+    "seller_link": "https://www.sparkfun.com/products/16396",
+    "pin_pitch": "2.54mm",
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "DEHI",
@@ -865,7 +1000,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Kingbright",
-    "seller_link": "https://www.kingbrightusa.com/led-displays/seven-segment-displays.aspx"
+    "seller_link": "https://www.kingbrightusa.com/led-displays/seven-segment-displays.aspx",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "JKMN",
@@ -881,7 +1019,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Adafruit",
-    "seller_link": "https://www.adafruit.com/product/454"
+    "seller_link": "https://www.adafruit.com/product/454",
+    "pin_pitch": null,
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "PQST",
@@ -897,7 +1038,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "SparkFun",
-    "seller_link": "https://www.sparkfun.com/products/13030"
+    "seller_link": "https://www.sparkfun.com/products/13030",
+    "pin_pitch": "2.54mm",
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "JJKE",
@@ -913,7 +1057,10 @@
     "manufacturer": null,
     "product_page": null,
     "seller": "Adafruit",
-    "seller_link": "https://www.adafruit.com/product/254"
+    "seller_link": "https://www.adafruit.com/product/254",
+    "pin_pitch": "2.54mm",
+    "input_voltage": null,
+    "output_voltage": null
   },
   {
     "key": "ACEG",
@@ -935,6 +1082,9 @@
     "voltage_rating": "2.3V-5.5V",
     "mounting_type": "Breadboard Compatible",
     "series": "DS3231",
-    "dimensions": "25.4x25.4mm"
+    "dimensions": "25.4x25.4mm",
+    "pin_pitch": "2.54mm",
+    "input_voltage": "2.3V-5.5V",
+    "output_voltage": null
   }
 ]

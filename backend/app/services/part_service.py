@@ -41,7 +41,10 @@ class PartService(BaseService):
         seller_link: str | None = None,
         package: str | None = None,
         pin_count: int | None = None,
+        pin_pitch: str | None = None,
         voltage_rating: str | None = None,
+        input_voltage: str | None = None,
+        output_voltage: str | None = None,
         mounting_type: str | None = None,
         series: str | None = None,
         dimensions: str | None = None,
@@ -61,7 +64,10 @@ class PartService(BaseService):
             seller_link=seller_link,
             package=package,
             pin_count=pin_count,
+            pin_pitch=pin_pitch,
             voltage_rating=voltage_rating,
+            input_voltage=input_voltage,
+            output_voltage=output_voltage,
             mounting_type=mounting_type,
             series=series,
             dimensions=dimensions,
@@ -102,7 +108,10 @@ class PartService(BaseService):
         seller_link: str | None = None,
         package: str | None = None,
         pin_count: int | None = None,
+        pin_pitch: str | None = None,
         voltage_rating: str | None = None,
+        input_voltage: str | None = None,
+        output_voltage: str | None = None,
         mounting_type: str | None = None,
         series: str | None = None,
         dimensions: str | None = None,
@@ -134,8 +143,14 @@ class PartService(BaseService):
             part.package = package
         if pin_count is not None:
             part.pin_count = pin_count
+        if pin_pitch is not None:
+            part.pin_pitch = pin_pitch
         if voltage_rating is not None:
             part.voltage_rating = voltage_rating
+        if input_voltage is not None:
+            part.input_voltage = input_voltage
+        if output_voltage is not None:
+            part.output_voltage = output_voltage
         if mounting_type is not None:
             part.mounting_type = mounting_type
         if series is not None:
