@@ -3,7 +3,7 @@
     "key": "ABCD",
     "manufacturer_code": "SN74HC595N",
     "description": "8-bit shift register with output latches",
-    "type": "IC",
+    "type": "Logic IC (74xx/4000)",
     "tags": [
       "DIP-16",
       "Logic",
@@ -28,7 +28,7 @@
     "key": "EFGH",
     "manufacturer_code": "LM358N",
     "description": "Dual operational amplifier",
-    "type": "IC",
+    "type": "Op-Amp",
     "tags": [
       "DIP-8",
       "Op-Amp",
@@ -103,7 +103,7 @@
     "key": "QRST",
     "manufacturer_code": "1N4007",
     "description": "1A 1000V rectifier diode",
-    "type": "IC",
+    "type": "Diode (Rectifier/General)",
     "tags": [
       "Diode",
       "Rectifier",
@@ -128,7 +128,7 @@
     "key": "UVWX",
     "manufacturer_code": "WS2812B",
     "description": "Addressable RGB LED with integrated driver",
-    "type": "LED",
+    "type": "LED (Discrete)",
     "tags": [
       "RGB",
       "Addressable",
@@ -153,7 +153,7 @@
     "key": "YZAB",
     "manufacturer_code": "SRD-05VDC-SL-C",
     "description": "5V DC relay SPDT 10A",
-    "type": "Relay",
+    "type": "Relay (Electromechanical)",
     "tags": [
       "5V",
       "SPDT",
@@ -228,7 +228,7 @@
     "key": "KLMN",
     "manufacturer_code": "JST-XH-3",
     "description": "3-pin JST-XH connector housing",
-    "type": "Connector",
+    "type": "Connector - JST & Crimp",
     "tags": [
       "JST-XH",
       "3-pin",
@@ -253,7 +253,7 @@
     "key": "OPQR",
     "manufacturer_code": "22AWG",
     "description": "22 AWG stranded wire red",
-    "type": "Cable",
+    "type": "Cable - Hook-Up Wire",
     "tags": [
       "22AWG",
       "Stranded",
@@ -278,7 +278,7 @@
     "key": "STUV",
     "manufacturer_code": "M3x10",
     "description": "M3x10mm hex socket cap screw",
-    "type": "Mechanical",
+    "type": "Mounting Hardware (Standoff/Screw/Nut)",
     "tags": [
       "M3",
       "10mm",
@@ -303,7 +303,7 @@
     "key": "WXYZ",
     "manufacturer_code": "LM2596",
     "description": "Adjustable step-down voltage regulator module",
-    "type": "Power Module",
+    "type": "DC-DC Converter (IC & Module)",
     "tags": [
       "Step-Down",
       "Adjustable",
@@ -441,7 +441,7 @@
     "key": "BCDE",
     "manufacturer_code": "SSD1306",
     "description": "0.96 inch OLED display 128x64",
-    "type": "IC",
+    "type": "Display - OLED",
     "tags": [
       "OLED",
       "128x64",
@@ -460,7 +460,7 @@
     "key": "FGHI",
     "manufacturer_code": "MCP3008",
     "description": "8-channel 10-bit ADC with SPI interface",
-    "type": "IC",
+    "type": "Data Converter (ADC/DAC)",
     "tags": [
       "ADC",
       "10-bit",
@@ -479,7 +479,7 @@
     "key": "JKLM",
     "manufacturer_code": "74HC04",
     "description": "Hex inverter logic gate",
-    "type": "IC",
+    "type": "Logic IC (74xx/4000)",
     "tags": [
       "Logic Gate",
       "Inverter",
@@ -504,7 +504,7 @@
     "key": "NOPQ",
     "manufacturer_code": "2N2222",
     "description": "NPN bipolar junction transistor",
-    "type": "IC",
+    "type": "BJT",
     "tags": [
       "NPN",
       "BJT",
@@ -523,7 +523,7 @@
     "key": "RSTU",
     "manufacturer_code": "IRF540N",
     "description": "N-channel power MOSFET TO-220",
-    "type": "IC",
+    "type": "MOSFET",
     "tags": [
       "MOSFET",
       "N-channel",
@@ -586,7 +586,7 @@
     "key": "DEFG",
     "manufacturer_code": "Red LED 5mm",
     "description": "5mm red LED standard brightness",
-    "type": "LED",
+    "type": "LED (Discrete)",
     "tags": [
       "5mm",
       "Red",
@@ -611,7 +611,7 @@
     "key": "HIJK",
     "manufacturer_code": "16MHz",
     "description": "16MHz crystal oscillator HC-49S",
-    "type": "IC",
+    "type": "Crystal & Resonator",
     "tags": [
       "16MHz",
       "Crystal",
@@ -636,7 +636,7 @@
     "key": "LMNO",
     "manufacturer_code": "USB-A",
     "description": "USB Type-A male connector",
-    "type": "Connector",
+    "type": "Connector - USB",
     "tags": [
       "USB-A",
       "Male",
@@ -661,7 +661,7 @@
     "key": "PQRS",
     "manufacturer_code": "RJ45",
     "description": "RJ45 Ethernet connector with transformer",
-    "type": "Connector",
+    "type": "Connector - RJ45 Ethernet",
     "tags": [
       "RJ45",
       "Ethernet",
@@ -680,7 +680,7 @@
     "key": "TUVW",
     "manufacturer_code": "Jumper Wire F/F",
     "description": "Female to female jumper wire 20cm",
-    "type": "Cable",
+    "type": "Cable - Jumper Wire",
     "tags": [
       "Jumper Wire",
       "F/F",
@@ -699,7 +699,7 @@
     "key": "XYZA",
     "manufacturer_code": "Breadboard 400",
     "description": "Solderless breadboard 400 tie points",
-    "type": "Mechanical",
+    "type": "Breadboard",
     "tags": [
       "Breadboard",
       "400 points",
@@ -724,7 +724,7 @@
     "key": "BCEF",
     "manufacturer_code": "Heatsink TO-220",
     "description": "Aluminum heatsink for TO-220 package",
-    "type": "Mechanical",
+    "type": "Heatsink & Thermal Interface Material",
     "tags": [
       "Heatsink",
       "TO-220",
@@ -743,7 +743,7 @@
     "key": "GHKL",
     "manufacturer_code": "LM7805",
     "description": "5V linear voltage regulator TO-220",
-    "type": "Power Module",
+    "type": "Linear & LDO Regulator",
     "tags": [
       "5V",
       "Linear",
@@ -762,7 +762,7 @@
     "key": "MNPQ",
     "manufacturer_code": "Potentiometer 10k",
     "description": "10k\u03a9 linear rotary potentiometer",
-    "type": "Resistor",
+    "type": "Potentiometer",
     "tags": [
       "10k",
       "Linear",
@@ -781,7 +781,7 @@
     "key": "RSTV",
     "manufacturer_code": "Push Button",
     "description": "Momentary push button switch SPST",
-    "type": "Mechanical",
+    "type": "Switch - Tactile & Pushbutton",
     "tags": [
       "Push Button",
       "SPST",
@@ -800,7 +800,7 @@
     "key": "WXAB",
     "manufacturer_code": "Toggle Switch",
     "description": "SPDT toggle switch ON-OFF-ON",
-    "type": "Mechanical",
+    "type": "Switch - Toggle & Rocker",
     "tags": [
       "SPDT",
       "Toggle",
@@ -819,7 +819,7 @@
     "key": "CDFG",
     "manufacturer_code": "Blue LED 3mm",
     "description": "3mm blue LED high brightness",
-    "type": "LED",
+    "type": "LED (Discrete)",
     "tags": [
       "3mm",
       "Blue",
@@ -838,7 +838,7 @@
     "key": "HILM",
     "manufacturer_code": "Green LED 5mm",
     "description": "5mm green LED standard brightness",
-    "type": "LED",
+    "type": "LED (Discrete)",
     "tags": [
       "5mm",
       "Green",
@@ -933,7 +933,7 @@
     "key": "KLOP",
     "manufacturer_code": "Servo Motor",
     "description": "SG90 micro servo motor 9g",
-    "type": "Mechanical",
+    "type": "Motor",
     "tags": [
       "Servo",
       "9g",
@@ -952,7 +952,7 @@
     "key": "QTUV",
     "manufacturer_code": "Stepper Motor",
     "description": "28BYJ-48 stepper motor with ULN2003 driver",
-    "type": "Mechanical",
+    "type": "Motor",
     "tags": [
       "Stepper",
       "28BYJ-48",
@@ -971,7 +971,7 @@
     "key": "WXBC",
     "manufacturer_code": "LCD 16x2",
     "description": "16x2 character LCD display with I2C backpack",
-    "type": "IC",
+    "type": "Display - Character LCD",
     "tags": [
       "LCD",
       "16x2",
@@ -990,7 +990,7 @@
     "key": "DEHI",
     "manufacturer_code": "7-Segment",
     "description": "7-segment LED display common cathode",
-    "type": "LED",
+    "type": "LED (Discrete)",
     "tags": [
       "7-Segment",
       "LED",
@@ -1009,7 +1009,7 @@
     "key": "JKMN",
     "manufacturer_code": "Matrix 8x8",
     "description": "8x8 LED dot matrix display red",
-    "type": "LED",
+    "type": "LED (Discrete)",
     "tags": [
       "8x8",
       "Matrix",
@@ -1028,7 +1028,7 @@
     "key": "PQST",
     "manufacturer_code": "RFID Reader",
     "description": "RC522 RFID reader module 13.56MHz",
-    "type": "IC",
+    "type": "Development Board & Kit",
     "tags": [
       "RFID",
       "RC522",
@@ -1047,7 +1047,7 @@
     "key": "JJKE",
     "manufacturer_code": "SD Card Module",
     "description": "MicroSD card adapter module with SPI",
-    "type": "IC",
+    "type": "Memory Card & Socket",
     "tags": [
       "SD Card",
       "MicroSD",
@@ -1066,7 +1066,7 @@
     "key": "ACEG",
     "manufacturer_code": "Real Time Clock",
     "description": "DS3231 real time clock module I2C",
-    "type": "IC",
+    "type": "Oscillator & Clock Generator",
     "tags": [
       "RTC",
       "DS3231",

@@ -31,19 +31,19 @@ class TestSetupService:
         # Run sync
         added_count = service.sync_types_from_setup()
         
-        # Verify all 101 types were added
-        assert added_count == 101
+        # Verify all 99 types were added
+        assert added_count == 99
         
         # Verify types are in database
         stmt = select(Type).order_by(Type.name)
         all_types = list(session.execute(stmt).scalars().all())
-        assert len(all_types) == 101
+        assert len(all_types) == 99
         
-        # Check some specific types exist
+        # Check some specific types exist (exact names from types.txt)
         type_names = [t.name for t in all_types]
-        assert "AC-DC Power Modules" in type_names
-        assert "Resistors" in type_names
-        assert "Zener Diodes" in type_names
+        assert "AC-DC Power Module" in type_names
+        assert "Resistor" in type_names
+        assert "Zener Diode" in type_names
 
     def test_sync_types_from_setup_success_with_existing_types(
         self, app: Flask, session: Session, container: ServiceContainer
@@ -51,9 +51,9 @@ class TestSetupService:
         """Test sync_types_from_setup with some existing types adds only missing ones."""
         service = container.setup_service()
         
-        # Add a few types manually first
-        existing_type1 = Type(name="Resistors")
-        existing_type2 = Type(name="Capacitors")
+        # Add a few types manually first (use actual names from types.txt)
+        existing_type1 = Type(name="Resistor")
+        existing_type2 = Type(name="Capacitor")
         session.add(existing_type1)
         session.add(existing_type2)
         session.flush()
@@ -61,13 +61,13 @@ class TestSetupService:
         # Run sync
         added_count = service.sync_types_from_setup()
         
-        # Verify only missing types were added (101 total - 2 existing = 99)
-        assert added_count == 99
+        # Verify only missing types were added (99 total - 2 existing = 97)
+        assert added_count == 97
         
-        # Verify total count is now 101
+        # Verify total count is now 99
         stmt = select(Type)
         all_types = list(session.execute(stmt).scalars().all())
-        assert len(all_types) == 101
+        assert len(all_types) == 99
 
     def test_sync_types_from_setup_idempotent(
         self, app: Flask, session: Session, container: ServiceContainer
@@ -77,7 +77,7 @@ class TestSetupService:
         
         # First run
         added_count1 = service.sync_types_from_setup()
-        assert added_count1 == 101
+        assert added_count1 == 99
         
         # Second run should add nothing
         added_count2 = service.sync_types_from_setup()
@@ -87,10 +87,10 @@ class TestSetupService:
         added_count3 = service.sync_types_from_setup()
         assert added_count3 == 0
         
-        # Total should still be 101
+        # Total should still be 99
         stmt = select(Type)
         all_types = list(session.execute(stmt).scalars().all())
-        assert len(all_types) == 101
+        assert len(all_types) == 99
 
     def test_sync_types_from_setup_file_not_found(
         self, app: Flask, session: Session, monkeypatch
@@ -98,13 +98,14 @@ class TestSetupService:
         """Test sync_types_from_setup raises exception when types.txt not found."""
         service = SetupService(session)
         
-        # Mock the path to point to non-existent file
-        fake_path = Path("/nonexistent/types.txt")
-        
-        def mock_path(*args):
-            return fake_path
+        # Mock the exists() method to return False
+        original_exists = Path.exists
+        def mock_exists(self):
+            if str(self).endswith("types.txt"):
+                return False
+            return original_exists(self)
             
-        monkeypatch.setattr(Path, "__new__", lambda cls, *args: fake_path)
+        monkeypatch.setattr(Path, "exists", mock_exists)
         
         # Should raise InvalidOperationException
         with pytest.raises(InvalidOperationException) as exc_info:

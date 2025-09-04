@@ -34,21 +34,21 @@ class TestDataService(BaseService):
         self.db.commit()
 
     def load_types(self, data_dir: Path) -> dict[str, Type]:
-        """Load electronics part types from types.json."""
-        types_file = data_dir / "types.json"
-        try:
-            with types_file.open() as f:
-                types_data = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError) as e:
-            raise InvalidOperationException("load types data", f"failed to read {types_file}: {e}") from e
-
-        types_map = {}
-        for type_data in types_data:
-            type_obj = Type(name=type_data["name"])
-            self.db.add(type_obj)
-            self.db.flush()  # Get ID immediately
-            types_map[type_data["name"]] = type_obj
-
+        """Load electronics part types from database (already loaded by setup sync)."""
+        # Types are now loaded automatically during database upgrade via SetupService
+        # So we just need to query the existing types from the database
+        stmt = select(Type)
+        existing_types = list(self.db.execute(stmt).scalars().all())
+        
+        # Return as dictionary mapping name to Type object
+        types_map = {type_obj.name: type_obj for type_obj in existing_types}
+        
+        if not types_map:
+            raise InvalidOperationException(
+                "load types data", 
+                "No types found in database. Ensure database upgrade completed successfully."
+            )
+            
         return types_map
 
     def load_boxes(self, data_dir: Path) -> dict[int, Box]:
