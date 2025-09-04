@@ -1,29 +1,33 @@
-import pprint
 import json
 import csv
 import os
 import re
+import locale
 
 from pathlib import Path
 
 
-def normalize_value(key, value) -> str:
-    """Zet waardes om naar strings voor CSV."""
+def normalize_value(value) -> str:
+    """Convert values for CSV CSV."""
     if value is None:
         return ""
-    if key == "tags" and isinstance(value, list):
-        return "; ".join(str(x) for x in value)
-    if key in ["datasheet", "product_images", "pinout_diagram", "schematic", "app_note"]:
-        if isinstance(value, list):
-            return "; ".join([p["url"] for p in value])
-        else:
-            return value["url"]
+    if isinstance(value, list):
+        values = []
+        for entry in value:
+            if isinstance(entry, dict) and "url" in entry:
+                entry = entry["url"]
+            values.append(normalize_value(entry))
+        return "; ".join(values)
     if isinstance(value, (list, dict, tuple)):
         return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, float):
+        return locale.format_string("%f", value)
     return str(value)
 
 
 def main():
+    locale.setlocale(locale.LC_ALL, "nl_NL.UTF-8")
+
     output_path = Path(os.path.join(os.path.dirname(__file__), "output"))
     merged_path = Path(os.path.join(os.path.dirname(__file__), "merged"))
 
@@ -35,7 +39,6 @@ def main():
 
     data_by_file = {}
     all_keys = set()
-    all_attribute_keys = set()
     queries = set()
 
     for p in files:
@@ -51,11 +54,8 @@ def main():
             raise ValueError(f"{p.name} doesn't contain JSON")
         data_by_file[p.stem] = obj
         all_keys.update(obj.keys())
-        all_keys.remove("attributes")
-        all_attribute_keys.update(obj["attributes"].keys())
 
     keys_sorted = sorted(all_keys)
-    attribute_keys_sorted = sorted(all_attribute_keys)
     stems_sorted = sorted(data_by_file.keys())
 
     for query in queries:
@@ -66,21 +66,32 @@ def main():
             writer = csv.writer(f)
 
             # headers = keys
-            writer.writerow(["model", "reasoning_effort", "elapsed"] + keys_sorted + attribute_keys_sorted)
+            writer.writerow(["model", "run", "reasoning_effort", "elapsed", "cost"] + keys_sorted)
             for stem in stems_sorted:
                 if stem.startswith(f"{query}_"):
                     parts = stem.split("_")
 
+                    # Parse run number - check if last part is numeric
+                    if len(parts) >= 4 and parts[-1].isdigit():
+                        run = parts[-1]
+                        reasoning_effort = parts[2] if len(parts) > 3 else ""
+                    else:
+                        run = "1"
+                        reasoning_effort = parts[2] if len(parts) > 2 else ""
+
                     with open(output_path / f"{stem}.txt") as f:
                         info = f.read()
-                        match = re.match("Elapsed time: (\\d+)", info)
-                        elapsed = match.group(1)
+                        # Extract elapsed time
+                        elapsed_match = re.match("Elapsed time: (\\d+)", info)
+                        elapsed = elapsed_match.group(1) if elapsed_match else ""
+                        
+                        # Extract cost (optional)
+                        cost_match = re.search(r"Cost: \$([0-9.]+)", info)
+                        cost = float(cost_match.group(1)) if cost_match else ""
 
-                    row = [parts[1], parts[2] if len(parts) > 2 else "", elapsed]
+                    row = [parts[1], run, reasoning_effort, elapsed, normalize_value(cost)]
                     for k in keys_sorted:
-                        row.append(normalize_value(k, data_by_file[stem].get(k, "")))
-                    for k in attribute_keys_sorted:
-                        row.append(normalize_value(k, data_by_file[stem]["attributes"].get(k, "")))
+                        row.append(normalize_value(data_by_file[stem].get(k, "")))
                     writer.writerow(row)
 
         print(f"CSV written to: {output_csv}")

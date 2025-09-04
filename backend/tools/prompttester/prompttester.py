@@ -60,6 +60,10 @@ def run_tests(prompt_template: str, response_model: Type[BaseModel], queries: li
                         filename += f"_{reasoning_effort}"
                     if runs > 1:
                         filename += f"_{run + 1}"
+
+                    if os.path.exists(os.path.join(output_path, f"{filename}.json")):
+                        logger.info(f"Skipping {filename}")
+                        continue
                     
                     try:
                         logger.info(f"Run: query {query}, query_key {query_key}, model {model}, reasoning_effort {reasoning_effort}")
@@ -90,9 +94,9 @@ def run_tests(prompt_template: str, response_model: Type[BaseModel], queries: li
 
 def main():
     reasoning_efforts : list[str] = [
-        "low",
+        # "low",
         "medium",
-        "high",
+        # "high",
     ]
 
     models : dict[str, list[str] | None] = {
