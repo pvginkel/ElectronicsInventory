@@ -1,8 +1,5 @@
 """Test setup service functionality."""
 
-import tempfile
-from pathlib import Path
-
 import pytest
 from flask import Flask
 from sqlalchemy import select
@@ -22,23 +19,23 @@ class TestSetupService:
     ):
         """Test sync_types_from_setup with empty database adds all types."""
         service = container.setup_service()
-        
+
         # Verify database is empty
         stmt = select(Type)
         existing_types = list(session.execute(stmt).scalars().all())
         assert len(existing_types) == 0
-        
+
         # Run sync
         added_count = service.sync_types_from_setup()
-        
+
         # Verify all 99 types were added
         assert added_count == 99
-        
+
         # Verify types are in database
         stmt = select(Type).order_by(Type.name)
         all_types = list(session.execute(stmt).scalars().all())
         assert len(all_types) == 99
-        
+
         # Check some specific types exist (exact names from types.txt)
         type_names = [t.name for t in all_types]
         assert "AC-DC Power Module" in type_names
@@ -50,20 +47,20 @@ class TestSetupService:
     ):
         """Test sync_types_from_setup with some existing types adds only missing ones."""
         service = container.setup_service()
-        
+
         # Add a few types manually first (use actual names from types.txt)
         existing_type1 = Type(name="Resistor")
         existing_type2 = Type(name="Capacitor")
         session.add(existing_type1)
         session.add(existing_type2)
         session.flush()
-        
+
         # Run sync
         added_count = service.sync_types_from_setup()
-        
+
         # Verify only missing types were added (99 total - 2 existing = 97)
         assert added_count == 97
-        
+
         # Verify total count is now 99
         stmt = select(Type)
         all_types = list(session.execute(stmt).scalars().all())
@@ -74,19 +71,19 @@ class TestSetupService:
     ):
         """Test that running sync multiple times is idempotent."""
         service = container.setup_service()
-        
+
         # First run
         added_count1 = service.sync_types_from_setup()
         assert added_count1 == 99
-        
+
         # Second run should add nothing
         added_count2 = service.sync_types_from_setup()
         assert added_count2 == 0
-        
+
         # Third run should still add nothing
         added_count3 = service.sync_types_from_setup()
         assert added_count3 == 0
-        
+
         # Total should still be 99
         stmt = select(Type)
         all_types = list(session.execute(stmt).scalars().all())
@@ -97,101 +94,38 @@ class TestSetupService:
     ):
         """Test sync_types_from_setup raises exception when types.txt not found."""
         service = SetupService(session)
-        
-        # Mock the exists() method to return False
-        original_exists = Path.exists
-        def mock_exists(self):
-            if str(self).endswith("types.txt"):
-                return False
-            return original_exists(self)
-            
-        monkeypatch.setattr(Path, "exists", mock_exists)
-        
+
+        # Mock get_types_from_setup to raise InvalidOperationException
+        def mock_get_types_from_setup():
+            raise InvalidOperationException("parse lines from file", "File not found: /path/types.txt")
+
+        monkeypatch.setattr("app.services.setup_service.get_types_from_setup", mock_get_types_from_setup)
+
         # Should raise InvalidOperationException
         with pytest.raises(InvalidOperationException) as exc_info:
             service.sync_types_from_setup()
-            
-        assert "types.txt file not found" in str(exc_info.value)
+
+        assert "File not found" in str(exc_info.value)
 
     def test_sync_types_from_setup_with_comments_and_empty_lines(
         self, app: Flask, session: Session, monkeypatch
     ):
         """Test that sync properly handles comments and empty lines in types.txt."""
         service = SetupService(session)
-        
-        # Create a temporary types.txt with comments and empty lines
-        test_types_content = """# This is a comment
-        
-Resistors
-# Another comment
-Capacitors
 
-# Final comment
-LEDs
-"""
-        
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as temp_file:
-            temp_file.write(test_types_content)
-            temp_file_path = Path(temp_file.name)
-        
-        try:
-            # Mock the path to point to our temp file
-            def mock_setup_path():
-                return temp_file_path
-                
-            # Patch the path construction in SetupService
-            original_method = SetupService.sync_types_from_setup
-            
-            def patched_sync_types(self):
-                # Override the path construction
-                types_file_path = temp_file_path
-                
-                # Get existing type names from database
-                stmt = select(Type.name)
-                existing_type_names = set(self.db.execute(stmt).scalars().all())
-                
-                # Parse file line by line and collect new types
-                new_type_names = []
-                try:
-                    with open(types_file_path, 'r', encoding='utf-8') as file:
-                        for line in file:
-                            # Strip whitespace from line
-                            line = line.strip()
-                            
-                            # Skip empty lines and comment lines
-                            if not line or line.startswith('#'):
-                                continue
-                                
-                            # If line not in existing types, add to new types list
-                            if line not in existing_type_names:
-                                new_type_names.append(line)
-                except Exception as e:
-                    raise InvalidOperationException("sync types from setup", f"error reading types.txt: {str(e)}")
-                
-                # Create Type objects for new types
-                for type_name in new_type_names:
-                    type_obj = Type(name=type_name)
-                    self.db.add(type_obj)
-                    
-                # Commit transaction and return count of new types added
-                if new_type_names:
-                    self.db.flush()
-                    
-                return len(new_type_names)
-            
-            monkeypatch.setattr(SetupService, 'sync_types_from_setup', patched_sync_types)
-            
-            # Run sync
-            added_count = service.sync_types_from_setup()
-            
-            # Should add 3 types (Resistors, Capacitors, LEDs)
-            assert added_count == 3
-            
-            # Verify the correct types were added
-            stmt = select(Type.name).order_by(Type.name)
-            type_names = list(session.execute(stmt).scalars().all())
-            assert type_names == ["Capacitors", "LEDs", "Resistors"]
-            
-        finally:
-            # Clean up temp file
-            temp_file_path.unlink()
+        # Mock get_types_from_setup to return a test list (simulating parsed file with comments/empty lines handled)
+        def mock_get_types_from_setup():
+            return ["Resistors", "Capacitors", "LEDs"]
+
+        monkeypatch.setattr("app.services.setup_service.get_types_from_setup", mock_get_types_from_setup)
+
+        # Run sync
+        added_count = service.sync_types_from_setup()
+
+        # Should add 3 types (Resistors, Capacitors, LEDs)
+        assert added_count == 3
+
+        # Verify the correct types were added
+        stmt = select(Type.name).order_by(Type.name)
+        type_names = list(session.execute(stmt).scalars().all())
+        assert type_names == ["Capacitors", "LEDs", "Resistors"]
