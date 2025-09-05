@@ -263,7 +263,7 @@
               }
             ],
             "default": null,
-            "description": "AI-suggested type name (existing or new suggestion)",
+            "description": "AI-suggested type name for frontend display and type creation (not used in part creation)",
             "example": "Microcontroller",
             "title": "Type"
           },
@@ -388,6 +388,7 @@
         "type": "object"
       },
       "AIPartCreateSchema.63ff6da": {
+        "additionalProperties": false,
         "description": "Schema for creating a part from AI suggestions.",
         "properties": {
           "description": {
@@ -625,7 +626,7 @@
               }
             ],
             "default": null,
-            "description": "Type ID (user can override AI suggestion)",
+            "description": "Type ID from existing types (frontend handles type creation if needed)",
             "example": 15,
             "title": "Type Id"
           },
@@ -1034,6 +1035,35 @@
         "title": "BoxWithUsageSchema",
         "type": "object"
       },
+      "CategoryDistributionSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/CategoryDistributionSchemaList.a9993e3.CategoryDistributionSchema"
+        },
+        "title": "CategoryDistributionSchemaList",
+        "type": "array"
+      },
+      "CategoryDistributionSchemaList.a9993e3.CategoryDistributionSchema": {
+        "description": "Schema for category distribution response.",
+        "properties": {
+          "part_count": {
+            "description": "Number of parts in this category",
+            "minimum": 0,
+            "title": "Part Count",
+            "type": "integer"
+          },
+          "type_name": {
+            "description": "Part type/category name",
+            "title": "Type Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type_name",
+          "part_count"
+        ],
+        "title": "CategoryDistributionSchema",
+        "type": "object"
+      },
       "CoverAttachmentResponseSchema.f950e1b": {
         "description": "Schema for cover attachment response.",
         "properties": {
@@ -1227,6 +1257,64 @@
         "title": "PartAttachmentResponseSchema",
         "type": "object"
       },
+      "DashboardStatsSchema.b67cf98": {
+        "description": "Schema for dashboard statistics response.",
+        "properties": {
+          "changes_30d": {
+            "description": "Number of quantity changes in last 30 days",
+            "minimum": 0,
+            "title": "Changes 30D",
+            "type": "integer"
+          },
+          "changes_7d": {
+            "description": "Number of quantity changes in last 7 days",
+            "minimum": 0,
+            "title": "Changes 7D",
+            "type": "integer"
+          },
+          "low_stock_count": {
+            "description": "Number of parts with quantity <= 5",
+            "minimum": 0,
+            "title": "Low Stock Count",
+            "type": "integer"
+          },
+          "total_boxes": {
+            "description": "Total number of storage boxes",
+            "minimum": 0,
+            "title": "Total Boxes",
+            "type": "integer"
+          },
+          "total_parts": {
+            "description": "Total number of parts in inventory",
+            "minimum": 0,
+            "title": "Total Parts",
+            "type": "integer"
+          },
+          "total_quantity": {
+            "description": "Total quantity across all parts",
+            "minimum": 0,
+            "title": "Total Quantity",
+            "type": "integer"
+          },
+          "total_types": {
+            "description": "Total number of part types/categories",
+            "minimum": 0,
+            "title": "Total Types",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_parts",
+          "total_quantity",
+          "total_boxes",
+          "total_types",
+          "changes_7d",
+          "changes_30d",
+          "low_stock_count"
+        ],
+        "title": "DashboardStatsSchema",
+        "type": "object"
+      },
       "ErrorResponseSchema.c2a0d71": {
         "description": "Standard error response format.",
         "properties": {
@@ -1361,6 +1449,55 @@
           "loc_no"
         ],
         "title": "LocationSuggestionSchema",
+        "type": "object"
+      },
+      "LowStockItemSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/LowStockItemSchemaList.a9993e3.LowStockItemSchema"
+        },
+        "title": "LowStockItemSchemaList",
+        "type": "array"
+      },
+      "LowStockItemSchemaList.a9993e3.LowStockItemSchema": {
+        "description": "Schema for low stock item response.",
+        "properties": {
+          "current_quantity": {
+            "description": "Current total quantity",
+            "minimum": 0,
+            "title": "Current Quantity",
+            "type": "integer"
+          },
+          "description": {
+            "description": "Part description",
+            "title": "Description",
+            "type": "string"
+          },
+          "part_key": {
+            "description": "4-character part ID",
+            "maxLength": 4,
+            "title": "Part Key",
+            "type": "string"
+          },
+          "type_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Part type/category name",
+            "title": "Type Name"
+          }
+        },
+        "required": [
+          "part_key",
+          "description",
+          "current_quantity"
+        ],
+        "title": "LowStockItemSchema",
         "type": "object"
       },
       "MoveStockSchema.46800bd": {
@@ -3574,6 +3711,61 @@
         "title": "QuantityHistoryResponseSchema",
         "type": "object"
       },
+      "RecentActivitySchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/RecentActivitySchemaList.a9993e3.RecentActivitySchema"
+        },
+        "title": "RecentActivitySchemaList",
+        "type": "array"
+      },
+      "RecentActivitySchemaList.a9993e3.RecentActivitySchema": {
+        "description": "Schema for recent activity item response.",
+        "properties": {
+          "delta_qty": {
+            "description": "Quantity change (positive or negative)",
+            "title": "Delta Qty",
+            "type": "integer"
+          },
+          "location_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Location reference for the change",
+            "title": "Location Reference"
+          },
+          "part_description": {
+            "description": "Part description",
+            "title": "Part Description",
+            "type": "string"
+          },
+          "part_key": {
+            "description": "4-character part ID",
+            "maxLength": 4,
+            "title": "Part Key",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "When the change occurred",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "part_key",
+          "part_description",
+          "delta_qty",
+          "timestamp"
+        ],
+        "title": "RecentActivitySchema",
+        "type": "object"
+      },
       "RemoveStockSchema.46800bd": {
         "description": "Schema for removing stock from a location.",
         "properties": {
@@ -3626,6 +3818,57 @@
           "attachment_id"
         ],
         "title": "SetCoverAttachmentSchema",
+        "type": "object"
+      },
+      "StorageSummarySchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/StorageSummarySchemaList.a9993e3.StorageSummarySchema"
+        },
+        "title": "StorageSummarySchemaList",
+        "type": "array"
+      },
+      "StorageSummarySchemaList.a9993e3.StorageSummarySchema": {
+        "description": "Schema for storage box utilization response.",
+        "properties": {
+          "box_no": {
+            "description": "Box number",
+            "exclusiveMinimum": 0,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "description": {
+            "description": "Box description",
+            "title": "Description",
+            "type": "string"
+          },
+          "occupied_locations": {
+            "description": "Number of locations currently in use",
+            "minimum": 0,
+            "title": "Occupied Locations",
+            "type": "integer"
+          },
+          "total_locations": {
+            "description": "Total capacity of the box",
+            "exclusiveMinimum": 0,
+            "title": "Total Locations",
+            "type": "integer"
+          },
+          "usage_percentage": {
+            "description": "Percentage of box capacity used",
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Usage Percentage",
+            "type": "number"
+          }
+        },
+        "required": [
+          "box_no",
+          "description",
+          "total_locations",
+          "occupied_locations",
+          "usage_percentage"
+        ],
+        "title": "StorageSummarySchema",
         "type": "object"
       },
       "TaskStartResponse.70db092": {
@@ -3785,6 +4028,66 @@
           "name"
         ],
         "title": "TypeUpdateSchema",
+        "type": "object"
+      },
+      "UndocumentedPartsSchema.b67cf98": {
+        "description": "Schema for undocumented parts summary response.",
+        "properties": {
+          "count": {
+            "description": "Total number of parts without documents",
+            "minimum": 0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "sample_parts": {
+            "description": "Sample of up to 10 undocumented parts",
+            "items": {
+              "$ref": "#/components/schemas/UndocumentedPartsSchema.b67cf98.PartsWithoutDocumentsSchema"
+            },
+            "title": "Sample Parts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "sample_parts"
+        ],
+        "title": "UndocumentedPartsSchema",
+        "type": "object"
+      },
+      "UndocumentedPartsSchema.b67cf98.PartsWithoutDocumentsSchema": {
+        "description": "Schema for parts without documents response.",
+        "properties": {
+          "description": {
+            "description": "Part description",
+            "title": "Description",
+            "type": "string"
+          },
+          "part_key": {
+            "description": "4-character part ID",
+            "maxLength": 4,
+            "title": "Part Key",
+            "type": "string"
+          },
+          "type_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Part type/category name",
+            "title": "Type Name"
+          }
+        },
+        "required": [
+          "part_key",
+          "description"
+        ],
+        "title": "PartsWithoutDocumentsSchema",
         "type": "object"
       },
       "UrlPreviewRequestSchema.1ff70b0": {
@@ -4353,6 +4656,252 @@
           }
         },
         "summary": "Get usage statistics for a specific box.",
+        "tags": []
+      }
+    },
+    "/api/dashboard/category-distribution": {
+      "get": {
+        "description": "Returns:     JSON response containing list of part types with their names,     colors, and part counts, ordered by part count descending.",
+        "operationId": "get__api_dashboard_category-distribution",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryDistributionSchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Get part count distribution by category/type.",
+        "tags": []
+      }
+    },
+    "/api/dashboard/low-stock": {
+      "get": {
+        "description": "Query Parameters:     threshold (int): Quantity threshold below which parts are considered low stock (default: 5)\n\nReturns:     JSON response containing list of parts below the threshold quantity     with part details and current quantities.",
+        "operationId": "get__api_dashboard_low-stock",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LowStockItemSchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Get parts with low stock quantities.",
+        "tags": []
+      }
+    },
+    "/api/dashboard/parts-without-documents": {
+      "get": {
+        "description": "Returns:     JSON response containing total count of parts without documents     and a sample of up to 10 undocumented parts.",
+        "operationId": "get__api_dashboard_parts-without-documents",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UndocumentedPartsSchema.b67cf98"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Get count and sample of parts without attached documents.",
+        "tags": []
+      }
+    },
+    "/api/dashboard/recent-activity": {
+      "get": {
+        "description": "Query Parameters:     limit (int): Maximum number of activity records to return (default: 20)\n\nReturns:     JSON response containing list of recent activity items with part details,     quantity changes, and timestamps.",
+        "operationId": "get__api_dashboard_recent-activity",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentActivitySchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Get recent stock changes and activity.",
+        "tags": []
+      }
+    },
+    "/api/dashboard/stats": {
+      "get": {
+        "description": "Returns:     JSON response containing dashboard statistics including total parts,     quantity, boxes, types, recent activity counts, and low stock count.",
+        "operationId": "get__api_dashboard_stats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardStatsSchema.b67cf98"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Get aggregated dashboard statistics.",
+        "tags": []
+      }
+    },
+    "/api/dashboard/storage-summary": {
+      "get": {
+        "description": "Returns:     JSON response containing list of storage boxes with their capacity,     occupied locations, and usage percentages.",
+        "operationId": "get__api_dashboard_storage-summary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageSummarySchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Get storage box utilization summary.",
         "tags": []
       }
     },
