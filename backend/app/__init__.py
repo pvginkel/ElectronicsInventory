@@ -49,7 +49,7 @@ def create_app(settings: "Settings | None" = None) -> Flask:
     container = ServiceContainer()
     container.config.override(settings)
     container.session_maker.override(SessionLocal)
-    container.wire(modules=['app.api.ai_parts', 'app.api.parts', 'app.api.boxes', 'app.api.inventory', 'app.api.types', 'app.api.documents', 'app.api.tasks'])
+    container.wire(modules=['app.api.ai_parts', 'app.api.parts', 'app.api.boxes', 'app.api.inventory', 'app.api.types', 'app.api.documents', 'app.api.tasks', 'app.api.dashboard'])
     app.container = container
 
     # Configure CORS
