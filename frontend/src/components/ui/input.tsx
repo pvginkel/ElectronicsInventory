@@ -15,7 +15,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     
     const errorClasses = error ? 'border-destructive' : ''
     const hasRightContent = action || (clearable && value)
-    const paddingRightClass = hasRightContent ? 'pr-10' : ''
+    const hasBothButtons = action && clearable && value
+    const paddingRightClass = hasBothButtons ? 'pr-16' : hasRightContent ? 'pr-10' : ''
     const paddingLeftClass = icon ? 'pl-10' : ''
     
     const handleClear = () => {
