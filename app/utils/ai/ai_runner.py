@@ -1,7 +1,7 @@
 import time
 import logging
 import httpx
-import json
+import re
 
 from abc import ABC, abstractmethod
 from typing import Any, Type
@@ -236,6 +236,10 @@ class AIRunner:
                     progress_handle.send_progress("Writing response...", 0.5)
                 if isinstance(event, ResponseReasoningSummaryTextDoneEvent):
                     logger.info(f"Reasoning summary: {event.text}")
+
+                    match = re.match(r"^\*\*([^\n]*)\*\*\r?\n", event.text)
+                    if match:
+                        progress_handle.send_progress(match.group(1), 0.2)
                 if isinstance(event, ResponseCompletedEvent):
                     return event.response
 

@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import threading
@@ -128,8 +127,7 @@ def run_tests(queries: list[tuple[str, str]], models: dict[str, list[str] | None
                     filename_prefix = f"{query_key}_{model}"
                     if reasoning_effort:
                         filename_prefix += f"_{reasoning_effort}"
-                    if runs > 1:
-                        filename_prefix += f"_{run + 1}"
+                    filename_prefix += f"_{run + 1}"
                     
                     try:
                         logger.info(f"Run: query {query}, query_key {query_key}, model {model}, reasoning_effort {reasoning_effort}")
@@ -157,25 +155,23 @@ def run_tests(queries: list[tuple[str, str]], models: dict[str, list[str] | None
 def single_run(query: str, run_parameters: RunParameters) -> None:
     get_full_schema(query, run_parameters)
 
-    basic_information = get_basic_information(query, run_parameters)
+    # basic_information = get_basic_information(query, run_parameters)
 
-    tasks = [
-        partial(get_part_details, basic_information, run_parameters),
-        partial(get_document_urls, basic_information, run_parameters, "product pages", '"webpage"'),
-        partial(get_document_urls, basic_information, run_parameters, "product images", '"image"'),
-        partial(get_document_urls, basic_information, run_parameters, "datasheets", '"pdf" (preferred) or "webpage"'),
-        partial(get_document_urls, basic_information, run_parameters, "pinouts", '"pdf" or "image"'),
-        partial(get_document_urls, basic_information, run_parameters, "schematics", '"pdf"'),
-        partial(get_document_urls, basic_information, run_parameters, "manuals", '"webpage" or "pdf"'),
-        partial(get_all_urls, basic_information, run_parameters),
-    ]
+    # tasks = [
+    #     partial(get_part_details, basic_information, run_parameters),
+    #     partial(get_document_urls, basic_information, run_parameters, "product pages", '"webpage"'),
+    #     partial(get_document_urls, basic_information, run_parameters, "datasheets", '"pdf" (preferred) or "webpage"'),
+    #     partial(get_document_urls, basic_information, run_parameters, "pinouts", '"pdf" or "image"'),
+    #     partial(get_all_urls, basic_information, run_parameters),
+    #     partial(get_full_schema, query, run_parameters)
+    # ]
 
-    # Tune max_workers to your environment / rate limits
-    with ThreadPoolExecutor(max_workers=len(tasks)) as executor:
-        futures = [executor.submit(t) for t in tasks]
-        for f in as_completed(futures):
-            # propagate exceptions early (or handle/log here)
-            f.result()
+    # # Tune max_workers to your environment / rate limits
+    # with ThreadPoolExecutor(max_workers=len(tasks)) as executor:
+    #     futures = [executor.submit(t) for t in tasks]
+    #     for f in as_completed(futures):
+    #         # propagate exceptions early (or handle/log here)
+    #         f.result()
 
 def get_full_schema(query: str, run_parameters: RunParameters) -> PartFullSchema:
     system_prompt = render_template("prompt_full_schema.md", {
@@ -325,16 +321,16 @@ def main():
         # "gpt-4.1-mini": None,
         # "gpt-4o": None,
         # "gpt-4o-mini": None,
-        "gpt-5": reasoning_efforts,
+        # "gpt-5": reasoning_efforts,
         "gpt-5-mini": reasoning_efforts,
         # "gpt-5-nano": reasoning_efforts,
         # "o3": reasoning_efforts,
         # "o4-mini",: reasoning_efforts,
     }
     queries = [
-        # ("HLK PM24", "hlk-pm24"),
+        ("HLK PM24", "hlk-pm24"),
         # ("ESP32-S3FN8", "esp32-s3fn8"),
-        ("Arduino Nano Every", "arduino-nano-every"),
+        # ("Arduino Nano Every", "arduino-nano-every"),
         # ("DFRobot Gravity SGP40", "dfrobot-gravity-sgp40"),
     ]
 

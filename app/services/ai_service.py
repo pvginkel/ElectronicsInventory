@@ -86,6 +86,7 @@ class AIService(BaseService):
                     model=self.config.OPENAI_MODEL,
                     verbosity=self.config.OPENAI_VERBOSITY,
                     reasoning_effort=self.config.OPENAI_REASONING_EFFORT,
+                    reasoning_summary="auto",
                     response_model=PartAnalysisSuggestion,
                 )
 
@@ -98,11 +99,8 @@ class AIService(BaseService):
 
             for urls, type in [
                 (ai_response.product_page_urls, 'product_page'),
-                (ai_response.product_image_urls, 'product_image'),
                 (ai_response.datasheet_urls, 'datasheet'),
                 (ai_response.pinout_urls, 'pinout'),
-                (ai_response.schematic_urls, 'schematic'),
-                (ai_response.manual_urls, 'manual'),
             ]:
                 for url in urls:
                     document = self._document_from_link(url, type)
@@ -139,8 +137,8 @@ class AIService(BaseService):
                 manufacturer=ai_response.manufacturer,
                 product_page=product_page,
                 package=ai_response.package_type,
-                pin_count=ai_response.component_pin_count,
-                pin_pitch=ai_response.component_pin_pitch,
+                pin_count=ai_response.part_pin_count,
+                pin_pitch=ai_response.part_pin_pitch,
                 voltage_rating=ai_response.voltage_rating,
                 input_voltage=ai_response.input_voltage,
                 output_voltage=ai_response.output_voltage,
