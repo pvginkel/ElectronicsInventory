@@ -11,6 +11,7 @@ from app.database import (
     check_db_connection,
     get_current_revision,
     get_pending_migrations,
+    sync_master_data_from_setup,
     upgrade_database,
 )
 from app.extensions import db
@@ -119,27 +120,34 @@ def handle_upgrade_db(
         else:
             print("📍 Database has no migration version (empty or new database)")
 
-        if not recreate and not pending:
+        # Phase 1: Apply schema migrations (if needed)
+        if recreate or pending:
+            if recreate:
+                print("🔄 Recreating database from scratch...")
+            elif pending:
+                print(f"📦 Found {len(pending)} pending migration(s)")
+
+            # Apply migrations
+            try:
+                applied = upgrade_database(recreate=recreate)
+                if applied:
+                    print(f"✅ Successfully applied {len(applied)} migration(s)")
+                    for revision, description in applied:
+                        print(f"   • {revision}: {description}")
+                else:
+                    print("✅ Database migration completed")
+            except Exception as e:
+                print(f"❌ Migration failed: {e}", file=sys.stderr)
+                sys.exit(1)
+        else:
             print("✅ Database is up to date. No migrations to apply.")
-            return
 
-        if recreate:
-            print("🔄 Recreating database from scratch...")
-        elif pending:
-            print(f"📦 Found {len(pending)} pending migration(s)")
-
-        # Apply migrations
+        # Phase 2: Sync master data unconditionally
         try:
-            applied = upgrade_database(recreate=recreate)
-            if applied:
-                print(f"✅ Successfully applied {len(applied)} migration(s)")
-                for revision, description in applied:
-                    print(f"   • {revision}: {description}")
-            else:
-                print("✅ Database migration completed")
+            sync_master_data_from_setup()
         except Exception as e:
-            print(f"❌ Migration failed: {e}", file=sys.stderr)
-            sys.exit(1)
+            print(f"⚠️  Warning: Failed to sync master data: {e}")
+            # Continue - master data sync failure shouldn't block the command
 
 
 def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
