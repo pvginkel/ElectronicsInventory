@@ -185,6 +185,13 @@ def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
             else:
                 print("✅ Database recreated successfully")
 
+            # Sync master data after database recreation
+            try:
+                sync_master_data_from_setup()
+            except Exception as e:
+                print(f"❌ Failed to sync master data: {e}", file=sys.stderr)
+                sys.exit(1)
+
             # Load test data
             print("📦 Loading fixed test dataset...")
             with db.session() as session:
