@@ -39,7 +39,7 @@ class AIPartAnalysisResultSchema(BaseModel):
     )
     type: str | None = Field(
         default=None,
-        description="AI-suggested type name (existing or new suggestion)",
+        description="AI-suggested type name for frontend display and type creation (not used in part creation)",
         json_schema_extra={"example": "Microcontroller"}
     )
     description: str | None = Field(
@@ -180,7 +180,7 @@ class AIPartCreateSchema(BaseModel):
     )
     type_id: int | None = Field(
         default=None,
-        description="Type ID (user can override AI suggestion)",
+        description="Type ID from existing types (frontend handles type creation if needed)",
         json_schema_extra={"example": 15}
     )
     description: str = Field(
@@ -278,5 +278,4 @@ class AIPartCreateSchema(BaseModel):
         description="Documents to attach from temporary storage"
     )
 
-    model_config = ConfigDict(from_attributes=True)
-
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
