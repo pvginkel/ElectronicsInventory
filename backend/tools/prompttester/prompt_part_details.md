@@ -11,16 +11,9 @@ It's critical this information is correct as the correctness of the users invent
 - `product_family`: the name of the family or series of a product (e.g., Arduino Mega, Arduino Uno, Arduino Nano, ESP32-S, ESP32-C, ESP8266).
 - `product_category`: prefer a category from the above list; if none fits, "Proposed: <name>".
 - `package_type`: Use JEDEC/EIA package codes (both SMD and THT allowed). Allowed examples (non-exhaustive): DIP, SIP, QFP, LQFP, TQFP, QFN, DFN, SOIC, SOP, SSOP, TSSOP, MSOP, TSOP, BGA, LGA, SOT-23, SOT-223, SOT-89, TO-92, TO-220, TO-247, TO-252 (DPAK), TO-263 (D2PAK), QFN-56, LQFP-48, etc. For development boards/modules (Arduino, ESPxx boards), use "Module". Never use vague values like "PCB", "PCBA", "Plugin", "PTH".
-- `mounting_type`: musts be exactly one of: "Through-Hole", "Surface-Mount", "Socket / Pluggable", "Panel Mount", "DIN Rail Mount", "Breadboard Compatible", "PCB Mount". Guidance:
-  - Bare IC in DIP → Through-Hole
-  - Bare IC in QFN/QFP/SOIC/etc. → Surface-Mount
-  - Plug-in boards/modules with headers (Arduino/ESP boards, shields) → Socket / Pluggable
-  - Panel-mounted controls/connectors → Panel Mount
-  - DIN modules → DIN Rail Mount
-  - Breadboard-only parts → Breadboard Compatible
-  - PCB jacks/relays/etc. that aren’t strictly THT/SMD → PCB Mount
+- `mounting_type`: musts be exactly one of: "Through-Hole", "Surface-Mount", "Panel Mount", "DIN Rail Mount".
 - `part_pin_count`: total number of pins of the part (for modules, count header pins if clearly defined; else null).
-- `part_pin_pitch`: pitch of the pins like 0.1", 0.05", 0.025", 2.00mm, 2.50mm, etc.
+- `part_pin_pitch`: pitch of the pins in mm.
 - `voltage_rating`: only for simple single-rail parts (e.g., "3.3–6 V").  If the product has distinct input/output (e.g., AC-DC, DC-DC, dev boards), set this to null and use:
   - `input_voltage`: e.g., "100–240 V AC", "5 V DC" (no current or power)
   - `output_voltage`: e.g., "3.3 V DC" (no current or power)
