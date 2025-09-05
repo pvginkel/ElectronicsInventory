@@ -167,22 +167,22 @@ def _get_migration_info(script_dir: ScriptDirectory, revision: str) -> tuple[str
         return revision[:7], "Migration"
 
 
-def _sync_types_from_setup() -> None:
-    """Sync types from setup file after database migrations."""
+def sync_master_data_from_setup() -> None:
+    """Sync master data (types) from setup file to database."""
     try:
         # Use Flask-SQLAlchemy's session for consistency
-        setup_service = SetupService(db.session)
-        added_count = setup_service.sync_types_from_setup()
+        with db.session() as session:
+            setup_service = SetupService(session)
+            added_count = setup_service.sync_types_from_setup()
 
-        if added_count > 0:
-            print(f"📦 Added {added_count} new types from setup file")
-            db.session.commit()
-        else:
-            print("📦 Types already up to date")
+            if added_count > 0:
+                print(f"📦 Added {added_count} new types from setup file")
+                session.commit()
+            else:
+                print("📦 Types already up to date")
 
     except Exception as e:
         print(f"⚠️  Failed to sync types from setup file: {e}")
-        db.session.rollback()
         # Don't raise - types sync failure shouldn't block migrations
 
 
@@ -213,7 +213,7 @@ def upgrade_database(recreate: bool = False) -> list[tuple[str, str]]:
         if not pending:
             # Even if no migrations are pending, we still want to sync types
             # This handles the case where database exists but types need to be synced
-            _sync_types_from_setup()
+            sync_master_data_from_setup()
             return applied_migrations
 
         # Apply migrations one by one with progress reporting
@@ -231,6 +231,6 @@ def upgrade_database(recreate: bool = False) -> list[tuple[str, str]]:
                 raise
 
         # After successful migration application, sync types from setup file
-        _sync_types_from_setup()
+        sync_master_data_from_setup()
 
         return applied_migrations
