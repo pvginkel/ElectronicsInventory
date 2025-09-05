@@ -249,7 +249,7 @@ class URLClassifierFunctionImpl(URLClassifierFunction):
         self.url_thumbnail_service = url_thumbnail_service
 
     def classify_url(self, request: ClassifyUrlsRequest, progress_handle: ProgressHandle) -> ClassifyUrlsResponse:
-        progress_handle.send_progress_text("Classifying URLs...")
+        progress_handle.send_progress_text("Classifying URLs")
 
         # Map URLContentType enum to classification strings
         classification_map = {

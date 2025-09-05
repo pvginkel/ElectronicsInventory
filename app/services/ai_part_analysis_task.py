@@ -49,13 +49,13 @@ class AIPartAnalysisTask(BaseSessionTask):
                 )
 
             # Phase 1: Initialize and validate (0-5%)
-            progress_handle.send_progress("Initializing AI analysis...", 0.0)
+            progress_handle.send_progress("Initializing AI analysis", 0.0)
 
             if self.is_cancelled:
                 return AIPartAnalysisTaskCancelledResultSchema()
 
             # Phase 2: AI Analysis (5-80%)
-            progress_handle.send_progress("AI analyzing part and finding resources...", 0.05)
+            progress_handle.send_progress("AI analyzing part and finding resources", 0.05)
 
             try:
                 ai_service = self.container.ai_service()
@@ -77,7 +77,7 @@ class AIPartAnalysisTask(BaseSessionTask):
                 return AIPartAnalysisTaskCancelledResultSchema()
 
             # Phase 3: Document processing already happened in AI service (80-95%)
-            progress_handle.send_progress("Processing downloaded documentation...", 0.8)
+            progress_handle.send_progress("Processing downloaded documentation", 0.8)
 
             # Check if any documents were downloaded
             doc_count = len(analysis_result.documents)
@@ -88,7 +88,7 @@ class AIPartAnalysisTask(BaseSessionTask):
                 return AIPartAnalysisTaskCancelledResultSchema()
 
             # Phase 4: Finalization (95-100%)
-            progress_handle.send_progress("Finalizing suggestions...", 0.95)
+            progress_handle.send_progress("Finalizing suggestions", 0.95)
 
             # Log analysis summary
             logger.info(f"AI analysis completed - Type: {analysis_result.type}, "

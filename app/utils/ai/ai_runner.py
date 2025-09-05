@@ -154,7 +154,7 @@ class AIRunner:
                             "output": result_json
                         })
 
-                        progress_handle.send_progress_text("Continuing analysis...")
+                        progress_handle.send_progress_text("Continuing analysis")
                         return True
 
         return False
@@ -233,7 +233,7 @@ class AIRunner:
                             if event.item.action.query:
                                 progress_handle.send_progress(f"Searched for {event.item.action.query}", 0.2)
                 if isinstance(event, ResponseContentPartAddedEvent):
-                    progress_handle.send_progress("Writing response...", 0.5)
+                    progress_handle.send_progress("Writing response", 0.5)
                 if isinstance(event, ResponseReasoningSummaryTextDoneEvent):
                     logger.info(f"Reasoning summary: {event.text}")
 
