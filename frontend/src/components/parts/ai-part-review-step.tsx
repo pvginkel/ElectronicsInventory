@@ -5,11 +5,14 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { SplitButton } from '@/components/ui/split-button';
 import { TypeSelector } from '@/components/types/type-selector';
+import { TypeCreateDialog } from '@/components/types/type-create-dialog';
 import { TagsInput } from './tags-input';
 import { AIDocumentGridWrapper } from './ai-document-grid-wrapper';
 import { transformAIPartAnalysisResult, transformToCreateSchema } from '@/lib/utils/ai-parts';
+import { useCreateType } from '@/hooks/use-types';
 import type { components } from '@/lib/api/generated/types';
 import { ExternalLinkIcon } from '@/components/icons/ExternalLinkIcon';
+import { XIcon } from 'lucide-react';
 
 type DocumentSuggestionSchema = components['schemas']['AIPartCreateSchema.63ff6da.DocumentSuggestionSchema'];
 type TransformedResult = ReturnType<typeof transformAIPartAnalysisResult>;
@@ -21,6 +24,7 @@ interface PartFormData {
   type: string;
   typeIsExisting: boolean;
   typeId?: number;
+  suggestedTypeName?: string;
   tags: string[];
   documents: DocumentSuggestionSchema[];
   // Additional fields
@@ -57,7 +61,8 @@ export function AIPartReviewStep({
     manufacturerCode: analysisResult.manufacturerCode || '',
     type: analysisResult.type || '',
     typeIsExisting: analysisResult.typeIsExisting || false,
-    typeId: undefined,
+    typeId: analysisResult.typeIsExisting ? analysisResult.existingTypeId ?? undefined : undefined,
+    suggestedTypeName: !analysisResult.typeIsExisting ? (analysisResult.type || undefined) : undefined,
     tags: analysisResult.tags || [],
     documents: analysisResult.documents || [],
     dimensions: analysisResult.dimensions || '',
@@ -75,6 +80,9 @@ export function AIPartReviewStep({
   }));
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  
+  const createTypeMutation = useCreateType();
 
   const updateField = useCallback(<K extends keyof PartFormData>(
     field: K,
@@ -111,7 +119,9 @@ export function AIPartReviewStep({
       newErrors.description = 'Description is required';
     }
     
-    if (!formData.type.trim()) {
+    if (formData.suggestedTypeName && !formData.typeId) {
+      newErrors.type = 'Please create the suggested type or select an existing one';
+    } else if (!formData.suggestedTypeName && !formData.typeId) {
       newErrors.type = 'Type is required';
     }
 
@@ -150,6 +160,39 @@ export function AIPartReviewStep({
     updateField('typeId', typeId);
     updateField('typeIsExisting', !!typeId);
   }, [updateField]);
+
+  const handleCreateSuggestedType = useCallback(() => {
+    if (formData.suggestedTypeName) {
+      setShowCreateDialog(true);
+    }
+  }, [formData.suggestedTypeName]);
+
+  const handleClearSuggestion = useCallback(() => {
+    updateField('suggestedTypeName', undefined);
+    updateField('typeId', undefined);
+    updateField('typeIsExisting', false);
+  }, [updateField]);
+
+  const handleConfirmCreateType = useCallback(async (typeName: string) => {
+    if (!typeName.trim()) return;
+    
+    try {
+      const result = await createTypeMutation.mutateAsync({
+        body: { name: typeName.trim() }
+      });
+      
+      updateField('typeId', result.id);
+      updateField('suggestedTypeName', undefined);
+      updateField('typeIsExisting', true);
+      setShowCreateDialog(false);
+    } catch {
+      // Error handling is automatic via the global error handling system
+    }
+  }, [updateField, createTypeMutation]);
+
+  const handleCancelCreateType = useCallback(() => {
+    setShowCreateDialog(false);
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
@@ -205,20 +248,42 @@ export function AIPartReviewStep({
 
             <div>
               <Label>Type *</Label>
-              {formData.typeIsExisting ? (
+              {formData.suggestedTypeName ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+                    <div className="flex-1">
+                      <span className="text-sm text-muted-foreground">Suggested type:</span>
+                      <div className="font-medium">{formData.suggestedTypeName}</div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCreateSuggestedType}
+                      disabled={createTypeMutation.isPending}
+                    >
+                      Create
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearSuggestion}
+                      className="p-2"
+                      aria-label="Remove suggestion"
+                    >
+                      <XIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {errors.type && (
+                    <p className="text-sm text-destructive">{errors.type}</p>
+                  )}
+                </div>
+              ) : (
                 <TypeSelector
                   value={formData.typeId}
                   onChange={handleTypeChange}
                   error={errors.type}
-                />
-              ) : (
-                <Input
-                  value={formData.type}
-                  onChange={(e) => updateField('type', e.target.value)}
-                  placeholder="Enter part type"
-                  error={errors.type}
-                  clearable
-                  onClear={() => updateField('type', '')}
                 />
               )}
             </div>
@@ -458,6 +523,16 @@ export function AIPartReviewStep({
           </div>
         </div>
       </div>
+
+      {showCreateDialog && formData.suggestedTypeName && (
+        <TypeCreateDialog
+          initialName={formData.suggestedTypeName}
+          onConfirm={handleConfirmCreateType}
+          onCancel={handleCancelCreateType}
+          isLoading={createTypeMutation.isPending}
+          open={showCreateDialog}
+        />
+      )}
     </div>
   );
 }

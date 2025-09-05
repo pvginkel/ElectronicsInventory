@@ -29,6 +29,7 @@ export function transformAIPartAnalysisResult(
     manufacturerCode: result.manufacturer_code,
     type: result.type,
     typeIsExisting: result.type_is_existing,
+    existingTypeId: result.existing_type_id,
     tags: result.tags || [],
     documents: deduplicateDocuments(result.documents || []),
     // Additional fields
