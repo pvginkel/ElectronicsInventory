@@ -46,7 +46,7 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
     }
   }, [open]);
 
-  const handleInputSubmit = useCallback((data: { text?: string; image?: File }) => {
+  const handleInputSubmit = useCallback((data: { text: string }) => {
     setCurrentStep('progress');
     analyzePartFromData(data);
   }, [analyzePartFromData]);
