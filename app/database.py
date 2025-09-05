@@ -211,9 +211,6 @@ def upgrade_database(recreate: bool = False) -> list[tuple[str, str]]:
         pending = get_pending_migrations()
 
         if not pending:
-            # Even if no migrations are pending, we still want to sync types
-            # This handles the case where database exists but types need to be synced
-            sync_master_data_from_setup()
             return applied_migrations
 
         # Apply migrations one by one with progress reporting
@@ -229,8 +226,5 @@ def upgrade_database(recreate: bool = False) -> list[tuple[str, str]]:
             except Exception as e:
                 print(f"❌ Failed to apply migration {rev_short}: {e}")
                 raise
-
-        # After successful migration application, sync types from setup file
-        sync_master_data_from_setup()
 
         return applied_migrations
