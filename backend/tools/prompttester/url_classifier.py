@@ -15,7 +15,7 @@ class URLClassifierFunctionImpl(URLClassifierFunction):
         os.makedirs(self.cache_path, exist_ok=True)
 
     def classify_url(self, request: ClassifyUrlsRequest, progress_handle: ProgressHandle) -> ClassifyUrlsResponse:
-        progress_handle.send_progress_text("Classifying URLs...")
+        progress_handle.send_progress_text("Classifying URLs")
         
         urls: list[ClassifyUrlsEntry] = []
 
