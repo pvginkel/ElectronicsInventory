@@ -47,9 +47,14 @@ class TestDashboardService:
             # Create test data using services
             box = container.box_service().create_box("Test Box", 10)
             
+            # Create type first
+            test_type = Type(name="Test Type")
+            session.add(test_type)
+            session.flush()
+            
             # Create parts using part service
-            part1 = container.part_service().create_part("Test Part 1", type_name="Test Type")
-            part2 = container.part_service().create_part("Test Part 2", type_name="Test Type")
+            part1 = container.part_service().create_part("Test Part 1", type_id=test_type.id)
+            part2 = container.part_service().create_part("Test Part 2", type_id=test_type.id)
             session.commit()
 
             # Add stock using inventory service (this handles locations properly)
@@ -75,8 +80,8 @@ class TestDashboardService:
             assert stats['total_quantity'] == 23
             assert stats['total_boxes'] == 1
             assert stats['total_types'] == 1
-            assert stats['changes_7d'] == 1  # Only history1 is within 7 days
-            assert stats['changes_30d'] == 2  # Both history entries are within 30 days
+            assert stats['changes_7d'] == 3  # Two add_stock operations + history1 are within 7 days
+            assert stats['changes_30d'] == 4  # Two add_stock operations + both manual history entries are within 30 days
             assert stats['low_stock_count'] == 1  # part2 has qty=3 <= 5
 
     def test_get_recent_activity_empty_history(
@@ -178,34 +183,27 @@ class TestDashboardService:
         """Test get_storage_summary with boxes shows correct utilization."""
         service = container.dashboard_service()
         
-        # Create boxes
-        box1 = Box(box_no=1, capacity=20, description="Small Parts")
-        box2 = Box(box_no=2, capacity=50, description="Large Parts") 
-        session.add_all([box1, box2])
-        session.flush()
+        # Create boxes using proper services
+        box1 = container.box_service().create_box("Small Parts", 20)
+        box2 = container.box_service().create_box("Large Parts", 50)
 
         # Create parts and locations
         type_obj = Type(name="Test Type")
         session.add(type_obj)
         session.flush()
 
-        part1 = Part(key="ABCD", description="Part 1", type_id=type_obj.id)
-        part2 = Part(key="EFGH", description="Part 2", type_id=type_obj.id)
-        session.add_all([part1, part2])
-        session.flush()
+        part1 = container.part_service().create_part("Part 1", type_id=type_obj.id)
+        part2 = container.part_service().create_part("Part 2", type_id=type_obj.id)
+        session.commit()
 
         # Box 1: 5 occupied locations out of 20 (25% usage)
-        locations_box1 = [
-            PartLocation(part_id=part1.id, box_no=1, loc_no=i, qty=10)
-            for i in range(1, 6)
-        ]
-        # Box 2: 10 occupied locations out of 50 (20% usage)
-        locations_box2 = [
-            PartLocation(part_id=part2.id, box_no=2, loc_no=i, qty=5)
-            for i in range(1, 11)
-        ]
+        for i in range(1, 6):
+            container.inventory_service().add_stock(part1.key, box1.box_no, i, 10)
         
-        session.add_all(locations_box1 + locations_box2)
+        # Box 2: 10 occupied locations out of 50 (20% usage)
+        for i in range(1, 11):
+            container.inventory_service().add_stock(part2.key, box2.box_no, i, 5)
+        
         session.commit()
 
         summary = service.get_storage_summary()
@@ -214,14 +212,14 @@ class TestDashboardService:
         
         # Results should be ordered by box_no
         box1_summary = summary[0]
-        assert box1_summary['box_no'] == 1
+        assert box1_summary['box_no'] == box1.box_no
         assert box1_summary['description'] == "Small Parts"
         assert box1_summary['total_locations'] == 20
         assert box1_summary['occupied_locations'] == 5
         assert box1_summary['usage_percentage'] == 25.0
         
         box2_summary = summary[1]
-        assert box2_summary['box_no'] == 2
+        assert box2_summary['box_no'] == box2.box_no
         assert box2_summary['description'] == "Large Parts"
         assert box2_summary['total_locations'] == 50
         assert box2_summary['occupied_locations'] == 10
@@ -233,24 +231,24 @@ class TestDashboardService:
         """Test get_low_stock_items with default threshold of 5."""
         service = container.dashboard_service()
         
-        # Create test data
+        # Create test data using proper services
         type_obj = Type(name="Capacitor")
         session.add(type_obj)
         session.flush()
 
-        # Parts with different quantities
-        part1 = Part(key="CAP1", description="Low Stock Capacitor", type_id=type_obj.id)
-        part2 = Part(key="CAP2", description="Good Stock Capacitor", type_id=type_obj.id)
-        part3 = Part(key="CAP3", description="Zero Stock Capacitor", type_id=type_obj.id)
-        session.add_all([part1, part2, part3])
-        session.flush()
-
-        # Locations with quantities
-        loc1 = PartLocation(part_id=part1.id, box_no=1, loc_no=1, qty=3)  # Low stock
-        loc2 = PartLocation(part_id=part2.id, box_no=1, loc_no=2, qty=15) # Good stock
-        # part3 has no locations (zero stock)
+        # Create a box with locations
+        box = container.box_service().create_box("Test Box", 10)
         
-        session.add_all([loc1, loc2])
+        # Create parts using part service
+        part1 = container.part_service().create_part("Low Stock Capacitor", type_id=type_obj.id)
+        part2 = container.part_service().create_part("Good Stock Capacitor", type_id=type_obj.id)
+        part3 = container.part_service().create_part("Zero Stock Capacitor", type_id=type_obj.id)
+        session.commit()
+
+        # Add stock using inventory service
+        container.inventory_service().add_stock(part1.key, box.box_no, 1, 3)   # Low stock
+        container.inventory_service().add_stock(part2.key, box.box_no, 2, 15)  # Good stock
+        # part3 has no stock (zero stock)
         session.commit()
 
         low_stock = service.get_low_stock_items()
@@ -258,7 +256,7 @@ class TestDashboardService:
         # Should only return part1 (qty=3 <= 5)
         assert len(low_stock) == 1
         item = low_stock[0]
-        assert item['part_key'] == 'CAP1'
+        assert item['part_key'] == part1.key
         assert item['description'] == 'Low Stock Capacitor'
         assert item['type_name'] == 'Capacitor'
         assert item['current_quantity'] == 3
@@ -269,17 +267,20 @@ class TestDashboardService:
         """Test get_low_stock_items with custom threshold."""
         service = container.dashboard_service()
         
-        # Create test data  
+        # Create test data using proper services
         type_obj = Type(name="LED")
         session.add(type_obj)
         session.flush()
 
-        part = Part(key="LED1", description="Red LED", type_id=type_obj.id)
-        session.add(part)
-        session.flush()
+        # Create a box with locations
+        box = container.box_service().create_box("LED Box", 5)
+        
+        # Create part using part service
+        part = container.part_service().create_part("Red LED", type_id=type_obj.id)
+        session.commit()
 
-        loc = PartLocation(part_id=part.id, box_no=1, loc_no=1, qty=8)
-        session.add(loc)
+        # Add stock using inventory service
+        container.inventory_service().add_stock(part.key, box.box_no, 1, 8)
         session.commit()
 
         # With threshold=10, part with qty=8 should be included
@@ -364,8 +365,11 @@ class TestDashboardService:
         session.flush()
 
         # Add attachment to part
+        from app.models.part_attachment import AttachmentType
         attachment = PartAttachment(
             part_id=part.id,
+            attachment_type=AttachmentType.PDF,
+            title="Component Datasheet",
             filename="datasheet.pdf",
             file_size=1000,
             content_type="application/pdf"
@@ -397,8 +401,11 @@ class TestDashboardService:
         session.flush()
 
         # Add attachment only to documented_part
+        from app.models.part_attachment import AttachmentType
         attachment = PartAttachment(
             part_id=documented_part.id,
+            attachment_type=AttachmentType.PDF,
+            title="Sensor Specification",
             filename="sensor_spec.pdf", 
             file_size=500,
             content_type="application/pdf"
