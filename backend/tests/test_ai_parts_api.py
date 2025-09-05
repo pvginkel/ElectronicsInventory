@@ -511,7 +511,8 @@ class TestAIPartsAPI:
                     preview=UrlPreviewResponseSchema(
                         title="Complete Datasheet",
                         original_url="https://example.com/datasheet.pdf",
-                        content_type="application/pdf"
+                        content_type="application/pdf",
+                        image_url=None
                     )
                 ),
                 # Document with filename extraction
@@ -549,6 +550,52 @@ class TestAIPartsAPI:
                 actual_titles.append(title)
 
             assert actual_titles == expected_titles
+
+    def test_create_part_rejects_type_field(self, client: FlaskClient, app: Flask, session: Session):
+        """Test that create endpoint rejects 'type' field and only accepts 'type_id'."""
+        from app.models.type import Type
+
+        with app.app_context():
+            # Create a test type
+            test_type = Type(name="Test Type")
+            session.add(test_type)
+            session.flush()
+
+            # Test that 'type' field is rejected
+            request_data_with_type = {
+                "description": "Test part with type field",
+                "manufacturer_code": "TYPE123",
+                "type": "New Type Name",  # This should be rejected
+                "tags": ["test"]
+            }
+
+            response = client.post(
+                '/api/ai-parts/create',
+                json=request_data_with_type,
+                content_type='application/json'
+            )
+
+            # Should fail validation because 'type' is not a valid field
+            assert response.status_code == 400
+
+            # Test that 'type_id' field is accepted
+            request_data_with_type_id = {
+                "description": "Test part with type_id field",
+                "manufacturer_code": "TYPEID123",
+                "type_id": test_type.id,
+                "tags": ["test"]
+            }
+
+            response = client.post(
+                '/api/ai-parts/create',
+                json=request_data_with_type_id,
+                content_type='application/json'
+            )
+
+            # Should succeed with type_id
+            assert response.status_code == 201
+            data = response.get_json()
+            assert data['type_id'] == test_type.id
 
     def test_api_endpoints_exist(self, client: FlaskClient, app: Flask):
         """Test that all AI parts endpoints are registered and accessible."""
