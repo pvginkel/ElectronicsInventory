@@ -49,8 +49,16 @@ def get_recent_activity(dashboard_service=Provide[ServiceContainer.dashboard_ser
         JSON response containing list of recent activity items with part details,
         quantity changes, and timestamps.
     """
-    limit = int(request.args.get("limit", 20))
-    if limit > 100:  # Cap the limit for performance
+    # Validate and sanitize limit parameter
+    try:
+        limit = int(request.args.get("limit", 20))
+    except (ValueError, TypeError):
+        limit = 20
+    
+    # Enforce reasonable bounds
+    if limit < 1:
+        limit = 1
+    elif limit > 100:  # Cap the limit for performance
         limit = 100
 
     activities = dashboard_service.get_recent_activity(limit)
@@ -88,9 +96,17 @@ def get_low_stock_items(dashboard_service=Provide[ServiceContainer.dashboard_ser
         JSON response containing list of parts below the threshold quantity
         with part details and current quantities.
     """
-    threshold = int(request.args.get("threshold", 5))
+    # Validate and sanitize threshold parameter
+    try:
+        threshold = int(request.args.get("threshold", 5))
+    except (ValueError, TypeError):
+        threshold = 5
+    
+    # Enforce reasonable bounds  
     if threshold < 0:
         threshold = 5
+    elif threshold > 1000:  # Reasonable upper bound
+        threshold = 1000
 
     low_stock = dashboard_service.get_low_stock_items(threshold)
     result = [LowStockItemSchema.model_validate(item).model_dump() for item in low_stock]
