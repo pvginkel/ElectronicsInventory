@@ -10,13 +10,13 @@
 - [x] Delete parts with confirmation (only if zero quantity)
 - [x] Additional part fields (voltage ratings, dimensions, mounting type, package, pin count, pin pitch, series)
 - [x] Photo capture (mobile camera integration)
-- [ ] Show part image gallery with main photo selection
+- [x] Show part image gallery with main photo selection
 - [x] Auto-suggest tags from AI analysis results
 
 ## Inventory Visualization
 - [x] Show numbered boxes with capacity indicators
 - [x] Display box contents as grid of numbered locations
-- [ ] Visualize location occupancy (filled/empty status)
+- [x] Visualize location occupancy (filled/empty status)
 - [x] Show quantities at each location for multi-location parts
 - [ ] Color-code locations by part categories
 
@@ -38,10 +38,10 @@
 - [x] Document grid display with tile-based interface
 - [x] Cover image selection and display functionality
 - [x] Document attachment and management system
-- [ ] PDF viewer using PDF.js for in-app datasheet viewing
-- [ ] Image gallery for part photos and documentation
-- [ ] Document upload interface with drag-and-drop
-- [ ] Link input for external documentation URLs
+- [x] PDF viewer for in-app datasheet viewing
+- [x] Image gallery for part photos and documentation
+- [x] Document upload interface with drag-and-drop
+- [x] Link input for external documentation URLs
 
 ## Box & Location Management
 - [x] Create new boxes with configurable capacity
@@ -64,10 +64,10 @@
 - [ ] Photo analysis interface with part number extraction
 - [x] Category suggestion acceptance/rejection
 - [x] Auto-tagging review and editing
-- [ ] Datasheet discovery progress indicators
+- [x] Datasheet discovery progress indicators
 
 ## Performance & UX
-- [ ] Show thumbnails in search results and lists
+- [x] Show thumbnails in search results and lists
 - [ ] Lazy loading for large part collections
 - [x] Optimistic UI updates for stock operations
 - [x] Loading states and skeleton UI for async operations
