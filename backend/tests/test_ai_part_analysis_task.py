@@ -79,7 +79,7 @@ class TestAIPartAnalysisTask:
 
         # Verify AI service was called correctly
         mock_ai_service.analyze_part.assert_called_once_with(
-            text_input="Test relay 12V",
+            user_prompt="Test relay 12V",
             image_data=None,
             image_mime_type=None,
             progress_handle=mock_progress_handle
@@ -129,7 +129,7 @@ class TestAIPartAnalysisTask:
 
         # Verify AI service was called with all parameters
         mock_ai_service.analyze_part.assert_called_once_with(
-            text_input="Arduino board",
+            user_prompt="Arduino board",
             image_data=b"fake_image_data",
             image_mime_type="image/jpeg",
             progress_handle=mock_progress_handle

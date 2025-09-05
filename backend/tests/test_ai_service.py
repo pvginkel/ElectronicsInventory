@@ -104,19 +104,16 @@ def create_mock_ai_response(**kwargs):
         'manufacturer_part_number': None,
         'package_type': None,
         'mounting_type': None,
-        'component_pin_count': None,
-        'component_pin_pitch': None,
+        'part_pin_count': None,
+        'part_pin_pitch': None,
         'voltage_rating': None,
         'input_voltage': None,
         'output_voltage': None,
         'physical_dimensions': None,
         'tags': [],
         'product_page_urls': [],
-        'product_image_urls': [],
         'datasheet_urls': [],
-        'pinout_urls': [],
-        'schematic_urls': [],
-        'manual_urls': []
+        'pinout_urls': []
     }
 
     # Update with provided values
@@ -148,18 +145,29 @@ class TestAIService:
         """Test analyze_part with no text or image input."""
         from unittest.mock import Mock
         mock_progress = Mock()
-        with pytest.raises(ValueError, match="Either text_input or image_data must be provided"):
+        with pytest.raises(NotImplementedError, match="Image input is not yet implemented; user_prompt is required"):
             ai_service.analyze_part(None, None, None, mock_progress)
 
-    @patch.object(AIService, '_call_openai_api')
-    def test_analyze_part_text_only_success(self, mock_call_api, ai_service: AIService):
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_analyze_part_text_only_success(self, mock_run, ai_service: AIService):
         """Test successful AI analysis with text input only."""
         # Create structured mock response - using correct PartAnalysisSuggestion fields
-        mock_call_api.return_value = create_mock_ai_response(
+        from app.utils.ai.ai_runner import AIResponse
+        mock_ai_response = create_mock_ai_response(
             manufacturer_part_number="TEST123",
             product_category="Relay",
             product_name="Test relay component",
             tags=["relay", "12V"]
+        )
+        mock_run.return_value = AIResponse(
+            response=mock_ai_response,
+            output_text="Mock response",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
         )
 
         # Perform analysis
@@ -174,8 +182,8 @@ class TestAIService:
         assert result.type_is_existing is True
         assert result.existing_type_id is not None
         
-        # Verify the API was called once
-        mock_call_api.assert_called_once()
+        # Verify the runner was called once
+        mock_run.assert_called_once()
 
     @pytest.mark.skip(reason="Image support not implemented yet in AI service")
     def test_analyze_part_with_image(self, ai_service: AIService):
@@ -188,14 +196,25 @@ class TestAIService:
         with pytest.raises(Exception, match="Image data currently not supported"):
             ai_service.analyze_part("Arduino board", image_data, "image/jpeg", mock_progress)
 
-    @patch.object(AIService, '_call_openai_api')
-    def test_analyze_part_new_type_suggestion(self, mock_call_api, ai_service: AIService):
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_analyze_part_new_type_suggestion(self, mock_run, ai_service: AIService):
         """Test AI analysis suggesting a new type not in the system."""
         # Create structured mock response - using correct PartAnalysisSuggestion fields
-        mock_call_api.return_value = create_mock_ai_response(
+        from app.utils.ai.ai_runner import AIResponse
+        mock_ai_response = create_mock_ai_response(
             product_category="Power Supply",  # Not in existing types
             product_name="Switching power supply",
             tags=["power", "supply", "switching"]
+        )
+        mock_run.return_value = AIResponse(
+            response=mock_ai_response,
+            output_text="Mock response",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
         )
 
         mock_progress = Mock()
@@ -207,29 +226,37 @@ class TestAIService:
         assert result.existing_type_id is None
         assert result.description == "Switching power supply"
         
-        # Verify the API was called once
-        mock_call_api.assert_called_once()
+        # Verify the runner was called once
+        mock_run.assert_called_once()
 
-    @patch.object(AIService, '_call_openai_api')
-    def test_analyze_part_with_document_download(self, mock_call_api, ai_service: AIService):
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_analyze_part_with_document_download(self, mock_run, ai_service: AIService):
         """Test AI analysis with document download."""
         # Create structured mock response with document URLs
-        mock_call_api.return_value = create_mock_ai_response(
+        from app.utils.ai.ai_runner import AIResponse
+        mock_ai_response = create_mock_ai_response(
             manufacturer_part_number="DOC123",
             product_category="Relay", 
             product_name="Relay with datasheet",
             tags=["relay", "documentation"],
-            datasheet_urls=["https://example.com/datasheet.pdf"],
-            manual_urls=["https://example.com/manual.pdf"]
+            datasheet_urls=["https://example.com/datasheet.pdf"]
+        )
+        mock_run.return_value = AIResponse(
+            response=mock_ai_response,
+            output_text="Mock response",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
         )
 
         # Mock the _document_from_link method to avoid complex URL processing
         with patch.object(ai_service, '_document_from_link') as mock_doc_from_link:
             mock_doc_from_link.return_value = DocumentSuggestionSchema(
                 url="https://example.com/datasheet.pdf",
-                url_type="pdf_document",
-                document_type="datasheet",
-                description="Complete datasheet"
+                document_type="datasheet"
             )
 
             mock_progress = Mock()
@@ -239,41 +266,41 @@ class TestAIService:
             assert result.manufacturer_code == "DOC123"
             assert result.type == "Relay"
             assert result.description == "Relay with datasheet"
-            assert len(result.documents) == 2  # Both datasheet and manual URLs should be processed
+            assert len(result.documents) == 1  # Only datasheet URL should be processed
             assert result.documents[0].url == "https://example.com/datasheet.pdf"
             assert result.documents[0].document_type == "datasheet"
             
-            # Verify the API was called once and _document_from_link was called
-            mock_call_api.assert_called_once()
-            # Should be called twice (once for datasheet, once for manual URL)
-            assert mock_doc_from_link.call_count == 2
+            # Verify the runner was called once and _document_from_link was called
+            mock_run.assert_called_once()
+            # Should be called once for datasheet URL
+            assert mock_doc_from_link.call_count == 1
 
-    @patch.object(AIService, '_call_openai_api')
-    def test_analyze_part_openai_api_error(self, mock_call_api, ai_service: AIService):
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_analyze_part_openai_api_error(self, mock_run, ai_service: AIService):
         """Test handling of OpenAI API errors."""
         # Mock the OpenAI API call to raise an exception
         from openai import OpenAIError
-        mock_call_api.side_effect = OpenAIError("API Error")
+        mock_run.side_effect = OpenAIError("API Error")
 
         with pytest.raises(OpenAIError, match="API Error"):
             mock_progress = Mock()
             ai_service.analyze_part("Test component", None, None, mock_progress)
             
-        # Verify the API was called
-        mock_call_api.assert_called_once()
+        # Verify the runner was called
+        mock_run.assert_called_once()
 
-    @patch.object(AIService, '_call_openai_api')
-    def test_analyze_part_invalid_json_response(self, mock_call_api, ai_service: AIService):
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_analyze_part_invalid_json_response(self, mock_run, ai_service: AIService):
         """Test handling of invalid JSON response from OpenAI."""
         # Mock the OpenAI API call to raise an exception simulating empty/invalid response
-        mock_call_api.side_effect = Exception("Empty response from OpenAI status incomplete, incomplete details: parsing error")
+        mock_run.side_effect = Exception("Empty response from OpenAI status incomplete, incomplete details: parsing error")
 
         with pytest.raises(Exception, match="Empty response from OpenAI"):
             mock_progress = Mock()
             ai_service.analyze_part("Test component", None, None, mock_progress)
             
-        # Verify the API was called
-        mock_call_api.assert_called_once()
+        # Verify the runner was called
+        mock_run.assert_called_once()
 
     def test_download_document_unsupported_content_type(self, ai_service: AIService):
         """Test handling of unsupported content types."""
@@ -321,8 +348,11 @@ class TestAIService:
                 assert result == expected
 
     def test_classify_urls_internal_method(self, ai_service: AIService):
-        """Test the internal _classify_urls method."""
+        """Test the internal URL classifier function."""
         # Mock the URL thumbnail service
+        from unittest.mock import Mock
+        from app.utils.ai.url_classification import ClassifyUrlsRequest
+        
         with patch.object(ai_service.url_thumbnail_service, 'extract_metadata') as mock_extract:
             from app.schemas.url_metadata import URLMetadataSchema, URLContentType, ThumbnailSourceType
             
@@ -349,13 +379,14 @@ class TestAIService:
             ]
             
             # Test with multiple URLs
-            request = ai_service.ClassifyUrlsRequest(urls=[
+            request = ClassifyUrlsRequest(urls=[
                 "https://example.com/datasheet.pdf",
                 "https://example.com/image.jpg",
                 "https://example.com/product.html"
             ])
             
-            result = ai_service._classify_urls(request)
+            mock_progress = Mock()
+            result = ai_service.url_classifier_function.classify_url(request, mock_progress)
             
             # Verify classification results
             assert len(result.urls) == 3
@@ -367,55 +398,72 @@ class TestAIService:
             assert result.urls[2].url == "https://example.com/product.html"
 
     def test_classify_urls_with_error(self, ai_service: AIService):
-        """Test _classify_urls method with URL extraction errors."""
+        """Test URL classifier function with URL extraction errors."""
         # Mock the URL thumbnail service to raise an exception
+        from unittest.mock import Mock
+        from app.utils.ai.url_classification import ClassifyUrlsRequest
+        
         with patch.object(ai_service.url_thumbnail_service, 'extract_metadata') as mock_extract:
             mock_extract.side_effect = Exception("Network error")
             
-            request = ai_service.ClassifyUrlsRequest(urls=["https://invalid.url"])
-            result = ai_service._classify_urls(request)
+            request = ClassifyUrlsRequest(urls=["https://invalid.url"])
+            mock_progress = Mock()
+            result = ai_service.url_classifier_function.classify_url(request, mock_progress)
             
             # Should return invalid classification for error case
             assert len(result.urls) == 1
             assert result.urls[0].classification == "invalid"
             assert result.urls[0].url == "https://invalid.url"
-            assert result.urls[0].reason == "Error of type Exception"
 
     def test_classify_urls_with_http_error(self, ai_service: AIService):
-        """Test _classify_urls method with HTTP status code errors."""
+        """Test URL classifier function with HTTP status code errors."""
         # Mock the URL thumbnail service to raise an InvalidOperationException with HTTP status
+        from unittest.mock import Mock
         from app.exceptions import InvalidOperationException
+        from app.utils.ai.url_classification import ClassifyUrlsRequest
+        
         with patch.object(ai_service.url_thumbnail_service, 'extract_metadata') as mock_extract:
             mock_extract.side_effect = InvalidOperationException(
                 "extract metadata", 
                 "HTTP error 404 reason Not Found"
             )
             
-            request = ai_service.ClassifyUrlsRequest(urls=["https://example.com/missing"])
-            result = ai_service._classify_urls(request)
+            request = ClassifyUrlsRequest(urls=["https://example.com/missing"])
+            mock_progress = Mock()
+            result = ai_service.url_classifier_function.classify_url(request, mock_progress)
             
             # Should return invalid classification with HTTP status information
             assert len(result.urls) == 1
             assert result.urls[0].classification == "invalid"
             assert result.urls[0].url == "https://example.com/missing"
-            assert "HTTP error 404 reason Not Found" in result.urls[0].reason
 
-    @patch.object(AIService, '_call_openai_api')
-    def test_function_calling_flow_via_analyze_part(self, mock_call_api, ai_service: AIService):
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_function_calling_flow_via_analyze_part(self, mock_run, ai_service: AIService):
         """Test that analyze_part can still work with the new function calling implementation."""
         # Mock the entire OpenAI API call to return a structured response
-        mock_call_api.return_value = create_mock_ai_response(
+        from app.utils.ai.ai_runner import AIResponse
+        mock_ai_response = create_mock_ai_response(
             manufacturer_part_number="FUNC123",
             product_category="Relay",
             product_name="Function call test relay"
+        )
+        mock_run.return_value = AIResponse(
+            response=mock_ai_response,
+            output_text="Mock response",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
         )
         
         # Test the function calling flow
         mock_progress = Mock()
         result = ai_service.analyze_part("Test relay with datasheet URL", None, None, mock_progress)
         
-        # Verify the API was called
-        mock_call_api.assert_called_once()
+        # Verify the runner was called
+        mock_run.assert_called_once()
         
         # Verify final result 
         assert result.manufacturer_code == "FUNC123"

@@ -34,25 +34,24 @@ class TestDashboardAPI:
             assert field in data
             assert data[field] == 0
 
-    def test_get_dashboard_stats_success_with_data(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_dashboard_stats_success_with_data(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test GET /api/dashboard/stats with populated database."""
-        # Create test data
+        # Create test data using proper services
         type_obj = Type(name="Test Type")
         session.add(type_obj)
         session.flush()
 
-        box = Box(box_no=1, capacity=10, description="Test Box")
-        session.add(box)
-        session.flush()
+        # Create box using service
+        box = container.box_service().create_box("Test Box", 10)
+        
+        # Create part using service
+        part = container.part_service().create_part("Test Part", type_id=type_obj.id)
+        session.commit()
 
-        part = Part(key="ABCD", description="Test Part", type_id=type_obj.id)
-        session.add(part)
-        session.flush()
+        # Add stock using inventory service
+        container.inventory_service().add_stock(part.key, box.box_no, 1, 3)
 
-        location = PartLocation(part_id=part.id, box_no=1, loc_no=1, qty=3)
-        session.add(location)
-
-        # Add recent quantity change
+        # Add additional quantity change history
         history = QuantityHistory(
             part_id=part.id,
             delta_qty=5,
@@ -71,8 +70,8 @@ class TestDashboardAPI:
         assert data['total_quantity'] == 3
         assert data['total_boxes'] == 1
         assert data['total_types'] == 1
-        assert data['changes_7d'] == 1
-        assert data['changes_30d'] == 1
+        assert data['changes_7d'] == 2  # add_stock operation + manual history
+        assert data['changes_30d'] == 2
         assert data['low_stock_count'] == 1  # qty=3 <= 5
 
     def test_get_recent_activity_success_empty(self, app: Flask, client: FlaskClient, session: Session):
@@ -180,28 +179,22 @@ class TestDashboardAPI:
         data = response.get_json()
         assert data == []
 
-    def test_get_storage_summary_success_with_boxes(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_storage_summary_success_with_boxes(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test GET /api/dashboard/storage-summary returns correct box utilization."""
-        # Create test data
-        box = Box(box_no=1, capacity=20, description="Small Parts Box")
-        session.add(box)
-        session.flush()
+        # Create test data using proper services
+        box = container.box_service().create_box("Small Parts Box", 20)
 
         type_obj = Type(name="Component")
         session.add(type_obj)
         session.flush()
 
-        part = Part(key="COMP", description="Test Component", type_id=type_obj.id)
-        session.add(part)
-        session.flush()
+        part = container.part_service().create_part("Test Component", type_id=type_obj.id)
+        session.commit()
 
         # Occupy 5 locations out of 20 (25% usage)
-        locations = []
         for i in range(1, 6):
-            loc = PartLocation(part_id=part.id, box_no=1, loc_no=i, qty=10)
-            locations.append(loc)
+            container.inventory_service().add_stock(part.key, box.box_no, i, 10)
         
-        session.add_all(locations)
         session.commit()
 
         response = client.get("/api/dashboard/storage-summary")
@@ -223,22 +216,24 @@ class TestDashboardAPI:
         assert box_summary['occupied_locations'] == 5
         assert box_summary['usage_percentage'] == 25.0
 
-    def test_get_low_stock_success_default_threshold(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_low_stock_success_default_threshold(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test GET /api/dashboard/low-stock with default threshold."""
-        # Create test data
+        # Create test data using proper services
         type_obj = Type(name="Capacitor")
         session.add(type_obj)
         session.flush()
 
-        low_stock_part = Part(key="CAP1", description="Low Stock Cap", type_id=type_obj.id)
-        good_stock_part = Part(key="CAP2", description="Good Stock Cap", type_id=type_obj.id)
-        session.add_all([low_stock_part, good_stock_part])
-        session.flush()
+        # Create box first
+        box = container.box_service().create_box("Test Box", 10)
+        
+        # Create parts
+        low_stock_part = container.part_service().create_part("Low Stock Cap", type_id=type_obj.id)
+        good_stock_part = container.part_service().create_part("Good Stock Cap", type_id=type_obj.id)
+        session.commit()
 
-        # Low stock: qty=3 <= 5, Good stock: qty=10 > 5
-        loc1 = PartLocation(part_id=low_stock_part.id, box_no=1, loc_no=1, qty=3)
-        loc2 = PartLocation(part_id=good_stock_part.id, box_no=1, loc_no=2, qty=10)
-        session.add_all([loc1, loc2])
+        # Add stock: Low stock: qty=3 <= 5, Good stock: qty=10 > 5
+        container.inventory_service().add_stock(low_stock_part.key, box.box_no, 1, 3)
+        container.inventory_service().add_stock(good_stock_part.key, box.box_no, 2, 10)
         session.commit()
 
         response = client.get("/api/dashboard/low-stock")
@@ -254,24 +249,27 @@ class TestDashboardAPI:
         for field in required_fields:
             assert field in item
             
-        assert item['part_key'] == 'CAP1'
+        assert item['part_key'] == low_stock_part.key
         assert item['description'] == 'Low Stock Cap'
         assert item['type_name'] == 'Capacitor'
         assert item['current_quantity'] == 3
 
-    def test_get_low_stock_custom_threshold(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_low_stock_custom_threshold(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test GET /api/dashboard/low-stock with custom threshold parameter."""
-        # Create test data
+        # Create test data using proper services
         type_obj = Type(name="IC")
         session.add(type_obj)
         session.flush()
 
-        part = Part(key="IC01", description="Microcontroller", type_id=type_obj.id)
-        session.add(part)
-        session.flush()
+        # Create box first
+        box = container.box_service().create_box("IC Box", 5)
+        
+        # Create part
+        part = container.part_service().create_part("Microcontroller", type_id=type_obj.id)
+        session.commit()
 
-        location = PartLocation(part_id=part.id, box_no=1, loc_no=1, qty=8)
-        session.add(location)
+        # Add stock
+        container.inventory_service().add_stock(part.key, box.box_no, 1, 8)
         session.commit()
 
         # With threshold=10, part with qty=8 should be included
@@ -373,8 +371,11 @@ class TestDashboardAPI:
         session.flush()
 
         # Add attachment only to documented part
+        from app.models.part_attachment import AttachmentType
         attachment = PartAttachment(
             part_id=documented_part.id,
+            attachment_type=AttachmentType.PDF,
+            title="Sensor Specification",
             filename="sensor_spec.pdf",
             file_size=1000,
             content_type="application/pdf"
@@ -440,24 +441,24 @@ class TestDashboardAPI:
             # Should not return server errors
             assert response.status_code < 500
 
-    def test_dashboard_api_response_schema_validation(self, app: Flask, client: FlaskClient, session: Session):
+    def test_dashboard_api_response_schema_validation(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test that all dashboard API responses conform to their schemas."""
-        # Create minimal test data to ensure non-empty responses
+        # Create minimal test data to ensure non-empty responses using proper services
         type_obj = Type(name="Test Type")
         session.add(type_obj)
         session.flush()
 
-        box = Box(box_no=1, capacity=10, description="Test Box")
-        session.add(box)
-        session.flush()
+        # Create box using service
+        box = container.box_service().create_box("Test Box", 10)
+        
+        # Create part using service
+        part = container.part_service().create_part("Test Part", type_id=type_obj.id)
+        session.commit()
 
-        part = Part(key="TEST", description="Test Part", type_id=type_obj.id)
-        session.add(part)
-        session.flush()
+        # Add stock using inventory service
+        container.inventory_service().add_stock(part.key, box.box_no, 1, 5)
 
-        location = PartLocation(part_id=part.id, box_no=1, loc_no=1, qty=5)
-        session.add(location)
-
+        # Add additional history
         history = QuantityHistory(
             part_id=part.id,
             delta_qty=5,
