@@ -285,6 +285,9 @@ def attachment_preview_image(url_thumbnail_service=Provide[ServiceContainer.url_
     try:
         # Get appropriate image URL (direct image or extracted from webpage)
         image_url = url_thumbnail_service.get_preview_image_url(url)
+        if not image_url:
+            return jsonify({'error': 'No preview image available'}), 404
+
         image_data, content_type = url_thumbnail_service._download_image(image_url, url)
 
         # Return image data directly

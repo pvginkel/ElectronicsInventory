@@ -184,8 +184,7 @@ class URLThumbnailService(BaseService):
             favicon=None,
             thumbnail_source=ThumbnailSourceType.PDF,
             original_url=url,
-            content_type=URLContentType.PDF,
-            thumbnail_url='https://upload.wikimedia.org/wikipedia/commons/8/87/PDF_file_icon.svg'
+            content_type=URLContentType.PDF
         )
 
     def _process_other_content(self, content: bytes, url: str, detected_type: str) -> URLMetadataSchema:
@@ -305,8 +304,6 @@ class URLThumbnailService(BaseService):
 
             # Check if content type is image
             content_type = result.content_type
-            if not content_type.startswith('image/'):
-                content_type = 'image/jpeg'  # Default fallback
 
             # Check size limit (5MB)
             max_size = 5 * 1024 * 1024  # 5MB
@@ -470,7 +467,7 @@ class URLThumbnailService(BaseService):
         image_url = self.get_preview_image_url(url)
 
         # Download the image
-        image_data, content_type = self._download_image(image_url, url)
+        image_data, content_type = self._download_image(image_url or url, url)
 
         # Generate S3 key for the thumbnail
         filename = f"url_thumbnail.{content_type.split('/')[-1]}"
@@ -494,7 +491,7 @@ class URLThumbnailService(BaseService):
         return s3_key, content_type, file_size, full_metadata
 
 
-    def get_preview_image_url(self, url: str) -> str:
+    def get_preview_image_url(self, url: str) -> str | None:
         """Get the appropriate image URL for preview based on content type.
 
         Args:
@@ -512,7 +509,7 @@ class URLThumbnailService(BaseService):
         # Return the thumbnail URL from metadata
         thumbnail_url = metadata.thumbnail_url
         if not thumbnail_url:
-            raise InvalidOperationException("get preview image URL", "No image URL available")
+            return None
 
         return thumbnail_url
 
