@@ -17,6 +17,7 @@ def health_check():
 # Note: Imports are done after api_bp creation to avoid circular imports
 from app.api.ai_parts import ai_parts_bp  # noqa: E402
 from app.api.boxes import boxes_bp  # noqa: E402
+from app.api.dashboard import dashboard_bp  # noqa: E402
 from app.api.documents import documents_bp  # noqa: E402
 from app.api.inventory import inventory_bp  # noqa: E402
 from app.api.locations import locations_bp  # noqa: E402
@@ -26,6 +27,7 @@ from app.api.types import types_bp  # noqa: E402
 
 api_bp.register_blueprint(ai_parts_bp)
 api_bp.register_blueprint(boxes_bp)
+api_bp.register_blueprint(dashboard_bp)
 api_bp.register_blueprint(documents_bp)
 api_bp.register_blueprint(locations_bp)
 api_bp.register_blueprint(types_bp)

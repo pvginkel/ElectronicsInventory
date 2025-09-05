@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from app.config import Settings
 from app.services.ai_service import AIService
 from app.services.box_service import BoxService
+from app.services.dashboard_service import DashboardService
 from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
 from app.services.image_service import ImageService
@@ -34,6 +35,7 @@ class ServiceContainer(containers.DeclarativeContainer):
     part_service = providers.Factory(PartService, db=db_session)
     box_service = providers.Factory(BoxService, db=db_session)
     type_service = providers.Factory(TypeService, db=db_session)
+    dashboard_service = providers.Factory(DashboardService, db=db_session)
     setup_service = providers.Factory(SetupService, db=db_session)
     test_data_service = providers.Factory(TestDataService, db=db_session)
 
