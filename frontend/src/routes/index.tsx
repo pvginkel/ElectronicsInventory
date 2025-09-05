@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { QuickFindWidget } from '@/components/dashboard/quick-find-widget'
 import { EnhancedMetricsCards } from '@/components/dashboard/enhanced-metrics-cards'
 import { InventoryHealthScore } from '@/components/dashboard/inventory-health-score'
 import { StorageUtilizationGrid } from '@/components/dashboard/storage-utilization-grid'
@@ -15,11 +14,6 @@ export const Route = createFileRoute('/')({
 function Dashboard() {
   return (
     <div className="space-y-6">
-      {/* Quick Find Bar - Persistent, always accessible */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm py-4 -mx-6 px-6 border-b">
-        <QuickFindWidget className="max-w-2xl mx-auto" />
-      </div>
-
       {/* Key Metrics */}
       <EnhancedMetricsCards />
 

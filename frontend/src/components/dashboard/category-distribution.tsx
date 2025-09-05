@@ -1,4 +1,5 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { useDashboardData } from '@/hooks/use-dashboard'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, useMemo } from 'react'
@@ -17,7 +18,7 @@ function CategoryBar({ categoryName, count, maxCount, color, onCategoryClick }: 
 
   return (
     <div 
-      className="group cursor-pointer transition-all duration-200 hover:scale-105"
+      className="group cursor-pointer transition-all duration-200 hover:scale-105 relative"
       onClick={() => onCategoryClick(categoryName)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -60,10 +61,9 @@ function CategoryBar({ categoryName, count, maxCount, color, onCategoryClick }: 
 
       {/* Tooltip */}
       {isHovered && (
-        <div className="absolute z-10 mt-2 bg-popover border rounded-lg px-3 py-2 shadow-lg text-sm">
+        <div className="absolute bottom-full left-0 mb-2 z-[70] bg-popover border rounded-lg px-3 py-2 shadow-lg text-sm pointer-events-none max-w-xs whitespace-nowrap">
           <div className="font-semibold">{categoryName}</div>
           <div className="text-muted-foreground">{count} parts ({Math.round(percentage)}%)</div>
-          <div className="text-xs text-muted-foreground mt-1">Click to filter parts</div>
         </div>
       )}
     </div>
@@ -168,6 +168,7 @@ const CATEGORY_COLORS = [
 export function CategoryDistribution() {
   const { categories, isLoading } = useDashboardData()
   const navigate = useNavigate()
+  const [showAll, setShowAll] = useState(false)
 
   // Process categories and generate insights
   const processedData = useMemo(() => {
@@ -264,6 +265,10 @@ export function CategoryDistribution() {
 
   const { categories: sortedCategories, maxCount, totalParts, insights } = processedData
 
+  // Limit to 10 categories initially, similar to low stock alerts
+  const displayedCategories = showAll ? sortedCategories : sortedCategories.slice(0, 10)
+  const hasMore = sortedCategories.length > 10
+
   return (
     <Card>
       <CardHeader className="pb-4">
@@ -278,7 +283,7 @@ export function CategoryDistribution() {
       <CardContent className="space-y-6">
         {/* Interactive Bar Chart */}
         <div className="space-y-4">
-          {sortedCategories.map((category: any) => (
+          {displayedCategories.map((category: any) => (
             <CategoryBar
               key={category.type_name}
               categoryName={category.type_name}
@@ -289,6 +294,29 @@ export function CategoryDistribution() {
             />
           ))}
         </div>
+
+        {/* Show More Button */}
+        {hasMore && !showAll && (
+          <Button
+            variant="outline"
+            onClick={() => setShowAll(true)}
+            className="w-full"
+            size="sm"
+          >
+            Show {sortedCategories.length - 10} More
+          </Button>
+        )}
+
+        {showAll && hasMore && (
+          <Button
+            variant="outline"
+            onClick={() => setShowAll(false)}
+            className="w-full"
+            size="sm"
+          >
+            Show Less
+          </Button>
+        )}
 
         {/* Smart Insights */}
         {insights.length > 0 && (

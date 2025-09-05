@@ -246,7 +246,7 @@ export function DocumentationStatus() {
     <Card className="relative overflow-hidden">
       {/* Celebration Effect */}
       {showCelebration && percentage === 100 && (
-        <div className="absolute inset-0 bg-green-500/10 animate-pulse z-10 pointer-events-none">
+        <div className="absolute inset-0 bg-green-500/10 animate-pulse z-[60] pointer-events-none">
           <div className="absolute top-4 left-4 text-2xl animate-bounce">🎉</div>
           <div className="absolute top-6 right-6 text-2xl animate-bounce delay-150">🎊</div>
           <div className="absolute bottom-4 left-6 text-2xl animate-bounce delay-300">✨</div>

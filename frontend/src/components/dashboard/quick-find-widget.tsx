@@ -151,7 +151,7 @@ export function QuickFindWidget({ className }: QuickFindWidgetProps) {
 
       {/* Search Results */}
       {showResults && (
-        <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-96 overflow-y-auto shadow-lg border-primary/20">
+        <Card className="absolute top-full left-0 right-0 z-[80] mt-1 max-h-96 overflow-y-auto shadow-lg border-primary/20">
           {filteredParts.length > 0 ? (
             <div className="py-2">
               {filteredParts.map((part, index) => {

@@ -51,7 +51,7 @@ function StorageBox({
         relative cursor-pointer transition-all duration-200 rounded-lg p-3
         ${getBorderColor(usagePercentage)} ${borderThickness}
         hover:shadow-md hover:shadow-primary/20 hover:border-primary/60
-        ${isHovered ? 'transform scale-105 z-10' : ''}
+        ${isHovered ? 'transform scale-105 z-[60]' : ''}
       `}
       style={{
         backgroundColor: `rgba(var(--primary), ${getBackgroundOpacity(usagePercentage)})`
@@ -98,13 +98,12 @@ function StorageBox({
 
       {/* Hover Tooltip */}
       {isHovered && (
-        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-popover border rounded px-2 py-1 shadow-lg text-xs whitespace-nowrap z-20">
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-popover border rounded px-2 py-1 shadow-lg text-xs whitespace-nowrap z-[70]">
           <div className="font-medium">Box {boxNo}</div>
           <div className="text-muted-foreground">{description}</div>
           <div className="text-primary font-medium">
             {occupiedLocations} / {totalLocations} locations ({Math.round(usagePercentage)}%)
           </div>
-          <div className="text-muted-foreground text-xs">Click to view details</div>
         </div>
       )}
 

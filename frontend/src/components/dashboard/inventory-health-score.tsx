@@ -141,7 +141,7 @@ function HealthBreakdownTooltip({
   ]
 
   return (
-    <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-80 bg-popover border rounded-lg shadow-lg p-4 z-10">
+    <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 bg-popover border rounded-lg shadow-lg p-4 z-[70]">
       <div className="flex justify-between items-center mb-3">
         <h3 className="font-semibold text-sm">Health Score Breakdown</h3>
         <button 
@@ -178,9 +178,6 @@ function HealthBreakdownTooltip({
         ))}
       </div>
       
-      <div className="mt-4 pt-3 border-t text-xs text-muted-foreground">
-        Click to view detailed health report
-      </div>
     </div>
   )
 }
