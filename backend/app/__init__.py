@@ -81,6 +81,14 @@ def create_app(settings: "Settings | None" = None) -> Flask:
     temp_file_manager = container.temp_file_manager()
     temp_file_manager.start_cleanup_thread()
 
+    # Ensure S3 bucket exists during startup
+    try:
+        s3_service = container.s3_service()
+        s3_service.ensure_bucket_exists()
+    except Exception as e:
+        # Log warning but don't fail startup - S3 might be optional
+        app.logger.warning(f"Failed to ensure S3 bucket exists: {e}")
+
     @app.teardown_appcontext
     def stop_temp_file_cleanup(error):
         """Stop background cleanup thread on app teardown."""

@@ -187,3 +187,33 @@ class S3Service(BaseService):
             if e.response['Error']['Code'] == '404':
                 raise InvalidOperationException("get file metadata from S3", f"file not found: {s3_key}") from e
             raise InvalidOperationException("get file metadata from S3", str(e)) from e
+
+    def ensure_bucket_exists(self) -> bool:
+        """Ensure the configured S3 bucket exists, create if it doesn't.
+
+        Returns:
+            True if bucket exists or was created successfully
+
+        Raises:
+            InvalidOperationException: If bucket creation fails
+        """
+        try:
+            # Check if bucket exists
+            self.s3_client.head_bucket(Bucket=self.settings.S3_BUCKET_NAME)
+            return True
+
+        except ClientError as e:
+            # If bucket doesn't exist (404), create it
+            if e.response['Error']['Code'] == '404':
+                try:
+                    # Create bucket without location constraint for compatibility
+                    self.s3_client.create_bucket(Bucket=self.settings.S3_BUCKET_NAME)
+                    return True
+                except ClientError as create_error:
+                    raise InvalidOperationException(
+                        "create S3 bucket", 
+                        f"failed to create bucket {self.settings.S3_BUCKET_NAME}: {create_error}"
+                    ) from create_error
+            else:
+                # Other errors (permissions, etc.)
+                raise InvalidOperationException("check S3 bucket existence", str(e)) from e
