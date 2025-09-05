@@ -12,6 +12,7 @@ from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
 from app.models.type import Type
 from app.services.base import BaseService
+from app.services.type_service import TypeService
 
 if TYPE_CHECKING:
     pass
@@ -192,12 +193,10 @@ class DashboardService(BaseService):
         """Returns part counts by type/category.
 
         Returns:
-            List of dictionaries containing type name, color,
-            and part count, ordered by part count descending.
+            List of dictionaries containing type name and part count,
+            ordered by part count descending.
         """
         # Use existing method from type_service
-        from app.services.type_service import TypeService
-
         type_service = TypeService(self.db)
         types_with_counts = type_service.get_all_types_with_part_counts()
 
@@ -219,21 +218,18 @@ class DashboardService(BaseService):
             Dictionary containing count of undocumented parts
             and list of first 10 part details.
         """
-        # Find parts without entries in part_attachments table
-        undocumented_parts_subquery = select(Part.id).outerjoin(
+        # Simplified approach: find parts without entries in part_attachments table
+        # Use a simpler LEFT JOIN approach
+        parts_without_docs_stmt = select(Part).outerjoin(
             PartAttachment, Part.id == PartAttachment.part_id
-        ).where(PartAttachment.id.is_(None)).subquery()
+        ).where(PartAttachment.id.is_(None))
 
-        # Count undocumented parts
-        count_stmt = select(func.count()).select_from(undocumented_parts_subquery)
-        total_count = self.db.execute(count_stmt).scalar() or 0
+        # Get all undocumented parts (for counting)
+        all_undocumented_parts = self.db.execute(parts_without_docs_stmt).scalars().all()
+        total_count = len(all_undocumented_parts)
 
-        # Get first 10 part details
-        sample_stmt = select(Part).where(
-            Part.id.in_(select(undocumented_parts_subquery))
-        ).limit(10)
-
-        sample_parts = self.db.execute(sample_stmt).scalars().all()
+        # Take first 10 for sample
+        sample_parts = all_undocumented_parts[:10]
 
         sample_data = []
         for part in sample_parts:
