@@ -13,7 +13,7 @@ interface UseAIPartAnalysisOptions {
 }
 
 interface UseAIPartAnalysisReturn {
-  analyzePartFromData: (data: { text: string }) => Promise<void>;
+  analyzePartFromData: (data: { text?: string; image?: File }) => Promise<void>;
   cancelAnalysis: () => void;
   isAnalyzing: boolean;
   progress: { message: string; percentage?: number } | null;
@@ -45,28 +45,34 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
     }
   });
 
-  const analyzePartFromData = useCallback(async (data: { text: string }) => {
+  const analyzePartFromData = useCallback(async (data: { text?: string; image?: File }) => {
     if (isAnalyzing) {
       return;
     }
 
-    if (!data.text) {
-      options.onError?.('Text input is required');
+    if (!data.text && !data.image) {
+      options.onError?.('Either text or image must be provided');
       return;
     }
 
     try {
       setIsAnalyzing(true);
       
-      // Submit JSON data to analyze endpoint
+      // Create FormData for multipart submission
+      const formData = new FormData();
+      
+      if (data.text) {
+        formData.append('text', data.text);
+      }
+      
+      if (data.image) {
+        formData.append('image', data.image);
+      }
+
+      // Submit to analyze endpoint
       const response = await fetch(`${baseUrl}/api/ai-parts/analyze`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: data.text,
-        }),
+        body: formData,
       });
 
       if (!response.ok) {
