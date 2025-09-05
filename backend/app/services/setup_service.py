@@ -1,12 +1,10 @@
 """Setup service for database initialization and sync operations."""
 
-from pathlib import Path
-
 from sqlalchemy import select
 
-from app.exceptions import InvalidOperationException
 from app.models.type import Type
 from app.services.base import BaseService
+from app.utils.file_parsers import get_types_from_setup
 
 
 class SetupService(BaseService):
@@ -22,36 +20,17 @@ class SetupService(BaseService):
             int: Number of new types added to the database
 
         Raises:
-            InvalidOperationException: If types.txt file is not found
+            InvalidOperationException: If types.txt file is not found or parsing fails
         """
-        # Determine path to types.txt
-        types_file_path = Path(__file__).parent.parent / "data" / "setup" / "types.txt"
-
-        # Check if file exists
-        if not types_file_path.exists():
-            raise InvalidOperationException("sync types from setup", "types.txt file not found")
-
         # Get existing type names from database
         stmt = select(Type.name)
         existing_type_names = set(self.db.execute(stmt).scalars().all())
 
-        # Parse file line by line and collect new types
-        new_type_names = []
-        try:
-            with open(types_file_path, encoding='utf-8') as file:
-                for line in file:
-                    # Strip whitespace from line
-                    line = line.strip()
+        # Get types from setup file
+        setup_type_names = get_types_from_setup()
 
-                    # Skip empty lines and comment lines
-                    if not line or line.startswith('#'):
-                        continue
-
-                    # If line not in existing types, add to new types list
-                    if line not in existing_type_names:
-                        new_type_names.append(line)
-        except Exception as e:
-            raise InvalidOperationException("sync types from setup", f"error reading types.txt: {str(e)}") from e
+        # Collect new types that aren't in database yet
+        new_type_names = [name for name in setup_type_names if name not in existing_type_names]
 
         # Create Type objects for new types
         for type_name in new_type_names:

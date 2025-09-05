@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from jinja2 import Environment
 from pydantic import BaseModel
 from app.utils.ai.ai_runner import AIFunction, AIRequest, AIRunner
-from data import PRODUCT_CATEGORIES
+from app.utils.file_parsers import get_types_from_setup
 from tools.prompttester.model import AllUrlsSchema, BasicInformationSchema, PartDetailsSchema, PartFullSchema, UrlsSchema
 from tools.prompttester.url_classifier import URLClassifierFunctionImpl
 
@@ -175,7 +175,7 @@ def single_run(query: str, run_parameters: RunParameters) -> None:
 
 def get_full_schema(query: str, run_parameters: RunParameters) -> PartFullSchema:
     system_prompt = render_template("prompt_full_schema.md", {
-        "categories": PRODUCT_CATEGORIES
+        "categories": get_types_from_setup()
     })
     user_prompt = query
 
@@ -207,7 +207,7 @@ def get_basic_information(query: str, run_parameters: RunParameters) -> BasicInf
 
 def get_part_details(basic_information: BasicInformationSchema, run_parameters: RunParameters) -> PartDetailsSchema:
     system_prompt = render_template("prompt_part_details.md", {
-        "categories": PRODUCT_CATEGORIES
+        "categories": get_types_from_setup()
     })
 
     user_prompt = f"""Product Name: {basic_information.product_name}
