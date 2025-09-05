@@ -179,4 +179,37 @@
   *::-webkit-scrollbar-corner {
     background: transparent;
   }
+
+  /* AI Assisted Button Glare Animation */
+  @keyframes glare-sweep {
+    0% {
+      transform: translateX(-100%) skewX(-15deg);
+    }
+    100% {
+      transform: translateX(200%) skewX(-15deg);
+    }
+  }
+
+  .ai-glare {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ai-glare::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.4) 50%, transparent 70%);
+    width: 50%;
+    transform: translateX(-200%) skewX(-10deg);
+    z-index: 1;
+  }
+
+  .ai-glare:hover::before {
+    transform: translateX(400%) skewX(-10deg);
+    transition: transform 1s ease-out;
+  }
 }

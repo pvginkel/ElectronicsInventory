@@ -3,7 +3,7 @@ import { type ReactNode } from 'react'
 interface ButtonProps {
   children: ReactNode
   onClick?: () => void
-  variant?: 'default' | 'primary' | 'secondary' | 'outline' | 'ghost'
+  variant?: 'default' | 'primary' | 'secondary' | 'outline' | 'ghost' | 'ai_assisted'
   size?: 'sm' | 'md' | 'lg'
   disabled?: boolean
   loading?: boolean
@@ -32,7 +32,8 @@ export function Button({
     primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
     secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
     outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
-    ghost: 'hover:bg-accent hover:text-accent-foreground'
+    ghost: 'hover:bg-accent hover:text-accent-foreground',
+    ai_assisted: 'bg-gradient-to-r from-[#0afecf] to-[#16bbd4] ai-glare'
   }
   
   const sizeClasses = {
@@ -61,7 +62,13 @@ export function Button({
       ) : icon ? (
         <span className="mr-2">{icon}</span>
       ) : null}
-      {children}
+      {variant === 'ai_assisted' ? (
+        <span className="bg-gradient-to-r from-[#1982a4] to-[#bd3cb9] bg-clip-text text-transparent relative z-10">
+          {children}
+        </span>
+      ) : (
+        children
+      )}
     </button>
   )
 }

@@ -69,7 +69,7 @@ export function PartList({ onSelectPart, onCreatePart, onCreateWithAI }: PartLis
         {(onCreatePart || onCreateWithAI) && (
           <div className="flex gap-2">
             {onCreateWithAI && (
-              <Button onClick={onCreateWithAI} variant="outline">
+              <Button onClick={onCreateWithAI} variant="ai_assisted">
                 Add with AI
               </Button>
             )}
