@@ -59,21 +59,6 @@ class PartAttachment(db.Model):  # type: ignore[name-defined]
         return f"<PartAttachment {self.id}: {self.attachment_type.value} - {self.title}>"
 
     @property
-    def is_image(self) -> bool:
-        """Check if this attachment is an image."""
-        return self.attachment_type == AttachmentType.IMAGE
-
-    @property
-    def is_pdf(self) -> bool:
-        """Check if this attachment is a PDF."""
-        return self.attachment_type == AttachmentType.PDF
-
-    @property
-    def is_url(self) -> bool:
-        """Check if this attachment is a URL."""
-        return self.attachment_type == AttachmentType.URL
-
-    @property
     def has_preview(self) -> bool:
         """Check if this attachment has a preview image (computed property)."""
         # Only image content types have previews

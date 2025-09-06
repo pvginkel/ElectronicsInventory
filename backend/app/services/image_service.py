@@ -127,52 +127,6 @@ class ImageService(BaseService):
 
         return thumbnail_path
 
-    def process_uploaded_image(self, image_data: BinaryIO) -> tuple[BinaryIO, dict]:
-        """Process uploaded image and extract metadata.
-
-        Args:
-            image_data: Image file data
-
-        Returns:
-            Tuple of (processed_image_data, metadata_dict)
-
-        Raises:
-            InvalidOperationException: If image processing fails
-        """
-        try:
-            with Image.open(image_data) as img:
-                # Extract metadata
-                metadata = {
-                    'width': img.width,
-                    'height': img.height,
-                    'format': img.format,
-                    'mode': img.mode
-                }
-
-                # Add EXIF data if available
-                if hasattr(img, '_getexif') and img._getexif() is not None:
-                    exif_data = img._getexif()
-                    if exif_data:
-                        metadata['has_exif'] = True
-                        # Extract useful EXIF data
-                        orientation = exif_data.get(274)  # Orientation tag
-                        if orientation:
-                            metadata['orientation'] = orientation
-
-                # Convert to RGB if necessary
-                if img.mode not in ('RGB', 'L'):
-                    img = img.convert('RGB')
-
-                # Save processed image
-                output = BytesIO()
-                img.save(output, 'JPEG', quality=90, optimize=True)
-                output.seek(0)
-
-                return output, metadata
-
-        except Exception as e:
-            raise InvalidOperationException("process image", f"image processing failed: {str(e)}") from e
-
     def get_pdf_icon_data(self) -> tuple[bytes, str]:
         """Get PDF icon as SVG data.
 
