@@ -51,9 +51,12 @@ class TestDocumentAPI:
     def test_create_url_attachment_success(self, mock_process_url, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
         """Test successful URL attachment creation via API."""
         # Mock the process_upload_url response
-        from app.schemas.upload_document import UploadDocumentSchema, DocumentContentSchema
         from app.models.part_attachment import AttachmentType
-        
+        from app.schemas.upload_document import (
+            DocumentContentSchema,
+            UploadDocumentSchema,
+        )
+
         mock_process_url.return_value = UploadDocumentSchema(
             title="Product Page",
             content=DocumentContentSchema(
@@ -66,7 +69,7 @@ class TestDocumentAPI:
                 content_type="image/jpeg"
             )
         )
-        
+
         with app.app_context():
             # Create test part using service
             part_type = container.type_service().create_type("URL Test Type")
@@ -526,9 +529,12 @@ class TestUrlPreviewAPI:
     @patch('app.services.document_service.DocumentService.process_upload_url')
     def test_attachment_preview_success(self, mock_process_url, client: FlaskClient):
         """Test successful URL preview metadata extraction."""
-        from app.schemas.upload_document import UploadDocumentSchema, DocumentContentSchema
         from app.models.part_attachment import AttachmentType
-        
+        from app.schemas.upload_document import (
+            DocumentContentSchema,
+            UploadDocumentSchema,
+        )
+
         # Mock successful URL processing with preview image
         mock_process_url.return_value = UploadDocumentSchema(
             title='Test Page Title',
@@ -560,9 +566,12 @@ class TestUrlPreviewAPI:
     @patch('app.services.document_service.DocumentService.process_upload_url')
     def test_attachment_preview_direct_image_title(self, mock_process_url, client: FlaskClient):
         """Test URL preview with direct image URL extracts title from filename."""
-        from app.schemas.upload_document import UploadDocumentSchema, DocumentContentSchema
         from app.models.part_attachment import AttachmentType
-        
+        from app.schemas.upload_document import (
+            DocumentContentSchema,
+            UploadDocumentSchema,
+        )
+
         # Mock direct image processing
         mock_process_url.return_value = UploadDocumentSchema(
             title='dht22-thermometer-temperature-and-humidity-sensor.jpg',
@@ -592,9 +601,12 @@ class TestUrlPreviewAPI:
     @patch('app.services.document_service.DocumentService.process_upload_url')
     def test_attachment_preview_no_image(self, mock_process_url, client: FlaskClient):
         """Test URL preview with no image available."""
-        from app.schemas.upload_document import UploadDocumentSchema, DocumentContentSchema
         from app.models.part_attachment import AttachmentType
-        
+        from app.schemas.upload_document import (
+            DocumentContentSchema,
+            UploadDocumentSchema,
+        )
+
         # Mock HTML page with no preview image
         mock_process_url.return_value = UploadDocumentSchema(
             title='Test Page Title',
@@ -625,7 +637,7 @@ class TestUrlPreviewAPI:
         """Test URL preview with invalid URL."""
         # Mock URL processing failure
         mock_process_url.side_effect = Exception("Invalid URL format")
-        
+
         response = client.post(
             '/api/parts/attachment-preview',
             json={'url': 'invalid-url'}
@@ -643,7 +655,7 @@ class TestUrlPreviewAPI:
         """Test URL preview with extraction failure."""
         # Mock processing failure
         mock_process_url.side_effect = Exception("Extraction failed")
-        
+
         response = client.post(
             '/api/parts/attachment-preview',
             json={'url': 'https://example.com'}
@@ -692,7 +704,7 @@ class TestUrlPreviewAPI:
         """Test preview image with invalid URL."""
         # Mock get_preview_image to raise an exception for invalid URL
         mock_get_preview_image.side_effect = Exception("Invalid URL format")
-        
+
         response = client.get('/api/parts/attachment-preview/image?url=invalid-url')
 
         assert response.status_code == 404
@@ -707,7 +719,7 @@ class TestUrlPreviewAPI:
         """Test preview image with extraction failure."""
         # Mock extraction failure
         mock_get_preview_image.side_effect = Exception("Image extraction failed")
-        
+
         response = client.get('/api/parts/attachment-preview/image?url=https%3A//example.com')
 
         assert response.status_code == 404

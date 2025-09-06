@@ -245,10 +245,10 @@ class TestImageService:
 def test_get_link_icon_data(image_service):
     """Test getting link icon data."""
     link_data, content_type = image_service.get_link_icon_data()
-    
+
     # Verify content type
     assert content_type == 'image/svg+xml'
-    
+
     # Verify it's valid SVG content
     assert isinstance(link_data, bytes)
     svg_content = link_data.decode('utf-8')
@@ -262,7 +262,7 @@ def test_get_link_icon_data_file_not_found(image_service):
     with patch('builtins.open', side_effect=FileNotFoundError("File not found")):
         with pytest.raises(InvalidOperationException) as exc_info:
             image_service.get_link_icon_data()
-        
+
         assert "get link icon data" in str(exc_info.value)
         assert "failed to read link icon" in str(exc_info.value)
 
@@ -273,6 +273,6 @@ def test_get_pdf_icon_data_file_not_found(image_service):
     with patch('builtins.open', side_effect=FileNotFoundError("File not found")):
         with pytest.raises(InvalidOperationException) as exc_info:
             image_service.get_pdf_icon_data()
-        
+
         assert "get pdf icon data" in str(exc_info.value)
         assert "failed to read pdf icon" in str(exc_info.value)

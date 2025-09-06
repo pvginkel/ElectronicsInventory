@@ -13,11 +13,12 @@ from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.part import Part
 from app.models.part_attachment import AttachmentType, PartAttachment
 from app.models.type import Type
+from app.schemas.upload_document import DocumentContentSchema, UploadDocumentSchema
 from app.services.container import ServiceContainer
 from app.services.document_service import DocumentService
 from app.services.url_transformers import URLInterceptorRegistry
 from app.utils.temp_file_manager import TempFileManager
-from app.schemas.upload_document import UploadDocumentSchema, DocumentContentSchema
+
 
 @pytest.fixture
 def temp_file_manager():
@@ -49,9 +50,9 @@ def mock_image_service():
 def mock_html_handler():
     """Create mock HtmlDocumentHandler."""
     mock = MagicMock()
-    from app.services.html_document_handler import HtmlDocumentInfo
     from app.schemas.upload_document import DocumentContentSchema
-    
+    from app.services.html_document_handler import HtmlDocumentInfo
+
     mock.process_html_content.return_value = HtmlDocumentInfo(
         title="Test Page",
         preview_image=DocumentContentSchema(
@@ -65,7 +66,7 @@ def mock_html_handler():
 def mock_download_cache():
     """Create mock DownloadCacheService."""
     from app.services.download_cache_service import DownloadResult
-    
+
     mock = MagicMock()
     mock.get_cached_content.return_value = DownloadResult(
         content=b"<html><title>Test Page</title></html>",
@@ -180,7 +181,7 @@ class TestDocumentService:
         """Test successful URL attachment creation."""
         # Mock HTML content with preview image
         mock_download_cache.get_cached_content.return_value = b"<html><title>Product Page</title></html>"
-        
+
         with patch.object(document_service, 'process_upload_url') as mock_process:
             mock_process.return_value = UploadDocumentSchema(
                 title="Product Page",
@@ -194,7 +195,7 @@ class TestDocumentService:
                     content_type="image/jpeg"
                 )
             )
-            
+
             attachment = document_service.create_url_attachment(
                 part_key=sample_part.key,
                 title="Product Page",
@@ -779,7 +780,7 @@ class TestDocumentService:
                 detected_type=AttachmentType.URL,
                 preview_image=None  # No preview image
             )
-            
+
             attachment = document_service.create_url_attachment(
                 part_key=sample_part.key,
                 title="URL without Thumbnail",
@@ -802,7 +803,7 @@ class TestDocumentService:
                 detected_type=AttachmentType.URL,
                 preview_image=None  # No preview image
             )
-            
+
             attachment = document_service.create_url_attachment(
                 part_key=sample_part.key,
                 title="URL No Image",
@@ -828,7 +829,7 @@ class TestDocumentService:
         session.flush()
 
         # Test model's has_preview property directly since service method doesn't exist
-        assert attachment.has_preview == True
+        assert attachment.has_preview is True
 
     def test_attachment_has_image_method_not_found(self, document_service, session):
         """Test getting non-existent attachment."""
@@ -849,18 +850,21 @@ class TestDocumentService:
                 detected_type=AttachmentType.IMAGE,
                 preview_image=None
             )
-            
+
             result = document_service.process_upload_url("https://example.com/image.jpg")
-            
+
             assert result.title == "image.jpg"
             assert result.detected_type == AttachmentType.IMAGE
             assert result.preview_image is None
-    
+
     def test_process_upload_url_html_with_preview(self, document_service, session, sample_part):
         """Test processing HTML URL with preview image."""
         with patch.object(document_service, 'process_upload_url') as mock_process:
-            from app.schemas.upload_document import UploadDocumentSchema, DocumentContentSchema
-            
+            from app.schemas.upload_document import (
+                DocumentContentSchema,
+                UploadDocumentSchema,
+            )
+
             mock_process.return_value = UploadDocumentSchema(
                 title="Product Page",
                 content=DocumentContentSchema(
@@ -873,114 +877,114 @@ class TestDocumentService:
                     content_type="image/jpeg"
                 )
             )
-            
+
             result = document_service.process_upload_url("https://example.com/product")
-            
+
             assert result.title == "Product Page"
             assert result.detected_type == AttachmentType.URL
             assert result.preview_image is not None
             assert result.preview_image.content_type == "image/jpeg"
-    
+
     def test_create_file_attachment_stores_image_verbatim(self, document_service, session, sample_part):
         """Test that images are stored byte-for-byte identical without re-encoding."""
         # Create unique test bytes that would change if re-encoded
         original_bytes = b"FAKE_JPEG_CONTENT_THAT_WOULD_CHANGE_IF_REENCODED"
         test_file = io.BytesIO(original_bytes)
-        
+
         with patch('magic.from_buffer') as mock_magic, \
              patch.object(document_service.s3_service, 'upload_file') as mock_upload:
             mock_magic.return_value = 'image/jpeg'
-            
+
             attachment = document_service.create_file_attachment(
                 part_key=sample_part.key,
                 title="Test Image",
                 file_data=test_file,
                 filename="test.jpg"
             )
-            
+
             # Verify S3 received the exact original bytes
             mock_upload.assert_called_once()
             uploaded_data = mock_upload.call_args[0][0]
             uploaded_data.seek(0)
             uploaded_bytes = uploaded_data.read()
-            
+
             assert uploaded_bytes == original_bytes, "Image was modified during storage"
             assert attachment.content_type == "image/jpeg"
-    
+
     def test_create_file_attachment_preserves_png_transparency(self, document_service, session, sample_part):
         """Test that PNG images with transparency are stored without conversion."""
         # Create fake PNG content (would lose transparency if converted to JPEG)
         png_with_alpha = b"PNG_WITH_ALPHA_CHANNEL_DATA"
         test_file = io.BytesIO(png_with_alpha)
-        
+
         with patch('magic.from_buffer') as mock_magic, \
              patch.object(document_service.s3_service, 'upload_file') as mock_upload:
             mock_magic.return_value = 'image/png'
-            
+
             attachment = document_service.create_file_attachment(
                 part_key=sample_part.key,
                 title="PNG with Transparency",
                 file_data=test_file,
                 filename="transparent.png"
             )
-            
+
             # Verify PNG was stored as-is
             mock_upload.assert_called_once()
             uploaded_data = mock_upload.call_args[0][0]
             uploaded_data.seek(0)
             uploaded_bytes = uploaded_data.read()
-            
+
             assert uploaded_bytes == png_with_alpha, "PNG was modified during storage"
             assert attachment.content_type == "image/png"
-    
+
     def test_create_file_attachment_no_jpeg_reencoding(self, document_service, session, sample_part):
         """Test that JPEG images are not re-encoded (which would lose quality)."""
         # JPEG bytes that would change if re-encoded due to quality loss
         original_jpeg = b"ORIGINAL_JPEG_WITH_SPECIFIC_QUALITY_SETTINGS"
         test_file = io.BytesIO(original_jpeg)
-        
+
         with patch('magic.from_buffer') as mock_magic, \
              patch.object(document_service.s3_service, 'upload_file') as mock_upload:
             mock_magic.return_value = 'image/jpeg'
-            
+
             attachment = document_service.create_file_attachment(
                 part_key=sample_part.key,
                 title="Original JPEG",
                 file_data=test_file,
                 filename="original.jpg"
             )
-            
+
             # Verify JPEG was not re-encoded
             mock_upload.assert_called_once()
             uploaded_data = mock_upload.call_args[0][0]
             uploaded_data.seek(0)
             uploaded_bytes = uploaded_data.read()
-            
+
             assert uploaded_bytes == original_jpeg, "JPEG was re-encoded during storage"
             assert attachment.content_type == "image/jpeg"
-    
+
     def test_create_file_attachment_ignores_content_type_parameter(self, document_service, session, sample_part):
         """Test that python-magic detection overrides provided content_type parameter."""
         # Create content that's actually a PDF
         pdf_content = b"PDF_CONTENT_HERE"
         test_file = io.BytesIO(pdf_content)
-        
+
         with patch('magic.from_buffer') as mock_magic, \
              patch.object(document_service.s3_service, 'upload_file') as mock_upload:
             # Magic detects it's a PDF despite wrong content_type parameter
             mock_magic.return_value = 'application/pdf'
-            
+
             attachment = document_service.create_file_attachment(
                 part_key=sample_part.key,
                 title="Mislabeled File",
                 file_data=test_file,
                 filename="file.jpg"  # Wrong extension
             )
-            
+
             # Verify the detected type was used, not the provided one
             assert attachment.content_type == "application/pdf"
             assert attachment.attachment_type == AttachmentType.PDF
-            
+
             # Verify S3 upload used correct content type
             mock_upload.assert_called_once()
             upload_content_type = mock_upload.call_args[0][2]

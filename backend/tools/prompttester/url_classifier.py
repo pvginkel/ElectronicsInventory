@@ -1,10 +1,16 @@
-import requests
+import hashlib
 import logging
 import os
-import hashlib
+
+import requests
 
 from app.services.base_task import ProgressHandle
-from app.utils.ai.url_classification import ClassifyUrlsEntry, ClassifyUrlsRequest, ClassifyUrlsResponse, URLClassifierFunction
+from app.utils.ai.url_classification import (
+    ClassifyUrlsEntry,
+    ClassifyUrlsRequest,
+    ClassifyUrlsResponse,
+    URLClassifierFunction,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +22,7 @@ class URLClassifierFunctionImpl(URLClassifierFunction):
 
     def classify_url(self, request: ClassifyUrlsRequest, progress_handle: ProgressHandle) -> ClassifyUrlsResponse:
         progress_handle.send_progress_text("Classifying URLs")
-        
+
         urls: list[ClassifyUrlsEntry] = []
 
         for url in request.urls:
@@ -34,7 +40,7 @@ class URLClassifierFunctionImpl(URLClassifierFunction):
         if os.path.exists(path):
             with open(path) as f:
                 return ClassifyUrlsEntry.model_validate_json(f.read())
-        
+
         return None
 
     def _cache(self, url: str, entry: ClassifyUrlsEntry) -> None:

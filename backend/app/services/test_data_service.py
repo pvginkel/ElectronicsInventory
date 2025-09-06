@@ -39,16 +39,16 @@ class TestDataService(BaseService):
         # So we just need to query the existing types from the database
         stmt = select(Type)
         existing_types = list(self.db.execute(stmt).scalars().all())
-        
+
         # Return as dictionary mapping name to Type object
         types_map = {type_obj.name: type_obj for type_obj in existing_types}
-        
+
         if not types_map:
             raise InvalidOperationException(
-                "load types data", 
+                "load types data",
                 "No types found in database. Ensure database upgrade completed successfully."
             )
-            
+
         return types_map
 
     def load_boxes(self, data_dir: Path) -> dict[int, Box]:

@@ -1,16 +1,16 @@
 """Location management API endpoints."""
 
 from dependency_injector.wiring import Provide, inject
-from flask import Blueprint, g
+from flask import Blueprint
 from spectree import Response as SpectreeResponse
 from sqlalchemy import select
 
 from app.models.location import Location
 from app.schemas.common import ErrorResponseSchema
 from app.schemas.location import LocationResponseSchema
+from app.services.container import ServiceContainer
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
-from app.services.container import ServiceContainer
 
 locations_bp = Blueprint("locations", __name__, url_prefix="/locations")
 

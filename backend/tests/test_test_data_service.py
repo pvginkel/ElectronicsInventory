@@ -30,17 +30,17 @@ class TestTestDataService:
                 type_obj = Type(name=type_name)
                 session.add(type_obj)
             session.flush()
-            
+
             # Load types from database
             data_dir = Path("/unused")  # Not used anymore
             types_map = container.test_data_service().load_types(data_dir)
-            
+
             # Verify results - should return the existing types from database
             assert len(types_map) == 3
             assert "Resistor" in types_map
             assert "Capacitor" in types_map
             assert "Logic IC (74xx/4000)" in types_map
-            
+
             # Verify all returned objects are from the database
             for type_obj in types_map.values():
                 assert type_obj.id is not None  # Should have database IDs
@@ -50,10 +50,10 @@ class TestTestDataService:
         with app.app_context():
             # Don't create any types in the database
             data_dir = Path("/unused")
-            
+
             with pytest.raises(InvalidOperationException) as exc_info:
                 container.test_data_service().load_types(data_dir)
-                
+
             assert "No types found in database" in str(exc_info.value)
 
     def test_load_types_returns_database_objects(self, app: Flask, session: Session, container: ServiceContainer):
@@ -61,13 +61,13 @@ class TestTestDataService:
         with app.app_context():
             # Create types in database with known IDs
             resistor_type = Type(name="Resistor")
-            capacitor_type = Type(name="Capacitor") 
+            capacitor_type = Type(name="Capacitor")
             session.add(resistor_type)
             session.add(capacitor_type)
             session.flush()  # Get IDs
-            
+
             types_map = container.test_data_service().load_types(Path("/unused"))
-            
+
             # Verify we get the same objects back
             assert len(types_map) == 2
             assert types_map["Resistor"].id == resistor_type.id
@@ -382,7 +382,7 @@ class TestTestDataService:
             resistor_type = Type(name="Resistor")
             session.add(resistor_type)
             session.flush()
-            
+
             # Create minimal test dataset
             boxes_data = [{"box_no": 1, "description": "Test Box", "capacity": 5}]
             parts_data = [{

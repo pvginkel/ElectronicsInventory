@@ -1,7 +1,6 @@
 """Part attachment schemas for request/response validation."""
 
 from datetime import datetime
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 

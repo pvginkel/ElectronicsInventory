@@ -317,7 +317,7 @@ def attachment_proxy_content(
         content = chain(url)
         if not content:
             return jsonify({'error': 'Failed to retrieve content'}), 404
-        
+
         # Return the content with appropriate headers for iframe display
         return send_file(
             io.BytesIO(content.content),

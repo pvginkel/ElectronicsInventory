@@ -58,7 +58,7 @@ class TestDocumentIntegration:
     ):
         """Test complete flow: HTML page with og:image → download → extract → store."""
         document_service = container.document_service()
-        
+
         # Mock HTML response
         html_content = b"""
         <html>
@@ -71,25 +71,25 @@ class TestDocumentIntegration:
             </body>
         </html>
         """
-        
+
         # Mock image response
         preview_image = create_test_image(200, 200, 'blue')
-        
+
         with patch.object(document_service.download_cache_service, 'get_cached_content') as mock_download:
             # First call returns HTML
             mock_download.return_value = DownloadResult(content=html_content, content_type='text/html')
-            
+
             # Also patch the HtmlDocumentHandler's download_cache_service
             with patch.object(document_service.html_handler.download_cache_service, 'get_cached_content') as mock_html_download:
                 # Return preview image when handler tries to download it
                 mock_html_download.return_value = DownloadResult(content=preview_image, content_type='image/jpeg')
-                
+
                 with patch('magic.from_buffer') as mock_magic:
                     # First call identifies HTML, second identifies image
                     mock_magic.side_effect = ['text/html', 'image/jpeg']
-                    
+
                     result = document_service.process_upload_url("https://store.arduino.cc/arduino-uno")
-        
+
         assert result.title == "Arduino Uno R3"
         assert result.detected_type == AttachmentType.URL
         assert result.preview_image is not None
@@ -101,16 +101,16 @@ class TestDocumentIntegration:
     ):
         """Test complete flow: Direct image URL → download → detect → store."""
         document_service = container.document_service()
-        
+
         # Mock direct image download
         image_content = create_test_image(500, 500, 'green')
-        
+
         with patch.object(document_service.download_cache_service, 'get_cached_content') as mock_download:
             mock_download.return_value = DownloadResult(content=image_content, content_type='image/jpeg')
-            
+
             with patch('magic.from_buffer', return_value='image/jpeg'):
                 result = document_service.process_upload_url("https://example.com/schematic.jpg")
-        
+
         assert result.title == "schematic.jpg"  # Extracted from URL
         assert result.detected_type == AttachmentType.IMAGE
         assert result.content.content == image_content
@@ -122,15 +122,15 @@ class TestDocumentIntegration:
     ):
         """Test complete flow: PDF URL → download → detect → store."""
         document_service = container.document_service()
-        
+
         pdf_content = create_test_pdf
-        
+
         with patch.object(document_service.download_cache_service, 'get_cached_content') as mock_download:
             mock_download.return_value = DownloadResult(content=pdf_content, content_type='application/pdf')
-            
+
             with patch('magic.from_buffer', return_value='application/pdf'):
                 result = document_service.process_upload_url("https://example.com/datasheet.pdf")
-        
+
         assert result.title == "datasheet.pdf"
         assert result.detected_type == AttachmentType.PDF
         assert result.content.content == pdf_content
@@ -142,7 +142,7 @@ class TestDocumentIntegration:
     ):
         """Test website without preview images → store only URL."""
         document_service = container.document_service()
-        
+
         # HTML without any preview images
         html_content = b"""
         <html>
@@ -155,14 +155,14 @@ class TestDocumentIntegration:
             </body>
         </html>
         """
-        
+
         with patch.object(document_service.download_cache_service, 'get_cached_content') as mock_download:
             # Returns HTML for main request, None for all image attempts
             mock_download.side_effect = [DownloadResult(content=html_content, content_type='text/html'), None, None, None, None]
-            
+
             with patch('magic.from_buffer', return_value='text/html'):
                 result = document_service.process_upload_url("https://blog.example.com/post")
-        
+
         assert result.title == "Simple Electronics Blog"
         assert result.detected_type == AttachmentType.URL
         assert result.preview_image is None  # No preview found
@@ -173,18 +173,18 @@ class TestDocumentIntegration:
     ):
         """Test generic file type (e.g., .zip) → store only URL."""
         document_service = container.document_service()
-        
+
         # Mock ZIP file content
         zip_content = b"PK\x03\x04"  # ZIP file signature
-        
+
         with patch.object(document_service.download_cache_service, 'get_cached_content') as mock_download:
             mock_download.return_value = DownloadResult(content=zip_content, content_type='application/zip')
-            
+
             with patch('magic.from_buffer', return_value='application/zip'):
                 result = document_service.process_upload_url("https://example.com/firmware.zip")
-        
+
         assert result.title == "firmware.zip"
-        assert result.detected_type == None  # Generic files don't have an attachment type
+        assert result.detected_type is None  # Generic files don't have an attachment type
         assert result.content.content == zip_content
         assert result.preview_image is None
         # Generic files are not stored in S3
@@ -194,17 +194,17 @@ class TestDocumentIntegration:
     ):
         """Test that python-magic detection overrides wrong HTTP headers."""
         document_service = container.document_service()
-        
+
         # Server says it's HTML but it's actually an image
         image_content = create_test_image()
-        
+
         with patch.object(document_service.download_cache_service, 'get_cached_content') as mock_download:
             mock_download.return_value = DownloadResult(content=image_content, content_type='image/jpeg')
-            
+
             # Mock HTTP response claiming wrong content type
             with patch('magic.from_buffer', return_value='image/jpeg'):
                 result = document_service.process_upload_url("https://example.com/mistyped")
-        
+
         # Should detect actual image type, not what HTTP said
         assert result.detected_type == AttachmentType.IMAGE
         assert result.content.content_type == "image/jpeg"
@@ -214,7 +214,7 @@ class TestDocumentIntegration:
     ):
         """Test fallback when preview image returns 404."""
         document_service = container.document_service()
-        
+
         html_content = b"""
         <html>
             <head>
@@ -224,23 +224,23 @@ class TestDocumentIntegration:
             </head>
         </html>
         """
-        
+
         twitter_image = create_test_image(100, 100, 'yellow')
-        
+
         with patch.object(document_service.download_cache_service, 'get_cached_content') as mock_download:
             # First call returns HTML
             mock_download.return_value = DownloadResult(content=html_content, content_type='text/html')
-            
+
             # Also patch the HtmlDocumentHandler's download_cache_service
             with patch.object(document_service.html_handler.download_cache_service, 'get_cached_content') as mock_html_download:
                 # Return None for og:image (404), then success for twitter:image
                 mock_html_download.side_effect = [None, DownloadResult(content=twitter_image, content_type='image/jpeg')]
-                
+
                 with patch('magic.from_buffer') as mock_magic:
                     mock_magic.side_effect = ['text/html', 'image/jpeg']
-                    
+
                     result = document_service.process_upload_url("https://example.com/product")
-        
+
         assert result.title == "Product Page"
         assert result.detected_type == AttachmentType.URL
         assert result.preview_image is not None
@@ -251,7 +251,7 @@ class TestDocumentIntegration:
     ):
         """Test when preview image URL returns HTML redirect page."""
         document_service = container.document_service()
-        
+
         html_content = b"""
         <html>
             <head>
@@ -260,23 +260,23 @@ class TestDocumentIntegration:
             </head>
         </html>
         """
-        
+
         redirect_html = b"<html><body>Redirecting...</body></html>"
-        
+
         with patch.object(document_service.download_cache_service, 'get_cached_content') as mock_download:
             # First call returns HTML
             mock_download.return_value = DownloadResult(content=html_content, content_type='text/html')
-            
+
             # Also patch the HtmlDocumentHandler's download_cache_service
             with patch.object(document_service.html_handler.download_cache_service, 'get_cached_content') as mock_html_download:
                 # Return redirect HTML instead of image, then None for fallbacks
                 mock_html_download.side_effect = [DownloadResult(content=redirect_html, content_type='text/html'), None]
-                
+
                 with patch('magic.from_buffer') as mock_magic:
                     mock_magic.side_effect = ['text/html', 'text/html']
-                    
+
                     result = document_service.process_upload_url("https://example.com/spec")
-        
+
         assert result.title == "Component Spec"
         assert result.detected_type == AttachmentType.URL
         assert result.preview_image is None  # Couldn't find valid image
@@ -286,7 +286,7 @@ class TestDocumentIntegration:
     ):
         """Test that 1x1 tracking pixels are filtered out."""
         document_service = container.document_service()
-        
+
         html_content = b"""
         <html>
             <head>
@@ -296,24 +296,24 @@ class TestDocumentIntegration:
             </head>
         </html>
         """
-        
+
         tracking_pixel = create_test_image(1, 1, 'white')
         favicon = create_test_image(16, 16, 'blue')
-        
+
         with patch.object(document_service.download_cache_service, 'get_cached_content') as mock_download:
             # First call returns HTML
             mock_download.return_value = DownloadResult(content=html_content, content_type='text/html')
-            
+
             # Also patch the HtmlDocumentHandler's download_cache_service
             with patch.object(document_service.html_handler.download_cache_service, 'get_cached_content') as mock_html_download:
                 # Return 1x1 pixel for og:image (gets filtered), then favicon
                 mock_html_download.side_effect = [DownloadResult(content=tracking_pixel, content_type='image/jpeg'), DownloadResult(content=favicon, content_type='image/jpeg')]
-                
+
                 with patch('magic.from_buffer') as mock_magic:
                     mock_magic.side_effect = ['text/html', 'image/jpeg', 'image/jpeg']
-                    
+
                     result = document_service.process_upload_url("https://store.example.com")
-        
+
         assert result.detected_type == AttachmentType.URL
         assert result.preview_image is not None
         assert result.preview_image.content == favicon  # Used favicon, not tracking pixel
@@ -323,7 +323,7 @@ class TestDocumentIntegration:
     ):
         """Test handling timeout during preview image download."""
         document_service = container.document_service()
-        
+
         html_content = b"""
         <html>
             <head>
@@ -332,14 +332,14 @@ class TestDocumentIntegration:
             </head>
         </html>
         """
-        
+
         with patch.object(document_service.download_cache_service, 'get_cached_content') as mock_download:
             # HTML succeeds, image times out
             mock_download.side_effect = [DownloadResult(content=html_content, content_type='text/html'), None]
-            
+
             with patch('magic.from_buffer', return_value='text/html'):
                 result = document_service.process_upload_url("https://slow.example.com")
-        
+
         assert result.title == "Slow Loading Page"
         assert result.detected_type == AttachmentType.URL
         assert result.preview_image is None  # Gracefully handled timeout
@@ -349,7 +349,7 @@ class TestDocumentIntegration:
     ):
         """Test parsing real-world HTML pattern from GitHub."""
         document_service = container.document_service()
-        
+
         # Simplified GitHub-style HTML
         html_content = b"""
         <html>
@@ -362,23 +362,23 @@ class TestDocumentIntegration:
             </head>
         </html>
         """
-        
+
         github_card = create_test_image(1200, 600, 'purple')
-        
+
         with patch.object(document_service.download_cache_service, 'get_cached_content') as mock_download:
             # First call returns HTML
             mock_download.return_value = DownloadResult(content=html_content, content_type='text/html')
-            
+
             # Also patch the HtmlDocumentHandler's download_cache_service
             with patch.object(document_service.html_handler.download_cache_service, 'get_cached_content') as mock_html_download:
                 # Return GitHub card for og:image
                 mock_html_download.return_value = DownloadResult(content=github_card, content_type='image/jpeg')
-                
+
                 with patch('magic.from_buffer') as mock_magic:
                     mock_magic.side_effect = ['text/html', 'image/jpeg']
-                    
+
                     result = document_service.process_upload_url("https://github.com/arduino/Arduino")
-        
+
         assert result.title == "arduino/Arduino: open-source electronics platform"
         assert result.detected_type == AttachmentType.URL
         assert result.preview_image is not None
@@ -388,7 +388,7 @@ class TestDocumentIntegration:
     ):
         """Test parsing real-world HTML pattern from YouTube."""
         document_service = container.document_service()
-        
+
         # Simplified YouTube-style HTML
         html_content = b"""
         <html>
@@ -400,23 +400,23 @@ class TestDocumentIntegration:
             </head>
         </html>
         """
-        
+
         youtube_thumb = create_test_image(1280, 720, 'red')
-        
+
         with patch.object(document_service.download_cache_service, 'get_cached_content') as mock_download:
             # First call returns HTML
             mock_download.return_value = DownloadResult(content=html_content, content_type='text/html')
-            
+
             # Also patch the HtmlDocumentHandler's download_cache_service
             with patch.object(document_service.html_handler.download_cache_service, 'get_cached_content') as mock_html_download:
                 # Return YouTube thumbnail for og:image
                 mock_html_download.return_value = DownloadResult(content=youtube_thumb, content_type='image/jpeg')
-                
+
                 with patch('magic.from_buffer') as mock_magic:
                     mock_magic.side_effect = ['text/html', 'image/jpeg']
-                    
+
                     result = document_service.process_upload_url("https://youtube.com/watch?v=VIDEO_ID")
-        
+
         assert result.title == "How to Solder - YouTube"
         assert result.detected_type == AttachmentType.URL
         assert result.preview_image is not None
@@ -427,11 +427,11 @@ class TestDocumentIntegration:
     ):
         """Test that file upload uses python-magic, not provided content_type."""
         document_service = container.document_service()
-        
+
         # Image data but wrong content type provided
         image_data = create_test_image()
         file_obj = io.BytesIO(image_data)
-        
+
         with patch('magic.from_buffer', return_value='image/jpeg'):
             with patch.object(document_service.s3_service, 'upload_file'):
                 attachment = document_service.create_file_attachment(
@@ -440,7 +440,7 @@ class TestDocumentIntegration:
                     file_data=file_obj,
                     filename="schematic.doc"  # Wrong extension
                 )
-        
+
         # Should use detected type, not provided type
         assert attachment.content_type == "image/jpeg"
         assert attachment.attachment_type == AttachmentType.IMAGE

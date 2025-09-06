@@ -118,7 +118,7 @@ class TestDownloadCacheService:
         mock_head_response = Mock()
         mock_head_response.status_code = 200
         mock_head.return_value = mock_head_response
-        
+
         mock_get.side_effect = requests.RequestException("Network error")
 
         with pytest.raises(requests.RequestException):
@@ -132,7 +132,7 @@ class TestDownloadCacheService:
         mock_head_response = Mock()
         mock_head_response.status_code = 200
         mock_head.return_value = mock_head_response
-        
+
         mock_get_response = Mock()
         mock_get_response.headers = {'content-length': str(2 * 1024 * 1024)}  # 2MB, over 1MB limit
         mock_get.return_value = mock_get_response
@@ -148,7 +148,7 @@ class TestDownloadCacheService:
         mock_head_response = Mock()
         mock_head_response.status_code = 200
         mock_head.return_value = mock_head_response
-        
+
         mock_get_response = Mock()
         mock_get_response.status_code = 200
         mock_get_response.headers = {}  # No content-length header
@@ -170,7 +170,7 @@ class TestDownloadCacheService:
         mock_head_response = Mock()
         mock_head_response.status_code = 200
         mock_head.return_value = mock_head_response
-        
+
         mock_get_response = Mock()
         mock_get_response.status_code = 200
         mock_get_response.headers = {}
@@ -194,7 +194,7 @@ class TestDownloadCacheService:
         mock_head_response = Mock()
         mock_head_response.status_code = 200
         mock_head.return_value = mock_head_response
-        
+
         mock_get_response = Mock()
         mock_get_response.raise_for_status.side_effect = requests.HTTPError("404 Not Found")
         mock_get.return_value = mock_get_response
@@ -211,7 +211,7 @@ class TestDownloadCacheService:
         mock_head_response = Mock()
         mock_head_response.status_code = 200
         mock_head.return_value = mock_head_response
-        
+
         mock_get_response = Mock()
         mock_get_response.status_code = 200
         mock_get_response.headers = {}
@@ -250,7 +250,7 @@ class TestDownloadCacheService:
         mock_head_response = Mock()
         mock_head_response.status_code = 200
         mock_head.return_value = mock_head_response
-        
+
         mock_get.side_effect = Exception("Unexpected error")
 
         with pytest.raises(ValueError, match="Download failed"):
@@ -273,7 +273,7 @@ class TestDownloadCacheService:
         mock_head_response = Mock()
         mock_head_response.status_code = 200
         mock_head.return_value = mock_head_response
-        
+
         mock_get_response = Mock()
         mock_get_response.status_code = 200
         mock_get_response.headers = {'content-type': 'text/html'}  # Server reports HTML
@@ -299,7 +299,7 @@ class TestDownloadCacheService:
         mock_head_response = Mock()
         mock_head_response.status_code = 200
         mock_head.return_value = mock_head_response
-        
+
         mock_get_response = Mock()
         mock_get_response.status_code = 200
         mock_get_response.headers = {}
@@ -332,7 +332,7 @@ class TestDownloadCacheService:
             "https://subdomain.example.com/path/file.ext",
             "https://example.com:8080/path?param=value#fragment"
         ]
-        
+
         for url in valid_urls:
             result = download_service.validate_url(url)
             assert result is True, f"URL should be valid: {url}"
@@ -353,7 +353,7 @@ class TestDownloadCacheService:
             "ssh://example.com",
             "mailto:test@example.com"
         ]
-        
+
         for url in invalid_urls:
             result = download_service.validate_url(url)
             assert result is False, f"URL should be invalid: {url}"

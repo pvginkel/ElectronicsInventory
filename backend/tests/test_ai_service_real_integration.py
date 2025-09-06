@@ -4,10 +4,10 @@ These tests require a valid OPENAI_API_KEY environment variable and will make re
 They are marked as integration tests and can be run separately from unit tests.
 """
 
+import logging
 import os
 
 import pytest
-import logging
 from flask import Flask
 from sqlalchemy.orm import Session
 

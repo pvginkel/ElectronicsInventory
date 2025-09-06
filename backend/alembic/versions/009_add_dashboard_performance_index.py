@@ -5,17 +5,15 @@ Revises: 008
 Create Date: 2025-09-05 22:30:42.643761
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
-import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
 revision: str = '009'
-down_revision: Union[str, None] = '008'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = '008'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -23,8 +21,8 @@ def upgrade() -> None:
     # Add composite index on quantity_history(timestamp, part_id) for dashboard performance
     # This optimizes queries that filter by timestamp and group by part_id
     op.create_index(
-        'idx_quantity_history_timestamp_part_id', 
-        'quantity_history', 
+        'idx_quantity_history_timestamp_part_id',
+        'quantity_history',
         ['timestamp', 'part_id']
     )
 

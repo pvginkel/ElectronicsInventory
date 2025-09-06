@@ -1,18 +1,24 @@
-import time
 import logging
-import httpx
 import re
-
+import time
 from abc import ABC, abstractmethod
-from typing import Any, Type
+from typing import Any
+
+import httpx
 from openai import APIError, OpenAI
-from openai.types.responses import ResponseOutputItemDoneEvent, ResponseFunctionWebSearch, ResponseCompletedEvent, ResponseContentPartAddedEvent, ResponseReasoningSummaryTextDoneEvent
+from openai.types.responses import (
+    ResponseCompletedEvent,
+    ResponseContentPartAddedEvent,
+    ResponseFunctionWebSearch,
+    ResponseOutputItemDoneEvent,
+    ResponseReasoningSummaryTextDoneEvent,
+)
 from openai.types.responses.function_tool_param import FunctionToolParam
 from openai.types.responses.parsed_response import ParsedResponse
 from openai.types.responses.response_function_web_search import ActionSearch
 from pydantic import BaseModel
-from app.services.base_task import ProgressHandle
 
+from app.services.base_task import ProgressHandle
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +27,13 @@ class AIFunction(ABC):
     @abstractmethod
     def get_name(self) -> str:
         pass
-    
+
     @abstractmethod
     def get_description(self) -> str:
         pass
 
     @abstractmethod
-    def get_model(self) -> Type[BaseModel]:
+    def get_model(self) -> type[BaseModel]:
         pass
 
     @abstractmethod
@@ -56,7 +62,7 @@ class AIRequest(BaseModel):
     reasoning_summary: str | None = None
 
     # Function calling response model
-    response_model: Type[BaseModel]
+    response_model: type[BaseModel]
 
 
 class AIResponse(BaseModel):
@@ -119,7 +125,7 @@ class AIRunner:
 
         if not response.output_parsed or not response.output_text:
             raise Exception(f"Empty response from OpenAI status {response.status}, incomplete details: {response.incomplete_details}")
-        
+
         return AIResponse(
             response=response.output_parsed, # type: ignore
             elapsed_time=elapsed_time,
@@ -195,15 +201,15 @@ class AIRunner:
 
     def _call_openai_api_streamed(self, request: AIRequest, function_tools: list[AIFunction], input_content: Any, progress_handle: ProgressHandle) -> ParsedResponse:
         """Call OpenAI Responses API and handle streaming response.
-        
+
         Args:
             input_content: Formatted input for OpenAI API
             prompt: Generated prompt string
             progress_handle: Interface for sending progress updates
-            
+
         Returns:
             PartAnalysisSuggestion: Parsed response from OpenAI
-            
+
         Raises:
             Exception: If API call fails or response is invalid
         """
@@ -266,7 +272,7 @@ class AIRunner:
                 ]
             }
         ]
-    
+
     def _calculate_cost(self, model: str, input_tokens: int, cached_input_tokens: int, output_tokens: int, reasoning_tokens: int) -> float | None:
         match model:
             case "gpt-5":

@@ -1,7 +1,7 @@
 from abc import abstractmethod
-from typing import Protocol, Type, cast
+from typing import cast
+
 from pydantic import BaseModel, ConfigDict, Field
-from openai.types.responses.function_tool_param import FunctionToolParam
 
 from app.services.base_task import ProgressHandle
 from app.utils.ai.ai_runner import AIFunction
@@ -29,13 +29,13 @@ class ClassifyUrlsResponse(BaseModel):
 class URLClassifierFunction(AIFunction):
     def get_name(self) -> str:
         return "classify_urls"
-    
+
     def get_description(self) -> str:
         return "Classify the URLs as PDF, image, webpage or invalid."
 
-    def get_model(self) -> Type[BaseModel]:
+    def get_model(self) -> type[BaseModel]:
         return ClassifyUrlsRequest
-    
+
     def execute(self, request: BaseModel, progress_handle: ProgressHandle) -> BaseModel:
         return self.classify_url(cast(ClassifyUrlsRequest, request), progress_handle)
 
