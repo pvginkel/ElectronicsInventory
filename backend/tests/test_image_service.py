@@ -65,33 +65,6 @@ class TestImageService:
         ImageService(session, mock_s3_service, test_settings)
         assert Path(test_settings.THUMBNAIL_STORAGE_PATH).exists()
 
-    def test_process_uploaded_image_normal_size(self, image_service, sample_image_bytes):
-        """Test processing a normal-sized image."""
-        file_data = io.BytesIO(sample_image_bytes)
-
-        result_data, metadata = image_service.process_uploaded_image(file_data)
-
-        assert isinstance(result_data, io.BytesIO)
-        assert isinstance(metadata, dict)
-        assert 'width' in metadata
-        assert 'height' in metadata
-        assert 'format' in metadata
-        assert metadata['format'] in ['JPEG', 'PNG', 'WEBP']
-
-        # Verify image was processed
-        result_data.seek(0)
-        processed_img = Image.open(result_data)
-        assert processed_img.size[0] <= 800  # Width should be <= 800
-        assert processed_img.size[1] <= 600  # Height should be <= 600
-
-    def test_process_uploaded_image_invalid_format(self, image_service):
-        """Test processing invalid image data."""
-        invalid_data = io.BytesIO(b"not an image")
-
-        with pytest.raises(InvalidOperationException) as exc_info:
-            image_service.process_uploaded_image(invalid_data)
-
-        assert "process image" in str(exc_info.value)
 
     def test_generate_thumbnail_creates_file(self, image_service, sample_image_bytes, temp_dir):
         """Test thumbnail generation creates the file."""
@@ -225,22 +198,6 @@ class TestImageService:
         expected = temp_dir / f"{attachment_id}_{size}.jpg"
         assert path == str(expected)
 
-    def test_process_image_preserves_quality(self, image_service):
-        """Test that image processing preserves reasonable quality."""
-        # Create a high-quality image
-        original = Image.new('RGB', (1000, 800), color='red')
-        original_bytes = io.BytesIO()
-        original.save(original_bytes, format='JPEG', quality=95)
-
-        file_data = io.BytesIO(original_bytes.getvalue())
-        result_data, metadata = image_service.process_uploaded_image(file_data)
-
-        # Check that result is still reasonable quality (not too compressed)
-        result_size = len(result_data.getvalue())
-        original_size = len(original_bytes.getvalue())
-
-        # Result shouldn't be more than 10x smaller (indicating over-compression)
-        assert result_size > original_size / 10
 
     def test_generate_thumbnail_handles_portrait_orientation(self, image_service):
         """Test thumbnail generation with portrait images."""

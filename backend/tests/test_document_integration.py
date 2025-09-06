@@ -77,14 +77,19 @@ class TestDocumentIntegration:
         preview_image = create_test_image(200, 200, 'blue')
         
         with patch.object(document_service.download_cache_service, 'get_cached_content') as mock_download:
-            # First call returns HTML, second returns preview image
-            mock_download.side_effect = [html_content, preview_image]
+            # First call returns HTML
+            mock_download.return_value = html_content
             
-            with patch('magic.from_buffer') as mock_magic:
-                # First call identifies HTML, second identifies image
-                mock_magic.side_effect = ['text/html', 'image/jpeg']
+            # Also patch the HtmlDocumentHandler's download_cache_service
+            with patch.object(document_service.html_handler.download_cache_service, 'get_cached_content') as mock_html_download:
+                # Return preview image when handler tries to download it
+                mock_html_download.return_value = preview_image
                 
-                result = document_service.process_upload_url("https://store.arduino.cc/arduino-uno")
+                with patch('magic.from_buffer') as mock_magic:
+                    # First call identifies HTML, second identifies image
+                    mock_magic.side_effect = ['text/html', 'image/jpeg']
+                    
+                    result = document_service.process_upload_url("https://store.arduino.cc/arduino-uno")
         
         assert result.title == "Arduino Uno R3"
         assert result.detected_type == "text/html"

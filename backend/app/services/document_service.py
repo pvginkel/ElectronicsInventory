@@ -443,7 +443,7 @@ class DocumentService(BaseService):
                 pass  # File might not exist, continue with deletion
 
         # Clean up thumbnails if it's an image
-        if attachment.is_image:
+        if attachment.attachment_type == AttachmentType.IMAGE:
             self.image_service.cleanup_thumbnails(attachment.id)
 
         # If we just deleted the cover image, find a new one
@@ -478,11 +478,11 @@ class DocumentService(BaseService):
         """
         attachment = self.get_attachment(attachment_id)
 
-        if attachment.is_pdf and attachment.s3_key:
+        if attachment.attachment_type == AttachmentType.PDF and attachment.s3_key:
             # Download PDF from S3
             file_data = self.s3_service.download_file(attachment.s3_key)
             return file_data, attachment.content_type, attachment.filename
-        elif attachment.is_pdf:
+        elif attachment.attachment_type == AttachmentType.PDF:
             # Return PDF icon for PDFs without stored files
             pdf_data, content_type = self.image_service.get_pdf_icon_data()
             return BytesIO(pdf_data), content_type, "pdf_icon.svg"

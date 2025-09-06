@@ -17,7 +17,6 @@ from app.services.ai_service import AIService
 from app.services.container import ServiceContainer
 from app.services.download_cache_service import DownloadCacheService
 from app.services.type_service import TypeService
-from app.services.url_thumbnail_service import URLThumbnailService
 from app.utils.temp_file_manager import TempFileManager
 
 logger = logging.getLogger(__name__)
@@ -58,10 +57,6 @@ def real_download_cache_service(real_ai_settings: Settings, real_temp_file_manag
         download_timeout=30
     )
 
-@pytest.fixture
-def real_url_thumbnail_service(session: Session, real_download_cache_service: DownloadCacheService):
-    """Create temporary file manager for real integration testing."""
-    return URLThumbnailService(session, None, real_download_cache_service)
 
 
 @pytest.fixture
@@ -88,7 +83,6 @@ def real_type_service(session: Session):
 @pytest.fixture
 def real_ai_service(session: Session, real_ai_settings: Settings,
                    real_temp_file_manager: TempFileManager, real_type_service: TypeService,
-                   real_url_thumbnail_service: URLThumbnailService,
                    real_download_cache_service: DownloadCacheService):
     """Create AI service instance for real integration testing."""
     return AIService(
@@ -96,7 +90,6 @@ def real_ai_service(session: Session, real_ai_settings: Settings,
         config=real_ai_settings,
         temp_file_manager=real_temp_file_manager,
         type_service=real_type_service,
-        url_thumbnail_service=real_url_thumbnail_service,
         download_cache_service=real_download_cache_service
     )
 

@@ -54,10 +54,21 @@ class HtmlDocumentHandler:
             Page title or None if not found
         """
         title_tag = soup.find('title')
-        if title_tag and title_tag.string:
-            title = title_tag.string.strip()
-            if title:
-                return title
+        if title_tag:
+            # Try the simple case first (well-formed HTML)
+            if title_tag.string:
+                title = title_tag.string.strip()
+                if title:
+                    return title
+            
+            # Handle malformed HTML where title contains other elements
+            # Extract all text and take the first meaningful line
+            title_text = title_tag.get_text().strip()
+            if title_text:
+                # Split by newlines and take the first non-empty line
+                first_line = title_text.split('\n')[0].strip()
+                if first_line:
+                    return first_line
         return None
     
     def _find_preview_image(
