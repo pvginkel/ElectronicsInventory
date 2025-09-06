@@ -9,6 +9,7 @@ from flask import Blueprint, jsonify, request, send_file
 from spectree import Response as SpectreeResponse
 from werkzeug.datastructures import FileStorage
 
+from app.models.part_attachment import AttachmentType
 from app.schemas.common import ErrorResponseSchema
 from app.schemas.part_attachment import (
     CoverAttachmentResponseSchema,
@@ -125,8 +126,7 @@ def create_attachment(part_key: str, document_service=Provide[ServiceContainer.d
             part_key=part_key,
             title=title,
             file_data=file.stream,
-            filename=file.filename,
-            content_type=file.content_type or 'application/octet-stream'
+            filename=file.filename
         )
 
         return PartAttachmentResponseSchema.model_validate(attachment).model_dump(), 201
@@ -239,15 +239,15 @@ def attachment_preview(document_service=Provide[ServiceContainer.document_servic
 
         # Generate backend image endpoint URL if preview available
         image_url = None
-        if upload_doc.preview_image or upload_doc.detected_type.startswith('image/'):
+        if upload_doc.preview_image or upload_doc.detected_type == AttachmentType.IMAGE:
             encoded_url = quote(data.url, safe='')
             image_url = f"/api/parts/attachment-preview/image?url={encoded_url}"
 
         # Determine content type for response
         content_type = 'webpage'
-        if upload_doc.detected_type.startswith('image/'):
+        if upload_doc.detected_type == AttachmentType.IMAGE:
             content_type = 'image'
-        elif upload_doc.detected_type == 'application/pdf':
+        elif upload_doc.detected_type == AttachmentType.PDF:
             content_type = 'pdf'
 
         response_data = UrlPreviewResponseSchema(

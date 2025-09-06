@@ -16,7 +16,8 @@ from app.services.download_cache_service import DownloadCacheService
 from app.services.image_service import ImageService
 from app.services.s3_service import S3Service
 from app.services.html_document_handler import HtmlDocumentHandler
-from app.schemas.upload_document import UploadDocumentSchema, UploadDocumentContentSchema
+from app.schemas.upload_document import UploadDocumentSchema, DocumentContentSchema
+from app.utils.url_utils import get_filename_from_url
 
 
 class DocumentService(BaseService):
@@ -41,6 +42,17 @@ class DocumentService(BaseService):
         self.download_cache_service = download_cache_service
         self.settings = settings
 
+    def _mime_type_to_attachment_type(self, mime_type: str) -> AttachmentType | None:
+        """Convert MIME type to AttachmentType."""
+        if mime_type == 'text/html':
+            return AttachmentType.URL
+        elif mime_type.startswith('image/'):
+            return AttachmentType.IMAGE
+        elif mime_type == 'application/pdf':
+            return AttachmentType.PDF
+        else:
+            return None
+
     def process_upload_url(self, url: str) -> UploadDocumentSchema:
         """Process a URL to determine content and extract metadata.
         
@@ -55,90 +67,42 @@ class DocumentService(BaseService):
             UploadDocumentSchema with processed content and metadata
         """
         # Download content
-        content = self.download_cache_service.get_cached_content(url)
-        if not content:
+        download_result = self.download_cache_service.get_cached_content(url)
+        if not download_result:
             raise InvalidOperationException("process URL", f"failed to download content from {url}")
         
+        content = download_result.content
+
         # Detect actual content type from bytes
-        detected_type = magic.from_buffer(content, mime=True)
+        detected_mime_type = magic.from_buffer(content, mime=True)
+        detected_attachment_type = self._mime_type_to_attachment_type(detected_mime_type)
         
         # Extract filename from URL for non-HTML content
-        from urllib.parse import urlparse
-        import os
-        parsed_url = urlparse(url)
-        path = parsed_url.path
-        filename = os.path.basename(path) if path else "upload"
-        if not filename or filename == "/":
-            filename = "upload"
-        
+        filename = get_filename_from_url(url, "upload")
+
+        content_schema = DocumentContentSchema(
+            content=content,
+            content_type=detected_mime_type
+        )
+
         # Handle based on detected content type
-        if detected_type == 'text/html':
+        if detected_mime_type == 'text/html':
             # Process as HTML document
             html_info = self.html_handler.process_html_content(content, url)
-            
-            # Create content schema for HTML
-            content_schema = UploadDocumentContentSchema(
-                content=content,
-                content_type=detected_type
-            )
-            
-            # Create preview schema if image found
-            preview_schema = None
-            if html_info.preview_image:
-                preview_content, preview_type = html_info.preview_image
-                preview_schema = UploadDocumentContentSchema(
-                    content=preview_content,
-                    content_type=preview_type
-                )
-            
+
             return UploadDocumentSchema(
                 title=html_info.title or filename,
                 content=content_schema,
-                detected_type=detected_type,
-                preview_image=preview_schema
+                detected_type=detected_attachment_type,
+                preview_image=html_info.preview_image
             )
             
-        elif detected_type.startswith('image/'):
-            # Direct image - store as-is
-            content_schema = UploadDocumentContentSchema(
-                content=content,
-                content_type=detected_type
-            )
-            
-            return UploadDocumentSchema(
-                title=filename,
-                content=content_schema,
-                detected_type=detected_type,
-                preview_image=None  # Direct images don't have separate preview
-            )
-            
-        elif detected_type == 'application/pdf':
-            # PDF - store as-is
-            content_schema = UploadDocumentContentSchema(
-                content=content,
-                content_type=detected_type
-            )
-            
-            return UploadDocumentSchema(
-                title=filename,
-                content=content_schema,
-                detected_type=detected_type,
-                preview_image=None
-            )
-            
-        else:
-            # Generic file type - only store metadata, no S3 content
-            content_schema = UploadDocumentContentSchema(
-                content=content,
-                content_type=detected_type
-            )
-            
-            return UploadDocumentSchema(
-                title=filename,
-                content=content_schema,
-                detected_type=detected_type,
-                preview_image=None
-            )
+        return UploadDocumentSchema(
+            title=filename,
+            content=content_schema,
+            detected_type=detected_attachment_type,
+            preview_image=None
+        )
 
     def _validate_file_type(self, content_type: str, file_data: bytes) -> str:
         """Validate file type using python-magic and MIME type.
@@ -192,7 +156,7 @@ class DocumentService(BaseService):
             max_mb = max_size / (1024 * 1024)
             raise InvalidOperationException("validate file size", f"file too large, maximum size: {max_mb:.1f}MB")
 
-    def create_file_attachment(self, part_key: str, title: str, file_data: BinaryIO, filename: str, content_type: str) -> PartAttachment:
+    def create_file_attachment(self, part_key: str, title: str, file_data: BinaryIO, filename: str) -> PartAttachment:
         """Create a file attachment (image or PDF) for a part.
 
         Args:
@@ -200,7 +164,6 @@ class DocumentService(BaseService):
             title: Title/description of the attachment
             file_data: File data
             filename: Original filename
-            content_type: MIME type of the file
 
         Returns:
             Created PartAttachment
@@ -209,69 +172,20 @@ class DocumentService(BaseService):
             RecordNotFoundException: If part not found
             InvalidOperationException: If file validation fails
         """
-        # Get the part
-        stmt = select(Part).where(Part.key == part_key)
-        part = self.db.scalar(stmt)
-        if not part:
-            raise RecordNotFoundException("Part", part_key)
-
         # Read file data for validation
         file_data.seek(0)
         file_bytes = file_data.read()
-        file_size = len(file_bytes)
 
-        # Use python-magic to detect actual content type (ignore provided content_type)
         validated_content_type = magic.from_buffer(file_bytes, mime=True)
-        
-        # Validate against allowed types
-        allowed_image_types = self.settings.ALLOWED_IMAGE_TYPES
-        allowed_file_types = self.settings.ALLOWED_FILE_TYPES
-        all_allowed = allowed_image_types + allowed_file_types
-        
-        if validated_content_type not in all_allowed:
-            raise InvalidOperationException("create file attachment", f"file type not allowed: {validated_content_type}")
-        
-        is_image = validated_content_type.startswith('image/')
-        self._validate_file_size(file_size, is_image)
 
-        # Determine attachment type
-        if validated_content_type == 'application/pdf':
-            attachment_type = AttachmentType.PDF
-        elif is_image:
-            attachment_type = AttachmentType.IMAGE
-        else:
-            raise InvalidOperationException("create file attachment", f"unsupported file type: {validated_content_type}")
-
-        # Generate S3 key
-        s3_key = self.s3_service.generate_s3_key(part.id, filename)
-
-        # Store images verbatim without conversion
-        # No longer process/convert images
-
-        # Upload to S3
-        file_data = BytesIO(file_bytes)
-        self.s3_service.upload_file(file_data, s3_key, validated_content_type)
-
-        # Create attachment record
-        attachment = PartAttachment(
-            part_id=part.id,
-            attachment_type=attachment_type,
-            title=title,
-            s3_key=s3_key,
+        return self._create_attachment(
+            part_key=part_key,
+            content=DocumentContentSchema(
+                content=file_bytes,
+                content_type=validated_content_type
+            ),
             filename=filename,
-            content_type=validated_content_type,
-            file_size=file_size
-        )
-
-        self.db.add(attachment)
-        self.db.flush()
-
-        # Auto-set as cover image if this is the first image attachment and part has no cover
-        if attachment_type == AttachmentType.IMAGE and not part.cover_attachment_id:
-            part.cover_attachment_id = attachment.id
-            self.db.flush()
-
-        return attachment
+            title=title)
 
     def create_url_attachment(self, part_key: str, title: str, url: str) -> PartAttachment:
         """Create a URL attachment with thumbnail extraction.
@@ -288,76 +202,98 @@ class DocumentService(BaseService):
             RecordNotFoundException: If part not found
             InvalidOperationException: If URL processing fails
         """
-        # Get the part
-        stmt = select(Part).where(Part.key == part_key)
-        part = self.db.scalar(stmt)
-        if not part:
-            raise RecordNotFoundException("Part", part_key)
-
         # Process URL to determine content
         try:
             upload_doc = self.process_upload_url(url)
         except Exception as e:
             raise InvalidOperationException("create URL attachment", f"failed to process URL: {str(e)}") from e
 
-        # Determine what to store in S3 and attachment type
-        s3_key = None
-        content_type = None
-        file_size = 0
-        
-        if upload_doc.detected_type.startswith('image/'):
-            # Direct image URL - store the image
-            attachment_type = AttachmentType.IMAGE
-            s3_key = self.s3_service.generate_s3_key(part.id, upload_doc.title)
-            file_data = BytesIO(upload_doc.content.content)
-            self.s3_service.upload_file(file_data, s3_key, upload_doc.content.content_type)
-            content_type = upload_doc.content.content_type
-            file_size = len(upload_doc.content.content)
-            
-        elif upload_doc.detected_type == 'application/pdf':
-            # Direct PDF URL - store the PDF
-            attachment_type = AttachmentType.PDF
-            s3_key = self.s3_service.generate_s3_key(part.id, upload_doc.title)
-            file_data = BytesIO(upload_doc.content.content)
-            self.s3_service.upload_file(file_data, s3_key, upload_doc.content.content_type)
-            content_type = upload_doc.content.content_type
-            file_size = len(upload_doc.content.content)
-            
-        elif upload_doc.detected_type == 'text/html' and upload_doc.preview_image:
-            # HTML with preview image - store the preview
-            attachment_type = AttachmentType.URL
-            s3_key = self.s3_service.generate_s3_key(part.id, "preview.jpg")
-            file_data = BytesIO(upload_doc.preview_image.content)
-            self.s3_service.upload_file(file_data, s3_key, upload_doc.preview_image.content_type)
-            content_type = upload_doc.preview_image.content_type
-            file_size = len(upload_doc.preview_image.content)
-            
-        else:
-            # Other content or HTML without preview - no S3 storage
-            attachment_type = AttachmentType.URL
-            s3_key = None
-            content_type = None
-            file_size = 0
-
-        # Use provided title or extracted title
         final_title = title or upload_doc.title
+
+        if upload_doc.detected_type == AttachmentType.URL:
+            content = upload_doc.preview_image
+        else:
+            content = upload_doc.content
+
+        return self._create_attachment(
+            part_key=part_key,
+            content=content,
+            url=url,
+            title=final_title,
+            attachment_type=upload_doc.detected_type
+        )
+
+    def _create_attachment(self, part_key: str, content: DocumentContentSchema | None, title: str, url: str | None = None, filename: str | None = None, attachment_type: AttachmentType | None = None) -> PartAttachment:
+        if not content and not url:
+            raise InvalidOperationException("create attachment", "either content or URL must be provided")
+        
+        # Get the part
+        stmt = select(Part).where(Part.key == part_key)
+        part = self.db.scalar(stmt)
+        if not part:
+            raise RecordNotFoundException("Part", part_key)
+        
+        if content:
+            # Read file data for validation
+            file_size = len(content.content)
+
+            # Validate against allowed types
+            allowed_image_types = self.settings.ALLOWED_IMAGE_TYPES
+            allowed_file_types = self.settings.ALLOWED_FILE_TYPES
+            all_allowed = allowed_image_types + allowed_file_types
+            
+            if content.content_type not in all_allowed:
+                raise InvalidOperationException("create file attachment", f"file type not allowed: {content.content_type}")
+            
+            is_image = content.content_type.startswith('image/')
+            self._validate_file_size(file_size, is_image)
+
+            # Determine attachment type
+            if not attachment_type:
+                if content.content_type == 'application/pdf':
+                    attachment_type = AttachmentType.PDF
+                elif is_image:
+                    attachment_type = AttachmentType.IMAGE
+                else:
+                    raise InvalidOperationException("create file attachment", f"unsupported file type: {content.content_type}")
+
+            # Generate S3 key
+            filename_for_s3 = filename
+            if not filename_for_s3:
+                if url:
+                    filename_for_s3 = get_filename_from_url(url, title)
+                else:
+                    filename_for_s3 = "upload"
+                
+            s3_key = self.s3_service.generate_s3_key(part.id, filename_for_s3)
+
+            # Store images verbatim without conversion
+            
+            # Upload to S3
+            file_data = BytesIO(content.content)
+            self.s3_service.upload_file(file_data, s3_key, content.content_type)
+
+        else:
+            s3_key = None
+            file_size = None
 
         # Create attachment record
         attachment = PartAttachment(
             part_id=part.id,
             attachment_type=attachment_type,
-            title=final_title,
+            title=title,
             s3_key=s3_key,
-            url=url,
-            content_type=content_type,
-            file_size=file_size
+            filename=filename,
+            content_type=content.content_type if content else None,
+            file_size=file_size,
+            url=url
         )
 
         self.db.add(attachment)
         self.db.flush()
 
         # Auto-set as cover image if this is the first image attachment and part has no cover
-        if attachment_type == AttachmentType.IMAGE and not part.cover_attachment_id:
+        if not part.cover_attachment_id:
             part.cover_attachment_id = attachment.id
             self.db.flush()
 
@@ -463,35 +399,27 @@ class DocumentService(BaseService):
         self.db.delete(attachment)
         self.db.flush()
 
-    def get_attachment_file_data(self, attachment_id: int) -> tuple[BytesIO, str, str]:
+    def get_attachment_file_data(self, attachment_id: int) -> tuple[BytesIO, str, str] | None:
         """Get attachment file data for download.
 
         Args:
             attachment_id: ID of the attachment
 
         Returns:
-            Tuple of (file_data, content_type, filename)
+            Tuple of (file_data, content_type, filename) or None if no file data available
 
         Raises:
             RecordNotFoundException: If attachment not found
-            InvalidOperationException: If file retrieval fails
         """
         attachment = self.get_attachment(attachment_id)
 
-        if attachment.attachment_type == AttachmentType.PDF and attachment.s3_key:
-            # Download PDF from S3
-            file_data = self.s3_service.download_file(attachment.s3_key)
-            return file_data, attachment.content_type, attachment.filename
-        elif attachment.attachment_type == AttachmentType.PDF:
-            # Return PDF icon for PDFs without stored files
-            pdf_data, content_type = self.image_service.get_pdf_icon_data()
-            return BytesIO(pdf_data), content_type, "pdf_icon.svg"
-        elif attachment.s3_key:
-            # Download image from S3
+        if attachment.s3_key:
+            # Download content from S3
             file_data = self.s3_service.download_file(attachment.s3_key)
             return file_data, attachment.content_type, attachment.filename
         else:
-            raise InvalidOperationException("get attachment file data", "no file data available for attachment")
+            # No S3 content available
+            return None
 
     def get_attachment_thumbnail(self, attachment_id: int, size: int = 150) -> tuple[str, str]:
         """Get thumbnail for attachment.
@@ -525,7 +453,7 @@ class DocumentService(BaseService):
         else:
             raise InvalidOperationException("get attachment thumbnail", "thumbnail not available for this attachment type")
     
-    def get_preview_image(self, url: str) -> tuple[bytes, str] | None:
+    def get_preview_image(self, url: str) -> DocumentContentSchema | None:
         """Get preview image for a URL.
         
         Replaces URLThumbnailService.get_preview_image_url functionality.
@@ -534,7 +462,7 @@ class DocumentService(BaseService):
             url: URL to get preview for
             
         Returns:
-            Tuple of (image_bytes, content_type) or None if no preview available
+            DocumentContentSchema with image data or None if no preview available
         """
         try:
             # Process URL to get metadata
@@ -543,10 +471,10 @@ class DocumentService(BaseService):
             # Return appropriate image data
             if upload_doc.preview_image:
                 # HTML with preview image
-                return (upload_doc.preview_image.content, upload_doc.preview_image.content_type)
-            elif upload_doc.detected_type.startswith('image/'):
+                return upload_doc.preview_image
+            elif upload_doc.detected_type == AttachmentType.IMAGE:
                 # Direct image URL
-                return (upload_doc.content.content, upload_doc.content.content_type)
+                return upload_doc.content
             else:
                 # No preview available
                 return None
@@ -601,18 +529,3 @@ class DocumentService(BaseService):
         return part.cover_attachment
 
 
-    def attachment_has_image(self, attachment_id: int) -> bool:
-        """Check if an attachment has an associated image for display.
-
-        Args:
-            attachment_id: ID of the attachment
-
-        Returns:
-            True if attachment has an associated image
-
-        Raises:
-            RecordNotFoundException: If attachment not found
-        """
-        attachment = self.get_attachment(attachment_id)
-        # Images are identified by content_type starting with 'image/'
-        return attachment.content_type and attachment.content_type.startswith('image/')

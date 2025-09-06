@@ -22,6 +22,7 @@ from app.services.part_service import PartService
 from app.services.task_service import TaskService
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
+from app.utils.url_utils import get_filename_from_url
 
 logger = logging.getLogger(__name__)
 
@@ -152,24 +153,10 @@ def create_part_from_ai_analysis(
         # 1. Use doc.preview.title if available
         # 2. Extract filename from URL path
         # 3. Fallback to "AI suggested {doc.document_type}"
-        title = None
         if doc.preview and doc.preview.title:
             title = doc.preview.title
         else:
-            # Try to extract filename from URL path
-            try:
-                import os
-                from urllib.parse import urlparse
-                parsed_url = urlparse(doc.url)
-                filename = os.path.basename(parsed_url.path)
-                if filename and filename != '/':
-                    title = filename
-            except Exception:
-                pass  # Ignore URL parsing errors, will use fallback
-
-        # Use fallback if no title was resolved
-        if not title:
-            title = f"AI suggested {doc.document_type}"
+            title = get_filename_from_url(doc.url, doc.document_type)
 
         # Create document attachment from URL - this will handle downloading and processing
         attachment = document_service.create_url_attachment(

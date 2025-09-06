@@ -8,12 +8,13 @@ from PIL import Image
 import io
 
 from app.services.download_cache_service import DownloadCacheService
+from app.schemas.upload_document import DocumentContentSchema
 
 
 class HtmlDocumentInfo:
     """Information extracted from HTML document."""
     
-    def __init__(self, title: str | None = None, preview_image: tuple[bytes, str] | None = None):
+    def __init__(self, title: str | None = None, preview_image: DocumentContentSchema | None = None):
         self.title = title
         self.preview_image = preview_image
 
@@ -76,7 +77,7 @@ class HtmlDocumentHandler:
         soup: BeautifulSoup, 
         url: str, 
         download_cache: DownloadCacheService
-    ) -> tuple[bytes, str] | None:
+    ) -> DocumentContentSchema | None:
         """Find and download preview image from HTML.
         
         Priority order:
@@ -91,7 +92,7 @@ class HtmlDocumentHandler:
             download_cache: Service for downloading images
             
         Returns:
-            Tuple of (image_bytes, content_type) or None if no valid image found
+            DocumentContentSchema with image data or None if no valid image found
         """
         # Try og:image first
         og_image = soup.find('meta', property='og:image')
@@ -147,13 +148,13 @@ class HtmlDocumentHandler:
         self, 
         url: str, 
         download_cache: DownloadCacheService
-    ) -> tuple[bytes, str] | None:
+    ) -> DocumentContentSchema | None:
         """Download and validate an image.
         
         Filters out:
         - Non-image content
         - 1x1 tracking pixels
-        - Animated GIFs
+        - GIFs (simplified: reject all GIFs regardless of animation)
         - Videos
         
         Args:
@@ -161,38 +162,24 @@ class HtmlDocumentHandler:
             download_cache: Service for downloading
             
         Returns:
-            Tuple of (image_bytes, content_type) or None if invalid
+            DocumentContentSchema with image data or None if invalid
         """
         try:
             # Download image
-            content = download_cache.get_cached_content(url)
-            if not content:
+            download_result = download_cache.get_cached_content(url)
+            if not download_result:
                 return None
+            
+            content = download_result.content
             
             # Check content type with magic
             content_type = magic.from_buffer(content, mime=True)
             if not content_type.startswith('image/'):
                 return None
             
-            # Skip videos and animated content
+            # Skip videos and GIFs (simplified checking)
             if 'video' in content_type or content_type == 'image/gif':
-                # Check if GIF is animated
-                if content_type == 'image/gif':
-                    try:
-                        img = Image.open(io.BytesIO(content))
-                        # Check if it has multiple frames (animated)
-                        try:
-                            img.seek(1)
-                            # If we can seek to frame 1, it's animated
-                            return None
-                        except EOFError:
-                            # Not animated, continue validation
-                            img.seek(0)
-                    except Exception:
-                        return None
-                else:
-                    # It's a video
-                    return None
+                return None
             
             # Check image dimensions to filter out 1x1 tracking pixels
             try:
@@ -204,7 +191,10 @@ class HtmlDocumentHandler:
                     return None
                 
                 # Image is valid
-                return (content, content_type)
+                return DocumentContentSchema(
+                    content=content,
+                    content_type=content_type
+                )
                 
             except Exception:
                 # Failed to parse as image
