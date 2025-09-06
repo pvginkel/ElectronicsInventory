@@ -51,15 +51,17 @@ class TestDocumentAPI:
     def test_create_url_attachment_success(self, mock_process_url, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
         """Test successful URL attachment creation via API."""
         # Mock the process_upload_url response
-        from app.schemas.upload_document import UploadDocumentSchema, UploadDocumentContentSchema
+        from app.schemas.upload_document import UploadDocumentSchema, DocumentContentSchema
+        from app.models.part_attachment import AttachmentType
+        
         mock_process_url.return_value = UploadDocumentSchema(
             title="Product Page",
-            content=UploadDocumentContentSchema(
+            content=DocumentContentSchema(
                 content=b"<html>fake content</html>",
                 content_type="text/html"
             ),
-            detected_type="text/html",
-            preview_image=UploadDocumentContentSchema(
+            detected_type=AttachmentType.URL,
+            preview_image=DocumentContentSchema(
                 content=b"fake image",
                 content_type="image/jpeg"
             )
@@ -301,7 +303,8 @@ class TestDocumentAPI:
             part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
             title="Test Image",
-            s3_key="test.jpg"
+            s3_key="test.jpg",
+            content_type="image/jpeg"
         )
         session.add(attachment)
         session.commit()
@@ -481,7 +484,8 @@ class TestDocumentAPI:
             part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
             title="Test Image",
-            s3_key="test.jpg"
+            s3_key="test.jpg",
+            content_type="image/jpeg"
         )
         session.add(attachment)
         session.commit()
@@ -519,22 +523,24 @@ class TestDocumentAPI:
 class TestUrlPreviewAPI:
     """Integration tests for URL preview API endpoints."""
 
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata')
-    def test_attachment_preview_success(self, mock_extract_metadata, mock_validate_url, client: FlaskClient):
+    @patch('app.services.document_service.DocumentService.process_upload_url')
+    def test_attachment_preview_success(self, mock_process_url, client: FlaskClient):
         """Test successful URL preview metadata extraction."""
-        from app.schemas.url_metadata import (
-            ThumbnailSourceType,
-            URLContentType,
-            URLMetadataSchema,
-        )
-        mock_extract_metadata.return_value = URLMetadataSchema(
+        from app.schemas.upload_document import UploadDocumentSchema, DocumentContentSchema
+        from app.models.part_attachment import AttachmentType
+        
+        # Mock successful URL processing with preview image
+        mock_process_url.return_value = UploadDocumentSchema(
             title='Test Page Title',
-            og_image='https://example.com/image.jpg',
-            favicon='https://example.com/favicon.ico',
-            thumbnail_source=ThumbnailSourceType.PREVIEW_IMAGE,
-            original_url='https://example.com',
-            content_type=URLContentType.WEBPAGE
+            content=DocumentContentSchema(
+                content=b"<html>content</html>",
+                content_type="text/html"
+            ),
+            detected_type=AttachmentType.URL,
+            preview_image=DocumentContentSchema(
+                content=b"image data",
+                content_type="image/jpeg"
+            )
         )
 
         response = client.post(
@@ -547,29 +553,25 @@ class TestUrlPreviewAPI:
         assert data['title'] == 'Test Page Title'
         assert data['image_url'] == '/api/parts/attachment-preview/image?url=https%3A%2F%2Fexample.com'
         assert data['original_url'] == 'https://example.com'
+        assert data['content_type'] == 'webpage'
 
-        mock_validate_url.assert_called_once_with('https://example.com')
-        mock_extract_metadata.assert_called_once_with('https://example.com')
+        mock_process_url.assert_called_once_with('https://example.com')
 
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata')
-    def test_attachment_preview_direct_image_title(self, mock_extract_metadata, mock_validate_url, client: FlaskClient):
+    @patch('app.services.document_service.DocumentService.process_upload_url')
+    def test_attachment_preview_direct_image_title(self, mock_process_url, client: FlaskClient):
         """Test URL preview with direct image URL extracts title from filename."""
-        from app.schemas.url_metadata import (
-            ThumbnailSourceType,
-            URLContentType,
-            URLMetadataSchema,
-        )
-        # Mock the metadata that would be returned for a direct image
-        mock_extract_metadata.return_value = URLMetadataSchema(
+        from app.schemas.upload_document import UploadDocumentSchema, DocumentContentSchema
+        from app.models.part_attachment import AttachmentType
+        
+        # Mock direct image processing
+        mock_process_url.return_value = UploadDocumentSchema(
             title='dht22-thermometer-temperature-and-humidity-sensor.jpg',
-            page_title='dht22-thermometer-temperature-and-humidity-sensor.jpg',
-            description=None,
-            og_image='https://www.tinytronics.nl/image/catalog/products_2023/dht22-thermometer-temperature-and-humidity-sensor.jpg',
-            favicon=None,
-            thumbnail_source=ThumbnailSourceType.DIRECT_IMAGE,
-            original_url='https://www.tinytronics.nl/image/catalog/products_2023/dht22-thermometer-temperature-and-humidity-sensor.jpg',
-            content_type=URLContentType.IMAGE
+            content=DocumentContentSchema(
+                content=b"fake image content",
+                content_type="image/jpeg"
+            ),
+            detected_type=AttachmentType.IMAGE,
+            preview_image=None  # Direct images don't need separate preview
         )
 
         response = client.post(
@@ -580,28 +582,28 @@ class TestUrlPreviewAPI:
         assert response.status_code == 200
         data = response.get_json()
         assert data['title'] == 'dht22-thermometer-temperature-and-humidity-sensor.jpg'
-        assert data['image_url'] is not None  # Should have an image URL since og_image exists
+        assert data['image_url'] is not None  # Should have image URL for direct images
         assert data['original_url'] == 'https://www.tinytronics.nl/image/catalog/products_2023/dht22-thermometer-temperature-and-humidity-sensor.jpg'
+        assert data['content_type'] == 'image'
 
-        mock_validate_url.assert_called_once()
-        mock_extract_metadata.assert_called_once()
+        url = 'https://www.tinytronics.nl/image/catalog/products_2023/dht22-thermometer-temperature-and-humidity-sensor.jpg'
+        mock_process_url.assert_called_once_with(url)
 
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata')
-    def test_attachment_preview_no_image(self, mock_extract_metadata, mock_validate_url, client: FlaskClient):
+    @patch('app.services.document_service.DocumentService.process_upload_url')
+    def test_attachment_preview_no_image(self, mock_process_url, client: FlaskClient):
         """Test URL preview with no image available."""
-        from app.schemas.url_metadata import (
-            ThumbnailSourceType,
-            URLContentType,
-            URLMetadataSchema,
-        )
-        mock_extract_metadata.return_value = URLMetadataSchema(
+        from app.schemas.upload_document import UploadDocumentSchema, DocumentContentSchema
+        from app.models.part_attachment import AttachmentType
+        
+        # Mock HTML page with no preview image
+        mock_process_url.return_value = UploadDocumentSchema(
             title='Test Page Title',
-            og_image=None,
-            favicon=None,
-            thumbnail_source=ThumbnailSourceType.OTHER,
-            original_url='https://example.com',
-            content_type=URLContentType.WEBPAGE
+            content=DocumentContentSchema(
+                content=b"<html>content</html>",
+                content_type="text/html"
+            ),
+            detected_type=AttachmentType.URL,
+            preview_image=None  # No preview image available
         )
 
         response = client.post(
@@ -612,12 +614,18 @@ class TestUrlPreviewAPI:
         assert response.status_code == 200
         data = response.get_json()
         assert data['title'] == 'Test Page Title'
-        assert data['image_url'] is None
+        assert data['image_url'] is None  # No preview image available
         assert data['original_url'] == 'https://example.com'
+        assert data['content_type'] == 'webpage'
 
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=False)
-    def test_attachment_preview_invalid_url(self, mock_validate_url, client: FlaskClient):
+        mock_process_url.assert_called_once_with('https://example.com')
+
+    @patch('app.services.document_service.DocumentService.process_upload_url')
+    def test_attachment_preview_invalid_url(self, mock_process_url, client: FlaskClient):
         """Test URL preview with invalid URL."""
+        # Mock URL processing failure
+        mock_process_url.side_effect = Exception("Invalid URL format")
+        
         response = client.post(
             '/api/parts/attachment-preview',
             json={'url': 'invalid-url'}
@@ -625,13 +633,17 @@ class TestUrlPreviewAPI:
 
         assert response.status_code == 422
         data = response.get_json()
-        assert data['error'] == 'Invalid URL'
-        assert data['details']['message'] == 'The provided URL is not valid or cannot be accessed'
+        assert data['error'] == 'Failed to extract URL preview'
+        assert 'Invalid URL format' in data['details']['message']
 
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.extract_metadata', side_effect=Exception("Extraction failed"))
-    def test_attachment_preview_extraction_error(self, mock_extract_metadata, mock_validate_url, client: FlaskClient):
+        mock_process_url.assert_called_once_with('invalid-url')
+
+    @patch('app.services.document_service.DocumentService.process_upload_url')
+    def test_attachment_preview_extraction_error(self, mock_process_url, client: FlaskClient):
         """Test URL preview with extraction failure."""
+        # Mock processing failure
+        mock_process_url.side_effect = Exception("Extraction failed")
+        
         response = client.post(
             '/api/parts/attachment-preview',
             json={'url': 'https://example.com'}
@@ -640,7 +652,9 @@ class TestUrlPreviewAPI:
         assert response.status_code == 422
         data = response.get_json()
         assert data['error'] == 'Failed to extract URL preview'
-        assert data['details']['message'] == 'Extraction failed'
+        assert 'Extraction failed' in data['details']['message']
+
+        mock_process_url.assert_called_once_with('https://example.com')
 
     def test_attachment_preview_invalid_json(self, client: FlaskClient):
         """Test URL preview with invalid request data."""
@@ -651,13 +665,11 @@ class TestUrlPreviewAPI:
 
         assert response.status_code == 400
 
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.get_preview_image_url')
-    @patch('app.services.url_thumbnail_service.URLThumbnailService._download_image')
-    def test_attachment_preview_image_success(self, mock_download_image, mock_get_preview_image_url, mock_validate_url, client: FlaskClient):
+    @patch('app.services.document_service.DocumentService.get_preview_image')
+    def test_attachment_preview_image_success(self, mock_get_preview_image, client: FlaskClient):
         """Test successful preview image retrieval."""
-        mock_get_preview_image_url.return_value = 'https://example.com/image.jpg'
-        mock_download_image.return_value = (io.BytesIO(b"fake image data"), 'image/jpeg')
+        # Mock successful preview image retrieval
+        mock_get_preview_image.return_value = (b"fake image data", 'image/jpeg')
 
         response = client.get('/api/parts/attachment-preview/image?url=https%3A//example.com')
 
@@ -665,9 +677,7 @@ class TestUrlPreviewAPI:
         assert response.content_type == 'image/jpeg'
         assert response.data == b"fake image data"
 
-        mock_validate_url.assert_called_once_with('https://example.com')
-        mock_get_preview_image_url.assert_called_once_with('https://example.com')
-        mock_download_image.assert_called_once_with('https://example.com/image.jpg', 'https://example.com')
+        mock_get_preview_image.assert_called_once_with('https://example.com')
 
     def test_attachment_preview_image_no_url(self, client: FlaskClient):
         """Test preview image endpoint without URL parameter."""
@@ -677,33 +687,41 @@ class TestUrlPreviewAPI:
         data = response.get_json()
         assert 'URL parameter required' in data['error']
 
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=False)
-    def test_attachment_preview_image_invalid_url(self, mock_validate_url, client: FlaskClient):
+    @patch('app.services.document_service.DocumentService.get_preview_image')
+    def test_attachment_preview_image_invalid_url(self, mock_get_preview_image, client: FlaskClient):
         """Test preview image with invalid URL."""
+        # Mock get_preview_image to raise an exception for invalid URL
+        mock_get_preview_image.side_effect = Exception("Invalid URL format")
+        
         response = client.get('/api/parts/attachment-preview/image?url=invalid-url')
 
-        assert response.status_code == 400
+        assert response.status_code == 404
         data = response.get_json()
-        assert 'Invalid URL' in data['error']
+        assert 'Failed to retrieve image' in data['error']
+        assert 'Invalid URL format' in data['error']
 
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.get_preview_image_url', side_effect=Exception("Image extraction failed"))
-    def test_attachment_preview_image_extraction_error(self, mock_get_preview_image_url, mock_validate_url, client: FlaskClient):
+        mock_get_preview_image.assert_called_once_with('invalid-url')
+
+    @patch('app.services.document_service.DocumentService.get_preview_image')
+    def test_attachment_preview_image_extraction_error(self, mock_get_preview_image, client: FlaskClient):
         """Test preview image with extraction failure."""
+        # Mock extraction failure
+        mock_get_preview_image.side_effect = Exception("Image extraction failed")
+        
         response = client.get('/api/parts/attachment-preview/image?url=https%3A//example.com')
 
         assert response.status_code == 404
         data = response.get_json()
         assert 'Failed to retrieve image' in data['error']
+        assert 'Image extraction failed' in data['error']
 
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.get_preview_image_url')
-    @patch('app.services.url_thumbnail_service.URLThumbnailService._download_image')
-    def test_attachment_preview_direct_image_url(self, mock_download_image, mock_get_preview_image_url, mock_validate_url, client: FlaskClient):
+        mock_get_preview_image.assert_called_once_with('https://example.com')
+
+    @patch('app.services.document_service.DocumentService.get_preview_image')
+    def test_attachment_preview_direct_image_url(self, mock_get_preview_image, client: FlaskClient):
         """Test preview image with direct image URL."""
-        # Simulate direct image URL - should return the URL itself
-        mock_get_preview_image_url.return_value = 'https://example.com/image.jpg'
-        mock_download_image.return_value = (io.BytesIO(b"direct image data"), 'image/jpeg')
+        # Mock direct image retrieval
+        mock_get_preview_image.return_value = (b"direct image data", 'image/jpeg')
 
         response = client.get('/api/parts/attachment-preview/image?url=https%3A//example.com/image.jpg')
 
@@ -711,6 +729,4 @@ class TestUrlPreviewAPI:
         assert response.content_type == 'image/jpeg'
         assert response.data == b"direct image data"
 
-        mock_validate_url.assert_called_once_with('https://example.com/image.jpg')
-        mock_get_preview_image_url.assert_called_once_with('https://example.com/image.jpg')
-        mock_download_image.assert_called_once_with('https://example.com/image.jpg', 'https://example.com/image.jpg')
+        mock_get_preview_image.assert_called_once_with('https://example.com/image.jpg')

@@ -13,7 +13,6 @@ from app.schemas.ai_part_analysis import (
     AIPartAnalysisResultSchema,
     DocumentSuggestionSchema,
 )
-from app.schemas.url_preview import UrlPreviewResponseSchema
 from app.services.ai_model import PartAnalysisSuggestion
 from app.services.base import BaseService
 from app.services.base_task import ProgressHandle
@@ -21,9 +20,9 @@ from app.services.download_cache_service import DownloadCacheService
 from app.utils.ai.ai_runner import AIRequest, AIRunner
 from app.utils.ai.url_classification import ClassifyUrlsEntry, ClassifyUrlsRequest, ClassifyUrlsResponse, URLClassifierFunction
 from app.utils.temp_file_manager import TempFileManager
-
-if TYPE_CHECKING:
-    from app.services.type_service import TypeService
+from app.services.document_service import DocumentService
+from app.models.part_attachment import AttachmentType
+from app.services.type_service import TypeService
 
 logger = logging.getLogger(__name__)
 
@@ -31,13 +30,14 @@ logger = logging.getLogger(__name__)
 class AIService(BaseService):
     """Service for AI-powered part analysis using OpenAI."""
 
-    def __init__(self, db, config: Settings, temp_file_manager: TempFileManager, type_service: 'TypeService', download_cache_service: DownloadCacheService):
+    def __init__(self, db, config: Settings, temp_file_manager: TempFileManager, type_service: TypeService, download_cache_service: DownloadCacheService, document_service: DocumentService):
         super().__init__(db)
         self.config = config
         self.temp_file_manager = temp_file_manager
         self.type_service = type_service
         self.download_cache_service = download_cache_service
-        self.url_classifier_function = URLClassifierFunctionImpl(download_cache_service)
+        self.document_service = document_service
+        self.url_classifier_function = URLClassifierFunctionImpl(download_cache_service, document_service)
 
         # Initialize OpenAI client
         if not config.OPENAI_API_KEY:
@@ -170,53 +170,31 @@ class AIService(BaseService):
         try:
             logger.info(f"Getting preview metadata for URL {url}")
 
-            """Download a document from AI-provided URL."""
-            # Use download_cache_service to get content and detect type
-            content = self.download_cache_service.get_cached_content(url)
-            if not content:
-                logger.warning(f"Failed to download content from URL {url}")
-                return None
-            
-            # Detect content type using magic
-            import magic
-            content_type = magic.from_buffer(content, mime=True)
-            
-            # Determine if it's a PDF, image, or webpage
-            is_pdf = content_type == 'application/pdf'
-            is_image = content_type.startswith('image/')
-            is_webpage = content_type == 'text/html'
+            upload_doc = self.document_service.process_upload_url(url)
             
             # Generate backend image endpoint URL for potential preview
             encoded_url = quote(url, safe='')
             image_url = None
             original_url = url
             
-            # For webpages, we might have a preview image
-            if is_webpage or is_image:
-                image_url = f"/api/parts/attachment-preview/image?url={encoded_url}"
-            
-            # For PDFs and images, set original_url to proxy endpoint for iframe display
-            if is_pdf or is_image:
-                original_url = f"/api/parts/attachment-proxy/content?url={encoded_url}"
-            
-            # Extract title from HTML if it's a webpage
-            title = document_type.title()
-            if is_webpage:
-                from bs4 import BeautifulSoup
-                soup = BeautifulSoup(content, 'html.parser')
-                title_tag = soup.find('title')
-                if title_tag and title_tag.string:
-                    title = title_tag.string.strip() or title
-            
-            # Map content type to simple string
-            if is_pdf:
+            # Determine content type string and URLs based on detected type
+            from app.models.part_attachment import AttachmentType
+            if upload_doc.detected_type == AttachmentType.PDF:
                 content_type_str = "pdf"
-            elif is_image:
+                original_url = f"/api/parts/attachment-proxy/content?url={encoded_url}"
+            elif upload_doc.detected_type == AttachmentType.IMAGE:
                 content_type_str = "image"
-            elif is_webpage:
+                image_url = f"/api/parts/attachment-preview/image?url={encoded_url}"
+                original_url = f"/api/parts/attachment-proxy/content?url={encoded_url}"
+            elif upload_doc.detected_type == AttachmentType.URL:
                 content_type_str = "webpage"
+                if upload_doc.preview_image:
+                    image_url = f"/api/parts/attachment-preview/image?url={encoded_url}"
             else:
                 content_type_str = "other"
+            
+            # Use extracted title or document type as fallback
+            title = upload_doc.title or document_type.title()
             
             # Create preview
             from app.schemas.url_preview import UrlPreviewResponseSchema
@@ -277,8 +255,9 @@ class AIService(BaseService):
         )
 
 class URLClassifierFunctionImpl(URLClassifierFunction):
-    def __init__(self, download_cache_service: DownloadCacheService):
+    def __init__(self, download_cache_service: DownloadCacheService, document_service: DocumentService):
         self.download_cache_service = download_cache_service
+        self.document_service = document_service
 
     def classify_url(self, request: ClassifyUrlsRequest, progress_handle: ProgressHandle) -> ClassifyUrlsResponse:
         progress_handle.send_progress_text("Classifying URLs")
@@ -286,36 +265,24 @@ class URLClassifierFunctionImpl(URLClassifierFunction):
         classified_urls: list[ClassifyUrlsEntry] = []
 
         for url in request.urls:
+            classification = "invalid"
+
             try:
-                # Download and detect content type
-                content = self.download_cache_service.get_cached_content(url)
-                if not content:
-                    classification = "invalid"
-                else:
-                    import magic
-                    content_type = magic.from_buffer(content, mime=True)
-                    
-                    # Map content types to classifications
-                    if content_type == 'application/pdf':
+                doc_info = self.document_service.process_upload_url(url)
+                if doc_info.detected_type:
+                    # Map AttachmentType to classification strings
+                    if doc_info.detected_type == AttachmentType.PDF:
                         classification = "pdf"
-                    elif content_type.startswith('image/'):
+                    elif doc_info.detected_type == AttachmentType.IMAGE:
                         classification = "image"
-                    elif content_type == 'text/html':
+                    elif doc_info.detected_type == AttachmentType.URL:
                         classification = "webpage"
-                    else:
-                        classification = "invalid"
-
-                classified_urls.append(ClassifyUrlsEntry(
-                    url=url,
-                    classification=classification
-                ))
-
             except Exception as e:
                 logger.warning(f"Error while classifying URL {url}: {e}")
-                
-                classified_urls.append(ClassifyUrlsEntry(
-                    url=url,
-                    classification="invalid"
-                ))
+
+            classified_urls.append(ClassifyUrlsEntry(
+                url=url,
+                classification=classification
+            ))
 
         return ClassifyUrlsResponse(urls=classified_urls)

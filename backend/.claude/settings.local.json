@@ -17,7 +17,8 @@
       "Bash(unset:*)",
       "Bash(grep:*)",
       "Read(/home/pvginkel/source/ElectronicsInventory/frontend/src/hooks/**)",
-      "Read(/home/pvginkel/source/ElectronicsInventory/frontend/src/components/documents/**)"
+      "Read(/home/pvginkel/source/ElectronicsInventory/frontend/src/components/documents/**)",
+      "Bash(sed:*)"
     ],
     "deny": [
       "Bash(ruff format:*)",

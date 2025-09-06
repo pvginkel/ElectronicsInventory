@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 from PIL import Image
 
 from app.services.html_document_handler import HtmlDocumentHandler
+from app.services.download_cache_service import DownloadResult
 
 
 @pytest.fixture
@@ -97,14 +98,14 @@ class TestHtmlDocumentHandler:
         """
         soup = BeautifulSoup(html, 'html.parser')
         test_image = create_test_image()
-        mock_download_cache_service.get_cached_content.return_value = test_image
+        mock_download_cache_service.get_cached_content.return_value = DownloadResult(content=test_image, content_type='image/jpeg')
         
-        result = html_handler._find_preview_image(soup, "https://example.com", mock_download_cache_service)
+        with patch('magic.from_buffer', return_value='image/jpeg'):
+            result = html_handler._find_preview_image(soup, "https://example.com", mock_download_cache_service)
         
         assert result is not None
-        content, content_type = result
-        assert content == test_image
-        assert content_type == "image/jpeg"
+        assert result.content == test_image
+        assert result.content_type == "image/jpeg"
         mock_download_cache_service.get_cached_content.assert_called_once_with("https://example.com/image.jpg")
 
     def test_find_preview_image_twitter_image(self, html_handler, mock_download_cache_service, create_test_image):
@@ -119,14 +120,14 @@ class TestHtmlDocumentHandler:
         """
         soup = BeautifulSoup(html, 'html.parser')
         test_image = create_test_image()
-        mock_download_cache_service.get_cached_content.return_value = test_image
+        mock_download_cache_service.get_cached_content.return_value = DownloadResult(content=test_image, content_type='image/jpeg')
         
-        result = html_handler._find_preview_image(soup, "https://example.com", mock_download_cache_service)
+        with patch('magic.from_buffer', return_value='image/jpeg'):
+            result = html_handler._find_preview_image(soup, "https://example.com", mock_download_cache_service)
         
         assert result is not None
-        content, content_type = result
-        assert content == test_image
-        assert content_type == "image/jpeg"
+        assert result.content == test_image
+        assert result.content_type == "image/jpeg"
 
     def test_find_preview_image_favicon(self, html_handler, mock_download_cache_service, create_test_image):
         """Test finding preview image from favicon."""
@@ -140,14 +141,14 @@ class TestHtmlDocumentHandler:
         """
         soup = BeautifulSoup(html, 'html.parser')
         test_image = create_test_image()
-        mock_download_cache_service.get_cached_content.return_value = test_image
+        mock_download_cache_service.get_cached_content.return_value = DownloadResult(content=test_image, content_type='image/jpeg')
         
-        result = html_handler._find_preview_image(soup, "https://example.com", mock_download_cache_service)
+        with patch('magic.from_buffer', return_value='image/jpeg'):
+            result = html_handler._find_preview_image(soup, "https://example.com", mock_download_cache_service)
         
         assert result is not None
-        content, content_type = result
-        assert content == test_image
-        assert content_type == "image/jpeg"
+        assert result.content == test_image
+        assert result.content_type == "image/jpeg"
         mock_download_cache_service.get_cached_content.assert_called_once_with("https://example.com/favicon.ico")
 
     def test_find_preview_image_relative_url(self, html_handler, mock_download_cache_service, create_test_image):
@@ -162,9 +163,10 @@ class TestHtmlDocumentHandler:
         """
         soup = BeautifulSoup(html, 'html.parser')
         test_image = create_test_image()
-        mock_download_cache_service.get_cached_content.return_value = test_image
+        mock_download_cache_service.get_cached_content.return_value = DownloadResult(content=test_image, content_type='image/jpeg')
         
-        result = html_handler._find_preview_image(soup, "https://example.com/page", mock_download_cache_service)
+        with patch('magic.from_buffer', return_value='image/jpeg'):
+            result = html_handler._find_preview_image(soup, "https://example.com/page", mock_download_cache_service)
         
         assert result is not None
         mock_download_cache_service.get_cached_content.assert_called_once_with("https://example.com/images/preview.jpg")
@@ -221,9 +223,10 @@ class TestHtmlDocumentHandler:
         """
         soup = BeautifulSoup(html, 'html.parser')
         test_image = create_test_image()
-        mock_download_cache_service.get_cached_content.return_value = test_image
+        mock_download_cache_service.get_cached_content.return_value = DownloadResult(content=test_image, content_type='image/jpeg')
         
-        result = html_handler._find_preview_image(soup, "https://example.com", mock_download_cache_service)
+        with patch('magic.from_buffer', return_value='image/jpeg'):
+            result = html_handler._find_preview_image(soup, "https://example.com", mock_download_cache_service)
         
         assert result is not None
         # Should have tried og:image first
@@ -241,9 +244,10 @@ class TestHtmlDocumentHandler:
         """
         soup = BeautifulSoup(html, 'html.parser')
         test_image = create_test_image(width=16, height=16)
-        mock_download_cache_service.get_cached_content.return_value = test_image
+        mock_download_cache_service.get_cached_content.return_value = DownloadResult(content=test_image, content_type='image/jpeg')
         
-        result = html_handler._find_preview_image(soup, "https://example.com", mock_download_cache_service)
+        with patch('magic.from_buffer', return_value='image/jpeg'):
+            result = html_handler._find_preview_image(soup, "https://example.com", mock_download_cache_service)
         
         assert result is not None
         # Should have tried Google favicon API
@@ -264,15 +268,15 @@ class TestHtmlDocumentHandler:
         </html>
         """
         test_image = create_test_image()
-        mock_download_cache_service.get_cached_content.return_value = test_image
+        mock_download_cache_service.get_cached_content.return_value = DownloadResult(content=test_image, content_type='image/jpeg')
         
-        result = html_handler.process_html_content(html, "https://example.com/part")
+        with patch('magic.from_buffer', return_value='image/jpeg'):
+            result = html_handler.process_html_content(html, "https://example.com/part")
         
         assert result.title == "Test Electronics Part"
         assert result.preview_image is not None
-        content, content_type = result.preview_image
-        assert content == test_image
-        assert content_type == "image/jpeg"
+        assert result.preview_image.content == test_image
+        assert result.preview_image.content_type == "image/jpeg"
 
     def test_process_html_content_broken_html(self, html_handler, mock_download_cache_service):
         """Test processing broken/malformed HTML."""
@@ -304,9 +308,10 @@ class TestHtmlDocumentHandler:
         </html>
         """
         test_image = create_test_image()
-        mock_download_cache_service.get_cached_content.return_value = test_image
+        mock_download_cache_service.get_cached_content.return_value = DownloadResult(content=test_image, content_type='image/jpeg')
         
-        result = html_handler.process_html_content(html, "https://example.com")
+        with patch('magic.from_buffer', return_value='image/jpeg'):
+            result = html_handler.process_html_content(html, "https://example.com")
         
         # Should have used the first og:image
         mock_download_cache_service.get_cached_content.assert_called_once_with("https://example.com/first.jpg")
@@ -326,9 +331,10 @@ class TestHtmlDocumentHandler:
         
         # First call returns None (404), second succeeds
         test_image = create_test_image()
-        mock_download_cache_service.get_cached_content.side_effect = [None, test_image]
+        mock_download_cache_service.get_cached_content.side_effect = [None, DownloadResult(content=test_image, content_type='image/jpeg')]
         
-        result = html_handler._find_preview_image(soup, "https://example.com", mock_download_cache_service)
+        with patch('magic.from_buffer', return_value='image/jpeg'):
+            result = html_handler._find_preview_image(soup, "https://example.com", mock_download_cache_service)
         
         assert result is not None
         # Should have tried og:image first, then twitter:image
