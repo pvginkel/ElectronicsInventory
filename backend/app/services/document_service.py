@@ -16,6 +16,7 @@ from app.services.download_cache_service import DownloadCacheService
 from app.services.image_service import ImageService
 from app.services.s3_service import S3Service
 from app.services.html_document_handler import HtmlDocumentHandler
+from app.services.url_transformers import URLInterceptorRegistry
 from app.schemas.upload_document import UploadDocumentSchema, DocumentContentSchema
 from app.utils.url_utils import get_filename_from_url
 
@@ -25,7 +26,7 @@ class DocumentService(BaseService):
 
     def __init__(self, db: Session, s3_service: S3Service, image_service: ImageService,
                  html_handler: HtmlDocumentHandler, download_cache_service: DownloadCacheService,
-                 settings: Settings):
+                 settings: Settings, url_interceptor_registry: URLInterceptorRegistry):
         """Initialize document service with dependencies.
 
         Args:
@@ -34,6 +35,7 @@ class DocumentService(BaseService):
             image_service: Image processing service
             html_handler: HTML document handler for preview extraction
             download_cache_service: Download cache service for URL content
+            url_interceptor_registry: Registry for URL interceptors
         """
         super().__init__(db)
         self.s3_service = s3_service
@@ -41,6 +43,7 @@ class DocumentService(BaseService):
         self.html_handler = html_handler
         self.download_cache_service = download_cache_service
         self.settings = settings
+        self.url_interceptor_registry = url_interceptor_registry
 
     def _mime_type_to_attachment_type(self, mime_type: str) -> AttachmentType | None:
         """Convert MIME type to AttachmentType."""
@@ -66,8 +69,9 @@ class DocumentService(BaseService):
         Returns:
             UploadDocumentSchema with processed content and metadata
         """
-        # Download content
-        download_result = self.download_cache_service.get_cached_content(url)
+        # Download content with interceptor chain
+        chain = self.url_interceptor_registry.build_chain(self.download_cache_service.get_cached_content)
+        download_result = chain(url)
         if not download_result:
             raise InvalidOperationException("process URL", f"failed to download content from {url}")
         

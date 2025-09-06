@@ -15,6 +15,7 @@ from app.models.part_attachment import AttachmentType, PartAttachment
 from app.models.type import Type
 from app.services.container import ServiceContainer
 from app.services.document_service import DocumentService
+from app.services.url_transformers import URLInterceptorRegistry
 from app.utils.temp_file_manager import TempFileManager
 from app.schemas.upload_document import UploadDocumentSchema, DocumentContentSchema
 
@@ -77,7 +78,9 @@ def mock_download_cache():
 def document_service(app: Flask, session: Session, mock_s3_service, mock_image_service, mock_html_handler, mock_download_cache, test_settings):
     """Create DocumentService with mocked dependencies."""
     with app.app_context():
-        return DocumentService(session, mock_s3_service, mock_image_service, mock_html_handler, mock_download_cache, test_settings)
+        # Create empty URL interceptor registry for testing
+        url_interceptor_registry = URLInterceptorRegistry()
+        return DocumentService(session, mock_s3_service, mock_image_service, mock_html_handler, mock_download_cache, test_settings, url_interceptor_registry)
 
 
 class TestDocumentService:
