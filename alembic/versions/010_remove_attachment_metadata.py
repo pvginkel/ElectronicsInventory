@@ -1,6 +1,6 @@
 """Remove attachment_metadata from part_attachments
 
-Revision ID: bb45dba7d9de
+Revision ID: 010
 Revises: 009
 Create Date: 2025-09-06 10:04:31.650835
 
@@ -13,7 +13,7 @@ from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'bb45dba7d9de'
+revision: str = '010'
 down_revision: Union[str, None] = '009'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

@@ -139,8 +139,7 @@ class TestDocumentService:
                     content_type="application/zip"
                 )
 
-        assert "validate file type" in str(exc_info.value)
-        assert "not allowed" in str(exc_info.value)
+        assert "file type not allowed" in str(exc_info.value)
 
     def test_create_file_attachment_file_too_large(self, document_service, container: ServiceContainer, sample_part, test_settings: Settings):
         """Test file attachment creation with file too large."""
@@ -855,3 +854,112 @@ class TestDocumentService:
             assert result.detected_type == "text/html"
             assert result.preview_image is not None
             assert result.preview_image.content_type == "image/jpeg"
+    
+    def test_create_file_attachment_stores_image_verbatim(self, document_service, session, sample_part):
+        """Test that images are stored byte-for-byte identical without re-encoding."""
+        # Create unique test bytes that would change if re-encoded
+        original_bytes = b"FAKE_JPEG_CONTENT_THAT_WOULD_CHANGE_IF_REENCODED"
+        test_file = io.BytesIO(original_bytes)
+        
+        with patch('magic.from_buffer') as mock_magic, \
+             patch.object(document_service.s3_service, 'upload_file') as mock_upload:
+            mock_magic.return_value = 'image/jpeg'
+            
+            attachment = document_service.create_file_attachment(
+                part_key=sample_part.key,
+                title="Test Image",
+                file_data=test_file,
+                filename="test.jpg",
+                content_type="image/jpeg"
+            )
+            
+            # Verify S3 received the exact original bytes
+            mock_upload.assert_called_once()
+            uploaded_data = mock_upload.call_args[0][0]
+            uploaded_data.seek(0)
+            uploaded_bytes = uploaded_data.read()
+            
+            assert uploaded_bytes == original_bytes, "Image was modified during storage"
+            assert attachment.content_type == "image/jpeg"
+    
+    def test_create_file_attachment_preserves_png_transparency(self, document_service, session, sample_part):
+        """Test that PNG images with transparency are stored without conversion."""
+        # Create fake PNG content (would lose transparency if converted to JPEG)
+        png_with_alpha = b"PNG_WITH_ALPHA_CHANNEL_DATA"
+        test_file = io.BytesIO(png_with_alpha)
+        
+        with patch('magic.from_buffer') as mock_magic, \
+             patch.object(document_service.s3_service, 'upload_file') as mock_upload:
+            mock_magic.return_value = 'image/png'
+            
+            attachment = document_service.create_file_attachment(
+                part_key=sample_part.key,
+                title="PNG with Transparency",
+                file_data=test_file,
+                filename="transparent.png",
+                content_type="image/png"
+            )
+            
+            # Verify PNG was stored as-is
+            mock_upload.assert_called_once()
+            uploaded_data = mock_upload.call_args[0][0]
+            uploaded_data.seek(0)
+            uploaded_bytes = uploaded_data.read()
+            
+            assert uploaded_bytes == png_with_alpha, "PNG was modified during storage"
+            assert attachment.content_type == "image/png"
+    
+    def test_create_file_attachment_no_jpeg_reencoding(self, document_service, session, sample_part):
+        """Test that JPEG images are not re-encoded (which would lose quality)."""
+        # JPEG bytes that would change if re-encoded due to quality loss
+        original_jpeg = b"ORIGINAL_JPEG_WITH_SPECIFIC_QUALITY_SETTINGS"
+        test_file = io.BytesIO(original_jpeg)
+        
+        with patch('magic.from_buffer') as mock_magic, \
+             patch.object(document_service.s3_service, 'upload_file') as mock_upload:
+            mock_magic.return_value = 'image/jpeg'
+            
+            attachment = document_service.create_file_attachment(
+                part_key=sample_part.key,
+                title="Original JPEG",
+                file_data=test_file,
+                filename="original.jpg",
+                content_type="image/jpeg"
+            )
+            
+            # Verify JPEG was not re-encoded
+            mock_upload.assert_called_once()
+            uploaded_data = mock_upload.call_args[0][0]
+            uploaded_data.seek(0)
+            uploaded_bytes = uploaded_data.read()
+            
+            assert uploaded_bytes == original_jpeg, "JPEG was re-encoded during storage"
+            assert attachment.content_type == "image/jpeg"
+    
+    def test_create_file_attachment_ignores_content_type_parameter(self, document_service, session, sample_part):
+        """Test that python-magic detection overrides provided content_type parameter."""
+        # Create content that's actually a PDF
+        pdf_content = b"PDF_CONTENT_HERE"
+        test_file = io.BytesIO(pdf_content)
+        
+        with patch('magic.from_buffer') as mock_magic, \
+             patch.object(document_service.s3_service, 'upload_file') as mock_upload:
+            # Magic detects it's a PDF despite wrong content_type parameter
+            mock_magic.return_value = 'application/pdf'
+            
+            attachment = document_service.create_file_attachment(
+                part_key=sample_part.key,
+                title="Mislabeled File",
+                file_data=test_file,
+                filename="file.jpg",  # Wrong extension
+                content_type="image/jpeg"  # Wrong content type
+            )
+            
+            # Verify the detected type was used, not the provided one
+            assert attachment.content_type == "application/pdf"
+            assert attachment.attachment_type == AttachmentType.PDF
+            
+            # Verify S3 upload used correct content type
+            mock_upload.assert_called_once()
+            upload_content_type = mock_upload.call_args[0][2]
+            assert upload_content_type == "application/pdf"
