@@ -89,10 +89,6 @@ class PartAttachmentResponseSchema(BaseModel):
         description="File size in bytes",
         json_schema_extra={"example": 1048576}
     )
-    attachment_metadata: dict[str, Any] | None = Field(
-        description="Additional metadata (dimensions, etc.)",
-        json_schema_extra={"example": {"width": 1920, "height": 1080, "format": "PNG"}}
-    )
     created_at: datetime = Field(
         description="Timestamp when the attachment was created",
         json_schema_extra={"example": "2024-01-15T10:30:00Z"}
@@ -101,8 +97,8 @@ class PartAttachmentResponseSchema(BaseModel):
         description="Timestamp when the attachment was last modified",
         json_schema_extra={"example": "2024-01-15T14:45:00Z"}
     )
-    has_image: bool = Field(
-        description="Whether this attachment has an associated image for display",
+    has_preview: bool = Field(
+        description="Whether this attachment has a preview image",
         json_schema_extra={"example": True}
     )
 
@@ -144,8 +140,8 @@ class PartAttachmentListSchema(BaseModel):
         description="Timestamp when the attachment was created",
         json_schema_extra={"example": "2024-01-15T10:30:00Z"}
     )
-    has_image: bool = Field(
-        description="Whether this attachment has an associated image for display",
+    has_preview: bool = Field(
+        description="Whether this attachment has a preview image",
         json_schema_extra={"example": True}
     )
 

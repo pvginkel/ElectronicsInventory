@@ -1,6 +1,7 @@
 """Document management API endpoints."""
 
 import io
+from io import BytesIO
 from urllib.parse import quote
 
 from dependency_injector.wiring import Provide, inject
@@ -228,34 +229,32 @@ def delete_attachment(part_key: str, attachment_id: int, document_service=Provid
 @api.validate(json=UrlPreviewRequestSchema, resp=SpectreeResponse(HTTP_200=UrlPreviewResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_422=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def attachment_preview(url_thumbnail_service=Provide[ServiceContainer.url_thumbnail_service]):
+def attachment_preview(document_service=Provide[ServiceContainer.document_service]):
     """Get URL preview metadata (title and backend image endpoint URL)."""
     data = UrlPreviewRequestSchema.model_validate(request.get_json())
 
-    # Validate URL
-    if not url_thumbnail_service.validate_url(data.url):
-        from app.schemas.common import ErrorDetailsSchema, ErrorResponseSchema
-        error_response = ErrorResponseSchema(
-            error='Invalid URL',
-            details=ErrorDetailsSchema(message='The provided URL is not valid or cannot be accessed', field=None)
-        )
-        return error_response.model_dump(), 422
-
-    # Extract metadata
+    # Process URL to extract metadata
     try:
-        metadata = url_thumbnail_service.extract_metadata(data.url)
+        upload_doc = document_service.process_upload_url(data.url)
 
-        # Generate backend image endpoint URL
+        # Generate backend image endpoint URL if preview available
         image_url = None
-        if metadata.og_image or metadata.favicon:
+        if upload_doc.preview_image or upload_doc.detected_type.startswith('image/'):
             encoded_url = quote(data.url, safe='')
             image_url = f"/api/parts/attachment-preview/image?url={encoded_url}"
 
+        # Determine content type for response
+        content_type = 'webpage'
+        if upload_doc.detected_type.startswith('image/'):
+            content_type = 'image'
+        elif upload_doc.detected_type == 'application/pdf':
+            content_type = 'pdf'
+
         response_data = UrlPreviewResponseSchema(
-            title=metadata.title,
+            title=upload_doc.title,
             image_url=image_url,
             original_url=data.url,
-            content_type=metadata.content_type.value
+            content_type=content_type
         )
 
         return response_data.model_dump(), 200
@@ -272,27 +271,23 @@ def attachment_preview(url_thumbnail_service=Provide[ServiceContainer.url_thumbn
 @documents_bp.route("/attachment-preview/image", methods=["GET"])
 @handle_api_errors
 @inject
-def attachment_preview_image(url_thumbnail_service=Provide[ServiceContainer.url_thumbnail_service]):
+def attachment_preview_image(document_service=Provide[ServiceContainer.document_service]):
     """Get preview image for URL."""
     url = request.args.get('url')
     if not url:
         return jsonify({'error': 'URL parameter required'}), 400
 
-    # Validate URL
-    if not url_thumbnail_service.validate_url(url):
-        return jsonify({'error': 'Invalid URL'}), 400
-
     try:
-        # Get appropriate image URL (direct image or extracted from webpage)
-        image_url = url_thumbnail_service.get_preview_image_url(url)
-        if not image_url:
+        # Get preview image using new method
+        result = document_service.get_preview_image(url)
+        if not result:
             return jsonify({'error': 'No preview image available'}), 404
 
-        image_data, content_type = url_thumbnail_service._download_image(image_url, url)
+        image_data, content_type = result
 
         # Return image data directly
         return send_file(
-            image_data,
+            BytesIO(image_data),
             mimetype=content_type,
             as_attachment=False
         )
@@ -304,23 +299,26 @@ def attachment_preview_image(url_thumbnail_service=Provide[ServiceContainer.url_
 @documents_bp.route("/attachment-proxy/content", methods=["GET"])
 @handle_api_errors
 @inject
-def attachment_proxy_content(url_thumbnail_service=Provide[ServiceContainer.url_thumbnail_service]):
+def attachment_proxy_content(document_service=Provide[ServiceContainer.document_service]):
     """Proxy external URL content to avoid CORS issues when displaying PDFs and images in iframes."""
     url = request.args.get('url')
     if not url:
         return jsonify({'error': 'URL parameter required'}), 400
 
-    # Validate URL for security
-    if not url_thumbnail_service.validate_url(url):
-        return jsonify({'error': 'Invalid URL'}), 400
-
     try:
         # Use download cache service to get content with proper MIME type detection
-        result = url_thumbnail_service.download_cache_service.get_cached_content(url)
+        content = document_service.download_cache_service.get_cached_content(url)
+        if not content:
+            return jsonify({'error': 'Failed to retrieve content'}), 404
+        
+        # Use magic to detect content type
+        import magic
+        content_type = magic.from_buffer(content, mime=True)
+        
         # Return the content with appropriate headers for iframe display
         return send_file(
-            io.BytesIO(result.content),
-            mimetype=result.content_type,
+            io.BytesIO(content),
+            mimetype=content_type,
             as_attachment=False  # Use Content-Disposition: inline for iframe display
         )
 

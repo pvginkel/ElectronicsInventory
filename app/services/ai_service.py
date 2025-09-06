@@ -13,13 +13,11 @@ from app.schemas.ai_part_analysis import (
     AIPartAnalysisResultSchema,
     DocumentSuggestionSchema,
 )
-from app.schemas.url_metadata import URLContentType
 from app.schemas.url_preview import UrlPreviewResponseSchema
 from app.services.ai_model import PartAnalysisSuggestion
 from app.services.base import BaseService
 from app.services.base_task import ProgressHandle
 from app.services.download_cache_service import DownloadCacheService
-from app.services.url_thumbnail_service import URLThumbnailService
 from app.utils.ai.ai_runner import AIRequest, AIRunner
 from app.utils.ai.url_classification import ClassifyUrlsEntry, ClassifyUrlsRequest, ClassifyUrlsResponse, URLClassifierFunction
 from app.utils.temp_file_manager import TempFileManager
@@ -33,14 +31,13 @@ logger = logging.getLogger(__name__)
 class AIService(BaseService):
     """Service for AI-powered part analysis using OpenAI."""
 
-    def __init__(self, db, config: Settings, temp_file_manager: TempFileManager, type_service: 'TypeService', url_thumbnail_service: URLThumbnailService, download_cache_service: DownloadCacheService):
+    def __init__(self, db, config: Settings, temp_file_manager: TempFileManager, type_service: 'TypeService', download_cache_service: DownloadCacheService):
         super().__init__(db)
         self.config = config
         self.temp_file_manager = temp_file_manager
         self.type_service = type_service
-        self.url_thumbnail_service = url_thumbnail_service
         self.download_cache_service = download_cache_service
-        self.url_classifier_function = URLClassifierFunctionImpl(url_thumbnail_service)
+        self.url_classifier_function = URLClassifierFunctionImpl(download_cache_service)
 
         # Initialize OpenAI client
         if not config.OPENAI_API_KEY:
@@ -245,27 +242,33 @@ class AIService(BaseService):
         )
 
 class URLClassifierFunctionImpl(URLClassifierFunction):
-    def __init__(self, url_thumbnail_service: URLThumbnailService):
-        self.url_thumbnail_service = url_thumbnail_service
+    def __init__(self, download_cache_service: DownloadCacheService):
+        self.download_cache_service = download_cache_service
 
     def classify_url(self, request: ClassifyUrlsRequest, progress_handle: ProgressHandle) -> ClassifyUrlsResponse:
         progress_handle.send_progress_text("Classifying URLs")
-
-        # Map URLContentType enum to classification strings
-        classification_map = {
-            URLContentType.PDF: "pdf",
-            URLContentType.IMAGE: "image",
-            URLContentType.WEBPAGE: "webpage",
-            URLContentType.OTHER: "invalid"
-        }
         
         classified_urls: list[ClassifyUrlsEntry] = []
 
         for url in request.urls:
             try:
-                metadata = self.url_thumbnail_service.extract_metadata(url)
-
-                classification = classification_map.get(metadata.content_type, "invalid")
+                # Download and detect content type
+                content = self.download_cache_service.get_cached_content(url)
+                if not content:
+                    classification = "invalid"
+                else:
+                    import magic
+                    content_type = magic.from_buffer(content, mime=True)
+                    
+                    # Map content types to classifications
+                    if content_type == 'application/pdf':
+                        classification = "pdf"
+                    elif content_type.startswith('image/'):
+                        classification = "image"
+                    elif content_type == 'text/html':
+                        classification = "webpage"
+                    else:
+                        classification = "invalid"
 
                 classified_urls.append(ClassifyUrlsEntry(
                     url=url,
