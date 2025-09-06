@@ -7,6 +7,7 @@ import { SplitButton } from '@/components/ui/split-button';
 import { TypeSelector } from '@/components/types/type-selector';
 import { TypeCreateDialog } from '@/components/types/type-create-dialog';
 import { TagsInput } from './tags-input';
+import { MountingTypeSelector } from './mounting-type-selector';
 import { AIDocumentGridWrapper } from './ai-document-grid-wrapper';
 import { transformAIPartAnalysisResult, transformToCreateSchema } from '@/lib/utils/ai-parts';
 import { useCreateType } from '@/hooks/use-types';
@@ -353,13 +354,10 @@ export function AIPartReviewStep({
 
             <div>
               <Label htmlFor="mountingType">Mounting Type</Label>
-              <Input
-                id="mountingType"
+              <MountingTypeSelector
                 value={formData.mountingType}
-                onChange={(e) => updateField('mountingType', e.target.value)}
-                placeholder="e.g., SMD, THT, Panel Mount"
-                clearable
-                onClear={() => updateField('mountingType', '')}
+                onChange={(value) => updateField('mountingType', value || '')}
+                placeholder="Select mounting type..."
               />
             </div>
 

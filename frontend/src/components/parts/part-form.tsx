@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { TypeSelector } from '@/components/types/type-selector';
 import { TagsInput } from './tags-input';
+import { MountingTypeSelector } from './mounting-type-selector';
 import { useGetPartsByPartKey, usePostParts, usePutPartsByPartKey } from '@/lib/api/generated/hooks';
 import { validatePartData } from '@/lib/utils/parts';
 
@@ -322,13 +323,11 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
               <FormLabel htmlFor="mountingType">
                 Mounting Type
               </FormLabel>
-              <Input
-                id="mountingType"
+              <MountingTypeSelector
                 value={formData.mountingType}
-                onChange={(e) => updateFormData('mountingType', e.target.value)}
+                onChange={(value) => updateFormData('mountingType', value || '')}
                 error={errors.mountingType}
-                maxLength={100}
-                placeholder="e.g., Through-hole, Surface Mount"
+                placeholder="Select mounting type..."
               />
             </FormField>
           </div>
