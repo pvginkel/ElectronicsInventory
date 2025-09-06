@@ -50,6 +50,12 @@ def create_app(settings: "Settings | None" = None) -> Flask:
     container.config.override(settings)
     container.session_maker.override(SessionLocal)
     container.wire(modules=['app.api.ai_parts', 'app.api.parts', 'app.api.boxes', 'app.api.inventory', 'app.api.types', 'app.api.documents', 'app.api.tasks', 'app.api.dashboard'])
+    
+    # Register URL interceptors
+    registry = container.url_interceptor_registry()
+    lcsc_interceptor = container.lcsc_interceptor()
+    registry.register(lcsc_interceptor)
+    
     app.container = container
 
     # Configure CORS

@@ -1,6 +1,7 @@
 """Document management API endpoints."""
 
 import io
+import logging
 from io import BytesIO
 from urllib.parse import quote
 
@@ -21,10 +22,14 @@ from app.schemas.part_attachment import (
 )
 from app.schemas.url_preview import UrlPreviewRequestSchema, UrlPreviewResponseSchema
 from app.services.container import ServiceContainer
+from app.services.document_service import DocumentService
+from app.services.url_transformers.registry import URLInterceptorRegistry
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
 documents_bp = Blueprint("documents", __name__, url_prefix="/parts")
+
+logger = logging.getLogger(__name__)
 
 
 # Part Cover Image Management
@@ -32,7 +37,7 @@ documents_bp = Blueprint("documents", __name__, url_prefix="/parts")
 @api.validate(json=SetCoverAttachmentSchema, resp=SpectreeResponse(HTTP_200=CoverAttachmentResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def set_part_cover(part_key: str, document_service=Provide[ServiceContainer.document_service]):
+def set_part_cover(part_key: str, document_service : DocumentService = Provide[ServiceContainer.document_service]):
     """Set or clear part cover attachment."""
     data = SetCoverAttachmentSchema.model_validate(request.get_json())
     document_service.set_part_cover_attachment(part_key, data.attachment_id)
@@ -51,7 +56,7 @@ def set_part_cover(part_key: str, document_service=Provide[ServiceContainer.docu
 @api.validate(resp=SpectreeResponse(HTTP_200=CoverAttachmentResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def clear_part_cover(part_key: str, document_service=Provide[ServiceContainer.document_service]):
+def clear_part_cover(part_key: str, document_service : DocumentService = Provide[ServiceContainer.document_service]):
     """Clear part cover attachment."""
     document_service.set_part_cover_attachment(part_key, None)
 
@@ -67,7 +72,7 @@ def clear_part_cover(part_key: str, document_service=Provide[ServiceContainer.do
 @api.validate(resp=SpectreeResponse(HTTP_200=CoverAttachmentResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_part_cover(part_key: str, document_service=Provide[ServiceContainer.document_service]):
+def get_part_cover(part_key: str, document_service : DocumentService = Provide[ServiceContainer.document_service]):
     """Get part cover attachment details."""
     cover_attachment = document_service.get_part_cover_attachment(part_key)
 
@@ -82,7 +87,7 @@ def get_part_cover(part_key: str, document_service=Provide[ServiceContainer.docu
 @documents_bp.route("/<part_key>/cover/thumbnail", methods=["GET"])
 @handle_api_errors
 @inject
-def get_part_cover_thumbnail(part_key: str, document_service=Provide[ServiceContainer.document_service]):
+def get_part_cover_thumbnail(part_key: str, document_service : DocumentService = Provide[ServiceContainer.document_service]):
     """Get part cover thumbnail."""
     size = int(request.args.get('size', 150))
 
@@ -104,7 +109,7 @@ def get_part_cover_thumbnail(part_key: str, document_service=Provide[ServiceCont
 @documents_bp.route("/<part_key>/attachments", methods=["POST"])
 @handle_api_errors
 @inject
-def create_attachment(part_key: str, document_service=Provide[ServiceContainer.document_service]):
+def create_attachment(part_key: str, document_service : DocumentService = Provide[ServiceContainer.document_service]):
     """Create a new attachment (file upload or URL)."""
     content_type = request.content_type
 
@@ -150,7 +155,7 @@ def create_attachment(part_key: str, document_service=Provide[ServiceContainer.d
 @api.validate(resp=SpectreeResponse(HTTP_200=list[PartAttachmentListSchema], HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def list_attachments(part_key: str, document_service=Provide[ServiceContainer.document_service]):
+def list_attachments(part_key: str, document_service : DocumentService = Provide[ServiceContainer.document_service]):
     """List all attachments for a part."""
     attachments = document_service.get_part_attachments(part_key)
     return [PartAttachmentListSchema.model_validate(attachment).model_dump() for attachment in attachments], 200
@@ -160,7 +165,7 @@ def list_attachments(part_key: str, document_service=Provide[ServiceContainer.do
 @api.validate(resp=SpectreeResponse(HTTP_200=PartAttachmentResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_attachment(part_key: str, attachment_id: int, document_service=Provide[ServiceContainer.document_service]):
+def get_attachment(part_key: str, attachment_id: int, document_service : DocumentService = Provide[ServiceContainer.document_service]):
     """Get attachment details."""
     attachment = document_service.get_attachment(attachment_id)
     return PartAttachmentResponseSchema.model_validate(attachment).model_dump(), 200
@@ -169,7 +174,7 @@ def get_attachment(part_key: str, attachment_id: int, document_service=Provide[S
 @documents_bp.route("/<part_key>/attachments/<int:attachment_id>/download", methods=["GET"])
 @handle_api_errors
 @inject
-def download_attachment(part_key: str, attachment_id: int, document_service=Provide[ServiceContainer.document_service]):
+def download_attachment(part_key: str, attachment_id: int, document_service : DocumentService = Provide[ServiceContainer.document_service]):
     """Download or stream attachment file."""
     file_data, content_type, filename = document_service.get_attachment_file_data(attachment_id)
 
@@ -187,7 +192,7 @@ def download_attachment(part_key: str, attachment_id: int, document_service=Prov
 @documents_bp.route("/<part_key>/attachments/<int:attachment_id>/thumbnail", methods=["GET"])
 @handle_api_errors
 @inject
-def get_attachment_thumbnail(part_key: str, attachment_id: int, document_service=Provide[ServiceContainer.document_service]):
+def get_attachment_thumbnail(part_key: str, attachment_id: int, document_service : DocumentService = Provide[ServiceContainer.document_service]):
     """Get attachment thumbnail."""
     size = int(request.args.get('size', 150))
 
@@ -205,7 +210,7 @@ def get_attachment_thumbnail(part_key: str, attachment_id: int, document_service
 @api.validate(json=PartAttachmentUpdateSchema, resp=SpectreeResponse(HTTP_200=PartAttachmentResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def update_attachment(part_key: str, attachment_id: int, document_service=Provide[ServiceContainer.document_service]):
+def update_attachment(part_key: str, attachment_id: int, document_service : DocumentService = Provide[ServiceContainer.document_service]):
     """Update attachment metadata."""
     data = PartAttachmentUpdateSchema.model_validate(request.get_json())
     attachment = document_service.update_attachment(attachment_id, data.title)
@@ -217,7 +222,7 @@ def update_attachment(part_key: str, attachment_id: int, document_service=Provid
 @api.validate(resp=SpectreeResponse(HTTP_204=None, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def delete_attachment(part_key: str, attachment_id: int, document_service=Provide[ServiceContainer.document_service]):
+def delete_attachment(part_key: str, attachment_id: int, document_service : DocumentService = Provide[ServiceContainer.document_service]):
     """Delete attachment."""
     document_service.delete_attachment(attachment_id)
 
@@ -229,7 +234,7 @@ def delete_attachment(part_key: str, attachment_id: int, document_service=Provid
 @api.validate(json=UrlPreviewRequestSchema, resp=SpectreeResponse(HTTP_200=UrlPreviewResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_422=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def attachment_preview(document_service=Provide[ServiceContainer.document_service]):
+def attachment_preview(document_service : DocumentService = Provide[ServiceContainer.document_service]):
     """Get URL preview metadata (title and backend image endpoint URL)."""
     data = UrlPreviewRequestSchema.model_validate(request.get_json())
 
@@ -271,7 +276,7 @@ def attachment_preview(document_service=Provide[ServiceContainer.document_servic
 @documents_bp.route("/attachment-preview/image", methods=["GET"])
 @handle_api_errors
 @inject
-def attachment_preview_image(document_service=Provide[ServiceContainer.document_service]):
+def attachment_preview_image(document_service : DocumentService = Provide[ServiceContainer.document_service]):
     """Get preview image for URL."""
     url = request.args.get('url')
     if not url:
@@ -283,12 +288,10 @@ def attachment_preview_image(document_service=Provide[ServiceContainer.document_
         if not result:
             return jsonify({'error': 'No preview image available'}), 404
 
-        image_data, content_type = result
-
         # Return image data directly
         return send_file(
-            BytesIO(image_data),
-            mimetype=content_type,
+            BytesIO(result.content),
+            mimetype=result.content_type,
             as_attachment=False
         )
 
@@ -299,7 +302,10 @@ def attachment_preview_image(document_service=Provide[ServiceContainer.document_
 @documents_bp.route("/attachment-proxy/content", methods=["GET"])
 @handle_api_errors
 @inject
-def attachment_proxy_content(document_service=Provide[ServiceContainer.document_service]):
+def attachment_proxy_content(
+    document_service : DocumentService = Provide[ServiceContainer.document_service],
+    url_interceptor_registry : URLInterceptorRegistry = Provide[ServiceContainer.url_interceptor_registry]
+):
     """Proxy external URL content to avoid CORS issues when displaying PDFs and images in iframes."""
     url = request.args.get('url')
     if not url:
@@ -307,18 +313,15 @@ def attachment_proxy_content(document_service=Provide[ServiceContainer.document_
 
     try:
         # Use download cache service to get content with proper MIME type detection
-        content = document_service.download_cache_service.get_cached_content(url)
+        chain = url_interceptor_registry.build_chain(document_service.download_cache_service.get_cached_content)
+        content = chain(url)
         if not content:
             return jsonify({'error': 'Failed to retrieve content'}), 404
         
-        # Use magic to detect content type
-        import magic
-        content_type = magic.from_buffer(content, mime=True)
-        
         # Return the content with appropriate headers for iframe display
         return send_file(
-            io.BytesIO(content),
-            mimetype=content_type,
+            io.BytesIO(content.content),
+            mimetype=content.content_type,
             as_attachment=False  # Use Content-Disposition: inline for iframe display
         )
 

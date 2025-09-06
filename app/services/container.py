@@ -18,6 +18,7 @@ from app.services.task_service import TaskService
 from app.services.test_data_service import TestDataService
 from app.services.type_service import TypeService
 from app.services.html_document_handler import HtmlDocumentHandler
+from app.services.url_transformers import URLInterceptorRegistry, LCSCInterceptor
 from app.utils.temp_file_manager import TempFileManager
 
 
@@ -64,6 +65,13 @@ class ServiceContainer(containers.DeclarativeContainer):
         HtmlDocumentHandler,
         download_cache_service=download_cache_service
     )
+    
+    # URL interceptor registry with LCSC interceptor
+    url_interceptor_registry = providers.Singleton(
+        URLInterceptorRegistry
+    )
+    lcsc_interceptor = providers.Factory(LCSCInterceptor)
+    
     document_service = providers.Factory(
         DocumentService,
         db=db_session,
@@ -71,7 +79,8 @@ class ServiceContainer(containers.DeclarativeContainer):
         image_service=image_service,
         html_handler=html_handler,
         download_cache_service=download_cache_service,
-        settings=config
+        settings=config,
+        url_interceptor_registry=url_interceptor_registry
     )
 
     # InventoryService depends on PartService
@@ -96,5 +105,6 @@ class ServiceContainer(containers.DeclarativeContainer):
         config=config,
         temp_file_manager=temp_file_manager,
         type_service=type_service,
-        download_cache_service=download_cache_service
+        download_cache_service=download_cache_service,
+        document_service=document_service
     )
