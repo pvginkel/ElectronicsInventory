@@ -211,7 +211,7 @@ class S3Service(BaseService):
                     return True
                 except ClientError as create_error:
                     raise InvalidOperationException(
-                        "create S3 bucket", 
+                        "create S3 bucket",
                         f"failed to create bucket {self.settings.S3_BUCKET_NAME}: {create_error}"
                     ) from create_error
             else:

@@ -3,12 +3,13 @@
 import json
 import logging
 import os
-from typing import TYPE_CHECKING, cast
+from typing import cast
 from urllib.parse import quote
 
 from jinja2 import Environment
 
 from app.config import Settings
+from app.models.part_attachment import AttachmentType
 from app.schemas.ai_part_analysis import (
     AIPartAnalysisResultSchema,
     DocumentSuggestionSchema,
@@ -16,13 +17,17 @@ from app.schemas.ai_part_analysis import (
 from app.services.ai_model import PartAnalysisSuggestion
 from app.services.base import BaseService
 from app.services.base_task import ProgressHandle
-from app.services.download_cache_service import DownloadCacheService
-from app.utils.ai.ai_runner import AIRequest, AIRunner
-from app.utils.ai.url_classification import ClassifyUrlsEntry, ClassifyUrlsRequest, ClassifyUrlsResponse, URLClassifierFunction
-from app.utils.temp_file_manager import TempFileManager
 from app.services.document_service import DocumentService
-from app.models.part_attachment import AttachmentType
+from app.services.download_cache_service import DownloadCacheService
 from app.services.type_service import TypeService
+from app.utils.ai.ai_runner import AIRequest, AIRunner
+from app.utils.ai.url_classification import (
+    ClassifyUrlsEntry,
+    ClassifyUrlsRequest,
+    ClassifyUrlsResponse,
+    URLClassifierFunction,
+)
+from app.utils.temp_file_manager import TempFileManager
 
 logger = logging.getLogger(__name__)
 
@@ -171,12 +176,12 @@ class AIService(BaseService):
             logger.info(f"Getting preview metadata for URL {url}")
 
             upload_doc = self.document_service.process_upload_url(url)
-            
+
             # Generate backend image endpoint URL for potential preview
             encoded_url = quote(url, safe='')
             image_url = None
             original_url = url
-            
+
             # Determine content type string and URLs based on detected type
             from app.models.part_attachment import AttachmentType
             if upload_doc.detected_type == AttachmentType.PDF:
@@ -192,10 +197,10 @@ class AIService(BaseService):
                     image_url = f"/api/parts/attachment-preview/image?url={encoded_url}"
             else:
                 content_type_str = "other"
-            
+
             # Use extracted title or document type as fallback
             title = upload_doc.title or document_type.title()
-            
+
             # Create preview
             from app.schemas.url_preview import UrlPreviewResponseSchema
             preview = UrlPreviewResponseSchema(
@@ -261,7 +266,7 @@ class URLClassifierFunctionImpl(URLClassifierFunction):
 
     def classify_url(self, request: ClassifyUrlsRequest, progress_handle: ProgressHandle) -> ClassifyUrlsResponse:
         progress_handle.send_progress_text("Classifying URLs")
-        
+
         classified_urls: list[ClassifyUrlsEntry] = []
 
         for url in request.urls:

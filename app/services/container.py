@@ -9,6 +9,7 @@ from app.services.box_service import BoxService
 from app.services.dashboard_service import DashboardService
 from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
+from app.services.html_document_handler import HtmlDocumentHandler
 from app.services.image_service import ImageService
 from app.services.inventory_service import InventoryService
 from app.services.part_service import PartService
@@ -17,8 +18,7 @@ from app.services.setup_service import SetupService
 from app.services.task_service import TaskService
 from app.services.test_data_service import TestDataService
 from app.services.type_service import TypeService
-from app.services.html_document_handler import HtmlDocumentHandler
-from app.services.url_transformers import URLInterceptorRegistry, LCSCInterceptor
+from app.services.url_transformers import LCSCInterceptor, URLInterceptorRegistry
 from app.utils.temp_file_manager import TempFileManager
 
 
@@ -65,13 +65,13 @@ class ServiceContainer(containers.DeclarativeContainer):
         HtmlDocumentHandler,
         download_cache_service=download_cache_service
     )
-    
+
     # URL interceptor registry with LCSC interceptor
     url_interceptor_registry = providers.Singleton(
         URLInterceptorRegistry
     )
     lcsc_interceptor = providers.Factory(LCSCInterceptor)
-    
+
     document_service = providers.Factory(
         DocumentService,
         db=db_session,

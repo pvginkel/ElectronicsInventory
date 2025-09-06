@@ -903,27 +903,27 @@ class TestPartsAPI:
                 pin_count=16
             )
             session.commit()
-            
+
             # Verify initial pin_count is set
             response = client.get(f"/api/parts/{part.key}")
             assert response.status_code == 200
             initial_data = json.loads(response.data)
             assert initial_data["pin_count"] == 16
-            
+
             # Update part with null pin_count (this should clear the field but currently doesn't)
             update_data = {
                 "description": "Updated IC description",
                 "pin_count": None
             }
-            
+
             response = client.put(f"/api/parts/{part.key}", json=update_data)
             assert response.status_code == 200
-            
+
             # Get the part again to check if pin_count was cleared
             response = client.get(f"/api/parts/{part.key}")
             assert response.status_code == 200
             updated_data = json.loads(response.data)
-            
+
             # Verify that pin_count was cleared as expected
             assert updated_data["description"] == "Updated IC description"
             assert updated_data["pin_count"] is None  # Now works correctly - null value clears the field
@@ -951,7 +951,7 @@ class TestPartsAPI:
                 tags=["test", "component"]
             )
             session.commit()
-            
+
             # Clear all nullable fields by sending null values
             update_data = {
                 "description": "Updated description",  # Required field - keep it
@@ -971,15 +971,15 @@ class TestPartsAPI:
                 "dimensions": None,
                 "tags": None
             }
-            
+
             response = client.put(f"/api/parts/{part.key}", json=update_data)
             assert response.status_code == 200
-            
+
             # Verify all nullable fields were cleared
             response = client.get(f"/api/parts/{part.key}")
             assert response.status_code == 200
             updated_data = json.loads(response.data)
-            
+
             assert updated_data["description"] == "Updated description"
             assert updated_data["manufacturer_code"] is None
             assert updated_data["manufacturer"] is None
@@ -1009,7 +1009,7 @@ class TestPartsAPI:
                 package="QFP-16"
             )
             session.commit()
-            
+
             # Clear some fields while updating others
             update_data = {
                 "manufacturer": None,  # Clear this
@@ -1018,15 +1018,15 @@ class TestPartsAPI:
                 "package": "QFP-24"    # Update this
                 # Note: not setting description to null since it's a required field
             }
-            
+
             response = client.put(f"/api/parts/{part.key}", json=update_data)
             assert response.status_code == 200
-            
+
             # Verify selective clearing and updating worked
             response = client.get(f"/api/parts/{part.key}")
             assert response.status_code == 200
             updated_data = json.loads(response.data)
-            
+
             assert updated_data["manufacturer"] is None  # Cleared
             assert updated_data["pin_count"] == 24       # Updated
             assert updated_data["voltage_rating"] is None  # Cleared

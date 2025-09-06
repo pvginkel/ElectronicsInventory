@@ -1,6 +1,6 @@
 import threading
 from abc import ABC, abstractmethod
-from typing import Protocol, TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session

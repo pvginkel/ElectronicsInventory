@@ -97,7 +97,7 @@ class DownloadCacheService:
         if not url.startswith(('http://', 'https://')):
             logger.warning(f"URL {url} does not start with http:// or https://")
             return False
-        
+
         return True
 
     def _download_url(self, url: str) -> DownloadResult:

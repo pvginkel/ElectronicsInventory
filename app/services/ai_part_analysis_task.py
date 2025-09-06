@@ -1,7 +1,8 @@
 """AI part analysis background task."""
 
 import logging
-from typing import TYPE_CHECKING
+
+from sqlalchemy.orm import Session
 
 from app.schemas.ai_part_analysis import (
     AIPartAnalysisTaskCancelledResultSchema,
@@ -9,8 +10,6 @@ from app.schemas.ai_part_analysis import (
 )
 from app.services.base_task import BaseSessionTask, ProgressHandle
 from app.services.container import ServiceContainer
-from sqlalchemy.orm import Session
-
 
 logger = logging.getLogger(__name__)
 

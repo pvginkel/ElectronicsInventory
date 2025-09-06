@@ -1,16 +1,14 @@
 """Test dashboard API endpoints."""
 
-import pytest
 from datetime import datetime, timedelta
+
 from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
 from app.models.part import Part
-from app.models.part_location import PartLocation
 from app.models.part_attachment import PartAttachment
 from app.models.quantity_history import QuantityHistory
-from app.models.box import Box
 from app.models.type import Type
 from app.services.container import ServiceContainer
 
@@ -24,7 +22,7 @@ class TestDashboardAPI:
 
         assert response.status_code == 200
         data = response.get_json()
-        
+
         # Verify all required fields are present with correct default values
         expected_fields = [
             'total_parts', 'total_quantity', 'total_boxes', 'total_types',
@@ -43,7 +41,7 @@ class TestDashboardAPI:
 
         # Create box using service
         box = container.box_service().create_box("Test Box", 10)
-        
+
         # Create part using service
         part = container.part_service().create_part("Test Part", type_id=type_obj.id)
         session.commit()
@@ -65,7 +63,7 @@ class TestDashboardAPI:
 
         assert response.status_code == 200
         data = response.get_json()
-        
+
         assert data['total_parts'] == 1
         assert data['total_quantity'] == 3
         assert data['total_boxes'] == 1
@@ -106,15 +104,15 @@ class TestDashboardAPI:
 
         assert response.status_code == 200
         data = response.get_json()
-        
+
         assert len(data) == 1
         activity = data[0]
-        
+
         # Verify response structure
         required_fields = ['part_key', 'part_description', 'delta_qty', 'location_reference', 'timestamp']
         for field in required_fields:
             assert field in activity
-            
+
         assert activity['part_key'] == 'LED1'
         assert activity['part_description'] == 'Red LED'
         assert activity['delta_qty'] == 10
@@ -143,7 +141,7 @@ class TestDashboardAPI:
                 location_reference=f"1-{i+1}"
             )
             histories.append(history)
-        
+
         session.add_all(histories)
         session.commit()
 
@@ -194,22 +192,22 @@ class TestDashboardAPI:
         # Occupy 5 locations out of 20 (25% usage)
         for i in range(1, 6):
             container.inventory_service().add_stock(part.key, box.box_no, i, 10)
-        
+
         session.commit()
 
         response = client.get("/api/dashboard/storage-summary")
 
         assert response.status_code == 200
         data = response.get_json()
-        
+
         assert len(data) == 1
         box_summary = data[0]
-        
+
         # Verify response structure
         required_fields = ['box_no', 'description', 'total_locations', 'occupied_locations', 'usage_percentage']
         for field in required_fields:
             assert field in box_summary
-            
+
         assert box_summary['box_no'] == 1
         assert box_summary['description'] == "Small Parts Box"
         assert box_summary['total_locations'] == 20
@@ -225,7 +223,7 @@ class TestDashboardAPI:
 
         # Create box first
         box = container.box_service().create_box("Test Box", 10)
-        
+
         # Create parts
         low_stock_part = container.part_service().create_part("Low Stock Cap", type_id=type_obj.id)
         good_stock_part = container.part_service().create_part("Good Stock Cap", type_id=type_obj.id)
@@ -240,15 +238,15 @@ class TestDashboardAPI:
 
         assert response.status_code == 200
         data = response.get_json()
-        
+
         assert len(data) == 1
         item = data[0]
-        
+
         # Verify response structure
         required_fields = ['part_key', 'description', 'type_name', 'current_quantity']
         for field in required_fields:
             assert field in item
-            
+
         assert item['part_key'] == low_stock_part.key
         assert item['description'] == 'Low Stock Cap'
         assert item['type_name'] == 'Capacitor'
@@ -263,7 +261,7 @@ class TestDashboardAPI:
 
         # Create box first
         box = container.box_service().create_box("IC Box", 5)
-        
+
         # Create part
         part = container.part_service().create_part("Microcontroller", type_id=type_obj.id)
         session.commit()
@@ -330,19 +328,19 @@ class TestDashboardAPI:
 
         assert response.status_code == 200
         data = response.get_json()
-        
+
         assert len(data) == 2
-        
+
         # Should be ordered by part count descending
         first_item = data[0]
         second_item = data[1]
-        
+
         # Verify response structure
         for item in data:
             required_fields = ['type_name', 'part_count']
             for field in required_fields:
                 assert field in item
-                
+
         assert first_item['type_name'] == 'Resistor'
         assert first_item['part_count'] == 2
         assert second_item['type_name'] == 'LED'
@@ -354,7 +352,7 @@ class TestDashboardAPI:
 
         assert response.status_code == 200
         data = response.get_json()
-        
+
         assert data['count'] == 0
         assert data['sample_parts'] == []
 
@@ -387,15 +385,15 @@ class TestDashboardAPI:
 
         assert response.status_code == 200
         data = response.get_json()
-        
+
         assert data['count'] == 1
         assert len(data['sample_parts']) == 1
-        
+
         sample_part = data['sample_parts'][0]
         required_fields = ['part_key', 'description', 'type_name']
         for field in required_fields:
             assert field in sample_part
-            
+
         assert sample_part['part_key'] == 'SEN2'
         assert sample_part['description'] == 'Undocumented Sensor'
         assert sample_part['type_name'] == 'Sensor'
@@ -410,7 +408,7 @@ class TestDashboardAPI:
             "/api/dashboard/category-distribution",
             "/api/dashboard/parts-without-documents"
         ]
-        
+
         for endpoint in endpoints:
             response = client.get(endpoint)
             assert response.status_code == 200
@@ -426,16 +424,16 @@ class TestDashboardAPI:
         # This test would need to be implemented with database mocking
         # to simulate database connection failures, etc.
         # For now, we just verify endpoints don't crash with normal operations
-        
+
         endpoints = [
             "/api/dashboard/stats",
-            "/api/dashboard/recent-activity", 
+            "/api/dashboard/recent-activity",
             "/api/dashboard/storage-summary",
             "/api/dashboard/low-stock",
             "/api/dashboard/category-distribution",
             "/api/dashboard/parts-without-documents"
         ]
-        
+
         for endpoint in endpoints:
             response = client.get(endpoint)
             # Should not return server errors
@@ -450,7 +448,7 @@ class TestDashboardAPI:
 
         # Create box using service
         box = container.box_service().create_box("Test Box", 10)
-        
+
         # Create part using service
         part = container.part_service().create_part("Test Part", type_id=type_obj.id)
         session.commit()

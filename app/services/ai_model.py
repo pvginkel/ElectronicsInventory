@@ -1,5 +1,7 @@
 from enum import Enum
+
 from pydantic import BaseModel, ConfigDict, Field
+
 
 class MountingTypeEnum(str, Enum):
     THROUGH_HOLE = "Through-Hole"

@@ -1,9 +1,7 @@
 """Image service for thumbnail generation and processing."""
 
 import os
-from io import BytesIO
 from pathlib import Path
-from typing import BinaryIO
 
 from PIL import Image
 from sqlalchemy.orm import Session

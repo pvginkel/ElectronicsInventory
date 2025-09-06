@@ -1,19 +1,15 @@
 """Test dashboard service functionality."""
 
-import pytest
 from datetime import datetime, timedelta
+
 from flask import Flask
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.part import Part
-from app.models.part_location import PartLocation
 from app.models.part_attachment import PartAttachment
 from app.models.quantity_history import QuantityHistory
-from app.models.box import Box
 from app.models.type import Type
 from app.services.container import ServiceContainer
-from app.services.dashboard_service import DashboardService
 
 
 class TestDashboardService:
@@ -43,15 +39,15 @@ class TestDashboardService:
         """Test get_dashboard_stats with realistic data."""
         with app.app_context():
             service = container.dashboard_service()
-            
+
             # Create test data using services
             box = container.box_service().create_box("Test Box", 10)
-            
+
             # Create type first
             test_type = Type(name="Test Type")
             session.add(test_type)
             session.flush()
-            
+
             # Create parts using part service
             part1 = container.part_service().create_part("Test Part 1", type_id=test_type.id)
             part2 = container.part_service().create_part("Test Part 2", type_id=test_type.id)
@@ -99,7 +95,7 @@ class TestDashboardService:
     ):
         """Test get_recent_activity respects limit parameter."""
         service = container.dashboard_service()
-        
+
         # Create test data
         type_obj = Type(name="Test Type")
         session.add(type_obj)
@@ -120,7 +116,7 @@ class TestDashboardService:
                 location_reference=f"1-{i+1}"
             )
             histories.append(history)
-        
+
         session.add_all(histories)
         session.commit()
 
@@ -130,7 +126,7 @@ class TestDashboardService:
         assert len(activities) == 3
         # Should be ordered by timestamp descending (most recent first)
         assert activities[0]['delta_qty'] == 1  # Most recent (i=0)
-        assert activities[1]['delta_qty'] == 2  # Second most recent (i=1)  
+        assert activities[1]['delta_qty'] == 2  # Second most recent (i=1)
         assert activities[2]['delta_qty'] == 3  # Third most recent (i=2)
 
     def test_get_recent_activity_includes_part_details(
@@ -138,7 +134,7 @@ class TestDashboardService:
     ):
         """Test get_recent_activity includes correct part details."""
         service = container.dashboard_service()
-        
+
         # Create test data
         type_obj = Type(name="Resistor")
         session.add(type_obj)
@@ -182,7 +178,7 @@ class TestDashboardService:
     ):
         """Test get_storage_summary with boxes shows correct utilization."""
         service = container.dashboard_service()
-        
+
         # Create boxes using proper services
         box1 = container.box_service().create_box("Small Parts", 20)
         box2 = container.box_service().create_box("Large Parts", 50)
@@ -199,17 +195,17 @@ class TestDashboardService:
         # Box 1: 5 occupied locations out of 20 (25% usage)
         for i in range(1, 6):
             container.inventory_service().add_stock(part1.key, box1.box_no, i, 10)
-        
+
         # Box 2: 10 occupied locations out of 50 (20% usage)
         for i in range(1, 11):
             container.inventory_service().add_stock(part2.key, box2.box_no, i, 5)
-        
+
         session.commit()
 
         summary = service.get_storage_summary()
 
         assert len(summary) == 2
-        
+
         # Results should be ordered by box_no
         box1_summary = summary[0]
         assert box1_summary['box_no'] == box1.box_no
@@ -217,7 +213,7 @@ class TestDashboardService:
         assert box1_summary['total_locations'] == 20
         assert box1_summary['occupied_locations'] == 5
         assert box1_summary['usage_percentage'] == 25.0
-        
+
         box2_summary = summary[1]
         assert box2_summary['box_no'] == box2.box_no
         assert box2_summary['description'] == "Large Parts"
@@ -230,7 +226,7 @@ class TestDashboardService:
     ):
         """Test get_low_stock_items with default threshold of 5."""
         service = container.dashboard_service()
-        
+
         # Create test data using proper services
         type_obj = Type(name="Capacitor")
         session.add(type_obj)
@@ -238,11 +234,11 @@ class TestDashboardService:
 
         # Create a box with locations
         box = container.box_service().create_box("Test Box", 10)
-        
+
         # Create parts using part service
         part1 = container.part_service().create_part("Low Stock Capacitor", type_id=type_obj.id)
         part2 = container.part_service().create_part("Good Stock Capacitor", type_id=type_obj.id)
-        part3 = container.part_service().create_part("Zero Stock Capacitor", type_id=type_obj.id)
+        container.part_service().create_part("Zero Stock Capacitor", type_id=type_obj.id)
         session.commit()
 
         # Add stock using inventory service
@@ -266,7 +262,7 @@ class TestDashboardService:
     ):
         """Test get_low_stock_items with custom threshold."""
         service = container.dashboard_service()
-        
+
         # Create test data using proper services
         type_obj = Type(name="LED")
         session.add(type_obj)
@@ -274,7 +270,7 @@ class TestDashboardService:
 
         # Create a box with locations
         box = container.box_service().create_box("LED Box", 5)
-        
+
         # Create part using part service
         part = container.part_service().create_part("Red LED", type_id=type_obj.id)
         session.commit()
@@ -307,10 +303,10 @@ class TestDashboardService:
     ):
         """Test get_category_distribution returns types ordered by part count descending."""
         service = container.dashboard_service()
-        
+
         # Create types
         type1 = Type(name="Resistor")
-        type2 = Type(name="Capacitor") 
+        type2 = Type(name="Capacitor")
         type3 = Type(name="LED")
         session.add_all([type1, type2, type3])
         session.flush()
@@ -354,7 +350,7 @@ class TestDashboardService:
     ):
         """Test get_parts_without_documents when all parts have documents."""
         service = container.dashboard_service()
-        
+
         # Create test data
         type_obj = Type(name="IC")
         session.add(type_obj)
@@ -387,7 +383,7 @@ class TestDashboardService:
     ):
         """Test get_parts_without_documents with mixed documentation status."""
         service = container.dashboard_service()
-        
+
         # Create test data
         type_obj = Type(name="Sensor")
         session.add(type_obj)
@@ -406,7 +402,7 @@ class TestDashboardService:
             part_id=documented_part.id,
             attachment_type=AttachmentType.PDF,
             title="Sensor Specification",
-            filename="sensor_spec.pdf", 
+            filename="sensor_spec.pdf",
             file_size=500,
             content_type="application/pdf"
         )
@@ -417,13 +413,13 @@ class TestDashboardService:
 
         assert result['count'] == 2
         assert len(result['sample_parts']) == 2
-        
+
         # Check sample data structure
         sample_keys = [part['part_key'] for part in result['sample_parts']]
         assert 'SEN2' in sample_keys
         assert 'SEN3' in sample_keys
         assert 'SEN1' not in sample_keys  # Should not include documented part
-        
+
         # Check sample part structure
         sample_part = result['sample_parts'][0]
         assert 'part_key' in sample_part
@@ -436,7 +432,7 @@ class TestDashboardService:
     ):
         """Test get_parts_without_documents limits sample to 10 parts."""
         service = container.dashboard_service()
-        
+
         # Create test data
         type_obj = Type(name="Connector")
         session.add(type_obj)
@@ -447,7 +443,7 @@ class TestDashboardService:
         for i in range(15):
             part = Part(key=f"CON{i:02d}", description=f"Connector {i}", type_id=type_obj.id)
             parts.append(part)
-        
+
         session.add_all(parts)
         session.commit()
 

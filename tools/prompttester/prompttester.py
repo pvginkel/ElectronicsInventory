@@ -2,18 +2,23 @@ import logging
 import os
 import threading
 import traceback
-
 from dataclasses import dataclass
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from functools import partial
-from app.services.base_task import ProgressHandle
-from typing import Any, Type, cast
+from typing import Any, cast
+
 from dotenv import load_dotenv
 from jinja2 import Environment
 from pydantic import BaseModel
+
+from app.services.base_task import ProgressHandle
 from app.utils.ai.ai_runner import AIFunction, AIRequest, AIRunner
 from app.utils.file_parsers import get_types_from_setup
-from tools.prompttester.model import AllUrlsSchema, BasicInformationSchema, PartDetailsSchema, PartFullSchema, UrlsSchema
+from tools.prompttester.model import (
+    AllUrlsSchema,
+    BasicInformationSchema,
+    PartDetailsSchema,
+    PartFullSchema,
+    UrlsSchema,
+)
 from tools.prompttester.url_classifier import URLClassifierFunctionImpl
 
 load_dotenv()
@@ -76,7 +81,7 @@ class ProgressImpl(ProgressHandle):
 
     def send_progress_value(self, value: float) -> None:
         """Send a progress value update (0.0 to 1.0) to connected clients."""
-        
+
         self.send_progress(self.text, value)
 
     def send_progress(self, text: str, value: float) -> None:
@@ -128,7 +133,7 @@ def run_tests(queries: list[tuple[str, str]], models: dict[str, list[str] | None
                     if reasoning_effort:
                         filename_prefix += f"_{reasoning_effort}"
                     filename_prefix += f"_{run + 1}"
-                    
+
                     try:
                         logger.info(f"Run: query {query}, query_key {query_key}, model {model}, reasoning_effort {reasoning_effort}")
 
@@ -213,7 +218,7 @@ def get_part_details(basic_information: BasicInformationSchema, run_parameters: 
     user_prompt = f"""Product Name: {basic_information.product_name}
 Manufacturer: {basic_information.manufacturer}
 MPN: {basic_information.mpn}"""
-    
+
     response = call_ai(
         system_prompt,
         user_prompt,
@@ -264,11 +269,11 @@ MPN: {basic_information.mpn}"""
 
     return cast(AllUrlsSchema, response)
 
-def call_ai(system_prompt: str, user_prompt: str, run_parameters: RunParameters, function_tools: list[AIFunction], response_model: Type[BaseModel], filename: str) -> BaseModel:
+def call_ai(system_prompt: str, user_prompt: str, run_parameters: RunParameters, function_tools: list[AIFunction], response_model: type[BaseModel], filename: str) -> BaseModel:
     json_filename = os.path.join(run_parameters.output_path, f"{filename}.json")
-    
+
     if os.path.exists(json_filename):
-        with open(json_filename, "r", encoding="utf-8") as f:
+        with open(json_filename, encoding="utf-8") as f:
             return response_model.model_validate_json(f.read())
 
     log_interceptor.clear()
@@ -289,12 +294,12 @@ def call_ai(system_prompt: str, user_prompt: str, run_parameters: RunParameters,
         reasoning_summary="auto",
         response_model=response_model
     )
-    
+
     response = run_parameters.runner.run(request, function_tools, run_parameters.progress_handle, True)
 
     with open(json_filename, "w", encoding="utf-8") as f:
         f.write(response.response.model_dump_json(indent=4))
-    
+
     with open(os.path.join(run_parameters.output_path, f"{filename}.txt"), "w", encoding="utf-8") as f:
         f.write(f"Elapsed time: {response.elapsed_time}\n")
         f.write(f"Input tokens: {response.input_tokens}\n")

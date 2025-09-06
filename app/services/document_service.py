@@ -11,13 +11,13 @@ from app.config import Settings
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.part import Part
 from app.models.part_attachment import AttachmentType, PartAttachment
+from app.schemas.upload_document import DocumentContentSchema, UploadDocumentSchema
 from app.services.base import BaseService
 from app.services.download_cache_service import DownloadCacheService
+from app.services.html_document_handler import HtmlDocumentHandler
 from app.services.image_service import ImageService
 from app.services.s3_service import S3Service
-from app.services.html_document_handler import HtmlDocumentHandler
 from app.services.url_transformers import URLInterceptorRegistry
-from app.schemas.upload_document import UploadDocumentSchema, DocumentContentSchema
 from app.utils.url_utils import get_filename_from_url
 
 
@@ -58,14 +58,14 @@ class DocumentService(BaseService):
 
     def process_upload_url(self, url: str) -> UploadDocumentSchema:
         """Process a URL to determine content and extract metadata.
-        
+
         This is the main bottleneck for URL processing that determines:
         - What content to store in S3 (image, PDF, or preview image for HTML)
         - What metadata to extract (title, content type)
-        
+
         Args:
             url: URL to process
-            
+
         Returns:
             UploadDocumentSchema with processed content and metadata
         """
@@ -74,13 +74,13 @@ class DocumentService(BaseService):
         download_result = chain(url)
         if not download_result:
             raise InvalidOperationException("process URL", f"failed to download content from {url}")
-        
+
         content = download_result.content
 
         # Detect actual content type from bytes
         detected_mime_type = magic.from_buffer(content, mime=True)
         detected_attachment_type = self._mime_type_to_attachment_type(detected_mime_type)
-        
+
         # Extract filename from URL for non-HTML content
         filename = get_filename_from_url(url, "upload")
 
@@ -100,7 +100,7 @@ class DocumentService(BaseService):
                 detected_type=detected_attachment_type,
                 preview_image=html_info.preview_image
             )
-            
+
         return UploadDocumentSchema(
             title=filename,
             content=content_schema,
@@ -230,13 +230,13 @@ class DocumentService(BaseService):
     def _create_attachment(self, part_key: str, content: DocumentContentSchema | None, title: str, url: str | None = None, filename: str | None = None, attachment_type: AttachmentType | None = None) -> PartAttachment:
         if not content and not url:
             raise InvalidOperationException("create attachment", "either content or URL must be provided")
-        
+
         # Get the part
         stmt = select(Part).where(Part.key == part_key)
         part = self.db.scalar(stmt)
         if not part:
             raise RecordNotFoundException("Part", part_key)
-        
+
         if content:
             # Read file data for validation
             file_size = len(content.content)
@@ -245,10 +245,10 @@ class DocumentService(BaseService):
             allowed_image_types = self.settings.ALLOWED_IMAGE_TYPES
             allowed_file_types = self.settings.ALLOWED_FILE_TYPES
             all_allowed = allowed_image_types + allowed_file_types
-            
+
             if content.content_type not in all_allowed:
                 raise InvalidOperationException("create file attachment", f"file type not allowed: {content.content_type}")
-            
+
             is_image = content.content_type.startswith('image/')
             self._validate_file_size(file_size, is_image)
 
@@ -268,11 +268,11 @@ class DocumentService(BaseService):
                     filename_for_s3 = get_filename_from_url(url, title)
                 else:
                     filename_for_s3 = "upload"
-                
+
             s3_key = self.s3_service.generate_s3_key(part.id, filename_for_s3)
 
             # Store images verbatim without conversion
-            
+
             # Upload to S3
             file_data = BytesIO(content.content)
             self.s3_service.upload_file(file_data, s3_key, content.content_type)
@@ -456,22 +456,22 @@ class DocumentService(BaseService):
             return link_data.decode('utf-8'), content_type
         else:
             raise InvalidOperationException("get attachment thumbnail", "thumbnail not available for this attachment type")
-    
+
     def get_preview_image(self, url: str) -> DocumentContentSchema | None:
         """Get preview image for a URL.
-        
+
         Replaces URLThumbnailService.get_preview_image_url functionality.
-        
+
         Args:
             url: URL to get preview for
-            
+
         Returns:
             DocumentContentSchema with image data or None if no preview available
         """
         try:
             # Process URL to get metadata
             upload_doc = self.process_upload_url(url)
-            
+
             # Return appropriate image data
             if upload_doc.preview_image:
                 # HTML with preview image

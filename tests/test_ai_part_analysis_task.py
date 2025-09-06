@@ -242,7 +242,7 @@ class TestAIPartAnalysisTask:
         # Verify successful execution
         assert result.success is True
 
-        # Extract all progress calls  
+        # Extract all progress calls
         progress_calls = mock_progress_handle.send_progress.call_args_list
 
         # Verify minimum number of progress updates
