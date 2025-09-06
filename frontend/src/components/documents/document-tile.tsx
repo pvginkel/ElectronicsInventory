@@ -4,6 +4,8 @@ import { ConfirmDialog } from '@/components/ui/dialog';
 import { useConfirm } from '@/hooks/use-confirm';
 import { useToast } from '@/hooks/use-toast';
 import type { DocumentItem } from '@/types/documents';
+import pdfIconSvg from '@/assets/pdf-icon.svg';
+import { LinkIcon } from '@/components/icons/LinkIcon';
 
 interface DocumentTileProps {
   document: DocumentItem;
@@ -79,20 +81,11 @@ export function DocumentTile({
         );
       case 'pdf':
         return (
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2Z"/>
-            <polyline points="14,2 14,8 20,8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-            <polyline points="10,9 9,9 8,9"/>
-          </svg>
+          <img src={pdfIconSvg} width="110" height="110" alt="PDF" />
         );
       case 'website':
         return (
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-          </svg>
+          <LinkIcon className="w-24 h-24" />
         );
       default:
         return (
@@ -123,7 +116,6 @@ export function DocumentTile({
             <div className="w-full h-full flex items-center justify-center bg-muted">
               <div className="text-center p-4">
                 {getTypeIcon()}
-                <div className="text-xs text-muted-foreground mt-2">{getTypeDisplay()}</div>
               </div>
             </div>
           )}

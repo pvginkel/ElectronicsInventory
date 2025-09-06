@@ -8,6 +8,8 @@ import { ProgressBar } from '@/components/ui/progress-bar';
 import { CameraCapture } from './camera-capture';
 import { useAddDocumentModal } from '@/hooks/use-add-document-modal';
 import { useCameraDetection } from '@/hooks/use-camera-detection';
+import { LinkIcon } from '@/components/icons/LinkIcon';
+import pdfIconSvg from '@/assets/pdf-icon.svg';
 
 interface AddDocumentModalProps {
   partId: string;
@@ -202,15 +204,16 @@ function AddDocumentModalContent({
                       <img
                         src={urlPreview.imageUrl}
                         alt="URL Preview"
-                        className="max-w-full max-h-64 object-contain rounded mb-4"
+                        className="max-w-full max-h-64 object-contain rounded"
                       />
                     ) : (
-                      // Show URL icon
-                      <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mb-4">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                        </svg>
+                      // Show URL or PDF icon based on content type
+                      <div className="w-24 h-24 bg-muted rounded-lg flex items-center justify-center mt-4 mb-4">
+                        {urlPreview.contentType === 'pdf' ? (
+                          <img src={pdfIconSvg} alt="PDF" />
+                        ) : (
+                          <LinkIcon className="" />
+                        )}
                       </div>
                     )}
                   </div>

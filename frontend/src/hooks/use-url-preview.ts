@@ -10,6 +10,7 @@ export interface UrlPreviewState {
   error: string | null;
   isValidUrl: boolean;
   imageUrl: string | null;
+  contentType: string | null;
 }
 
 export function useUrlPreview() {
@@ -20,6 +21,7 @@ export function useUrlPreview() {
     error: null,
     isValidUrl: false,
     imageUrl: null,
+    contentType: null,
   });
 
   const attachmentPreviewMutation = usePostPartsAttachmentPreview();
@@ -35,6 +37,7 @@ export function useUrlPreview() {
         error: null,
         isValidUrl: false,
         imageUrl: null,
+        contentType: null,
       });
       return;
     }
@@ -49,6 +52,7 @@ export function useUrlPreview() {
       isLoading: urlIsValid,
       error: urlIsValid ? null : 'Invalid URL format',
       imageUrl: null,
+      contentType: null,
     }));
 
     if (!urlIsValid) {
@@ -77,6 +81,7 @@ export function useUrlPreview() {
         isLoading: false,
         error: null,
         imageUrl: absoluteImageUrl,
+        contentType: previewData.content_type,
       }));
     } catch {
       setPreviewState(prev => ({
@@ -85,6 +90,7 @@ export function useUrlPreview() {
         isLoading: false,
         error: 'Could not fetch page preview',
         imageUrl: null,
+        contentType: null,
       }));
     }
   }, [attachmentPreviewMutation]);
@@ -97,6 +103,7 @@ export function useUrlPreview() {
       error: null,
       isValidUrl: false,
       imageUrl: null,
+      contentType: null,
     });
   }, []);
 
