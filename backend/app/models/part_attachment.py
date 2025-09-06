@@ -42,9 +42,6 @@ class PartAttachment(db.Model):  # type: ignore[name-defined]
     filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
     content_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     file_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    attachment_metadata: Mapped[dict | None] = mapped_column(
-        postgresql.JSONB().with_variant(postgresql.JSON, "sqlite"), nullable=True
-    )
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.now()
     )
@@ -77,14 +74,7 @@ class PartAttachment(db.Model):  # type: ignore[name-defined]
         return self.attachment_type == AttachmentType.URL
 
     @property
-    def has_image(self) -> bool:
-        """Check if this attachment has an associated image for display."""
-        if self.attachment_type == AttachmentType.IMAGE:
-            return True
-        elif self.attachment_type == AttachmentType.PDF:
-            return False
-        else:  # URL attachment
-            # Check if we have a stored thumbnail or if URL points directly to an image
-            if self.s3_key:
-                return True
-            return False
+    def has_preview(self) -> bool:
+        """Check if this attachment has a preview image (computed property)."""
+        # Only image content types have previews
+        return self.content_type is not None and self.content_type.startswith('image/')

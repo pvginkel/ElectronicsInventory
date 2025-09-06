@@ -15,14 +15,15 @@ from app.services.base import BaseService
 from app.services.download_cache_service import DownloadCacheService
 from app.services.image_service import ImageService
 from app.services.s3_service import S3Service
-from app.services.url_thumbnail_service import URLThumbnailService
+from app.services.html_document_handler import HtmlDocumentHandler
+from app.schemas.upload_document import UploadDocumentSchema, UploadDocumentContentSchema
 
 
 class DocumentService(BaseService):
     """Service for managing part documents and attachments."""
 
     def __init__(self, db: Session, s3_service: S3Service, image_service: ImageService,
-                 url_service: URLThumbnailService, download_cache_service: DownloadCacheService,
+                 html_handler: HtmlDocumentHandler, download_cache_service: DownloadCacheService,
                  settings: Settings):
         """Initialize document service with dependencies.
 
@@ -30,15 +31,114 @@ class DocumentService(BaseService):
             db: SQLAlchemy database session
             s3_service: S3 service for file operations
             image_service: Image processing service
-            url_service: URL thumbnail extraction service
+            html_handler: HTML document handler for preview extraction
             download_cache_service: Download cache service for URL content
         """
         super().__init__(db)
         self.s3_service = s3_service
         self.image_service = image_service
-        self.url_service = url_service
+        self.html_handler = html_handler
         self.download_cache_service = download_cache_service
         self.settings = settings
+
+    def process_upload_url(self, url: str) -> UploadDocumentSchema:
+        """Process a URL to determine content and extract metadata.
+        
+        This is the main bottleneck for URL processing that determines:
+        - What content to store in S3 (image, PDF, or preview image for HTML)
+        - What metadata to extract (title, content type)
+        
+        Args:
+            url: URL to process
+            
+        Returns:
+            UploadDocumentSchema with processed content and metadata
+        """
+        # Download content
+        content = self.download_cache_service.get_cached_content(url)
+        if not content:
+            raise InvalidOperationException("process URL", f"failed to download content from {url}")
+        
+        # Detect actual content type from bytes
+        detected_type = magic.from_buffer(content, mime=True)
+        
+        # Extract filename from URL for non-HTML content
+        from urllib.parse import urlparse
+        import os
+        parsed_url = urlparse(url)
+        path = parsed_url.path
+        filename = os.path.basename(path) if path else "upload"
+        if not filename or filename == "/":
+            filename = "upload"
+        
+        # Handle based on detected content type
+        if detected_type == 'text/html':
+            # Process as HTML document
+            html_info = self.html_handler.process_html_content(content, url)
+            
+            # Create content schema for HTML
+            content_schema = UploadDocumentContentSchema(
+                content=content,
+                content_type=detected_type
+            )
+            
+            # Create preview schema if image found
+            preview_schema = None
+            if html_info.preview_image:
+                preview_content, preview_type = html_info.preview_image
+                preview_schema = UploadDocumentContentSchema(
+                    content=preview_content,
+                    content_type=preview_type
+                )
+            
+            return UploadDocumentSchema(
+                title=html_info.title or filename,
+                content=content_schema,
+                detected_type=detected_type,
+                preview_image=preview_schema
+            )
+            
+        elif detected_type.startswith('image/'):
+            # Direct image - store as-is
+            content_schema = UploadDocumentContentSchema(
+                content=content,
+                content_type=detected_type
+            )
+            
+            return UploadDocumentSchema(
+                title=filename,
+                content=content_schema,
+                detected_type=detected_type,
+                preview_image=None  # Direct images don't have separate preview
+            )
+            
+        elif detected_type == 'application/pdf':
+            # PDF - store as-is
+            content_schema = UploadDocumentContentSchema(
+                content=content,
+                content_type=detected_type
+            )
+            
+            return UploadDocumentSchema(
+                title=filename,
+                content=content_schema,
+                detected_type=detected_type,
+                preview_image=None
+            )
+            
+        else:
+            # Generic file type - only store metadata, no S3 content
+            content_schema = UploadDocumentContentSchema(
+                content=content,
+                content_type=detected_type
+            )
+            
+            return UploadDocumentSchema(
+                title=filename,
+                content=content_schema,
+                detected_type=detected_type,
+                preview_image=None
+            )
 
     def _validate_file_type(self, content_type: str, file_data: bytes) -> str:
         """Validate file type using python-magic and MIME type.
@@ -120,8 +220,17 @@ class DocumentService(BaseService):
         file_bytes = file_data.read()
         file_size = len(file_bytes)
 
-        # Validate file type and size
-        validated_content_type = self._validate_file_type(content_type, file_bytes)
+        # Use python-magic to detect actual content type (ignore provided content_type)
+        validated_content_type = magic.from_buffer(file_bytes, mime=True)
+        
+        # Validate against allowed types
+        allowed_image_types = self.settings.ALLOWED_IMAGE_TYPES
+        allowed_file_types = self.settings.ALLOWED_FILE_TYPES
+        all_allowed = allowed_image_types + allowed_file_types
+        
+        if validated_content_type not in all_allowed:
+            raise InvalidOperationException("create file attachment", f"file type not allowed: {validated_content_type}")
+        
         is_image = validated_content_type.startswith('image/')
         self._validate_file_size(file_size, is_image)
 
@@ -136,14 +245,8 @@ class DocumentService(BaseService):
         # Generate S3 key
         s3_key = self.s3_service.generate_s3_key(part.id, filename)
 
-        # Process image if it's an image file
-        attachment_metadata = {}
-        if attachment_type == AttachmentType.IMAGE:
-            file_data = BytesIO(file_bytes)
-            processed_image, image_metadata = self.image_service.process_uploaded_image(file_data)
-            file_bytes = processed_image.read()
-            file_size = len(file_bytes)
-            attachment_metadata.update(image_metadata)
+        # Store images verbatim without conversion
+        # No longer process/convert images
 
         # Upload to S3
         file_data = BytesIO(file_bytes)
@@ -157,8 +260,7 @@ class DocumentService(BaseService):
             s3_key=s3_key,
             filename=filename,
             content_type=validated_content_type,
-            file_size=file_size,
-            attachment_metadata=attachment_metadata
+            file_size=file_size
         )
 
         self.db.add(attachment)
@@ -192,41 +294,63 @@ class DocumentService(BaseService):
         if not part:
             raise RecordNotFoundException("Part", part_key)
 
-        # Validate URL
-        if not self.url_service.validate_url(url):
-            raise InvalidOperationException("create URL attachment", f"invalid URL: {url}")
-
-        # Download and store thumbnail
+        # Process URL to determine content
         try:
-            s3_key, content_type, file_size, metadata = self.url_service.download_and_store_thumbnail(url, part.id)
+            upload_doc = self.process_upload_url(url)
         except Exception as e:
             raise InvalidOperationException("create URL attachment", f"failed to process URL: {str(e)}") from e
 
-        # Determine attachment type based on content type (same logic as preview)
-        if metadata.get('content_type') == 'image':
+        # Determine what to store in S3 and attachment type
+        s3_key = None
+        content_type = None
+        file_size = 0
+        
+        if upload_doc.detected_type.startswith('image/'):
+            # Direct image URL - store the image
             attachment_type = AttachmentType.IMAGE
-        elif metadata.get('content_type') == 'pdf':
+            s3_key = self.s3_service.generate_s3_key(part.id, upload_doc.title)
+            file_data = BytesIO(upload_doc.content.content)
+            self.s3_service.upload_file(file_data, s3_key, upload_doc.content.content_type)
+            content_type = upload_doc.content.content_type
+            file_size = len(upload_doc.content.content)
+            
+        elif upload_doc.detected_type == 'application/pdf':
+            # Direct PDF URL - store the PDF
             attachment_type = AttachmentType.PDF
-        else:
+            s3_key = self.s3_service.generate_s3_key(part.id, upload_doc.title)
+            file_data = BytesIO(upload_doc.content.content)
+            self.s3_service.upload_file(file_data, s3_key, upload_doc.content.content_type)
+            content_type = upload_doc.content.content_type
+            file_size = len(upload_doc.content.content)
+            
+        elif upload_doc.detected_type == 'text/html' and upload_doc.preview_image:
+            # HTML with preview image - store the preview
             attachment_type = AttachmentType.URL
-
-        # Determine if this attachment has an image and cache it in metadata
-        has_image = self._attachment_has_image_from_metadata(attachment_type, s3_key, metadata)
-        if metadata:
-            metadata['has_image'] = has_image
+            s3_key = self.s3_service.generate_s3_key(part.id, "preview.jpg")
+            file_data = BytesIO(upload_doc.preview_image.content)
+            self.s3_service.upload_file(file_data, s3_key, upload_doc.preview_image.content_type)
+            content_type = upload_doc.preview_image.content_type
+            file_size = len(upload_doc.preview_image.content)
+            
         else:
-            metadata = {'has_image': has_image}
+            # Other content or HTML without preview - no S3 storage
+            attachment_type = AttachmentType.URL
+            s3_key = None
+            content_type = None
+            file_size = 0
+
+        # Use provided title or extracted title
+        final_title = title or upload_doc.title
 
         # Create attachment record
         attachment = PartAttachment(
             part_id=part.id,
             attachment_type=attachment_type,
-            title=title,
+            title=final_title,
             s3_key=s3_key,
             url=url,
             content_type=content_type,
-            file_size=file_size,
-            attachment_metadata=metadata
+            file_size=file_size
         )
 
         self.db.add(attachment)
@@ -385,27 +509,50 @@ class DocumentService(BaseService):
         """
         attachment = self.get_attachment(attachment_id)
 
-        if attachment.is_pdf:
-            # Return PDF icon
-            pdf_data, content_type = self.image_service.get_pdf_icon_data()
-            # For PDFs, we return the SVG data directly
-            return pdf_data.decode('utf-8'), content_type
-        elif attachment.is_image and attachment.s3_key:
-            # Generate thumbnail for image
+        # Check if content_type starts with 'image/' and s3_key exists
+        if attachment.content_type and attachment.content_type.startswith('image/') and attachment.s3_key:
+            # Generate/retrieve thumbnail from S3 content
             thumbnail_path = self.image_service.get_thumbnail_path(attachment.id, attachment.s3_key, size)
             return thumbnail_path, 'image/jpeg'
-        elif attachment.is_url:
-            # For URL attachments
-            if attachment.s3_key:
-                # If we have a stored thumbnail, use it
-                thumbnail_path = self.image_service.get_thumbnail_path(attachment.id, attachment.s3_key, size)
-                return thumbnail_path, 'image/jpeg'
-            else:
-                # No stored thumbnail, return link icon
-                link_data, content_type = self.image_service.get_link_icon_data()
-                return link_data.decode('utf-8'), content_type
+        elif attachment.attachment_type == AttachmentType.PDF:
+            # Return PDF icon SVG
+            pdf_data, content_type = self.image_service.get_pdf_icon_data()
+            return pdf_data.decode('utf-8'), content_type
+        elif attachment.attachment_type == AttachmentType.URL:
+            # Return link icon SVG
+            link_data, content_type = self.image_service.get_link_icon_data()
+            return link_data.decode('utf-8'), content_type
         else:
             raise InvalidOperationException("get attachment thumbnail", "thumbnail not available for this attachment type")
+    
+    def get_preview_image(self, url: str) -> tuple[bytes, str] | None:
+        """Get preview image for a URL.
+        
+        Replaces URLThumbnailService.get_preview_image_url functionality.
+        
+        Args:
+            url: URL to get preview for
+            
+        Returns:
+            Tuple of (image_bytes, content_type) or None if no preview available
+        """
+        try:
+            # Process URL to get metadata
+            upload_doc = self.process_upload_url(url)
+            
+            # Return appropriate image data
+            if upload_doc.preview_image:
+                # HTML with preview image
+                return (upload_doc.preview_image.content, upload_doc.preview_image.content_type)
+            elif upload_doc.detected_type.startswith('image/'):
+                # Direct image URL
+                return (upload_doc.content.content, upload_doc.content.content_type)
+            else:
+                # No preview available
+                return None
+        except Exception:
+            # Failed to get preview
+            return None
 
     def set_part_cover_attachment(self, part_key: str, attachment_id: int | None):
         """Set or clear part cover attachment.
@@ -453,26 +600,6 @@ class DocumentService(BaseService):
 
         return part.cover_attachment
 
-    def _attachment_has_image_from_metadata(self, attachment_type: AttachmentType, s3_key: str | None, metadata: dict | None) -> bool:
-        """Determine if an attachment has an associated image based on type and metadata.
-
-        Args:
-            attachment_type: Type of the attachment
-            s3_key: S3 key if image is stored
-            metadata: Attachment metadata
-
-        Returns:
-            True if attachment has an associated image
-        """
-        if attachment_type == AttachmentType.IMAGE:
-            return True
-        elif attachment_type == AttachmentType.PDF:
-            return False
-        else:  # URL attachment
-            # If we have a stored thumbnail
-            if s3_key:
-                return True
-            return False
 
     def attachment_has_image(self, attachment_id: int) -> bool:
         """Check if an attachment has an associated image for display.
@@ -487,4 +614,5 @@ class DocumentService(BaseService):
             RecordNotFoundException: If attachment not found
         """
         attachment = self.get_attachment(attachment_id)
-        return attachment.has_image
+        # Images are identified by content_type starting with 'image/'
+        return attachment.content_type and attachment.content_type.startswith('image/')

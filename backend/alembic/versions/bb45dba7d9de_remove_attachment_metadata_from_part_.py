@@ -1,0 +1,34 @@
+"""Remove attachment_metadata from part_attachments
+
+Revision ID: bb45dba7d9de
+Revises: 009
+Create Date: 2025-09-06 10:04:31.650835
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+
+# revision identifiers, used by Alembic.
+revision: str = 'bb45dba7d9de'
+down_revision: Union[str, None] = '009'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Upgrade database schema."""
+    # Drop attachment_metadata column from part_attachments table
+    op.drop_column('part_attachments', 'attachment_metadata')
+
+
+def downgrade() -> None:
+    """Downgrade database schema."""
+    # Re-add attachment_metadata column as JSONB
+    op.add_column('part_attachments', 
+                  sa.Column('attachment_metadata', 
+                           postgresql.JSONB(astext_type=sa.Text()), 
+                           nullable=True))

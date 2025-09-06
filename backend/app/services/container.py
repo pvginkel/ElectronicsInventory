@@ -17,7 +17,7 @@ from app.services.setup_service import SetupService
 from app.services.task_service import TaskService
 from app.services.test_data_service import TestDataService
 from app.services.type_service import TypeService
-from app.services.url_thumbnail_service import URLThumbnailService
+from app.services.html_document_handler import HtmlDocumentHandler
 from app.utils.temp_file_manager import TempFileManager
 
 
@@ -60,10 +60,8 @@ class ServiceContainer(containers.DeclarativeContainer):
         s3_service=s3_service,
         settings=config
     )
-    url_thumbnail_service = providers.Factory(
-        URLThumbnailService,
-        db=db_session,
-        s3_service=s3_service,
+    html_handler = providers.Factory(
+        HtmlDocumentHandler,
         download_cache_service=download_cache_service
     )
     document_service = providers.Factory(
@@ -71,7 +69,7 @@ class ServiceContainer(containers.DeclarativeContainer):
         db=db_session,
         s3_service=s3_service,
         image_service=image_service,
-        url_service=url_thumbnail_service,
+        html_handler=html_handler,
         download_cache_service=download_cache_service,
         settings=config
     )
@@ -98,6 +96,5 @@ class ServiceContainer(containers.DeclarativeContainer):
         config=config,
         temp_file_manager=temp_file_manager,
         type_service=type_service,
-        url_thumbnail_service=url_thumbnail_service,
         download_cache_service=download_cache_service
     )
