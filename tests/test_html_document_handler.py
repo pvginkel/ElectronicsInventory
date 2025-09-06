@@ -311,7 +311,7 @@ class TestHtmlDocumentHandler:
         # Should have used the first og:image
         mock_download_cache_service.get_cached_content.assert_called_once_with("https://example.com/first.jpg")
 
-    def test_find_preview_image_handles_download_failure(self, html_handler, mock_download_cache_service):
+    def test_find_preview_image_handles_download_failure(self, html_handler, mock_download_cache_service, create_test_image):
         """Test graceful handling when image download fails."""
         html = """
         <html>

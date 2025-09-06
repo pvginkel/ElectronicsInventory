@@ -14,7 +14,6 @@ from app.schemas.ai_part_analysis import (
 )
 from app.services.ai_service import AIService, PartAnalysisSuggestion
 from app.services.type_service import TypeService
-from app.services.url_thumbnail_service import URLThumbnailService
 from app.utils.temp_file_manager import TempFileManager
 
 
@@ -53,17 +52,6 @@ def mock_type_service(session: Session):
     return type_service
 
 
-@pytest.fixture
-def mock_url_thumbnail_service(session: Session, temp_file_manager: TempFileManager):
-    """Create mock URL thumbnail service."""
-    from unittest.mock import Mock
-
-    from app.services.download_cache_service import DownloadCacheService
-
-    # Create mock download cache service
-    mock_download_cache = Mock(spec=DownloadCacheService)
-
-    return URLThumbnailService(session, None, mock_download_cache)
 
 
 @pytest.fixture
@@ -79,16 +67,13 @@ def mock_download_cache_service():
 @pytest.fixture
 def ai_service(session: Session, ai_test_settings: Settings,
                temp_file_manager: TempFileManager, mock_type_service: TypeService,
-               mock_url_thumbnail_service: URLThumbnailService, mock_download_cache_service):
+               mock_download_cache_service):
     """Create AI service instance for testing."""
-    from app.services.download_cache_service import DownloadCacheService
-    DownloadCacheService(temp_file_manager)
     return AIService(
         db=session,
         config=ai_test_settings,
         temp_file_manager=temp_file_manager,
         type_service=mock_type_service,
-        url_thumbnail_service=mock_url_thumbnail_service,
         download_cache_service=mock_download_cache_service
     )
 
@@ -127,7 +112,7 @@ class TestAIService:
     """Test cases for AIService."""
 
     def test_init_without_api_key(self, session: Session, temp_file_manager: TempFileManager,
-                                  mock_type_service: TypeService, mock_url_thumbnail_service: URLThumbnailService,
+                                  mock_type_service: TypeService,
                                   mock_download_cache_service):
         """Test AI service initialization without API key."""
         settings = Settings(DATABASE_URL="sqlite:///:memory:", OPENAI_API_KEY="")
@@ -137,7 +122,6 @@ class TestAIService:
                 config=settings,
                 temp_file_manager=temp_file_manager,
                 type_service=mock_type_service,
-                url_thumbnail_service=mock_url_thumbnail_service,
                 download_cache_service=mock_download_cache_service
             )
 
@@ -304,26 +288,22 @@ class TestAIService:
 
     def test_download_document_unsupported_content_type(self, ai_service: AIService):
         """Test handling of unsupported content types."""
-        mock_link = Mock()
-        mock_link.url = "https://example.com/not-a-doc.html"
-        mock_link.link_type = "datasheet"
-        mock_link.description = "Test doc"
-
-        # Mock URL thumbnail service to return HTML content type
-        with patch.object(ai_service.url_thumbnail_service, 'extract_metadata') as mock_extract:
-            from app.schemas.url_metadata import URLMetadataSchema, URLContentType, ThumbnailSourceType
-            mock_extract.return_value = URLMetadataSchema(
-                title='HTML Page',
-                thumbnail_source=ThumbnailSourceType.OTHER,
-                original_url="https://example.com/not-a-doc.html",
-                content_type=URLContentType.WEBPAGE
-            )
-
-            result = ai_service._document_from_link(mock_link.url, mock_link.link_type)
-
-            # Should still return a document
-            assert result.url == "https://example.com/not-a-doc.html"
-            assert result.document_type == "datasheet"
+        # Mock download_cache_service to return HTML content
+        with patch.object(ai_service.download_cache_service, 'get_cached_content') as mock_get:
+            mock_get.return_value = b"<html><title>HTML Page</title></html>"
+            
+            # Mock magic to identify it as HTML
+            with patch('magic.from_buffer') as mock_magic:
+                mock_magic.return_value = 'text/html'
+                
+                result = ai_service._document_from_link("https://example.com/not-a-doc.html", "datasheet")
+                
+                # Should still return a document
+                assert result is not None
+                assert result.url == "https://example.com/not-a-doc.html"
+                assert result.document_type == "datasheet"
+                assert result.preview is not None
+                assert result.preview.title == "HTML Page"  # Should extract title from HTML
 
     def test_sanitize_filename_edge_cases(self, ai_service: AIService):
         """Test filename sanitization with edge cases."""
@@ -349,62 +329,54 @@ class TestAIService:
 
     def test_classify_urls_internal_method(self, ai_service: AIService):
         """Test the internal URL classifier function."""
-        # Mock the URL thumbnail service
         from unittest.mock import Mock
         from app.utils.ai.url_classification import ClassifyUrlsRequest
         
-        with patch.object(ai_service.url_thumbnail_service, 'extract_metadata') as mock_extract:
-            from app.schemas.url_metadata import URLMetadataSchema, URLContentType, ThumbnailSourceType
-            
-            # Mock responses for different content types
-            mock_extract.side_effect = [
-                URLMetadataSchema(
-                    title='PDF Document',
-                    thumbnail_source=ThumbnailSourceType.PDF,
-                    original_url="https://example.com/datasheet.pdf",
-                    content_type=URLContentType.PDF
-                ),
-                URLMetadataSchema(
-                    title='Product Image',
-                    thumbnail_source=ThumbnailSourceType.DIRECT_IMAGE,
-                    original_url="https://example.com/image.jpg",
-                    content_type=URLContentType.IMAGE
-                ),
-                URLMetadataSchema(
-                    title='Product Page',
-                    thumbnail_source=ThumbnailSourceType.PREVIEW_IMAGE,
-                    original_url="https://example.com/product.html",
-                    content_type=URLContentType.WEBPAGE
-                )
+        # Mock download_cache_service to return different content types
+        with patch.object(ai_service.download_cache_service, 'get_cached_content') as mock_get:
+            # Return different content for each URL
+            # PDF content, image content, HTML content
+            mock_get.side_effect = [
+                b"%PDF-1.4 fake pdf content",  # PDF
+                b"\x89PNG\r\n\x1a\n fake image",  # PNG image
+                b"<html><title>Product</title></html>"  # HTML
             ]
             
-            # Test with multiple URLs
-            request = ClassifyUrlsRequest(urls=[
-                "https://example.com/datasheet.pdf",
-                "https://example.com/image.jpg",
-                "https://example.com/product.html"
-            ])
-            
-            mock_progress = Mock()
-            result = ai_service.url_classifier_function.classify_url(request, mock_progress)
-            
-            # Verify classification results
-            assert len(result.urls) == 3
-            assert result.urls[0].classification == "pdf"
-            assert result.urls[0].url == "https://example.com/datasheet.pdf"
-            assert result.urls[1].classification == "image"
-            assert result.urls[1].url == "https://example.com/image.jpg"
-            assert result.urls[2].classification == "webpage"
-            assert result.urls[2].url == "https://example.com/product.html"
+            # Mock magic.from_buffer to return appropriate content types
+            with patch('magic.from_buffer') as mock_magic:
+                mock_magic.side_effect = [
+                    'application/pdf',
+                    'image/png', 
+                    'text/html'
+                ]
+                
+                # Test with multiple URLs
+                request = ClassifyUrlsRequest(urls=[
+                    "https://example.com/datasheet.pdf",
+                    "https://example.com/image.jpg",
+                    "https://example.com/product.html"
+                ])
+                
+                mock_progress = Mock()
+                result = ai_service.url_classifier_function.classify_url(request, mock_progress)
+                
+                # Verify classification results
+                assert len(result.urls) == 3
+                assert result.urls[0].classification == "pdf"
+                assert result.urls[0].url == "https://example.com/datasheet.pdf"
+                assert result.urls[1].classification == "image"
+                assert result.urls[1].url == "https://example.com/image.jpg"
+                assert result.urls[2].classification == "webpage"
+                assert result.urls[2].url == "https://example.com/product.html"
 
     def test_classify_urls_with_error(self, ai_service: AIService):
         """Test URL classifier function with URL extraction errors."""
-        # Mock the URL thumbnail service to raise an exception
         from unittest.mock import Mock
         from app.utils.ai.url_classification import ClassifyUrlsRequest
         
-        with patch.object(ai_service.url_thumbnail_service, 'extract_metadata') as mock_extract:
-            mock_extract.side_effect = Exception("Network error")
+        # Mock download_cache_service to raise an exception
+        with patch.object(ai_service.download_cache_service, 'get_cached_content') as mock_get:
+            mock_get.side_effect = Exception("Network error")
             
             request = ClassifyUrlsRequest(urls=["https://invalid.url"])
             mock_progress = Mock()
@@ -417,16 +389,13 @@ class TestAIService:
 
     def test_classify_urls_with_http_error(self, ai_service: AIService):
         """Test URL classifier function with HTTP status code errors."""
-        # Mock the URL thumbnail service to raise an InvalidOperationException with HTTP status
         from unittest.mock import Mock
         from app.exceptions import InvalidOperationException
         from app.utils.ai.url_classification import ClassifyUrlsRequest
         
-        with patch.object(ai_service.url_thumbnail_service, 'extract_metadata') as mock_extract:
-            mock_extract.side_effect = InvalidOperationException(
-                "extract metadata", 
-                "HTTP error 404 reason Not Found"
-            )
+        # Mock download_cache_service to return None (failed download)
+        with patch.object(ai_service.download_cache_service, 'get_cached_content') as mock_get:
+            mock_get.return_value = None  # Failed to download
             
             request = ClassifyUrlsRequest(urls=["https://example.com/missing"])
             mock_progress = Mock()

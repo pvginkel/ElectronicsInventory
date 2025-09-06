@@ -171,25 +171,60 @@ class AIService(BaseService):
             logger.info(f"Getting preview metadata for URL {url}")
 
             """Download a document from AI-provided URL."""
-            metadata = self.url_thumbnail_service.extract_metadata(url)
-
-            # Generate backend image endpoint URL
+            # Use download_cache_service to get content and detect type
+            content = self.download_cache_service.get_cached_content(url)
+            if not content:
+                logger.warning(f"Failed to download content from URL {url}")
+                return None
+            
+            # Detect content type using magic
+            import magic
+            content_type = magic.from_buffer(content, mime=True)
+            
+            # Determine if it's a PDF, image, or webpage
+            is_pdf = content_type == 'application/pdf'
+            is_image = content_type.startswith('image/')
+            is_webpage = content_type == 'text/html'
+            
+            # Generate backend image endpoint URL for potential preview
+            encoded_url = quote(url, safe='')
             image_url = None
-            if metadata.og_image or metadata.favicon:
-                encoded_url = quote(url, safe='')
+            original_url = url
+            
+            # For webpages, we might have a preview image
+            if is_webpage or is_image:
                 image_url = f"/api/parts/attachment-preview/image?url={encoded_url}"
-
+            
             # For PDFs and images, set original_url to proxy endpoint for iframe display
-            original_url = url  # Keep actual URL for document saving
-            if metadata.is_pdf or metadata.is_image:
-                encoded_url = quote(url, safe='')
+            if is_pdf or is_image:
                 original_url = f"/api/parts/attachment-proxy/content?url={encoded_url}"
-
+            
+            # Extract title from HTML if it's a webpage
+            title = document_type.title()
+            if is_webpage:
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(content, 'html.parser')
+                title_tag = soup.find('title')
+                if title_tag and title_tag.string:
+                    title = title_tag.string.strip() or title
+            
+            # Map content type to simple string
+            if is_pdf:
+                content_type_str = "pdf"
+            elif is_image:
+                content_type_str = "image"
+            elif is_webpage:
+                content_type_str = "webpage"
+            else:
+                content_type_str = "other"
+            
+            # Create preview
+            from app.schemas.url_preview import UrlPreviewResponseSchema
             preview = UrlPreviewResponseSchema(
-                title=metadata.title,
+                title=title,
                 image_url=image_url,
                 original_url=original_url,
-                content_type=metadata.content_type.value
+                content_type=content_type_str
             )
 
             return DocumentSuggestionSchema(
@@ -198,7 +233,7 @@ class AIService(BaseService):
                 preview=preview
             )
         except Exception as e:
-            logger.warning(f"Failed to extract metadata for URL {url}: {e}")
+            logger.warning(f"Failed to create document suggestion for URL {url}: {e}")
             return None
 
     def _sanitize_filename(self, filename: str) -> str:

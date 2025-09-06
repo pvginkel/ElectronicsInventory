@@ -17,13 +17,9 @@ class TestDocumentAPI:
     @patch('app.services.document_service.magic.from_buffer')
     @patch('app.services.s3_service.S3Service.upload_file', return_value=True)
     @patch('app.services.s3_service.S3Service.generate_s3_key', return_value="parts/TEST/attachments/test.jpg")
-    @patch('app.services.image_service.ImageService.process_uploaded_image')
-    def test_create_file_attachment_success(self, mock_process_image, mock_generate_key, mock_upload, mock_magic, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session, sample_image_file):
+    def test_create_file_attachment_success(self, mock_generate_key, mock_upload, mock_magic, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session, sample_image_file):
         """Test successful file attachment creation via API."""
         mock_magic.return_value = 'image/jpeg'
-        mock_process_image.return_value = (
-            io.BytesIO(b"processed"), {"width": 100, "height": 100, "format": "JPEG"}
-        )
 
         with app.app_context():
             # Create test part using service
@@ -49,14 +45,26 @@ class TestDocumentAPI:
         assert data['title'] == 'Test Image'
         assert data['attachment_type'] == 'image'
         assert data['filename'] == 'test.jpg'
-        assert data['has_image'] is True
+        assert data['has_preview'] is True
 
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.validate_url', return_value=True)
-    @patch('app.services.url_thumbnail_service.URLThumbnailService.download_and_store_thumbnail', return_value=(
-        "parts/123/thumbnails/thumb.jpg", "image/jpeg", 1024, {"width": 64, "height": 64}
-    ))
-    def test_create_url_attachment_success(self, mock_download, mock_validate, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
+    @patch('app.services.document_service.DocumentService.process_upload_url')
+    def test_create_url_attachment_success(self, mock_process_url, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
         """Test successful URL attachment creation via API."""
+        # Mock the process_upload_url response
+        from app.schemas.upload_document import UploadDocumentSchema, UploadDocumentContentSchema
+        mock_process_url.return_value = UploadDocumentSchema(
+            title="Product Page",
+            content=UploadDocumentContentSchema(
+                content=b"<html>fake content</html>",
+                content_type="text/html"
+            ),
+            detected_type="text/html",
+            preview_image=UploadDocumentContentSchema(
+                content=b"fake image",
+                content_type="image/jpeg"
+            )
+        )
+        
         with app.app_context():
             # Create test part using service
             part_type = container.type_service().create_type("URL Test Type")
@@ -80,7 +88,7 @@ class TestDocumentAPI:
         assert data['title'] == 'Product Page'
         assert data['attachment_type'] == 'url'
         assert data['url'] == 'https://example.com/product'
-        assert data['has_image'] is True  # Should be True because mock returns s3_key
+        assert data['has_preview'] is True  # Should be True because mock returns s3_key
 
     def test_create_attachment_invalid_json(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test attachment creation with invalid JSON."""
@@ -155,13 +163,13 @@ class TestDocumentAPI:
         assert 'Image 1' in titles
         assert 'URL 1' in titles
 
-        # Verify has_image field is present and correct
+        # Verify has_preview field is present and correct
         for item in data:
-            assert 'has_image' in item
+            assert 'has_preview' in item
             if item['title'] == 'Image 1':
-                assert item['has_image'] is True
+                assert item['has_preview'] is True
             elif item['title'] == 'URL 1':
-                assert item['has_image'] is False  # No s3_key or metadata set
+                assert item['has_preview'] is False  # No s3_key or metadata set
 
     def test_get_single_attachment(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test getting single attachment details."""
@@ -192,7 +200,7 @@ class TestDocumentAPI:
         data = response.get_json()
         assert data['title'] == 'Test Attachment'
         assert data['filename'] == 'test.jpg'
-        assert data['has_image'] is True
+        assert data['has_preview'] is True
 
     def test_update_attachment(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test updating attachment metadata."""
@@ -222,7 +230,7 @@ class TestDocumentAPI:
         assert response.status_code == 200
         data = response.get_json()
         assert data['title'] == 'Updated Title'
-        assert 'has_image' in data  # Field should be present in update responses
+        assert 'has_preview' in data  # Field should be present in update responses
 
     @patch('app.services.s3_service.S3Service.delete_file', return_value=True)
     def test_delete_attachment(self, mock_delete, client: FlaskClient, container: ServiceContainer, session: Session):
