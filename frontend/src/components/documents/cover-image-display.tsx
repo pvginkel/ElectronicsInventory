@@ -58,7 +58,7 @@ export function CoverImageDisplay({
     return (
       <div className={`rounded-lg bg-muted flex items-center justify-center ${getSizeClasses(size)} ${className}`}>
         <div className="text-center text-muted-foreground">
-          <img src={pdfIconSvg} alt="PDF" width="40%" height="40%" />
+          <img src={pdfIconSvg} alt="PDF" width="40%" height="40%" className="mx-auto" />
           <div className="text-xs mt-1">{coverAttachment.title}</div>
         </div>
       </div>
