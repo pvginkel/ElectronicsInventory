@@ -5,6 +5,7 @@ from io import BytesIO
 from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
+from unittest.mock import patch
 
 
 class TestAIPartsAPI:
@@ -606,3 +607,220 @@ class TestAIPartsAPI:
 
             response = client.post('/api/ai-parts/create')
             assert response.status_code != 404  # Should be 400 or 500, not 404
+
+    def test_create_part_cover_image_selection_bug(self, client: FlaskClient, app: Flask, session: Session):
+        """Test that calls ai-parts/create endpoint with two attachments, second marked as cover.
+        
+        This test should demonstrate the cover image selection bug by showing that the second
+        attachment (marked with is_cover_image: true) does not become the cover image.
+        """
+        from unittest.mock import patch, MagicMock
+        from app.models.part import Part
+        from app.models.part_attachment import PartAttachment
+        from app.models.type import Type
+        from app.models.part_attachment import AttachmentType
+        from app.schemas.upload_document import (
+            DocumentContentSchema,
+            UploadDocumentSchema,
+        )
+
+        with app.app_context():
+            # Create a test type
+            test_type = Type(name="Test Type")
+            session.add(test_type)
+            session.flush()
+
+            # Mock the HTTP requests to avoid actual network calls
+            def mock_process_upload_url(url, **kwargs):
+                response_mock = MagicMock()
+                if "image1.jpg" in url:
+                    return UploadDocumentSchema(
+                        title="image1.jpg",
+                        content=DocumentContentSchema(
+                            content=b"fake image",
+                            content_type="image/jpeg"
+                        ),
+                        detected_type=AttachmentType.IMAGE,
+                        preview_image=None
+                    )
+                elif "image2.jpg" in url:
+                    return UploadDocumentSchema(
+                        title="image1.jpg",
+                        content=DocumentContentSchema(
+                            content=b"fake image",
+                            content_type="image/jpeg"
+                        ),
+                        detected_type=AttachmentType.IMAGE,
+                        preview_image=None
+                    )
+                else:
+                    raise Exception("Unknown URL")
+
+            with patch('app.services.document_service.DocumentService.process_upload_url', side_effect=mock_process_upload_url):
+
+                # Create request data with 2 image documents, second one marked as cover
+                request_data = {
+                    "description": "Test part with cover image selection",
+                    "manufacturer_code": "COVER123",
+                    "type_id": test_type.id,
+                    "tags": ["ai", "test"],
+                    "documents": [
+                        {
+                            "url": "https://example.com/image1.jpg",
+                            "document_type": "image",
+                            "is_cover_image": False
+                        },
+                        {
+                            "url": "https://example.com/image2.jpg",
+                            "document_type": "image", 
+                            "is_cover_image": True  # This should become the cover image
+                        }
+                    ]
+                }
+
+                # Make the API call
+                response = client.post(
+                    '/api/ai-parts/create',
+                    json=request_data,
+                    content_type='application/json'
+                )
+
+                # Verify the part was created successfully
+                assert response.status_code == 201
+                data = response.get_json()
+                
+                # Get the created part
+                part_key = data['key']
+                part = session.query(Part).filter_by(key=part_key).first()
+                assert part is not None
+
+                # Verify both attachments were created
+                attachments = session.query(PartAttachment).filter_by(part_id=part.id).all()
+                assert len(attachments) == 2
+
+                # Find which attachment is image1 and which is image2
+                image1_attachment = None
+                image2_attachment = None
+                for att in attachments:
+                    if "image1.jpg" in att.url:
+                        image1_attachment = att
+                    elif "image2.jpg" in att.url:
+                        image2_attachment = att
+
+                assert image1_attachment is not None
+                assert image2_attachment is not None
+
+                # THE CRITICAL TEST: The second image should be the cover image
+                # This assertion should FAIL before the fix, demonstrating the bug
+                assert part.cover_attachment_id == image2_attachment.id, \
+                    f"Expected image2.jpg (attachment {image2_attachment.id}) to be cover, " \
+                    f"but cover is attachment {part.cover_attachment_id}. " \
+                    f"Image1: {image1_attachment.id}, Image2: {image2_attachment.id}"
+
+    def test_create_part_cover_image_with_webpage_bug(self, client: FlaskClient, app: Flask, session: Session):
+        """Test that calls ai-parts/create endpoint with image and webpage, webpage marked as cover.
+        
+        This test should demonstrate the cover image selection bug when the second attachment
+        is a webpage marked with is_cover_image: true.
+        """
+        from unittest.mock import patch, MagicMock
+        from app.models.part import Part
+        from app.models.part_attachment import PartAttachment
+        from app.models.type import Type
+        from app.models.part_attachment import AttachmentType
+        from app.schemas.upload_document import (
+            DocumentContentSchema,
+            UploadDocumentSchema,
+        )
+
+        with app.app_context():
+            # Create a test type
+            test_type = Type(name="Test Type")
+            session.add(test_type)
+            session.flush()
+
+            # Mock the process_upload_url method to avoid actual HTTP calls
+            def mock_process_upload_url(url, **kwargs):
+                if "image1.jpg" in url:
+                    return UploadDocumentSchema(
+                        title="image1.jpg",
+                        content=DocumentContentSchema(
+                            content=b"fake image",
+                            content_type="image/jpeg"
+                        ),
+                        detected_type=AttachmentType.IMAGE,
+                        preview_image=None
+                    )
+                elif "datasheet.html" in url:
+                    return UploadDocumentSchema(
+                        title="datasheet.html",
+                        content=DocumentContentSchema(
+                            content=b"<html><body>Fake datasheet</body></html>",
+                            content_type="text/html"
+                        ),
+                        detected_type=AttachmentType.URL,
+                        preview_image=None
+                    )
+                else:
+                    raise Exception("Unknown URL")
+
+            with patch('app.services.document_service.DocumentService.process_upload_url', side_effect=mock_process_upload_url):
+
+                # Create request data with image and webpage, webpage marked as cover
+                request_data = {
+                    "description": "Test part with webpage as cover",
+                    "manufacturer_code": "WEBPAGE123",
+                    "type_id": test_type.id,
+                    "tags": ["ai", "test"],
+                    "documents": [
+                        {
+                            "url": "https://example.com/image1.jpg",
+                            "document_type": "image",
+                            "is_cover_image": False
+                        },
+                        {
+                            "url": "https://example.com/datasheet.html",
+                            "document_type": "url",
+                            "is_cover_image": True  # This should become the cover attachment
+                        }
+                    ]
+                }
+
+                # Make the API call
+                response = client.post(
+                    '/api/ai-parts/create',
+                    json=request_data,
+                    content_type='application/json'
+                )
+
+                # Verify the part was created successfully
+                assert response.status_code == 201
+                data = response.get_json()
+                
+                # Get the created part
+                part_key = data['key']
+                part = session.query(Part).filter_by(key=part_key).first()
+                assert part is not None
+
+                # Verify both attachments were created
+                attachments = session.query(PartAttachment).filter_by(part_id=part.id).all()
+                assert len(attachments) == 2
+
+                # Find which attachment is image and which is webpage
+                image_attachment = None
+                webpage_attachment = None
+                for att in attachments:
+                    if "image1.jpg" in att.url:
+                        image_attachment = att
+                    elif "datasheet.html" in att.url:
+                        webpage_attachment = att
+
+                assert image_attachment is not None
+                assert webpage_attachment is not None
+
+                # THE CRITICAL TEST: The webpage should be the cover attachment
+                # This assertion should FAIL before the fix, demonstrating the bug
+                assert part.cover_attachment_id == webpage_attachment.id, \
+                    f"Expected datasheet.html (attachment {webpage_attachment.id}) to be cover, " \
+                    f"but cover is attachment {part.cover_attachment_id}. " \
+                    f"Image: {image_attachment.id}, Webpage: {webpage_attachment.id}"
