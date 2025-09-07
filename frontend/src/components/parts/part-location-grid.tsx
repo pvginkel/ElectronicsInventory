@@ -1,9 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { usePartLocations, useAddStock, useRemoveStock } from '@/hooks/use-parts';
 import { useLocationSuggestions } from '@/hooks/use-types';
-import { formatLocation } from '@/lib/utils/locations';
+import { useGetBoxes } from '@/lib/api/generated/hooks';
+import { BoxSelector } from './box-selector';
+import { Plus, Minus } from 'lucide-react';
 
 interface PartLocation {
   box_no: number;
@@ -18,8 +20,20 @@ interface PartLocationGridProps {
 
 export function PartLocationGrid({ partId, typeId }: PartLocationGridProps) {
   const { data: locations = [], totalQuantity, isLoading, refetch } = usePartLocations(partId);
+  const { data: boxes = [] } = useGetBoxes();
   const [editingLocation, setEditingLocation] = useState<string | null>(null);
   const [showAddRow, setShowAddRow] = useState(false);
+
+  // Create a mapping of box_no to description for quick lookup
+  const boxMapping = useMemo(() => {
+    const mapping = new Map<number, string>();
+    if (boxes) {
+      boxes.forEach((box) => {
+        mapping.set(box.box_no, box.description);
+      });
+    }
+    return mapping;
+  }, [boxes]);
 
   if (isLoading) {
     return (
@@ -65,7 +79,6 @@ export function PartLocationGrid({ partId, typeId }: PartLocationGridProps) {
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center mb-4">
-        <h4 className="font-medium">Stock Locations</h4>
         <div className="text-sm text-muted-foreground">
           Total: {totalQuantity}
         </div>
@@ -76,6 +89,7 @@ export function PartLocationGrid({ partId, typeId }: PartLocationGridProps) {
           <LocationRow
             key={`${location.box_no}-${location.loc_no}`}
             location={location}
+            boxDescription={boxMapping.get(location.box_no) || ''}
             partId={partId}
             isEditing={editingLocation === `${location.box_no}-${location.loc_no}`}
             onStartEdit={() => setEditingLocation(`${location.box_no}-${location.loc_no}`)}
@@ -112,6 +126,7 @@ export function PartLocationGrid({ partId, typeId }: PartLocationGridProps) {
 
 interface LocationRowProps {
   location: PartLocation;
+  boxDescription: string;
   partId: string;
   isEditing: boolean;
   onStartEdit: () => void;
@@ -122,6 +137,7 @@ interface LocationRowProps {
 
 function LocationRow({
   location,
+  boxDescription,
   partId,
   isEditing,
   onStartEdit,
@@ -132,8 +148,6 @@ function LocationRow({
   const [quantity, setQuantity] = useState(location.qty.toString());
   const removeStockMutation = useRemoveStock();
   const addStockMutation = useAddStock();
-
-  const locationString = formatLocation(location.box_no, location.loc_no);
 
   const handleSave = async () => {
     const newQty = parseInt(quantity, 10);
@@ -195,57 +209,117 @@ function LocationRow({
     onStopEdit();
   };
 
+  const handleIncrement = async () => {
+    await addStockMutation.mutateAsync({
+      path: { part_key: partId },
+      body: {
+        box_no: location.box_no,
+        loc_no: location.loc_no,
+        qty: 1
+      }
+    });
+    onQuantityChange();
+  };
+
+  const handleDecrement = async () => {
+    if (location.qty <= 1) {
+      // If quantity is 1, decrementing will remove the location entirely
+      await handleRemove();
+    } else {
+      await removeStockMutation.mutateAsync({
+        path: { part_key: partId },
+        body: {
+          box_no: location.box_no,
+          loc_no: location.loc_no,
+          qty: 1
+        }
+      });
+      onQuantityChange();
+    }
+  };
+
   return (
-    <div className="flex items-center gap-2 py-1">
-      <div className="font-mono text-sm w-16">
-        {locationString}
+    <div className="flex items-center py-1 gap-4 w-fit">
+      <div className="flex-shrink-0">
+        <span className="font-mono text-sm">#{location.box_no}</span>
+        <span className="text-sm text-muted-foreground ml-1">{boxDescription}</span>
       </div>
       
-      {isEditing ? (
-        <>
+      <div className="w-12 text-center flex-shrink-0">
+        <span className="font-mono text-sm">{location.loc_no}</span>
+      </div>
+      
+      <div className="w-16 text-center flex-shrink-0">
+        {isEditing ? (
           <Input
             type="number"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            className="w-20 h-8"
+            className="w-16 h-8"
             min="0"
             autoFocus
           />
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={removeStockMutation.isPending || addStockMutation.isPending}
-          >
-            Save
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleCancel}
-            disabled={removeStockMutation.isPending || addStockMutation.isPending}
-          >
-            Cancel
-          </Button>
-        </>
-      ) : (
-        <>
+        ) : (
           <button
             className="text-sm hover:bg-accent hover:text-accent-foreground px-2 py-1 rounded"
             onClick={onStartEdit}
           >
             {location.qty}
           </button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleRemove}
-            disabled={removeStockMutation.isPending}
-            className="text-destructive hover:text-destructive"
-          >
-            Remove
-          </Button>
-        </>
-      )}
+        )}
+      </div>
+      
+      <div className="flex gap-2">
+        {isEditing ? (
+          <>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={removeStockMutation.isPending || addStockMutation.isPending}
+            >
+              Save
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleCancel}
+              disabled={removeStockMutation.isPending || addStockMutation.isPending}
+            >
+              Cancel
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleIncrement}
+              disabled={addStockMutation.isPending || removeStockMutation.isPending}
+              className="h-8 w-8 p-0"
+            >
+              <Plus />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleDecrement}
+              disabled={addStockMutation.isPending || removeStockMutation.isPending}
+              className="h-8 w-8 p-0"
+            >
+              <Minus />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleRemove}
+              disabled={removeStockMutation.isPending || addStockMutation.isPending}
+              className="text-destructive hover:text-destructive"
+            >
+              Remove
+            </Button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -258,48 +332,34 @@ interface AddLocationRowProps {
 }
 
 function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps) {
-  const [boxNo, setBoxNo] = useState('');
+  const [boxNo, setBoxNo] = useState<number | undefined>(undefined);
   const [locNo, setLocNo] = useState('');
   const [quantity, setQuantity] = useState('');
   
   const addStockMutation = useAddStock();
   const { data: suggestions } = useLocationSuggestions(typeId);
-  const boxInputRef = useRef<HTMLInputElement>(null);
-
-  // Auto-focus the box input when component mounts
-  useEffect(() => {
-    if (boxInputRef.current) {
-      boxInputRef.current.focus();
-    }
-  }, []);
 
   const handleAdd = async () => {
-    const box = parseInt(boxNo, 10);
     const loc = parseInt(locNo, 10);
     const qty = parseInt(quantity, 10);
 
-    if (isNaN(box) || isNaN(loc) || isNaN(qty) || qty <= 0) {
+    if (!boxNo || isNaN(loc) || isNaN(qty) || qty <= 0) {
       return;
     }
 
     await addStockMutation.mutateAsync({
       path: { part_key: partId },
       body: {
-        box_no: box,
+        box_no: boxNo,
         loc_no: loc,
         qty: qty
       }
     });
     
     // Clear form fields for consecutive additions
-    setBoxNo('');
+    setBoxNo(undefined);
     setLocNo('');
     setQuantity('');
-    
-    // Focus back to box input for next addition
-    if (boxInputRef.current) {
-      boxInputRef.current.focus();
-    }
     
     onAdd();
   };
@@ -307,7 +367,7 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
   const handleUseSuggestion = () => {
     if (suggestions && Array.isArray(suggestions) && suggestions.length > 0) {
       const suggestion = suggestions[0];
-      setBoxNo(suggestion.box_no.toString());
+      setBoxNo(suggestion.box_no);
       setLocNo(suggestion.loc_no.toString());
     }
   };
@@ -325,30 +385,23 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
 
   return (
     <div className="flex items-center gap-2 p-2 border rounded bg-muted/30">
-      <Input
-        ref={boxInputRef}
-        type="number"
-        placeholder="Box"
+      <BoxSelector
         value={boxNo}
-        onChange={(e) => setBoxNo(e.target.value)}
-        onKeyDown={handleKeyDown}
-        className="w-16 h-8"
-        min="1"
-        autoFocus
+        onChange={setBoxNo}
+        placeholder="Select box..."
       />
-      <span className="text-muted-foreground">-</span>
       <Input
         type="number"
-        placeholder="Loc"
+        placeholder="Location"
         value={locNo}
         onChange={(e) => setLocNo(e.target.value)}
         onKeyDown={handleKeyDown}
-        className="w-16 h-8"
+        className="w-20 h-8"
         min="1"
       />
       <Input
         type="number"
-        placeholder="Qty"
+        placeholder="Quantity"
         value={quantity}
         onChange={(e) => setQuantity(e.target.value)}
         onKeyDown={handleKeyDown}
