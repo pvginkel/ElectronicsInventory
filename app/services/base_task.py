@@ -91,7 +91,8 @@ class BaseSessionTask(BaseTask):
             session.rollback()
             raise
 
-        self.container.db_session.reset()
+        finally:
+            self.container.db_session.reset()
 
         return result
 

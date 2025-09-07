@@ -73,20 +73,23 @@ def create_app(settings: "Settings | None" = None) -> Flask:
 
     @app.teardown_request
     def close_session(exc):
-        """Close the database session after each request."""
-        db_session = container.db_session()
-        needs_rollback = db_session.info.get('needs_rollback', False)
+        try:
+            """Close the database session after each request."""
+            db_session = container.db_session()
+            needs_rollback = db_session.info.get('needs_rollback', False)
 
-        if exc or needs_rollback:
-            db_session.rollback()
-        else:
-            db_session.commit()
+            if exc or needs_rollback:
+                db_session.rollback()
+            else:
+                db_session.commit()
 
-        # Clear rollback flag after processing
-        db_session.info.pop('needs_rollback', None)
-        db_session.close()
+            # Clear rollback flag after processing
+            db_session.info.pop('needs_rollback', None)
+            db_session.close()
 
-        container.db_session.reset()
+        finally:
+            # Ensure the scoped session is removed after each request
+            container.db_session.reset()
 
     # Start temp file manager cleanup thread during app creation
     temp_file_manager = container.temp_file_manager()
