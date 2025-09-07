@@ -3,8 +3,11 @@
 import json
 import logging
 import os
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from urllib.parse import quote
+
+if TYPE_CHECKING:
+    from app.services.metrics_service import MetricsService
 
 from jinja2 import Environment
 
@@ -35,7 +38,7 @@ logger = logging.getLogger(__name__)
 class AIService(BaseService):
     """Service for AI-powered part analysis using OpenAI."""
 
-    def __init__(self, db, config: Settings, temp_file_manager: TempFileManager, type_service: TypeService, download_cache_service: DownloadCacheService, document_service: DocumentService):
+    def __init__(self, db, config: Settings, temp_file_manager: TempFileManager, type_service: TypeService, download_cache_service: DownloadCacheService, document_service: DocumentService, metrics_service: "MetricsService | None" = None):
         super().__init__(db)
         self.config = config
         self.temp_file_manager = temp_file_manager
@@ -48,7 +51,7 @@ class AIService(BaseService):
         if not config.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY configuration is required for AI features")
 
-        self.runner = AIRunner(config.OPENAI_API_KEY)
+        self.runner = AIRunner(config.OPENAI_API_KEY, metrics_service)
 
     def analyze_part(self, user_prompt: str | None, image_data: bytes | None,
                      image_mime_type: str | None, progress_handle: ProgressHandle) -> AIPartAnalysisResultSchema:

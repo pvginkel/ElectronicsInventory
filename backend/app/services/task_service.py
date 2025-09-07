@@ -6,7 +6,10 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from queue import Empty, Queue
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.services.metrics_service import MetricsService
 
 from app.schemas.task_schema import (
     TaskEvent,
@@ -63,17 +66,19 @@ class TaskProgressHandle:
 class TaskService:
     """Service for managing background tasks with SSE progress updates."""
 
-    def __init__(self, max_workers: int = 4, task_timeout: int = 300, cleanup_interval: int = 600):
+    def __init__(self, max_workers: int = 4, task_timeout: int = 300, cleanup_interval: int = 600, metrics_service: "MetricsService | None" = None):
         """Initialize TaskService with configurable parameters.
 
         Args:
             max_workers: Maximum number of concurrent tasks
             task_timeout: Task execution timeout in seconds
             cleanup_interval: How often to clean up completed tasks in seconds
+            metrics_service: Instance of MetricsService for recording metrics
         """
         self.max_workers = max_workers
         self.task_timeout = task_timeout
         self.cleanup_interval = cleanup_interval  # 10 minutes in seconds
+        self.metrics_service = metrics_service
         self._tasks: dict[str, TaskInfo] = {}
         self._task_instances: dict[str, BaseTask] = {}
         self._event_queues: dict[str, Queue] = {}
@@ -240,8 +245,10 @@ class TaskService:
             # Create progress handle
             progress_handle = TaskProgressHandle(task_id, event_queue)
 
-            # Execute the task
+            # Execute the task and track timing
+            start_time = time.time()
             result = task.execute(progress_handle, **kwargs)
+            duration = time.time() - start_time
 
             # Task completed successfully - but check if it wasn't cancelled first
             with self._lock:
@@ -251,6 +258,11 @@ class TaskService:
                     task_info.end_time = datetime.utcnow()
                     # Convert BaseModel to dict for storage
                     task_info.result = result.model_dump() if result else None
+
+                    # Record task execution metrics
+                    if self.metrics_service:
+                        task_type = type(task).__name__
+                        self.metrics_service.record_task_execution(task_type, duration, "success")
 
                     # Send completion event
                     completion_event = TaskEvent(
@@ -270,12 +282,20 @@ class TaskService:
             logger.error(f"Task {task_id} failed: {error_msg}")
             logger.debug(f"Task {task_id} error traceback: {error_trace}")
 
+            # Calculate duration for failed tasks too
+            duration = time.time() - start_time if 'start_time' in locals() else 0.0
+
             with self._lock:
                 task_info = self._tasks.get(task_id)
                 if task_info:
                     task_info.status = TaskStatus.FAILED
                     task_info.end_time = datetime.utcnow()
                     task_info.error = error_msg
+
+                    # Record task execution metrics for failed tasks
+                    if self.metrics_service:
+                        task_type = type(task).__name__
+                        self.metrics_service.record_task_execution(task_type, duration, "error")
 
             # Send failure event
             failure_event = TaskEvent(

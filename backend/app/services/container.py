@@ -12,6 +12,7 @@ from app.services.download_cache_service import DownloadCacheService
 from app.services.html_document_handler import HtmlDocumentHandler
 from app.services.image_service import ImageService
 from app.services.inventory_service import InventoryService
+from app.services.metrics_service import MetricsService
 from app.services.part_service import PartService
 from app.services.s3_service import S3Service
 from app.services.setup_service import SetupService
@@ -68,6 +69,12 @@ class ServiceContainer(containers.DeclarativeContainer):
         image_service=image_service
     )
 
+    # Metrics service - Singleton for background thread management
+    metrics_service = providers.Singleton(
+        MetricsService,
+        db=db_session
+    )
+
     # URL interceptor registry with LCSC interceptor
     url_interceptor_registry = providers.Singleton(
         URLInterceptorRegistry
@@ -82,14 +89,16 @@ class ServiceContainer(containers.DeclarativeContainer):
         html_handler=html_handler,
         download_cache_service=download_cache_service,
         settings=config,
-        url_interceptor_registry=url_interceptor_registry
+        url_interceptor_registry=url_interceptor_registry,
+        metrics_service=metrics_service
     )
 
-    # InventoryService depends on PartService
+    # InventoryService depends on PartService and MetricsService
     inventory_service = providers.Factory(
         InventoryService,
         db=db_session,
-        part_service=part_service
+        part_service=part_service,
+        metrics_service=metrics_service
     )
 
     # TaskService - Singleton for in-memory task management with configurable settings
@@ -97,7 +106,8 @@ class ServiceContainer(containers.DeclarativeContainer):
         TaskService,
         max_workers=config.provided.TASK_MAX_WORKERS,
         task_timeout=config.provided.TASK_TIMEOUT_SECONDS,
-        cleanup_interval=config.provided.TASK_CLEANUP_INTERVAL_SECONDS
+        cleanup_interval=config.provided.TASK_CLEANUP_INTERVAL_SECONDS,
+        metrics_service=metrics_service
     )
 
     # AI service
@@ -108,5 +118,6 @@ class ServiceContainer(containers.DeclarativeContainer):
         temp_file_manager=temp_file_manager,
         type_service=type_service,
         download_cache_service=download_cache_service,
-        document_service=document_service
+        document_service=document_service,
+        metrics_service=metrics_service
     )

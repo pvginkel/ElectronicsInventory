@@ -17,21 +17,24 @@ from app.services.base import BaseService
 
 if TYPE_CHECKING:
     from app.schemas.part import PartWithTotalModel
+    from app.services.metrics_service import MetricsService
     from app.services.part_service import PartService
 
 
 class InventoryService(BaseService):
     """Service class for inventory management operations."""
 
-    def __init__(self, db: Session, part_service: "PartService"):
-        """Initialize service with database session and part service dependency.
+    def __init__(self, db: Session, part_service: "PartService", metrics_service: "MetricsService | None" = None):
+        """Initialize service with database session and dependencies.
 
         Args:
             db: SQLAlchemy database session
             part_service: Instance of PartService
+            metrics_service: Instance of MetricsService for recording metrics
         """
         super().__init__(db)
         self.part_service = part_service
+        self.metrics_service = metrics_service
 
     def add_stock(
         self, part_key: str, box_no: int, loc_no: int, qty: int
@@ -85,6 +88,10 @@ class InventoryService(BaseService):
         )
         self.db.add(history)
 
+        # Record metrics for quantity change
+        if self.metrics_service:
+            self.metrics_service.record_quantity_change("add", qty)
+
         self.db.flush()
         return part_location
 
@@ -129,6 +136,10 @@ class InventoryService(BaseService):
             location_reference=f"{box_no}-{loc_no}",
         )
         self.db.add(history)
+
+        # Record metrics for quantity change
+        if self.metrics_service:
+            self.metrics_service.record_quantity_change("remove", qty)
 
         # Check if total quantity is now zero and cleanup if needed
         self.cleanup_zero_quantities(part_key)
