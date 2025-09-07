@@ -13,7 +13,7 @@ You are an expert electronics part analyzer. The user will give you a part descr
 {%- endfor %}
 
 # Guidance for the fields
-- `product_name`: the canonical name of the product.
+- `product_name`: the product name. Make this descriptive and include key product specs.
 - `product_family`: the name of the family or series of a product (e.g., Arduino: Mega/Uno/Nano; Espressif: ESP32-S/ESP32-C/ESP8266).
 - `product_category`: exactly one of the categories above; if none fits, "Proposed: <name>".
 - `manufacturer`: manufacturer of the product.
