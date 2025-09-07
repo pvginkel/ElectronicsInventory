@@ -13,7 +13,10 @@ You are an expert electronics part analyzer. The user will give you a part descr
 {%- endfor %}
 
 # Guidance for the fields
-- `product_name`: the canonical name of the product.
+- `product_name`: the product name. For generic components with varying specifications (resistors, capacitors, power modules, LEDs,
+   etc.), include key specs in the name (e.g., "10kΩ 1/4W THT Resistor", "HiLink HLK-PM01 5V 3W", "32GB MicroSD Card Class 10").
+  For uniquely named products where the model number fully identifies the specifications (e.g., "Arduino Nano Every", "Raspberry
+  Pi 4B", "ESP32-WROOM-32"), use just the product name without additional specs.
 - `product_family`: the name of the family or series of a product (e.g., Arduino: Mega/Uno/Nano; Espressif: ESP32-S/ESP32-C/ESP8266).
 - `product_category`: exactly one of the categories above; if none fits, "Proposed: <name>".
 - `manufacturer`: manufacturer of the product.

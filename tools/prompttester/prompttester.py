@@ -333,9 +333,9 @@ def main():
         # "o4-mini",: reasoning_efforts,
     }
     queries = [
-        # ("HLK PM24", "hlk-pm24"),
+        ("HLK PM24", "hlk-pm24"),
         # ("ESP32-S3FN8", "esp32-s3fn8"),
-        # ("Arduino Nano Every", "arduino-nano-every"),
+        ("Arduino Nano Every", "arduino-nano-every"),
         # ("DFRobot Gravity SGP40", "dfrobot-gravity-sgp40"),
         ("generic tht resistor 1/4w 1% 10k", "generic-resistor-10k"),
     ]
