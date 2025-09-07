@@ -1112,24 +1112,6 @@
       "CoverAttachmentResponseSchema.f950e1b.PartAttachmentResponseSchema": {
         "description": "Schema for full attachment details.",
         "properties": {
-          "attachment_metadata": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Additional metadata (dimensions, etc.)",
-            "example": {
-              "format": "PNG",
-              "height": 1080,
-              "width": 1920
-            },
-            "title": "Attachment Metadata"
-          },
           "attachment_type": {
             "$ref": "#/components/schemas/CoverAttachmentResponseSchema.f950e1b.AttachmentType",
             "description": "Type of attachment",
@@ -1181,10 +1163,10 @@
             "example": "omron_g5q_datasheet.pdf",
             "title": "Filename"
           },
-          "has_image": {
-            "description": "Whether this attachment has an associated image for display",
+          "has_preview": {
+            "description": "Whether this attachment has a preview image",
             "example": true,
-            "title": "Has Image",
+            "title": "Has Preview",
             "type": "boolean"
           },
           "id": {
@@ -1249,10 +1231,9 @@
           "filename",
           "content_type",
           "file_size",
-          "attachment_metadata",
           "created_at",
           "updated_at",
-          "has_image"
+          "has_preview"
         ],
         "title": "PartAttachmentResponseSchema",
         "type": "object"
@@ -1616,10 +1597,10 @@
             "example": "omron_g5q_datasheet.pdf",
             "title": "Filename"
           },
-          "has_image": {
-            "description": "Whether this attachment has an associated image for display",
+          "has_preview": {
+            "description": "Whether this attachment has a preview image",
             "example": true,
-            "title": "Has Image",
+            "title": "Has Preview",
             "type": "boolean"
           },
           "id": {
@@ -1657,7 +1638,7 @@
           "content_type",
           "file_size",
           "created_at",
-          "has_image"
+          "has_preview"
         ],
         "title": "PartAttachmentListSchema",
         "type": "object"
@@ -1665,24 +1646,6 @@
       "PartAttachmentResponseSchema.f950e1b": {
         "description": "Schema for full attachment details.",
         "properties": {
-          "attachment_metadata": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Additional metadata (dimensions, etc.)",
-            "example": {
-              "format": "PNG",
-              "height": 1080,
-              "width": 1920
-            },
-            "title": "Attachment Metadata"
-          },
           "attachment_type": {
             "$ref": "#/components/schemas/PartAttachmentResponseSchema.f950e1b.AttachmentType",
             "description": "Type of attachment",
@@ -1734,10 +1697,10 @@
             "example": "omron_g5q_datasheet.pdf",
             "title": "Filename"
           },
-          "has_image": {
-            "description": "Whether this attachment has an associated image for display",
+          "has_preview": {
+            "description": "Whether this attachment has a preview image",
             "example": true,
-            "title": "Has Image",
+            "title": "Has Preview",
             "type": "boolean"
           },
           "id": {
@@ -1802,10 +1765,9 @@
           "filename",
           "content_type",
           "file_size",
-          "attachment_metadata",
           "created_at",
           "updated_at",
-          "has_image"
+          "has_preview"
         ],
         "title": "PartAttachmentResponseSchema",
         "type": "object"
@@ -2567,10 +2529,10 @@
             "example": "omron_g5q_datasheet.pdf",
             "title": "Filename"
           },
-          "has_image": {
-            "description": "Whether this attachment has an associated image for display",
+          "has_preview": {
+            "description": "Whether this attachment has a preview image",
             "example": true,
-            "title": "Has Image",
+            "title": "Has Preview",
             "type": "boolean"
           },
           "id": {
@@ -2608,7 +2570,7 @@
           "content_type",
           "file_size",
           "created_at",
-          "has_image"
+          "has_preview"
         ],
         "title": "PartAttachmentListSchema",
         "type": "object"
@@ -2616,24 +2578,6 @@
       "PartResponseSchema.1a46b79.PartAttachmentResponseSchema": {
         "description": "Schema for full attachment details.",
         "properties": {
-          "attachment_metadata": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Additional metadata (dimensions, etc.)",
-            "example": {
-              "format": "PNG",
-              "height": 1080,
-              "width": 1920
-            },
-            "title": "Attachment Metadata"
-          },
           "attachment_type": {
             "$ref": "#/components/schemas/PartResponseSchema.1a46b79.AttachmentType",
             "description": "Type of attachment",
@@ -2685,10 +2629,10 @@
             "example": "omron_g5q_datasheet.pdf",
             "title": "Filename"
           },
-          "has_image": {
-            "description": "Whether this attachment has an associated image for display",
+          "has_preview": {
+            "description": "Whether this attachment has a preview image",
             "example": true,
-            "title": "Has Image",
+            "title": "Has Preview",
             "type": "boolean"
           },
           "id": {
@@ -2753,10 +2697,9 @@
           "filename",
           "content_type",
           "file_size",
-          "attachment_metadata",
           "created_at",
           "updated_at",
-          "has_image"
+          "has_preview"
         ],
         "title": "PartAttachmentResponseSchema",
         "type": "object"
