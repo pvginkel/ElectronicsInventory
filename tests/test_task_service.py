@@ -3,10 +3,8 @@
 import time
 
 import pytest
-from sqlalchemy.orm import Session
 
 from app.schemas.task_schema import TaskEventType, TaskStatus
-from app.services.metrics_service import MetricsService
 from app.services.task_service import TaskProgressHandle, TaskService
 from tests.test_tasks.test_task import DemoTask, FailingTask, LongRunningTask
 
@@ -15,9 +13,10 @@ class TestTaskService:
     """Test TaskService functionality."""
 
     @pytest.fixture
-    def mock_metrics_service(self, session: Session):
+    def mock_metrics_service(self):
         """Create mock metrics service."""
-        return MetricsService(db=session)
+        from app.services.metrics_service import NoopMetricsService
+        return NoopMetricsService()
 
     @pytest.fixture
     def task_service(self, mock_metrics_service):
@@ -219,9 +218,10 @@ class TestTaskService:
             assert task_info is not None
             assert task_info.status == TaskStatus.COMPLETED
 
-    def test_task_service_shutdown(self, session: Session):
+    def test_task_service_shutdown(self):
         """Test TaskService shutdown and cleanup."""
-        metrics_service = MetricsService(db=session)
+        from app.services.metrics_service import NoopMetricsService
+        metrics_service = NoopMetricsService()
         service = TaskService(metrics_service, max_workers=1)
 
         # Start a task
@@ -236,10 +236,11 @@ class TestTaskService:
         assert len(service._task_instances) == 0
         assert len(service._event_queues) == 0
 
-    def test_automatic_cleanup_of_completed_tasks(self, task_service, session: Session):
+    def test_automatic_cleanup_of_completed_tasks(self, task_service):
         """Test that completed tasks are automatically cleaned up."""
         # Create service with short cleanup interval for testing
-        metrics_service = MetricsService(db=session)
+        from app.services.metrics_service import NoopMetricsService
+        metrics_service = NoopMetricsService()
         service = TaskService(metrics_service, max_workers=1, cleanup_interval=1)
 
         try:

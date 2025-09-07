@@ -12,7 +12,7 @@ from app.services.download_cache_service import DownloadCacheService
 from app.services.html_document_handler import HtmlDocumentHandler
 from app.services.image_service import ImageService
 from app.services.inventory_service import InventoryService
-from app.services.metrics_service import MetricsService
+from app.services.metrics_service import MetricsService, NoopMetricsService
 from app.services.part_service import PartService
 from app.services.s3_service import S3Service
 from app.services.setup_service import SetupService
@@ -70,9 +70,17 @@ class ServiceContainer(containers.DeclarativeContainer):
     )
 
     # Metrics service - Singleton for background thread management
+    @staticmethod
+    def make_metrics_service(enabled: bool, container: 'ServiceContainer') -> NoopMetricsService:
+        if enabled:
+            return MetricsService(container=container)
+        else:
+            return NoopMetricsService()
+
     metrics_service = providers.Singleton(
-        MetricsService,
-        container=providers.Self()
+        make_metrics_service,
+        enabled=config.provided.METRICS_ENABLED,
+        container=providers.Self(),
     )
 
     # URL interceptor registry with LCSC interceptor

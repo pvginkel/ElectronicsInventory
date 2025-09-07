@@ -214,6 +214,39 @@ Reference `docs/product_brief.md` for domain understanding:
 - **Smart organization** suggests optimal part placement
 - **Search** across all part attributes and documentation
 
+## Prometheus Metrics Infrastructure
+
+The application includes a comprehensive Prometheus metrics system for operational monitoring:
+
+### Available Metrics Infrastructure
+- **MetricsService** (`app/services/metrics_service.py`) - Central service for managing all metrics
+- **`/metrics` endpoint** - Prometheus scraping endpoint via `app/api/metrics.py`
+- **Background metric updates** - Automatic collection of inventory and system metrics
+
+### Using Metrics in New Features
+When implementing features that need operational visibility:
+
+1. **Add metrics to MetricsService** - Define new Prometheus metrics (Gauges, Counters, Histograms)
+2. **Update metrics in business logic** - Call `metrics_service` methods when events occur
+3. **Use appropriate metric types**:
+   - `Gauge` - Current state values (active connections, queue depth)
+   - `Counter` - Cumulative totals (requests processed, errors)
+   - `Histogram` - Duration measurements (request latency, processing time)
+
+**Example pattern:**
+```python
+# In service method
+self.metrics_service.record_operation_duration("operation_name", duration)
+self.metrics_service.increment_counter("operation_total", labels={"status": "success"})
+```
+
+**Existing metrics include:**
+- Inventory statistics (parts count, quantities, categories)
+- Storage utilization (box usage percentages)
+- Activity tracking (quantity changes, recent activity)
+- AI analysis metrics (requests, tokens, costs, duration)
+- System metrics (HTTP requests, response times, exceptions)
+
 ## Dependencies
 
 - **Flask** - Web framework
@@ -224,6 +257,7 @@ Reference `docs/product_brief.md` for domain understanding:
 - **PostgreSQL** - Primary database
 - **pytest** - Testing framework
 - **dependency-injector** - Dependency injection container
+- **prometheus-flask-exporter** - Prometheus metrics integration
 
 Focus on creating well-tested, maintainable code that follows these established patterns. The goal is a robust parts inventory system that stays organized and scales with your electronics hobby.
 
