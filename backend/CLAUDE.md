@@ -258,6 +258,29 @@ class InventoryService(BaseService):
         self.part_service = part_service
 ```
 
+Only use BaseService for factory services that use the database. Singletons need to implement the following pattern when they need database access:
+
+```python
+# db_session() returns a context local session (new if this is the first
+# call in the context).
+session = self.container.db_session()
+
+try:
+    # Do something with the session...
+
+    session.commit()
+
+except Exception:
+    # Rollback the session on exception.
+    session.rollback()
+    raise
+
+finally:
+    # Important: reset the session in a finally block. This ensures that
+    # the next call to container.db_session() creates a fresh session.
+    self.container.db_session.reset()
+```
+
 ### API Injection
 
 API endpoints use the `@inject` decorator to receive services:
