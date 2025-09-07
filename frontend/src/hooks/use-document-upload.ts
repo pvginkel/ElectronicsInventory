@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { validateFile } from '@/lib/utils/file-validation';
 import { getApiBaseUrl } from '@/lib/utils/api-config';
+import { useToast } from '@/hooks/use-toast';
+import { parseApiError } from '@/lib/utils/error-parsing';
 
 export interface UploadProgress {
   partId: string;
@@ -21,6 +23,7 @@ export interface DocumentUploadOptions {
 export function useDocumentUpload() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, UploadProgress>>({});
   const queryClient = useQueryClient();
+  const toast = useToast();
   
   const baseUrl = getApiBaseUrl();
 
@@ -137,13 +140,17 @@ export function useDocumentUpload() {
       // Clean up progress after a delay
       setTimeout(() => {
         setUploadProgress(prev => {
-          const { [uploadKey]: _, ...rest } = prev;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { [uploadKey]: _removed, ...rest } = prev;
           return rest;
         });
       }, 2000);
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+      const errorMessage = parseApiError(error);
+      
+      // Show error toast to user
+      toast.showError(errorMessage);
       
       setUploadProgress(prev => ({
         ...prev,
@@ -157,14 +164,15 @@ export function useDocumentUpload() {
       // Clean up after error display
       setTimeout(() => {
         setUploadProgress(prev => {
-          const { [uploadKey]: _, ...rest } = prev;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { [uploadKey]: _removed, ...rest } = prev;
           return rest;
         });
       }, 5000);
 
       throw error;
     }
-  }, [queryClient, baseUrl]);
+  }, [queryClient, baseUrl, toast]);
 
   return {
     uploadDocument,

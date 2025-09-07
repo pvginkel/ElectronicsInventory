@@ -104,19 +104,15 @@ export function useAddDocumentModal(partId: string) {
   const handleSubmit = useCallback(async () => {
     if (!document || !document.name.trim()) return;
 
-    try {
-      await uploadDocument({
-        partId,
-        file: document.file,
-        url: document.url,
-        name: document.name.trim(),
-        onProgress: setUploadProgress,
-      });
+    await uploadDocument({
+      partId,
+      file: document.file,
+      url: document.url,
+      name: document.name.trim(),
+      onProgress: setUploadProgress,
+    });
 
-      closeModal();
-    } catch (error) {
-      console.error('Upload failed:', error);
-    }
+    closeModal();
   }, [document, partId, uploadDocument, closeModal]);
 
   // Sync previewState with document when URL preview data becomes available
