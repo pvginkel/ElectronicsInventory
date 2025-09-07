@@ -6,10 +6,11 @@ import { Label } from '@/components/ui/label';
 interface AIPartInputStepProps {
   onSubmit: (data: { text: string }) => void;
   isLoading?: boolean;
+  initialText?: string;
 }
 
-export function AIPartInputStep({ onSubmit, isLoading = false }: AIPartInputStepProps) {
-  const [textInput, setTextInput] = useState('');
+export function AIPartInputStep({ onSubmit, isLoading = false, initialText }: AIPartInputStepProps) {
+  const [textInput, setTextInput] = useState(initialText || '');
 
 
   const handleSubmit = useCallback((e: React.FormEvent) => {

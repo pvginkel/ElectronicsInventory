@@ -18,6 +18,7 @@ interface AIPartDialogProps {
 export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps) {
   const [currentStep, setCurrentStep] = useState<DialogStep>('input');
   const [isCreatingPart, setIsCreatingPart] = useState(false);
+  const [lastSearchText, setLastSearchText] = useState<string>('');
 
   const createPartMutation = usePostAiPartsCreate();
 
@@ -43,10 +44,14 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
     if (open) {
       setCurrentStep('input');
       setIsCreatingPart(false);
+    } else {
+      // Clear search text when dialog is closed
+      setLastSearchText('');
     }
   }, [open]);
 
   const handleInputSubmit = useCallback((data: { text: string }) => {
+    setLastSearchText(data.text);
     setCurrentStep('progress');
     analyzePartFromData(data);
   }, [analyzePartFromData]);
@@ -76,11 +81,12 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
       const partId = createdPart.key;
 
       if (createAnother) {
-        // Reset to input step for another part
+        // Reset to input step for another part, keep search text
         setCurrentStep('input');
         onPartCreated?.(partId, true);
       } else {
-        // Close dialog and navigate
+        // Close dialog and navigate, clear search text
+        setLastSearchText('');
         onClose();
         onPartCreated?.(partId, false);
       }
@@ -110,6 +116,7 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
           <AIPartInputStep
             onSubmit={handleInputSubmit}
             isLoading={false}
+            initialText={lastSearchText}
           />
         );
         
