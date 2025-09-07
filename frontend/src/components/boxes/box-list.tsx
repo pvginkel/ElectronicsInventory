@@ -115,7 +115,7 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
         {/* Search */}
         <div className="w-full mb-6 relative">
           <Input
-            placeholder="Search boxes by number or description..."
+            placeholder="Search..."
             value={searchTerm}
             onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full pr-8"
@@ -151,7 +151,7 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
         {/* Search */}
         <div className="w-full mb-6 relative">
           <Input
-            placeholder="Search boxes by number or description..."
+            placeholder="Search..."
             value={searchTerm}
             onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full pr-8"
@@ -191,7 +191,7 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
       {/* Search */}
       <div className="w-full mb-6 relative">
         <Input
-          placeholder="Search boxes by number or description..."
+          placeholder="Search..."
           value={searchTerm}
           onChange={(e) => handleSearchChange(e.target.value)}
           className="w-full pr-8"

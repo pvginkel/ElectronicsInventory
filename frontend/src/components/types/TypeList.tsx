@@ -92,7 +92,7 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
         </div>
         <div className="mb-6 relative">
           <Input 
-            placeholder="Search types..." 
+            placeholder="Search..." 
             value={searchTerm}
             onChange={(e) => handleSearchChange(e.target.value)}
             className="pr-8"
@@ -143,7 +143,7 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
       {!isEmpty && (
         <div className="mb-6 relative">
           <Input 
-            placeholder="Search types..."
+            placeholder="Search..."
             value={searchTerm}
             onChange={(e) => handleSearchChange(e.target.value)}
             className="pr-8"

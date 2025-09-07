@@ -107,7 +107,7 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
       {/* Search */}
       <div className="w-full relative">
         <Input
-          placeholder="Search parts by ID, description, manufacturer, type, or tags..."
+          placeholder="Search..."
           value={searchTerm}
           onChange={(e) => handleSearchChange(e.target.value)}
           className="w-full pr-8"
