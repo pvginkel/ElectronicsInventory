@@ -244,21 +244,24 @@ class TestBoxAPI:
         container.inventory_service().add_stock(part.key, box.box_no, 1, 10)
         session.commit()
 
+        # Capture box number before API call (rollback will detach the object)
+        box_no = box.box_no
+
         # Attempt to delete the box via API
-        response = client.delete(f"/api/boxes/{box.box_no}")
+        response = client.delete(f"/api/boxes/{box_no}")
 
         # Should return 409 with proper error message now that we've fixed the Spectree validation
         assert response.status_code == 409
         response_data = json.loads(response.data)
         assert "error" in response_data
         assert "details" in response_data
-        assert f"Cannot delete box {box.box_no}" in response_data["error"]
+        assert f"Cannot delete box {box_no}" in response_data["error"]
         assert "it contains parts that must be moved or removed first" in response_data["error"]
         assert "message" in response_data["details"]
         assert "The requested operation cannot be performed" in response_data["details"]["message"]
 
         # Verify box still exists
-        verify_response = client.get(f"/api/boxes/{box.box_no}")
+        verify_response = client.get(f"/api/boxes/{box_no}")
         assert verify_response.status_code == 200
 
     def test_get_box_locations_existing(self, client: FlaskClient, session: Session, container: ServiceContainer):

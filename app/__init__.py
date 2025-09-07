@@ -75,10 +75,15 @@ def create_app(settings: "Settings | None" = None) -> Flask:
     def close_session(exc):
         """Close the database session after each request."""
         db_session = container.db_session()
-        if exc:
+        needs_rollback = db_session.info.get('needs_rollback', False)
+
+        if exc or needs_rollback:
             db_session.rollback()
         else:
             db_session.commit()
+
+        # Clear rollback flag after processing
+        db_session.info.pop('needs_rollback', None)
         db_session.close()
 
         container.db_session.reset()
