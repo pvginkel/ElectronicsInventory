@@ -166,7 +166,7 @@ def create_part_from_ai_analysis(
         )
         logger.info(f"Successfully attached document from {doc.url} to part {part.key}")
 
-        if not cover_image and doc.is_cover_image and attachment.attachment_type == "image":
+        if not cover_image and doc.is_cover_image:
             cover_image = attachment
 
     if cover_image:
