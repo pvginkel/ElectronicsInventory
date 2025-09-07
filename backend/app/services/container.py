@@ -63,7 +63,9 @@ class ServiceContainer(containers.DeclarativeContainer):
     )
     html_handler = providers.Factory(
         HtmlDocumentHandler,
-        download_cache_service=download_cache_service
+        download_cache_service=download_cache_service,
+        settings=config,
+        image_service=image_service
     )
 
     # URL interceptor registry with LCSC interceptor
