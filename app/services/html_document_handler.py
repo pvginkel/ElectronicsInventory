@@ -1,14 +1,19 @@
 """Service for handling HTML document processing."""
 
 import io
+import logging
 from urllib.parse import urljoin, urlparse
 
 import magic
 from bs4 import BeautifulSoup
 from PIL import Image
 
+from app.config import Settings
 from app.schemas.upload_document import DocumentContentSchema
 from app.services.download_cache_service import DownloadCacheService
+from app.services.image_service import ImageService
+
+logger = logging.getLogger(__name__)
 
 
 class HtmlDocumentInfo:
@@ -22,8 +27,10 @@ class HtmlDocumentInfo:
 class HtmlDocumentHandler:
     """Service for processing HTML documents and extracting metadata."""
 
-    def __init__(self, download_cache_service: DownloadCacheService):
+    def __init__(self, download_cache_service: DownloadCacheService, settings: Settings, image_service: ImageService):
         self.download_cache_service = download_cache_service
+        self.settings = settings
+        self.image_service = image_service
 
     def process_html_content(self, content: bytes, url: str) -> HtmlDocumentInfo:
         """Process HTML content and extract metadata.
@@ -42,6 +49,8 @@ class HtmlDocumentHandler:
 
         # Find preview image
         preview_image = self._find_preview_image(soup, url, self.download_cache_service)
+
+        logger.info(f"Preview image content type : {preview_image.content_type if preview_image else 'None'}")
 
         return HtmlDocumentInfo(title=title, preview_image=preview_image)
 
@@ -174,8 +183,25 @@ class HtmlDocumentHandler:
 
             # Check content type with magic
             content_type = magic.from_buffer(content, mime=True)
-            if not content_type.startswith('image/'):
-                return None
+            logger.info("1")
+            # If it's not in allowed types but magic detected it as an image, try to convert it
+            if content_type not in self.settings.ALLOWED_IMAGE_TYPES:
+                logger.info("2")
+                # Only try conversion if magic detected it as an image
+                if content_type.startswith('image/'):
+                    logger.info("3")
+                    # Try to convert to PNG
+                    conversion_result = self.image_service.convert_image_to_png(content)
+                    if conversion_result:
+                        logger.info("4")
+                        content = conversion_result.content
+                        content_type = conversion_result.content_type
+                    else:
+                        logger.info("5")
+                        return None  # Conversion failed
+                else:
+                    logger.info("6")
+                    return None  # Not an image at all
 
             # Skip videos and GIFs (simplified checking)
             if 'video' in content_type or content_type == 'image/gif':

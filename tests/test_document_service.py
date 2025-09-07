@@ -1032,3 +1032,39 @@ class TestDocumentService:
 
         result = document_service._mime_type_to_attachment_type("image/png")
         assert result == AttachmentType.IMAGE
+
+    def test_create_url_attachment_html_with_unsupported_favicon(self, document_service, session, sample_part, mock_download_cache):
+        """Test HTML URL attachment where favicon extraction fails due to unsupported image type."""
+        from app.services.download_cache_service import DownloadResult
+        from app.services.html_document_handler import HtmlDocumentInfo
+
+        # Mock downloading HTML content
+        html_content = b'<html><head><title>Arduino Docs</title><link rel="icon" href="/favicon.ico"></head></html>'
+        mock_download_cache.get_cached_content.return_value = DownloadResult(
+            content=html_content,
+            content_type="text/html"
+        )
+
+        with patch('magic.from_buffer') as mock_magic, \
+             patch.object(document_service.html_handler, 'process_html_content') as mock_html_process:
+
+            # HTML is detected as text/html
+            mock_magic.return_value = 'text/html'
+
+            # Mock HTML handler returning info without preview image (because .ico was rejected)
+            mock_html_process.return_value = HtmlDocumentInfo(
+                title="Arduino Docs",
+                preview_image=None  # No preview because .ico was filtered out
+            )
+
+            # Should succeed and create URL attachment without preview image
+            attachment = document_service.create_url_attachment(
+                part_key=sample_part.key,
+                title="Arduino Documentation",
+                url="https://docs.arduino.cc/hardware/nano-every/"
+            )
+
+            assert attachment.attachment_type == AttachmentType.URL
+            assert attachment.title == "Arduino Documentation"
+            assert attachment.url == "https://docs.arduino.cc/hardware/nano-every/"
+            assert attachment.s3_key is None  # No preview image stored

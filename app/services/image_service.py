@@ -1,6 +1,8 @@
 """Image service for thumbnail generation and processing."""
 
+import io
 import os
+import logging
 from pathlib import Path
 
 from PIL import Image
@@ -8,8 +10,11 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.exceptions import InvalidOperationException
+from app.schemas.upload_document import DocumentContentSchema
 from app.services.base import BaseService
 from app.services.s3_service import S3Service
+
+logger = logging.getLogger(__name__)
 
 
 class ImageService(BaseService):
@@ -46,24 +51,6 @@ class ImageService(BaseService):
             self.settings.THUMBNAIL_STORAGE_PATH,
             f"{attachment_id}_{size}.jpg"
         )
-
-    def _is_image_format_supported(self, content_type: str) -> bool:
-        """Check if image format is supported for thumbnail generation.
-
-        Args:
-            content_type: MIME type of the image
-
-        Returns:
-            True if format is supported
-        """
-        supported_types = [
-            'image/jpeg',
-            'image/png',
-            'image/webp',
-            'image/bmp',
-            'image/tiff'
-        ]
-        return content_type.lower() in supported_types
 
     def generate_thumbnail(self, attachment_id: int, s3_key: str, size: int) -> str:
         """Generate thumbnail for image attachment with lazy loading.
@@ -167,3 +154,39 @@ class ImageService(BaseService):
                 thumbnail_file.unlink()
             except OSError:
                 pass  # Ignore errors during cleanup
+
+    def convert_image_to_png(self, content: bytes) -> DocumentContentSchema | None:
+        """Try to convert an image to PNG format.
+
+        This method attempts to convert unsupported image formats (like .ico)
+        to PNG so they can be used despite not being in the ALLOWED_IMAGE_TYPES list.
+
+        Args:
+            content: Raw image bytes
+
+        Returns:
+            DocumentContentSchema with PNG data if conversion succeeds, None if it fails
+        """
+        try:
+            # Try to open the image with PIL
+            with Image.open(io.BytesIO(content)) as img:
+                # Convert to RGBA to handle transparency properly
+                if img.mode not in ('RGBA', 'RGB'):
+                    img = img.convert('RGBA')
+
+                # Create a new BytesIO object for PNG output
+                png_output = io.BytesIO()
+
+                # Save as PNG
+                img.save(png_output, format='PNG')
+                png_output.seek(0)
+
+                return DocumentContentSchema(
+                    content=png_output.getvalue(),
+                    content_type='image/png'
+                )
+
+        except Exception as e:
+            logger.warn(f"Image conversion to PNG failed: {str(e)}")
+            # If PIL can't handle it, return None
+            return None
