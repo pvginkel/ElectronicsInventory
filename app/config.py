@@ -133,6 +133,16 @@ class Settings(BaseSettings):
         description="How often to clean up completed tasks in seconds (10 minutes)"
     )
 
+    # Prometheus metrics settings
+    METRICS_ENABLED: bool = Field(
+        default=True,
+        description="Enable Prometheus metrics collection"
+    )
+    METRICS_UPDATE_INTERVAL: int = Field(
+        default=60,
+        description="Metrics background update interval in seconds"
+    )
+
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         """SQLAlchemy database URI."""
