@@ -442,7 +442,7 @@ export function AIPartReviewStep({
             </div>
 
             <div>
-              <Label htmlFor="seller">Seller *</Label>
+              <Label htmlFor="seller">Seller</Label>
               <Input
                 id="seller"
                 value={formData.seller}
@@ -455,7 +455,7 @@ export function AIPartReviewStep({
             </div>
 
             <div>
-              <Label htmlFor="sellerLink">Seller Link *</Label>
+              <Label htmlFor="sellerLink">Seller Link</Label>
               <Input
                 id="sellerLink"
                 type="url"
