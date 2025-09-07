@@ -13,7 +13,7 @@ import { transformAIPartAnalysisResult, transformToCreateSchema } from '@/lib/ut
 import { useCreateType } from '@/hooks/use-types';
 import type { components } from '@/lib/api/generated/types';
 import { ExternalLinkIcon } from '@/components/icons/ExternalLinkIcon';
-import { XIcon } from 'lucide-react';
+import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 
 type DocumentSuggestionSchema = components['schemas']['AIPartCreateSchema.63ff6da.DocumentSuggestionSchema'];
 type TransformedResult = ReturnType<typeof transformAIPartAnalysisResult>;
@@ -273,7 +273,7 @@ export function AIPartReviewStep({
                       className="p-2"
                       aria-label="Remove suggestion"
                     >
-                      <XIcon className="h-4 w-4" />
+                      <ClearButtonIcon className="h-4 w-4" />
                     </Button>
                   </div>
                   {errors.type && (

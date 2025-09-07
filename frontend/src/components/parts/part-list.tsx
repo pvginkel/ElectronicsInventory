@@ -10,6 +10,7 @@ import { QuantityBadge } from './quantity-badge';
 import { MetadataBadge } from './metadata-badge';
 import { LocationSummary } from './location-summary';
 import { VendorInfo } from './vendor-info';
+import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 
 interface PartListProps {
   searchTerm?: string;
@@ -45,6 +46,10 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
         replace: true
       });
     }
+  };
+
+  const handleClearSearch = () => {
+    handleSearchChange('');
   };
 
   const filteredParts = useMemo(() => {
@@ -100,13 +105,22 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
       </div>
 
       {/* Search */}
-      <div className="w-full">
+      <div className="w-full relative">
         <Input
           placeholder="Search parts by ID, description, manufacturer, type, or tags..."
           value={searchTerm}
           onChange={(e) => handleSearchChange(e.target.value)}
-          className="w-full"
+          className="w-full pr-8"
         />
+        {searchTerm && (
+          <button
+            onClick={handleClearSearch}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
+            aria-label="Clear search"
+          >
+            <ClearButtonIcon />
+          </button>
+        )}
       </div>
 
       {/* Results Summary */}

@@ -1,5 +1,5 @@
 import { type ReactNode, forwardRef } from 'react'
-import { XIcon } from '@/components/icons/XIcon'
+import { ClearButtonIcon } from '../icons/clear-button-icon'
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   icon?: ReactNode
@@ -49,7 +49,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                 className="p-1 text-muted-foreground hover:text-foreground focus:outline-none"
                 aria-label="Clear"
               >
-                <XIcon />
+                <ClearButtonIcon />
               </button>
             )}
             {action}

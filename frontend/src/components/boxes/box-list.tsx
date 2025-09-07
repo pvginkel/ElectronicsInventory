@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ConfirmDialog } from '@/components/ui/dialog'
 import { useConfirm } from '@/hooks/use-confirm'
+import { ClearButtonIcon } from '@/components/icons/clear-button-icon'
 
 interface BoxListProps {
   searchTerm?: string;
@@ -84,6 +85,10 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
     }
   }
 
+  const handleClearSearch = () => {
+    handleSearchChange('');
+  }
+
   const filteredBoxes = useMemo(() => {
     if (!boxes || !searchTerm.trim()) return boxes;
 
@@ -108,13 +113,22 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
         </div>
 
         {/* Search */}
-        <div className="w-full mb-6">
+        <div className="w-full mb-6 relative">
           <Input
             placeholder="Search boxes by number or description..."
             value={searchTerm}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full"
+            className="w-full pr-8"
           />
+          {searchTerm && (
+            <button
+              onClick={handleClearSearch}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
+              aria-label="Clear search"
+            >
+              <ClearButtonIcon />
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -135,13 +149,22 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
         </div>
 
         {/* Search */}
-        <div className="w-full mb-6">
+        <div className="w-full mb-6 relative">
           <Input
             placeholder="Search boxes by number or description..."
             value={searchTerm}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full"
+            className="w-full pr-8"
           />
+          {searchTerm && (
+            <button
+              onClick={handleClearSearch}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
+              aria-label="Clear search"
+            >
+              <ClearButtonIcon />
+            </button>
+          )}
         </div>
 
         <div className="text-center py-12">
@@ -166,13 +189,22 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
       </div>
 
       {/* Search */}
-      <div className="w-full mb-6">
+      <div className="w-full mb-6 relative">
         <Input
           placeholder="Search boxes by number or description..."
           value={searchTerm}
           onChange={(e) => handleSearchChange(e.target.value)}
-          className="w-full"
+          className="w-full pr-8"
         />
+        {searchTerm && (
+          <button
+            onClick={handleClearSearch}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
+            aria-label="Clear search"
+          >
+            <ClearButtonIcon />
+          </button>
+        )}
       </div>
 
       {/* Results Summary */}

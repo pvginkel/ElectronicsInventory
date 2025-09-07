@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ConfirmDialog } from '@/components/ui/dialog'
 import { useConfirm } from '@/hooks/use-confirm'
+import { ClearButtonIcon } from '@/components/icons/clear-button-icon'
 
 interface TypeListProps {
   searchTerm?: string;
@@ -38,6 +39,10 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
         replace: true
       });
     }
+  };
+
+  const handleClearSearch = () => {
+    handleSearchChange('');
   };
 
   const filteredTypes = types?.filter((type: { name: string }) => 
@@ -85,12 +90,22 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
           <h1 className="text-3xl font-bold">Types</h1>
           <Button disabled>Add Type</Button>
         </div>
-        <div className="mb-6">
+        <div className="mb-6 relative">
           <Input 
             placeholder="Search types..." 
             value={searchTerm}
             onChange={(e) => handleSearchChange(e.target.value)}
+            className="pr-8"
           />
+          {searchTerm && (
+            <button
+              onClick={handleClearSearch}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
+              aria-label="Clear search"
+            >
+              <ClearButtonIcon />
+            </button>
+          )}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -126,12 +141,22 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
       </div>
 
       {!isEmpty && (
-        <div className="mb-6">
+        <div className="mb-6 relative">
           <Input 
             placeholder="Search types..."
             value={searchTerm}
             onChange={(e) => handleSearchChange(e.target.value)}
+            className="pr-8"
           />
+          {searchTerm && (
+            <button
+              onClick={handleClearSearch}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
+              aria-label="Clear search"
+            >
+              <ClearButtonIcon />
+            </button>
+          )}
         </div>
       )}
 
