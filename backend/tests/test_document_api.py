@@ -681,7 +681,7 @@ class TestUrlPreviewAPI:
     def test_attachment_preview_image_success(self, mock_get_preview_image, client: FlaskClient):
         """Test successful preview image retrieval."""
         from app.schemas.upload_document import DocumentContentSchema
-        
+
         # Mock successful preview image retrieval
         mock_get_preview_image.return_value = DocumentContentSchema(
             content=b"fake image data",
@@ -738,7 +738,7 @@ class TestUrlPreviewAPI:
     def test_attachment_preview_direct_image_url(self, mock_get_preview_image, client: FlaskClient):
         """Test preview image with direct image URL."""
         from app.schemas.upload_document import DocumentContentSchema
-        
+
         # Mock direct image retrieval
         mock_get_preview_image.return_value = DocumentContentSchema(
             content=b"direct image data",

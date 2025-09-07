@@ -49,7 +49,7 @@ class DocumentService(BaseService):
         """Convert MIME type to AttachmentType."""
         if mime_type == 'text/html':
             return AttachmentType.URL
-        elif mime_type.startswith('image/'):
+        elif mime_type in self.settings.ALLOWED_IMAGE_TYPES:
             return AttachmentType.IMAGE
         elif mime_type == 'application/pdf':
             return AttachmentType.PDF

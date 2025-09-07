@@ -989,3 +989,46 @@ class TestDocumentService:
             mock_upload.assert_called_once()
             upload_content_type = mock_upload.call_args[0][2]
             assert upload_content_type == "application/pdf"
+
+    def test_create_url_attachment_unsupported_image_type(self, document_service, session, sample_part, mock_download_cache):
+        """Test that unsupported image types (like .ico) are properly rejected."""
+        from app.services.download_cache_service import DownloadResult
+
+        # Mock downloading a .ico file
+        ico_content = b"FAKE_ICO_FILE_CONTENT"
+        mock_download_cache.get_cached_content.return_value = DownloadResult(
+            content=ico_content,
+            content_type="image/vnd.microsoft.icon"
+        )
+
+        with patch('magic.from_buffer') as mock_magic:
+            # Magic detects .ico file
+            mock_magic.return_value = 'image/vnd.microsoft.icon'
+
+            # With the fix, _mime_type_to_attachment_type returns None for unsupported image types
+            # This means detected_type will be None, and the attachment creation should fail
+            # when it tries to validate the unsupported content type
+
+            with pytest.raises(InvalidOperationException) as exc_info:
+                document_service.create_url_attachment(
+                    part_key=sample_part.key,
+                    title="Favicon",
+                    url="https://example.com/favicon.ico"
+                )
+
+            # Should get error about unsupported file type
+            error_message = str(exc_info.value)
+            assert "file type not allowed: image/vnd.microsoft.icon" in error_message
+
+    def test_mime_type_to_attachment_type_unsupported_image(self, document_service):
+        """Test that _mime_type_to_attachment_type properly handles unsupported image types."""
+        # Test unsupported image types return None (not IMAGE)
+        result = document_service._mime_type_to_attachment_type("image/vnd.microsoft.icon")
+        assert result is None, "Unsupported image types should return None"
+
+        # Test supported image types still work
+        result = document_service._mime_type_to_attachment_type("image/jpeg")
+        assert result == AttachmentType.IMAGE
+
+        result = document_service._mime_type_to_attachment_type("image/png")
+        assert result == AttachmentType.IMAGE
