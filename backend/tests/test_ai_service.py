@@ -66,10 +66,10 @@ def mock_document_service() -> DocumentService:
 
 
 @pytest.fixture
-def mock_metrics_service(session: Session):
+def mock_metrics_service():
     """Create mock metrics service."""
-    from app.services.metrics_service import MetricsService
-    return MetricsService(db=session)
+    from app.services.metrics_service import NoopMetricsService
+    return NoopMetricsService()
 
 
 @pytest.fixture

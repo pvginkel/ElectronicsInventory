@@ -8,24 +8,25 @@ from app.services.dashboard_service import DashboardService
 
 def get_real_metrics_service(container):
     """Helper function to get real MetricsService instance for testing."""
+    from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
+
     from app.services.metrics_service import MetricsService
-    from prometheus_client import CollectorRegistry, Gauge, Counter, Histogram
-    
+
     # Create a custom MetricsService that uses its own registry
     class TestMetricsService(MetricsService):
         def __init__(self, container):
             # Don't call super().__init__ to avoid double initialization
             self.container = container
-            
+
             # Create our own registry for this test
             self._test_registry = CollectorRegistry()
             self.initialize_test_metrics()
-            
+
             # Background update control (needed for background updater tests)
             import threading
             self._stop_event = threading.Event()
             self._updater_thread = None
-        
+
         def initialize_test_metrics(self):
             """Initialize metrics with test registry."""
             # Inventory Metrics
@@ -49,7 +50,7 @@ def get_real_metrics_service(container):
                 'Undocumented parts',
                 registry=self._test_registry
             )
-            
+
             # Storage Metrics
             self.inventory_box_utilization_percent = Gauge(
                 'inventory_box_utilization_percent',
@@ -62,7 +63,7 @@ def get_real_metrics_service(container):
                 'Active storage boxes',
                 registry=self._test_registry
             )
-            
+
             # Activity Metrics
             self.inventory_quantity_changes_total = Counter(
                 'inventory_quantity_changes_total',
@@ -80,7 +81,7 @@ def get_real_metrics_service(container):
                 'Changes in last 30 days',
                 registry=self._test_registry
             )
-            
+
             # Category Metrics
             self.inventory_parts_by_type = Gauge(
                 'inventory_parts_by_type',
@@ -88,7 +89,7 @@ def get_real_metrics_service(container):
                 ['type_name'],
                 registry=self._test_registry
             )
-            
+
             # AI Analysis Metrics
             self.ai_analysis_requests_total = Counter(
                 'ai_analysis_requests_total',
@@ -114,12 +115,12 @@ def get_real_metrics_service(container):
                 ['model', 'verbosity', 'reasoning_effort'],
                 registry=self._test_registry
             )
-        
+
         def get_metrics_text(self) -> str:
             """Generate metrics from test registry."""
             from prometheus_client import generate_latest
             return generate_latest(self._test_registry).decode('utf-8')
-    
+
     return TestMetricsService(container)
 
 
