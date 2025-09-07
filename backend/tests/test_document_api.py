@@ -457,19 +457,22 @@ class TestDocumentAPI:
         )
         session.commit()
 
+        # Capture part key before API calls (rollback will detach the object)
+        part_key = part.key
+
         # Get non-existent attachment
-        response = client.get(f'/api/parts/{part.key}/attachments/99999')
+        response = client.get(f'/api/parts/{part_key}/attachments/99999')
         assert response.status_code == 404
 
         # Update non-existent attachment
         response = client.put(
-            f'/api/parts/{part.key}/attachments/99999',
+            f'/api/parts/{part_key}/attachments/99999',
             json={'title': 'New Title'}
         )
         assert response.status_code == 404
 
         # Delete non-existent attachment
-        response = client.delete(f'/api/parts/{part.key}/attachments/99999')
+        response = client.delete(f'/api/parts/{part_key}/attachments/99999')
         assert response.status_code == 404
 
     def test_thumbnail_size_parameter(self, client: FlaskClient, container: ServiceContainer, session: Session, tmp_path):

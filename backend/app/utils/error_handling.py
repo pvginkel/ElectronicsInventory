@@ -5,7 +5,7 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from flask import jsonify
+from flask import current_app, jsonify
 from flask.wrappers import Response
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -33,6 +33,15 @@ def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Response | tupl
         try:
             return func(*args, **kwargs)
         except Exception as e:
+            # Mark session for rollback when any exception is caught
+            try:
+                container = current_app.container
+                db_session = container.db_session()
+                db_session.info['needs_rollback'] = True
+            except Exception:
+                # Ignore errors in rollback marking - don't want to mask the original error
+                pass
+
             # Log all exceptions with stack trace
             logger.error("Exception in %s: %s", func.__name__, str(e), exc_info=True)
 
