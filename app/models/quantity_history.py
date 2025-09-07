@@ -30,7 +30,7 @@ class QuantityHistory(db.Model):  # type: ignore[name-defined]
     )
 
     # Relationships
-    part: Mapped["Part"] = relationship(  # type: ignore[assignment]
+    part: Mapped["Part"] = relationship(
         "Part", back_populates="quantity_history", lazy="selectin"
     )
 

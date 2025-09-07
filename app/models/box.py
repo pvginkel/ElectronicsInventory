@@ -29,7 +29,7 @@ class Box(db.Model):  # type: ignore[name-defined]
     )
 
     # Relationships
-    locations: Mapped[list["Location"]] = relationship(  # type: ignore[assignment]
+    locations: Mapped[list["Location"]] = relationship(
         "Location", back_populates="box", cascade="all, delete-orphan", lazy="selectin"
     )
 

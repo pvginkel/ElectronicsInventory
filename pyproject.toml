@@ -43,6 +43,8 @@ types-flask-cors = "^4.0.0"
 types-requests = "^2.31.0"
 types-beautifulsoup4 = "^4.12.0"
 types-pillow = "^10.2.0"
+boto3-stubs = {extras = ["s3"], version = "^1.40.25"}
+types-waitress = "^3.0.1.20250801"
 
 [build-system]
 requires = ["poetry-core"]
@@ -80,6 +82,7 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 warn_return_any = false
 strict_equality = true
+exclude = ["tools/"]
 
 [[tool.mypy.overrides]]
 module = "tests.*"

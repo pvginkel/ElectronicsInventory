@@ -88,7 +88,7 @@ def container(app: Flask):
 
         from app.extensions import db as flask_db
 
-        SessionLocal = sessionmaker(  # type: ignore[assignment]
+        SessionLocal = sessionmaker(
             bind=flask_db.engine, autoflush=True, expire_on_commit=False
         )
 

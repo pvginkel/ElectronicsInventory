@@ -72,23 +72,23 @@ class Part(db.Model):  # type: ignore[name-defined]
     )
 
     # Relationships
-    type: Mapped[Optional["Type"]] = relationship(  # type: ignore[assignment]
+    type: Mapped[Optional["Type"]] = relationship(
         "Type", back_populates="parts", lazy="selectin"
     )
-    part_locations: Mapped[list["PartLocation"]] = relationship(  # type: ignore[assignment]
+    part_locations: Mapped[list["PartLocation"]] = relationship(
         "PartLocation", back_populates="part", cascade="all, delete-orphan", lazy="selectin"
     )
-    quantity_history: Mapped[list["QuantityHistory"]] = relationship(  # type: ignore[assignment]
+    quantity_history: Mapped[list["QuantityHistory"]] = relationship(
         "QuantityHistory", back_populates="part", cascade="all, delete-orphan", lazy="selectin"
     )
-    attachments: Mapped[list["PartAttachment"]] = relationship(  # type: ignore[assignment]
+    attachments: Mapped[list["PartAttachment"]] = relationship(
         "PartAttachment",
         back_populates="part",
         cascade="all, delete-orphan",
         lazy="selectin",
         foreign_keys="PartAttachment.part_id"
     )
-    cover_attachment: Mapped[Optional["PartAttachment"]] = relationship(  # type: ignore[assignment]
+    cover_attachment: Mapped[Optional["PartAttachment"]] = relationship(
         "PartAttachment",
         lazy="selectin",
         post_update=True,

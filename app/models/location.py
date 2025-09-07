@@ -22,7 +22,7 @@ class Location(db.Model):  # type: ignore[name-defined]
     loc_no: Mapped[int] = mapped_column(nullable=False)
 
     # Relationships
-    box: Mapped["Box"] = relationship("Box", back_populates="locations")  # type: ignore[assignment]
+    box: Mapped["Box"] = relationship("Box", back_populates="locations")
 
     __table_args__ = (UniqueConstraint("box_no", "loc_no"),)
 

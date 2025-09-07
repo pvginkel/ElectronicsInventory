@@ -64,44 +64,60 @@ def extract_page_metadata(url: str, download_cache_service: "DownloadCacheServic
 
         # Extract description
         desc_tag = soup.find('meta', attrs={'name': 'description'})
-        if desc_tag:
-            metadata['description'] = desc_tag.get('content', '').strip()
+        if desc_tag and hasattr(desc_tag, 'get'):
+            content = desc_tag.get('content')  # type: ignore[assignment]
+            if isinstance(content, str):
+                metadata['description'] = content.strip()
 
         # Extract Open Graph metadata
         og_title = soup.find('meta', property='og:title')
-        if og_title:
-            metadata['og_title'] = og_title.get('content', '').strip()
+        if og_title and hasattr(og_title, 'get'):
+            content = og_title.get('content')  # type: ignore[assignment]
+            if isinstance(content, str):
+                metadata['og_title'] = content.strip()
 
         og_description = soup.find('meta', property='og:description')
-        if og_description:
-            metadata['og_description'] = og_description.get('content', '').strip()
+        if og_description and hasattr(og_description, 'get'):
+            content = og_description.get('content')  # type: ignore[assignment]
+            if isinstance(content, str):
+                metadata['og_description'] = content.strip()
 
         og_image = soup.find('meta', property='og:image')
-        if og_image:
-            metadata['og_image'] = og_image.get('content', '').strip()
+        if og_image and hasattr(og_image, 'get'):
+            content = og_image.get('content')  # type: ignore[assignment]
+            if isinstance(content, str):
+                metadata['og_image'] = content.strip()
 
         og_site_name = soup.find('meta', property='og:site_name')
-        if og_site_name:
-            metadata['site_name'] = og_site_name.get('content', '').strip()
+        if og_site_name and hasattr(og_site_name, 'get'):
+            content = og_site_name.get('content')  # type: ignore[assignment]
+            if isinstance(content, str):
+                metadata['site_name'] = content.strip()
 
         # Extract Twitter Card metadata
         twitter_title = soup.find('meta', attrs={'name': 'twitter:title'})
-        if twitter_title:
-            metadata['twitter_title'] = twitter_title.get('content', '').strip()
+        if twitter_title and hasattr(twitter_title, 'get'):
+            content = twitter_title.get('content')  # type: ignore[assignment]
+            if isinstance(content, str):
+                metadata['twitter_title'] = content.strip()
 
         twitter_description = soup.find('meta', attrs={'name': 'twitter:description'})
-        if twitter_description:
-            metadata['twitter_description'] = twitter_description.get('content', '').strip()
+        if twitter_description and hasattr(twitter_description, 'get'):
+            content = twitter_description.get('content')  # type: ignore[assignment]
+            if isinstance(content, str):
+                metadata['twitter_description'] = content.strip()
 
         twitter_image = soup.find('meta', attrs={'name': 'twitter:image'})
-        if twitter_image:
-            metadata['twitter_image'] = twitter_image.get('content', '').strip()
+        if twitter_image and hasattr(twitter_image, 'get'):
+            content = twitter_image.get('content')  # type: ignore[assignment]
+            if isinstance(content, str):
+                metadata['twitter_image'] = content.strip()
 
         # Extract favicon
         favicon_link = soup.find('link', rel=re.compile(r'.*icon.*', re.I))
-        if favicon_link:
-            favicon_href = favicon_link.get('href', '')
-            if favicon_href:
+        if favicon_link and hasattr(favicon_link, 'get'):
+            favicon_href = favicon_link.get('href')  # type: ignore[assignment]
+            if isinstance(favicon_href, str) and favicon_href:
                 metadata['favicon'] = urljoin(url, favicon_href)
 
         return metadata

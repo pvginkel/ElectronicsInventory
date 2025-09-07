@@ -27,7 +27,7 @@ class Type(db.Model):  # type: ignore[name-defined]
     )
 
     # Relationships
-    parts: Mapped[list["Part"]] = relationship(  # type: ignore[assignment]
+    parts: Mapped[list["Part"]] = relationship(
         "Part", back_populates="type", lazy="selectin"
     )
 
