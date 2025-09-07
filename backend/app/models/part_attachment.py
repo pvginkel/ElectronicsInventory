@@ -49,7 +49,7 @@ class PartAttachment(db.Model):  # type: ignore[name-defined]
     )
 
     # Relationships
-    part: Mapped["Part"] = relationship(  # type: ignore[assignment]
+    part: Mapped["Part"] = relationship(
         "Part", back_populates="attachments", lazy="selectin",
         foreign_keys=[part_id]
     )

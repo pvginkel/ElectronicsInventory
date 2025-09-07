@@ -40,10 +40,10 @@ class PartLocation(db.Model):  # type: ignore[name-defined]
     )
 
     # Relationships
-    part: Mapped["Part"] = relationship(  # type: ignore[assignment]
+    part: Mapped["Part"] = relationship(
         "Part", back_populates="part_locations", lazy="selectin"
     )
-    location: Mapped["Location"] = relationship(  # type: ignore[assignment]
+    location: Mapped["Location"] = relationship(
         "Location", lazy="selectin"
     )
 

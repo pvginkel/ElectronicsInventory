@@ -3,7 +3,7 @@
 import logging
 import os
 
-from paste.translogger import TransLogger
+from paste.translogger import TransLogger  # type: ignore[import-untyped]
 from waitress import serve
 
 from app import create_app
