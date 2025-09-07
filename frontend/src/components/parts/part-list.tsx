@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -11,13 +12,14 @@ import { LocationSummary } from './location-summary';
 import { VendorInfo } from './vendor-info';
 
 interface PartListProps {
+  searchTerm?: string;
   onSelectPart?: (partId: string) => void;
   onCreatePart?: () => void;
   onCreateWithAI?: () => void;
 }
 
-export function PartList({ onSelectPart, onCreatePart, onCreateWithAI }: PartListProps) {
-  const [searchTerm, setSearchTerm] = useState('');
+export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreateWithAI }: PartListProps) {
+  const navigate = useNavigate();
   const { data: parts = [], isLoading, error } = useGetPartsWithLocations();
   const { data: types = [] } = useGetTypes();
 
@@ -29,6 +31,21 @@ export function PartList({ onSelectPart, onCreatePart, onCreateWithAI }: PartLis
     });
     return map;
   }, [types]);
+
+  const handleSearchChange = (value: string) => {
+    if (value) {
+      navigate({
+        to: '/parts',
+        search: { search: value },
+        replace: true
+      });
+    } else {
+      navigate({
+        to: '/parts',
+        replace: true
+      });
+    }
+  };
 
   const filteredParts = useMemo(() => {
     if (!searchTerm.trim()) return parts;
@@ -87,7 +104,7 @@ export function PartList({ onSelectPart, onCreatePart, onCreateWithAI }: PartLis
         <Input
           placeholder="Search parts by ID, description, manufacturer, type, or tags..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => handleSearchChange(e.target.value)}
           className="w-full"
         />
       </div>

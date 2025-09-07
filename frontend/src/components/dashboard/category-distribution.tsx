@@ -229,7 +229,7 @@ export function CategoryDistribution() {
 
   const handleCategoryClick = (categoryName: string) => {
     // TODO: Navigate to parts filtered by category
-    navigate({ to: '/parts' })
+    navigate({ to: '/parts', search: { search: categoryName } })
     console.log('Filter by category:', categoryName)
   }
 

@@ -2,10 +2,16 @@ import { createFileRoute } from '@tanstack/react-router'
 import { BoxList } from '@/components/boxes/box-list'
 
 export const Route = createFileRoute('/boxes/')({
+  validateSearch: (search: Record<string, unknown>) => {
+    const searchTerm = search.search as string;
+    return searchTerm ? { search: searchTerm } : {};
+  },
   component: Boxes,
 })
 
 function Boxes() {
+  const search = Route.useSearch()
+  
   return (
     <div>
       {/* Breadcrumb */}
@@ -13,7 +19,7 @@ function Boxes() {
         <span>Storage</span>
       </div>
       
-      <BoxList />
+      <BoxList searchTerm={search.search || ''} />
     </div>
   )
 }

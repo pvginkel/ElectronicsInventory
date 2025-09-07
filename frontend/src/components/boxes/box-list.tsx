@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { 
   useGetBoxes, 
@@ -10,10 +10,15 @@ import {
 import { BoxCard } from './box-card'
 import { BoxForm } from './box-form'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { ConfirmDialog } from '@/components/ui/dialog'
 import { useConfirm } from '@/hooks/use-confirm'
 
-export function BoxList() {
+interface BoxListProps {
+  searchTerm?: string;
+}
+
+export function BoxList({ searchTerm = '' }: BoxListProps) {
   const navigate = useNavigate()
   const [createFormOpen, setCreateFormOpen] = useState(false)
   const [editFormOpen, setEditFormOpen] = useState(false)
@@ -64,6 +69,36 @@ export function BoxList() {
     navigate({ to: '/boxes/$boxNo', params: { boxNo: boxNo.toString() } })
   }
 
+  const handleSearchChange = (value: string) => {
+    if (value) {
+      navigate({
+        to: '/boxes',
+        search: { search: value },
+        replace: true
+      })
+    } else {
+      navigate({
+        to: '/boxes',
+        replace: true
+      })
+    }
+  }
+
+  const filteredBoxes = useMemo(() => {
+    if (!boxes || !searchTerm.trim()) return boxes;
+
+    const term = searchTerm.toLowerCase();
+    return boxes.filter((box: BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema) => {
+      const boxNumber = box.box_no.toString();
+      const description = box.description.toLowerCase();
+      
+      return (
+        boxNumber.includes(term) ||
+        description.includes(term)
+      );
+    });
+  }, [boxes, searchTerm]);
+
   if (isLoading) {
     return (
       <div>
@@ -71,6 +106,17 @@ export function BoxList() {
           <h1 className="text-3xl font-bold">Storage Boxes</h1>
           <Button disabled>Add Box</Button>
         </div>
+
+        {/* Search */}
+        <div className="w-full mb-6">
+          <Input
+            placeholder="Search boxes by number or description..."
+            value={searchTerm}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="w-full"
+          />
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="h-48 bg-muted animate-pulse rounded-lg" />
@@ -83,6 +129,21 @@ export function BoxList() {
   if (error) {
     return (
       <div>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Storage Boxes</h1>
+          <Button onClick={() => setCreateFormOpen(true)}>Add Box</Button>
+        </div>
+
+        {/* Search */}
+        <div className="w-full mb-6">
+          <Input
+            placeholder="Search boxes by number or description..."
+            value={searchTerm}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="w-full"
+          />
+        </div>
+
         <div className="text-center py-12">
           <p className="text-lg text-muted-foreground">Failed to load boxes</p>
           <p className="text-sm text-muted-foreground mt-2">{String(error)}</p>
@@ -92,6 +153,8 @@ export function BoxList() {
   }
 
   const isEmpty = !boxes || boxes.length === 0
+  const isFiltered = searchTerm.trim().length > 0
+  const filteredIsEmpty = !filteredBoxes || filteredBoxes.length === 0
 
   return (
     <div>
@@ -101,6 +164,27 @@ export function BoxList() {
           Add Box
         </Button>
       </div>
+
+      {/* Search */}
+      <div className="w-full mb-6">
+        <Input
+          placeholder="Search boxes by number or description..."
+          value={searchTerm}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="w-full"
+        />
+      </div>
+
+      {/* Results Summary */}
+      {!isEmpty && (
+        <div className="flex justify-between items-center text-sm text-muted-foreground mb-6">
+          <span>
+            {isFiltered 
+              ? `${filteredBoxes?.length || 0} of ${boxes.length} boxes`
+              : `${boxes.length} boxes`}
+          </span>
+        </div>
+      )}
 
       {isEmpty ? (
         <div className="text-center py-12">
@@ -115,9 +199,16 @@ export function BoxList() {
             Add First Box
           </Button>
         </div>
+      ) : filteredIsEmpty ? (
+        <div className="text-center py-12">
+          <h3 className="text-lg font-medium text-muted-foreground">No boxes found</h3>
+          <p className="text-sm text-muted-foreground mt-2">
+            Try adjusting your search terms or add a new box.
+          </p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {boxes!.sort((a, b) => a.box_no - b.box_no).map((box: BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema) => (
+          {filteredBoxes!.sort((a, b) => a.box_no - b.box_no).map((box: BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema) => (
             <BoxCard
               key={box.box_no}
               box={box}

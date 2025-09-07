@@ -4,11 +4,16 @@ import { PartList } from '@/components/parts/part-list'
 import { AIPartDialog } from '@/components/parts/ai-part-dialog'
 
 export const Route = createFileRoute('/parts/')({
+  validateSearch: (search: Record<string, unknown>) => {
+    const searchTerm = search.search as string;
+    return searchTerm ? { search: searchTerm } : {};
+  },
   component: Parts,
 })
 
 function Parts() {
   const navigate = useNavigate()
+  const search = Route.useSearch()
   const [showAIDialog, setShowAIDialog] = useState(false)
 
   const handleSelectPart = (partId: string) => {
@@ -45,6 +50,7 @@ function Parts() {
       </div>
       
       <PartList 
+        searchTerm={search.search || ''}
         onSelectPart={handleSelectPart}
         onCreatePart={handleCreatePart}
         onCreateWithAI={handleCreateWithAI}

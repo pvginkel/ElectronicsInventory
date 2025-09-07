@@ -32,6 +32,8 @@
 - [x] Display search results with quantities and locations
 - [x] Show part details in dedicated part view pages
 - [x] Navigate to individual part pages from search results
+- [x] URL-based search persistence (search terms preserved in URL)
+- [ ] Advanced search with filter parameters
 
 ## Document Viewing
 - [x] Document viewing infrastructure with base components

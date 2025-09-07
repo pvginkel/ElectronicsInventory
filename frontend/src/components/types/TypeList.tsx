@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import { useCreateType, useUpdateType, useDeleteType, useGetTypesWithStats } from '@/hooks/use-types'
 import { TypeCard } from './TypeCard'
 import { TypeForm } from './TypeForm'
@@ -7,11 +8,15 @@ import { Input } from '@/components/ui/input'
 import { ConfirmDialog } from '@/components/ui/dialog'
 import { useConfirm } from '@/hooks/use-confirm'
 
-export function TypeList() {
+interface TypeListProps {
+  searchTerm?: string;
+}
+
+export function TypeList({ searchTerm = '' }: TypeListProps) {
+  const navigate = useNavigate()
   const [createFormOpen, setCreateFormOpen] = useState(false)
   const [editFormOpen, setEditFormOpen] = useState(false)
   const [editingType, setEditingType] = useState<{ id: number; name: string; created_at?: string; updated_at?: string } | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
 
   const { confirm, confirmProps } = useConfirm()
   
@@ -19,6 +24,21 @@ export function TypeList() {
   const createMutation = useCreateType()
   const updateMutation = useUpdateType()
   const deleteMutation = useDeleteType()
+
+  const handleSearchChange = (value: string) => {
+    if (value) {
+      navigate({
+        to: '/types',
+        search: { search: value },
+        replace: true
+      });
+    } else {
+      navigate({
+        to: '/types',
+        replace: true
+      });
+    }
+  };
 
   const filteredTypes = types?.filter((type: { name: string }) => 
     type.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -66,7 +86,11 @@ export function TypeList() {
           <Button disabled>Add Type</Button>
         </div>
         <div className="mb-6">
-          <Input placeholder="Search types..." disabled />
+          <Input 
+            placeholder="Search types..." 
+            value={searchTerm}
+            onChange={(e) => handleSearchChange(e.target.value)}
+          />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -89,6 +113,7 @@ export function TypeList() {
   }
 
   const isEmpty = !types || (Array.isArray(types) && types.length === 0)
+  const isFiltered = searchTerm.trim().length > 0
   const noSearchResults = searchTerm && filteredTypes.length === 0
 
   return (
@@ -105,8 +130,19 @@ export function TypeList() {
           <Input 
             placeholder="Search types..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
           />
+        </div>
+      )}
+
+      {/* Results Summary */}
+      {!isEmpty && (
+        <div className="flex justify-between items-center text-sm text-muted-foreground mb-6">
+          <span>
+            {isFiltered 
+              ? `${filteredTypes.length} of ${types.length} types`
+              : `${types.length} types`}
+          </span>
         </div>
       )}
 
