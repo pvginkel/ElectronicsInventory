@@ -5,7 +5,6 @@ from io import BytesIO
 from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
-from unittest.mock import patch
 
 
 class TestAIPartsAPI:
@@ -610,15 +609,15 @@ class TestAIPartsAPI:
 
     def test_create_part_cover_image_selection_bug(self, client: FlaskClient, app: Flask, session: Session):
         """Test that calls ai-parts/create endpoint with two attachments, second marked as cover.
-        
+
         This test should demonstrate the cover image selection bug by showing that the second
         attachment (marked with is_cover_image: true) does not become the cover image.
         """
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
+
         from app.models.part import Part
-        from app.models.part_attachment import PartAttachment
+        from app.models.part_attachment import AttachmentType, PartAttachment
         from app.models.type import Type
-        from app.models.part_attachment import AttachmentType
         from app.schemas.upload_document import (
             DocumentContentSchema,
             UploadDocumentSchema,
@@ -632,7 +631,6 @@ class TestAIPartsAPI:
 
             # Mock the HTTP requests to avoid actual network calls
             def mock_process_upload_url(url, **kwargs):
-                response_mock = MagicMock()
                 if "image1.jpg" in url:
                     return UploadDocumentSchema(
                         title="image1.jpg",
@@ -672,7 +670,7 @@ class TestAIPartsAPI:
                         },
                         {
                             "url": "https://example.com/image2.jpg",
-                            "document_type": "image", 
+                            "document_type": "image",
                             "is_cover_image": True  # This should become the cover image
                         }
                     ]
@@ -688,7 +686,7 @@ class TestAIPartsAPI:
                 # Verify the part was created successfully
                 assert response.status_code == 201
                 data = response.get_json()
-                
+
                 # Get the created part
                 part_key = data['key']
                 part = session.query(Part).filter_by(key=part_key).first()
@@ -719,15 +717,15 @@ class TestAIPartsAPI:
 
     def test_create_part_cover_image_with_webpage_bug(self, client: FlaskClient, app: Flask, session: Session):
         """Test that calls ai-parts/create endpoint with image and webpage, webpage marked as cover.
-        
+
         This test should demonstrate the cover image selection bug when the second attachment
         is a webpage marked with is_cover_image: true.
         """
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch
+
         from app.models.part import Part
-        from app.models.part_attachment import PartAttachment
+        from app.models.part_attachment import AttachmentType, PartAttachment
         from app.models.type import Type
-        from app.models.part_attachment import AttachmentType
         from app.schemas.upload_document import (
             DocumentContentSchema,
             UploadDocumentSchema,
@@ -796,7 +794,7 @@ class TestAIPartsAPI:
                 # Verify the part was created successfully
                 assert response.status_code == 201
                 data = response.get_json()
-                
+
                 # Get the created part
                 part_key = data['key']
                 part = session.query(Part).filter_by(key=part_key).first()
@@ -824,3 +822,61 @@ class TestAIPartsAPI:
                     f"Expected datasheet.html (attachment {webpage_attachment.id}) to be cover, " \
                     f"but cover is attachment {part.cover_attachment_id}. " \
                     f"Image: {image_attachment.id}, Webpage: {webpage_attachment.id}"
+
+    def test_create_part_with_attachment_failure_should_rollback(self, client: FlaskClient, app: Flask, session: Session):
+        """Test that part creation is rolled back when attachment creation fails.
+
+        This test demonstrates the bug where parts are created even if creating
+        an attachment fails. The part should NOT be created if any attachment
+        fails to be created.
+        """
+        from unittest.mock import patch
+
+        from app.models.part import Part
+        from app.models.type import Type
+        from app.services.document_service import DocumentService
+
+        with app.app_context():
+            # Create a test type
+            test_type = Type(name="Test Type")
+            session.add(test_type)
+            session.flush()
+
+            # Count parts before the operation
+            parts_before = session.query(Part).count()
+
+            # Mock document service to fail on attachment creation
+            with patch.object(DocumentService, 'create_url_attachment', side_effect=Exception("Failed to download document")):
+
+                # Request data with documents that will fail to attach
+                request_data = {
+                    "description": "Test part with failing attachment",
+                    "manufacturer_code": "FAIL123",
+                    "type_id": test_type.id,
+                    "tags": ["ai", "test"],
+                    "documents": [
+                        {
+                            "url": "https://example.com/failing-document.pdf",
+                            "document_type": "datasheet",
+                            "is_cover_image": False
+                        }
+                    ]
+                }
+
+                # Make the API call - this should fail due to attachment creation failure
+                response = client.post(
+                    '/api/ai-parts/create',
+                    json=request_data,
+                    content_type='application/json'
+                )
+
+                # The API should return an error
+                assert response.status_code != 201, \
+                    "Expected API to fail when attachment creation fails, but it returned success"
+
+                # CRITICAL: No new part should be created in the database
+                # This assertion will FAIL before the fix, demonstrating the bug
+                parts_after = session.query(Part).count()
+                assert parts_after == parts_before, \
+                    f"Part was created despite attachment failure. Parts before: {parts_before}, after: {parts_after}. " \
+                    f"This indicates the transaction was not rolled back when attachment creation failed."
