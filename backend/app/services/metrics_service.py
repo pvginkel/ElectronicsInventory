@@ -1,41 +1,104 @@
 """Prometheus metrics service for collecting and exposing application metrics."""
 
+import logging
 import threading
-import time
 from typing import TYPE_CHECKING
 
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 
-from app.services.base import BaseService
-from app.services.dashboard_service import DashboardService
-
 if TYPE_CHECKING:
-    pass
+    from app.services.container import ServiceContainer
+
+logger = logging.getLogger(__name__)
 
 
-class MetricsService(BaseService):
+class NoopMetricsService:
+    """No-op metrics service for testing."""
+
+    def __init__(self):
+        """Initialize no-op metrics service."""
+        pass
+
+    def initialize_metrics(self):
+        """No-op metric initialization."""
+        pass
+
+    def update_inventory_metrics(self):
+        """No-op inventory metrics update."""
+        pass
+
+    def update_storage_metrics(self):
+        """No-op storage metrics update."""
+        pass
+
+    def update_activity_metrics(self):
+        """No-op activity metrics update."""
+        pass
+
+    def update_category_metrics(self):
+        """No-op category metrics update."""
+        pass
+
+    def record_quantity_change(self, operation: str, delta: int):
+        """No-op quantity change recording."""
+        pass
+
+    def record_task_execution(self, task_type: str, duration: float, status: str):
+        """No-op task execution recording."""
+        pass
+
+    def record_ai_analysis(
+        self,
+        status: str,
+        model: str,
+        verbosity: str,
+        reasoning_effort: str,
+        duration: float,
+        tokens_input: int = 0,
+        tokens_output: int = 0,
+        tokens_reasoning: int = 0,
+        tokens_cached_input: int = 0,
+        cost_dollars: float = 0.0
+    ):
+        """No-op AI analysis recording."""
+        pass
+
+    def start_background_updater(self, interval_seconds: int = 60):
+        """No-op background updater start."""
+        pass
+
+    def stop_background_updater(self):
+        """No-op background updater stop."""
+        pass
+
+    def get_metrics_text(self) -> str:
+        """Return empty metrics text."""
+        return ""
+
+
+class MetricsService(NoopMetricsService):
     """Service class for Prometheus metrics collection and exposure."""
 
-    def __init__(self, db):
-        """Initialize service with database session and metric objects.
+    def __init__(self, container: "ServiceContainer"):
+        """Initialize service with container reference and metric objects.
 
         Args:
-            db: SQLAlchemy database session
+            container: Service container for accessing other services
         """
-        super().__init__(db)
-
-        # Initialize dashboard service for data collection
-        self.dashboard_service = DashboardService(db)
+        self.container = container
 
         # Initialize metric objects
         self.initialize_metrics()
 
         # Background update control
-        self._stop_updater = False
+        self._stop_event = threading.Event()
         self._updater_thread = None
 
     def initialize_metrics(self):
         """Define all Prometheus metric objects."""
+        # Check if already initialized (for container singleton reuse)
+        if hasattr(self, 'inventory_total_parts'):
+            return
 
         # Inventory Metrics
         self.inventory_total_parts = Gauge(
@@ -119,22 +182,17 @@ class MetricsService(BaseService):
             ['model', 'verbosity', 'reasoning_effort']
         )
 
-        self.ai_analysis_function_calls_total = Counter(
-            'ai_analysis_function_calls_total',
-            'Total function calls made during analysis',
-            ['function_name', 'model']
-        )
-
-        self.ai_analysis_web_searches_total = Counter(
-            'ai_analysis_web_searches_total',
-            'Total web searches performed during analysis',
-            ['model']
-        )
-
     def update_inventory_metrics(self):
         """Update inventory-related gauges with current database values."""
+        if not self.container:
+            return
+
+        session = self.container.db_session()
+        
         try:
-            stats = self.dashboard_service.get_dashboard_stats()
+            dashboard_service = self.container.dashboard_service()
+
+            stats = dashboard_service.get_dashboard_stats()
 
             self.inventory_total_parts.set(stats['total_parts'])
             self.inventory_total_quantity.set(stats['total_quantity'])
@@ -143,17 +201,29 @@ class MetricsService(BaseService):
             self.inventory_recent_changes_30d.set(stats['changes_30d'])
 
             # Get parts without documents count
-            undocumented = self.dashboard_service.get_parts_without_documents()
+            undocumented = dashboard_service.get_parts_without_documents()
             self.inventory_parts_without_docs.set(undocumented['count'])
+            
+            session.commit()
 
         except Exception as e:
-            # Log error but don't crash the service
-            print(f"Error updating inventory metrics: {e}")
+            session.rollback()
+            logger.error(f"Error updating inventory metrics: {e}")
+            
+        finally:
+            self.container.db_session.reset()
 
     def update_storage_metrics(self):
         """Update box utilization metrics with current database values."""
+        if not self.container:
+            return
+
+        session = self.container.db_session()
+        
         try:
-            storage_summary = self.dashboard_service.get_storage_summary()
+            dashboard_service = self.container.dashboard_service()
+
+            storage_summary = dashboard_service.get_storage_summary()
 
             # Clear previous box metrics
             self.inventory_box_utilization_percent.clear()
@@ -167,8 +237,14 @@ class MetricsService(BaseService):
             # Update total boxes count
             self.inventory_total_boxes.set(len(storage_summary))
 
+            session.commit()
+
         except Exception as e:
-            print(f"Error updating storage metrics: {e}")
+            session.rollback()
+            logger.error(f"Error updating storage metrics: {e}")
+
+        finally:
+            self.container.db_session.reset()
 
     def update_activity_metrics(self):
         """Update activity-related metrics."""
@@ -178,8 +254,15 @@ class MetricsService(BaseService):
 
     def update_category_metrics(self):
         """Update category distribution metrics."""
+        if not self.container:
+            return
+
+        session = self.container.db_session()
+        
         try:
-            category_distribution = self.dashboard_service.get_category_distribution()
+            dashboard_service = self.container.dashboard_service()
+
+            category_distribution = dashboard_service.get_category_distribution()
 
             # Clear previous category metrics
             self.inventory_parts_by_type.clear()
@@ -190,8 +273,14 @@ class MetricsService(BaseService):
                 part_count = category_data['part_count']
                 self.inventory_parts_by_type.labels(type_name=type_name).set(part_count)
 
+            session.commit()
+
         except Exception as e:
-            print(f"Error updating category metrics: {e}")
+            session.rollback()
+            logger.error(f"Error updating category metrics: {e}")
+
+        finally:
+            self.container.db_session.reset()
 
     def record_quantity_change(self, operation: str, delta: int):
         """Record quantity change events.
@@ -203,7 +292,7 @@ class MetricsService(BaseService):
         try:
             self.inventory_quantity_changes_total.labels(operation=operation).inc(delta)
         except Exception as e:
-            print(f"Error recording quantity change: {e}")
+            logger.error(f"Error recording quantity change: {e}")
 
     def record_task_execution(self, task_type: str, duration: float, status: str):
         """Record task execution metrics.
@@ -228,9 +317,7 @@ class MetricsService(BaseService):
         tokens_output: int = 0,
         tokens_reasoning: int = 0,
         tokens_cached_input: int = 0,
-        cost_dollars: float = 0.0,
-        function_calls: list[str] | None = None,
-        web_searches: int = 0
+        cost_dollars: float = 0.0
     ):
         """Record comprehensive AI analysis metrics with labels.
 
@@ -245,8 +332,6 @@ class MetricsService(BaseService):
             tokens_reasoning: Reasoning tokens used
             tokens_cached_input: Cached input tokens used
             cost_dollars: Cost in dollars
-            function_calls: List of function names called
-            web_searches: Number of web searches performed
         """
         try:
             # Record request count
@@ -305,20 +390,8 @@ class MetricsService(BaseService):
                     reasoning_effort=reasoning_effort
                 ).inc(cost_dollars)
 
-            # Record function calls
-            if function_calls:
-                for func_name in function_calls:
-                    self.ai_analysis_function_calls_total.labels(
-                        function_name=func_name,
-                        model=model
-                    ).inc()
-
-            # Record web searches
-            if web_searches > 0:
-                self.ai_analysis_web_searches_total.labels(model=model).inc(web_searches)
-
         except Exception as e:
-            print(f"Error recording AI analysis metrics: {e}")
+            logger.error(f"Error recording AI analysis metrics: {e}")
 
     def start_background_updater(self, interval_seconds: int = 60):
         """Start background thread for periodic metric updates.
@@ -329,7 +402,7 @@ class MetricsService(BaseService):
         if self._updater_thread is not None and self._updater_thread.is_alive():
             return  # Already running
 
-        self._stop_updater = False
+        self._stop_event.clear()
         self._updater_thread = threading.Thread(
             target=self._background_update_loop,
             args=(interval_seconds,),
@@ -339,7 +412,7 @@ class MetricsService(BaseService):
 
     def stop_background_updater(self):
         """Stop the background metric updater thread."""
-        self._stop_updater = True
+        self._stop_event.set()
         if self._updater_thread:
             self._updater_thread.join(timeout=5)
 
@@ -349,20 +422,17 @@ class MetricsService(BaseService):
         Args:
             interval_seconds: Update interval in seconds
         """
-        while not self._stop_updater:
+        while not self._stop_event.is_set():
             try:
                 self.update_inventory_metrics()
                 self.update_storage_metrics()
                 self.update_activity_metrics()
                 self.update_category_metrics()
             except Exception as e:
-                print(f"Error in background metrics update: {e}")
+                logger.error(f"Error in background metrics update: {e}")
 
-            # Sleep with early exit check
-            for _ in range(interval_seconds):
-                if self._stop_updater:
-                    break
-                time.sleep(1)
+            # Wait for the interval or until stop event is set
+            self._stop_event.wait(interval_seconds)
 
     def get_metrics_text(self) -> str:
         """Generate metrics in Prometheus text format.

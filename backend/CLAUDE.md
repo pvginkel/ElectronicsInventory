@@ -75,6 +75,7 @@ SQLAlchemy models represent database entities.
 - Add `__repr__` methods for debugging
 - Use proper cascade settings for relationships
 - Include timestamps (`created_at`, `updated_at`) where appropriate
+- Follow the numbering scheme for schema migration files
 
 ### 4. Schema Layer (`app/schemas/`)
 
@@ -170,8 +171,6 @@ poetry run pytest          # Full test suite
 
 ### Type Hints
 - Use type hints for all function parameters and return types
-- Use `| None` for optional types (not `Optional[]`)
-- Import types in `TYPE_CHECKING` blocks when needed for forward references
 
 ### Error Handling Philosophy
 - **Fail fast and fail often** - Don't swallow exceptions or hide errors from users

@@ -72,7 +72,7 @@ class ServiceContainer(containers.DeclarativeContainer):
     # Metrics service - Singleton for background thread management
     metrics_service = providers.Singleton(
         MetricsService,
-        db=db_session
+        container=providers.Self()
     )
 
     # URL interceptor registry with LCSC interceptor
@@ -89,8 +89,7 @@ class ServiceContainer(containers.DeclarativeContainer):
         html_handler=html_handler,
         download_cache_service=download_cache_service,
         settings=config,
-        url_interceptor_registry=url_interceptor_registry,
-        metrics_service=metrics_service
+        url_interceptor_registry=url_interceptor_registry
     )
 
     # InventoryService depends on PartService and MetricsService
@@ -104,10 +103,10 @@ class ServiceContainer(containers.DeclarativeContainer):
     # TaskService - Singleton for in-memory task management with configurable settings
     task_service = providers.Singleton(
         TaskService,
+        metrics_service=metrics_service,
         max_workers=config.provided.TASK_MAX_WORKERS,
         task_timeout=config.provided.TASK_TIMEOUT_SECONDS,
-        cleanup_interval=config.provided.TASK_CLEANUP_INTERVAL_SECONDS,
-        metrics_service=metrics_service
+        cleanup_interval=config.provided.TASK_CLEANUP_INTERVAL_SECONDS
     )
 
     # AI service

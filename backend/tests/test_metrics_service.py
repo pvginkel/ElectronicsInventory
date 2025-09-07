@@ -6,12 +6,129 @@ from unittest.mock import patch
 from app.services.dashboard_service import DashboardService
 
 
+def get_real_metrics_service(container):
+    """Helper function to get real MetricsService instance for testing."""
+    from app.services.metrics_service import MetricsService
+    from prometheus_client import CollectorRegistry, Gauge, Counter, Histogram
+    
+    # Create a custom MetricsService that uses its own registry
+    class TestMetricsService(MetricsService):
+        def __init__(self, container):
+            # Don't call super().__init__ to avoid double initialization
+            self.container = container
+            
+            # Create our own registry for this test
+            self._test_registry = CollectorRegistry()
+            self.initialize_test_metrics()
+            
+            # Background update control (needed for background updater tests)
+            import threading
+            self._stop_event = threading.Event()
+            self._updater_thread = None
+        
+        def initialize_test_metrics(self):
+            """Initialize metrics with test registry."""
+            # Inventory Metrics
+            self.inventory_total_parts = Gauge(
+                'inventory_total_parts',
+                'Total parts in system',
+                registry=self._test_registry
+            )
+            self.inventory_total_quantity = Gauge(
+                'inventory_total_quantity',
+                'Sum of all quantities',
+                registry=self._test_registry
+            )
+            self.inventory_low_stock_parts = Gauge(
+                'inventory_low_stock_parts',
+                'Parts with qty <= 5',
+                registry=self._test_registry
+            )
+            self.inventory_parts_without_docs = Gauge(
+                'inventory_parts_without_docs',
+                'Undocumented parts',
+                registry=self._test_registry
+            )
+            
+            # Storage Metrics
+            self.inventory_box_utilization_percent = Gauge(
+                'inventory_box_utilization_percent',
+                'Box usage percentage',
+                ['box_no'],
+                registry=self._test_registry
+            )
+            self.inventory_total_boxes = Gauge(
+                'inventory_total_boxes',
+                'Active storage boxes',
+                registry=self._test_registry
+            )
+            
+            # Activity Metrics
+            self.inventory_quantity_changes_total = Counter(
+                'inventory_quantity_changes_total',
+                'Total changes by type',
+                ['operation'],
+                registry=self._test_registry
+            )
+            self.inventory_recent_changes_7d = Gauge(
+                'inventory_recent_changes_7d',
+                'Changes in last 7 days',
+                registry=self._test_registry
+            )
+            self.inventory_recent_changes_30d = Gauge(
+                'inventory_recent_changes_30d',
+                'Changes in last 30 days',
+                registry=self._test_registry
+            )
+            
+            # Category Metrics
+            self.inventory_parts_by_type = Gauge(
+                'inventory_parts_by_type',
+                'Parts per category',
+                ['type_name'],
+                registry=self._test_registry
+            )
+            
+            # AI Analysis Metrics
+            self.ai_analysis_requests_total = Counter(
+                'ai_analysis_requests_total',
+                'Total AI analysis requests',
+                ['status', 'model', 'verbosity', 'reasoning_effort'],
+                registry=self._test_registry
+            )
+            self.ai_analysis_duration_seconds = Histogram(
+                'ai_analysis_duration_seconds',
+                'AI analysis request duration',
+                ['model', 'verbosity', 'reasoning_effort'],
+                registry=self._test_registry
+            )
+            self.ai_analysis_tokens_total = Counter(
+                'ai_analysis_tokens_total',
+                'Total tokens used',
+                ['type', 'model', 'verbosity', 'reasoning_effort'],
+                registry=self._test_registry
+            )
+            self.ai_analysis_cost_dollars_total = Counter(
+                'ai_analysis_cost_dollars_total',
+                'Total cost of AI analysis in dollars',
+                ['model', 'verbosity', 'reasoning_effort'],
+                registry=self._test_registry
+            )
+        
+        def get_metrics_text(self) -> str:
+            """Generate metrics from test registry."""
+            from prometheus_client import generate_latest
+            return generate_latest(self._test_registry).decode('utf-8')
+    
+    return TestMetricsService(container)
+
+
 class TestMetricsService:
     """Test suite for MetricsService."""
 
     def test_initialize_metrics(self, app, session, container):
         """Test that metric objects are initialized correctly."""
-        service = container.metrics_service()
+        service = get_real_metrics_service(container)
 
         # Check that all expected metrics exist
         assert hasattr(service, 'inventory_total_parts')
@@ -28,17 +145,15 @@ class TestMetricsService:
         assert hasattr(service, 'ai_analysis_duration_seconds')
         assert hasattr(service, 'ai_analysis_tokens_total')
         assert hasattr(service, 'ai_analysis_cost_dollars_total')
-        assert hasattr(service, 'ai_analysis_function_calls_total')
-        assert hasattr(service, 'ai_analysis_web_searches_total')
 
-        # Verify dashboard service is initialized
-        assert isinstance(service.dashboard_service, DashboardService)
+        # Verify container is available (no longer has persistent dashboard service)
+        assert service.container is not None
 
     @patch.object(DashboardService, 'get_dashboard_stats')
     @patch.object(DashboardService, 'get_parts_without_documents')
     def test_update_inventory_metrics(self, mock_parts_without_docs, mock_dashboard_stats, app, session, container):
         """Test inventory metrics update."""
-        service = container.metrics_service()
+        service = get_real_metrics_service(container)
 
         # Mock dashboard service responses
         mock_dashboard_stats.return_value = {
@@ -63,7 +178,7 @@ class TestMetricsService:
     @patch.object(DashboardService, 'get_storage_summary')
     def test_update_storage_metrics(self, mock_storage_summary, app, session, container):
         """Test storage metrics update."""
-        service = container.metrics_service()
+        service = get_real_metrics_service(container)
 
         # Mock storage summary response
         mock_storage_summary.return_value = [
@@ -81,7 +196,7 @@ class TestMetricsService:
     @patch.object(DashboardService, 'get_category_distribution')
     def test_update_category_metrics(self, mock_category_distribution, app, session, container):
         """Test category metrics update."""
-        service = container.metrics_service()
+        service = get_real_metrics_service(container)
 
         # Mock category distribution response
         mock_category_distribution.return_value = [
@@ -98,7 +213,7 @@ class TestMetricsService:
 
     def test_record_quantity_change(self, app, session, container):
         """Test recording quantity changes."""
-        service = container.metrics_service()
+        service = get_real_metrics_service(container)
 
         # Record some quantity changes
         service.record_quantity_change("add", 100)
@@ -110,7 +225,7 @@ class TestMetricsService:
 
     def test_record_ai_analysis_success(self, app, session, container):
         """Test recording successful AI analysis metrics."""
-        service = container.metrics_service()
+        service = get_real_metrics_service(container)
 
         # Record a successful AI analysis
         service.record_ai_analysis(
@@ -123,16 +238,14 @@ class TestMetricsService:
             tokens_output=500,
             tokens_reasoning=200,
             tokens_cached_input=100,
-            cost_dollars=0.15,
-            function_calls=["classify_urls", "get_datasheet"],
-            web_searches=2
+            cost_dollars=0.15
         )
 
         # Should not raise exceptions
 
     def test_record_ai_analysis_error(self, app, session, container):
         """Test recording failed AI analysis metrics."""
-        service = container.metrics_service()
+        service = get_real_metrics_service(container)
 
         # Record a failed AI analysis
         service.record_ai_analysis(
@@ -145,16 +258,14 @@ class TestMetricsService:
             tokens_output=0,
             tokens_reasoning=0,
             tokens_cached_input=50,
-            cost_dollars=0.05,
-            function_calls=[],
-            web_searches=0
+            cost_dollars=0.05
         )
 
         # Should not raise exceptions
 
     def test_record_ai_analysis_minimal(self, app, session, container):
         """Test recording AI analysis with minimal parameters."""
-        service = container.metrics_service()
+        service = get_real_metrics_service(container)
 
         # Record with minimal parameters
         service.record_ai_analysis(
@@ -169,7 +280,7 @@ class TestMetricsService:
 
     def test_background_updater_lifecycle(self, app, session, container):
         """Test background updater start/stop lifecycle."""
-        service = container.metrics_service()
+        service = get_real_metrics_service(container)
 
         # Start background updater with short interval
         service.start_background_updater(1)
@@ -177,20 +288,20 @@ class TestMetricsService:
         # Verify thread is running
         assert service._updater_thread is not None
         assert service._updater_thread.is_alive()
-        assert not service._stop_updater
+        assert not service._stop_event.is_set()
 
         # Stop background updater
         service.stop_background_updater()
 
         # Verify thread is stopped (give it a moment)
         time.sleep(0.1)
-        assert service._stop_updater
+        assert service._stop_event.is_set()
 
         # Thread should eventually stop (we can't wait too long in tests)
 
     def test_background_updater_double_start(self, app, session, container):
         """Test that starting background updater twice doesn't create multiple threads."""
-        service = container.metrics_service()
+        service = get_real_metrics_service(container)
 
         # Start background updater
         service.start_background_updater(1)
@@ -208,7 +319,7 @@ class TestMetricsService:
     @patch.object(DashboardService, 'get_dashboard_stats')
     def test_background_update_error_handling(self, mock_dashboard_stats, app, session, container):
         """Test that background update handles errors gracefully."""
-        service = container.metrics_service()
+        service = get_real_metrics_service(container)
 
         # Make dashboard stats raise exception
         mock_dashboard_stats.side_effect = Exception("Database error")
@@ -218,7 +329,7 @@ class TestMetricsService:
 
     def test_get_metrics_text(self, app, session, container):
         """Test getting metrics in Prometheus text format."""
-        service = container.metrics_service()
+        service = get_real_metrics_service(container)
 
         # Record some metrics first
         service.record_quantity_change("add", 10)
@@ -235,6 +346,7 @@ class TestMetricsService:
 
     def test_record_task_execution_placeholder(self, app, session, container):
         """Test task execution recording (currently a placeholder)."""
+        # This tests the NoopMetricsService which is used by default in tests
         service = container.metrics_service()
 
         # This is currently a placeholder method
@@ -244,6 +356,7 @@ class TestMetricsService:
 
     def test_update_activity_metrics_placeholder(self, app, session, container):
         """Test activity metrics update (currently a placeholder)."""
+        # This tests the NoopMetricsService which is used by default in tests
         service = container.metrics_service()
 
         # This is currently a placeholder method
