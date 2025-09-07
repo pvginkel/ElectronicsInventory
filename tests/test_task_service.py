@@ -3,8 +3,10 @@
 import time
 
 import pytest
+from sqlalchemy.orm import Session
 
 from app.schemas.task_schema import TaskEventType, TaskStatus
+from app.services.metrics_service import MetricsService
 from app.services.task_service import TaskProgressHandle, TaskService
 from tests.test_tasks.test_task import DemoTask, FailingTask, LongRunningTask
 
@@ -13,9 +15,14 @@ class TestTaskService:
     """Test TaskService functionality."""
 
     @pytest.fixture
-    def task_service(self):
+    def mock_metrics_service(self, session: Session):
+        """Create mock metrics service."""
+        return MetricsService(db=session)
+
+    @pytest.fixture
+    def task_service(self, mock_metrics_service):
         """Create TaskService instance for testing."""
-        service = TaskService(max_workers=2, task_timeout=10)
+        service = TaskService(mock_metrics_service, max_workers=2, task_timeout=10)
         yield service
         service.shutdown()
 
@@ -212,9 +219,10 @@ class TestTaskService:
             assert task_info is not None
             assert task_info.status == TaskStatus.COMPLETED
 
-    def test_task_service_shutdown(self):
+    def test_task_service_shutdown(self, session: Session):
         """Test TaskService shutdown and cleanup."""
-        service = TaskService(max_workers=1)
+        metrics_service = MetricsService(db=session)
+        service = TaskService(metrics_service, max_workers=1)
 
         # Start a task
         task = DemoTask()
@@ -228,10 +236,11 @@ class TestTaskService:
         assert len(service._task_instances) == 0
         assert len(service._event_queues) == 0
 
-    def test_automatic_cleanup_of_completed_tasks(self, task_service):
+    def test_automatic_cleanup_of_completed_tasks(self, task_service, session: Session):
         """Test that completed tasks are automatically cleaned up."""
         # Create service with short cleanup interval for testing
-        service = TaskService(max_workers=1, cleanup_interval=1)
+        metrics_service = MetricsService(db=session)
+        service = TaskService(metrics_service, max_workers=1, cleanup_interval=1)
 
         try:
             # Start and complete a task

@@ -87,6 +87,7 @@ def container(app: Flask):
         from sqlalchemy.orm import sessionmaker
 
         from app.extensions import db as flask_db
+        from app.services.metrics_service import NoopMetricsService
 
         SessionLocal = sessionmaker(
             bind=flask_db.engine, autoflush=True, expire_on_commit=False
@@ -99,6 +100,9 @@ def container(app: Flask):
         db.create_all()
 
     container.session_maker.override(SessionLocal)
+    # Use NoopMetricsService for testing to avoid Prometheus complications
+    from dependency_injector import providers
+    container.metrics_service.override(providers.Singleton(NoopMetricsService))
 
     return container
 

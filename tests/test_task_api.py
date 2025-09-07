@@ -4,8 +4,10 @@ import time
 from unittest.mock import Mock
 
 import pytest
+from sqlalchemy.orm import Session
 
 from app.schemas.task_schema import TaskInfo, TaskStatus
+from app.services.metrics_service import MetricsService
 from app.services.task_service import TaskService
 from tests.test_tasks.test_task import DemoTask
 
@@ -186,9 +188,10 @@ class TestTaskAPIIntegration:
     """Integration tests for task API with real TaskService."""
 
     @pytest.fixture
-    def real_task_service(self):
+    def real_task_service(self, session: Session):
         """Create real TaskService instance for integration testing."""
-        service = TaskService(max_workers=1, task_timeout=10)
+        metrics_service = MetricsService(db=session)
+        service = TaskService(metrics_service, max_workers=1, task_timeout=10)
         yield service
         service.shutdown()
 

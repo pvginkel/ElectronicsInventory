@@ -66,10 +66,17 @@ def mock_document_service() -> DocumentService:
 
 
 @pytest.fixture
+def mock_metrics_service(session: Session):
+    """Create mock metrics service."""
+    from app.services.metrics_service import MetricsService
+    return MetricsService(db=session)
+
+
+@pytest.fixture
 def ai_service(session: Session, ai_test_settings: Settings,
                temp_file_manager: TempFileManager, mock_type_service: TypeService,
                mock_download_cache_service: DownloadCacheService,
-               mock_document_service: DocumentService):
+               mock_document_service: DocumentService, mock_metrics_service):
     """Create AI service instance for testing."""
     return AIService(
         db=session,
@@ -77,7 +84,8 @@ def ai_service(session: Session, ai_test_settings: Settings,
         temp_file_manager=temp_file_manager,
         type_service=mock_type_service,
         download_cache_service=mock_download_cache_service,
-        document_service=mock_document_service
+        document_service=mock_document_service,
+        metrics_service=mock_metrics_service
     )
 
 
@@ -117,7 +125,7 @@ class TestAIService:
     def test_init_without_api_key(self, session: Session, temp_file_manager: TempFileManager,
                                   mock_type_service: TypeService,
                                   mock_download_cache_service: DownloadCacheService,
-                                  mock_document_service: DocumentService):
+                                  mock_document_service: DocumentService, mock_metrics_service):
         """Test AI service initialization without API key."""
         settings = Settings(DATABASE_URL="sqlite:///:memory:", OPENAI_API_KEY="")
         with pytest.raises(ValueError, match="OPENAI_API_KEY configuration is required"):
@@ -127,7 +135,8 @@ class TestAIService:
                 temp_file_manager=temp_file_manager,
                 type_service=mock_type_service,
                 download_cache_service=mock_download_cache_service,
-                document_service=mock_document_service
+                document_service=mock_document_service,
+                metrics_service=mock_metrics_service
             )
 
     def test_analyze_part_no_input(self, ai_service: AIService):

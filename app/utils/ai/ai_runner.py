@@ -2,10 +2,7 @@ import logging
 import re
 import time
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from app.services.metrics_service import MetricsService
+from typing import Any
 
 import httpx
 from openai import APIError, OpenAI
@@ -22,6 +19,7 @@ from openai.types.responses.response_function_web_search import ActionSearch
 from pydantic import BaseModel
 
 from app.services.base_task import ProgressHandle
+from app.services.metrics_service import MetricsService
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +78,7 @@ class AIResponse(BaseModel):
 
 
 class AIRunner:
-    def __init__(self, api_key: str, metrics_service: "MetricsService | None" = None):
+    def __init__(self, api_key: str, metrics_service: MetricsService):
         def on_request(request):
             logger.info(f"Sending request to URL {request.method} {request.url}")
             logger.info(f"Body {request.content}")
@@ -104,91 +102,42 @@ class AIRunner:
         output_tokens = 0
         reasoning_tokens = 0
 
-        try:
-            while True:
-                logger.info("Starting OpenAI call")
+        while True:
+            logger.info("Starting OpenAI call")
 
-                response = self._call_openai_api(streaming, request, function_tools, input_content, progress_handle)
+            response = self._call_openai_api(streaming, request, function_tools, input_content, progress_handle)
 
-                input_content += response.output
+            input_content += response.output
 
-                if response.usage:
-                    logger.info(f"Input tokens {response.usage.input_tokens}, cached {response.usage.input_tokens_details.cached_tokens}, output {response.usage.output_tokens}, reasoning {response.usage.output_tokens_details.reasoning_tokens}")
+            if response.usage:
+                logger.info(f"Input tokens {response.usage.input_tokens}, cached {response.usage.input_tokens_details.cached_tokens}, output {response.usage.output_tokens}, reasoning {response.usage.output_tokens_details.reasoning_tokens}")
 
-                    input_tokens += response.usage.input_tokens
-                    cached_input_tokens += response.usage.input_tokens_details.cached_tokens
-                    output_tokens += response.usage.output_tokens
-                    reasoning_tokens += response.usage.output_tokens_details.reasoning_tokens
+                input_tokens += response.usage.input_tokens
+                cached_input_tokens += response.usage.input_tokens_details.cached_tokens
+                output_tokens += response.usage.output_tokens
+                reasoning_tokens += response.usage.output_tokens_details.reasoning_tokens
 
-                if not self._handle_function_call(response, function_tools, input_content, progress_handle):
-                    break
+            if not self._handle_function_call(response, function_tools, input_content, progress_handle):
+                break
 
-            elapsed_time = int(time.perf_counter() - start)
+        elapsed_time = int(time.perf_counter() - start)
 
-            logger.info(f"OpenAI response status: {response.status}, duration {elapsed_time}, incomplete details: {response.incomplete_details}")
-            logger.info(f"Output text: {response.output_text}")
+        logger.info(f"OpenAI response status: {response.status}, duration {elapsed_time}, incomplete details: {response.incomplete_details}")
+        logger.info(f"Output text: {response.output_text}")
 
-            if not response.output_parsed or not response.output_text:
-                raise Exception(f"Empty response from OpenAI status {response.status}, incomplete details: {response.incomplete_details}")
+        if not response.output_parsed or not response.output_text:
+            raise Exception(f"Empty response from OpenAI status {response.status}, incomplete details: {response.incomplete_details}")
 
-            cost = self._calculate_cost(request.model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
-
-            # Record comprehensive AI analysis metrics for success
-            if self.metrics_service:
-                function_calls = [tool.get_name() for tool in function_tools]
-                web_searches = self._count_web_searches(response)
-
-                self.metrics_service.record_ai_analysis(
-                    status="success",
-                    model=request.model,
-                    verbosity=request.verbosity,
-                    reasoning_effort=request.reasoning_effort,
-                    duration=elapsed_time,
-                    tokens_input=input_tokens,
-                    tokens_output=output_tokens,
-                    tokens_reasoning=reasoning_tokens,
-                    tokens_cached_input=cached_input_tokens,
-                    cost_dollars=cost or 0.0,
-                    function_calls=function_calls if function_calls else [],
-                    web_searches=web_searches
-                )
-
-            return AIResponse(
-                response=response.output_parsed, # type: ignore
-                elapsed_time=elapsed_time,
-                output_text=response.output_text,
-                input_tokens=input_tokens,
-                cached_input_tokens=cached_input_tokens,
-                output_tokens=output_tokens,
-                reasoning_tokens=reasoning_tokens,
-                cost=cost
-            )
-
-        except Exception:
-            # Record comprehensive AI analysis metrics for failure
-            elapsed_time = int(time.perf_counter() - start)
-            cost = self._calculate_cost(request.model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
-
-            if self.metrics_service:
-                function_calls = [tool.get_name() for tool in function_tools]
-
-                self.metrics_service.record_ai_analysis(
-                    status="error",
-                    model=request.model,
-                    verbosity=request.verbosity,
-                    reasoning_effort=request.reasoning_effort,
-                    duration=elapsed_time,
-                    tokens_input=input_tokens,
-                    tokens_output=output_tokens,
-                    tokens_reasoning=reasoning_tokens,
-                    tokens_cached_input=cached_input_tokens,
-                    cost_dollars=cost or 0.0,
-                    function_calls=function_calls if function_calls else [],
-                    web_searches=0  # No response to count from
-                )
-
-            # Re-raise the exception
-            raise
+        return AIResponse(
+            response=response.output_parsed, # type: ignore
+            elapsed_time=elapsed_time,
+            output_text=response.output_text,
+            input_tokens=input_tokens,
+            cached_input_tokens=cached_input_tokens,
+            output_tokens=output_tokens,
+            reasoning_tokens=reasoning_tokens,
+            cost=self._calculate_cost(request.model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
+        )
 
     def _handle_function_call(self, response: ParsedResponse, function_tools: list[AIFunction], input_content: Any, progress_handle: ProgressHandle) -> bool:
         for item in response.output:
@@ -222,13 +171,53 @@ class AIRunner:
         attempt = 1
 
         while True:
+            start = time.perf_counter()
             try:
                 if streaming:
-                    return self._call_openai_api_streamed(request, function_tools, input_content, progress_handle)
+                    response = self._call_openai_api_streamed(request, function_tools, input_content, progress_handle)
                 else:
-                    return self._call_openai_api_non_streamed(request, function_tools, input_content, progress_handle)
+                    response = self._call_openai_api_non_streamed(request, function_tools, input_content, progress_handle)
+
+                # Record successful API call metrics
+                duration = time.perf_counter() - start
+                if response.usage:
+                    input_tokens = response.usage.input_tokens
+                    cached_input_tokens = response.usage.input_tokens_details.cached_tokens
+                    output_tokens = response.usage.output_tokens
+                    reasoning_tokens = response.usage.output_tokens_details.reasoning_tokens
+                    cost = self._calculate_cost(request.model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
+
+                    self.metrics_service.record_ai_analysis(
+                        status="success",
+                        model=request.model,
+                        verbosity=request.verbosity,
+                        reasoning_effort=request.reasoning_effort or "none",
+                        duration=duration,
+                        tokens_input=input_tokens,
+                        tokens_output=output_tokens,
+                        tokens_reasoning=reasoning_tokens,
+                        tokens_cached_input=cached_input_tokens,
+                        cost_dollars=cost or 0.0
+                    )
+
+                return response
 
             except APIError as e:
+                # Record failed API call metrics
+                duration = time.perf_counter() - start
+                self.metrics_service.record_ai_analysis(
+                    status="error",
+                    model=request.model,
+                    verbosity=request.verbosity,
+                    reasoning_effort=request.reasoning_effort or "none",
+                    duration=duration,
+                    tokens_input=0,
+                    tokens_output=0,
+                    tokens_reasoning=0,
+                    tokens_cached_input=0,
+                    cost_dollars=0.0
+                )
+
                 if attempt >= 3:
                     raise
                 attempt += 1

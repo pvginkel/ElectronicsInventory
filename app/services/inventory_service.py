@@ -14,17 +14,17 @@ from app.models.location import Location
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
 from app.services.base import BaseService
+from app.services.metrics_service import MetricsService
+from app.services.part_service import PartService
 
 if TYPE_CHECKING:
     from app.schemas.part import PartWithTotalModel
-    from app.services.metrics_service import MetricsService
-    from app.services.part_service import PartService
 
 
 class InventoryService(BaseService):
     """Service class for inventory management operations."""
 
-    def __init__(self, db: Session, part_service: "PartService", metrics_service: "MetricsService | None" = None):
+    def __init__(self, db: Session, part_service: PartService, metrics_service: MetricsService):
         """Initialize service with database session and dependencies.
 
         Args:
@@ -89,8 +89,7 @@ class InventoryService(BaseService):
         self.db.add(history)
 
         # Record metrics for quantity change
-        if self.metrics_service:
-            self.metrics_service.record_quantity_change("add", qty)
+        self.metrics_service.record_quantity_change("add", qty)
 
         self.db.flush()
         return part_location
@@ -138,8 +137,7 @@ class InventoryService(BaseService):
         self.db.add(history)
 
         # Record metrics for quantity change
-        if self.metrics_service:
-            self.metrics_service.record_quantity_change("remove", qty)
+        self.metrics_service.record_quantity_change("remove", qty)
 
         # Check if total quantity is now zero and cleanup if needed
         self.cleanup_zero_quantities(part_key)
