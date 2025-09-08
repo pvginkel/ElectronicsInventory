@@ -10,7 +10,7 @@ from app.exceptions import InvalidOperationException
 from app.services.base_task import BaseTask
 from app.services.metrics_service import NoopMetricsService
 from app.services.task_service import TaskService
-from app.utils.graceful_shutdown import GracefulShutdownManager
+from app.utils.graceful_shutdown import NoopGracefulShutdownManager
 
 
 class MockTask(BaseTask):
@@ -53,18 +53,23 @@ class TestTaskServiceGracefulShutdown:
     """Test TaskService graceful shutdown functionality."""
     
     @pytest.fixture
-    def task_service(self):
+    def shutdown_manager(self):
+        """Create a shutdown manager for testing."""
+        return NoopGracefulShutdownManager()
+        
+    @pytest.fixture
+    def task_service(self, shutdown_manager):
         """Create a TaskService instance for testing."""
         metrics_service = NoopMetricsService()
         service = TaskService(
             metrics_service=metrics_service,
+            shutdown_manager=shutdown_manager,
             max_workers=2,
             task_timeout=300,
             cleanup_interval=600
         )
         
         # Reset shutdown manager state before each test
-        shutdown_manager = GracefulShutdownManager()
         shutdown_manager.set_draining(False)
         
         yield service
@@ -73,10 +78,9 @@ class TestTaskServiceGracefulShutdown:
         service.shutdown(timeout=1)
         shutdown_manager.set_draining(False)
         
-    def test_start_task_rejects_when_draining(self, task_service):
+    def test_start_task_rejects_when_draining(self, task_service, shutdown_manager):
         """Test that start_task raises exception when service is draining."""
         # Set service to draining
-        shutdown_manager = GracefulShutdownManager()
         shutdown_manager.set_draining(True)
         
         task = MockTask()
@@ -187,27 +191,29 @@ class TestTaskServiceGracefulShutdown:
         if task_status:  # Task might be cleaned up
             assert task_status.status.value == "cancelled"
             
-    def test_shutdown_sets_draining_state(self, task_service):
-        """Test that shutdown sets the draining state."""
-        shutdown_manager = GracefulShutdownManager()
+    def test_shutdown_does_not_set_draining_state(self, task_service, shutdown_manager):
+        """Test that TaskService.shutdown does not set draining state (responsibility moved to application level)."""
         assert not shutdown_manager.is_draining()
         
         task_service.shutdown(timeout=0.1)
         
-        assert shutdown_manager.is_draining()
+        # TaskService should NOT set draining state - that's handled at application level
+        assert not shutdown_manager.is_draining()
         
     def test_shutdown_updates_metrics(self, task_service):
-        """Test that shutdown updates Prometheus metrics."""
+        """Test that shutdown records metrics correctly."""
         # Mock metrics service to track calls
         mock_metrics = Mock()
         task_service.metrics_service = mock_metrics
         
         task_service.shutdown(timeout=0.1)
         
-        # Verify metrics were updated
-        mock_metrics.set_draining_state.assert_called_with(True)
+        # Verify metrics were updated (but NOT draining state - that's handled at application level)
         mock_metrics.update_task_metrics.assert_called()
         mock_metrics.record_shutdown_duration.assert_called()
+        
+        # TaskService should NOT set draining state - that's application responsibility
+        mock_metrics.set_draining_state.assert_not_called()
         
         # Verify shutdown duration was recorded
         duration_call = mock_metrics.record_shutdown_duration.call_args[0][0]

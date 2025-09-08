@@ -114,6 +114,7 @@ class ServiceContainer(containers.DeclarativeContainer):
     task_service = providers.Singleton(
         TaskService,
         metrics_service=metrics_service,
+        shutdown_manager=graceful_shutdown_manager,
         max_workers=config.provided.TASK_MAX_WORKERS,
         task_timeout=config.provided.TASK_TIMEOUT_SECONDS,
         cleanup_interval=config.provided.TASK_CLEANUP_INTERVAL_SECONDS

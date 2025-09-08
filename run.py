@@ -10,7 +10,6 @@ from waitress import serve
 
 from app import create_app
 from app.config import get_settings
-from app.utils.graceful_shutdown import GracefulShutdownManager
 
 
 def main():
@@ -22,8 +21,8 @@ def main():
     settings = get_settings()
     app = create_app(settings)
     
-    # Initialize graceful shutdown manager and register signal handler
-    shutdown_manager = GracefulShutdownManager()
+    # Get graceful shutdown manager from container and register signal handler
+    shutdown_manager = app.container.graceful_shutdown_manager()
     signal.signal(signal.SIGTERM, shutdown_manager.handle_sigterm)
     signal.signal(signal.SIGINT, shutdown_manager.handle_sigterm)
 
@@ -57,6 +56,15 @@ def main():
         
         # Graceful shutdown sequence
         app.logger.info("Starting graceful shutdown sequence...")
+        
+        # Set draining state to stop accepting new requests
+        shutdown_manager.set_draining(True)
+        app.logger.info("Application set to draining state")
+        
+        # Update metrics to reflect draining state
+        metrics_service = app.container.metrics_service()
+        metrics_service.set_draining_state(True)
+        
         try:
             # Get task service from app container and shutdown gracefully
             task_service = app.container.task_service()

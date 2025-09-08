@@ -3,10 +3,10 @@
 import logging
 
 from dependency_injector.wiring import Provide, inject
-from flask import Blueprint, Response
+from flask import Blueprint, Response, request
 
+from app.config import Settings
 from app.services.container import ServiceContainer
-from app.services.task_service import TaskService
 from app.utils.graceful_shutdown import GracefulShutdownManager
 
 logger = logging.getLogger(__name__)
@@ -16,26 +16,14 @@ health_bp = Blueprint('health', __name__, url_prefix='/health')
 
 @health_bp.route('/readyz', methods=['GET'])
 @inject
-def readyz(task_service: TaskService = Provide[ServiceContainer.task_service]) -> Response:
+def readyz(shutdown_manager: GracefulShutdownManager = Provide[ServiceContainer.graceful_shutdown_manager]) -> Response:
     """
     Kubernetes readiness probe endpoint.
-    Returns 503 when draining or task service is unhealthy.
+    Returns 503 when draining, 200 when ready to accept traffic.
     """
-    shutdown_manager = GracefulShutdownManager()
-
     if shutdown_manager.is_draining():
         logger.debug("Readiness check failed: service is draining")
         return Response("draining", status=503, mimetype='text/plain')
-
-    # Check if task service is healthy (basic check - executor not shutdown)
-    try:
-        # Simple health check - if we can access the executor, service is healthy
-        if hasattr(task_service, '_executor') and task_service._executor._shutdown:
-            logger.debug("Readiness check failed: task service executor is shutdown")
-            return Response("task service unhealthy", status=503, mimetype='text/plain')
-    except Exception as e:
-        logger.warning(f"Readiness check failed: task service error - {e}")
-        return Response("task service unhealthy", status=503, mimetype='text/plain')
 
     return Response("ok", status=200, mimetype='text/plain')
 
@@ -50,12 +38,32 @@ def healthz() -> Response:
 
 
 @health_bp.route('/drain', methods=['POST'])
-def drain() -> Response:
+@inject
+def drain(
+    settings: Settings = Provide[ServiceContainer.config],
+    shutdown_manager: GracefulShutdownManager = Provide[ServiceContainer.graceful_shutdown_manager]
+) -> Response:
     """
-    Manual drain trigger endpoint for testing.
+    Manual drain trigger endpoint for testing and operational use.
+    
+    Security behavior:
+    - Production + no auth key configured: Returns 403 (forbidden)
+    - Production + auth key configured: Requires X-Auth-Key header
+    - Non-production + no auth key: Allowed (no authentication required)  
+    - Non-production + auth key configured: Requires X-Auth-Key header
     """
-    shutdown_manager = GracefulShutdownManager()
+    # Check if drain endpoint should be disabled in production without auth
+    if settings.FLASK_ENV == "production" and not settings.DRAIN_AUTH_KEY:
+        logger.error("Drain endpoint access attempted in production without authentication key configured")
+        return Response("forbidden in production without auth", status=403, mimetype='text/plain')
+    
+    # Check authentication (only runs if auth key is configured or not in production)
+    if settings.DRAIN_AUTH_KEY:
+        auth_key = request.headers.get('X-Auth-Key')
+        if not auth_key or auth_key != settings.DRAIN_AUTH_KEY:
+            logger.warning("Unauthorized drain endpoint access attempted")
+            return Response("unauthorized", status=401, mimetype='text/plain')
+    
     shutdown_manager.set_draining(True)
-    logger.info("Manual drain triggered via API")
     return Response("draining initiated", status=200, mimetype='text/plain')
 
