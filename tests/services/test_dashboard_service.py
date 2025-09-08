@@ -1,6 +1,6 @@
 """Test dashboard service functionality."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import Flask
 from sqlalchemy.orm import Session
@@ -58,7 +58,7 @@ class TestDashboardService:
             container.inventory_service().add_stock(part2.key, box.box_no, 2, 3)  # Low stock
 
             # Create quantity history (recent changes)
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             history1 = QuantityHistory(
                 part_id=part1.id, delta_qty=10, timestamp=now - timedelta(days=3),
                 location_reference="1-1"
@@ -106,7 +106,7 @@ class TestDashboardService:
         session.flush()
 
         # Create multiple history entries
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         histories = []
         for i in range(5):
             history = QuantityHistory(
@@ -147,7 +147,7 @@ class TestDashboardService:
         history = QuantityHistory(
             part_id=part.id,
             delta_qty=15,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             location_reference="2-5"
         )
         session.add(history)

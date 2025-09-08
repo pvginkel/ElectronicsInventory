@@ -187,6 +187,6 @@ class ImageService(BaseService):
                 )
 
         except Exception as e:
-            logger.warn(f"Image conversion to PNG failed: {str(e)}")
+            logger.warning(f"Image conversion to PNG failed: {str(e)}")
             # If PIL can't handle it, return None
             return None

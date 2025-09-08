@@ -276,6 +276,7 @@ class TestTaskService:
     def test_manual_cleanup_completed_tasks(self, task_service):
         """Test manual cleanup of completed tasks."""
         import datetime
+        from datetime import timezone
         from unittest.mock import patch
 
         # Complete a task
@@ -292,7 +293,7 @@ class TestTaskService:
         with patch('app.services.task_service.datetime') as mock_datetime:
             # Set current time to be cleanup_interval + 1 seconds after task completion
             future_time = task_info.end_time + datetime.timedelta(seconds=task_service.cleanup_interval + 1)
-            mock_datetime.utcnow.return_value = future_time
+            mock_datetime.now.return_value = future_time
 
             # Run manual cleanup
             task_service._cleanup_completed_tasks()
@@ -303,7 +304,7 @@ class TestTaskService:
 
     def test_cleanup_only_removes_old_completed_tasks(self, task_service):
         """Test that cleanup only removes old completed tasks, not recent ones."""
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
 
         # Complete two tasks
         task1 = DemoTask()
@@ -322,7 +323,7 @@ class TestTaskService:
 
         # Manually modify task1's end_time to be old
         with task_service._lock:
-            old_time = datetime.utcnow() - timedelta(seconds=task_service.cleanup_interval + 1)
+            old_time = datetime.now(timezone.utc) - timedelta(seconds=task_service.cleanup_interval + 1)
             task_service._tasks[response1.task_id].end_time = old_time
 
         # Run manual cleanup
@@ -335,6 +336,7 @@ class TestTaskService:
     def test_cleanup_does_not_remove_running_tasks(self, task_service):
         """Test that cleanup does not remove running tasks."""
         import datetime
+        from datetime import timezone
         from unittest.mock import patch
 
         # Start a long running task
@@ -346,8 +348,8 @@ class TestTaskService:
 
         # Mock time far in future
         with patch('app.services.task_service.datetime') as mock_datetime:
-            future_time = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
-            mock_datetime.utcnow.return_value = future_time
+            future_time = datetime.datetime.now(timezone.utc) + datetime.timedelta(hours=1)
+            mock_datetime.now.return_value = future_time
 
             # Run cleanup
             task_service._cleanup_completed_tasks()

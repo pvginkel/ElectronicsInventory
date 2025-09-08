@@ -4,7 +4,7 @@ import time
 import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timezone
 from queue import Empty, Queue
 from typing import Any
 
@@ -126,7 +126,7 @@ class TaskService:
             task_info = TaskInfo(
                 task_id=task_id,
                 status=TaskStatus.PENDING,
-                start_time=datetime.utcnow()
+                start_time=datetime.now(timezone.utc)
             )
 
             # Store task metadata
@@ -176,7 +176,7 @@ class TaskService:
             # Request cancellation
             task_instance.cancel()
             task_info.status = TaskStatus.CANCELLED
-            task_info.end_time = datetime.utcnow()
+            task_info.end_time = datetime.now(timezone.utc)
 
             logger.info(f"Cancelled task {task_id}")
             return True
@@ -279,7 +279,7 @@ class TaskService:
                 task_info = self._tasks.get(task_id)
                 if task_info and task_info.status != TaskStatus.CANCELLED:
                     task_info.status = TaskStatus.COMPLETED
-                    task_info.end_time = datetime.utcnow()
+                    task_info.end_time = datetime.now(timezone.utc)
                     # Convert BaseModel to dict for storage
                     task_info.result = result.model_dump() if result else None
 
@@ -312,7 +312,7 @@ class TaskService:
                 task_info = self._tasks.get(task_id)
                 if task_info:
                     task_info.status = TaskStatus.FAILED
-                    task_info.end_time = datetime.utcnow()
+                    task_info.end_time = datetime.now(timezone.utc)
                     task_info.error = error_msg
 
                     # Record task execution metrics for failed tasks
@@ -347,7 +347,7 @@ class TaskService:
 
     def _cleanup_completed_tasks(self) -> None:
         """Remove completed tasks older than cleanup_interval."""
-        current_time = datetime.utcnow()
+        current_time = datetime.now(timezone.utc)
         tasks_to_remove = []
 
         with self._lock:
@@ -402,7 +402,7 @@ class TaskService:
                             if task_instance:
                                 task_instance.cancel()
                                 task_info.status = TaskStatus.CANCELLED
-                                task_info.end_time = datetime.utcnow()
+                                task_info.end_time = datetime.now(timezone.utc)
                                 logger.info(f"Force-cancelled task {task_id}")
                 break
 
