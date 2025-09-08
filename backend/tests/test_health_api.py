@@ -1,13 +1,15 @@
 """Tests for health API endpoints."""
 
 import pytest
-from unittest.mock import Mock, patch
 from flask import Flask, Blueprint, Response
-from app.utils.graceful_shutdown import GracefulShutdownManager
+from dependency_injector import containers, providers
+
+from app.config import Settings
+from app.utils.graceful_shutdown import NoopGracefulShutdownManager
 
 
-def create_health_blueprint():
-    """Create a simplified health blueprint for testing."""
+def create_health_routes(shutdown_manager, config):
+    """Create health routes for testing without full API setup."""
     health_bp = Blueprint('health', __name__, url_prefix='/health')
     
     @health_bp.route('/healthz', methods=['GET'])
@@ -16,16 +18,24 @@ def create_health_blueprint():
     
     @health_bp.route('/readyz', methods=['GET'])
     def readyz():
-        shutdown_manager = GracefulShutdownManager()
-        
         if shutdown_manager.is_draining():
             return Response("draining", status=503, mimetype='text/plain')
-        
         return Response("ok", status=200, mimetype='text/plain')
     
     @health_bp.route('/drain', methods=['POST'])
     def drain():
-        shutdown_manager = GracefulShutdownManager()
+        from flask import request
+        
+        # Check if drain endpoint should be disabled in production without auth
+        if config.FLASK_ENV == "production" and not config.DRAIN_AUTH_KEY:
+            return Response("forbidden in production without auth", status=403, mimetype='text/plain')
+        
+        # Check authentication (only if auth key is configured)
+        if config.DRAIN_AUTH_KEY:
+            auth_key = request.headers.get('X-Auth-Key')
+            if not auth_key or auth_key != config.DRAIN_AUTH_KEY:
+                return Response("unauthorized", status=401, mimetype='text/plain')
+        
         shutdown_manager.set_draining(True)
         return Response("draining initiated", status=200, mimetype='text/plain')
     
@@ -33,11 +43,30 @@ def create_health_blueprint():
 
 
 @pytest.fixture
-def health_app():
-    """Create a Flask app with just the health blueprint for testing."""
+def shutdown_manager():
+    """Create a shutdown manager for testing."""
+    return NoopGracefulShutdownManager()
+
+
+@pytest.fixture
+def config():
+    """Create a config for testing."""
+    return Settings()
+
+
+@pytest.fixture
+def health_app(shutdown_manager, config):
+    """Create a Flask app with health blueprint for testing."""
     app = Flask(__name__)
-    health_bp = create_health_blueprint()
+    
+    # Store dependencies for access in tests
+    app.shutdown_manager = shutdown_manager
+    app.config_settings = config
+    
+    # Create and register health blueprint
+    health_bp = create_health_routes(shutdown_manager, config)
     app.register_blueprint(health_bp)
+    
     return app
 
 
@@ -58,11 +87,10 @@ class TestHealthEndpoints:
         assert response.data == b'alive'
         assert response.mimetype == 'text/plain'
 
-    def test_readyz_returns_200_when_healthy(self, health_client):
+    def test_readyz_returns_200_when_healthy(self, health_client, shutdown_manager):
         """Test readiness probe returns 200 when service is healthy."""
         # Reset shutdown manager state
-        manager = GracefulShutdownManager()
-        manager.set_draining(False)
+        shutdown_manager.set_draining(False)
         
         response = health_client.get('/health/readyz')
         
@@ -70,11 +98,10 @@ class TestHealthEndpoints:
         assert response.data == b'ok'
         assert response.mimetype == 'text/plain'
         
-    def test_readyz_returns_503_when_draining(self, health_client):
+    def test_readyz_returns_503_when_draining(self, health_client, shutdown_manager):
         """Test readiness probe returns 503 when draining."""
         # Set draining state
-        manager = GracefulShutdownManager()
-        manager.set_draining(True)
+        shutdown_manager.set_draining(True)
         
         response = health_client.get('/health/readyz')
         
@@ -83,25 +110,77 @@ class TestHealthEndpoints:
         assert response.mimetype == 'text/plain'
         
         # Clean up
-        manager.set_draining(False)
+        shutdown_manager.set_draining(False)
         
-    def test_drain_sets_draining_state(self, health_client):
-        """Test manual drain endpoint sets draining state."""
-        # Reset state first
-        manager = GracefulShutdownManager()
-        manager.set_draining(False)
-        
+    def test_drain_endpoint_works_when_no_auth_key_in_nonproduction(self, health_client, shutdown_manager):
+        """Test drain endpoint works when no auth key is configured in non-production."""
         response = health_client.post('/health/drain')
         
         assert response.status_code == 200
         assert response.data == b'draining initiated'
         assert response.mimetype == 'text/plain'
-        
-        # Verify draining state was set
-        assert manager.is_draining()
+        assert shutdown_manager.is_draining()
         
         # Clean up
-        manager.set_draining(False)
+        shutdown_manager.set_draining(False)
+    
+    def test_drain_endpoint_forbidden_in_production_without_auth(self, shutdown_manager):
+        """Test drain endpoint returns 403 in production when no auth key is configured."""
+        from flask import Flask
+        
+        # Create app with production environment but no auth key
+        app = Flask(__name__)
+        config = Settings(FLASK_ENV="production")  # Production with no DRAIN_AUTH_KEY
+        health_bp = create_health_routes(shutdown_manager, config)
+        app.register_blueprint(health_bp)
+        client = app.test_client()
+        
+        response = client.post('/health/drain')
+        
+        assert response.status_code == 403
+        assert response.data == b'forbidden in production without auth'
+        assert response.mimetype == 'text/plain'
+    
+    def test_drain_endpoint_allows_no_auth_in_nonproduction(self, health_client, shutdown_manager):
+        """Test drain endpoint allows no auth in non-production environments."""
+        # Test without auth header (config has no auth key by default, non-production)
+        response = health_client.post('/health/drain')
+        assert response.status_code == 200
+        assert response.data == b'draining initiated'
+        assert shutdown_manager.is_draining()
+        
+        # Clean up
+        shutdown_manager.set_draining(False)
+    
+    def test_drain_endpoint_with_auth_key(self, shutdown_manager):
+        """Test drain endpoint with authentication configured."""
+        from flask import Flask
+        
+        # Create app with auth key configured
+        app = Flask(__name__)
+        config = Settings(DRAIN_AUTH_KEY="test-key")
+        health_bp = create_health_routes(shutdown_manager, config)
+        app.register_blueprint(health_bp)
+        client = app.test_client()
+        
+        # Test without auth header
+        response = client.post('/health/drain')
+        assert response.status_code == 401
+        assert response.data == b'unauthorized'
+        
+        # Test with wrong auth header
+        response = client.post('/health/drain', headers={'X-Auth-Key': 'wrong-key'})
+        assert response.status_code == 401
+        assert response.data == b'unauthorized'
+        
+        # Test with correct auth header
+        response = client.post('/health/drain', headers={'X-Auth-Key': 'test-key'})
+        assert response.status_code == 200
+        assert response.data == b'draining initiated'
+        assert shutdown_manager.is_draining()
+        
+        # Clean up
+        shutdown_manager.set_draining(False)
         
     def test_drain_only_accepts_post(self, health_client):
         """Test drain endpoint only accepts POST requests."""

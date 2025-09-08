@@ -1,30 +1,42 @@
 import logging
 import threading
+from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
 
 
-class GracefulShutdownManager:
-    """Singleton manager for graceful shutdown handling."""
+class GracefulShutdownManagerProtocol(ABC):
+    """Protocol for graceful shutdown management."""
+    
+    @abstractmethod
+    def set_draining(self, draining: bool) -> None:
+        """Set the draining state."""
+        pass
+    
+    @abstractmethod
+    def is_draining(self) -> bool:
+        """Check if the application is draining."""
+        pass
+    
+    @abstractmethod
+    def handle_sigterm(self, signum: int, frame) -> None:
+        """SIGTERM signal handler."""
+        pass
+    
+    @abstractmethod
+    def wait_for_shutdown(self, timeout: float | None = None) -> bool:
+        """Block until safe to shutdown or timeout is reached."""
+        pass
 
-    _instance: 'GracefulShutdownManager | None' = None
-    _lock = threading.Lock()
 
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance._initialized = False
-        return cls._instance
+class GracefulShutdownManager(GracefulShutdownManagerProtocol):
+    """Manager for graceful shutdown handling."""
 
     def __init__(self):
-        if not getattr(self, '_initialized', False):
-            self._draining = False
-            self._draining_lock = threading.RLock()
-            self._shutdown_events: list[threading.Event] = []
-            self._initialized = True
-            logger.debug("GracefulShutdownManager initialized")
+        self._draining = False
+        self._draining_lock = threading.RLock()
+        self._shutdown_events: list[threading.Event] = []
+        logger.debug("GracefulShutdownManager initialized")
 
     def set_draining(self, draining: bool) -> None:
         """Set the draining state."""
@@ -83,4 +95,31 @@ class GracefulShutdownManager:
             with self._draining_lock:
                 if wait_event in self._shutdown_events:
                     self._shutdown_events.remove(wait_event)
+
+
+class NoopGracefulShutdownManager(GracefulShutdownManagerProtocol):
+    """No-op implementation for testing."""
+    
+    def __init__(self):
+        self._draining = False
+        logger.debug("NoopGracefulShutdownManager initialized")
+    
+    def set_draining(self, draining: bool) -> None:
+        """Set the draining state (no-op)."""
+        self._draining = draining
+        logger.debug(f"NoopGracefulShutdownManager: draining set to {draining}")
+    
+    def is_draining(self) -> bool:
+        """Check if the application is draining."""
+        return self._draining
+    
+    def handle_sigterm(self, signum: int, frame) -> None:
+        """SIGTERM signal handler (no-op)."""
+        logger.debug(f"NoopGracefulShutdownManager: received signal {signum}")
+        self._draining = True
+    
+    def wait_for_shutdown(self, timeout: float | None = None) -> bool:
+        """Block until safe to shutdown (returns immediately)."""
+        logger.debug("NoopGracefulShutdownManager: wait_for_shutdown called")
+        return self._draining
 

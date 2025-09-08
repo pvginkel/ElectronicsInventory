@@ -19,7 +19,7 @@ from app.schemas.task_schema import (
 )
 from app.services.base_task import BaseTask
 from app.services.metrics_service import MetricsService
-from app.utils.graceful_shutdown import GracefulShutdownManager
+from app.utils.graceful_shutdown import GracefulShutdownManagerProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -66,19 +66,28 @@ class TaskProgressHandle:
 class TaskService:
     """Service for managing background tasks with SSE progress updates."""
 
-    def __init__(self, metrics_service: MetricsService, max_workers: int = 4, task_timeout: int = 300, cleanup_interval: int = 600):
+    def __init__(
+        self, 
+        metrics_service: MetricsService,
+        shutdown_manager: GracefulShutdownManagerProtocol,
+        max_workers: int = 4, 
+        task_timeout: int = 300, 
+        cleanup_interval: int = 600
+    ):
         """Initialize TaskService with configurable parameters.
 
         Args:
+            metrics_service: Instance of MetricsService for recording metrics
+            shutdown_manager: Instance of GracefulShutdownManager for draining checks
             max_workers: Maximum number of concurrent tasks
             task_timeout: Task execution timeout in seconds
             cleanup_interval: How often to clean up completed tasks in seconds
-            metrics_service: Instance of MetricsService for recording metrics
         """
         self.max_workers = max_workers
         self.task_timeout = task_timeout
         self.cleanup_interval = cleanup_interval  # 10 minutes in seconds
         self.metrics_service = metrics_service
+        self.shutdown_manager = shutdown_manager
         self._tasks: dict[str, TaskInfo] = {}
         self._task_instances: dict[str, BaseTask] = {}
         self._event_queues: dict[str, Queue] = {}
@@ -107,8 +116,7 @@ class TaskService:
             InvalidOperationException: If service is draining
         """
         # Check if service is draining
-        shutdown_manager = GracefulShutdownManager()
-        if shutdown_manager.is_draining():
+        if self.shutdown_manager.is_draining():
             raise InvalidOperationException("start task", "service is draining")
 
         task_id = str(uuid.uuid4())
@@ -330,10 +338,6 @@ class TaskService:
                 if self._shutdown_event.wait(timeout=self.cleanup_interval):
                     break
 
-                # Check if shutdown was requested during wait
-                if self._shutdown_event.is_set():
-                    break
-
                 # Perform cleanup
                 self._cleanup_completed_tasks()
 
@@ -371,13 +375,6 @@ class TaskService:
             timeout: Maximum time to wait for running tasks in seconds
         """
         logger.info("Shutting down TaskService...")
-
-        # Stop accepting new tasks by setting shutdown flag
-        shutdown_manager = GracefulShutdownManager()
-        shutdown_manager.set_draining(True)
-
-        # Update Prometheus draining state
-        self.metrics_service.set_draining_state(True)
 
         # Start shutdown duration timer
         shutdown_start_time = time.perf_counter()
