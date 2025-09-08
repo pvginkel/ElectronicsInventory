@@ -2,6 +2,7 @@
 
 import logging
 import threading
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
@@ -12,7 +13,93 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class NoopMetricsService:
+class MetricsServiceProtocol(ABC):
+    """Protocol for metrics service implementations."""
+
+    @abstractmethod
+    def initialize_metrics(self):
+        """Initialize metric objects."""
+        pass
+
+    @abstractmethod
+    def update_inventory_metrics(self):
+        """Update inventory-related metrics."""
+        pass
+
+    @abstractmethod
+    def update_storage_metrics(self):
+        """Update storage-related metrics."""
+        pass
+
+    @abstractmethod
+    def update_activity_metrics(self):
+        """Update activity-related metrics."""
+        pass
+
+    @abstractmethod
+    def update_category_metrics(self):
+        """Update category-related metrics."""
+        pass
+
+    @abstractmethod
+    def record_quantity_change(self, operation: str, delta: int):
+        """Record quantity change events."""
+        pass
+
+    @abstractmethod
+    def record_task_execution(self, task_type: str, duration: float, status: str):
+        """Record task execution metrics."""
+        pass
+
+    @abstractmethod
+    def update_task_metrics(self, active_tasks: int):
+        """Update task-related metrics."""
+        pass
+
+    @abstractmethod
+    def set_draining_state(self, is_draining: bool):
+        """Set the draining state metric."""
+        pass
+
+    @abstractmethod
+    def record_shutdown_duration(self, duration: float):
+        """Record graceful shutdown duration."""
+        pass
+
+    @abstractmethod
+    def record_ai_analysis(
+        self,
+        status: str,
+        model: str,
+        verbosity: str,
+        reasoning_effort: str,
+        duration: float,
+        tokens_input: int = 0,
+        tokens_output: int = 0,
+        tokens_reasoning: int = 0,
+        tokens_cached_input: int = 0,
+        cost_dollars: float = 0.0
+    ):
+        """Record AI analysis metrics."""
+        pass
+
+    @abstractmethod
+    def start_background_updater(self, interval_seconds: int = 60):
+        """Start background metric updater."""
+        pass
+
+    @abstractmethod
+    def stop_background_updater(self):
+        """Stop background metric updater."""
+        pass
+
+    @abstractmethod
+    def get_metrics_text(self) -> str:
+        """Get metrics in Prometheus text format."""
+        pass
+
+
+class NoopMetricsService(MetricsServiceProtocol):
     """No-op metrics service for testing."""
 
     def __init__(self):
@@ -88,7 +175,7 @@ class NoopMetricsService:
         return ""
 
 
-class MetricsService(NoopMetricsService):
+class MetricsService(MetricsServiceProtocol):
     """Service class for Prometheus metrics collection and exposure."""
 
     def __init__(self, container: "ServiceContainer"):

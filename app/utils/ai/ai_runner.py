@@ -19,7 +19,7 @@ from openai.types.responses.response_function_web_search import ActionSearch
 from pydantic import BaseModel
 
 from app.services.base_task import ProgressHandle
-from app.services.metrics_service import MetricsService
+from app.services.metrics_service import MetricsServiceProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ class AIResponse(BaseModel):
 
 
 class AIRunner:
-    def __init__(self, api_key: str, metrics_service: MetricsService):
+    def __init__(self, api_key: str, metrics_service: MetricsServiceProtocol):
         def on_request(request):
             logger.info(f"Sending request to URL {request.method} {request.url}")
             logger.info(f"Body {request.content}")

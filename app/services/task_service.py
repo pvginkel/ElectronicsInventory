@@ -18,7 +18,7 @@ from app.schemas.task_schema import (
     TaskStatus,
 )
 from app.services.base_task import BaseTask
-from app.services.metrics_service import MetricsService
+from app.services.metrics_service import MetricsServiceProtocol
 from app.utils.graceful_shutdown import GracefulShutdownManagerProtocol
 
 logger = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ class TaskService:
 
     def __init__(
         self, 
-        metrics_service: MetricsService,
+        metrics_service: MetricsServiceProtocol,
         shutdown_manager: GracefulShutdownManagerProtocol,
         max_workers: int = 4, 
         task_timeout: int = 300, 
