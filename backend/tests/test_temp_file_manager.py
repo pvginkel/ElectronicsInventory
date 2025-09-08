@@ -298,31 +298,6 @@ class TestTempFileManager:
 
             assert stored_content == content
 
-    @pytest.mark.skip(reason="Flaky test with permission issues in CI environment")
-    def test_cache_io_error_handling(self):
-        """Test cache handling when IO operations fail."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base)
-
-            url = "https://example.com/io-error-test.txt"
-            content = b"test content"
-
-            # Make cache directory read-only to trigger IO error
-            manager.cache_path.chmod(0o444)  # Read-only
-
-            try:
-                # Should return False on IO error
-                success = manager.cache(url, content, "text/plain")
-                assert success is False
-
-                # Should return None when reading fails
-                cached = manager.get_cached(url)
-                assert cached is None
-
-            finally:
-                # Restore permissions for cleanup
-                manager.cache_path.chmod(0o755)
-
     def test_get_cached_corrupt_metadata(self):
         """Test handling of corrupted metadata files."""
         with tempfile.TemporaryDirectory() as temp_base:

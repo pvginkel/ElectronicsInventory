@@ -14,7 +14,7 @@ from app.models.location import Location
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
 from app.services.base import BaseService
-from app.services.metrics_service import MetricsService
+from app.services.metrics_service import MetricsServiceProtocol
 from app.services.part_service import PartService
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 class InventoryService(BaseService):
     """Service class for inventory management operations."""
 
-    def __init__(self, db: Session, part_service: PartService, metrics_service: MetricsService):
+    def __init__(self, db: Session, part_service: PartService, metrics_service: MetricsServiceProtocol):
         """Initialize service with database session and dependencies.
 
         Args:

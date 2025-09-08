@@ -19,7 +19,7 @@ from app.services.base import BaseService
 from app.services.base_task import ProgressHandle
 from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
-from app.services.metrics_service import MetricsService
+from app.services.metrics_service import MetricsServiceProtocol
 from app.services.type_service import TypeService
 from app.utils.ai.ai_runner import AIRequest, AIRunner
 from app.utils.ai.url_classification import (
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 class AIService(BaseService):
     """Service for AI-powered part analysis using OpenAI."""
 
-    def __init__(self, db, config: Settings, temp_file_manager: TempFileManager, type_service: TypeService, download_cache_service: DownloadCacheService, document_service: DocumentService, metrics_service: MetricsService):
+    def __init__(self, db, config: Settings, temp_file_manager: TempFileManager, type_service: TypeService, download_cache_service: DownloadCacheService, document_service: DocumentService, metrics_service: MetricsServiceProtocol):
         super().__init__(db)
         self.config = config
         self.temp_file_manager = temp_file_manager

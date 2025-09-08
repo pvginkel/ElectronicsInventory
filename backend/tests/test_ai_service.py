@@ -183,17 +183,6 @@ class TestAIService:
         # Verify the runner was called once
         mock_run.assert_called_once()
 
-    @pytest.mark.skip(reason="Image support not implemented yet in AI service")
-    def test_analyze_part_with_image(self, ai_service: AIService):
-        """Test AI analysis with image input - currently not supported."""
-        # Create test image data
-        image_data = b"fake_image_data"
-        mock_progress = Mock()
-
-        # Should raise exception since images aren't supported yet
-        with pytest.raises(Exception, match="Image data currently not supported"):
-            ai_service.analyze_part("Arduino board", image_data, "image/jpeg", mock_progress)
-
     @patch('app.utils.ai.ai_runner.AIRunner.run')
     def test_analyze_part_new_type_suggestion(self, mock_run, ai_service: AIService):
         """Test AI analysis suggesting a new type not in the system."""
