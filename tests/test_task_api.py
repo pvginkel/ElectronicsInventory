@@ -190,8 +190,10 @@ class TestTaskAPIIntegration:
     def real_task_service(self, session: Session):
         """Create real TaskService instance for integration testing."""
         from app.services.metrics_service import NoopMetricsService
+        from app.utils.graceful_shutdown import NoopGracefulShutdownManager
         metrics_service = NoopMetricsService()
-        service = TaskService(metrics_service, max_workers=1, task_timeout=10)
+        shutdown_manager = NoopGracefulShutdownManager()
+        service = TaskService(metrics_service, shutdown_manager, max_workers=1, task_timeout=10)
         yield service
         service.shutdown()
 

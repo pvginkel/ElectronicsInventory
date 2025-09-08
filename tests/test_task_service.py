@@ -21,7 +21,9 @@ class TestTaskService:
     @pytest.fixture
     def task_service(self, mock_metrics_service):
         """Create TaskService instance for testing."""
-        service = TaskService(mock_metrics_service, max_workers=2, task_timeout=10)
+        from app.utils.graceful_shutdown import NoopGracefulShutdownManager
+        shutdown_manager = NoopGracefulShutdownManager()
+        service = TaskService(mock_metrics_service, shutdown_manager, max_workers=2, task_timeout=10)
         yield service
         service.shutdown()
 
@@ -221,8 +223,10 @@ class TestTaskService:
     def test_task_service_shutdown(self):
         """Test TaskService shutdown and cleanup."""
         from app.services.metrics_service import NoopMetricsService
+        from app.utils.graceful_shutdown import NoopGracefulShutdownManager
         metrics_service = NoopMetricsService()
-        service = TaskService(metrics_service, max_workers=1)
+        shutdown_manager = NoopGracefulShutdownManager()
+        service = TaskService(metrics_service, shutdown_manager, max_workers=1)
 
         # Start a task
         task = DemoTask()
@@ -240,8 +244,10 @@ class TestTaskService:
         """Test that completed tasks are automatically cleaned up."""
         # Create service with short cleanup interval for testing
         from app.services.metrics_service import NoopMetricsService
+        from app.utils.graceful_shutdown import NoopGracefulShutdownManager
         metrics_service = NoopMetricsService()
-        service = TaskService(metrics_service, max_workers=1, cleanup_interval=1)
+        shutdown_manager = NoopGracefulShutdownManager()
+        service = TaskService(metrics_service, shutdown_manager, max_workers=1, cleanup_interval=1)
 
         try:
             # Start and complete a task
