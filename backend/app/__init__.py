@@ -49,7 +49,7 @@ def create_app(settings: "Settings | None" = None) -> Flask:
     container = ServiceContainer()
     container.config.override(settings)
     container.session_maker.override(SessionLocal)
-    container.wire(modules=['app.api.ai_parts', 'app.api.parts', 'app.api.boxes', 'app.api.inventory', 'app.api.types', 'app.api.documents', 'app.api.tasks', 'app.api.dashboard', 'app.api.metrics'])
+    container.wire(modules=['app.api.ai_parts', 'app.api.parts', 'app.api.boxes', 'app.api.inventory', 'app.api.types', 'app.api.documents', 'app.api.tasks', 'app.api.dashboard', 'app.api.metrics', 'app.api.health'])
 
     # Register URL interceptors
     registry = container.url_interceptor_registry()

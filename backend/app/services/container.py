@@ -20,6 +20,7 @@ from app.services.task_service import TaskService
 from app.services.test_data_service import TestDataService
 from app.services.type_service import TypeService
 from app.services.url_transformers import LCSCInterceptor, URLInterceptorRegistry
+from app.utils.graceful_shutdown import GracefulShutdownManager
 from app.utils.temp_file_manager import TempFileManager
 
 
@@ -42,6 +43,7 @@ class ServiceContainer(containers.DeclarativeContainer):
     test_data_service = providers.Factory(TestDataService, db=db_session)
 
     # Utility services
+    graceful_shutdown_manager = providers.Singleton(GracefulShutdownManager)
     temp_file_manager = providers.Singleton(
         TempFileManager,
         base_path=config.provided.DOWNLOAD_CACHE_BASE_PATH,
