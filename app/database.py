@@ -1,6 +1,8 @@
 """Database connection and session management."""
 
 import re
+import logging
+
 from pathlib import Path
 
 from sqlalchemy import MetaData, inspect, text
@@ -12,6 +14,8 @@ from alembic.script import ScriptDirectory
 from app.config import get_settings
 from app.extensions import db
 from app.services.setup_service import SetupService
+
+logger = logging.getLogger(__name__)
 
 
 def get_engine() -> Engine:
@@ -37,7 +41,8 @@ def check_db_connection() -> bool:
         # Use Flask-SQLAlchemy's session for the health check
         result = db.session.execute(text("SELECT 1"))
         return result.scalar() == 1
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Checking database connection failed: {e}")
         return False
 
 
