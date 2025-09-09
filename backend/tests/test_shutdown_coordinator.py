@@ -14,7 +14,8 @@ from app.utils.shutdown_coordinator import (
 class TestShutdownCoordinator:
     """Test shutdown coordinator functionality."""
 
-    def test_register_shutdown_notification(self):
+    @patch('sys.exit')
+    def test_register_shutdown_notification(self, mock_exit):
         """Test registering shutdown notification callbacks."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=600)
         coordinator._shutting_down = False  # Reset state
@@ -32,6 +33,8 @@ class TestShutdownCoordinator:
         # Both callbacks should be called
         callback1.assert_called_once()
         callback2.assert_called_once()
+        # Should exit since no server shutdown registered
+        mock_exit.assert_called_once_with(0)
 
     def test_register_shutdown_waiter(self):
         """Test registering shutdown waiter handlers."""
@@ -47,7 +50,8 @@ class TestShutdownCoordinator:
         assert "Service1" in coordinator._shutdown_waiters
         assert "Service2" in coordinator._shutdown_waiters
 
-    def test_is_shutting_down(self):
+    @patch('sys.exit')
+    def test_is_shutting_down(self, mock_exit):
         """Test shutdown state checking."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=600)
         coordinator._shutting_down = False  # Reset state
@@ -57,8 +61,11 @@ class TestShutdownCoordinator:
         coordinator.handle_sigterm(signal.SIGTERM, None)
 
         assert coordinator.is_shutting_down()
+        # Should exit since no server shutdown registered
+        mock_exit.assert_called_once_with(0)
 
-    def test_handle_sigterm_called_once(self):
+    @patch('sys.exit')
+    def test_handle_sigterm_called_once(self, mock_exit):
         """Test that handle_sigterm only processes once."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=600)
         coordinator._shutting_down = False  # Reset state
@@ -73,51 +80,68 @@ class TestShutdownCoordinator:
 
         # Callback should only be called once
         callback.assert_called_once()
+        # Should exit since no server shutdown registered
+        mock_exit.assert_called_once_with(0)
 
-    def test_wait_for_shutdown_all_ready(self):
-        """Test wait_for_shutdown when all services are ready."""
+    def test_handle_sigterm_with_waiters_all_ready(self):
+        """Test handle_sigterm when all waiters are ready."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=600)
-        coordinator._shutting_down = True
+        coordinator._shutting_down = False  # Reset state
         coordinator._shutdown_waiters = {}  # Clear previous registrations
 
         waiter1 = MagicMock(return_value=True)
         waiter2 = MagicMock(return_value=True)
+        server_shutdown = MagicMock()
 
         coordinator.register_shutdown_waiter("Service1", waiter1)
         coordinator.register_shutdown_waiter("Service2", waiter2)
+        coordinator.register_server_shutdown(server_shutdown)
 
-        result = coordinator.wait_for_shutdown(timeout=10)
+        # Trigger shutdown
+        coordinator.handle_sigterm(signal.SIGTERM, None)
 
-        assert result is True
+        # Waiters should be called
         waiter1.assert_called_once()
         waiter2.assert_called_once()
+        # Server shutdown should be called
+        server_shutdown.assert_called_once()
 
-    @patch('os._exit')
-    def test_wait_for_shutdown_timeout(self, mock_exit):
-        """Test wait_for_shutdown when timeout is exceeded."""
-        coordinator = ShutdownCoordinator(graceful_shutdown_timeout=600)
-        coordinator._shutting_down = True
+    @patch('sys.exit')
+    def test_handle_sigterm_with_timeout(self, mock_exit):
+        """Test handle_sigterm when timeout is exceeded."""
+        coordinator = ShutdownCoordinator(graceful_shutdown_timeout=0.1)
+        coordinator._shutting_down = False  # Reset state
         coordinator._shutdown_waiters = {}  # Clear previous registrations
 
         # Waiter that returns False (not ready)
         waiter = MagicMock(return_value=False)
+        server_shutdown = MagicMock()
+        
         coordinator.register_shutdown_waiter("SlowService", waiter)
+        coordinator.register_server_shutdown(server_shutdown)
 
-        coordinator.wait_for_shutdown(timeout=0.1)
+        # Trigger shutdown
+        coordinator.handle_sigterm(signal.SIGTERM, None)
 
-        # Should force exit
-        mock_exit.assert_called_once_with(1)
+        # Server should still be shutdown even with timeout
+        server_shutdown.assert_called_once()
 
-    def test_wait_for_shutdown_not_initiated(self):
-        """Test wait_for_shutdown when shutdown not initiated."""
+    def test_register_server_shutdown(self):
+        """Test registering server shutdown callback."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=600)
-        coordinator._shutting_down = False  # Not shutting down
+        coordinator._shutting_down = False  # Reset state
+        
+        server_shutdown = MagicMock()
+        coordinator.register_server_shutdown(server_shutdown)
 
-        result = coordinator.wait_for_shutdown(timeout=1)
+        # Trigger shutdown
+        coordinator.handle_sigterm(signal.SIGTERM, None)
 
-        assert result is True  # Should return immediately
+        # Server shutdown should be called
+        server_shutdown.assert_called_once()
 
-    def test_notification_exception_handling(self):
+    @patch('sys.exit')  
+    def test_notification_exception_handling(self, mock_exit):
         """Test that exceptions in notifications don't break shutdown."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=600)
         coordinator._shutting_down = False  # Reset state
@@ -135,25 +159,29 @@ class TestShutdownCoordinator:
 
         # Good callback should still be called
         good_callback.assert_called_once()
+        # Should exit since no server shutdown registered
+        mock_exit.assert_called_once_with(0)
 
     def test_waiter_exception_handling(self):
         """Test that exceptions in waiters are handled."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=600)
-        coordinator._shutting_down = True
+        coordinator._shutting_down = False  # Reset state
         coordinator._shutdown_waiters = {}  # Clear previous registrations
 
         # Waiter that raises exception
         bad_waiter = MagicMock(side_effect=Exception("Test error"))
         good_waiter = MagicMock(return_value=True)
+        server_shutdown = MagicMock()
 
         coordinator.register_shutdown_waiter("BadService", bad_waiter)
         coordinator.register_shutdown_waiter("GoodService", good_waiter)
+        coordinator.register_server_shutdown(server_shutdown)
 
-        with patch('os._exit') as mock_exit:
-            coordinator.wait_for_shutdown(timeout=1)
+        # Trigger shutdown
+        coordinator.handle_sigterm(signal.SIGTERM, None)
 
-            # Should force exit due to exception
-            mock_exit.assert_called_once_with(1)
+        # Server should still be shutdown even with exception
+        server_shutdown.assert_called_once()
 
 
 class TestNoopShutdownCoordinator:
@@ -185,16 +213,17 @@ class TestNoopShutdownCoordinator:
 
         assert coordinator.is_shutting_down()
 
-    def test_noop_wait_for_shutdown(self):
-        """Test no-op coordinator wait returns immediately."""
+    def test_noop_register_server_shutdown(self):
+        """Test no-op coordinator accepts server shutdown callback."""
         coordinator = NoopShutdownCoordinator()
+        server_shutdown = MagicMock()
 
-        start_time = time.perf_counter()
-        result = coordinator.wait_for_shutdown(timeout=10)
-        duration = time.perf_counter() - start_time
-
-        assert result is True
-        assert duration < 0.1  # Should return immediately
+        # Should not raise exception
+        coordinator.register_server_shutdown(server_shutdown)
+        
+        # Server shutdown should not be called in noop
+        coordinator.handle_sigterm(signal.SIGTERM, None)
+        server_shutdown.assert_not_called()
 
 
 class TestShutdownIntegration:
@@ -232,21 +261,21 @@ class TestShutdownIntegration:
         coordinator.register_shutdown_waiter("Service1", waiter1)
         coordinator.register_shutdown_waiter("Service2", waiter2)
 
+        # Register server shutdown
+        server_shutdown = MagicMock()
+        coordinator.register_server_shutdown(server_shutdown)
+
         # Initiate shutdown
         coordinator.handle_sigterm(signal.SIGTERM, None)
 
-        # Notifications should be called immediately
+        # All callbacks should have been called
         assert "notify1" in call_order
         assert "notify2" in call_order
-
-        # Wait for shutdown
-        result = coordinator.wait_for_shutdown(timeout=1)
-
-        assert result is True
-
-        # Waiters should be called after notifications
         assert "waiter1" in call_order
         assert "waiter2" in call_order
+        
+        # Server shutdown should be called
+        server_shutdown.assert_called_once()
 
         # Notifications should come before waiters
         notify_indices = [i for i, x in enumerate(call_order) if x.startswith("notify")]
@@ -275,13 +304,18 @@ class TestShutdownIntegration:
         coordinator.register_shutdown_notification(service_notification)
         coordinator.register_shutdown_waiter("BusyService", service_waiter)
 
+        # Register server shutdown
+        server_shutdown_called = threading.Event()
+        def server_shutdown():
+            server_shutdown_called.set()
+        
+        coordinator.register_server_shutdown(server_shutdown)
+
         # Start shutdown in background thread
         def shutdown_thread():
             coordinator.handle_sigterm(signal.SIGTERM, None)
-            return coordinator.wait_for_shutdown(timeout=2)
 
-        shutdown_result = []
-        thread = threading.Thread(target=lambda: shutdown_result.append(shutdown_thread()))
+        thread = threading.Thread(target=shutdown_thread)
         thread.start()
 
         # Simulate work completing after a delay
@@ -291,4 +325,5 @@ class TestShutdownIntegration:
         # Wait for shutdown to complete
         thread.join(timeout=3)
 
-        assert shutdown_result[0] is True
+        # Server shutdown should have been called
+        assert server_shutdown_called.wait(timeout=1)
