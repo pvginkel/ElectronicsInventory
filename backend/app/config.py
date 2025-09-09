@@ -143,6 +143,12 @@ class Settings(BaseSettings):
         description="Metrics background update interval in seconds"
     )
 
+    # Graceful shutdown settings
+    GRACEFUL_SHUTDOWN_TIMEOUT: int = Field(
+        default=600,
+        description="Maximum seconds to wait for tasks during shutdown (10 minutes)"
+    )
+
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         """SQLAlchemy database URI."""

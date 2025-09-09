@@ -1,6 +1,6 @@
 """Dashboard service for aggregating dashboard statistics and data."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
@@ -46,7 +46,7 @@ class DashboardService(BaseService):
         total_types = self.db.execute(types_count_stmt).scalar() or 0
 
         # Count quantity changes in last 7 and 30 days
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         seven_days_ago = now - timedelta(days=7)
         thirty_days_ago = now - timedelta(days=30)
 

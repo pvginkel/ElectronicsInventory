@@ -1,6 +1,6 @@
 """Test dashboard API endpoints."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from flask import Flask
 from flask.testing import FlaskClient
@@ -53,7 +53,7 @@ class TestDashboardAPI:
         history = QuantityHistory(
             part_id=part.id,
             delta_qty=5,
-            timestamp=datetime.now(timezone.utc) - timedelta(days=2),
+            timestamp=datetime.now(UTC) - timedelta(days=2),
             location_reference="1-1"
         )
         session.add(history)
@@ -94,7 +94,7 @@ class TestDashboardAPI:
         history = QuantityHistory(
             part_id=part.id,
             delta_qty=10,
-            timestamp=datetime.now(timezone.utc) - timedelta(hours=2),
+            timestamp=datetime.now(UTC) - timedelta(hours=2),
             location_reference="1-5"
         )
         session.add(history)
@@ -131,7 +131,7 @@ class TestDashboardAPI:
         session.flush()
 
         # Create 5 history entries
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         histories = []
         for i in range(5):
             history = QuantityHistory(
@@ -460,7 +460,7 @@ class TestDashboardAPI:
         history = QuantityHistory(
             part_id=part.id,
             delta_qty=5,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             location_reference="1-1"
         )
         session.add(history)

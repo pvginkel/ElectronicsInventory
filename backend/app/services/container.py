@@ -12,7 +12,11 @@ from app.services.download_cache_service import DownloadCacheService
 from app.services.html_document_handler import HtmlDocumentHandler
 from app.services.image_service import ImageService
 from app.services.inventory_service import InventoryService
-from app.services.metrics_service import MetricsService, NoopMetricsService, MetricsServiceProtocol
+from app.services.metrics_service import (
+    MetricsService,
+    MetricsServiceProtocol,
+    NoopMetricsService,
+)
 from app.services.part_service import PartService
 from app.services.s3_service import S3Service
 from app.services.setup_service import SetupService
@@ -20,6 +24,11 @@ from app.services.task_service import TaskService
 from app.services.test_data_service import TestDataService
 from app.services.type_service import TypeService
 from app.services.url_transformers import LCSCInterceptor, URLInterceptorRegistry
+from app.utils.shutdown_coordinator import (
+    NoopShutdownCoordinator,
+    ShutdownCoordinator,
+    ShutdownCoordinatorProtocol,
+)
 from app.utils.temp_file_manager import TempFileManager
 
 
@@ -41,11 +50,26 @@ class ServiceContainer(containers.DeclarativeContainer):
     setup_service = providers.Factory(SetupService, db=db_session)
     test_data_service = providers.Factory(TestDataService, db=db_session)
 
+    # Shutdown coordinator - Singleton for managing graceful shutdown
+    @staticmethod
+    def make_shutdown_coordinator(flask_env: str, graceful_shutdown_timeout: int) -> ShutdownCoordinatorProtocol:
+        if flask_env == "testing":
+            return NoopShutdownCoordinator()
+        else:
+            return ShutdownCoordinator(graceful_shutdown_timeout=graceful_shutdown_timeout)
+
+    shutdown_coordinator = providers.Singleton(
+        make_shutdown_coordinator,
+        flask_env=config.provided.FLASK_ENV,
+        graceful_shutdown_timeout=config.provided.GRACEFUL_SHUTDOWN_TIMEOUT,
+    )
+
     # Utility services
     temp_file_manager = providers.Singleton(
         TempFileManager,
         base_path=config.provided.DOWNLOAD_CACHE_BASE_PATH,
-        cleanup_age_hours=config.provided.DOWNLOAD_CACHE_CLEANUP_HOURS
+        cleanup_age_hours=config.provided.DOWNLOAD_CACHE_CLEANUP_HOURS,
+        shutdown_coordinator=shutdown_coordinator
     )
     download_cache_service = providers.Factory(
         DownloadCacheService,
@@ -71,9 +95,9 @@ class ServiceContainer(containers.DeclarativeContainer):
 
     # Metrics service - Singleton for background thread management
     @staticmethod
-    def make_metrics_service(enabled: bool, container: 'ServiceContainer') -> MetricsServiceProtocol:
+    def make_metrics_service(enabled: bool, container: 'ServiceContainer', shutdown_coordinator: ShutdownCoordinatorProtocol) -> MetricsServiceProtocol:
         if enabled:
-            return MetricsService(container=container)
+            return MetricsService(container=container, shutdown_coordinator=shutdown_coordinator)
         else:
             return NoopMetricsService()
 
@@ -81,6 +105,7 @@ class ServiceContainer(containers.DeclarativeContainer):
         make_metrics_service,
         enabled=config.provided.METRICS_ENABLED,
         container=providers.Self(),
+        shutdown_coordinator=shutdown_coordinator,
     )
 
     # URL interceptor registry with LCSC interceptor
@@ -112,6 +137,7 @@ class ServiceContainer(containers.DeclarativeContainer):
     task_service = providers.Singleton(
         TaskService,
         metrics_service=metrics_service,
+        shutdown_coordinator=shutdown_coordinator,
         max_workers=config.provided.TASK_MAX_WORKERS,
         task_timeout=config.provided.TASK_TIMEOUT_SECONDS,
         cleanup_interval=config.provided.TASK_CLEANUP_INTERVAL_SECONDS

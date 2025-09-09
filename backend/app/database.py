@@ -1,8 +1,7 @@
 """Database connection and session management."""
 
-import re
 import logging
-
+import re
 from pathlib import Path
 
 from sqlalchemy import MetaData, inspect, text
