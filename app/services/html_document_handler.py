@@ -183,24 +183,19 @@ class HtmlDocumentHandler:
 
             # Check content type with magic
             content_type = magic.from_buffer(content, mime=True)
-            logger.info("1")
+
             # If it's not in allowed types but magic detected it as an image, try to convert it
             if content_type not in self.settings.ALLOWED_IMAGE_TYPES:
-                logger.info("2")
                 # Only try conversion if magic detected it as an image
                 if content_type.startswith('image/'):
-                    logger.info("3")
                     # Try to convert to PNG
                     conversion_result = self.image_service.convert_image_to_png(content)
                     if conversion_result:
-                        logger.info("4")
                         content = conversion_result.content
                         content_type = conversion_result.content_type
                     else:
-                        logger.info("5")
                         return None  # Conversion failed
                 else:
-                    logger.info("6")
                     return None  # Not an image at all
 
             # Skip videos and GIFs (simplified checking)

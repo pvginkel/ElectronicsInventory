@@ -172,6 +172,23 @@ poetry run pytest          # Full test suite
 ### Type Hints
 - Use type hints for all function parameters and return types
 
+### Time Measurements
+- **NEVER use `time.time()` for measuring durations or relative time**
+- Always use `time.perf_counter()` for duration measurements and performance timing
+- `time.time()` is only appropriate for absolute timestamps (e.g., logging when something occurred)
+- Example:
+  ```python
+  # WRONG - time.time() can be affected by system clock adjustments
+  start = time.time()
+  do_work()
+  duration = time.time() - start
+  
+  # CORRECT - perf_counter() is monotonic and precise
+  start = time.perf_counter()
+  do_work()
+  duration = time.perf_counter() - start
+  ```
+
 ### Error Handling Philosophy
 - **Fail fast and fail often** - Don't swallow exceptions or hide errors from users
 - Use custom exceptions from `app.exceptions`
