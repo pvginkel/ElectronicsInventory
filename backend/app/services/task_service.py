@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 from queue import Empty, Queue
 from typing import Any
 
-from app.exceptions import InvalidOperationException
 from app.schemas.task_schema import (
     TaskEvent,
     TaskEventType,
@@ -19,7 +18,6 @@ from app.schemas.task_schema import (
 )
 from app.services.base_task import BaseTask
 from app.services.metrics_service import MetricsServiceProtocol
-from app.utils.graceful_shutdown import GracefulShutdownManagerProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +67,6 @@ class TaskService:
     def __init__(
         self, 
         metrics_service: MetricsServiceProtocol,
-        shutdown_manager: GracefulShutdownManagerProtocol,
         max_workers: int = 4, 
         task_timeout: int = 300, 
         cleanup_interval: int = 600
@@ -77,17 +74,15 @@ class TaskService:
         """Initialize TaskService with configurable parameters.
 
         Args:
-            metrics_service: Instance of MetricsService for recording metrics
-            shutdown_manager: Instance of GracefulShutdownManager for draining checks
             max_workers: Maximum number of concurrent tasks
             task_timeout: Task execution timeout in seconds
             cleanup_interval: How often to clean up completed tasks in seconds
+            metrics_service: Instance of MetricsService for recording metrics
         """
         self.max_workers = max_workers
         self.task_timeout = task_timeout
         self.cleanup_interval = cleanup_interval  # 10 minutes in seconds
         self.metrics_service = metrics_service
-        self.shutdown_manager = shutdown_manager
         self._tasks: dict[str, TaskInfo] = {}
         self._task_instances: dict[str, BaseTask] = {}
         self._event_queues: dict[str, Queue] = {}
@@ -111,14 +106,7 @@ class TaskService:
 
         Returns:
             TaskStartResponse with task ID and SSE stream URL
-
-        Raises:
-            InvalidOperationException: If service is draining
         """
-        # Check if service is draining
-        if self.shutdown_manager.is_draining():
-            raise InvalidOperationException("start task", "service is draining")
-
         task_id = str(uuid.uuid4())
 
         with self._lock:
@@ -149,12 +137,6 @@ class TaskService:
         """Get current status of a task."""
         with self._lock:
             return self._tasks.get(task_id)
-
-    def get_active_task_count(self) -> int:
-        """Return the number of running tasks."""
-        with self._lock:
-            return sum(1 for task_info in self._tasks.values()
-                      if task_info.status in [TaskStatus.PENDING, TaskStatus.RUNNING])
 
     def cancel_task(self, task_id: str) -> bool:
         """
@@ -367,57 +349,23 @@ class TaskService:
         for task_id in tasks_to_remove:
             self.remove_completed_task(task_id)
 
-    def shutdown(self, timeout: int = 600) -> None:
-        """
-        Shutdown the task service and cleanup resources.
-
-        Args:
-            timeout: Maximum time to wait for running tasks in seconds
-        """
+    def shutdown(self) -> None:
+        """Shutdown the task service and cleanup resources."""
         logger.info("Shutting down TaskService...")
-
-        # Start shutdown duration timer
-        shutdown_start_time = time.perf_counter()
-
-        # Wait for active tasks to complete
-        start_time = time.time()
-        while True:
-            active_count = self.get_active_task_count()
-
-            # Update active task metrics
-            self.metrics_service.update_task_metrics(active_count)
-
-            if active_count == 0:
-                logger.info("All tasks completed during graceful shutdown")
-                break
-
-            elapsed = time.time() - start_time
-            if elapsed >= timeout:
-                logger.warning(f"Graceful shutdown timeout reached. Force-cancelling {active_count} remaining tasks")
-                # Force-cancel remaining tasks
-                with self._lock:
-                    for task_id, task_info in self._tasks.items():
-                        if task_info.status in [TaskStatus.PENDING, TaskStatus.RUNNING]:
-                            task_instance = self._task_instances.get(task_id)
-                            if task_instance:
-                                task_instance.cancel()
-                                task_info.status = TaskStatus.CANCELLED
-                                task_info.end_time = datetime.now(timezone.utc)
-                                logger.info(f"Force-cancelled task {task_id}")
-                break
-
-            logger.debug(f"Waiting for {active_count} tasks to complete ({elapsed:.1f}s elapsed)")
-            time.sleep(1)
 
         # Signal cleanup thread to stop
         self._shutdown_event.set()
         if self._cleanup_thread.is_alive():
             self._cleanup_thread.join(timeout=5.0)
 
-        # Shutdown executor with limited wait time
-        self._executor.shutdown(wait=False)
+        self._executor.shutdown(wait=True)
 
         with self._lock:
+            active_tasks = sum(1 for t in self._tasks.values()
+                             if t.status in [TaskStatus.PENDING, TaskStatus.RUNNING])
+            if active_tasks > 0:
+                logger.warning(f"Shutting down with {active_tasks} active tasks")
+
             # Clear all event queues
             for queue in self._event_queues.values():
                 try:
@@ -429,9 +377,5 @@ class TaskService:
             self._tasks.clear()
             self._task_instances.clear()
             self._event_queues.clear()
-
-        # Record shutdown duration in Prometheus histogram
-        shutdown_duration = time.perf_counter() - shutdown_start_time
-        self.metrics_service.record_shutdown_duration(shutdown_duration)
 
         logger.info("TaskService shutdown complete")

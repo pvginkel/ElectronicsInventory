@@ -52,21 +52,6 @@ class MetricsServiceProtocol(ABC):
         pass
 
     @abstractmethod
-    def update_task_metrics(self, active_tasks: int):
-        """Update task-related metrics."""
-        pass
-
-    @abstractmethod
-    def set_draining_state(self, is_draining: bool):
-        """Set the draining state metric."""
-        pass
-
-    @abstractmethod
-    def record_shutdown_duration(self, duration: float):
-        """Record graceful shutdown duration."""
-        pass
-
-    @abstractmethod
     def record_ai_analysis(
         self,
         status: str,
@@ -132,18 +117,6 @@ class NoopMetricsService(MetricsServiceProtocol):
 
     def record_task_execution(self, task_type: str, duration: float, status: str):
         """No-op task execution recording."""
-        pass
-
-    def update_task_metrics(self, active_tasks: int):
-        """No-op task metrics update."""
-        pass
-
-    def set_draining_state(self, is_draining: bool):
-        """No-op draining state update."""
-        pass
-
-    def record_shutdown_duration(self, duration: float):
-        """No-op shutdown duration recording."""
         pass
 
     def record_ai_analysis(
@@ -281,29 +254,13 @@ class MetricsService(MetricsServiceProtocol):
             ['model', 'verbosity', 'reasoning_effort']
         )
 
-        # Task Shutdown Metrics
-        self.task_active_executions = Gauge(
-            'task_active_executions',
-            'Current running tasks'
-        )
-
-        self.task_draining_state = Gauge(
-            'task_draining_state',
-            'Whether application is draining (1=draining, 0=normal)'
-        )
-
-        self.task_graceful_shutdown_duration_seconds = Histogram(
-            'task_graceful_shutdown_duration_seconds',
-            'Duration of graceful shutdowns'
-        )
-
     def update_inventory_metrics(self):
         """Update inventory-related gauges with current database values."""
         if not self.container:
             return
 
         session = self.container.db_session()
-
+        
         try:
             dashboard_service = self.container.dashboard_service()
 
@@ -318,13 +275,13 @@ class MetricsService(MetricsServiceProtocol):
             # Get parts without documents count
             undocumented = dashboard_service.get_parts_without_documents()
             self.inventory_parts_without_docs.set(undocumented['count'])
-
+            
             session.commit()
 
         except Exception as e:
             session.rollback()
             logger.error(f"Error updating inventory metrics: {e}")
-
+            
         finally:
             self.container.db_session.reset()
 
@@ -334,7 +291,7 @@ class MetricsService(MetricsServiceProtocol):
             return
 
         session = self.container.db_session()
-
+        
         try:
             dashboard_service = self.container.dashboard_service()
 
@@ -373,7 +330,7 @@ class MetricsService(MetricsServiceProtocol):
             return
 
         session = self.container.db_session()
-
+        
         try:
             dashboard_service = self.container.dashboard_service()
 
@@ -420,39 +377,6 @@ class MetricsService(MetricsServiceProtocol):
         # Note: Task metrics would need additional metric definitions
         # This is a placeholder for task service integration
         pass
-
-    def update_task_metrics(self, active_tasks: int):
-        """Update task-related metrics.
-
-        Args:
-            active_tasks: Current number of running tasks
-        """
-        try:
-            self.task_active_executions.set(active_tasks)
-        except Exception as e:
-            logger.error(f"Error updating task metrics: {e}")
-
-    def set_draining_state(self, is_draining: bool):
-        """Set the draining state metric.
-
-        Args:
-            is_draining: Whether application is draining
-        """
-        try:
-            self.task_draining_state.set(1 if is_draining else 0)
-        except Exception as e:
-            logger.error(f"Error updating draining state metric: {e}")
-
-    def record_shutdown_duration(self, duration: float):
-        """Record graceful shutdown duration.
-
-        Args:
-            duration: Shutdown duration in seconds
-        """
-        try:
-            self.task_graceful_shutdown_duration_seconds.observe(duration)
-        except Exception as e:
-            logger.error(f"Error recording shutdown duration: {e}")
 
     def record_ai_analysis(
         self,
