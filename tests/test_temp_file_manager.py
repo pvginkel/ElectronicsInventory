@@ -3,11 +3,26 @@
 import json
 import tempfile
 import time
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
 from app.utils.temp_file_manager import CachedContent, TempFileManager
+from app.utils.shutdown_coordinator import NoopShutdownCoordinator
+
+
+@contextmanager  
+def make_temp_file_manager(cleanup_age_hours: float = 1.0):
+    """Context manager to create a TempFileManager with temporary directory."""
+    # This line is OK because we're creating the temp directory for the helper
+    with tempfile.TemporaryDirectory() as temp_base:  
+        manager = TempFileManager(
+            base_path=temp_base,
+            cleanup_age_hours=cleanup_age_hours,
+            shutdown_coordinator=NoopShutdownCoordinator()
+        )
+        yield manager
 
 
 class TestTempFileManager:
@@ -15,16 +30,14 @@ class TestTempFileManager:
 
     def test_create_temp_directory(self):
         """Test creating temporary directories."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base, cleanup_age_hours=1.0)
-
+        with make_temp_file_manager(cleanup_age_hours=1.0) as manager:
             # Create a temporary directory
             temp_dir = manager.create_temp_directory()
 
             # Check that directory exists and is within base path
             assert temp_dir.exists()
             assert temp_dir.is_dir()
-            assert temp_base in str(temp_dir)
+            assert str(manager.base_path) in str(temp_dir)
 
             # Check directory name format (timestamp_uuid)
             dir_name = temp_dir.name
@@ -36,8 +49,7 @@ class TestTempFileManager:
 
     def test_cleanup_old_files(self):
         """Test cleanup of old temporary files."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base, cleanup_age_hours=0.001)  # 3.6 seconds
+        with make_temp_file_manager(cleanup_age_hours=0.001) as manager:  # 3.6 seconds
 
             # Create some temporary directories
             temp_dir1 = manager.create_temp_directory()
@@ -65,8 +77,7 @@ class TestTempFileManager:
 
     def test_cleanup_thread_lifecycle(self):
         """Test starting and stopping cleanup thread."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base)
+        with make_temp_file_manager(cleanup_age_hours=1.0) as manager:
 
             # Start cleanup thread
             manager.start_cleanup_thread()
@@ -85,7 +96,7 @@ class TestTempFileManager:
         """Test cleanup when base directory is deleted after creation."""
         with tempfile.TemporaryDirectory() as temp_base:
             nested_path = str(Path(temp_base) / "ai_analysis")
-            manager = TempFileManager(base_path=nested_path)
+            manager = TempFileManager(base_path=nested_path, cleanup_age_hours=1.0, shutdown_coordinator=NoopShutdownCoordinator())
 
             # Remove the base directory to simulate it being deleted
             import shutil
@@ -97,8 +108,7 @@ class TestTempFileManager:
 
     def test_multiple_temp_directories_different_timestamps(self):
         """Test creating multiple temp directories with unique names."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base)
+        with make_temp_file_manager(cleanup_age_hours=1.0) as manager:
 
             # Create multiple directories rapidly
             dirs = [manager.create_temp_directory() for _ in range(5)]
@@ -120,14 +130,13 @@ class TestTempFileManager:
             assert not Path(base_path).exists()
 
             # Creating manager should create the path
-            TempFileManager(base_path=base_path)
+            TempFileManager(base_path=base_path, cleanup_age_hours=1.0, shutdown_coordinator=NoopShutdownCoordinator())
             assert Path(base_path).exists()
 
     @patch('app.utils.temp_file_manager.logger')
     def test_cleanup_error_handling(self, mock_logger):
         """Test error handling during cleanup."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base, cleanup_age_hours=0.001)
+        with make_temp_file_manager(cleanup_age_hours=0.001) as manager:
 
             # Create a temporary directory
             manager.create_temp_directory()
@@ -145,8 +154,7 @@ class TestTempFileManager:
 
     def test_url_to_path(self):
         """Test URL to cache path conversion."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base)
+        with make_temp_file_manager(cleanup_age_hours=1.0) as manager:
 
             url1 = "https://example.com/test.pdf"
             url2 = "https://different.com/test.pdf"
@@ -166,8 +174,7 @@ class TestTempFileManager:
 
     def test_cache_and_get_cached(self):
         """Test caching and retrieving URL content."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base, cleanup_age_hours=1.0)
+        with make_temp_file_manager(cleanup_age_hours=1.0) as manager:
 
             url = "https://example.com/test.txt"
             content = b"test content for caching"
@@ -187,8 +194,7 @@ class TestTempFileManager:
 
     def test_cache_and_get_different_urls(self):
         """Test that different URLs have separate cache entries."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base, cleanup_age_hours=1.0)
+        with make_temp_file_manager(cleanup_age_hours=1.0) as manager:
 
             url1 = "https://example.com/file1.txt"
             url2 = "https://example.com/file2.txt"
@@ -210,8 +216,7 @@ class TestTempFileManager:
 
     def test_get_cached_nonexistent(self):
         """Test retrieving from cache when content doesn't exist."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base)
+        with make_temp_file_manager(cleanup_age_hours=1.0) as manager:
 
             # Should return None for non-existent URL
             cached = manager.get_cached("https://example.com/nonexistent.txt")
@@ -219,9 +224,8 @@ class TestTempFileManager:
 
     def test_get_cached_expired(self):
         """Test that expired cache entries return None."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            # Very short cleanup age for testing
-            manager = TempFileManager(base_path=temp_base, cleanup_age_hours=0.001)  # ~3.6 seconds
+        # Very short cleanup age for testing
+        with make_temp_file_manager(cleanup_age_hours=0.001) as manager:  # ~3.6 seconds
 
             url = "https://example.com/expires.txt"
             content = b"content that will expire"
@@ -243,8 +247,7 @@ class TestTempFileManager:
 
     def test_cache_metadata_format(self):
         """Test that cache metadata is stored correctly."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base)
+        with make_temp_file_manager(cleanup_age_hours=1.0) as manager:
 
             url = "https://example.com/metadata-test.pdf"
             content = b"PDF content for metadata test"
@@ -274,8 +277,7 @@ class TestTempFileManager:
 
     def test_cache_file_storage(self):
         """Test that cache files are stored correctly."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base)
+        with make_temp_file_manager(cleanup_age_hours=1.0) as manager:
 
             url = "https://example.com/binary-test.bin"
             content = b"\x00\x01\x02\x03\xFF\xFE\xFD"  # Binary content
@@ -298,8 +300,7 @@ class TestTempFileManager:
 
     def test_get_cached_corrupt_metadata(self):
         """Test handling of corrupted metadata files."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base)
+        with make_temp_file_manager(cleanup_age_hours=1.0) as manager:
 
             url = "https://example.com/corrupt-test.txt"
             cache_key = manager._url_to_path(url)
@@ -320,8 +321,7 @@ class TestTempFileManager:
 
     def test_get_cached_missing_content_file(self):
         """Test handling when content file is missing but metadata exists."""
-        with tempfile.TemporaryDirectory() as temp_base:
-            manager = TempFileManager(base_path=temp_base)
+        with make_temp_file_manager(cleanup_age_hours=1.0) as manager:
 
             url = "https://example.com/missing-content.txt"
             cache_key = manager._url_to_path(url)
@@ -350,7 +350,7 @@ class TestTempFileManager:
             assert not cache_path.exists()
 
             # Creating manager should create cache directory
-            manager = TempFileManager(base_path=temp_base)
+            manager = TempFileManager(base_path=temp_base, cleanup_age_hours=1.0, shutdown_coordinator=NoopShutdownCoordinator())
             assert manager.cache_path.exists()
             assert manager.cache_path.is_dir()
             assert str(manager.cache_path).endswith("download_cache")

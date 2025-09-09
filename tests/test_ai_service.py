@@ -16,6 +16,7 @@ from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
 from app.services.type_service import TypeService
 from app.utils.temp_file_manager import TempFileManager
+from app.utils.shutdown_coordinator import NoopShutdownCoordinator
 
 
 @pytest.fixture
@@ -36,7 +37,11 @@ def ai_test_settings() -> Settings:
 def temp_file_manager() -> Generator[TempFileManager, None, None]:
     """Create temporary file manager for testing."""
     with tempfile.TemporaryDirectory() as temp_dir:
-        yield TempFileManager(base_path=temp_dir, cleanup_age_hours=1.0)
+        yield TempFileManager(
+            base_path=temp_dir, 
+            cleanup_age_hours=1.0,
+            shutdown_coordinator=NoopShutdownCoordinator()
+        )
 
 
 @pytest.fixture

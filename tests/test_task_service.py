@@ -7,6 +7,7 @@ import pytest
 
 from app.schemas.task_schema import TaskEventType, TaskStatus
 from app.services.task_service import TaskProgressHandle, TaskService
+from app.utils.shutdown_coordinator import NoopShutdownCoordinator
 from tests.test_tasks.test_task import DemoTask, FailingTask, LongRunningTask
 
 
@@ -20,9 +21,19 @@ class TestTaskService:
         return NoopMetricsService()
 
     @pytest.fixture
-    def task_service(self, mock_metrics_service):
+    def mock_shutdown_coordinator(self):
+        """Create mock shutdown coordinator."""
+        return NoopShutdownCoordinator()
+
+    @pytest.fixture
+    def task_service(self, mock_metrics_service, mock_shutdown_coordinator):
         """Create TaskService instance for testing."""
-        service = TaskService(mock_metrics_service, max_workers=2, task_timeout=10)
+        service = TaskService(
+            mock_metrics_service, 
+            mock_shutdown_coordinator,
+            max_workers=2, 
+            task_timeout=10
+        )
         yield service
         service.shutdown()
 
@@ -223,7 +234,8 @@ class TestTaskService:
         """Test TaskService shutdown and cleanup."""
         from app.services.metrics_service import NoopMetricsService
         metrics_service = NoopMetricsService()
-        service = TaskService(metrics_service, max_workers=1)
+        shutdown_coordinator = NoopShutdownCoordinator()
+        service = TaskService(metrics_service, shutdown_coordinator, max_workers=1)
 
         # Start a task
         task = DemoTask()
@@ -242,7 +254,8 @@ class TestTaskService:
         # Create service with short cleanup interval for testing
         from app.services.metrics_service import NoopMetricsService
         metrics_service = NoopMetricsService()
-        service = TaskService(metrics_service, max_workers=1, cleanup_interval=1)
+        shutdown_coordinator = NoopShutdownCoordinator()
+        service = TaskService(metrics_service, shutdown_coordinator, max_workers=1, cleanup_interval=1)
 
         try:
             # Start and complete a task
