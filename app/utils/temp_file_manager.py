@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 from uuid import uuid4
 
+from app.utils.shutdown_coordinator import LifetimeEvent
+
 if TYPE_CHECKING:
     from app.utils.shutdown_coordinator import ShutdownCoordinatorProtocol
 
@@ -58,7 +60,7 @@ class TempFileManager:
         self.cache_path.mkdir(parents=True, exist_ok=True)
 
         # Register shutdown notification
-        self.shutdown_coordinator.register_shutdown_notification(self._on_shutdown_initiated)
+        self.shutdown_coordinator.register_lifetime_notification(self._on_lifetime_event)
 
     def start_cleanup_thread(self) -> None:
         """Start the background cleanup thread."""
@@ -69,7 +71,7 @@ class TempFileManager:
             self._cleanup_thread.start()
             logger.info("Started temporary file cleanup thread")
 
-    def stop_cleanup_thread(self) -> None:
+    def _stop_cleanup_thread(self) -> None:
         """Stop the background cleanup thread."""
         self._shutdown_event.set()
         if self._cleanup_thread and self._cleanup_thread.is_alive():
@@ -241,8 +243,8 @@ class TempFileManager:
             logger.error(f"Failed to cache content for {url}: {e}")
             return False
 
-    def _on_shutdown_initiated(self) -> None:
-        """Callback when shutdown is initiated."""
-        logger.info("TempFileManager notified of shutdown, stopping cleanup thread")
-        self.stop_cleanup_thread()
-
+    def _on_lifetime_event(self, event: LifetimeEvent) -> None:
+        match event:
+            case LifetimeEvent.SHUTDOWN:
+                """Callback when shutdown is initiated."""
+                self._stop_cleanup_thread()

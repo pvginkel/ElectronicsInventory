@@ -19,7 +19,7 @@ from app.schemas.task_schema import (
 )
 from app.services.base_task import BaseTask
 from app.services.metrics_service import MetricsServiceProtocol
-from app.utils.shutdown_coordinator import ShutdownCoordinatorProtocol
+from app.utils.shutdown_coordinator import LifetimeEvent, ShutdownCoordinatorProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ class TaskService:
         self._tasks_complete_event = threading.Event()
 
         # Register with shutdown coordinator
-        self.shutdown_coordinator.register_shutdown_notification(self._on_shutdown_initiated)
+        self.shutdown_coordinator.register_lifetime_notification(self._on_lifetime_event)
         self.shutdown_coordinator.register_shutdown_waiter("TaskService", self._wait_for_tasks_completion)
 
         # Start cleanup thread
@@ -373,7 +373,7 @@ class TaskService:
         for task_id in tasks_to_remove:
             self.remove_completed_task(task_id)
 
-    def shutdown(self) -> None:
+    def _shutdown(self) -> None:
         """Shutdown the task service and cleanup resources."""
         logger.info("Shutting down TaskService...")
 
@@ -404,19 +404,20 @@ class TaskService:
 
         logger.info("TaskService shutdown complete")
 
-    def _on_shutdown_initiated(self) -> None:
+    def _on_lifetime_event(self, event: LifetimeEvent) -> None:
         """Callback when shutdown is initiated."""
-        with self._lock:
-            self._shutting_down = True
-            active_count = self._get_active_task_count()
-            logger.info(f"TaskService shutdown initiated with {active_count} active tasks")
+        match event:
+            case LifetimeEvent.PREPARE_SHUTDOWN:
+                with self._lock:
+                    self._shutting_down = True
+                    active_count = self._get_active_task_count()
+                    logger.info(f"TaskService shutdown initiated with {active_count} active tasks")
 
-            # Record active tasks at shutdown in metrics
-            self.metrics_service.record_active_tasks_at_shutdown(active_count)
+                    # Record active tasks at shutdown in metrics
+                    self.metrics_service.record_active_tasks_at_shutdown(active_count)
 
-            # If no active tasks, signal immediately
-            if active_count == 0:
-                self._tasks_complete_event.set()
+            case LifetimeEvent.SHUTDOWN:
+                self._shutdown()
 
     def _wait_for_tasks_completion(self, timeout: float) -> bool:
         """Wait for all tasks to complete within timeout.

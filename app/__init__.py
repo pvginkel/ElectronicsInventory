@@ -113,21 +113,4 @@ def create_app(settings: "Settings | None" = None) -> App:
         except Exception as e:
             app.logger.warning(f"Failed to start metrics collection: {e}")
 
-    @app.teardown_appcontext
-    def stop_background_services(error):
-        """Stop background threads on app teardown."""
-        if hasattr(app, 'container'):
-            # Stop temp file cleanup thread
-            temp_file_manager = app.container.temp_file_manager()
-            temp_file_manager.stop_cleanup_thread()
-
-            # Stop metrics collection if enabled
-            if settings.METRICS_ENABLED:
-                try:
-                    metrics_service = app.container.metrics_service()
-                    metrics_service.stop_background_updater()
-                    app.logger.info("Metrics collection stopped")
-                except Exception as e:
-                    app.logger.warning(f"Failed to stop metrics collection: {e}")
-
     return app

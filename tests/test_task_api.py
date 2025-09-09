@@ -196,7 +196,7 @@ class TestTaskAPIIntegration:
         shutdown_coordinator = NoopShutdownCoordinator()
         service = TaskService(metrics_service, shutdown_coordinator, max_workers=1, task_timeout=10)
         yield service
-        service.shutdown()
+        service._shutdown()
 
     def test_full_task_lifecycle_via_api(self, client, app, real_task_service):
         """Test complete task lifecycle through API endpoints."""
