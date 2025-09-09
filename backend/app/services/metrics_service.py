@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 
+from app.utils.shutdown_coordinator import LifetimeEvent
+
 if TYPE_CHECKING:
     from app.services.container import ServiceContainer
     from app.utils.shutdown_coordinator import ShutdownCoordinatorProtocol
@@ -73,11 +75,6 @@ class MetricsServiceProtocol(ABC):
     @abstractmethod
     def start_background_updater(self, interval_seconds: int = 60):
         """Start background metric updater."""
-        pass
-
-    @abstractmethod
-    def stop_background_updater(self):
-        """Stop background metric updater."""
         pass
 
     @abstractmethod
@@ -156,10 +153,6 @@ class NoopMetricsService(MetricsServiceProtocol):
         """No-op background updater start."""
         pass
 
-    def stop_background_updater(self):
-        """No-op background updater stop."""
-        pass
-
     def get_metrics_text(self) -> str:
         """Return empty metrics text."""
         return ""
@@ -199,7 +192,7 @@ class MetricsService(MetricsServiceProtocol):
         self._updater_thread = None
 
         # Register shutdown notification
-        self.shutdown_coordinator.register_shutdown_notification(self._on_shutdown_initiated)
+        self.shutdown_coordinator.register_lifetime_notification(self._on_lifetime_event)
 
     def initialize_metrics(self):
         """Define all Prometheus metric objects."""
@@ -533,7 +526,7 @@ class MetricsService(MetricsServiceProtocol):
         )
         self._updater_thread.start()
 
-    def stop_background_updater(self):
+    def _stop_background_updater(self):
         """Stop the background metric updater thread."""
         self._stop_event.set()
         if self._updater_thread:
@@ -600,13 +593,16 @@ class MetricsService(MetricsServiceProtocol):
         except Exception as e:
             logger.error(f"Error recording active tasks at shutdown: {e}")
 
-    def _on_shutdown_initiated(self) -> None:
-        """Callback when shutdown is initiated."""
-        logger.info("MetricsService notified of shutdown, stopping background updater")
-        self.set_shutdown_state(True)
-        self.stop_background_updater()
+    def _on_lifetime_event(self, event: LifetimeEvent) -> None:
+        """Callback when shutdown lifetime events are raised."""
+        match event:
+            case LifetimeEvent.PREPARE_SHUTDOWN:
+                self.set_shutdown_state(True)
 
-        # Record shutdown duration when shutdown completes
-        if self._shutdown_start_time:
-            duration = time.perf_counter() - self._shutdown_start_time
-            self.record_shutdown_duration(duration)
+            case LifetimeEvent.SHUTDOWN:
+                self._stop_background_updater()
+
+                # Record shutdown duration when shutdown completes
+                if self._shutdown_start_time:
+                    duration = time.perf_counter() - self._shutdown_start_time
+                    self.record_shutdown_duration(duration)

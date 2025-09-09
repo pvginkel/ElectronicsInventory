@@ -24,8 +24,8 @@ class TestShutdownCoordinator:
         callback1 = MagicMock()
         callback2 = MagicMock()
 
-        coordinator.register_shutdown_notification(callback1)
-        coordinator.register_shutdown_notification(callback2)
+        coordinator.register_lifetime_notification(callback1)
+        coordinator.register_lifetime_notification(callback2)
 
         # Trigger shutdown
         coordinator.handle_sigterm(signal.SIGTERM, None)
@@ -72,7 +72,7 @@ class TestShutdownCoordinator:
         coordinator._shutdown_notifications = []  # Clear previous registrations
 
         callback = MagicMock()
-        coordinator.register_shutdown_notification(callback)
+        coordinator.register_lifetime_notification(callback)
 
         # Call handle_sigterm twice
         coordinator.handle_sigterm(signal.SIGTERM, None)
@@ -151,8 +151,8 @@ class TestShutdownCoordinator:
         bad_callback = MagicMock(side_effect=Exception("Test error"))
         good_callback = MagicMock()
 
-        coordinator.register_shutdown_notification(bad_callback)
-        coordinator.register_shutdown_notification(good_callback)
+        coordinator.register_lifetime_notification(bad_callback)
+        coordinator.register_lifetime_notification(good_callback)
 
         # Should not raise exception
         coordinator.handle_sigterm(signal.SIGTERM, None)
@@ -193,7 +193,7 @@ class TestNoopShutdownCoordinator:
         callback = MagicMock()
 
         # Should not raise exception
-        coordinator.register_shutdown_notification(callback)
+        coordinator.register_lifetime_notification(callback)
 
     def test_noop_register_waiter(self):
         """Test that no-op coordinator accepts waiters."""
@@ -256,8 +256,8 @@ class TestShutdownIntegration:
             return True
 
         # Register callbacks
-        coordinator.register_shutdown_notification(notify1)
-        coordinator.register_shutdown_notification(notify2)
+        coordinator.register_lifetime_notification(notify1)
+        coordinator.register_lifetime_notification(notify2)
         coordinator.register_shutdown_waiter("Service1", waiter1)
         coordinator.register_shutdown_waiter("Service2", waiter2)
 
@@ -301,7 +301,7 @@ class TestShutdownIntegration:
             # Wait for work to complete
             return work_complete.wait(timeout=timeout)
 
-        coordinator.register_shutdown_notification(service_notification)
+        coordinator.register_lifetime_notification(service_notification)
         coordinator.register_shutdown_waiter("BusyService", service_waiter)
 
         # Register server shutdown

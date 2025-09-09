@@ -1,5 +1,6 @@
 """Graceful shutdown coordinator for managing service shutdowns in Kubernetes."""
 
+from enum import Enum
 import logging
 import os
 import sys
@@ -11,11 +12,16 @@ from collections.abc import Callable
 logger = logging.getLogger(__name__)
 
 
+class LifetimeEvent(str, Enum):
+    PREPARE_SHUTDOWN = "prepare-shutdown"
+    SHUTDOWN = "shutdown"
+
+
 class ShutdownCoordinatorProtocol(ABC):
     """Protocol for shutdown coordinator implementations."""
 
     @abstractmethod
-    def register_shutdown_notification(self, callback: Callable[[], None]) -> None:
+    def register_lifetime_notification(self, callback: Callable[[LifetimeEvent], None]) -> None:
         """Register a callback to be notified immediately when shutdown starts.
 
         Args:
@@ -61,6 +67,11 @@ class ShutdownCoordinatorProtocol(ABC):
         """
         pass
 
+    @abstractmethod
+    def perform_shutdown(self) -> bool:
+        """Implements the shutdown process."""
+        pass
+
 
 class ShutdownCoordinator(ShutdownCoordinatorProtocol):
     """Coordinator for graceful shutdown of services."""
@@ -74,13 +85,13 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
         self._graceful_shutdown_timeout = graceful_shutdown_timeout
         self._shutting_down = False
         self._shutdown_lock = threading.RLock()
-        self._shutdown_notifications: list[Callable[[], None]] = []
+        self._shutdown_notifications: list[Callable[[LifetimeEvent], None]] = []
         self._shutdown_waiters: dict[str, Callable[[float], bool]] = {}
         self._server_shutdown_callback: Callable[[], None] | None = None
 
         logger.info("ShutdownCoordinator initialized")
 
-    def register_shutdown_notification(self, callback: Callable[[], None]) -> None:
+    def register_lifetime_notification(self, callback: Callable[[LifetimeEvent], None]) -> None:
         """Register a callback to be notified immediately when shutdown starts."""
         with self._shutdown_lock:
             self._shutdown_notifications.append(callback)
@@ -104,29 +115,57 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
             return self._shutting_down
 
     def handle_sigterm(self, signum: int, frame) -> None:
+        import sys, signal, traceback, threading
+        print("\n=== STACK TRACE DUMP ===")
+        for thread_id, stack in sys._current_frames().items():
+            print(f"\n# Thread {threading._active.get(thread_id)} (id: {thread_id})")
+            traceback.print_stack(stack)
+        print("=== END STACK TRACE ===\n")
+
         """SIGTERM signal handler that performs complete graceful shutdown."""
         logger.info(f"Received signal {signum}, initiating graceful shutdown")
 
+        if not self.perform_shutdown():
+            return
+
+        logger.info("Shutting down server")
+        if self._server_shutdown_callback:
+            try:
+                self._server_shutdown_callback()
+            except Exception as e:
+                logger.error(f"Error shutting down server: {e}")
+                # Force exit if server shutdown fails
+                os._exit(1)
+        else:
+            logger.warning("No server shutdown callback registered, exiting directly")
+            sys.exit(0)
+
+    def _raise_lifetime_event(self, event: LifetimeEvent) -> None:
+        logger.info(f"Raising lifetime event {event}")
+
+        for callback in self._shutdown_notifications:
+            try:
+                callback(event)
+            except Exception as e:
+                logger.error(f"Error in lifetime event notification {getattr(callback, '__name__', repr(callback))}: {e}")
+
+    def perform_shutdown(self) -> bool:
+        """Implements the shutdown process."""
         with self._shutdown_lock:
             if self._shutting_down:
                 logger.warning("Shutdown already in progress, ignoring signal")
-                return
+                return False
 
             self._shutting_down = True
             shutdown_start_time = time.perf_counter()
 
-            # Phase 1: Notify all registered callbacks immediately (non-blocking)
-            logger.info("Phase 1: Notifying services of shutdown")
-            for callback in self._shutdown_notifications:
-                try:
-                    callback()
-                    logger.debug(f"Notified shutdown callback: {getattr(callback, '__name__', repr(callback))}")
-                except Exception as e:
-                    logger.error(f"Error in shutdown notification {getattr(callback, '__name__', repr(callback))}: {e}")
+            # Notify all listeners that we're starting shutdown. Don't
+            # accept new incoming request and stuff like that.
+            self._raise_lifetime_event(LifetimeEvent.PREPARE_SHUTDOWN)
 
         # Phase 2: Wait for services to complete (blocking)
         # Release lock before waiting to avoid deadlocks
-        logger.info(f"Phase 2: Waiting for {len(self._shutdown_waiters)} services to complete (timeout: {self._graceful_shutdown_timeout}s)")
+        logger.info(f"Waiting for {len(self._shutdown_waiters)} services to complete (timeout: {self._graceful_shutdown_timeout}s)")
         
         start_time = time.perf_counter()
         all_ready = True
@@ -144,9 +183,7 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
                 logger.info(f"Waiting for {name} to complete (remaining: {remaining:.1f}s)")
                 ready = waiter(remaining)
 
-                if ready:
-                    logger.info(f"{name} is ready for shutdown")
-                else:
+                if not ready:
                     logger.warning(f"{name} was not ready within timeout")
                     all_ready = False
 
@@ -156,24 +193,13 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
 
         total_duration = time.perf_counter() - shutdown_start_time
 
-        if all_ready:
-            logger.info(f"All services ready for shutdown (duration: {total_duration:.1f}s)")
-        else:
+        if not all_ready:
             logger.error(f"Shutdown timeout exceeded after {total_duration:.1f}s, forcing shutdown")
 
-        # Phase 3: Shutdown the server
-        logger.info("Phase 3: Shutting down server")
-        if self._server_shutdown_callback:
-            try:
-                self._server_shutdown_callback()
-                logger.info("Server shutdown initiated")
-            except Exception as e:
-                logger.error(f"Error shutting down server: {e}")
-                # Force exit if server shutdown fails
-                os._exit(1)
-        else:
-            logger.warning("No server shutdown callback registered, exiting directly")
-            sys.exit(0)
+        # Notify that we're actually shutting down now.
+        self._raise_lifetime_event(LifetimeEvent.SHUTDOWN)
+
+        return True
 
 
 class NoopShutdownCoordinator(ShutdownCoordinatorProtocol):
@@ -184,7 +210,7 @@ class NoopShutdownCoordinator(ShutdownCoordinatorProtocol):
         self._shutting_down = False
         logger.debug("NoopShutdownCoordinator initialized")
 
-    def register_shutdown_notification(self, callback: Callable[[], None]) -> None:
+    def register_lifetime_notification(self, callback: Callable[[LifetimeEvent], None]) -> None:
         """No-op notification registration."""
         pass
 
@@ -203,3 +229,6 @@ class NoopShutdownCoordinator(ShutdownCoordinatorProtocol):
     def handle_sigterm(self, signum: int, frame) -> None:
         """No-op signal handler."""
         self._shutting_down = True
+
+    def perform_shutdown(self) -> bool:
+        return True

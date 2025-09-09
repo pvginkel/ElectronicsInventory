@@ -8,22 +8,10 @@ import requests
 
 from paste.translogger import TransLogger  # type: ignore[import-untyped]
 from waitress import serve
+from werkzeug.serving import make_server
 
 from app import create_app
 from app.config import get_settings
-
-
-def shutdown_flask_dev_server(port: int):
-    """Shutdown Flask development server by calling the internal endpoint."""
-    try:
-        # Call the internal shutdown endpoint
-        response = requests.post(f"http://localhost:{port}/health/_internal/shutdown")
-        if response.status_code == 200:
-            logging.info("Flask development server shutdown initiated")
-        else:
-            logging.error(f"Failed to shutdown Flask server: {response.text}")
-    except Exception as e:
-        logging.error(f"Error shutting down Flask server: {e}")
 
 
 def main():
@@ -47,24 +35,17 @@ def main():
     if debug_mode:
         app.logger.info("Running in debug mode")
 
-        # Register server shutdown callback for development
-        def dev_shutdown_callback():
-            """Trigger Flask development server shutdown in a separate thread."""
-            # Must be in separate thread to avoid blocking the signal handler
-            thread = threading.Thread(target=shutdown_flask_dev_server, args=(port,))
-            thread.daemon = True
-            thread.start()
+        # It's very complicated to do a clean shutdown like we do in
+        # production. Especially reload won't work because that's
+        # handled by starting a new process. We do still perform
+        # a clean shutdown by calling the perform_shutdown method.
 
-        shutdown_coordinator.register_server_shutdown(dev_shutdown_callback)
-
-        # Register signal handlers for graceful shutdown
-        signal.signal(signal.SIGTERM, shutdown_coordinator.handle_sigterm)
-        signal.signal(signal.SIGINT, shutdown_coordinator.handle_sigterm)
-
-        app.logger.info("Registered SIGTERM and SIGINT handlers for graceful shutdown")
-
-        # Run Flask development server
-        app.run(host=host, port=port, debug=True, use_reloader=False)
+        try:
+            app.run(host=host, port=port, debug=True)
+        except KeyboardInterrupt:
+            app.logger.info("Shutting down...")
+        finally:
+            shutdown_coordinator.perform_shutdown()
     else:
         # Production: Use Waitress WSGI server
         from waitress.server import create_server
@@ -76,7 +57,7 @@ def main():
             wsgi,
             host=host,
             port=port,
-            threads=20,
+            threads=3,
             cleanup_interval=10
         )
 
@@ -98,7 +79,11 @@ def main():
         wsgi.logger.info("Registered SIGTERM and SIGINT handlers for graceful shutdown")
 
         # Start the server
-        server_instance.run()
+        try:
+            server_instance.run()
+        except OSError:
+            # Calling close() on the server will raise this error.
+            pass
 
 if __name__ == "__main__":
     main()

@@ -1,14 +1,18 @@
 """Health check endpoints for Kubernetes probes."""
 
-import os
+import logging
+
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, jsonify, request
 from spectree import Response as SpectreeResponse
 
+from app.config import Settings
 from app.schemas.health_schema import HealthResponse
 from app.services.container import ServiceContainer
 from app.utils.spectree_config import api
 from app.utils.shutdown_coordinator import ShutdownCoordinatorProtocol
+
+logger = logging.getLogger(__name__)
 
 health_bp = Blueprint("health", __name__, url_prefix="/health")
 
@@ -43,24 +47,3 @@ def healthz():
     This keeps the pod running even during graceful shutdown.
     """
     return jsonify({"status": "alive", "ready": True}), 200
-
-
-@health_bp.route("/_internal/shutdown", methods=["POST"])
-def shutdown():
-    """Internal endpoint to trigger werkzeug server shutdown in development.
-    
-    This endpoint is only available in development mode and is used by the
-    shutdown coordinator to gracefully shutdown the Flask development server.
-    """
-    # Only allow in development mode
-    if os.getenv("FLASK_ENV") != "development":
-        return jsonify({"error": "Not available in production"}), 403
-    
-    # Get the werkzeug shutdown function
-    shutdown_func = request.environ.get("werkzeug.server.shutdown")
-    if shutdown_func is None:
-        return jsonify({"error": "Not running with the Werkzeug Server"}), 500
-    
-    # Trigger server shutdown
-    shutdown_func()
-    return jsonify({"status": "Server shutting down..."}), 200

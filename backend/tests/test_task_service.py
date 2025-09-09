@@ -35,7 +35,7 @@ class TestTaskService:
             task_timeout=10
         )
         yield service
-        service.shutdown()
+        service._shutdown()
 
     def test_start_task(self, task_service):
         """Test starting a basic task."""
@@ -242,7 +242,7 @@ class TestTaskService:
         service.start_task(task, steps=1, delay=0.01)
 
         # Shutdown service
-        service.shutdown()
+        service._shutdown()
 
         # Verify cleanup (internal state should be cleared)
         assert len(service._tasks) == 0
@@ -279,7 +279,7 @@ class TestTaskService:
             assert task_info is None
 
         finally:
-            service.shutdown()
+            service._shutdown()
 
     def test_manual_cleanup_completed_tasks(self, task_service):
         """Test manual cleanup of completed tasks."""
