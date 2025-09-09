@@ -2,6 +2,7 @@
 
 import logging
 import os
+import sys
 import threading
 import time
 from abc import ABC, abstractmethod
@@ -33,6 +34,15 @@ class ShutdownCoordinatorProtocol(ABC):
         pass
 
     @abstractmethod
+    def register_server_shutdown(self, callback: Callable[[], None]) -> None:
+        """Register the server shutdown callback.
+
+        Args:
+            callback: Function to call to shutdown the server gracefully
+        """
+        pass
+
+    @abstractmethod
     def is_shutting_down(self) -> bool:
         """Check if shutdown has been initiated.
 
@@ -51,18 +61,6 @@ class ShutdownCoordinatorProtocol(ABC):
         """
         pass
 
-    @abstractmethod
-    def wait_for_shutdown(self, timeout: float | None = None) -> bool:
-        """Wait for all registered handlers to report ready for shutdown.
-
-        Args:
-            timeout: Maximum seconds to wait (uses GRACEFUL_SHUTDOWN_TIMEOUT if None)
-
-        Returns:
-            True if all handlers completed within timeout, False otherwise
-        """
-        pass
-
 
 class ShutdownCoordinator(ShutdownCoordinatorProtocol):
     """Coordinator for graceful shutdown of services."""
@@ -78,7 +76,7 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
         self._shutdown_lock = threading.RLock()
         self._shutdown_notifications: list[Callable[[], None]] = []
         self._shutdown_waiters: dict[str, Callable[[float], bool]] = {}
-        self._shutdown_start_time: float | None = None
+        self._server_shutdown_callback: Callable[[], None] | None = None
 
         logger.info("ShutdownCoordinator initialized")
 
@@ -94,13 +92,19 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
             self._shutdown_waiters[name] = handler
             logger.debug(f"Registered shutdown waiter: {name}")
 
+    def register_server_shutdown(self, callback: Callable[[], None]) -> None:
+        """Register the server shutdown callback."""
+        with self._shutdown_lock:
+            self._server_shutdown_callback = callback
+            logger.debug("Registered server shutdown callback")
+
     def is_shutting_down(self) -> bool:
         """Check if shutdown has been initiated."""
         with self._shutdown_lock:
             return self._shutting_down
 
     def handle_sigterm(self, signum: int, frame) -> None:
-        """SIGTERM signal handler that initiates graceful shutdown."""
+        """SIGTERM signal handler that performs complete graceful shutdown."""
         logger.info(f"Received signal {signum}, initiating graceful shutdown")
 
         with self._shutdown_lock:
@@ -109,9 +113,10 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
                 return
 
             self._shutting_down = True
-            self._shutdown_start_time = time.perf_counter()
+            shutdown_start_time = time.perf_counter()
 
-            # Notify all registered callbacks immediately (non-blocking)
+            # Phase 1: Notify all registered callbacks immediately (non-blocking)
+            logger.info("Phase 1: Notifying services of shutdown")
             for callback in self._shutdown_notifications:
                 try:
                     callback()
@@ -119,23 +124,16 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
                 except Exception as e:
                     logger.error(f"Error in shutdown notification {getattr(callback, '__name__', repr(callback))}: {e}")
 
-    def wait_for_shutdown(self, timeout: float | None = None) -> bool:
-        """Wait for all registered handlers to report ready for shutdown."""
-        if not self._shutting_down:
-            logger.warning("wait_for_shutdown called but shutdown not initiated")
-            return True
-
-        if timeout is None:
-            timeout = self._graceful_shutdown_timeout
-
+        # Phase 2: Wait for services to complete (blocking)
+        # Release lock before waiting to avoid deadlocks
+        logger.info(f"Phase 2: Waiting for {len(self._shutdown_waiters)} services to complete (timeout: {self._graceful_shutdown_timeout}s)")
+        
         start_time = time.perf_counter()
-        logger.info(f"Waiting for {len(self._shutdown_waiters)} services to complete (timeout: {timeout}s)")
-
-        # Iterate through registered waiters sequentially
         all_ready = True
+        
         for name, waiter in self._shutdown_waiters.items():
             elapsed = time.perf_counter() - start_time
-            remaining = timeout - elapsed
+            remaining = self._graceful_shutdown_timeout - elapsed
 
             if remaining <= 0:
                 logger.error(f"Shutdown timeout exceeded before checking {name}")
@@ -156,16 +154,26 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
                 logger.error(f"Error in shutdown waiter {name}: {e}")
                 all_ready = False
 
-        total_duration = time.perf_counter() - start_time
+        total_duration = time.perf_counter() - shutdown_start_time
 
         if all_ready:
             logger.info(f"All services ready for shutdown (duration: {total_duration:.1f}s)")
         else:
             logger.error(f"Shutdown timeout exceeded after {total_duration:.1f}s, forcing shutdown")
-            # Force exit if timeout exceeded
-            os._exit(1)
 
-        return all_ready
+        # Phase 3: Shutdown the server
+        logger.info("Phase 3: Shutting down server")
+        if self._server_shutdown_callback:
+            try:
+                self._server_shutdown_callback()
+                logger.info("Server shutdown initiated")
+            except Exception as e:
+                logger.error(f"Error shutting down server: {e}")
+                # Force exit if server shutdown fails
+                os._exit(1)
+        else:
+            logger.warning("No server shutdown callback registered, exiting directly")
+            sys.exit(0)
 
 
 class NoopShutdownCoordinator(ShutdownCoordinatorProtocol):
@@ -184,6 +192,10 @@ class NoopShutdownCoordinator(ShutdownCoordinatorProtocol):
         """No-op waiter registration."""
         pass
 
+    def register_server_shutdown(self, callback: Callable[[], None]) -> None:
+        """No-op server shutdown registration."""
+        pass
+
     def is_shutting_down(self) -> bool:
         """Always return False for testing."""
         return self._shutting_down
@@ -191,7 +203,3 @@ class NoopShutdownCoordinator(ShutdownCoordinatorProtocol):
     def handle_sigterm(self, signum: int, frame) -> None:
         """No-op signal handler."""
         self._shutting_down = True
-
-    def wait_for_shutdown(self, timeout: float | None = None) -> bool:
-        """Always return True immediately for testing."""
-        return True
