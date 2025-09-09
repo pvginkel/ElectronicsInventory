@@ -8,14 +8,15 @@ from flask_cors import CORS
 if TYPE_CHECKING:
     from app.config import Settings
 
+from app.app import App
 from app.config import get_settings
 from app.extensions import db
 from app.services.container import ServiceContainer
 
 
-def create_app(settings: "Settings | None" = None) -> Flask:
+def create_app(settings: "Settings | None" = None) -> App:
     """Create and configure Flask application."""
-    app = Flask(__name__)
+    app = App(__name__)
 
     # Load configuration
     if settings is None:
