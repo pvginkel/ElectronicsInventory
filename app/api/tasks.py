@@ -63,8 +63,7 @@ def get_task_stream(task_id: str, task_service=Provide[ServiceContainer.task_ser
         headers={
             "Cache-Control": "no-cache",
             "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Cache-Control",
-            "X-Accel-Buffering": "no"  # Disable nginx buffering for SSE
+            "Access-Control-Allow-Headers": "Cache-Control"
         }
     )
 
