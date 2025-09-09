@@ -4,10 +4,11 @@ import time
 import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from queue import Empty, Queue
 from typing import Any
 
+from app.exceptions import InvalidOperationException
 from app.schemas.task_schema import (
     TaskEvent,
     TaskEventType,
@@ -18,6 +19,7 @@ from app.schemas.task_schema import (
 )
 from app.services.base_task import BaseTask
 from app.services.metrics_service import MetricsServiceProtocol
+from app.utils.shutdown_coordinator import ShutdownCoordinatorProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -65,30 +67,39 @@ class TaskService:
     """Service for managing background tasks with SSE progress updates."""
 
     def __init__(
-        self, 
+        self,
         metrics_service: MetricsServiceProtocol,
-        max_workers: int = 4, 
-        task_timeout: int = 300, 
+        shutdown_coordinator: ShutdownCoordinatorProtocol,
+        max_workers: int = 4,
+        task_timeout: int = 300,
         cleanup_interval: int = 600
     ):
         """Initialize TaskService with configurable parameters.
 
         Args:
+            metrics_service: Instance of MetricsService for recording metrics
+            shutdown_coordinator: Coordinator for graceful shutdown
             max_workers: Maximum number of concurrent tasks
             task_timeout: Task execution timeout in seconds
             cleanup_interval: How often to clean up completed tasks in seconds
-            metrics_service: Instance of MetricsService for recording metrics
         """
         self.max_workers = max_workers
         self.task_timeout = task_timeout
         self.cleanup_interval = cleanup_interval  # 10 minutes in seconds
         self.metrics_service = metrics_service
+        self.shutdown_coordinator = shutdown_coordinator
         self._tasks: dict[str, TaskInfo] = {}
         self._task_instances: dict[str, BaseTask] = {}
         self._event_queues: dict[str, Queue] = {}
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._lock = threading.RLock()
         self._shutdown_event = threading.Event()
+        self._shutting_down = False
+        self._tasks_complete_event = threading.Event()
+
+        # Register with shutdown coordinator
+        self.shutdown_coordinator.register_shutdown_notification(self._on_shutdown_initiated)
+        self.shutdown_coordinator.register_shutdown_waiter("TaskService", self._wait_for_tasks_completion)
 
         # Start cleanup thread
         self._cleanup_thread = threading.Thread(target=self._cleanup_worker, daemon=True)
@@ -106,7 +117,14 @@ class TaskService:
 
         Returns:
             TaskStartResponse with task ID and SSE stream URL
+
+        Raises:
+            InvalidOperationException: If service is shutting down
         """
+        # Check if shutting down
+        if self._shutting_down:
+            raise InvalidOperationException("start task", "service is shutting down")
+
         task_id = str(uuid.uuid4())
 
         with self._lock:
@@ -114,7 +132,7 @@ class TaskService:
             task_info = TaskInfo(
                 task_id=task_id,
                 status=TaskStatus.PENDING,
-                start_time=datetime.now(timezone.utc)
+                start_time=datetime.now(UTC)
             )
 
             # Store task metadata
@@ -158,7 +176,7 @@ class TaskService:
             # Request cancellation
             task_instance.cancel()
             task_info.status = TaskStatus.CANCELLED
-            task_info.end_time = datetime.now(timezone.utc)
+            task_info.end_time = datetime.now(UTC)
 
             logger.info(f"Cancelled task {task_id}")
             return True
@@ -203,9 +221,9 @@ class TaskService:
             return []
 
         events = []
-        start_time = time.time()
+        start_time = time.perf_counter()
 
-        while time.time() - start_time < timeout:
+        while time.perf_counter() - start_time < timeout:
             try:
                 event = event_queue.get(timeout=1.0)
                 events.append(event)
@@ -261,7 +279,7 @@ class TaskService:
                 task_info = self._tasks.get(task_id)
                 if task_info and task_info.status != TaskStatus.CANCELLED:
                     task_info.status = TaskStatus.COMPLETED
-                    task_info.end_time = datetime.now(timezone.utc)
+                    task_info.end_time = datetime.now(UTC)
                     # Convert BaseModel to dict for storage
                     task_info.result = result.model_dump() if result else None
 
@@ -279,6 +297,9 @@ class TaskService:
 
                     logger.info(f"Task {task_id} completed successfully")
 
+                    # Check if this was the last task during shutdown
+                    self._check_tasks_complete()
+
         except Exception as e:
             # Task failed
             error_msg = str(e)
@@ -294,7 +315,7 @@ class TaskService:
                 task_info = self._tasks.get(task_id)
                 if task_info:
                     task_info.status = TaskStatus.FAILED
-                    task_info.end_time = datetime.now(timezone.utc)
+                    task_info.end_time = datetime.now(UTC)
                     task_info.error = error_msg
 
                     # Record task execution metrics for failed tasks
@@ -311,6 +332,9 @@ class TaskService:
                 }
             )
             event_queue.put_nowait(failure_event)
+
+            # Check if this was the last task during shutdown
+            self._check_tasks_complete()
 
     def _cleanup_worker(self) -> None:
         """Background worker that periodically cleans up completed tasks."""
@@ -329,7 +353,7 @@ class TaskService:
 
     def _cleanup_completed_tasks(self) -> None:
         """Remove completed tasks older than cleanup_interval."""
-        current_time = datetime.now(timezone.utc)
+        current_time = datetime.now(UTC)
         tasks_to_remove = []
 
         with self._lock:
@@ -379,3 +403,66 @@ class TaskService:
             self._event_queues.clear()
 
         logger.info("TaskService shutdown complete")
+
+    def _on_shutdown_initiated(self) -> None:
+        """Callback when shutdown is initiated."""
+        with self._lock:
+            self._shutting_down = True
+            active_count = self._get_active_task_count()
+            logger.info(f"TaskService shutdown initiated with {active_count} active tasks")
+
+            # Record active tasks at shutdown in metrics
+            self.metrics_service.record_active_tasks_at_shutdown(active_count)
+
+            # If no active tasks, signal immediately
+            if active_count == 0:
+                self._tasks_complete_event.set()
+
+    def _wait_for_tasks_completion(self, timeout: float) -> bool:
+        """Wait for all tasks to complete within timeout.
+
+        Args:
+            timeout: Maximum seconds to wait
+
+        Returns:
+            True if all tasks completed, False if timeout
+        """
+        with self._lock:
+            active_count = self._get_active_task_count()
+
+            if active_count == 0:
+                logger.info("No active tasks to wait for")
+                return True
+
+            logger.info(f"Waiting for {active_count} active tasks to complete (timeout: {timeout:.1f}s)")
+
+        # Wait for tasks to complete
+        completed = self._tasks_complete_event.wait(timeout=timeout)
+
+        if completed:
+            logger.info("All tasks completed gracefully")
+        else:
+            with self._lock:
+                remaining = self._get_active_task_count()
+                logger.warning(f"Timeout waiting for tasks, {remaining} tasks still active")
+
+        return completed
+
+    def _get_active_task_count(self) -> int:
+        """Get count of active (pending or running) tasks.
+
+        Returns:
+            Number of active tasks
+        """
+        return sum(
+            1 for task in self._tasks.values()
+            if task.status in [TaskStatus.PENDING, TaskStatus.RUNNING]
+        )
+
+    def _check_tasks_complete(self) -> None:
+        """Check if all tasks are complete during shutdown."""
+        if self._shutting_down:
+            with self._lock:
+                if self._get_active_task_count() == 0:
+                    logger.info("All tasks completed during shutdown")
+                    self._tasks_complete_event.set()

@@ -6,8 +6,11 @@ import logging
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 from uuid import uuid4
+
+if TYPE_CHECKING:
+    from app.utils.shutdown_coordinator import ShutdownCoordinatorProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +32,9 @@ class TempFileManager:
 
     def __init__(
         self,
-        base_path: str = "/tmp/electronics_inventory/ai_analysis",
-        cleanup_age_hours: float = 2.0
+        base_path: str,
+        cleanup_age_hours: float,
+        shutdown_coordinator: "ShutdownCoordinatorProtocol"
     ):
         """
         Initialize the temporary file manager.
@@ -38,9 +42,11 @@ class TempFileManager:
         Args:
             base_path: Base directory for temporary file storage
             cleanup_age_hours: Age in hours after which files are cleaned up
+            shutdown_coordinator: Coordinator for graceful shutdown
         """
         self.base_path = Path(base_path)
         self.cleanup_age_hours = cleanup_age_hours
+        self.shutdown_coordinator = shutdown_coordinator
         self._cleanup_thread: threading.Thread | None = None
         self._shutdown_event = threading.Event()
 
@@ -50,6 +56,9 @@ class TempFileManager:
         # Ensure download cache directory exists
         self.cache_path = self.base_path / "download_cache"
         self.cache_path.mkdir(parents=True, exist_ok=True)
+
+        # Register shutdown notification
+        self.shutdown_coordinator.register_shutdown_notification(self._on_shutdown_initiated)
 
     def start_cleanup_thread(self) -> None:
         """Start the background cleanup thread."""
@@ -231,4 +240,9 @@ class TempFileManager:
         except OSError as e:
             logger.error(f"Failed to cache content for {url}: {e}")
             return False
+
+    def _on_shutdown_initiated(self) -> None:
+        """Callback when shutdown is initiated."""
+        logger.info("TempFileManager notified of shutdown, stopping cleanup thread")
+        self.stop_cleanup_thread()
 

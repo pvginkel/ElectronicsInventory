@@ -2,6 +2,8 @@
 
 import logging
 import os
+import signal
+import sys
 
 from paste.translogger import TransLogger  # type: ignore[import-untyped]
 from waitress import serve
@@ -33,8 +35,37 @@ def main():
         # Production: Use Waitress WSGI server
         wsgi = TransLogger(app, setup_console_handler=False)
 
+        # Register signal handlers for graceful shutdown
+        shutdown_coordinator = app.container.shutdown_coordinator()
+        signal.signal(signal.SIGTERM, shutdown_coordinator.handle_sigterm)
+        signal.signal(signal.SIGINT, shutdown_coordinator.handle_sigterm)
+
         wsgi.logger.info("Using Waitress WSGI server for production")
-        serve(wsgi, host=host, port=port, threads=20)
+        wsgi.logger.info("Registered SIGTERM and SIGINT handlers for graceful shutdown")
+
+        try:
+            # Configure Waitress with proper shutdown timeout
+            serve(
+                wsgi,
+                host=host,
+                port=port,
+                threads=20,
+                cleanup_interval=10,
+                channel_timeout=settings.GRACEFUL_SHUTDOWN_TIMEOUT
+            )
+        except KeyboardInterrupt:
+            wsgi.logger.info("Received keyboard interrupt, initiating shutdown")
+
+        # Perform graceful shutdown
+        wsgi.logger.info("Waiting for graceful shutdown...")
+        shutdown_coordinator.wait_for_shutdown(timeout=settings.GRACEFUL_SHUTDOWN_TIMEOUT)
+
+        # Final cleanup
+        task_service = app.container.task_service()
+        task_service.shutdown()
+
+        wsgi.logger.info("Graceful shutdown complete")
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()

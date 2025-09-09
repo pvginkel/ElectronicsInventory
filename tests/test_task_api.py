@@ -1,6 +1,7 @@
 """Tests for task API endpoints."""
 
 import time
+from datetime import UTC
 from unittest.mock import Mock
 
 import pytest
@@ -24,11 +25,11 @@ class TestTaskAPI:
         task_id = "test-task-id"
 
         # Mock task info
-        from datetime import datetime, timezone
+        from datetime import datetime
         task_info = TaskInfo(
             task_id=task_id,
             status=TaskStatus.RUNNING,
-            start_time=datetime.now(timezone.utc)
+            start_time=datetime.now(UTC)
         )
         task_service_mock.get_task_status.return_value = task_info
 
@@ -39,18 +40,18 @@ class TestTaskAPI:
             TaskEvent(
                 event_type=TaskEventType.TASK_STARTED,
                 task_id=task_id,
-                timestamp=datetime.now(timezone.utc)
+                timestamp=datetime.now(UTC)
             ),
             TaskEvent(
                 event_type=TaskEventType.PROGRESS_UPDATE,
                 task_id=task_id,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 data={"text": "Processing...", "value": 0.5}
             ),
             TaskEvent(
                 event_type=TaskEventType.TASK_COMPLETED,
                 task_id=task_id,
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 data={"result": "success"}
             )
         ]

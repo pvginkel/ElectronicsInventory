@@ -2,6 +2,7 @@
 
 import logging
 import threading
+import time
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -9,6 +10,7 @@ from prometheus_client import Counter, Gauge, Histogram, generate_latest
 
 if TYPE_CHECKING:
     from app.services.container import ServiceContainer
+    from app.utils.shutdown_coordinator import ShutdownCoordinatorProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +85,21 @@ class MetricsServiceProtocol(ABC):
         """Get metrics in Prometheus text format."""
         pass
 
+    @abstractmethod
+    def set_shutdown_state(self, is_shutting_down: bool):
+        """Set the shutdown state metric."""
+        pass
+
+    @abstractmethod
+    def record_shutdown_duration(self, duration: float):
+        """Record the duration of graceful shutdown."""
+        pass
+
+    @abstractmethod
+    def record_active_tasks_at_shutdown(self, count: int):
+        """Record the number of active tasks when shutdown initiated."""
+        pass
+
 
 class NoopMetricsService(MetricsServiceProtocol):
     """No-op metrics service for testing."""
@@ -147,17 +164,32 @@ class NoopMetricsService(MetricsServiceProtocol):
         """Return empty metrics text."""
         return ""
 
+    def set_shutdown_state(self, is_shutting_down: bool):
+        """No-op shutdown state setting."""
+        pass
+
+    def record_shutdown_duration(self, duration: float):
+        """No-op shutdown duration recording."""
+        pass
+
+    def record_active_tasks_at_shutdown(self, count: int):
+        """No-op active tasks recording."""
+        pass
+
 
 class MetricsService(MetricsServiceProtocol):
     """Service class for Prometheus metrics collection and exposure."""
 
-    def __init__(self, container: "ServiceContainer"):
+    def __init__(self, container: "ServiceContainer", shutdown_coordinator: "ShutdownCoordinatorProtocol"):
         """Initialize service with container reference and metric objects.
 
         Args:
             container: Service container for accessing other services
+            shutdown_coordinator: Coordinator for graceful shutdown
         """
         self.container = container
+        self.shutdown_coordinator = shutdown_coordinator
+        self._shutdown_start_time: float | None = None
 
         # Initialize metric objects
         self.initialize_metrics()
@@ -165,6 +197,9 @@ class MetricsService(MetricsServiceProtocol):
         # Background update control
         self._stop_event = threading.Event()
         self._updater_thread = None
+
+        # Register shutdown notification
+        self.shutdown_coordinator.register_shutdown_notification(self._on_shutdown_initiated)
 
     def initialize_metrics(self):
         """Define all Prometheus metric objects."""
@@ -254,13 +289,29 @@ class MetricsService(MetricsServiceProtocol):
             ['model', 'verbosity', 'reasoning_effort']
         )
 
+        # Shutdown Metrics
+        self.application_shutting_down = Gauge(
+            'application_shutting_down',
+            'Whether application is shutting down (1=yes, 0=no)'
+        )
+
+        self.graceful_shutdown_duration_seconds = Histogram(
+            'graceful_shutdown_duration_seconds',
+            'Duration of graceful shutdowns'
+        )
+
+        self.active_tasks_at_shutdown = Gauge(
+            'active_tasks_at_shutdown',
+            'Number of active tasks when shutdown initiated'
+        )
+
     def update_inventory_metrics(self):
         """Update inventory-related gauges with current database values."""
         if not self.container:
             return
 
         session = self.container.db_session()
-        
+
         try:
             dashboard_service = self.container.dashboard_service()
 
@@ -275,13 +326,13 @@ class MetricsService(MetricsServiceProtocol):
             # Get parts without documents count
             undocumented = dashboard_service.get_parts_without_documents()
             self.inventory_parts_without_docs.set(undocumented['count'])
-            
+
             session.commit()
 
         except Exception as e:
             session.rollback()
             logger.error(f"Error updating inventory metrics: {e}")
-            
+
         finally:
             self.container.db_session.reset()
 
@@ -291,7 +342,7 @@ class MetricsService(MetricsServiceProtocol):
             return
 
         session = self.container.db_session()
-        
+
         try:
             dashboard_service = self.container.dashboard_service()
 
@@ -330,7 +381,7 @@ class MetricsService(MetricsServiceProtocol):
             return
 
         session = self.container.db_session()
-        
+
         try:
             dashboard_service = self.container.dashboard_service()
 
@@ -513,3 +564,49 @@ class MetricsService(MetricsServiceProtocol):
             Metrics data in Prometheus exposition format
         """
         return generate_latest().decode('utf-8')
+
+    def set_shutdown_state(self, is_shutting_down: bool):
+        """Set the shutdown state metric.
+
+        Args:
+            is_shutting_down: Whether shutdown is in progress
+        """
+        try:
+            self.application_shutting_down.set(1 if is_shutting_down else 0)
+            if is_shutting_down:
+                self._shutdown_start_time = time.perf_counter()
+        except Exception as e:
+            logger.error(f"Error setting shutdown state: {e}")
+
+    def record_shutdown_duration(self, duration: float):
+        """Record the duration of graceful shutdown.
+
+        Args:
+            duration: Shutdown duration in seconds
+        """
+        try:
+            self.graceful_shutdown_duration_seconds.observe(duration)
+        except Exception as e:
+            logger.error(f"Error recording shutdown duration: {e}")
+
+    def record_active_tasks_at_shutdown(self, count: int):
+        """Record the number of active tasks when shutdown initiated.
+
+        Args:
+            count: Number of active tasks
+        """
+        try:
+            self.active_tasks_at_shutdown.set(count)
+        except Exception as e:
+            logger.error(f"Error recording active tasks at shutdown: {e}")
+
+    def _on_shutdown_initiated(self) -> None:
+        """Callback when shutdown is initiated."""
+        logger.info("MetricsService notified of shutdown, stopping background updater")
+        self.set_shutdown_state(True)
+        self.stop_background_updater()
+
+        # Record shutdown duration when shutdown completes
+        if self._shutdown_start_time:
+            duration = time.perf_counter() - self._shutdown_start_time
+            self.record_shutdown_duration(duration)
