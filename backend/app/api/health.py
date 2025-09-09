@@ -16,8 +16,7 @@ health_bp = Blueprint("health", __name__, url_prefix="/health")
 @api.validate(resp=SpectreeResponse(HTTP_200=HealthResponse, HTTP_503=HealthResponse))
 @inject
 def readyz(
-    shutdown_coordinator: ShutdownCoordinatorProtocol = Provide[ServiceContainer.shutdown_coordinator],
-    task_service=Provide[ServiceContainer.task_service]
+    shutdown_coordinator: ShutdownCoordinatorProtocol = Provide[ServiceContainer.shutdown_coordinator]
 ):
     """Readiness probe endpoint for Kubernetes.
 

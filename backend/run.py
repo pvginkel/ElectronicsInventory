@@ -44,14 +44,13 @@ def main():
         wsgi.logger.info("Registered SIGTERM and SIGINT handlers for graceful shutdown")
 
         try:
-            # Configure Waitress with proper shutdown timeout
+            # Configure Waitress - rely on signal handling for graceful shutdown
             serve(
                 wsgi,
                 host=host,
                 port=port,
                 threads=20,
-                cleanup_interval=10,
-                channel_timeout=settings.GRACEFUL_SHUTDOWN_TIMEOUT
+                cleanup_interval=10
             )
         except KeyboardInterrupt:
             wsgi.logger.info("Received keyboard interrupt, initiating shutdown")

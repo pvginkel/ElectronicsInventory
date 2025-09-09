@@ -1,6 +1,6 @@
 """Tests for health check API endpoints."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from flask import Flask
 from flask.testing import FlaskClient
@@ -89,18 +89,6 @@ class TestHealthEndpoints:
 
         healthz_response = client.get("/api/health/healthz")
         assert healthz_response.content_type == "application/json"
-
-    @patch('app.api.health.shutdown_coordinator')
-    def test_readyz_with_mocked_coordinator(self, mock_coordinator, client: FlaskClient):
-        """Test readiness probe with mocked shutdown coordinator."""
-        # Mock coordinator to return shutting down
-        mock_instance = MagicMock()
-        mock_instance.is_shutting_down.return_value = True
-        mock_coordinator.return_value = mock_instance
-
-        # This test would need proper dependency injection mocking
-        # which is complex with the current setup
-        # The integration tests above cover the actual functionality
 
     def test_health_endpoint_urls(self, client: FlaskClient):
         """Test that health endpoints are available at expected URLs."""

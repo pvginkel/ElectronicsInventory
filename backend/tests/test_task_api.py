@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.schemas.task_schema import TaskInfo, TaskStatus
 from app.services.task_service import TaskService
+from app.utils.shutdown_coordinator import NoopShutdownCoordinator
 from tests.test_tasks.test_task import DemoTask
 
 
@@ -192,7 +193,8 @@ class TestTaskAPIIntegration:
         """Create real TaskService instance for integration testing."""
         from app.services.metrics_service import NoopMetricsService
         metrics_service = NoopMetricsService()
-        service = TaskService(metrics_service, max_workers=1, task_timeout=10)
+        shutdown_coordinator = NoopShutdownCoordinator()
+        service = TaskService(metrics_service, shutdown_coordinator, max_workers=1, task_timeout=10)
         yield service
         service.shutdown()
 
