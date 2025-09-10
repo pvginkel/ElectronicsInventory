@@ -128,7 +128,10 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
         <span>
           {isLoading 
             ? 'Loading...' 
-            : `${filteredParts.length} of ${parts.length} parts`}
+            : `${filteredParts.length}`
+              + (filteredParts.length == parts.length ? '' : ` of ${parts.length}`)
+              + ' parts'
+            }
         </span>
       </div>
 
