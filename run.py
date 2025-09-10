@@ -26,13 +26,17 @@ def main():
 
     # Get and initialize the shutdown coordinator
     shutdown_coordinator = app.container.shutdown_coordinator()
-    shutdown_coordinator.initialize()
 
     # Enable debug mode for development and testing environments
     debug_mode = settings.FLASK_ENV in ("development", "testing")
 
     if debug_mode:
         app.logger.info("Running in debug mode")
+
+        # Only initialize the shutdown coordinator if we're in an actual
+        # Flask worker process.
+        if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+            shutdown_coordinator.initialize()
 
         def signal_shutdown(lifetime_event: LifetimeEvent):
             if lifetime_event == LifetimeEvent.AFTER_SHUTDOWN:
@@ -44,6 +48,8 @@ def main():
 
         app.run(host=host, port=port, debug=True)
     else:
+        shutdown_coordinator.initialize()
+
         def runner():
             # Production: Use Waitress WSGI server
             wsgi = TransLogger(app, setup_console_handler=False)
