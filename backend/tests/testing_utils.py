@@ -89,7 +89,7 @@ class StubMetricsService(MetricsServiceProtocol):
     """Basic metrics service stub for testing.
 
     This stub only provides method signatures without any actual metrics
-    functionality. Use this for unit tests that just need dependency 
+    functionality. Use this for unit tests that just need dependency
     injection without metrics behavior testing.
     """
 

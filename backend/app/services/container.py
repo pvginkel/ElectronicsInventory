@@ -14,7 +14,6 @@ from app.services.image_service import ImageService
 from app.services.inventory_service import InventoryService
 from app.services.metrics_service import (
     MetricsService,
-    MetricsServiceProtocol,
 )
 from app.services.part_service import PartService
 from app.services.s3_service import S3Service
@@ -25,7 +24,6 @@ from app.services.type_service import TypeService
 from app.services.url_transformers import LCSCInterceptor, URLInterceptorRegistry
 from app.utils.shutdown_coordinator import (
     ShutdownCoordinator,
-    ShutdownCoordinatorProtocol,
 )
 from app.utils.temp_file_manager import TempFileManager
 

@@ -98,9 +98,7 @@ class TestTaskServiceShutdownIntegration:
         shutdown_coordinator._waiters["TaskService"] = tracked_waiter
 
         # Trigger full shutdown (includes waiters)
-        shutdown_start = time.perf_counter()
         shutdown_coordinator.simulate_full_shutdown(timeout=5.0)
-        shutdown_end = time.perf_counter()
 
         # Verify waiter was called and waited for task completion
         assert waiter_start_time is not None
@@ -292,8 +290,8 @@ class TestFullApplicationShutdownIntegration:
             coordinator = test_coordinator
 
             # Get multiple services
-            task_service = container.task_service()
-            metrics_service = container.metrics_service()
+            container.task_service()
+            container.metrics_service()
 
             # Track which services receive shutdown notifications
             notified_services = set()
@@ -335,7 +333,7 @@ class TestFullApplicationShutdownIntegration:
 
             # Start a quick task
             task = DemoTask()
-            response = task_service.start_task(task, steps=1, delay=0.01)
+            task_service.start_task(task, steps=1, delay=0.01)
             time.sleep(0.05)  # Let task start
 
             # Trigger shutdown

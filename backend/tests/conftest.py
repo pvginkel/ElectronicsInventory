@@ -4,7 +4,7 @@ from collections.abc import Generator
 
 import pytest
 from flask import Flask
-from prometheus_client import CollectorRegistry, REGISTRY
+from prometheus_client import REGISTRY
 from sqlalchemy.orm import Session
 
 from app import create_app
