@@ -3,9 +3,10 @@
 import logging
 
 from dependency_injector.wiring import Provide, inject
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from spectree import Response as SpectreeResponse
 
+from app.config import Settings
 from app.schemas.health_schema import HealthResponse
 from app.services.container import ServiceContainer
 from app.utils.shutdown_coordinator import ShutdownCoordinatorProtocol
@@ -46,3 +47,39 @@ def healthz():
     This keeps the pod running even during graceful shutdown.
     """
     return jsonify({"status": "alive", "ready": True}), 200
+
+
+@health_bp.route("/drain", methods=["GET"])
+@api.validate(resp=SpectreeResponse(HTTP_200=HealthResponse, HTTP_401=HealthResponse))
+@inject
+def drain(
+    shutdown_coordinator: ShutdownCoordinatorProtocol = Provide[ServiceContainer.shutdown_coordinator],
+    settings: Settings = Provide[ServiceContainer.config]
+):
+    """Drain endpoint for manual graceful shutdown initiation.
+    
+    Requires bearer token authentication against DRAIN_AUTH_KEY config setting.
+    Calls drain() on the shutdown coordinator and returns health status.
+    """
+    # Check if DRAIN_AUTH_KEY is configured
+    if not settings.DRAIN_AUTH_KEY:
+        logger.error("DRAIN_AUTH_KEY not configured, rejecting drain request")
+        return jsonify({"status": "unauthorized", "ready": False}), 401
+    
+    # Extract Authorization header
+    auth_header = request.headers.get("Authorization", "")
+    
+    # Validate token
+    if auth_header != f"Bearer {settings.DRAIN_AUTH_KEY}":
+        logger.warning("Drain request with invalid token")
+        return jsonify({"status": "unauthorized", "ready": False}), 401
+    
+    # Call drain on shutdown coordinator
+    try:
+        logger.info("Authenticated drain request received, calling starting drain")
+        shutdown_coordinator.shutdown()
+        logger.info("Shutdown complete")
+        return jsonify({"status": "alive", "ready": True}), 200
+    except Exception as e:
+        logger.error(f"Error calling drain(): {e}")
+        return jsonify({"status": "error", "ready": False}), 500
