@@ -12,8 +12,7 @@ from tests.testing_utils import TestShutdownCoordinator
 class TestProductionShutdownCoordinator:
     """Test shutdown coordinator functionality."""
 
-    @patch('sys.exit')
-    def test_lifetime_event_sequence(self, mock_exit):
+    def test_lifetime_event_sequence(self):
         """Test that LifetimeEvent notifications are sent in correct order."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
 
@@ -29,13 +28,12 @@ class TestProductionShutdownCoordinator:
         coordinator._handle_sigterm(signal.SIGTERM, None)
 
         # Should receive both events in order
-        assert len(events_received) == 2
+        assert len(events_received) == 3
         assert events_received[0] == LifetimeEvent.PREPARE_SHUTDOWN
         assert events_received[1] == LifetimeEvent.SHUTDOWN
-        mock_exit.assert_called_once_with(0)
+        assert events_received[2] == LifetimeEvent.AFTER_SHUTDOWN
 
-    @patch('sys.exit')
-    def test_multiple_notifications(self, mock_exit):
+    def test_multiple_notifications(self):
         """Test multiple notification callbacks are called."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
 
@@ -51,19 +49,27 @@ class TestProductionShutdownCoordinator:
         coordinator._handle_sigterm(signal.SIGTERM, None)
 
         # All callbacks should be called twice (PREPARE_SHUTDOWN + SHUTDOWN)
-        assert callback1.call_count == 2
-        assert callback2.call_count == 2
-        assert callback3.call_count == 2
+        assert callback1.call_count == 3
+        assert callback2.call_count == 3
+        assert callback3.call_count == 3
 
         # Check they were called with correct events
         callback1.assert_any_call(LifetimeEvent.PREPARE_SHUTDOWN)
         callback1.assert_any_call(LifetimeEvent.SHUTDOWN)
-        mock_exit.assert_called_once_with(0)
+        callback1.assert_any_call(LifetimeEvent.AFTER_SHUTDOWN)
 
-    @patch('sys.exit')
-    def test_shutdown_waiters_sequential_execution(self, mock_exit):
+    def test_shutdown_waiters_sequential_execution(self):
         """Test that shutdown waiters are called sequentially with proper timeouts."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=5)
+
+        after_shutdown_attempted = False
+
+        def lifetime_notification(event: LifetimeEvent):
+            nonlocal after_shutdown_attempted
+            if event == LifetimeEvent.AFTER_SHUTDOWN:
+                after_shutdown_attempted = True
+
+        coordinator.register_lifetime_notification(lifetime_notification)
 
         # Track the order and timing of waiter calls
         waiter_calls = []
@@ -100,12 +106,20 @@ class TestProductionShutdownCoordinator:
         total_time = end_time - start_time
         assert 1.4 < total_time < 2.0  # Allow some tolerance
 
-        mock_exit.assert_called_once_with(0)
+        assert after_shutdown_attempted
 
-    @patch('sys.exit')
-    def test_waiter_timeout_exceeded(self, mock_exit):
+    def test_waiter_timeout_exceeded(self):
         """Test behavior when waiter timeout is exceeded."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=0.5)
+
+        after_shutdown_attempted = False
+
+        def lifetime_notification(event: LifetimeEvent):
+            nonlocal after_shutdown_attempted
+            if event == LifetimeEvent.AFTER_SHUTDOWN:
+                after_shutdown_attempted = True
+
+        coordinator.register_lifetime_notification(lifetime_notification)
 
         def slow_waiter(timeout: float) -> bool:
             time.sleep(1.0)  # Takes longer than total timeout
@@ -126,12 +140,20 @@ class TestProductionShutdownCoordinator:
         total_time = end_time - start_time
         assert total_time < 1.1  # Should not wait for slow waiter (allow small tolerance)
 
-        mock_exit.assert_called_once_with(0)
+        assert after_shutdown_attempted
 
-    @patch('sys.exit')
-    def test_waiter_returns_false(self, mock_exit):
+    def test_waiter_returns_false(self):
         """Test behavior when waiter returns False (not ready)."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
+
+        after_shutdown_attempted = False
+
+        def lifetime_notification(event: LifetimeEvent):
+            nonlocal after_shutdown_attempted
+            if event == LifetimeEvent.AFTER_SHUTDOWN:
+                after_shutdown_attempted = True
+
+        coordinator.register_lifetime_notification(lifetime_notification)
 
         def not_ready_waiter(timeout: float) -> bool:
             return False
@@ -146,10 +168,9 @@ class TestProductionShutdownCoordinator:
         coordinator._handle_sigterm(signal.SIGTERM, None)
 
         # Should still complete shutdown even if one waiter is not ready
-        mock_exit.assert_called_once_with(0)
+        assert after_shutdown_attempted
 
-    @patch('sys.exit')
-    def test_is_shutting_down_state(self, mock_exit):
+    def test_is_shutting_down_state(self):
         """Test shutdown state tracking."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
 
@@ -173,14 +194,12 @@ class TestProductionShutdownCoordinator:
         thread.join(timeout=5)
 
         # Should be shutting down during both events
-        assert len(shutdown_state_during_notification) == 2
+        assert len(shutdown_state_during_notification) == 3
         assert shutdown_state_during_notification[0] == (LifetimeEvent.PREPARE_SHUTDOWN, True)
         assert shutdown_state_during_notification[1] == (LifetimeEvent.SHUTDOWN, True)
+        assert shutdown_state_during_notification[2] == (LifetimeEvent.AFTER_SHUTDOWN, True)
 
-        mock_exit.assert_called_once_with(0)
-
-    @patch('sys.exit')
-    def test_double_signal_handling(self, mock_exit):
+    def test_double_signal_handling(self):
         """Test that multiple signals are handled gracefully."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
 
@@ -195,11 +214,9 @@ class TestProductionShutdownCoordinator:
             coordinator._handle_sigterm(signal.SIGTERM, None)
 
         # Callback should only be called twice (once for each event in first signal)
-        assert callback.call_count == 2
-        mock_exit.assert_called_once_with(0)
+        assert callback.call_count == 3
 
-    @patch('sys.exit')
-    def test_notification_exception_handling(self, mock_exit):
+    def test_notification_exception_handling(self):
         """Test that exceptions in notification callbacks don't break shutdown."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
 
@@ -217,16 +234,23 @@ class TestProductionShutdownCoordinator:
         coordinator._handle_sigterm(signal.SIGTERM, None)
 
         # Good callback should still be called
-        assert len(good_callback.calls) == 2
+        assert len(good_callback.calls) == 3
         assert good_callback.calls[0] == LifetimeEvent.PREPARE_SHUTDOWN
         assert good_callback.calls[1] == LifetimeEvent.SHUTDOWN
+        assert good_callback.calls[2] == LifetimeEvent.AFTER_SHUTDOWN
 
-        mock_exit.assert_called_once_with(0)
-
-    @patch('sys.exit')
-    def test_waiter_exception_handling(self, mock_exit):
+    def test_waiter_exception_handling(self):
         """Test that exceptions in waiters don't prevent shutdown."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
+
+        after_shutdown_attempted = False
+
+        def lifetime_notification(event: LifetimeEvent):
+            nonlocal after_shutdown_attempted
+            if event == LifetimeEvent.AFTER_SHUTDOWN:
+                after_shutdown_attempted = True
+
+        coordinator.register_lifetime_notification(lifetime_notification)
 
         def bad_waiter(timeout: float) -> bool:
             raise Exception("Waiter error")
@@ -245,12 +269,21 @@ class TestProductionShutdownCoordinator:
 
         # Good waiter should have been called
         assert good_waiter_called.is_set()
-        mock_exit.assert_called_once_with(0)
+        
+        assert after_shutdown_attempted
 
-    @patch('sys.exit')
-    def test_thread_safety(self, mock_exit):
+    def test_thread_safety(self):
         """Test thread safety of shutdown coordinator."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
+
+        after_shutdown_attempted = False
+
+        def lifetime_notification(event: LifetimeEvent):
+            nonlocal after_shutdown_attempted
+            if event == LifetimeEvent.AFTER_SHUTDOWN:
+                after_shutdown_attempted = True
+
+        coordinator.register_lifetime_notification(lifetime_notification)
 
         # Multiple threads checking shutdown state
         results = []
@@ -280,8 +313,7 @@ class TestProductionShutdownCoordinator:
         # Should have mix of True/False values (some before, some during shutdown)
         assert False in results  # Some checks before shutdown
         assert True in results   # Some checks during/after shutdown
-
-        mock_exit.assert_called_once_with(0)
+        assert after_shutdown_attempted
 
 
 class TestNoopShutdownCoordinator:
@@ -416,8 +448,7 @@ class TestNoopShutdownCoordinator:
 class TestShutdownIntegrationScenarios:
     """Test realistic shutdown scenarios."""
 
-    @patch('sys.exit')
-    def test_coordinated_service_shutdown(self, mock_exit):
+    def test_coordinated_service_shutdown(self):
         """Test coordinated shutdown with multiple services."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
 
@@ -457,6 +488,8 @@ class TestShutdownIntegrationScenarios:
         assert "Service2:waiter_complete" in event_sequence
         assert "Service1:shutdown" in event_sequence
         assert "Service2:shutdown" in event_sequence
+        assert "Service1:after-shutdown" in event_sequence
+        assert "Service2:after-shutdown" in event_sequence
 
         # All PREPARE_SHUTDOWN notifications should come before any waiters
         prepare_indices = [i for i, event in enumerate(event_sequence)
@@ -469,10 +502,7 @@ class TestShutdownIntegrationScenarios:
         assert max(prepare_indices) < min(waiter_indices)
         assert max(waiter_indices) < min(shutdown_indices)
 
-        mock_exit.assert_called_once_with(0)
-
-    @patch('sys.exit')
-    def test_shutdown_with_mixed_service_behavior(self, mock_exit):
+    def test_shutdown_with_mixed_service_behavior(self):
         """Test shutdown with services that behave differently."""
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
 
@@ -482,12 +512,15 @@ class TestShutdownIntegrationScenarios:
             'failing_service_notified': False,
             'fast_service_completed': False,
             'slow_service_completed': False,
-            'failing_service_attempted': False
+            'failing_service_attempted': False,
+            'after_shutdown_attempted': False
         }
 
         # Fast service - completes immediately
         def fast_notification(event: LifetimeEvent):
             results['fast_service_notified'] = True
+            if event == LifetimeEvent.AFTER_SHUTDOWN:
+                results['after_shutdown_attempted'] = True
 
         def fast_waiter(timeout: float) -> bool:
             results['fast_service_completed'] = True
@@ -534,5 +567,5 @@ class TestShutdownIntegrationScenarios:
         # Failing service should be attempted
         assert results['failing_service_attempted']
 
-        # Shutdown should still complete despite failure
-        mock_exit.assert_called_once_with(0)
+        # After shutdown should be raised
+        assert results['after_shutdown_attempted']
