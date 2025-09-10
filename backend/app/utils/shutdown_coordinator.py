@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class LifetimeEvent(str, Enum):
     PREPARE_SHUTDOWN = "prepare-shutdown"
     SHUTDOWN = "shutdown"
-
+    AFTER_SHUTDOWN = "after-shutdown"
 
 class ShutdownCoordinatorProtocol(ABC):
     """Protocol for shutdown coordinator implementations."""
@@ -53,13 +53,13 @@ class ShutdownCoordinatorProtocol(ABC):
         """
         pass
 
+    @abstractmethod
+    def shutdown(self) -> None:
+        """Implements the shutdown process."""
+        pass
+
 class ShutdownCoordinator(ShutdownCoordinatorProtocol):
     """Coordinator for graceful shutdown of services."""
-
-    def initialize(self) -> None:
-        """Setup the signal handlers."""
-        signal.signal(signal.SIGTERM, self._handle_sigterm)
-        signal.signal(signal.SIGINT, self._handle_sigterm)
 
     def __init__(self, graceful_shutdown_timeout: int):
         """Initialize shutdown coordinator.
@@ -74,6 +74,11 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
         self._shutdown_waiters: dict[str, Callable[[float], bool]] = {}
 
         logger.info("ShutdownCoordinator initialized")
+
+    def initialize(self) -> None:
+        """Setup the signal handlers."""
+        signal.signal(signal.SIGTERM, self._handle_sigterm)
+        signal.signal(signal.SIGINT, self._handle_sigterm)
 
     def register_lifetime_notification(self, callback: Callable[[LifetimeEvent], None]) -> None:
         """Register a callback to be notified immediately when shutdown starts."""
@@ -95,6 +100,10 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
     def _handle_sigterm(self, signum: int, frame) -> None:
         """SIGTERM signal handler that performs complete graceful shutdown."""
         logger.info(f"Received signal {signum}, initiating graceful shutdown")
+
+        self.shutdown()
+
+    def shutdown(self):
         """Implements the shutdown process."""
         with self._shutdown_lock:
             if self._shutting_down:
@@ -145,7 +154,8 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
         self._raise_lifetime_event(LifetimeEvent.SHUTDOWN)
 
         logger.info("Shutting down")
-        sys.exit(0)
+
+        self._raise_lifetime_event(LifetimeEvent.AFTER_SHUTDOWN)
 
     def _raise_lifetime_event(self, event: LifetimeEvent) -> None:
         logger.info(f"Raising lifetime event {event}")

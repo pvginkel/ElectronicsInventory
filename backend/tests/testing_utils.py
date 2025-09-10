@@ -36,6 +36,10 @@ class StubShutdownCoordinator(ShutdownCoordinatorProtocol):
         """Return current shutdown state."""
         return self._shutting_down
 
+    def shutdown(self) -> None:
+        """Implements the shutdown process."""
+        pass
+
 
 class TestShutdownCoordinator(StubShutdownCoordinator):
     """Enhanced shutdown coordinator stub with controllable execution.

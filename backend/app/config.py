@@ -144,6 +144,10 @@ class Settings(BaseSettings):
         default=600,
         description="Maximum seconds to wait for tasks during shutdown (10 minutes)"
     )
+    DRAIN_AUTH_KEY: str = Field(
+        default="",
+        description="Bearer token for authenticating drain endpoint access"
+    )
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
