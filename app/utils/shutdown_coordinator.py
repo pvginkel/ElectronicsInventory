@@ -1,11 +1,11 @@
 """Graceful shutdown coordinator for managing service shutdowns in Kubernetes."""
 
-from enum import Enum
 import logging
-import os
+import signal
 import sys
 import threading
 import time
+from enum import Enum
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 
@@ -19,6 +19,11 @@ class LifetimeEvent(str, Enum):
 
 class ShutdownCoordinatorProtocol(ABC):
     """Protocol for shutdown coordinator implementations."""
+
+    @abstractmethod
+    def initialize(self) -> None:
+        """Setup the signal handlers."""
+        pass
 
     @abstractmethod
     def register_lifetime_notification(self, callback: Callable[[LifetimeEvent], None]) -> None:
@@ -40,15 +45,6 @@ class ShutdownCoordinatorProtocol(ABC):
         pass
 
     @abstractmethod
-    def register_server_shutdown(self, callback: Callable[[], None]) -> None:
-        """Register the server shutdown callback.
-
-        Args:
-            callback: Function to call to shutdown the server gracefully
-        """
-        pass
-
-    @abstractmethod
     def is_shutting_down(self) -> bool:
         """Check if shutdown has been initiated.
 
@@ -57,24 +53,14 @@ class ShutdownCoordinatorProtocol(ABC):
         """
         pass
 
-    @abstractmethod
-    def handle_sigterm(self, signum: int, frame) -> None:
-        """SIGTERM signal handler that initiates graceful shutdown.
-
-        Args:
-            signum: Signal number
-            frame: Current stack frame
-        """
-        pass
-
-    @abstractmethod
-    def perform_shutdown(self) -> bool:
-        """Implements the shutdown process."""
-        pass
-
-
 class ShutdownCoordinator(ShutdownCoordinatorProtocol):
     """Coordinator for graceful shutdown of services."""
+
+    @abstractmethod
+    def initialize(self) -> None:
+        """Setup the signal handlers."""
+        signal.signal(signal.SIGTERM, self._handle_sigterm)
+        signal.signal(signal.SIGINT, self._handle_sigterm)
 
     def __init__(self, graceful_shutdown_timeout: int):
         """Initialize shutdown coordinator.
@@ -87,7 +73,6 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
         self._shutdown_lock = threading.RLock()
         self._shutdown_notifications: list[Callable[[LifetimeEvent], None]] = []
         self._shutdown_waiters: dict[str, Callable[[float], bool]] = {}
-        self._server_shutdown_callback: Callable[[], None] | None = None
 
         logger.info("ShutdownCoordinator initialized")
 
@@ -103,58 +88,19 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
             self._shutdown_waiters[name] = handler
             logger.debug(f"Registered shutdown waiter: {name}")
 
-    def register_server_shutdown(self, callback: Callable[[], None]) -> None:
-        """Register the server shutdown callback."""
-        with self._shutdown_lock:
-            self._server_shutdown_callback = callback
-            logger.debug("Registered server shutdown callback")
-
     def is_shutting_down(self) -> bool:
         """Check if shutdown has been initiated."""
         with self._shutdown_lock:
             return self._shutting_down
 
-    def handle_sigterm(self, signum: int, frame) -> None:
-        import sys, signal, traceback, threading
-        print("\n=== STACK TRACE DUMP ===")
-        for thread_id, stack in sys._current_frames().items():
-            print(f"\n# Thread {threading._active.get(thread_id)} (id: {thread_id})")
-            traceback.print_stack(stack)
-        print("=== END STACK TRACE ===\n")
-
+    def _handle_sigterm(self, signum: int, frame) -> None:
         """SIGTERM signal handler that performs complete graceful shutdown."""
         logger.info(f"Received signal {signum}, initiating graceful shutdown")
-
-        if not self.perform_shutdown():
-            return
-
-        logger.info("Shutting down server")
-        if self._server_shutdown_callback:
-            try:
-                self._server_shutdown_callback()
-            except Exception as e:
-                logger.error(f"Error shutting down server: {e}")
-                # Force exit if server shutdown fails
-                os._exit(1)
-        else:
-            logger.warning("No server shutdown callback registered, exiting directly")
-            sys.exit(0)
-
-    def _raise_lifetime_event(self, event: LifetimeEvent) -> None:
-        logger.info(f"Raising lifetime event {event}")
-
-        for callback in self._shutdown_notifications:
-            try:
-                callback(event)
-            except Exception as e:
-                logger.error(f"Error in lifetime event notification {getattr(callback, '__name__', repr(callback))}: {e}")
-
-    def perform_shutdown(self) -> bool:
         """Implements the shutdown process."""
         with self._shutdown_lock:
             if self._shutting_down:
                 logger.warning("Shutdown already in progress, ignoring signal")
-                return False
+                return
 
             self._shutting_down = True
             shutdown_start_time = time.perf_counter()
@@ -199,7 +145,17 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
         # Notify that we're actually shutting down now.
         self._raise_lifetime_event(LifetimeEvent.SHUTDOWN)
 
-        return True
+        logger.info("Shutting down")
+        sys.exit(0)
+
+    def _raise_lifetime_event(self, event: LifetimeEvent) -> None:
+        logger.info(f"Raising lifetime event {event}")
+
+        for callback in self._shutdown_notifications:
+            try:
+                callback(event)
+            except Exception as e:
+                logger.error(f"Error in lifetime event notification {getattr(callback, '__name__', repr(callback))}: {e}")
 
 
 class NoopShutdownCoordinator(ShutdownCoordinatorProtocol):
@@ -207,7 +163,6 @@ class NoopShutdownCoordinator(ShutdownCoordinatorProtocol):
 
     def __init__(self):
         """Initialize no-op coordinator."""
-        self._shutting_down = False
         logger.debug("NoopShutdownCoordinator initialized")
 
     def register_lifetime_notification(self, callback: Callable[[LifetimeEvent], None]) -> None:
@@ -218,17 +173,6 @@ class NoopShutdownCoordinator(ShutdownCoordinatorProtocol):
         """No-op waiter registration."""
         pass
 
-    def register_server_shutdown(self, callback: Callable[[], None]) -> None:
-        """No-op server shutdown registration."""
-        pass
-
     def is_shutting_down(self) -> bool:
         """Always return False for testing."""
-        return self._shutting_down
-
-    def handle_sigterm(self, signum: int, frame) -> None:
-        """No-op signal handler."""
-        self._shutting_down = True
-
-    def perform_shutdown(self) -> bool:
-        return True
+        return False
