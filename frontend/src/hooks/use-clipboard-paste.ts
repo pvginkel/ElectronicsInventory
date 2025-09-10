@@ -6,9 +6,17 @@ import { useToast } from '@/hooks/use-toast';
 interface UseClipboardPasteOptions {
   partId: string;
   enabled?: boolean;
-  onUploadSuccess?: (documentId?: string) => void;
+  onUploadSuccess?: (documentId: number) => void;
 }
 
+/**
+ * Hook that enables clipboard image paste functionality for a part.
+ * Listens for paste events and automatically uploads pasted images as part documents.
+ * 
+ * @param options.partId - The ID of the part to attach documents to
+ * @param options.enabled - Whether clipboard paste is enabled (default: true)
+ * @param options.onUploadSuccess - Callback fired after successful upload
+ */
 export function useClipboardPaste({
   partId,
   enabled = true,
@@ -58,6 +66,7 @@ export function useClipboardPaste({
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const fileExtension = file.type.split('/')[1] || 'png';
     const fileName = `Clipboard Image - ${timestamp}.${fileExtension}`;
+    const documentName = `Clipboard Image - ${timestamp}`;
 
     // Create a new File object with the generated name
     const namedFile = new File([file], fileName, { type: file.type });
@@ -65,20 +74,15 @@ export function useClipboardPaste({
     // Show upload notification
     showInfo('Uploading clipboard image...');
 
-    try {
-      // Upload the file using the existing hook
-      await uploadDocument({
-        partId,
-        file: namedFile,
-        name: `Clipboard Image - ${new Date().toLocaleString()}`,
-      });
+    // Upload the file using the existing hook
+    const result = await uploadDocument({
+      partId,
+      file: namedFile,
+      name: documentName,
+    });
 
-      // Call success callback if provided
-      onUploadSuccess?.();
-    } catch (error) {
-      // Error is already handled by uploadDocument hook
-      console.error('Failed to upload clipboard image:', error);
-    }
+    // Call success callback with the document ID
+    onUploadSuccess?.(result.id);
   }, [partId, enabled, uploadDocument, showInfo, showError, onUploadSuccess]);
 
   useEffect(() => {
@@ -94,6 +98,7 @@ export function useClipboardPaste({
   }, [handlePaste, enabled]);
 
   return {
-    // Expose nothing for now, but could expose manual paste trigger in future
+    // Currently no public API needed - hook works automatically via event listeners
+    // Future enhancement: could expose manual paste trigger or paste state
   };
 }

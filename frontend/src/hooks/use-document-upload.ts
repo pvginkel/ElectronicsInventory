@@ -20,6 +20,11 @@ export interface DocumentUploadOptions {
   onProgress?: (progress: number) => void;
 }
 
+export interface DocumentUploadResult {
+  id: number;
+  title: string;
+}
+
 export function useDocumentUpload() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, UploadProgress>>({});
   const queryClient = useQueryClient();
@@ -27,7 +32,7 @@ export function useDocumentUpload() {
   
   const baseUrl = getApiBaseUrl();
 
-  const uploadDocument = useCallback(async (options: DocumentUploadOptions) => {
+  const uploadDocument = useCallback(async (options: DocumentUploadOptions): Promise<DocumentUploadResult> => {
     const { partId, file, url, name, onProgress } = options;
     
     // Validate inputs
@@ -122,6 +127,9 @@ export function useDocumentUpload() {
         throw new Error(`Upload failed: ${response.status} ${errorText}`);
       }
 
+      // Parse the response to get the document data
+      const documentData = await response.json();
+      
       // Complete progress
       onProgress?.(100);
       setUploadProgress(prev => ({
@@ -145,6 +153,12 @@ export function useDocumentUpload() {
           return rest;
         });
       }, 2000);
+      
+      // Return the document data
+      return {
+        id: documentData.id,
+        title: documentData.title
+      };
 
     } catch (error) {
       const errorMessage = parseApiError(error);

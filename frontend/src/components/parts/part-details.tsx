@@ -23,7 +23,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
   const navigate = useNavigate();
   const { confirm, confirmProps } = useConfirm();
   const documentGridRef = useRef<HTMLDivElement>(null);
-  const [latestUploadTimestamp, setLatestUploadTimestamp] = useState<number>(0);
+  const [latestUploadedDocumentId, setLatestUploadedDocumentId] = useState<number | null>(null);
   
   const { data: part, isLoading, error, refetch } = useGetPartsByPartKey(
     { path: { part_key: partId } },
@@ -37,46 +37,47 @@ export function PartDetails({ partId }: PartDetailsProps) {
   useClipboardPaste({
     partId,
     enabled: !isEditing && !!partId,
-    onUploadSuccess: () => {
+    onUploadSuccess: (documentId) => {
       // Refresh the document grid
       setDocumentKey(prev => prev + 1);
-      // Set timestamp for auto-scroll
-      setLatestUploadTimestamp(Date.now());
+      // Set the document ID for auto-scroll
+      setLatestUploadedDocumentId(documentId);
     }
   });
 
   // Auto-scroll to the newly uploaded document
   useEffect(() => {
-    if (latestUploadTimestamp === 0) return;
+    if (!latestUploadedDocumentId) return;
 
     // Wait for the document grid to refresh
     const scrollTimeout = setTimeout(() => {
       if (documentGridRef.current) {
-        // Find the last document tile (most recently added)
-        const documentTiles = documentGridRef.current.querySelectorAll('[data-document-tile]');
-        if (documentTiles.length > 0) {
-          const lastTile = documentTiles[documentTiles.length - 1] as HTMLElement;
-          
+        // Find the specific document tile by ID
+        const targetTile = documentGridRef.current.querySelector(
+          `[data-document-id="${latestUploadedDocumentId}"]`
+        ) as HTMLElement;
+        
+        if (targetTile) {
           // Scroll the tile into view with smooth behavior
-          lastTile.scrollIntoView({ 
+          targetTile.scrollIntoView({ 
             behavior: 'smooth', 
             block: 'center',
             inline: 'nearest' 
           });
 
           // Add a brief highlight effect
-          lastTile.style.transition = 'box-shadow 0.3s ease';
-          lastTile.style.boxShadow = '0 0 0 2px rgb(59, 130, 246)';
+          targetTile.style.transition = 'box-shadow 0.3s ease';
+          targetTile.style.boxShadow = '0 0 0 2px rgb(59, 130, 246)';
           
           setTimeout(() => {
-            lastTile.style.boxShadow = '';
+            targetTile.style.boxShadow = '';
           }, 2000);
         }
       }
     }, 500); // Wait for grid to update
 
     return () => clearTimeout(scrollTimeout);
-  }, [latestUploadTimestamp]);
+  }, [latestUploadedDocumentId]);
 
   const handleDeletePart = async () => {
     if (!part) return;

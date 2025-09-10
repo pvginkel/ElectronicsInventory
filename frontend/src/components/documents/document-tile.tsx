@@ -102,7 +102,8 @@ export function DocumentTile({
       className={`relative bg-card border rounded-lg overflow-hidden transition-all ${
         isDeleting ? 'opacity-50 pointer-events-none' : 'hover:shadow-md'
       }`}
-      data-document-tile>
+      data-document-tile
+      data-document-id={document.id}>
       <div className="relative aspect-square">
         <div 
           className="w-full h-full cursor-pointer"

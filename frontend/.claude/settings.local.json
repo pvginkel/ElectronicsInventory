@@ -17,7 +17,8 @@
       "Read(//home/pvginkel/source/ElectronicsInventory/backend/app/schemas/**)",
       "Read(//home/pvginkel/source/ElectronicsInventory/backend/app/api/**)",
       "Bash(./scripts/build.sh:*)",
-      "Read(//home/pvginkel/source/ElectronicsInventory/backend/docs/features/dashboard/**)"
+      "Read(//home/pvginkel/source/ElectronicsInventory/backend/docs/features/dashboard/**)",
+      "Bash(pnpm eslint:*)"
     ],
     "deny": [],
     "ask": []
