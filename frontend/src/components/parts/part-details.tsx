@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { AddDocumentModal } from '@/components/documents/add-document-modal';
 import { useGetPartsByPartKey, useDeletePartsByPartKey } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { useConfirm } from '@/hooks/use-confirm';
+import { useClipboardPaste } from '@/hooks/use-clipboard-paste';
 
 interface PartDetailsProps {
   partId: string;
@@ -21,6 +22,8 @@ export function PartDetails({ partId }: PartDetailsProps) {
   const [showAddDocument, setShowAddDocument] = useState(false);
   const navigate = useNavigate();
   const { confirm, confirmProps } = useConfirm();
+  const documentGridRef = useRef<HTMLDivElement>(null);
+  const [latestUploadTimestamp, setLatestUploadTimestamp] = useState<number>(0);
   
   const { data: part, isLoading, error, refetch } = useGetPartsByPartKey(
     { path: { part_key: partId } },
@@ -29,6 +32,51 @@ export function PartDetails({ partId }: PartDetailsProps) {
   
   const [documentKey, setDocumentKey] = useState(0); // Force refresh by changing key
   const deletePartMutation = useDeletePartsByPartKey();
+
+  // Enable clipboard paste when not in editing mode
+  useClipboardPaste({
+    partId,
+    enabled: !isEditing && !!partId,
+    onUploadSuccess: () => {
+      // Refresh the document grid
+      setDocumentKey(prev => prev + 1);
+      // Set timestamp for auto-scroll
+      setLatestUploadTimestamp(Date.now());
+    }
+  });
+
+  // Auto-scroll to the newly uploaded document
+  useEffect(() => {
+    if (latestUploadTimestamp === 0) return;
+
+    // Wait for the document grid to refresh
+    const scrollTimeout = setTimeout(() => {
+      if (documentGridRef.current) {
+        // Find the last document tile (most recently added)
+        const documentTiles = documentGridRef.current.querySelectorAll('[data-document-tile]');
+        if (documentTiles.length > 0) {
+          const lastTile = documentTiles[documentTiles.length - 1] as HTMLElement;
+          
+          // Scroll the tile into view with smooth behavior
+          lastTile.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest' 
+          });
+
+          // Add a brief highlight effect
+          lastTile.style.transition = 'box-shadow 0.3s ease';
+          lastTile.style.boxShadow = '0 0 0 2px rgb(59, 130, 246)';
+          
+          setTimeout(() => {
+            lastTile.style.boxShadow = '';
+          }, 2000);
+        }
+      }
+    }, 500); // Wait for grid to update
+
+    return () => clearTimeout(scrollTimeout);
+  }, [latestUploadTimestamp]);
 
   const handleDeletePart = async () => {
     if (!part) return;
@@ -330,11 +378,13 @@ export function PartDetails({ partId }: PartDetailsProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <PartDocumentGrid
-            key={documentKey}
-            partId={partId}
-            onDocumentChange={() => setDocumentKey(prev => prev + 1)}
-          />
+          <div ref={documentGridRef}>
+            <PartDocumentGrid
+              key={documentKey}
+              partId={partId}
+              onDocumentChange={() => setDocumentKey(prev => prev + 1)}
+            />
+          </div>
         </CardContent>
       </Card>
 
