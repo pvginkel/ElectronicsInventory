@@ -78,10 +78,6 @@ class AIService(BaseService):
         try:
             if self.config.OPENAI_DUMMY_RESPONSE_PATH:
                 with open(self.config.OPENAI_DUMMY_RESPONSE_PATH) as f:
-                    for i in range(0, 5):
-                        logger.info(f"SLEEPING {i + 1}")
-                        import time
-                        time.sleep(1)
                     ai_response = PartAnalysisSuggestion.model_validate(json.loads(f.read()))
             else:
                 # Build input and instructions for Responses API
