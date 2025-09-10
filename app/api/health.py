@@ -57,7 +57,7 @@ def drain(
     settings: Settings = Provide[ServiceContainer.config]
 ):
     """Drain endpoint for manual graceful shutdown initiation.
-    
+
     Requires bearer token authentication against DRAIN_AUTH_KEY config setting.
     Calls drain() on the shutdown coordinator and returns health status.
     """
@@ -65,15 +65,15 @@ def drain(
     if not settings.DRAIN_AUTH_KEY:
         logger.error("DRAIN_AUTH_KEY not configured, rejecting drain request")
         return jsonify({"status": "unauthorized", "ready": False}), 401
-    
+
     # Extract Authorization header
     auth_header = request.headers.get("Authorization", "")
-    
+
     # Validate token
     if auth_header != f"Bearer {settings.DRAIN_AUTH_KEY}":
         logger.warning("Drain request with invalid token")
         return jsonify({"status": "unauthorized", "ready": False}), 401
-    
+
     # Call drain on shutdown coordinator
     try:
         logger.info("Authenticated drain request received, calling starting drain")

@@ -2,7 +2,6 @@
 
 import logging
 import signal
-import sys
 import threading
 import time
 from abc import ABC, abstractmethod

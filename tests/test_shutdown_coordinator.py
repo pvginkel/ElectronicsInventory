@@ -397,7 +397,6 @@ class TestNoopShutdownCoordinator:
     def test_interface_compatibility(self):
         """Test that TestShutdownCoordinator has same interface as real coordinator."""
         noop = TestShutdownCoordinator()
-        real = ShutdownCoordinator(graceful_shutdown_timeout=60)
 
         # Check all required methods exist
         assert hasattr(noop, 'initialize')
