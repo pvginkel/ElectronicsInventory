@@ -34,7 +34,7 @@ interface CardHeaderProps {
 
 export function CardHeader({ children, className = '' }: CardHeaderProps) {
   return (
-    <div className={`flex flex-col space-y-1.5 pb-2 ${className}`}>
+    <div className={`flex flex-col space-y-1.5 pb-4 ${className}`}>
       {children}
     </div>
   )

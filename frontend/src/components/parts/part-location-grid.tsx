@@ -240,13 +240,13 @@ function LocationRow({
 
   return (
     <div className="flex items-center py-1 gap-4 w-fit">
-      <div className="flex-shrink-0 pb-1">
-        <span className="font-mono text-sm">#{location.box_no}</span>
+      <div className="flex-shrink-0 pb-0.5">
+        <span className="text-sm">#{location.box_no}</span>
         <span className="text-sm text-muted-foreground ml-1">{boxDescription}</span>
       </div>
       
-      <div className="w-12 text-center flex-shrink-0 pb-1">
-        <span className="font-mono text-sm">{location.loc_no}</span>
+      <div className="w-12 text-center flex-shrink-0 pb-0.5">
+        <span className="text-sm">{location.loc_no}</span>
       </div>
       
       <div className="w-16 text-center flex-shrink-0">
