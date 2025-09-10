@@ -104,13 +104,12 @@ def create_app(settings: "Settings | None" = None) -> App:
         # Log warning but don't fail startup - S3 might be optional
         app.logger.warning(f"Failed to ensure S3 bucket exists: {e}")
 
-    # Initialize and start metrics collection if enabled
-    if settings.METRICS_ENABLED:
-        try:
-            metrics_service = container.metrics_service()
-            metrics_service.start_background_updater(settings.METRICS_UPDATE_INTERVAL)
-            app.logger.info("Prometheus metrics collection started")
-        except Exception as e:
-            app.logger.warning(f"Failed to start metrics collection: {e}")
+    # Initialize and start metrics collection
+    try:
+        metrics_service = container.metrics_service()
+        metrics_service.start_background_updater(settings.METRICS_UPDATE_INTERVAL)
+        app.logger.info("Prometheus metrics collection started")
+    except Exception as e:
+        app.logger.warning(f"Failed to start metrics collection: {e}")
 
     return app

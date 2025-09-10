@@ -6,13 +6,10 @@ import logging
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple
+from typing import NamedTuple
 from uuid import uuid4
 
-from app.utils.shutdown_coordinator import LifetimeEvent
-
-if TYPE_CHECKING:
-    from app.utils.shutdown_coordinator import ShutdownCoordinatorProtocol
+from app.utils.shutdown_coordinator import LifetimeEvent, ShutdownCoordinatorProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +33,7 @@ class TempFileManager:
         self,
         base_path: str,
         cleanup_age_hours: float,
-        shutdown_coordinator: "ShutdownCoordinatorProtocol"
+        shutdown_coordinator: ShutdownCoordinatorProtocol
     ):
         """
         Initialize the temporary file manager.
@@ -244,7 +241,11 @@ class TempFileManager:
             return False
 
     def _on_lifetime_event(self, event: LifetimeEvent) -> None:
+        """Callback when shutdown is initiated."""
         match event:
             case LifetimeEvent.SHUTDOWN:
-                """Callback when shutdown is initiated."""
-                self._stop_cleanup_thread()
+                self.shutdown()
+
+    def shutdown(self) -> None:
+        """Implementation of the shutdown sequence, also for use by unit tests."""
+        self._stop_cleanup_thread()

@@ -16,7 +16,7 @@ from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
 from app.services.type_service import TypeService
 from app.utils.temp_file_manager import TempFileManager
-from app.utils.shutdown_coordinator import NoopShutdownCoordinator
+from tests.testing_utils import StubMetricsService, StubShutdownCoordinator
 
 
 @pytest.fixture
@@ -38,9 +38,9 @@ def temp_file_manager() -> Generator[TempFileManager, None, None]:
     """Create temporary file manager for testing."""
     with tempfile.TemporaryDirectory() as temp_dir:
         yield TempFileManager(
-            base_path=temp_dir, 
+            base_path=temp_dir,
             cleanup_age_hours=1.0,
-            shutdown_coordinator=NoopShutdownCoordinator()
+            shutdown_coordinator=StubShutdownCoordinator()
         )
 
 
@@ -73,8 +73,7 @@ def mock_document_service() -> DocumentService:
 @pytest.fixture
 def mock_metrics_service():
     """Create mock metrics service."""
-    from app.services.metrics_service import NoopMetricsService
-    return NoopMetricsService()
+    return StubMetricsService()
 
 
 @pytest.fixture

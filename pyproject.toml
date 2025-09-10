@@ -109,7 +109,8 @@ markers = [
 ]
 filterwarnings = [
     "ignore::pydantic.warnings.PydanticDeprecatedSince20",
-    "ignore::pluggy._warnings.PluggyTeardownRaisedWarning"
+    "ignore::pluggy._warnings.PluggyTeardownRaisedWarning",
+    "ignore::DeprecationWarning:pydantic.*"
 ]
 
 [tool.coverage.run]

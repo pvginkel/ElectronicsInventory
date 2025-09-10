@@ -9,7 +9,7 @@ import requests
 
 from app.services.download_cache_service import DownloadCacheService, DownloadResult
 from app.utils.temp_file_manager import TempFileManager
-from app.utils.shutdown_coordinator import NoopShutdownCoordinator
+from tests.testing_utils import StubShutdownCoordinator
 
 
 class TestDownloadCacheService:
@@ -22,12 +22,16 @@ class TestDownloadCacheService:
             yield Path(tmpdir)
 
     @pytest.fixture
-    def temp_file_manager(self, temp_dir):
+    def test_shutdown_coordinator(self):
+        return StubShutdownCoordinator()
+
+    @pytest.fixture
+    def temp_file_manager(self, temp_dir, test_shutdown_coordinator):
         """Create a TempFileManager instance for testing."""
         return TempFileManager(
-            base_path=str(temp_dir), 
+            base_path=str(temp_dir),
             cleanup_age_hours=1.0,
-            shutdown_coordinator=NoopShutdownCoordinator()
+            shutdown_coordinator=test_shutdown_coordinator
         )
 
     @pytest.fixture

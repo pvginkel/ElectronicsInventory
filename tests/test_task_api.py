@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.schemas.task_schema import TaskInfo, TaskStatus
 from app.services.task_service import TaskService
-from app.utils.shutdown_coordinator import NoopShutdownCoordinator
 from tests.test_tasks.test_task import DemoTask
+from tests.testing_utils import StubMetricsService, StubShutdownCoordinator
 
 
 class TestTaskAPI:
@@ -191,12 +191,14 @@ class TestTaskAPIIntegration:
     @pytest.fixture
     def real_task_service(self, session: Session):
         """Create real TaskService instance for integration testing."""
-        from app.services.metrics_service import NoopMetricsService
-        metrics_service = NoopMetricsService()
-        shutdown_coordinator = NoopShutdownCoordinator()
-        service = TaskService(metrics_service, shutdown_coordinator, max_workers=1, task_timeout=10)
+        service = TaskService(
+            metrics_service=StubMetricsService(),
+            max_workers=1,
+            task_timeout=10,
+            shutdown_coordinator=StubShutdownCoordinator()
+        )
         yield service
-        service._shutdown()
+        service.shutdown()
 
     def test_full_task_lifecycle_via_api(self, client, app, real_task_service):
         """Test complete task lifecycle through API endpoints."""

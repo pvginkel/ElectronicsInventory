@@ -359,6 +359,61 @@ container.wire(modules=[
 ])
 ```
 
+## Graceful Shutdown Integration
+
+Services with background threads or long-running operations must integrate with the graceful shutdown coordinator to ensure clean shutdowns during Kubernetes deployments.
+
+### When to Integrate
+
+Services need shutdown integration if they:
+- Run background threads (cleanup, metrics updates, etc.)
+- Have long-running operations that should complete before shutdown
+- Need to stop accepting new requests during shutdown
+
+### Integration Patterns
+
+**Constructor pattern:**
+```python
+def __init__(self, shutdown_coordinator: ShutdownCoordinatorProtocol, ...):
+    self.shutdown_coordinator = shutdown_coordinator
+    # Register for notifications and/or waiters
+```
+
+**Two registration types:**
+
+1. **Lifetime notifications** (immediate, non-blocking):
+   ```python
+   shutdown_coordinator.register_lifetime_notification(self._on_lifetime_event)
+   
+   def _on_lifetime_event(self, event: LifetimeEvent) -> None:
+       match event:
+           case LifetimeEvent.PREPARE_SHUTDOWN:
+               # Stop accepting new work, set shutdown flags
+           case LifetimeEvent.SHUTDOWN: 
+               # Final cleanup
+   ```
+
+2. **Shutdown waiters** (block shutdown until complete):
+   ```python
+   shutdown_coordinator.register_shutdown_waiter("ServiceName", self._wait_for_completion)
+   
+   def _wait_for_completion(self, timeout: float) -> bool:
+       # Wait for operations to complete within timeout
+       # Return True if ready, False if timeout
+   ```
+
+### Examples
+
+- **TaskService**: Uses both notification (stop accepting tasks) and waiter (wait for task completion)
+- **MetricsService**: Uses only notification (stop background thread, record shutdown metrics)
+- **TempFileManager**: Uses only notification (stop cleanup thread)
+
+### Testing
+
+- Use `StubShutdownCoordinator` for unit tests (dependency injection only)
+- Use `TestShutdownCoordinator` for integration tests (simulates shutdown behavior)
+- Both available in `tests.testing_utils`
+
 ## Test Data Management
 
 **IMPORTANT**: The project includes a comprehensive fixed test dataset that must be kept up to date with any schema or business logic changes.
@@ -442,57 +497,3 @@ The repository includes command templates for specific development workflows:
 - When planning or implementing a new feature, reference the product brief at @docs/product_brief.md
 
 Use these files when the user asks you to perform the applicable action.
-
-## Graceful Shutdown Requirements
-
-The application implements graceful shutdown for Kubernetes deployments using a dual registration pattern with `ShutdownCoordinator`:
-
-### For Services with Background Threads
-
-Services that run background threads or need cleanup during shutdown must:
-
-1. **Accept shutdown_coordinator parameter** in constructor:
-   ```python
-   def __init__(self, shutdown_coordinator: ShutdownCoordinatorProtocol, ...):
-       self.shutdown_coordinator = shutdown_coordinator
-   ```
-
-2. **Register for immediate shutdown notification** if you need to stop accepting new work:
-   ```python
-   self.shutdown_coordinator.register_shutdown_notification(self._on_shutdown_initiated)
-   ```
-
-3. **Register a shutdown waiter** if you need to block shutdown until work completes:
-   ```python
-   self.shutdown_coordinator.register_shutdown_waiter("ServiceName", self._wait_for_completion)
-   ```
-
-### Implementation Pattern
-
-- **Notification callbacks** are called immediately when SIGTERM is received
-  - Use to set flags to stop accepting new work
-  - Must be non-blocking and fast
-  
-- **Waiter handlers** are called sequentially during shutdown
-  - Receive remaining timeout as parameter
-  - Return True if ready for shutdown, False if timeout exceeded
-  - Can block up to the timeout to wait for work completion
-
-### Protocol Pattern for Testing
-
-Always use `ShutdownCoordinatorProtocol` type hints, not concrete classes:
-- Production uses `ShutdownCoordinator` (singleton)
-- Testing uses `NoopShutdownCoordinator` (no-op implementation)
-- Container handles the appropriate injection based on FLASK_ENV
-
-### Existing Implementations
-
-Services already integrated with shutdown coordination:
-- **TaskService**: Stops accepting new tasks, waits for active tasks to complete
-- **MetricsService**: Stops background updater thread, records shutdown metrics
-- **TempFileManager**: Stops cleanup thread
-
-### Health Endpoints
-
-- `/api/health/readyz` - Returns 503 when shutting down (removes pod from service)
-- `/api/health/healthz` - Always returns 200 (keeps pod alive during shutdown)

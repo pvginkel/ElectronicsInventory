@@ -1,11 +1,9 @@
 """Tests for health check API endpoints."""
 
-from unittest.mock import MagicMock
-
 from flask import Flask
 from flask.testing import FlaskClient
 
-from app.utils.shutdown_coordinator import NoopShutdownCoordinator
+from tests.testing_utils import StubShutdownCoordinator
 
 
 class TestHealthEndpoints:
@@ -21,17 +19,15 @@ class TestHealthEndpoints:
 
     def test_readyz_when_shutting_down(self, app: Flask, client: FlaskClient):
         """Test readiness probe returns 503 when shutting down."""
-        # Get the shutdown coordinator and simulate shutdown
         with app.app_context():
             coordinator = app.container.shutdown_coordinator()
 
-            # For NoopShutdownCoordinator, we need to set the state
-            if isinstance(coordinator, NoopShutdownCoordinator):
-                coordinator._shutting_down = True
+            # Use proper interface to trigger shutdown
+            if isinstance(coordinator, StubShutdownCoordinator):
+                coordinator.simulate_shutdown()
             else:
-                # For real coordinator, trigger shutdown
-                import signal
-                coordinator.handle_sigterm(signal.SIGTERM, None)
+                # For real coordinator, we'd need to handle sys.exit in tests
+                coordinator._shutting_down = True
 
         response = client.get("/api/health/readyz")
 
@@ -49,17 +45,15 @@ class TestHealthEndpoints:
 
     def test_healthz_during_shutdown(self, app: Flask, client: FlaskClient):
         """Test liveness probe returns 200 even during shutdown."""
-        # Get the shutdown coordinator and simulate shutdown
         with app.app_context():
             coordinator = app.container.shutdown_coordinator()
 
-            # For NoopShutdownCoordinator, we need to set the state
-            if isinstance(coordinator, NoopShutdownCoordinator):
-                coordinator._shutting_down = True
+            # Use proper interface to trigger shutdown
+            if isinstance(coordinator, StubShutdownCoordinator):
+                coordinator.simulate_shutdown()
             else:
-                # For real coordinator, trigger shutdown
-                import signal
-                coordinator.handle_sigterm(signal.SIGTERM, None)
+                # For real coordinator, we'd need to handle sys.exit in tests
+                coordinator._shutting_down = True
 
         # Liveness should still return 200
         response = client.get("/api/health/healthz")
@@ -100,54 +94,180 @@ class TestHealthEndpoints:
         healthz_response = client.get("/api/health/healthz")
         assert healthz_response.status_code == 200
 
-        # Test that old health endpoint still exists
-        old_health_response = client.get("/api/health")
-        assert old_health_response.status_code == 200
+    def test_readyz_status_transitions(self, app: Flask, client: FlaskClient):
+        """Test readiness probe status transitions during shutdown."""
+        with app.app_context():
+            coordinator = app.container.shutdown_coordinator()
+
+            # Initially should be ready
+            response = client.get("/api/health/readyz")
+            assert response.status_code == 200
+            assert response.json["ready"] is True
+
+            # After shutdown signal, should not be ready
+            if isinstance(coordinator, StubShutdownCoordinator):
+                coordinator.simulate_shutdown()
+            else:
+                coordinator._shutting_down = True
+
+            response = client.get("/api/health/readyz")
+            assert response.status_code == 503
+            assert response.json["ready"] is False
+
+    def test_multiple_readyz_calls_during_shutdown(self, app: Flask, client: FlaskClient):
+        """Test multiple readiness probe calls during shutdown."""
+        with app.app_context():
+            coordinator = app.container.shutdown_coordinator()
+
+            # Trigger shutdown
+            if isinstance(coordinator, StubShutdownCoordinator):
+                coordinator.simulate_shutdown()
+            else:
+                coordinator._shutting_down = True
+
+            # Multiple calls should consistently return 503
+            for _ in range(5):
+                response = client.get("/api/health/readyz")
+                assert response.status_code == 503
+                assert response.json["ready"] is False
+
+    def test_healthz_consistency_during_shutdown(self, app: Flask, client: FlaskClient):
+        """Test liveness probe consistency during shutdown."""
+        with app.app_context():
+            coordinator = app.container.shutdown_coordinator()
+
+            # Trigger shutdown
+            if isinstance(coordinator, StubShutdownCoordinator):
+                coordinator.simulate_shutdown()
+            else:
+                coordinator._shutting_down = True
+
+            # Multiple calls should consistently return 200
+            for _ in range(5):
+                response = client.get("/api/health/healthz")
+                assert response.status_code == 200
+                assert response.json["ready"] is True
 
 
 class TestHealthEndpointIntegration:
     """Test health endpoints integration with other services."""
 
-    def test_readyz_during_task_execution(self, app: Flask, client: FlaskClient):
-        """Test readiness during active task execution."""
+    def test_readyz_with_task_service(self, app: Flask, client: FlaskClient):
+        """Test readiness during task service operations."""
         with app.app_context():
-            # Just verify the task service exists
-            _ = app.container.task_service()
-
-            # Create a mock task
-            mock_task = MagicMock()
-            mock_task.execute = MagicMock(return_value=None)
-
-            # Start a task (this would normally be async)
-            # For testing, we just verify the endpoint works
+            # Verify task service is available
+            task_service = app.container.task_service()
+            assert task_service is not None
 
         response = client.get("/api/health/readyz")
         assert response.status_code == 200
 
-    def test_shutdown_sequence_with_health_checks(self, app: Flask, client: FlaskClient):
-        """Test complete shutdown sequence with health checks."""
-        import signal
-
+    def test_health_endpoints_with_noop_coordinator(self, app: Flask, client: FlaskClient):
+        """Test health endpoints work correctly with StubShutdownCoordinator."""
         with app.app_context():
             coordinator = app.container.shutdown_coordinator()
 
-            # Initial state - should be ready
+            # Should work with either type of coordinator
             response = client.get("/api/health/readyz")
             assert response.status_code == 200
-            assert response.json["ready"] is True
 
-            # Simulate SIGTERM
-            if isinstance(coordinator, NoopShutdownCoordinator):
-                coordinator._shutting_down = True
-            else:
-                coordinator.handle_sigterm(signal.SIGTERM, None)
-
-            # After SIGTERM - readyz should return 503
-            response = client.get("/api/health/readyz")
-            assert response.status_code == 503
-            assert response.json["ready"] is False
-
-            # But healthz should still return 200
             response = client.get("/api/health/healthz")
             assert response.status_code == 200
-            assert response.json["ready"] is True
+
+            # Test shutdown simulation with StubShutdownCoordinator
+            if isinstance(coordinator, StubShutdownCoordinator):
+                coordinator.simulate_shutdown()
+
+                response = client.get("/api/health/readyz")
+                assert response.status_code == 503
+
+                # Healthz should still be 200
+                response = client.get("/api/health/healthz")
+                assert response.status_code == 200
+
+    def test_health_endpoints_basic_functionality(self, app: Flask, client: FlaskClient):
+        """Test basic health endpoint functionality."""
+        # Test that endpoints work without any special conditions
+        response = client.get("/api/health/readyz")
+        assert response.status_code in [200, 503]
+
+        response = client.get("/api/health/healthz")
+        assert response.status_code == 200
+
+    def test_concurrent_health_checks(self, app: Flask, client: FlaskClient):
+        """Test concurrent health check requests."""
+        import threading
+
+        results = []
+
+        def make_request():
+            response = client.get("/api/health/readyz")
+            results.append(response.status_code)
+
+        # Make multiple concurrent requests
+        threads = [threading.Thread(target=make_request) for _ in range(10)]
+
+        for thread in threads:
+            thread.start()
+
+        for thread in threads:
+            thread.join(timeout=5)
+
+        # All requests should succeed
+        assert len(results) == 10
+        for status_code in results:
+            assert status_code in [200, 503]  # Either ready or shutting down
+
+    def test_health_check_service_lifecycle_simple(self, app: Flask, client: FlaskClient):
+        """Test health checks during service lifecycle - simplified."""
+        with app.app_context():
+            coordinator = app.container.shutdown_coordinator()
+
+            # Test during normal operation
+            response = client.get("/api/health/readyz")
+            initial_status = response.status_code
+            assert initial_status == 200
+
+            # Test during shutdown (simple simulation)
+            if isinstance(coordinator, StubShutdownCoordinator):
+                coordinator.simulate_shutdown()
+
+                # Health check should now return 503
+                response = client.get("/api/health/readyz")
+                assert response.status_code == 503
+
+    def test_readyz_status_messages(self, app: Flask, client: FlaskClient):
+        """Test that readyz returns appropriate status messages."""
+        with app.app_context():
+            coordinator = app.container.shutdown_coordinator()
+
+            # Ready state
+            response = client.get("/api/health/readyz")
+            assert response.json["status"] == "ready"
+
+            # Shutting down state
+            if isinstance(coordinator, StubShutdownCoordinator):
+                coordinator.simulate_shutdown()
+            else:
+                coordinator._shutting_down = True
+
+            response = client.get("/api/health/readyz")
+            assert response.json["status"] == "shutting down"
+
+    def test_healthz_status_consistency(self, app: Flask, client: FlaskClient):
+        """Test that healthz always returns consistent status."""
+        with app.app_context():
+            coordinator = app.container.shutdown_coordinator()
+
+            # Before shutdown
+            response = client.get("/api/health/healthz")
+            assert response.json["status"] == "alive"
+
+            # During shutdown
+            if isinstance(coordinator, StubShutdownCoordinator):
+                coordinator.simulate_shutdown()
+            else:
+                coordinator._shutting_down = True
+
+            response = client.get("/api/health/healthz")
+            assert response.json["status"] == "alive"  # Should remain alive

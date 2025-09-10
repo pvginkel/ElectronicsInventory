@@ -134,10 +134,6 @@ class Settings(BaseSettings):
     )
 
     # Prometheus metrics settings
-    METRICS_ENABLED: bool = Field(
-        default=True,
-        description="Enable Prometheus metrics collection"
-    )
     METRICS_UPDATE_INTERVAL: int = Field(
         default=60,
         description="Metrics background update interval in seconds"

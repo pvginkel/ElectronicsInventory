@@ -16,6 +16,7 @@ def get_real_metrics_service(container):
     class TestMetricsService(MetricsService):
         def __init__(self, container):
             # Don't call super().__init__ to avoid double initialization
+            self._shutdown_start_time: float | None = None
             self.container = container
 
             # Create our own registry for this test
@@ -292,7 +293,7 @@ class TestMetricsService:
         assert not service._stop_event.is_set()
 
         # Stop background updater
-        service.stop_background_updater()
+        service.shutdown()
 
         # Verify thread is stopped (give it a moment)
         time.sleep(0.1)
@@ -315,7 +316,7 @@ class TestMetricsService:
         assert service._updater_thread is first_thread
 
         # Cleanup
-        service.stop_background_updater()
+        service.shutdown()
 
     @patch.object(DashboardService, 'get_dashboard_stats')
     def test_background_update_error_handling(self, mock_dashboard_stats, app, session, container):
@@ -347,8 +348,8 @@ class TestMetricsService:
 
     def test_record_task_execution_placeholder(self, app, session, container):
         """Test task execution recording (currently a placeholder)."""
-        # This tests the NoopMetricsService which is used by default in tests
-        service = container.metrics_service()
+        # Use the real metrics service for comprehensive testing
+        service = get_real_metrics_service(container)
 
         # This is currently a placeholder method
         service.record_task_execution("test_task", 5.0, "success")
@@ -357,8 +358,8 @@ class TestMetricsService:
 
     def test_update_activity_metrics_placeholder(self, app, session, container):
         """Test activity metrics update (currently a placeholder)."""
-        # This tests the NoopMetricsService which is used by default in tests
-        service = container.metrics_service()
+        # Use the real metrics service for comprehensive testing
+        service = get_real_metrics_service(container)
 
         # This is currently a placeholder method
         service.update_activity_metrics()
