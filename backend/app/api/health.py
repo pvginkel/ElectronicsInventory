@@ -3,14 +3,13 @@
 import logging
 
 from dependency_injector.wiring import Provide, inject
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 from spectree import Response as SpectreeResponse
 
-from app.config import Settings
 from app.schemas.health_schema import HealthResponse
 from app.services.container import ServiceContainer
-from app.utils.spectree_config import api
 from app.utils.shutdown_coordinator import ShutdownCoordinatorProtocol
+from app.utils.spectree_config import api
 
 logger = logging.getLogger(__name__)
 

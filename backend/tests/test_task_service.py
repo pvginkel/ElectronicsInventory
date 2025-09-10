@@ -7,8 +7,8 @@ import pytest
 
 from app.schemas.task_schema import TaskEventType, TaskStatus
 from app.services.task_service import TaskProgressHandle, TaskService
-from app.utils.shutdown_coordinator import NoopShutdownCoordinator
 from tests.test_tasks.test_task import DemoTask, FailingTask, LongRunningTask
+from tests.testing_utils import StubMetricsService, StubShutdownCoordinator
 
 
 class TestTaskService:
@@ -17,25 +17,21 @@ class TestTaskService:
     @pytest.fixture
     def mock_metrics_service(self):
         """Create mock metrics service."""
-        from app.services.metrics_service import NoopMetricsService
-        return NoopMetricsService()
+        return StubMetricsService()
 
     @pytest.fixture
     def mock_shutdown_coordinator(self):
         """Create mock shutdown coordinator."""
-        return NoopShutdownCoordinator()
+        return StubShutdownCoordinator()
 
     @pytest.fixture
     def task_service(self, mock_metrics_service, mock_shutdown_coordinator):
         """Create TaskService instance for testing."""
-        service = TaskService(
-            mock_metrics_service, 
-            mock_shutdown_coordinator,
-            max_workers=2, 
-            task_timeout=10
-        )
-        yield service
-        service._shutdown()
+        service = TaskService(mock_metrics_service, mock_shutdown_coordinator, max_workers=2, task_timeout=10)
+        try:
+            yield service
+        finally:
+            service.shutdown()
 
     def test_start_task(self, task_service):
         """Test starting a basic task."""
@@ -230,32 +226,26 @@ class TestTaskService:
             assert task_info is not None
             assert task_info.status == TaskStatus.COMPLETED
 
-    def test_task_service_shutdown(self):
+    def test_task_service_shutdown(self, mock_metrics_service, mock_shutdown_coordinator):
         """Test TaskService shutdown and cleanup."""
-        from app.services.metrics_service import NoopMetricsService
-        metrics_service = NoopMetricsService()
-        shutdown_coordinator = NoopShutdownCoordinator()
-        service = TaskService(metrics_service, shutdown_coordinator, max_workers=1)
+        service = TaskService(mock_metrics_service, mock_shutdown_coordinator, max_workers=1)
 
         # Start a task
         task = DemoTask()
         service.start_task(task, steps=1, delay=0.01)
 
         # Shutdown service
-        service._shutdown()
+        service.shutdown()
 
         # Verify cleanup (internal state should be cleared)
         assert len(service._tasks) == 0
         assert len(service._task_instances) == 0
         assert len(service._event_queues) == 0
 
-    def test_automatic_cleanup_of_completed_tasks(self, task_service):
+    def test_automatic_cleanup_of_completed_tasks(self, mock_metrics_service, mock_shutdown_coordinator):
         """Test that completed tasks are automatically cleaned up."""
         # Create service with short cleanup interval for testing
-        from app.services.metrics_service import NoopMetricsService
-        metrics_service = NoopMetricsService()
-        shutdown_coordinator = NoopShutdownCoordinator()
-        service = TaskService(metrics_service, shutdown_coordinator, max_workers=1, cleanup_interval=1)
+        service = TaskService(mock_metrics_service, mock_shutdown_coordinator, max_workers=1, cleanup_interval=1)
 
         try:
             # Start and complete a task
@@ -279,7 +269,7 @@ class TestTaskService:
             assert task_info is None
 
         finally:
-            service._shutdown()
+            service.shutdown()
 
     def test_manual_cleanup_completed_tasks(self, task_service):
         """Test manual cleanup of completed tasks."""

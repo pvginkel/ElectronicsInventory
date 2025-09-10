@@ -15,7 +15,6 @@ from app.services.inventory_service import InventoryService
 from app.services.metrics_service import (
     MetricsService,
     MetricsServiceProtocol,
-    NoopMetricsService,
 )
 from app.services.part_service import PartService
 from app.services.s3_service import S3Service
@@ -25,7 +24,6 @@ from app.services.test_data_service import TestDataService
 from app.services.type_service import TypeService
 from app.services.url_transformers import LCSCInterceptor, URLInterceptorRegistry
 from app.utils.shutdown_coordinator import (
-    NoopShutdownCoordinator,
     ShutdownCoordinator,
     ShutdownCoordinatorProtocol,
 )
@@ -51,16 +49,8 @@ class ServiceContainer(containers.DeclarativeContainer):
     test_data_service = providers.Factory(TestDataService, db=db_session)
 
     # Shutdown coordinator - Singleton for managing graceful shutdown
-    @staticmethod
-    def make_shutdown_coordinator(flask_env: str, graceful_shutdown_timeout: int) -> ShutdownCoordinatorProtocol:
-        if flask_env == "testing":
-            return NoopShutdownCoordinator()
-        else:
-            return ShutdownCoordinator(graceful_shutdown_timeout=graceful_shutdown_timeout)
-
     shutdown_coordinator = providers.Singleton(
-        make_shutdown_coordinator,
-        flask_env=config.provided.FLASK_ENV,
+        ShutdownCoordinator,
         graceful_shutdown_timeout=config.provided.GRACEFUL_SHUTDOWN_TIMEOUT,
     )
 
@@ -94,16 +84,8 @@ class ServiceContainer(containers.DeclarativeContainer):
     )
 
     # Metrics service - Singleton for background thread management
-    @staticmethod
-    def make_metrics_service(enabled: bool, container: 'ServiceContainer', shutdown_coordinator: ShutdownCoordinatorProtocol) -> MetricsServiceProtocol:
-        if enabled:
-            return MetricsService(container=container, shutdown_coordinator=shutdown_coordinator)
-        else:
-            return NoopMetricsService()
-
     metrics_service = providers.Singleton(
-        make_metrics_service,
-        enabled=config.provided.METRICS_ENABLED,
+        MetricsService,
         container=providers.Self(),
         shutdown_coordinator=shutdown_coordinator,
     )

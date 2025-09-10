@@ -5,9 +5,9 @@ import signal
 import sys
 import threading
 import time
-from enum import Enum
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from enum import Enum
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,6 @@ class ShutdownCoordinatorProtocol(ABC):
 class ShutdownCoordinator(ShutdownCoordinatorProtocol):
     """Coordinator for graceful shutdown of services."""
 
-    @abstractmethod
     def initialize(self) -> None:
         """Setup the signal handlers."""
         signal.signal(signal.SIGTERM, self._handle_sigterm)
@@ -112,10 +111,10 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
         # Phase 2: Wait for services to complete (blocking)
         # Release lock before waiting to avoid deadlocks
         logger.info(f"Waiting for {len(self._shutdown_waiters)} services to complete (timeout: {self._graceful_shutdown_timeout}s)")
-        
+
         start_time = time.perf_counter()
         all_ready = True
-        
+
         for name, waiter in self._shutdown_waiters.items():
             elapsed = time.perf_counter() - start_time
             remaining = self._graceful_shutdown_timeout - elapsed
@@ -156,23 +155,3 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
                 callback(event)
             except Exception as e:
                 logger.error(f"Error in lifetime event notification {getattr(callback, '__name__', repr(callback))}: {e}")
-
-
-class NoopShutdownCoordinator(ShutdownCoordinatorProtocol):
-    """No-op shutdown coordinator for testing."""
-
-    def __init__(self):
-        """Initialize no-op coordinator."""
-        logger.debug("NoopShutdownCoordinator initialized")
-
-    def register_lifetime_notification(self, callback: Callable[[LifetimeEvent], None]) -> None:
-        """No-op notification registration."""
-        pass
-
-    def register_shutdown_waiter(self, name: str, handler: Callable[[float], bool]) -> None:
-        """No-op waiter registration."""
-        pass
-
-    def is_shutting_down(self) -> bool:
-        """Always return False for testing."""
-        return False

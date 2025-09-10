@@ -97,77 +97,11 @@ class MetricsServiceProtocol(ABC):
         """Record the number of active tasks when shutdown initiated."""
         pass
 
-
-class NoopMetricsService(MetricsServiceProtocol):
-    """No-op metrics service for testing."""
-
-    def __init__(self):
-        """Initialize no-op metrics service."""
+    @abstractmethod
+    def shutdown(self) -> None:
+        """Implementation of the shutdown sequence, also for use by unit tests."""
         pass
 
-    def initialize_metrics(self):
-        """No-op metric initialization."""
-        pass
-
-    def update_inventory_metrics(self):
-        """No-op inventory metrics update."""
-        pass
-
-    def update_storage_metrics(self):
-        """No-op storage metrics update."""
-        pass
-
-    def update_activity_metrics(self):
-        """No-op activity metrics update."""
-        pass
-
-    def update_category_metrics(self):
-        """No-op category metrics update."""
-        pass
-
-    def record_quantity_change(self, operation: str, delta: int):
-        """No-op quantity change recording."""
-        pass
-
-    def record_task_execution(self, task_type: str, duration: float, status: str):
-        """No-op task execution recording."""
-        pass
-
-    def record_ai_analysis(
-        self,
-        status: str,
-        model: str,
-        verbosity: str,
-        reasoning_effort: str,
-        duration: float,
-        tokens_input: int = 0,
-        tokens_output: int = 0,
-        tokens_reasoning: int = 0,
-        tokens_cached_input: int = 0,
-        cost_dollars: float = 0.0
-    ):
-        """No-op AI analysis recording."""
-        pass
-
-    def start_background_updater(self, interval_seconds: int = 60):
-        """No-op background updater start."""
-        pass
-
-    def get_metrics_text(self) -> str:
-        """Return empty metrics text."""
-        return ""
-
-    def set_shutdown_state(self, is_shutting_down: bool):
-        """No-op shutdown state setting."""
-        pass
-
-    def record_shutdown_duration(self, duration: float):
-        """No-op shutdown duration recording."""
-        pass
-
-    def record_active_tasks_at_shutdown(self, count: int):
-        """No-op active tasks recording."""
-        pass
 
 
 class MetricsService(MetricsServiceProtocol):
@@ -600,9 +534,13 @@ class MetricsService(MetricsServiceProtocol):
                 self.set_shutdown_state(True)
 
             case LifetimeEvent.SHUTDOWN:
-                self._stop_background_updater()
+                self.shutdown()
 
-                # Record shutdown duration when shutdown completes
-                if self._shutdown_start_time:
-                    duration = time.perf_counter() - self._shutdown_start_time
-                    self.record_shutdown_duration(duration)
+    def shutdown(self) -> None:
+        """Implementation of the shutdown sequence, also for use by unit tests."""
+        self._stop_background_updater()
+
+        # Record shutdown duration when shutdown completes
+        if self._shutdown_start_time:
+            duration = time.perf_counter() - self._shutdown_start_time
+            self.record_shutdown_duration(duration)

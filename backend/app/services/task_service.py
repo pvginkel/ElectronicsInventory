@@ -373,7 +373,7 @@ class TaskService:
         for task_id in tasks_to_remove:
             self.remove_completed_task(task_id)
 
-    def _shutdown(self) -> None:
+    def shutdown(self) -> None:
         """Shutdown the task service and cleanup resources."""
         logger.info("Shutting down TaskService...")
 
@@ -417,7 +417,7 @@ class TaskService:
                     self.metrics_service.record_active_tasks_at_shutdown(active_count)
 
             case LifetimeEvent.SHUTDOWN:
-                self._shutdown()
+                self.shutdown()
 
     def _wait_for_tasks_completion(self, timeout: float) -> bool:
         """Wait for all tasks to complete within timeout.

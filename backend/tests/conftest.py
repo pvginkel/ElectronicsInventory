@@ -4,12 +4,34 @@ from collections.abc import Generator
 
 import pytest
 from flask import Flask
+from prometheus_client import CollectorRegistry, REGISTRY
 from sqlalchemy.orm import Session
 
 from app import create_app
 from app.config import Settings
 from app.extensions import db
 from app.services.container import ServiceContainer
+
+
+@pytest.fixture(autouse=True)
+def clear_prometheus_registry():
+    """Clear Prometheus registry before each test to avoid conflicts."""
+    # Clear all collectors from the global registry
+    collectors = list(REGISTRY._collector_to_names.keys())
+    for collector in collectors:
+        try:
+            REGISTRY.unregister(collector)
+        except KeyError:
+            # Collector may have already been unregistered
+            pass
+    yield
+    # Clean up after test too
+    collectors = list(REGISTRY._collector_to_names.keys())
+    for collector in collectors:
+        try:
+            REGISTRY.unregister(collector)
+        except KeyError:
+            pass
 
 
 @pytest.fixture
@@ -21,8 +43,6 @@ def test_settings() -> Settings:
         DEBUG=True,
         FLASK_ENV="testing",
         CORS_ORIGINS=["http://localhost:3000"],
-        # Disable metrics during testing to avoid registry conflicts
-        METRICS_ENABLED=False,
         # Document service configuration
         ALLOWED_IMAGE_TYPES=["image/jpeg", "image/png"],
         ALLOWED_FILE_TYPES=["application/pdf"],
