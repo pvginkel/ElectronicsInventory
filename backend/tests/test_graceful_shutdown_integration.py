@@ -311,11 +311,19 @@ class TestFullApplicationShutdownIntegration:
             # Verify services were notified
             assert "TestService" in notified_services
 
-    @patch('sys.exit')
-    def test_real_coordinator_integration_without_exit(self, mock_exit, session: Session):
+    def test_real_coordinator_integration_without_exit(self, session: Session):
         """Test real ShutdownCoordinator integration (mocking sys.exit)."""
         # Create a real coordinator for testing
         coordinator = ShutdownCoordinator(graceful_shutdown_timeout=5)
+
+        after_shutdown_attempted = False
+
+        def lifetime_notification(event: LifetimeEvent):
+            nonlocal after_shutdown_attempted
+            if event == LifetimeEvent.AFTER_SHUTDOWN:
+                after_shutdown_attempted = True
+
+        coordinator.register_lifetime_notification(lifetime_notification)
 
         # Create services with real coordinator
         metrics_service = StubMetricsService()
@@ -339,8 +347,8 @@ class TestFullApplicationShutdownIntegration:
             # Trigger shutdown
             coordinator._handle_sigterm(signal.SIGTERM, None)
 
-            # Should have called sys.exit
-            mock_exit.assert_called_once_with(0)
+            # After shutdown should have been attempted
+            assert after_shutdown_attempted
 
         finally:
             # Cleanup
