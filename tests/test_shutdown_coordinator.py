@@ -269,7 +269,7 @@ class TestProductionShutdownCoordinator:
 
         # Good waiter should have been called
         assert good_waiter_called.is_set()
-        
+
         assert after_shutdown_attempted
 
     def test_thread_safety(self):

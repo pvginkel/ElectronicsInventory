@@ -7,6 +7,7 @@ from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
+from app.models.part import Part
 from app.models.part_attachment import AttachmentType, PartAttachment
 from app.services.container import ServiceContainer
 
@@ -524,6 +525,290 @@ class TestDocumentAPI:
         response = client.get(f'/api/parts/{part.key}/attachments')
 
         assert response.status_code == 500
+
+    # Copy Attachment API Tests
+
+    def test_copy_attachment_success(self, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
+        """Test successful attachment copying via API."""
+        with app.app_context():
+            # Create test parts using service
+            part_type = container.type_service().create_type("Copy Test Type")
+
+            # Create source part with attachment
+            source_part = container.part_service().create_part(
+                description="Source part",
+                manufacturer_code="SRC-001",
+                type_id=part_type.id
+            )
+
+            # Create target part
+            target_part = container.part_service().create_part(
+                description="Target part",
+                manufacturer_code="TGT-001",
+                type_id=part_type.id
+            )
+
+            # Create attachment on source part
+            source_attachment = PartAttachment(
+                part_id=source_part.id,
+                attachment_type=AttachmentType.IMAGE,
+                title="Test Image",
+                s3_key="parts/123/attachments/test.jpg",
+                filename="test.jpg",
+                content_type="image/jpeg",
+                file_size=1024
+            )
+            session.add(source_attachment)
+            session.commit()
+
+            # Mock S3 operations
+            with patch('app.services.s3_service.S3Service.copy_file', return_value=True) as mock_copy, \
+                 patch('app.services.s3_service.S3Service.generate_s3_key', return_value="parts/456/attachments/uuid.jpg"):
+
+                response = client.post('/api/parts/copy-attachment',
+                    json={
+                        'attachment_id': source_attachment.id,
+                        'target_part_key': target_part.key,
+                        'set_as_cover': False
+                    })
+
+        assert response.status_code == 200
+        data = response.get_json()
+
+        # Verify response structure
+        assert 'attachment' in data
+        attachment_data = data['attachment']
+        assert attachment_data['title'] == 'Test Image'
+        assert attachment_data['attachment_type'] == 'image'
+        assert attachment_data['filename'] == 'test.jpg'
+        assert attachment_data['content_type'] == 'image/jpeg'
+        assert attachment_data['file_size'] == 1024
+
+        # Verify S3 copy was called
+        mock_copy.assert_called_once()
+
+    def test_copy_attachment_with_set_as_cover(self, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
+        """Test copying attachment and setting as cover via API."""
+        with app.app_context():
+            # Create test parts
+            part_type = container.type_service().create_type("Cover Test Type")
+
+            source_part = container.part_service().create_part(
+                description="Source part",
+                manufacturer_code="SRC-002",
+                type_id=part_type.id
+            )
+
+            target_part = container.part_service().create_part(
+                description="Target part",
+                manufacturer_code="TGT-002",
+                type_id=part_type.id
+            )
+
+            # Create attachment
+            source_attachment = PartAttachment(
+                part_id=source_part.id,
+                attachment_type=AttachmentType.IMAGE,
+                title="Cover Image",
+                s3_key="parts/123/attachments/cover.jpg",
+                filename="cover.jpg",
+                content_type="image/jpeg",
+                file_size=512
+            )
+            session.add(source_attachment)
+            session.commit()
+
+            # Mock S3 operations
+            with patch('app.services.s3_service.S3Service.copy_file', return_value=True), \
+                 patch('app.services.s3_service.S3Service.generate_s3_key', return_value="parts/456/attachments/uuid.jpg"):
+
+                response = client.post('/api/parts/copy-attachment',
+                    json={
+                        'attachment_id': source_attachment.id,
+                        'target_part_key': target_part.key,
+                        'set_as_cover': True
+                    })
+
+        assert response.status_code == 200
+
+        # Verify target part now has cover attachment set by re-querying it from DB
+        from sqlalchemy import select
+        updated_target_part = session.scalar(select(Part).where(Part.key == target_part.key))
+        assert updated_target_part.cover_attachment_id is not None
+
+    def test_copy_attachment_url_type(self, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
+        """Test copying URL attachment via API."""
+        with app.app_context():
+            # Create test parts
+            part_type = container.type_service().create_type("URL Test Type")
+
+            source_part = container.part_service().create_part(
+                description="Source part",
+                manufacturer_code="SRC-003",
+                type_id=part_type.id
+            )
+
+            target_part = container.part_service().create_part(
+                description="Target part",
+                manufacturer_code="TGT-003",
+                type_id=part_type.id
+            )
+
+            # Create URL attachment (no S3 content)
+            source_attachment = PartAttachment(
+                part_id=source_part.id,
+                attachment_type=AttachmentType.URL,
+                title="Product Page",
+                url="https://example.com/product",
+                s3_key=None,
+                filename=None,
+                content_type=None,
+                file_size=None
+            )
+            session.add(source_attachment)
+            session.commit()
+
+            response = client.post('/api/parts/copy-attachment',
+                json={
+                    'attachment_id': source_attachment.id,
+                    'target_part_key': target_part.key
+                })
+
+        assert response.status_code == 200
+        data = response.get_json()
+
+        attachment_data = data['attachment']
+        assert attachment_data['attachment_type'] == 'url'
+        assert attachment_data['title'] == 'Product Page'
+        assert attachment_data['url'] == 'https://example.com/product'
+        assert attachment_data['s3_key'] is None
+
+    def test_copy_attachment_source_not_found(self, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
+        """Test copying non-existent attachment via API."""
+        with app.app_context():
+            # Create target part
+            part_type = container.type_service().create_type("Not Found Test Type")
+            target_part = container.part_service().create_part(
+                description="Target part",
+                manufacturer_code="TGT-404",
+                type_id=part_type.id
+            )
+            session.commit()
+
+            response = client.post('/api/parts/copy-attachment',
+                json={
+                    'attachment_id': 99999,
+                    'target_part_key': target_part.key
+                })
+
+        assert response.status_code == 404
+        data = response.get_json()
+        assert 'error' in data
+
+    def test_copy_attachment_target_not_found(self, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
+        """Test copying attachment to non-existent target part via API."""
+        with app.app_context():
+            # Create source part with attachment
+            part_type = container.type_service().create_type("Target Not Found Test Type")
+            source_part = container.part_service().create_part(
+                description="Source part",
+                manufacturer_code="SRC-404",
+                type_id=part_type.id
+            )
+
+            source_attachment = PartAttachment(
+                part_id=source_part.id,
+                attachment_type=AttachmentType.IMAGE,
+                title="Test Image",
+                s3_key="parts/123/attachments/test.jpg",
+                filename="test.jpg",
+                content_type="image/jpeg",
+                file_size=1024
+            )
+            session.add(source_attachment)
+            session.commit()
+
+            response = client.post('/api/parts/copy-attachment',
+                json={
+                    'attachment_id': source_attachment.id,
+                    'target_part_key': 'NONEXIST'
+                })
+
+        assert response.status_code == 404
+        data = response.get_json()
+        assert 'error' in data
+
+    def test_copy_attachment_validation_errors(self, client: FlaskClient):
+        """Test API validation errors for copy attachment."""
+        # Missing required fields
+        response = client.post('/api/parts/copy-attachment',
+            json={
+                'attachment_id': 123
+                # Missing target_part_key
+            })
+        assert response.status_code == 400
+
+        # Invalid attachment_id type
+        response = client.post('/api/parts/copy-attachment',
+            json={
+                'attachment_id': 'invalid',
+                'target_part_key': 'TEST'
+            })
+        assert response.status_code == 400
+
+        # Invalid set_as_cover type
+        response = client.post('/api/parts/copy-attachment',
+            json={
+                'attachment_id': 123,
+                'target_part_key': 'TEST',
+                'set_as_cover': 'invalid'
+            })
+        assert response.status_code == 400
+
+    def test_copy_attachment_s3_copy_failure(self, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
+        """Test handling S3 copy failure via API."""
+        with app.app_context():
+            # Create test parts and attachment
+            part_type = container.type_service().create_type("S3 Failure Test Type")
+
+            source_part = container.part_service().create_part(
+                description="Source part",
+                manufacturer_code="SRC-S3F",
+                type_id=part_type.id
+            )
+
+            target_part = container.part_service().create_part(
+                description="Target part",
+                manufacturer_code="TGT-S3F",
+                type_id=part_type.id
+            )
+
+            source_attachment = PartAttachment(
+                part_id=source_part.id,
+                attachment_type=AttachmentType.IMAGE,
+                title="Test Image",
+                s3_key="parts/123/attachments/test.jpg",
+                filename="test.jpg",
+                content_type="image/jpeg",
+                file_size=1024
+            )
+            session.add(source_attachment)
+            session.commit()
+
+            # Mock S3 copy failure
+            from app.exceptions import InvalidOperationException
+            with patch('app.services.s3_service.S3Service.copy_file', side_effect=InvalidOperationException("copy file in S3", "source file not found")), \
+                 patch('app.services.s3_service.S3Service.generate_s3_key', return_value="parts/456/attachments/uuid.jpg"):
+
+                response = client.post('/api/parts/copy-attachment',
+                    json={
+                        'attachment_id': source_attachment.id,
+                        'target_part_key': target_part.key
+                    })
+
+        assert response.status_code == 409  # InvalidOperationException maps to 409
+        data = response.get_json()
+        assert 'error' in data
 
 
 class TestUrlPreviewAPI:

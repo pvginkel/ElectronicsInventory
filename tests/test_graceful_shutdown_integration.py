@@ -4,7 +4,7 @@ import signal
 import tempfile
 import threading
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from flask import Flask

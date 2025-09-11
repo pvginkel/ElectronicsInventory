@@ -532,4 +532,63 @@ class DocumentService(BaseService):
 
         return part.cover_attachment
 
+    def copy_attachment_to_part(self, attachment_id: int, target_part_key: str, set_as_cover: bool = False) -> PartAttachment:
+        """Copy a single attachment from one part to another.
+
+        Args:
+            attachment_id: ID of the attachment to copy
+            target_part_key: Key of the part to copy attachment to
+            set_as_cover: Whether to set the copied attachment as target part's cover
+
+        Returns:
+            Newly created PartAttachment
+
+        Raises:
+            RecordNotFoundException: If source attachment or target part not found
+            InvalidOperationException: If S3 copy fails or other validation errors
+        """
+        # Validate source attachment exists
+        source_attachment = self.get_attachment(attachment_id)
+
+        # Validate target part exists
+        stmt = select(Part).where(Part.key == target_part_key)
+        target_part = self.db.scalar(stmt)
+        if not target_part:
+            raise RecordNotFoundException("Part", target_part_key)
+
+        # Handle S3 file copying for images and PDFs
+        new_s3_key = None
+        if source_attachment.s3_key:
+            # Generate new S3 key for target part
+            original_filename = source_attachment.filename or "attachment"
+            new_s3_key = self.s3_service.generate_s3_key(target_part.id, original_filename)
+
+            # Copy file in S3
+            try:
+                self.s3_service.copy_file(source_attachment.s3_key, new_s3_key)
+            except InvalidOperationException as e:
+                raise InvalidOperationException("copy attachment", f"failed to copy S3 file: {str(e)}") from e
+
+        # Create new attachment record with same metadata but target part_id
+        new_attachment = PartAttachment(
+            part_id=target_part.id,
+            attachment_type=source_attachment.attachment_type,
+            title=source_attachment.title,
+            s3_key=new_s3_key,
+            filename=source_attachment.filename,
+            content_type=source_attachment.content_type,
+            file_size=source_attachment.file_size,
+            url=source_attachment.url
+        )
+
+        self.db.add(new_attachment)
+        self.db.flush()
+
+        # Handle cover attachment logic
+        if set_as_cover:
+            target_part.cover_attachment_id = new_attachment.id
+            self.db.flush()
+
+        return new_attachment
+
 

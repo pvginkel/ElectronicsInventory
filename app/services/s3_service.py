@@ -115,6 +115,37 @@ class S3Service(BaseService):
                 raise InvalidOperationException("download file from S3", f"file not found: {s3_key}") from e
             raise InvalidOperationException("download file from S3", str(e)) from e
 
+    def copy_file(self, source_s3_key: str, target_s3_key: str) -> bool:
+        """Copy file within S3.
+
+        Args:
+            source_s3_key: S3 key of the source file
+            target_s3_key: S3 key for the target file
+
+        Returns:
+            True if copy successful
+
+        Raises:
+            InvalidOperationException: If copy fails
+        """
+        try:
+            copy_source = {
+                'Bucket': self.settings.S3_BUCKET_NAME,
+                'Key': source_s3_key
+            }
+
+            self.s3_client.copy_object(
+                CopySource=copy_source,
+                Bucket=self.settings.S3_BUCKET_NAME,
+                Key=target_s3_key
+            )
+            return True
+
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchKey':
+                raise InvalidOperationException("copy file in S3", f"source file not found: {source_s3_key}") from e
+            raise InvalidOperationException("copy file in S3", str(e)) from e
+
     def delete_file(self, s3_key: str) -> bool:
         """Delete file from S3.
 

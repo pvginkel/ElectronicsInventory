@@ -1068,3 +1068,325 @@ class TestDocumentService:
             assert attachment.title == "Arduino Documentation"
             assert attachment.url == "https://docs.arduino.cc/hardware/nano-every/"
             assert attachment.s3_key is None  # No preview image stored
+
+    # Copy Attachment Tests
+
+    def test_copy_attachment_to_part_image_success(self, document_service, session, sample_part, mock_s3_service):
+        """Test successfully copying an image attachment to another part."""
+        # Create source part and attachment
+        source_attachment = PartAttachment(
+            part_id=sample_part.id,
+            attachment_type=AttachmentType.IMAGE,
+            title="Source Image",
+            s3_key="parts/123/attachments/source.jpg",
+            filename="source.jpg",
+            content_type="image/jpeg",
+            file_size=1024
+        )
+        session.add(source_attachment)
+        session.flush()
+
+        # Create target part
+        target_part = Part(
+            key="TARG",
+            description="Target Part",
+            type_id=1
+        )
+        session.add(target_part)
+        session.flush()
+
+        # Mock S3 copy operation
+        mock_s3_service.copy_file.return_value = True
+        mock_s3_service.generate_s3_key.return_value = "parts/456/attachments/uuid.jpg"
+
+        # Copy the attachment
+        copied_attachment = document_service.copy_attachment_to_part(
+            attachment_id=source_attachment.id,
+            target_part_key=target_part.key,
+            set_as_cover=False
+        )
+
+        # Verify attachment was copied
+        assert copied_attachment.part_id == target_part.id
+        assert copied_attachment.attachment_type == AttachmentType.IMAGE
+        assert copied_attachment.title == "Source Image"
+        assert copied_attachment.filename == "source.jpg"
+        assert copied_attachment.content_type == "image/jpeg"
+        assert copied_attachment.file_size == 1024
+        assert copied_attachment.s3_key == "parts/456/attachments/uuid.jpg"
+        assert copied_attachment.url is None
+
+        # Verify S3 copy was called correctly
+        mock_s3_service.copy_file.assert_called_once_with(
+            "parts/123/attachments/source.jpg",
+            "parts/456/attachments/uuid.jpg"
+        )
+
+    def test_copy_attachment_to_part_pdf_success(self, document_service, session, sample_part, mock_s3_service):
+        """Test successfully copying a PDF attachment to another part."""
+        # Create source PDF attachment
+        source_attachment = PartAttachment(
+            part_id=sample_part.id,
+            attachment_type=AttachmentType.PDF,
+            title="Datasheet",
+            s3_key="parts/123/attachments/datasheet.pdf",
+            filename="datasheet.pdf",
+            content_type="application/pdf",
+            file_size=2048
+        )
+        session.add(source_attachment)
+        session.flush()
+
+        # Create target part
+        target_part = Part(
+            key="TARG",
+            description="Target Part",
+            type_id=1
+        )
+        session.add(target_part)
+        session.flush()
+
+        # Mock S3 operations
+        mock_s3_service.copy_file.return_value = True
+        mock_s3_service.generate_s3_key.return_value = "parts/456/attachments/uuid.pdf"
+
+        # Copy the attachment
+        copied_attachment = document_service.copy_attachment_to_part(
+            attachment_id=source_attachment.id,
+            target_part_key=target_part.key
+        )
+
+        # Verify attachment was copied
+        assert copied_attachment.part_id == target_part.id
+        assert copied_attachment.attachment_type == AttachmentType.PDF
+        assert copied_attachment.title == "Datasheet"
+        assert copied_attachment.s3_key == "parts/456/attachments/uuid.pdf"
+
+        # Verify S3 copy was called
+        mock_s3_service.copy_file.assert_called_once()
+
+    def test_copy_attachment_to_part_url_success(self, document_service, session, sample_part):
+        """Test successfully copying a URL attachment to another part."""
+        # Create source URL attachment (no S3 content)
+        source_attachment = PartAttachment(
+            part_id=sample_part.id,
+            attachment_type=AttachmentType.URL,
+            title="Product Page",
+            url="https://example.com/product",
+            s3_key=None,
+            filename=None,
+            content_type=None,
+            file_size=None
+        )
+        session.add(source_attachment)
+        session.flush()
+
+        # Create target part
+        target_part = Part(
+            key="TARG",
+            description="Target Part",
+            type_id=1
+        )
+        session.add(target_part)
+        session.flush()
+
+        # Copy the attachment
+        copied_attachment = document_service.copy_attachment_to_part(
+            attachment_id=source_attachment.id,
+            target_part_key=target_part.key
+        )
+
+        # Verify attachment was copied
+        assert copied_attachment.part_id == target_part.id
+        assert copied_attachment.attachment_type == AttachmentType.URL
+        assert copied_attachment.title == "Product Page"
+        assert copied_attachment.url == "https://example.com/product"
+        assert copied_attachment.s3_key is None
+        assert copied_attachment.filename is None
+
+    def test_copy_attachment_to_part_set_as_cover_success(self, document_service, session, sample_part, mock_s3_service):
+        """Test copying attachment and setting as cover image."""
+        # Create source attachment
+        source_attachment = PartAttachment(
+            part_id=sample_part.id,
+            attachment_type=AttachmentType.IMAGE,
+            title="Cover Image",
+            s3_key="parts/123/attachments/cover.jpg",
+            filename="cover.jpg",
+            content_type="image/jpeg",
+            file_size=512
+        )
+        session.add(source_attachment)
+        session.flush()
+
+        # Create target part (initially no cover)
+        target_part = Part(
+            key="TARG",
+            description="Target Part",
+            type_id=1
+        )
+        session.add(target_part)
+        session.flush()
+
+        # Mock S3 operations
+        mock_s3_service.copy_file.return_value = True
+        mock_s3_service.generate_s3_key.return_value = "parts/456/attachments/uuid.jpg"
+
+        # Copy the attachment and set as cover
+        copied_attachment = document_service.copy_attachment_to_part(
+            attachment_id=source_attachment.id,
+            target_part_key=target_part.key,
+            set_as_cover=True
+        )
+
+        # Verify attachment was copied and set as cover
+        session.refresh(target_part)
+        assert target_part.cover_attachment_id == copied_attachment.id
+
+    def test_copy_attachment_to_part_source_not_found(self, document_service, session):
+        """Test copying non-existent attachment."""
+        with pytest.raises(RecordNotFoundException) as exc_info:
+            document_service.copy_attachment_to_part(
+                attachment_id=99999,
+                target_part_key="TARG",
+                set_as_cover=False
+            )
+
+        assert "Attachment" in str(exc_info.value)
+        assert "99999" in str(exc_info.value)
+
+    def test_copy_attachment_to_part_target_not_found(self, document_service, session, sample_part):
+        """Test copying attachment to non-existent target part."""
+        # Create source attachment
+        source_attachment = PartAttachment(
+            part_id=sample_part.id,
+            attachment_type=AttachmentType.IMAGE,
+            title="Test Image",
+            s3_key="parts/123/attachments/test.jpg",
+            filename="test.jpg",
+            content_type="image/jpeg",
+            file_size=1024
+        )
+        session.add(source_attachment)
+        session.flush()
+
+        with pytest.raises(RecordNotFoundException) as exc_info:
+            document_service.copy_attachment_to_part(
+                attachment_id=source_attachment.id,
+                target_part_key="NONEXIST",
+                set_as_cover=False
+            )
+
+        assert "Part" in str(exc_info.value)
+        assert "NONEXIST" in str(exc_info.value)
+
+    def test_copy_attachment_to_part_s3_copy_failure(self, document_service, session, sample_part, mock_s3_service):
+        """Test handling S3 copy failure."""
+        # Create source attachment with S3 content
+        source_attachment = PartAttachment(
+            part_id=sample_part.id,
+            attachment_type=AttachmentType.IMAGE,
+            title="Test Image",
+            s3_key="parts/123/attachments/test.jpg",
+            filename="test.jpg",
+            content_type="image/jpeg",
+            file_size=1024
+        )
+        session.add(source_attachment)
+        session.flush()
+
+        # Create target part
+        target_part = Part(
+            key="TARG",
+            description="Target Part",
+            type_id=1
+        )
+        session.add(target_part)
+        session.flush()
+
+        # Mock S3 copy failure
+        mock_s3_service.generate_s3_key.return_value = "parts/456/attachments/uuid.jpg"
+        mock_s3_service.copy_file.side_effect = InvalidOperationException("copy file in S3", "source file not found")
+
+        with pytest.raises(InvalidOperationException) as exc_info:
+            document_service.copy_attachment_to_part(
+                attachment_id=source_attachment.id,
+                target_part_key=target_part.key
+            )
+
+        assert "copy attachment" in str(exc_info.value)
+        assert "failed to copy S3 file" in str(exc_info.value)
+
+    def test_copy_attachment_to_part_url_with_set_as_cover(self, document_service, session, sample_part):
+        """Test copying URL attachment and setting as cover (any type can be cover)."""
+        # Create source URL attachment
+        source_attachment = PartAttachment(
+            part_id=sample_part.id,
+            attachment_type=AttachmentType.URL,
+            title="Product Page",
+            url="https://example.com/product",
+            s3_key=None
+        )
+        session.add(source_attachment)
+        session.flush()
+
+        # Create target part
+        target_part = Part(
+            key="TARG",
+            description="Target Part",
+            type_id=1
+        )
+        session.add(target_part)
+        session.flush()
+
+        # Copy the attachment and set as cover
+        copied_attachment = document_service.copy_attachment_to_part(
+            attachment_id=source_attachment.id,
+            target_part_key=target_part.key,
+            set_as_cover=True
+        )
+
+        # Verify URL attachment was set as cover
+        session.refresh(target_part)
+        assert target_part.cover_attachment_id == copied_attachment.id
+        assert copied_attachment.attachment_type == AttachmentType.URL
+
+    def test_copy_attachment_to_part_pdf_with_set_as_cover(self, document_service, session, sample_part, mock_s3_service):
+        """Test copying PDF attachment and setting as cover (any type can be cover)."""
+        # Create source PDF attachment
+        source_attachment = PartAttachment(
+            part_id=sample_part.id,
+            attachment_type=AttachmentType.PDF,
+            title="Datasheet",
+            s3_key="parts/123/attachments/datasheet.pdf",
+            filename="datasheet.pdf",
+            content_type="application/pdf",
+            file_size=2048
+        )
+        session.add(source_attachment)
+        session.flush()
+
+        # Create target part
+        target_part = Part(
+            key="TARG",
+            description="Target Part",
+            type_id=1
+        )
+        session.add(target_part)
+        session.flush()
+
+        # Mock S3 operations
+        mock_s3_service.copy_file.return_value = True
+        mock_s3_service.generate_s3_key.return_value = "parts/456/attachments/uuid.pdf"
+
+        # Copy the attachment and set as cover
+        copied_attachment = document_service.copy_attachment_to_part(
+            attachment_id=source_attachment.id,
+            target_part_key=target_part.key,
+            set_as_cover=True
+        )
+
+        # Verify PDF attachment was set as cover
+        session.refresh(target_part)
+        assert target_part.cover_attachment_id == copied_attachment.id
+        assert copied_attachment.attachment_type == AttachmentType.PDF
