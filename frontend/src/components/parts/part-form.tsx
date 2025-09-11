@@ -10,6 +10,7 @@ import { DuplicateDocumentGrid } from './duplicate-document-grid';
 import { useGetPartsByPartKey, usePostParts, usePutPartsByPartKey, usePostPartsCopyAttachment } from '@/lib/api/generated/hooks';
 import { useDuplicatePart } from '@/hooks/use-duplicate-part';
 import { validatePartData } from '@/lib/utils/parts';
+import { useToast } from '@/hooks/use-toast';
 import type { ApiDocument } from '@/lib/utils/document-transformers';
 
 interface PartFormData {
@@ -63,9 +64,11 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
   const [coverDocumentId, setCoverDocumentId] = useState<number | null>(null);
   const [isCopying, setIsCopying] = useState(false);
   const [copyProgress, setCopyProgress] = useState({ completed: 0, total: 0 });
+  const [failedDocuments, setFailedDocuments] = useState<string[]>([]);
 
   const isEditing = Boolean(partId);
   const isDuplicating = Boolean(duplicateFromPartId);
+  const { showError, showSuccess } = useToast();
   
   // Fetch existing part data if editing
   const { data: existingPart, isLoading: isLoadingPart } = useGetPartsByPartKey(
@@ -220,21 +223,43 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
       if (isDuplicating && duplicateDocuments.length > 0) {
         setIsCopying(true);
         setCopyProgress({ completed: 0, total: duplicateDocuments.length });
+        setFailedDocuments([]);
 
+        const failedDocs: string[] = [];
+        
         try {
           for (let i = 0; i < duplicateDocuments.length; i++) {
             const doc = duplicateDocuments[i];
             const isThisCover = coverDocumentId === parseInt(doc.id);
 
-            await copyAttachmentMutation.mutateAsync({
-              body: {
-                attachment_id: parseInt(doc.id),
-                target_part_key: result.key,
-                set_as_cover: isThisCover
-              }
-            });
+            try {
+              await copyAttachmentMutation.mutateAsync({
+                body: {
+                  attachment_id: parseInt(doc.id),
+                  target_part_key: result.key,
+                  set_as_cover: isThisCover
+                }
+              });
+            } catch (error) {
+              failedDocs.push(doc.name);
+              console.error(`Failed to copy document ${doc.name}:`, error);
+            }
 
             setCopyProgress(prev => ({ ...prev, completed: i + 1 }));
+          }
+
+          // Show results to user
+          if (failedDocs.length > 0) {
+            setFailedDocuments(failedDocs);
+            const failedCount = failedDocs.length;
+            const successCount = duplicateDocuments.length - failedCount;
+            
+            if (successCount > 0) {
+              showSuccess(`Part duplicated successfully! ${successCount} documents copied, ${failedCount} failed.`);
+            }
+            showError(`Failed to copy ${failedCount} document${failedCount > 1 ? 's' : ''}: ${failedDocs.join(', ')}`);
+          } else {
+            showSuccess(`Part and all ${duplicateDocuments.length} documents duplicated successfully!`);
           }
         } finally {
           setIsCopying(false);
