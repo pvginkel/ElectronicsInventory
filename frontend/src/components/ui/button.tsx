@@ -41,18 +41,31 @@ export function Button({
     md: 'h-10 px-4',
     lg: 'h-11 px-8'
   }
+
+  if (preventValidation && !onClick) {
+    throw new Error('onClick must be provided when preventValidation is set')
+  }
   
-  const handleMouseUp = preventValidation ? (e: React.MouseEvent) => {
+  const handleMouseUp = preventValidation && onClick ? (e: React.MouseEvent) => {
     if (e.button === 0) {
       e.preventDefault()
-      onClick?.()
+      e.stopPropagation()
+      onClick()
+    }
+  } : undefined
+
+  const handleClick = onClick ? (e: React.MouseEvent) => {
+    if (e.button === 0) {
+      e.preventDefault()
+      e.stopPropagation()
+      onClick()
     }
   } : undefined
 
   return (
     <button
       type={type}
-      onClick={preventValidation ? undefined : onClick}
+      onClick={handleClick}
       onMouseUp={handleMouseUp}
       disabled={disabled || loading}
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}

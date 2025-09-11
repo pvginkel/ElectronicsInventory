@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef } from 'react'
+import React, { type ReactNode, useEffect, useRef } from 'react'
 import { Button } from './button'
 
 interface DialogProps {
@@ -23,7 +23,8 @@ export function Dialog({ open, onOpenChange, children, className }: DialogProps)
     }
   }, [open])
 
-  const handleClose = () => {
+  const handleClose = (e: React.SyntheticEvent) => {
+    e.stopPropagation()
     onOpenChange(false)
   }
 
@@ -33,7 +34,7 @@ export function Dialog({ open, onOpenChange, children, className }: DialogProps)
 
   const handleClick = (e: React.MouseEvent) => {
     if (e.target === dialogRef.current && mouseDownOutside.current) {
-      handleClose()
+      handleClose(e)
     }
     mouseDownOutside.current = false
   }
