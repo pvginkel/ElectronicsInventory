@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import * as ToastPrimitive from '@radix-ui/react-toast'
 import { cn } from '@/lib/utils'
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon'
 
@@ -17,17 +17,6 @@ interface ToastProps {
 }
 
 function ToastComponent({ toast, onRemove }: ToastProps) {
-  const [isVisible, setIsVisible] = useState(true)
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsVisible(false)
-      setTimeout(() => onRemove(toast.id), 300) // Wait for exit animation
-    }, toast.duration || 5000)
-
-    return () => clearTimeout(timer)
-  }, [toast.id, toast.duration, onRemove])
-
   const typeStyles = {
     success: 'bg-green-50 border-green-200 text-green-800',
     error: 'bg-red-50 border-red-200 text-red-800',
@@ -43,11 +32,19 @@ function ToastComponent({ toast, onRemove }: ToastProps) {
   }
 
   return (
-    <div
+    <ToastPrimitive.Root
+      duration={toast.duration || 5000}
+      onOpenChange={(open) => {
+        if (!open) {
+          onRemove(toast.id)
+        }
+      }}
       className={cn(
-        'pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg border shadow-lg transition-all duration-300',
-        typeStyles[toast.type],
-        isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+        'group pointer-events-auto relative w-full max-w-sm overflow-hidden rounded-lg border shadow-lg transition-all',
+        'data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out',
+        'data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full',
+        'data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full',
+        typeStyles[toast.type]
       )}
     >
       <div className="p-4">
@@ -56,20 +53,21 @@ function ToastComponent({ toast, onRemove }: ToastProps) {
             <span className="text-lg">{iconMap[toast.type]}</span>
           </div>
           <div className="ml-3 w-0 flex-1 pt-0.5">
-            <p className="text-sm font-medium">{toast.message}</p>
+            <ToastPrimitive.Title className="text-sm font-medium">
+              {toast.message}
+            </ToastPrimitive.Title>
           </div>
           <div className="ml-4 flex flex-shrink-0">
-            <button
+            <ToastPrimitive.Close
               className="inline-flex rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 hover:opacity-75"
-              onClick={() => onRemove(toast.id)}
             >
               <span className="sr-only">Close</span>
               <ClearButtonIcon className="w-4 h-4" />
-            </button>
+            </ToastPrimitive.Close>
           </div>
         </div>
       </div>
-    </div>
+    </ToastPrimitive.Root>
   )
 }
 
@@ -80,15 +78,11 @@ interface ToastContainerProps {
 
 export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
   return (
-    <div
-      aria-live="assertive"
-      className="pointer-events-none fixed inset-0 z-50 flex items-end px-4 py-6 sm:items-start sm:p-6"
-    >
-      <div className="flex w-full flex-col items-center space-y-4 sm:items-end">
-        {toasts.map((toast) => (
-          <ToastComponent key={toast.id} toast={toast} onRemove={onRemove} />
-        ))}
-      </div>
-    </div>
+    <ToastPrimitive.Provider swipeDirection="right">
+      {toasts.map((toast) => (
+        <ToastComponent key={toast.id} toast={toast} onRemove={onRemove} />
+      ))}
+      <ToastPrimitive.Viewport className="fixed bottom-0 right-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]" />
+    </ToastPrimitive.Provider>
   )
 }

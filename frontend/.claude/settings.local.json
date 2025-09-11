@@ -20,7 +20,8 @@
       "Read(//home/pvginkel/source/ElectronicsInventory/backend/docs/features/dashboard/**)",
       "Bash(pnpm eslint:*)",
       "Bash(pnpm build:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(pnpm add:*)"
     ],
     "deny": [],
     "ask": []

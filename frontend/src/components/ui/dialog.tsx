@@ -1,5 +1,7 @@
-import React, { type ReactNode, useEffect, useRef } from 'react'
+import { type ReactNode } from 'react'
+import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { Button } from './button'
+import { cn } from '@/lib/utils'
 
 interface DialogProps {
   open: boolean
@@ -9,48 +11,20 @@ interface DialogProps {
 }
 
 export function Dialog({ open, onOpenChange, children, className }: DialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null)
-  const mouseDownOutside = useRef(false)
-
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return
-
-    if (open) {
-      dialog.showModal()
-    } else {
-      dialog.close()
-    }
-  }, [open])
-
-  const handleClose = (e: React.SyntheticEvent) => {
-    e.stopPropagation()
-    onOpenChange(false)
-  }
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    mouseDownOutside.current = e.target === dialogRef.current
-  }
-
-  const handleClick = (e: React.MouseEvent) => {
-    if (e.target === dialogRef.current && mouseDownOutside.current) {
-      handleClose(e)
-    }
-    mouseDownOutside.current = false
-  }
-
   return (
-    <dialog
-      ref={dialogRef}
-      className={`backdrop:bg-black/50 backdrop-blur-sm bg-transparent p-0 rounded-lg shadow-lg ${className || 'max-w-lg w-full'}`}
-      onClose={handleClose}
-      onMouseDown={handleMouseDown}
-      onClick={handleClick}
-    >
-      <div className="bg-card text-card-foreground border rounded-lg shadow-lg h-full">
-        {children}
-      </div>
-    </dialog>
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <DialogPrimitive.Content
+          className={cn(
+            "fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%] bg-card text-card-foreground border rounded-lg shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
+            className || 'max-w-lg w-full'
+          )}
+        >
+          {children}
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   )
 }
 
@@ -61,7 +35,7 @@ interface DialogContentProps {
 
 export function DialogContent({ children, className = '' }: DialogContentProps) {
   return (
-    <div className={`p-6 ${className}`}>
+    <div className={cn("p-6", className)}>
       {children}
     </div>
   )
@@ -74,7 +48,7 @@ interface DialogHeaderProps {
 
 export function DialogHeader({ children, className = '' }: DialogHeaderProps) {
   return (
-    <div className={`flex flex-col space-y-1.5 pb-4 ${className}`}>
+    <div className={cn("flex flex-col space-y-1.5 pb-4", className)}>
       {children}
     </div>
   )
@@ -87,9 +61,9 @@ interface DialogTitleProps {
 
 export function DialogTitle({ children, className = '' }: DialogTitleProps) {
   return (
-    <h3 className={`text-lg font-semibold leading-none tracking-tight ${className}`}>
+    <DialogPrimitive.Title className={cn("text-lg font-semibold leading-none tracking-tight", className)}>
       {children}
-    </h3>
+    </DialogPrimitive.Title>
   )
 }
 
@@ -100,7 +74,7 @@ interface DialogFooterProps {
 
 export function DialogFooter({ children, className = '' }: DialogFooterProps) {
   return (
-    <div className={`flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4 ${className}`}>
+    <div className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4", className)}>
       {children}
     </div>
   )

@@ -22,11 +22,9 @@ interface PartDetailsProps {
 export function PartDetails({ partId }: PartDetailsProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showAddDocument, setShowAddDocument] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const navigate = useNavigate();
   const { confirm, confirmProps } = useConfirm();
   const documentGridRef = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const [latestUploadedDocumentId, setLatestUploadedDocumentId] = useState<number | null>(null);
   
   const { data: part, isLoading, error, refetch } = useGetPartsByPartKey(
@@ -83,20 +81,6 @@ export function PartDetails({ partId }: PartDetailsProps) {
     return () => clearTimeout(scrollTimeout);
   }, [latestUploadedDocumentId]);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    };
-
-    if (isDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [isDropdownOpen]);
-
   const handleDeletePart = async () => {
     if (!part) return;
 
@@ -117,7 +101,6 @@ export function PartDetails({ partId }: PartDetailsProps) {
   };
 
   const handleDuplicatePart = () => {
-    setIsDropdownOpen(false);
     navigate({ to: '/parts/new', search: { duplicate: partId } });
   };
 
@@ -183,25 +166,18 @@ export function PartDetails({ partId }: PartDetailsProps) {
           >
             Delete Part
           </Button>
-          <div className="relative" ref={dropdownRef}>
-            <DropdownMenu>
-              <DropdownMenuTrigger>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                >
-                  <MoreVerticalIcon className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              {isDropdownOpen && (
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleDuplicatePart}>
-                    Duplicate Part
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              )}
-            </DropdownMenu>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <MoreVerticalIcon className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleDuplicatePart}>
+                Duplicate Part
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
