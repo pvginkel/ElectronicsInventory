@@ -184,13 +184,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Basic Information */}
                 <div className="space-y-4">
-                  <div>
-                    <div className="text-sm font-medium">Description</div>
-                    <div className="text-lg">{displayDescription}</div>
-                  </div>
-                  
                   {/* Manufacturer Information */}
                   {(displayManufacturer || displayProductPage) && (
                     <div>
