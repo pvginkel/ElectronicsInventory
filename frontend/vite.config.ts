@@ -26,18 +26,6 @@ function versionPlugin(): Plugin {
 
   return {
     name: 'version-plugin',
-    buildStart() {
-      // Generate version.json in public directory for development
-      try {
-        const gitCommitId = getGitCommitId()
-        const versionData = { version: gitCommitId }
-        const publicDir = path.resolve(__dirname, 'public')
-        const versionFile = path.join(publicDir, 'version.json')
-        fs.writeFileSync(versionFile, JSON.stringify(versionData, null, 2))
-      } catch (error) {
-        console.warn('Failed to write version.json to public directory:', error)
-      }
-    },
     generateBundle() {
       // Generate version.json for production build
       const gitCommitId = getGitCommitId()
