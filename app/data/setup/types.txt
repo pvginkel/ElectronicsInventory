@@ -50,8 +50,9 @@ Heatsink & Thermal Interface Material
 Inductor & Choke
 Interface IC (RS-232/RS-485/CAN/LIN)
 IR Component (Emitter/Receiver)
+LED Driver
 LED Matrix & Segment Display
-LED Strip & Driver
+LED Strip
 LED (Discrete)
 Level Shifter & Digital Isolator
 Linear & LDO Regulator
