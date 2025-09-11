@@ -1064,6 +1064,189 @@
         "title": "CategoryDistributionSchema",
         "type": "object"
       },
+      "CopyAttachmentRequestSchema.9a8bd74": {
+        "description": "Schema for copy attachment request.",
+        "properties": {
+          "attachment_id": {
+            "description": "ID of the attachment to copy",
+            "example": 123,
+            "title": "Attachment Id",
+            "type": "integer"
+          },
+          "set_as_cover": {
+            "default": false,
+            "description": "Whether to set the copied attachment as the target part's cover image",
+            "example": true,
+            "title": "Set As Cover",
+            "type": "boolean"
+          },
+          "target_part_key": {
+            "description": "Key of the part to copy attachment to",
+            "example": "ABCD",
+            "title": "Target Part Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attachment_id",
+          "target_part_key"
+        ],
+        "title": "CopyAttachmentRequestSchema",
+        "type": "object"
+      },
+      "CopyAttachmentResponseSchema.9a8bd74": {
+        "description": "Schema for copy attachment response.",
+        "properties": {
+          "attachment": {
+            "$ref": "#/components/schemas/CopyAttachmentResponseSchema.9a8bd74.PartAttachmentResponseSchema",
+            "description": "Details of the newly created attachment"
+          }
+        },
+        "required": [
+          "attachment"
+        ],
+        "title": "CopyAttachmentResponseSchema",
+        "type": "object"
+      },
+      "CopyAttachmentResponseSchema.9a8bd74.AttachmentType": {
+        "description": "Enum for attachment types.",
+        "enum": [
+          "url",
+          "image",
+          "pdf"
+        ],
+        "title": "AttachmentType",
+        "type": "string"
+      },
+      "CopyAttachmentResponseSchema.9a8bd74.PartAttachmentResponseSchema": {
+        "description": "Schema for full attachment details.",
+        "properties": {
+          "attachment_type": {
+            "$ref": "#/components/schemas/CopyAttachmentResponseSchema.9a8bd74.AttachmentType",
+            "description": "Type of attachment",
+            "example": "image"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MIME type of the file",
+            "example": "application/pdf",
+            "title": "Content Type"
+          },
+          "created_at": {
+            "description": "Timestamp when the attachment was created",
+            "example": "2024-01-15T10:30:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "file_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "File size in bytes",
+            "example": 1048576,
+            "title": "File Size"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Original filename (for uploaded files)",
+            "example": "omron_g5q_datasheet.pdf",
+            "title": "Filename"
+          },
+          "has_preview": {
+            "description": "Whether this attachment has a preview image",
+            "example": true,
+            "title": "Has Preview",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Unique attachment identifier",
+            "example": 123,
+            "title": "Id",
+            "type": "integer"
+          },
+          "part_id": {
+            "description": "ID of the associated part",
+            "example": 456,
+            "title": "Part Id",
+            "type": "integer"
+          },
+          "s3_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "S3 storage key for the file",
+            "example": "parts/456/attachments/abc123.pdf",
+            "title": "S3 Key"
+          },
+          "title": {
+            "description": "Title or description of the attachment",
+            "example": "Datasheet - OMRON G5Q-1A4",
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "Timestamp when the attachment was last modified",
+            "example": "2024-01-15T14:45:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Original URL (for URL attachments)",
+            "example": "https://www.omron.com/products/G5Q-1A4",
+            "title": "Url"
+          }
+        },
+        "required": [
+          "id",
+          "part_id",
+          "attachment_type",
+          "title",
+          "s3_key",
+          "url",
+          "filename",
+          "content_type",
+          "file_size",
+          "created_at",
+          "updated_at",
+          "has_preview"
+        ],
+        "title": "PartAttachmentResponseSchema",
+        "type": "object"
+      },
       "CoverAttachmentResponseSchema.f950e1b": {
         "description": "Schema for cover attachment response.",
         "properties": {
@@ -1354,6 +1537,36 @@
           "message"
         ],
         "title": "ErrorDetailsSchema",
+        "type": "object"
+      },
+      "HealthResponse.d817ae2": {
+        "description": "Health check response.",
+        "properties": {
+          "ready": {
+            "description": "Whether the service is ready to handle requests",
+            "examples": [
+              true,
+              false
+            ],
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "status": {
+            "description": "Health status message",
+            "examples": [
+              "ready",
+              "alive",
+              "shutting down"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "ready"
+        ],
+        "title": "HealthResponse",
         "type": "object"
       },
       "LocationResponseSchema.1cdc15f": {
@@ -4858,6 +5071,119 @@
         "tags": []
       }
     },
+    "/api/health/drain": {
+      "get": {
+        "description": "Requires bearer token authentication against DRAIN_AUTH_KEY config setting. Calls drain() on the shutdown coordinator and returns health status.",
+        "operationId": "get__api_health_drain",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse.d817ae2"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse.d817ae2"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Drain endpoint for manual graceful shutdown initiation.",
+        "tags": []
+      }
+    },
+    "/api/health/healthz": {
+      "get": {
+        "description": "Always returns 200 to indicate the application is alive. This keeps the pod running even during graceful shutdown.",
+        "operationId": "get__api_health_healthz",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse.d817ae2"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Liveness probe endpoint for Kubernetes.",
+        "tags": []
+      }
+    },
+    "/api/health/readyz": {
+      "get": {
+        "description": "Returns 503 when the application is shutting down or not ready to serve requests. This signals Kubernetes to remove the pod from service endpoints.",
+        "operationId": "get__api_health_readyz",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse.d817ae2"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse.d817ae2"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Readiness probe endpoint for Kubernetes.",
+        "tags": []
+      }
+    },
     "/api/inventory/parts/{part_key}/move": {
       "post": {
         "description": "",
@@ -5139,6 +5465,16 @@
         "tags": []
       }
     },
+    "/api/metrics": {
+      "get": {
+        "description": "Returns:     Response with metrics data in Prometheus exposition format",
+        "operationId": "get__api_metrics",
+        "parameters": [],
+        "responses": {},
+        "summary": "Return metrics in Prometheus text format.",
+        "tags": []
+      }
+    },
     "/api/parts": {
       "get": {
         "description": "",
@@ -5277,6 +5613,57 @@
         "parameters": [],
         "responses": {},
         "summary": "Proxy external URL content to avoid CORS issues when displaying PDFs and images in iframes.",
+        "tags": []
+      }
+    },
+    "/api/parts/copy-attachment": {
+      "post": {
+        "description": "",
+        "operationId": "post__api_parts_copy-attachment",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyAttachmentRequestSchema.9a8bd74"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyAttachmentResponseSchema.9a8bd74"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Copy an individual attachment from one part to another.",
         "tags": []
       }
     },

@@ -281,6 +281,7 @@ The repository includes command templates for specific development workflows:
 
 - When writing a product brief: @docs/commands/create_brief.md
 - When planning a new feature: @docs/commands/plan_feature.md
+- When reviewing a plan: @docs/commands/review_plan.md
 - When doing code review: @docs/commands/code_review.md
 - When planning or implementing a new feature, reference the product brief at @docs/product_brief.md
 
