@@ -64,7 +64,6 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
   const [coverDocumentId, setCoverDocumentId] = useState<number | null>(null);
   const [isCopying, setIsCopying] = useState(false);
   const [copyProgress, setCopyProgress] = useState({ completed: 0, total: 0 });
-  const [failedDocuments, setFailedDocuments] = useState<string[]>([]);
 
   const isEditing = Boolean(partId);
   const isDuplicating = Boolean(duplicateFromPartId);
@@ -223,7 +222,6 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
       if (isDuplicating && duplicateDocuments.length > 0) {
         setIsCopying(true);
         setCopyProgress({ completed: 0, total: duplicateDocuments.length });
-        setFailedDocuments([]);
 
         const failedDocs: string[] = [];
         
@@ -250,7 +248,6 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
 
           // Show results to user
           if (failedDocs.length > 0) {
-            setFailedDocuments(failedDocs);
             const failedCount = failedDocs.length;
             const successCount = duplicateDocuments.length - failedCount;
             

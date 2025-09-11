@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { SplitButton } from '@/components/ui/split-button';
 import { TypeSelector } from '@/components/types/type-selector';
 import { TypeCreateDialog } from '@/components/types/type-create-dialog';
 import { TagsInput } from './tags-input';
