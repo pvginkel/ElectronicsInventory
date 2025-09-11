@@ -18,6 +18,7 @@ from app.services.html_document_handler import HtmlDocumentHandler
 from app.services.image_service import ImageService
 from app.services.s3_service import S3Service
 from app.services.url_transformers import URLInterceptorRegistry
+from app.utils.text_utils import truncate_with_ellipsis
 from app.utils.url_utils import get_filename_from_url
 
 
@@ -94,15 +95,21 @@ class DocumentService(BaseService):
             # Process as HTML document
             html_info = self.html_handler.process_html_content(content, url)
 
+            # Truncate title to prevent database errors (title field has 255 char limit)
+            title = truncate_with_ellipsis(html_info.title or filename, 200)
+
             return UploadDocumentSchema(
-                title=html_info.title or filename,
+                title=title,
                 content=content_schema,
                 detected_type=detected_attachment_type,
                 preview_image=html_info.preview_image
             )
 
+        # Truncate title to prevent database errors (title field has 255 char limit)
+        title = truncate_with_ellipsis(filename, 200)
+
         return UploadDocumentSchema(
-            title=filename,
+            title=title,
             content=content_schema,
             detected_type=detected_attachment_type,
             preview_image=None
