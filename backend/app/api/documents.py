@@ -12,6 +12,10 @@ from werkzeug.datastructures import FileStorage
 
 from app.models.part_attachment import AttachmentType
 from app.schemas.common import ErrorResponseSchema
+from app.schemas.copy_attachment import (
+    CopyAttachmentRequestSchema,
+    CopyAttachmentResponseSchema,
+)
 from app.schemas.part_attachment import (
     CoverAttachmentResponseSchema,
     PartAttachmentCreateUrlSchema,
@@ -227,6 +231,30 @@ def delete_attachment(part_key: str, attachment_id: int, document_service : Docu
     document_service.delete_attachment(attachment_id)
 
     return '', 204
+
+
+# Attachment Copying Endpoints
+@documents_bp.route("/copy-attachment", methods=["POST"])
+@api.validate(json=CopyAttachmentRequestSchema, resp=SpectreeResponse(HTTP_200=CopyAttachmentResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
+@handle_api_errors
+@inject
+def copy_attachment(document_service: DocumentService = Provide[ServiceContainer.document_service]):
+    """Copy an individual attachment from one part to another."""
+    data = CopyAttachmentRequestSchema.model_validate(request.get_json())
+
+    # Copy the attachment
+    new_attachment = document_service.copy_attachment_to_part(
+        attachment_id=data.attachment_id,
+        target_part_key=data.target_part_key,
+        set_as_cover=data.set_as_cover
+    )
+
+    # Return response with created attachment details
+    response_data = CopyAttachmentResponseSchema(
+        attachment=PartAttachmentResponseSchema.model_validate(new_attachment)
+    )
+
+    return response_data.model_dump(), 200
 
 
 # URL Preview Endpoints
