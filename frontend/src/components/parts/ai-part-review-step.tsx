@@ -507,17 +507,9 @@ export function AIPartReviewStep({
           )}
           
           <div className="flex gap-3">
-            <SplitButton
-              primaryLabel={isCreating ? 'Creating...' : 'Add Part'}
-              onPrimaryClick={() => handleCreatePart(false)}
-              actions={[
-                {
-                  label: 'Add & Create Another',
-                  onClick: () => handleCreatePart(true)
-                }
-              ]}
-              disabled={isCreating}
-            />
+            <Button onClick={() => handleCreatePart(false)} disabled={isCreating}>
+              {isCreating ? 'Creating...' : 'Add Part'}
+            </Button>
           </div>
         </div>
       </div>
