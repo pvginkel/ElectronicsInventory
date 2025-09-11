@@ -9,7 +9,7 @@
     "build": "pnpm generate:api:build && pnpm generate:routes && tsc -b && vite build",
     "lint": "eslint .",
     "type-check": "tsc --noEmit --project tsconfig.app.json",
-    "preview": "vite preview",
+    "preview": "vite preview --port 3000",
     "generate:routes": "tsr generate",
     "generate:api": "node scripts/generate-api.js --fetch",
     "generate:api:build": "node scripts/generate-api.js --cache-only"

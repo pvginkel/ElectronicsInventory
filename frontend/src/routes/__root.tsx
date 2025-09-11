@@ -3,6 +3,8 @@ import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { Sidebar } from '@/components/layout/sidebar'
 import { ToastProvider } from '@/contexts/toast-context'
+import { DeploymentProvider } from '@/contexts/deployment-context'
+import { DeploymentNotificationBar } from '@/components/ui/deployment-notification-bar'
 import { queryClient, setToastFunction } from '@/lib/query-client'
 import { useToast } from '@/hooks/use-toast'
 
@@ -27,8 +29,11 @@ function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <QuerySetup>
-          <div className="flex h-screen overflow-hidden">
+        <DeploymentProvider>
+          <QuerySetup>
+            <div className="flex flex-col h-screen overflow-hidden">
+              <DeploymentNotificationBar />
+              <div className="flex flex-1 overflow-hidden">
             {/* Desktop Sidebar */}
             <div className="hidden lg:block">
               <Sidebar
@@ -66,9 +71,10 @@ function RootLayout() {
                 <Outlet />
               </main>
             </div>
-
-          </div>
+              </div>
+            </div>
         </QuerySetup>
+        </DeploymentProvider>
       </ToastProvider>
     </QueryClientProvider>
   )
