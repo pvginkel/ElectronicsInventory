@@ -2,29 +2,51 @@ import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 import { execSync } from 'child_process'
+import fs from 'fs'
 
 function versionPlugin(): Plugin {
+  const getGitCommitId = () => {
+    try {
+      // First try to read from git-rev file (for Docker builds)
+      const gitRevFile = path.resolve(__dirname, 'git-rev')
+      if (fs.existsSync(gitRevFile)) {
+        const fileContent = fs.readFileSync(gitRevFile, 'utf8').trim()
+        if (fileContent) {
+          return fileContent
+        }
+      }
+      
+      // Fallback to git command
+      return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()
+    } catch (error) {
+      console.warn('Failed to get git commit:', error)
+      return 'unknown'
+    }
+  }
+
   return {
     name: 'version-plugin',
-    generateBundle() {
+    buildStart() {
+      // Generate version.json in public directory for development
       try {
-        const gitCommitId = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()
+        const gitCommitId = getGitCommitId()
         const versionData = { version: gitCommitId }
-        
-        this.emitFile({
-          type: 'asset',
-          fileName: 'version.json',
-          source: JSON.stringify(versionData, null, 2)
-        })
+        const publicDir = path.resolve(__dirname, 'public')
+        const versionFile = path.join(publicDir, 'version.json')
+        fs.writeFileSync(versionFile, JSON.stringify(versionData, null, 2))
       } catch (error) {
-        console.warn('Failed to generate version.json:', error)
-        const fallbackVersion = { version: 'unknown' }
-        this.emitFile({
-          type: 'asset',
-          fileName: 'version.json',
-          source: JSON.stringify(fallbackVersion, null, 2)
-        })
+        console.warn('Failed to write version.json to public directory:', error)
       }
+    },
+    generateBundle() {
+      // Generate version.json for production build
+      const gitCommitId = getGitCommitId()
+      const versionData = { version: gitCommitId }
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: JSON.stringify(versionData, null, 2)
+      })
     }
   }
 }

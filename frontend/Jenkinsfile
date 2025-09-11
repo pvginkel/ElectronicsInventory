@@ -11,6 +11,9 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko') {
         }
 
         stage("Building ElectronicsInventory UI") {
+            // Docker can't access the .git folder so we provide the rev of HEAD here.
+            sh 'git rev-parse HEAD > git-rev'
+
             container('kaniko') {
                 helmCharts.kaniko([
                     "registry:5000/electronics-inventory-ui:${currentBuild.number}",
