@@ -48,6 +48,7 @@ export function IconButton({
     <button
       onClick={(e) => {
         e.stopPropagation();
+        e.preventDefault();
         onClick();
       }}
       className={`

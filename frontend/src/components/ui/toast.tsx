@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { ClearButtonIcon } from '@/components/icons/clear-button-icon'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
@@ -59,11 +60,11 @@ function ToastComponent({ toast, onRemove }: ToastProps) {
           </div>
           <div className="ml-4 flex flex-shrink-0">
             <button
-              className="inline-flex rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 hover:opacity-75"
+              className="inline-flex rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 hover:opacity-75"
               onClick={() => onRemove(toast.id)}
             >
               <span className="sr-only">Close</span>
-              <span aria-hidden="true">×</span>
+              <ClearButtonIcon className="w-4 h-4" />
             </button>
           </div>
         </div>

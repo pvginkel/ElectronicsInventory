@@ -6,8 +6,11 @@ import { Card } from '@/components/ui/card';
 import { TypeSelector } from '@/components/types/type-selector';
 import { TagsInput } from './tags-input';
 import { MountingTypeSelector } from './mounting-type-selector';
-import { useGetPartsByPartKey, usePostParts, usePutPartsByPartKey } from '@/lib/api/generated/hooks';
+import { DuplicateDocumentGrid } from './duplicate-document-grid';
+import { useGetPartsByPartKey, usePostParts, usePutPartsByPartKey, usePostPartsCopyAttachment } from '@/lib/api/generated/hooks';
+import { useDuplicatePart } from '@/hooks/use-duplicate-part';
 import { validatePartData } from '@/lib/utils/parts';
+import type { ApiDocument } from '@/lib/utils/document-transformers';
 
 interface PartFormData {
   description: string;
@@ -31,11 +34,12 @@ interface PartFormData {
 
 interface PartFormProps {
   partId?: string;
+  duplicateFromPartId?: string;
   onSuccess: (partId: string) => void;
   onCancel?: () => void;
 }
 
-export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
+export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: PartFormProps) {
   const [formData, setFormData] = useState<PartFormData>({
     description: '',
     manufacturerCode: '',
@@ -55,8 +59,13 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
     outputVoltage: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [duplicateDocuments, setDuplicateDocuments] = useState<ApiDocument[]>([]);
+  const [coverDocumentId, setCoverDocumentId] = useState<number | null>(null);
+  const [isCopying, setIsCopying] = useState(false);
+  const [copyProgress, setCopyProgress] = useState({ completed: 0, total: 0 });
 
   const isEditing = Boolean(partId);
+  const isDuplicating = Boolean(duplicateFromPartId);
   
   // Fetch existing part data if editing
   const { data: existingPart, isLoading: isLoadingPart } = useGetPartsByPartKey(
@@ -66,6 +75,10 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
 
   const createPartMutation = usePostParts();
   const updatePartMutation = usePutPartsByPartKey();
+  const copyAttachmentMutation = usePostPartsCopyAttachment();
+
+  // Fetch duplicate part data if duplicating
+  const { formData: duplicateFormData, documents: duplicateSourceDocuments, coverDocumentId: duplicateCoverDocumentId, isLoading: isDuplicateLoading } = useDuplicatePart(duplicateFromPartId);
 
   // Populate form with existing part data
   useEffect(() => {
@@ -91,6 +104,39 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
       });
     }
   }, [existingPart, isEditing]);
+
+  // Populate form with duplicate part data
+  useEffect(() => {
+    if (duplicateFormData && isDuplicating) {
+      setFormData({
+        description: duplicateFormData.description,
+        manufacturerCode: duplicateFormData.manufacturerCode,
+        typeId: duplicateFormData.typeId ? parseInt(duplicateFormData.typeId) : undefined,
+        tags: duplicateFormData.tags,
+        manufacturer: '',
+        productPage: '',
+        seller: duplicateFormData.sellerName,
+        sellerLink: duplicateFormData.sellerUrl,
+        dimensions: '',
+        mountingType: '',
+        package: '',
+        pinCount: duplicateFormData.pinCount,
+        pinPitch: '',
+        series: '',
+        voltageRating: '',
+        inputVoltage: '',
+        outputVoltage: '',
+      });
+
+      // Set duplicate documents
+      if (duplicateSourceDocuments) {
+        setDuplicateDocuments(duplicateSourceDocuments);
+      }
+      if (duplicateCoverDocumentId) {
+        setCoverDocumentId(duplicateCoverDocumentId);
+      }
+    }
+  }, [duplicateFormData, duplicateSourceDocuments, duplicateCoverDocumentId, isDuplicating]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,6 +215,32 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
           output_voltage: formData.outputVoltage || null,
         }
       });
+
+      // If duplicating, copy documents
+      if (isDuplicating && duplicateDocuments.length > 0) {
+        setIsCopying(true);
+        setCopyProgress({ completed: 0, total: duplicateDocuments.length });
+
+        try {
+          for (let i = 0; i < duplicateDocuments.length; i++) {
+            const doc = duplicateDocuments[i];
+            const isThisCover = coverDocumentId === parseInt(doc.id);
+
+            await copyAttachmentMutation.mutateAsync({
+              body: {
+                attachment_id: parseInt(doc.id),
+                target_part_key: result.key,
+                set_as_cover: isThisCover
+              }
+            });
+
+            setCopyProgress(prev => ({ ...prev, completed: i + 1 }));
+          }
+        } finally {
+          setIsCopying(false);
+        }
+      }
+
       onSuccess(result.key);
     }
   };
@@ -181,6 +253,11 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
     }
   };
 
+  const handleDocumentsChange = (documents: ApiDocument[], newCoverDocumentId: number | null) => {
+    setDuplicateDocuments(documents);
+    setCoverDocumentId(newCoverDocumentId);
+  };
+
   if (isEditing && isLoadingPart) {
     return (
       <Card className="p-6">
@@ -189,13 +266,21 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
     );
   }
 
-  const isLoading = createPartMutation.isPending || updatePartMutation.isPending;
+  if (isDuplicating && isDuplicateLoading) {
+    return (
+      <Card className="p-6">
+        <div className="text-center">Loading part to duplicate...</div>
+      </Card>
+    );
+  }
+
+  const isLoading = createPartMutation.isPending || updatePartMutation.isPending || isCopying;
 
   return (
     <Card className="p-6">
       <div className="mb-6">
         <h2 className="text-lg font-semibold">
-          {isEditing ? `Edit Part ${partId}` : 'Add Part'}
+          {isEditing ? `Edit Part ${partId}` : isDuplicating ? `Duplicate Part from ${duplicateFromPartId}` : 'Add Part'}
         </h2>
       </div>
 
@@ -461,6 +546,36 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
           </div>
         </div>
 
+        {/* Documents Section - only shown in duplication mode */}
+        {isDuplicating && duplicateDocuments.length > 0 && (
+          <div className="space-y-4">
+            <div className="pb-2 border-b">
+              <h3 className="text-lg font-medium">Documents</h3>
+              <p className="text-sm text-muted-foreground">Documents from the original part that will be copied</p>
+            </div>
+            <DuplicateDocumentGrid
+              documents={duplicateDocuments}
+              coverDocumentId={coverDocumentId}
+              partId={duplicateFromPartId!}
+              onDocumentsChange={handleDocumentsChange}
+            />
+          </div>
+        )}
+
+        {/* Progress UI during document copying */}
+        {isCopying && (
+          <div className="space-y-2">
+            <div className="text-sm font-medium">
+              Copying documents ({copyProgress.completed}/{copyProgress.total})...
+            </div>
+            <div className="w-full bg-muted rounded-full h-2">
+              <div 
+                className="bg-primary h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(copyProgress.completed / copyProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-end gap-3 pt-4">
           {onCancel && (
@@ -478,7 +593,7 @@ export function PartForm({ partId, onSuccess, onCancel }: PartFormProps) {
             disabled={isLoading}
             loading={isLoading}
           >
-            {isEditing ? 'Update Part' : 'Add Part'}
+            {isCopying ? 'Copying Documents...' : isEditing ? 'Update Part' : isDuplicating ? 'Create Duplicate' : 'Add Part'}
           </Button>
         </div>
       </Form>
