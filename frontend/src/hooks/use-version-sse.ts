@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { getApiBaseUrl } from '@/lib/utils/api-config';
 
 interface VersionEvent {
   version: string;
@@ -9,13 +10,11 @@ interface UseVersionSSEReturn {
   disconnect: () => void;
   isConnected: boolean;
   version: string | null;
-  error: string | null;
 }
 
 export function useVersionSSE(): UseVersionSSEReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [version, setVersion] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   
   const eventSourceRef = useRef<EventSource | null>(null);
   const retryCountRef = useRef(0);
@@ -39,13 +38,17 @@ export function useVersionSSE(): UseVersionSSEReturn {
     // Clean up existing connection
     disconnect();
     
-    // Reset error state
-    setError(null);
-    
-    const eventSource = new EventSource('/api/utils/version/stream');
+    const baseUrl = getApiBaseUrl();
+    const eventSource = new EventSource(`${baseUrl}/api/utils/version/stream`);
     eventSourceRef.current = eventSource;
 
     const scheduleReconnect = () => {
+      // Clear any existing retry timeout before scheduling a new one
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+      
       retryCountRef.current++;
       const delay = Math.min(1000 * Math.pow(2, retryCountRef.current - 1), maxRetryDelay);
       
@@ -58,7 +61,6 @@ export function useVersionSSE(): UseVersionSSEReturn {
 
     eventSource.onopen = () => {
       setIsConnected(true);
-      setError(null);
       retryCountRef.current = 0;
     };
 
@@ -68,7 +70,6 @@ export function useVersionSSE(): UseVersionSSEReturn {
         setVersion(versionData.version);
       } catch (parseError) {
         console.error('Failed to parse version event:', parseError);
-        setError('Invalid version response format');
         // Disconnect and reconnect on invalid event
         disconnect();
         scheduleReconnect();
@@ -79,15 +80,9 @@ export function useVersionSSE(): UseVersionSSEReturn {
       // Ignore keepalive events - they're just for connection health
     });
 
-    // Handle any other event type by disconnecting and reconnecting
-    eventSource.onmessage = (event) => {
-      // Check if this is an unhandled event type
-      if (event.type !== 'version' && event.type !== 'keepalive') {
-        console.warn('Received unexpected SSE event type:', event.type);
-        disconnect();
-        scheduleReconnect();
-      }
-    };
+    // Note: We only handle 'version' and 'keepalive' events via addEventListener.
+    // Any other event types would need to be explicitly added.
+    // The generic onmessage handler is not used since we handle specific event types.
 
     eventSource.onerror = (event) => {
       console.error('EventSource error:', event);
@@ -109,7 +104,6 @@ export function useVersionSSE(): UseVersionSSEReturn {
     connect: createConnection,
     disconnect,
     isConnected,
-    version,
-    error
+    version
   };
 }
