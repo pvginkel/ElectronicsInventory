@@ -44,14 +44,26 @@ export function DeploymentProvider({ children }: DeploymentProviderProps) {
     }
   }, [version, currentVersion])
 
-  // Connect SSE on mount
+  // Connect SSE on mount (production only)
   useEffect(() => {
+    // Skip version checking in development
+    const isDevelopment = import.meta.env.DEV
+    if (isDevelopment) {
+      return
+    }
+    
     connect()
     return () => disconnect()
   }, [connect, disconnect])
 
-  // Handle window focus to trigger reconnection
+  // Handle window focus to trigger reconnection (production only)
   useEffect(() => {
+    // Skip version checking in development
+    const isDevelopment = import.meta.env.DEV
+    if (isDevelopment) {
+      return
+    }
+    
     const handleFocus = () => {
       checkForUpdates()
     }
