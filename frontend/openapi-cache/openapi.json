@@ -6766,6 +6766,16 @@
         "summary": "Update type name.",
         "tags": []
       }
+    },
+    "/api/utils/version/stream": {
+      "get": {
+        "description": "",
+        "operationId": "get__api_utils_version_stream",
+        "parameters": [],
+        "responses": {},
+        "summary": "SSE stream for frontend version notifications - infrastructure utility endpoint.",
+        "tags": []
+      }
     }
   },
   "security": [],
