@@ -2,7 +2,7 @@
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -148,6 +148,23 @@ class Settings(BaseSettings):
         default="",
         description="Bearer token for authenticating drain endpoint access"
     )
+
+    # SSE version notification settings
+    FRONTEND_VERSION_URL: str = Field(
+        default="http://localhost:3000/version.json",
+        description="URL to fetch frontend version information"
+    )
+    SSE_HEARTBEAT_INTERVAL: int = Field(
+        default=5,
+        description="SSE heartbeat interval in seconds (5 for development, 30 for production)"
+    )
+
+    @model_validator(mode='after')
+    def set_sse_heartbeat_interval(self):
+        """Set SSE heartbeat interval based on environment."""
+        if self.FLASK_ENV != "development":
+            self.SSE_HEARTBEAT_INTERVAL = 30
+        return self
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:

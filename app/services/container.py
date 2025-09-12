@@ -22,6 +22,7 @@ from app.services.task_service import TaskService
 from app.services.test_data_service import TestDataService
 from app.services.type_service import TypeService
 from app.services.url_transformers import LCSCInterceptor, URLInterceptorRegistry
+from app.services.version_service import VersionService
 from app.utils.shutdown_coordinator import (
     ShutdownCoordinator,
 )
@@ -133,4 +134,11 @@ class ServiceContainer(containers.DeclarativeContainer):
         download_cache_service=download_cache_service,
         document_service=document_service,
         metrics_service=metrics_service
+    )
+
+    # Version service - Factory for infrastructure utility endpoints
+    version_service = providers.Factory(
+        VersionService,
+        settings=config,
+        shutdown_coordinator=shutdown_coordinator
     )
