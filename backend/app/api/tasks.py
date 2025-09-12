@@ -1,10 +1,9 @@
-import json
-
 from dependency_injector.wiring import Provide, inject
-from flask import Blueprint, Response, jsonify
+from flask import Blueprint, jsonify
 
 from app.services.container import ServiceContainer
 from app.utils.error_handling import handle_api_errors
+from app.utils.sse_utils import create_sse_response, format_sse_event
 
 tasks_bp = Blueprint("tasks", __name__, url_prefix="/tasks")
 
@@ -25,11 +24,7 @@ def get_task_stream(task_id: str, task_service=Provide[ServiceContainer.task_ser
         task_info = task_service.get_task_status(task_id)
         if not task_info:
             # Send error event and close
-            error_event = {
-                "event": "error",
-                "data": json.dumps({"error": "Task not found"})
-            }
-            yield f"event: {error_event['event']}\ndata: {error_event['data']}\n\n"
+            yield format_sse_event("error", {"error": "Task not found"})
             return
 
         # Stream task events
@@ -40,7 +35,7 @@ def get_task_stream(task_id: str, task_service=Provide[ServiceContainer.task_ser
 
             if not events:
                 # Send keepalive
-                yield "event: keepalive\ndata: {}\n\n"
+                yield format_sse_event("keepalive", {})
                 continue
 
             for event in events:
@@ -51,21 +46,13 @@ def get_task_stream(task_id: str, task_service=Provide[ServiceContainer.task_ser
                     "data": event.data
                 }
 
-                yield f"event: task_event\ndata: {json.dumps(event_data)}\n\n"
+                yield format_sse_event("task_event", event_data)
 
                 # Close connection after completion/failure events
                 if event.event_type.value in ["task_completed", "task_failed"]:
                     return
 
-    return Response(
-        generate_events(),
-        mimetype="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Cache-Control"
-        }
-    )
+    return create_sse_response(generate_events())
 
 
 @tasks_bp.route("/<task_id>/status", methods=["GET"])

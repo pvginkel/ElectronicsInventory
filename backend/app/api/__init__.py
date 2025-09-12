@@ -26,6 +26,7 @@ from app.api.metrics import metrics_bp  # noqa: E402
 from app.api.parts import parts_bp  # noqa: E402
 from app.api.tasks import tasks_bp  # noqa: E402
 from app.api.types import types_bp  # noqa: E402
+from app.api.utils import utils_bp  # noqa: E402
 
 api_bp.register_blueprint(ai_parts_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(boxes_bp)  # type: ignore[attr-defined]
@@ -38,3 +39,4 @@ api_bp.register_blueprint(types_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(parts_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(inventory_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(tasks_bp)  # type: ignore[attr-defined]
+api_bp.register_blueprint(utils_bp)  # type: ignore[attr-defined]
