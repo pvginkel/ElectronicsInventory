@@ -1,10 +1,11 @@
 import { createContext, useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
+import { useVersionSSE } from '../hooks/use-version-sse'
 
 interface DeploymentContextValue {
   isNewVersionAvailable: boolean
   currentVersion: string | null
-  checkForUpdates: () => Promise<void>
+  checkForUpdates: () => void
   reloadApp: () => void
 }
 
@@ -17,50 +18,39 @@ interface DeploymentProviderProps {
 export function DeploymentProvider({ children }: DeploymentProviderProps) {
   const [isNewVersionAvailable, setIsNewVersionAvailable] = useState(false)
   const [currentVersion, setCurrentVersion] = useState<string | null>(null)
-  const isDevelopment = import.meta.env.DEV
+  
+  const { connect, disconnect, version } = useVersionSSE()
 
-  const fetchVersion = async (): Promise<string | null> => {
-    try {
-      const timestamp = Date.now()
-      const response = await fetch(`/version.json?t=${timestamp}`)
-      if (!response.ok) {
-        return null
-      }
-      const data = await response.json()
-      return data.version || null
-    } catch {
-      return null
-    }
-  }
-
-  const checkForUpdates = useCallback(async () => {
-    if (isDevelopment) {
-      return
-    }
-    
-    const latestVersion = await fetchVersion()
-    if (!latestVersion) {
-      return
-    }
-
-    if (currentVersion === null) {
-      setCurrentVersion(latestVersion)
-      return
-    }
-
-    if (latestVersion !== currentVersion) {
-      setIsNewVersionAvailable(true)
-    }
-  }, [currentVersion, isDevelopment])
+  const checkForUpdates = useCallback(() => {
+    // Force reconnection to check for updates
+    disconnect()
+    connect()
+  }, [disconnect, connect])
 
   const reloadApp = useCallback(() => {
     window.location.reload()
   }, [])
 
+  // Handle version changes from SSE
   useEffect(() => {
-    checkForUpdates()
-  }, [checkForUpdates])
+    if (version) {
+      if (currentVersion === null) {
+        // First version received - set as current
+        setCurrentVersion(version)
+      } else if (version !== currentVersion) {
+        // Version changed - new version available
+        setIsNewVersionAvailable(true)
+      }
+    }
+  }, [version, currentVersion])
 
+  // Connect SSE on mount
+  useEffect(() => {
+    connect()
+    return () => disconnect()
+  }, [connect, disconnect])
+
+  // Handle window focus to trigger reconnection
   useEffect(() => {
     const handleFocus = () => {
       checkForUpdates()
@@ -68,14 +58,6 @@ export function DeploymentProvider({ children }: DeploymentProviderProps) {
 
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, [checkForUpdates])
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      checkForUpdates()
-    }, 5000)
-
-    return () => clearInterval(interval)
   }, [checkForUpdates])
 
   const contextValue: DeploymentContextValue = {
