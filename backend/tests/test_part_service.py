@@ -71,6 +71,11 @@ class TestPartService:
             type_obj = type_service.create_type("Resistor")
             session.flush()
 
+            # Create a seller first
+            seller_service = container.seller_service()
+            seller = seller_service.create_seller("Digi-Key", "https://www.digikey.com")
+            session.flush()
+
             part_service = container.part_service()
             part = part_service.create_part(
                 description="1k ohm resistor",
@@ -79,7 +84,7 @@ class TestPartService:
                 tags=["1k", "5%", "THT"],
                 manufacturer="Vishay",
                 product_page="https://www.vishay.com/en/resistors/",
-                seller="Digi-Key",
+                seller_id=seller.id,
                 seller_link="https://digikey.com/product/123",
                 package="0805",
                 pin_count=2,
@@ -98,7 +103,7 @@ class TestPartService:
             assert part.tags == ["1k", "5%", "THT"]
             assert part.manufacturer == "Vishay"
             assert part.product_page == "https://www.vishay.com/en/resistors/"
-            assert part.seller == "Digi-Key"
+            assert part.seller_id == seller.id
             assert part.seller_link == "https://digikey.com/product/123"
             # Extended fields
             assert part.package == "0805"

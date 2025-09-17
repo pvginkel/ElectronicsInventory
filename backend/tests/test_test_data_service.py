@@ -116,7 +116,14 @@ class TestTestDataService:
             session.add(resistor_type)
             session.flush()
 
+            # Create test sellers
+            from app.models.seller import Seller
+            digikey_seller = Seller(name="Digi-Key", website="https://www.digikey.com")
+            session.add(digikey_seller)
+            session.flush()
+
             types_map = {"Resistor": resistor_type}
+            sellers_map = {1: digikey_seller}
 
             test_data = [
                 {
@@ -127,7 +134,7 @@ class TestTestDataService:
                     "tags": ["10k", "1/4W"],
                     "manufacturer": "Vishay",
                     "product_page": "https://www.vishay.com/resistors/",
-                    "seller": "Digi-Key",
+                    "seller_id": 1,
                     "seller_link": "https://example.com"
                 },
                 {
@@ -149,7 +156,7 @@ class TestTestDataService:
                     json.dump(test_data, f)
 
                 # Load parts
-                parts_map = container.test_data_service().load_parts(data_dir, types_map)
+                parts_map = container.test_data_service().load_parts(data_dir, types_map, sellers_map)
 
                 # Verify results
                 assert len(parts_map) == 2
@@ -163,18 +170,22 @@ class TestTestDataService:
                 assert part_abcd.tags == ["10k", "1/4W"]
                 assert part_abcd.manufacturer == "Vishay"
                 assert part_abcd.product_page == "https://www.vishay.com/resistors/"
-                assert part_abcd.seller == "Digi-Key"
+                assert part_abcd.seller_id == digikey_seller.id
+                assert part_abcd.seller.name == "Digi-Key"
                 assert part_abcd.seller_link == "https://example.com"
 
                 part_efgh = parts_map["EFGH"]
                 assert part_efgh.manufacturer == "Texas Instruments"
                 assert part_efgh.product_page == "https://www.ti.com/product/LM358"
+                assert part_efgh.seller_id is None
 
     def test_load_parts_invalid_type_reference(self, app: Flask, session: Session, container: ServiceContainer):
         """Test that loading parts with invalid type references raises an error."""
         with app.app_context():
+            from app.models.seller import Seller
             from app.models.type import Type
             types_map: dict[str, Type] = {}  # Empty types map to force error
+            sellers_map: dict[int, Seller] = {}  # Empty sellers map
 
             test_data = [
                 {
@@ -193,15 +204,17 @@ class TestTestDataService:
 
                 # Should raise InvalidOperationException
                 with pytest.raises(InvalidOperationException) as exc_info:
-                    container.test_data_service().load_parts(data_dir, types_map)
+                    container.test_data_service().load_parts(data_dir, types_map, sellers_map)
 
                 assert "unknown type 'NonexistentType' in part ABCD" in str(exc_info.value)
 
     def test_load_parts_without_type(self, app: Flask, session: Session, container: ServiceContainer):
         """Test loading parts without type assignment."""
         with app.app_context():
+            from app.models.seller import Seller
             from app.models.type import Type
             types_map: dict[str, Type] = {}
+            sellers_map: dict[int, Seller] = {}
 
             test_data = [
                 {
@@ -219,7 +232,7 @@ class TestTestDataService:
                     json.dump(test_data, f)
 
                 # Load parts
-                parts_map = container.test_data_service().load_parts(data_dir, types_map)
+                parts_map = container.test_data_service().load_parts(data_dir, types_map, sellers_map)
 
                 # Verify results
                 assert len(parts_map) == 1
@@ -384,6 +397,7 @@ class TestTestDataService:
             session.flush()
 
             # Create minimal test dataset
+            sellers_data = [{"id": 1, "name": "Test Seller", "website": "https://example.com"}]
             boxes_data = [{"box_no": 1, "description": "Test Box", "capacity": 5}]
             parts_data = [{
                 "key": "ABCD",
@@ -401,7 +415,9 @@ class TestTestDataService:
             with tempfile.TemporaryDirectory() as temp_dir:
                 data_dir = Path(temp_dir)
 
-                # Create JSON files (no types.json since we load from setup file)
+                # Create JSON files (sellers.json now required)
+                with (data_dir / "sellers.json").open("w") as f:
+                    json.dump(sellers_data, f)
                 with (data_dir / "boxes.json").open("w") as f:
                     json.dump(boxes_data, f)
                 with (data_dir / "parts.json").open("w") as f:
@@ -414,14 +430,17 @@ class TestTestDataService:
                 # Load full dataset using container
                 service = container.test_data_service()
                 types = service.load_types(data_dir)  # Loads existing types from database
+                sellers = service.load_sellers(data_dir)
                 boxes = service.load_boxes(data_dir)
-                parts = service.load_parts(data_dir, types)
+                parts = service.load_parts(data_dir, types, sellers)
                 service.load_part_locations(data_dir, parts, boxes)
                 service.load_quantity_history(data_dir, parts)
                 session.commit()
 
                 # Verify all data was loaded
+                from app.models.seller import Seller
                 assert session.query(Type).count() == 1  # Just the one type we created
+                assert session.query(Seller).count() == 1  # The seller we created
                 assert session.query(Box).count() == 1
                 assert session.query(Location).count() == 5  # box capacity
                 assert session.query(Part).count() == 1

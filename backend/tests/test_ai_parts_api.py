@@ -102,6 +102,7 @@ class TestAIPartsAPI:
     def test_create_part_basic_success(self, client: FlaskClient, app: Flask, session: Session):
         """Test basic part creation from AI analysis without documents or images."""
         from app.models.part import Part
+        from app.models.seller import Seller
         from app.models.type import Type
 
         with app.app_context():
@@ -110,12 +111,17 @@ class TestAIPartsAPI:
             session.add(test_type)
             session.flush()
 
+            # Create a test seller
+            test_seller = Seller(name="Test Vendor", website="https://testvendor.com")
+            session.add(test_seller)
+            session.flush()
+
             request_data = {
                 "description": "Test part from AI",
                 "manufacturer_code": "TEST123",
                 "type_id": test_type.id,
                 "tags": ["ai", "test"],
-                "seller": "Test Vendor",
+                "seller_id": test_seller.id,
                 "seller_link": "https://example.com/product",
                 "package": "SMD",
                 "pin_count": 8,
@@ -143,7 +149,8 @@ class TestAIPartsAPI:
             assert data['manufacturer_code'] == "TEST123"
             assert data['type_id'] == test_type.id
             assert data['tags'] == ["ai", "test"]
-            assert data['seller'] == "Test Vendor"
+            assert data['seller']['name'] == "Test Vendor"
+            assert data['seller']['id'] == test_seller.id
             assert data['seller_link'] == "https://example.com/product"
             assert data['package'] == "SMD"
             assert data['pin_count'] == 8
@@ -159,6 +166,8 @@ class TestAIPartsAPI:
             part = session.query(Part).filter_by(key=data['key']).first()
             assert part is not None
             assert part.description == "Test part from AI"
+            assert part.seller_id == test_seller.id
+            assert part.seller.name == "Test Vendor"
             assert part.package == "SMD"
             assert part.pin_count == 8
             assert part.pin_pitch == "0.8mm"

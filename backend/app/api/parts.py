@@ -24,6 +24,15 @@ parts_bp = Blueprint("parts", __name__, url_prefix="/parts")
 
 def _convert_part_to_schema_data(part, total_quantity: int) -> dict:
     """Convert Part model to PartWithTotalSchema data dict."""
+    # Convert seller relationship to proper schema format
+    seller_data = None
+    if part.seller:
+        seller_data = {
+            "id": part.seller.id,
+            "name": part.seller.name,
+            "website": part.seller.website
+        }
+
     return {
         "key": part.key,
         "manufacturer_code": part.manufacturer_code,
@@ -31,7 +40,7 @@ def _convert_part_to_schema_data(part, total_quantity: int) -> dict:
         "type_id": part.type_id,
         "tags": part.tags,
         "manufacturer": part.manufacturer,
-        "seller": part.seller,
+        "seller": seller_data,
         "seller_link": part.seller_link,
         "package": part.package,
         "pin_count": part.pin_count,
@@ -62,7 +71,7 @@ def create_part(part_service=Provide[ServiceContainer.part_service]):
         tags=data.tags,
         manufacturer=data.manufacturer,
         product_page=data.product_page,
-        seller=data.seller,
+        seller_id=data.seller_id,
         seller_link=data.seller_link,
         package=data.package,
         pin_count=data.pin_count,

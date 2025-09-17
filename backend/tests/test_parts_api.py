@@ -41,6 +41,9 @@ class TestPartsAPI:
         with app.app_context():
             # Create type first
             type_obj = container.type_service().create_type("Resistor")
+
+            # Create seller first
+            seller = container.seller_service().create_seller("Digi-Key", "https://www.digikey.com")
             session.commit()
 
             data = {
@@ -50,7 +53,7 @@ class TestPartsAPI:
                 "tags": ["1k", "5%"],
                 "manufacturer": "Vishay",
                 "product_page": "https://www.vishay.com/en/resistors/",
-                "seller": "Digi-Key",
+                "seller_id": seller.id,
                 "seller_link": "https://digikey.com/product/123",
                 "package": "0805",
                 "pin_count": 2,
@@ -71,7 +74,7 @@ class TestPartsAPI:
             assert response_data["tags"] == ["1k", "5%"]
             assert response_data["manufacturer"] == "Vishay"
             assert response_data["product_page"] == "https://www.vishay.com/en/resistors/"
-            assert response_data["seller"] == "Digi-Key"
+            assert response_data["seller"]["name"] == "Digi-Key"
             # Extended fields
             assert response_data["package"] == "0805"
             assert response_data["pin_count"] == 2
@@ -504,11 +507,14 @@ class TestPartsAPI:
     def test_list_parts_includes_seller_link(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test that list parts endpoint includes seller_link field."""
         with app.app_context():
+            # Create seller first
+            seller = container.seller_service().create_seller("Digi-Key", "https://www.digikey.com")
+
             # Create a part with seller_link
             part_service = container.part_service()
             part = part_service.create_part(
                 description="Part with seller link",
-                seller="Digi-Key",
+                seller_id=seller.id,
                 seller_link="https://www.digikey.com/product/123"
             )
             session.commit()
@@ -526,17 +532,20 @@ class TestPartsAPI:
                     break
 
             assert test_part is not None
-            assert test_part["seller"] == "Digi-Key"
+            assert test_part["seller"]["name"] == "Digi-Key"
             assert test_part["seller_link"] == "https://www.digikey.com/product/123"
 
     def test_list_parts_with_locations_basic(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test listing parts with location details."""
         with app.app_context():
+            # Create seller first
+            seller = container.seller_service().create_seller("Test Seller", "https://testseller.com")
+
             # Create test data
             box = container.box_service().create_box("Test Box", 10)
             part = container.part_service().create_part(
                 description="Part with locations",
-                seller="Test Seller",
+                seller_id=seller.id,
                 seller_link="https://example.com/product"
             )
             session.commit()
@@ -557,7 +566,7 @@ class TestPartsAPI:
             # Check basic part fields
             assert part_data["key"] == part.key
             assert part_data["description"] == "Part with locations"
-            assert part_data["seller"] == "Test Seller"
+            assert part_data["seller"]["name"] == "Test Seller"
             assert part_data["seller_link"] == "https://example.com/product"
             assert part_data["total_quantity"] == 75
 
@@ -687,6 +696,9 @@ class TestPartsAPI:
     def test_list_parts_with_locations_includes_all_fields(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test that parts with locations includes all extended fields."""
         with app.app_context():
+            # Create seller first
+            seller = container.seller_service().create_seller("Test Seller", "https://testseller.com")
+
             type_obj = container.type_service().create_type("Resistor")
             box = container.box_service().create_box("Test Box", 10)
 
@@ -696,7 +708,7 @@ class TestPartsAPI:
                 type_id=type_obj.id,
                 tags=["test", "resistor"],
                 manufacturer="Test Manufacturer",
-                seller="Test Seller",
+                seller_id=seller.id,
                 seller_link="https://example.com/product",
                 package="0805",
                 pin_count=2,
@@ -724,7 +736,7 @@ class TestPartsAPI:
             assert part_data["type_id"] == type_obj.id
             assert part_data["tags"] == ["test", "resistor"]
             assert part_data["manufacturer"] == "Test Manufacturer"
-            assert part_data["seller"] == "Test Seller"
+            assert part_data["seller"]["name"] == "Test Seller"
             assert part_data["seller_link"] == "https://example.com/product"
             assert part_data["package"] == "0805"
             assert part_data["pin_count"] == 2
@@ -760,6 +772,9 @@ class TestPartsAPI:
         with app.app_context():
             # Create type first
             type_obj = container.type_service().create_type("Power Module")
+
+            # Create seller first
+            seller = container.seller_service().create_seller("Digi-Key", "https://www.digikey.com")
             session.commit()
 
             data = {
@@ -768,7 +783,7 @@ class TestPartsAPI:
                 "type_id": type_obj.id,
                 "tags": ["step-down", "adjustable"],
                 "manufacturer": "Texas Instruments",
-                "seller": "Digi-Key",
+                "seller_id": seller.id,
                 "seller_link": "https://digikey.com/product/lm2596",
                 "package": "TO-220",
                 "pin_count": 5,
@@ -791,7 +806,7 @@ class TestPartsAPI:
             assert response_data["type_id"] == type_obj.id
             assert response_data["tags"] == ["step-down", "adjustable"]
             assert response_data["manufacturer"] == "Texas Instruments"
-            assert response_data["seller"] == "Digi-Key"
+            assert response_data["seller"]["name"] == "Digi-Key"
             assert response_data["seller_link"] == "https://digikey.com/product/lm2596"
             # Extended fields
             assert response_data["package"] == "TO-220"
@@ -931,13 +946,16 @@ class TestPartsAPI:
     def test_update_part_nullable_fields_can_be_cleared(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test that all nullable fields can be cleared by sending null values."""
         with app.app_context():
+            # Create seller first
+            seller = container.seller_service().create_seller("Test Seller", "https://testseller.com")
+
             # Create a part with all optional fields set
             part = container.part_service().create_part(
                 description="Test part with all fields",
                 manufacturer_code="TEST123",
                 manufacturer="Test Manufacturer",
                 product_page="https://example.com/product",
-                seller="Test Seller",
+                seller_id=seller.id,
                 seller_link="https://seller.com/item",
                 package="DIP-8",
                 pin_count=8,
@@ -958,7 +976,7 @@ class TestPartsAPI:
                 "manufacturer_code": None,
                 "manufacturer": None,
                 "product_page": None,
-                "seller": None,
+                "seller_id": None,
                 "seller_link": None,
                 "package": None,
                 "pin_count": None,

@@ -205,11 +205,10 @@ class AIPartCreateSchema(BaseModel):
         description="Manufacturer product page URL from AI analysis",
         json_schema_extra={"example": "https://www.arduino.cc/en/Main/arduinoBoardUno"}
     )
-    seller: str | None = Field(
+    seller_id: int | None = Field(
         default=None,
-        max_length=255,
-        description="Seller/vendor name (user provided)",
-        json_schema_extra={"example": "Digi-Key"}
+        description="Seller ID reference (user provided)",
+        json_schema_extra={"example": 1}
     )
     seller_link: str | None = Field(
         default=None,
