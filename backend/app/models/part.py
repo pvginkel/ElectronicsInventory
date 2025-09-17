@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from app.models.part_attachment import PartAttachment
     from app.models.part_location import PartLocation
     from app.models.quantity_history import QuantityHistory
+    from app.models.seller import Seller
     from app.models.type import Type
 
 
@@ -42,7 +43,9 @@ class Part(db.Model):  # type: ignore[name-defined]
     )
     manufacturer: Mapped[str | None] = mapped_column(String(255), nullable=True)
     product_page: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    seller: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    seller_id: Mapped[int | None] = mapped_column(
+        ForeignKey("sellers.id"), nullable=True
+    )
     seller_link: Mapped[str | None] = mapped_column(String(500), nullable=True)
     cover_attachment_id: Mapped[int | None] = mapped_column(
         ForeignKey("part_attachments.id", use_alter=True, name="fk_parts_cover_attachment"), nullable=True
@@ -74,6 +77,9 @@ class Part(db.Model):  # type: ignore[name-defined]
     # Relationships
     type: Mapped[Optional["Type"]] = relationship(
         "Type", back_populates="parts", lazy="selectin"
+    )
+    seller: Mapped[Optional["Seller"]] = relationship(
+        "Seller", back_populates="parts", lazy="selectin"
     )
     part_locations: Mapped[list["PartLocation"]] = relationship(
         "PartLocation", back_populates="part", cascade="all, delete-orphan", lazy="selectin"

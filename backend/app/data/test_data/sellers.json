@@ -1,0 +1,37 @@
+[
+  {
+    "id": 1,
+    "name": "AliExpress",
+    "website": "https://www.aliexpress.com"
+  },
+  {
+    "id": 2,
+    "name": "Amazon",
+    "website": "https://www.amazon.com"
+  },
+  {
+    "id": 3,
+    "name": "TinyTronics",
+    "website": "https://tinytronics.nl"
+  },
+  {
+    "id": 4,
+    "name": "DigiKey",
+    "website": "https://www.digikey.com"
+  },
+  {
+    "id": 5,
+    "name": "Mouser",
+    "website": "https://www.mouser.com"
+  },
+  {
+    "id": 6,
+    "name": "Adafruit",
+    "website": "https://www.adafruit.com"
+  },
+  {
+    "id": 7,
+    "name": "SparkFun",
+    "website": "https://www.sparkfun.com"
+  }
+]

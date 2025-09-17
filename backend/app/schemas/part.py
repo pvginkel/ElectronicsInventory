@@ -10,6 +10,7 @@ from app.schemas.part_attachment import (
     PartAttachmentListSchema,
     PartAttachmentResponseSchema,
 )
+from app.schemas.seller import SellerListSchema
 from app.schemas.type import TypeResponseSchema
 
 if TYPE_CHECKING:
@@ -53,11 +54,10 @@ class PartCreateSchema(BaseModel):
         description="Manufacturer's product page URL",
         json_schema_extra={"example": "https://www.ti.com/product/SN74HC595"}
     )
-    seller: str | None = Field(
+    seller_id: int | None = Field(
         None,
-        max_length=255,
-        description="Vendor/supplier name",
-        json_schema_extra={"example": "Digi-Key"}
+        description="ID of the seller/vendor",
+        json_schema_extra={"example": 1}
     )
     seller_link: str | None = Field(
         None,
@@ -160,11 +160,10 @@ class PartUpdateSchema(BaseModel):
         description="Updated manufacturer's product page URL",
         json_schema_extra={"example": "https://www.espressif.com/en/products/modules/esp32"}
     )
-    seller: str | None = Field(
+    seller_id: int | None = Field(
         None,
-        max_length=255,
-        description="Updated seller name",
-        json_schema_extra={"example": "Mouser Electronics"}
+        description="Updated seller ID",
+        json_schema_extra={"example": 2}
     )
     seller_link: str | None = Field(
         None,
@@ -267,9 +266,9 @@ class PartResponseSchema(BaseModel):
         description="Manufacturer's product page URL",
         json_schema_extra={"example": "https://www.ti.com/product/SN74HC595"}
     )
-    seller: str | None = Field(
-        description="Vendor/supplier name",
-        json_schema_extra={"example": "Digi-Key"}
+    seller: SellerListSchema | None = Field(
+        description="Seller/vendor details",
+        default=None
     )
     seller_link: str | None = Field(
         description="Product page URL",
@@ -407,9 +406,9 @@ class PartWithTotalSchema(BaseModel):
         description="Manufacturer company name",
         json_schema_extra={"example": "Texas Instruments"}
     )
-    seller: str | None = Field(
-        description="Vendor/supplier name",
-        json_schema_extra={"example": "Digi-Key"}
+    seller: SellerListSchema | None = Field(
+        description="Seller/vendor details",
+        default=None
     )
     seller_link: str | None = Field(
         default=None,

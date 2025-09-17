@@ -12,6 +12,7 @@ from app.models.location import Location
 from app.models.part import Part
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
+from app.models.seller import Seller
 from app.models.type import Type
 from app.services.base import BaseService
 
@@ -25,8 +26,9 @@ class TestDataService(BaseService):
 
         # Load in dependency order
         types = self.load_types(data_dir)
+        sellers = self.load_sellers(data_dir)
         boxes = self.load_boxes(data_dir)
-        parts = self.load_parts(data_dir, types)
+        parts = self.load_parts(data_dir, types, sellers)
         self.load_part_locations(data_dir, parts, boxes)
         self.load_quantity_history(data_dir, parts)
 
@@ -50,6 +52,27 @@ class TestDataService(BaseService):
             )
 
         return types_map
+
+    def load_sellers(self, data_dir: Path) -> dict[int, Seller]:
+        """Load sellers from sellers.json."""
+        sellers_file = data_dir / "sellers.json"
+        try:
+            with sellers_file.open() as f:
+                sellers_data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            raise InvalidOperationException("load sellers data", f"failed to read {sellers_file}: {e}") from e
+
+        sellers_map = {}
+        for seller_data in sellers_data:
+            seller = Seller(
+                name=seller_data["name"],
+                website=seller_data["website"]
+            )
+            self.db.add(seller)
+            self.db.flush()  # Get ID immediately
+            sellers_map[seller_data["id"]] = seller
+
+        return sellers_map
 
     def load_boxes(self, data_dir: Path) -> dict[int, Box]:
         """Load boxes from boxes.json and generate all locations."""
@@ -83,7 +106,7 @@ class TestDataService(BaseService):
 
         return boxes_map
 
-    def load_parts(self, data_dir: Path, types: dict[str, Type]) -> dict[str, Part]:
+    def load_parts(self, data_dir: Path, types: dict[str, Type], sellers: dict[int, Seller]) -> dict[str, Part]:
         """Load parts from parts.json with type relationships."""
         parts_file = data_dir / "parts.json"
         try:
@@ -104,6 +127,15 @@ class TestDataService(BaseService):
                 else:
                     raise InvalidOperationException("load parts data", f"unknown type '{type_name}' in part {part_data['key']}")
 
+            # Get seller_id from sellers map
+            seller_id = None
+            if part_data.get("seller_id") is not None:
+                seller_obj = sellers.get(part_data["seller_id"])
+                if seller_obj:
+                    seller_id = seller_obj.id
+                else:
+                    raise InvalidOperationException("load parts data", f"unknown seller_id '{part_data['seller_id']}' in part {part_data['key']}")
+
             part = Part(
                 key=part_data["key"],
                 manufacturer_code=part_data.get("manufacturer_code"),
@@ -112,7 +144,7 @@ class TestDataService(BaseService):
                 tags=part_data.get("tags"),
                 manufacturer=part_data.get("manufacturer"),
                 product_page=part_data.get("product_page"),
-                seller=part_data.get("seller"),
+                seller_id=seller_id,
                 seller_link=part_data.get("seller_link"),
                 package=part_data.get("package"),
                 pin_count=part_data.get("pin_count"),
