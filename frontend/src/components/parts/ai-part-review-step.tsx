@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { TypeSelector } from '@/components/types/type-selector';
 import { TypeCreateDialog } from '@/components/types/type-create-dialog';
+import { SellerSelector } from '@/components/sellers/seller-selector';
 import { TagsInput } from './tags-input';
 import { MountingTypeSelector } from './mounting-type-selector';
 import { AIDocumentGridWrapper } from './ai-document-grid-wrapper';
@@ -38,7 +39,7 @@ interface PartFormData {
   inputVoltage: string;
   outputVoltage: string;
   productPageUrl: string;
-  seller: string;
+  sellerId?: number;
   sellerLink: string;
 }
 
@@ -75,7 +76,7 @@ export function AIPartReviewStep({
     inputVoltage: analysisResult.inputVoltage || '',
     outputVoltage: analysisResult.outputVoltage || '',
     productPageUrl: analysisResult.productPageUrl || '',
-    seller: analysisResult.seller || '',
+    sellerId: undefined, // AI analysis provides seller name as string, user needs to select from dropdown
     sellerLink: analysisResult.sellerLink || '',
   }));
 
@@ -149,7 +150,7 @@ export function AIPartReviewStep({
       inputVoltage: formData.inputVoltage,
       outputVoltage: formData.outputVoltage,
       productPageUrl: formData.productPageUrl,
-      seller: formData.seller,
+      sellerId: formData.sellerId,
       sellerLink: formData.sellerLink,
     });
 
@@ -441,15 +442,11 @@ export function AIPartReviewStep({
             </div>
 
             <div>
-              <Label htmlFor="seller">Seller</Label>
-              <Input
-                id="seller"
-                value={formData.seller}
-                onChange={(e) => updateField('seller', e.target.value)}
-                placeholder="e.g., Mouser, DigiKey, Amazon"
-                error={errors.seller}
-                clearable
-                onClear={() => updateField('seller', '')}
+              <Label>Seller</Label>
+              <SellerSelector
+                value={formData.sellerId}
+                onChange={(value) => updateField('sellerId', value)}
+                error={errors.sellerId}
               />
             </div>
 

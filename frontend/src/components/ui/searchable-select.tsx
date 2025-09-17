@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react';
-import * as Popover from '@radix-ui/react-popover';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -55,6 +54,7 @@ export function SearchableSelect<T extends SearchableSelectOption>({
   const [open, setOpen] = useState(false);
   const [isUserEditing, setIsUserEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Find the selected option
   const selectedOption = value ? options.find(option => option.id === value) : null;
@@ -77,6 +77,23 @@ export function SearchableSelect<T extends SearchableSelectOption>({
     }
   };
 
+  // Handle input blur
+  const handleInputBlur = () => {
+    // Use setTimeout to allow for selection clicks to register first
+    setTimeout(() => {
+      if (!open) {
+        setIsUserEditing(false);
+        // If user was editing but didn't select anything, restore to original value
+        if (selectedOption && searchTerm !== selectedOption.name) {
+          onSearchChange(selectedOption.name);
+        } else if (!selectedOption && searchTerm) {
+          // No option selected but there's text, clear it
+          onSearchChange('');
+        }
+      }
+    }, 150);
+  };
+
   // Handle option selection
   const handleSelectOption = (option: T) => {
     onChange(option.id);
@@ -92,21 +109,29 @@ export function SearchableSelect<T extends SearchableSelectOption>({
     }
   };
 
-  // Handle open change
-  const handleOpenChange = (newOpen: boolean) => {
-    setOpen(newOpen);
-
-    if (!newOpen) {
-      setIsUserEditing(false);
-      // If user was editing but didn't select anything, restore to original value
-      if (selectedOption && searchTerm !== selectedOption.name) {
-        onSearchChange(selectedOption.name);
-      } else if (!selectedOption && searchTerm) {
-        // No option selected but there's text, clear it
-        onSearchChange('');
+  // Handle outside clicks
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        !inputRef.current?.contains(event.target as Node)
+      ) {
+        setOpen(false);
+        setIsUserEditing(false);
+        // If user was editing but didn't select anything, restore to original value
+        if (selectedOption && searchTerm !== selectedOption.name) {
+          onSearchChange(selectedOption.name);
+        } else if (!selectedOption && searchTerm) {
+          // No option selected but there's text, clear it
+          onSearchChange('');
+        }
       }
-    }
-  };
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [selectedOption, searchTerm, onSearchChange]);
 
   // Update search term when selection changes from outside
   useEffect(() => {
@@ -129,74 +154,70 @@ export function SearchableSelect<T extends SearchableSelectOption>({
 
   return (
     <div className={cn("relative", className)}>
-      <Popover.Root open={open} onOpenChange={handleOpenChange}>
-        <Popover.Trigger asChild>
-          <div className="relative">
-            <Input
-              ref={inputRef}
-              value={searchTerm}
-              onChange={handleInputChange}
-              onFocus={handleInputFocus}
-              placeholder={placeholder}
-              error={error}
-              className="w-full pr-8"
-            />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-              <svg
-                className={cn(
-                  "h-4 w-4 text-muted-foreground transition-transform",
-                  open && "rotate-180"
-                )}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-        </Popover.Trigger>
-
-        <Popover.Portal>
-          <Popover.Content
-            className="z-50 w-[var(--radix-popover-trigger-width)] bg-card border border-input rounded-md shadow-md max-h-60 overflow-y-auto"
-            sideOffset={4}
-            align="start"
-          >
-            {isLoading ? (
-              <div className="p-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-sm text-muted-foreground">{loadingText}</span>
-                </div>
-              </div>
-            ) : (
-              <>
-                {options.map((option) => (
-                  <SearchableSelectOption
-                    key={option.id}
-                    onClick={() => handleSelectOption(option)}
-                    isSelected={value === option.id}
-                  >
-                    {renderOption ? renderOption(option) : option.name}
-                  </SearchableSelectOption>
-                ))}
-
-                {showCreateOption && (
-                  <SearchableSelectCreateOption
-                    onClick={handleCreateNew}
-                    label={createNewLabel(searchTerm)}
-                  />
-                )}
-
-                {options.length === 0 && !showCreateOption && searchTerm && (
-                  <div className="p-3 text-sm text-muted-foreground">{noResultsText}</div>
-                )}
-              </>
+      <div className="relative">
+        <Input
+          ref={inputRef}
+          value={searchTerm}
+          onChange={handleInputChange}
+          onFocus={handleInputFocus}
+          onBlur={handleInputBlur}
+          placeholder={placeholder}
+          error={error}
+          className="w-full pr-8"
+        />
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+          <svg
+            className={cn(
+              "h-4 w-4 text-muted-foreground transition-transform",
+              open && "rotate-180"
             )}
-          </Popover.Content>
-        </Popover.Portal>
-      </Popover.Root>
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </div>
+
+      {open && (
+        <div
+          ref={dropdownRef}
+          className="absolute top-full left-0 right-0 z-10 mt-1 bg-card border border-input rounded-md shadow-md max-h-60 overflow-y-auto"
+        >
+          {isLoading ? (
+            <div className="p-3">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-sm text-muted-foreground">{loadingText}</span>
+              </div>
+            </div>
+          ) : (
+            <>
+              {options.map((option) => (
+                <SearchableSelectOption
+                  key={option.id}
+                  onClick={() => handleSelectOption(option)}
+                  isSelected={value === option.id}
+                >
+                  {renderOption ? renderOption(option) : option.name}
+                </SearchableSelectOption>
+              ))}
+
+              {showCreateOption && (
+                <SearchableSelectCreateOption
+                  onClick={handleCreateNew}
+                  label={createNewLabel(searchTerm)}
+                />
+              )}
+
+              {options.length === 0 && !showCreateOption && searchTerm && (
+                <div className="p-3 text-sm text-muted-foreground">{noResultsText}</div>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

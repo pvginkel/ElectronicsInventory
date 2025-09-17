@@ -68,7 +68,7 @@ export function transformToCreateSchema(data: {
   inputVoltage?: string | null;
   outputVoltage?: string | null;
   productPageUrl?: string | null;
-  seller?: string | null;
+  sellerId?: number | null;
   sellerLink?: string | null;
 }): components['schemas']['AIPartCreateSchema.63ff6da'] {
   return {
@@ -88,7 +88,7 @@ export function transformToCreateSchema(data: {
     input_voltage: data.inputVoltage ?? null,
     output_voltage: data.outputVoltage ?? null,
     product_page: data.productPageUrl ?? null,
-    seller: data.seller ?? null,
+    seller_id: data.sellerId ?? null,
     seller_link: data.sellerLink ?? null
   };
 }

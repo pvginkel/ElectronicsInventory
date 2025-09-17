@@ -3,6 +3,7 @@ import { Form, FormField, FormLabel } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useFormState } from '@/hooks/use-form-state'
+import { useEffect } from 'react'
 
 interface SellerCreateDialogProps {
   open: boolean
@@ -54,6 +55,13 @@ export function SellerCreateDialog({
       handleClose()
     }
   })
+
+  // Update form values when dialog opens with new initialName
+  useEffect(() => {
+    if (open && initialName) {
+      form.setValue('name', initialName)
+    }
+  }, [open, initialName])
 
   const handleClose = () => {
     if (onCancel) {
