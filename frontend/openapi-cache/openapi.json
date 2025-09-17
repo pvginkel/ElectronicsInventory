@@ -2927,11 +2927,18 @@
             "example": "DigiKey",
             "title": "Name",
             "type": "string"
+          },
+          "website": {
+            "description": "Seller website URL",
+            "example": "https://www.digikey.com",
+            "title": "Website",
+            "type": "string"
           }
         },
         "required": [
           "id",
-          "name"
+          "name",
+          "website"
         ],
         "title": "SellerListSchema",
         "type": "object"
@@ -3575,11 +3582,18 @@
             "example": "DigiKey",
             "title": "Name",
             "type": "string"
+          },
+          "website": {
+            "description": "Seller website URL",
+            "example": "https://www.digikey.com",
+            "title": "Website",
+            "type": "string"
           }
         },
         "required": [
           "id",
-          "name"
+          "name",
+          "website"
         ],
         "title": "SellerListSchema",
         "type": "object"
@@ -3866,11 +3880,18 @@
             "example": "DigiKey",
             "title": "Name",
             "type": "string"
+          },
+          "website": {
+            "description": "Seller website URL",
+            "example": "https://www.digikey.com",
+            "title": "Website",
+            "type": "string"
           }
         },
         "required": [
           "id",
-          "name"
+          "name",
+          "website"
         ],
         "title": "SellerListSchema",
         "type": "object"
@@ -4061,11 +4082,18 @@
             "example": "DigiKey",
             "title": "Name",
             "type": "string"
+          },
+          "website": {
+            "description": "Seller website URL",
+            "example": "https://www.digikey.com",
+            "title": "Website",
+            "type": "string"
           }
         },
         "required": [
           "id",
-          "name"
+          "name",
+          "website"
         ],
         "title": "SellerListSchema",
         "type": "object"

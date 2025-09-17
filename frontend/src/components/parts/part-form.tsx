@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { TypeSelector } from '@/components/types/type-selector';
+import { SellerSelector } from '@/components/sellers/seller-selector';
 import { TagsInput } from './tags-input';
 import { MountingTypeSelector } from './mounting-type-selector';
 import { DuplicateDocumentGrid } from './duplicate-document-grid';
@@ -20,7 +21,7 @@ interface PartFormData {
   tags: string[];
   manufacturer: string;
   productPage: string;
-  seller: string;
+  sellerId?: number;
   sellerLink: string;
   dimensions: string;
   mountingType: string;
@@ -47,7 +48,7 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
     tags: [],
     manufacturer: '',
     productPage: '',
-    seller: '',
+    sellerId: undefined,
     sellerLink: '',
     dimensions: '',
     mountingType: '',
@@ -92,7 +93,7 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
         tags: existingPart.tags || [],
         manufacturer: existingPart.manufacturer || '',
         productPage: existingPart.product_page || '',
-        seller: existingPart.seller || '',
+        sellerId: existingPart.seller?.id || undefined,
         sellerLink: existingPart.seller_link || '',
         dimensions: existingPart.dimensions || '',
         mountingType: existingPart.mounting_type || '',
@@ -117,7 +118,7 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
         tags: duplicateFormData.tags,
         manufacturer: duplicateFormData.manufacturer,
         productPage: duplicateFormData.productPage,
-        seller: duplicateFormData.seller,
+        sellerId: duplicateFormData.sellerId,
         sellerLink: duplicateFormData.sellerLink,
         dimensions: duplicateFormData.dimensions,
         mountingType: duplicateFormData.mountingType,
@@ -180,7 +181,7 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
           tags: formData.tags.length > 0 ? formData.tags : null,
           manufacturer: formData.manufacturer || null,
           product_page: formData.productPage || null,
-          seller: formData.seller || null,
+          seller_id: formData.sellerId || null,
           seller_link: formData.sellerLink || null,
           dimensions: formData.dimensions || null,
           mounting_type: formData.mountingType || null,
@@ -204,7 +205,7 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
           tags: formData.tags.length > 0 ? formData.tags : null,
           manufacturer: formData.manufacturer || null,
           product_page: formData.productPage || null,
-          seller: formData.seller || null,
+          seller_id: formData.sellerId || null,
           seller_link: formData.sellerLink || null,
           dimensions: formData.dimensions || null,
           mounting_type: formData.mountingType || null,
@@ -543,14 +544,13 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
             </FormField>
 
             <FormField>
-              <FormLabel htmlFor="seller">
+              <FormLabel>
                 Seller
               </FormLabel>
-              <Input
-                id="seller"
-                value={formData.seller}
-                onChange={(e) => updateFormData('seller', e.target.value)}
-                error={errors.seller}
+              <SellerSelector
+                value={formData.sellerId}
+                onChange={(value) => updateFormData('sellerId', value)}
+                error={errors.sellerId}
               />
             </FormField>
 

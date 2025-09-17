@@ -9,6 +9,7 @@ import { PartForm } from './part-form';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import { PartDocumentGrid } from './part-document-grid';
 import { AddDocumentModal } from '@/components/documents/add-document-modal';
+import { VendorInfo } from './vendor-info';
 import { MoreVerticalIcon } from '@/components/icons/MoreVerticalIcon';
 import { useGetPartsByPartKey, useDeletePartsByPartKey } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
@@ -233,7 +234,38 @@ export function PartDetails({ partId }: PartDetailsProps) {
                       </div>
                     </div>
                   )}
-                  
+
+                  {/* Seller Information */}
+                  {(part.seller || part.seller_link) && (
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground mb-2">Seller Information</div>
+                      <div className="space-y-2">
+                        {part.seller && (
+                          <div>
+                            <div className="text-sm font-medium">Seller</div>
+                            <div className="text-lg">{part.seller.name}</div>
+                          </div>
+                        )}
+
+                        {part.seller_link && (
+                          <div>
+                            <div className="text-sm font-medium">Product Page</div>
+                            <div className="text-sm">
+                              <a
+                                href={part.seller_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 underline break-all"
+                              >
+                                {part.seller_link}
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {displayManufacturerCode && (
                     <div>
                       <div className="text-sm font-medium">Manufacturer Code</div>
