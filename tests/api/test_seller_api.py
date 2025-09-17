@@ -47,7 +47,8 @@ class TestSellerAPI:
         for seller in data:
             assert "id" in seller
             assert "name" in seller
-            assert len(seller) == 2  # Only id and name in list schema
+            assert "website" in seller
+            assert len(seller) == 3  # id, name, and website in list schema
 
     def test_create_seller_success(self, app: Flask, client: FlaskClient, session: Session):
         """Test POST /api/sellers creates seller successfully."""
@@ -397,10 +398,11 @@ class TestSellerAPI:
         seller_data = data[0]
 
         # Verify all expected fields are present (SellerListSchema)
-        expected_fields = {"id", "name"}
+        expected_fields = {"id", "name", "website"}
         actual_fields = set(seller_data.keys())
         assert actual_fields == expected_fields
 
         # Verify field types
         assert isinstance(seller_data["id"], int)
         assert isinstance(seller_data["name"], str)
+        assert isinstance(seller_data["website"], str)

@@ -25,5 +25,6 @@
       "Bash(poetry run ruff format:*)"
     ],
     "ask": []
-  }
+  },
+  "spinnerTipsEnabled": false
 }
