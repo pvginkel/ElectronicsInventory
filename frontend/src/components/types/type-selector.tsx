@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { Input } from '@/components/ui/input';
+import { useState } from 'react';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { TypeCreateDialog } from './type-create-dialog';
 import { useTypesSearch, useCreateType } from '@/hooks/use-types';
 
@@ -18,128 +18,27 @@ interface TypeSelectorProps {
 
 export function TypeSelector({ value, onChange, placeholder = "Search or create type...", error }: TypeSelectorProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [showDropdown, setShowDropdown] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createTypeName, setCreateTypeName] = useState('');
-  const [isUserEditing, setIsUserEditing] = useState(false);
-  const [selectedTypeName, setSelectedTypeName] = useState('');
-  
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  
+
   const { data: types = [], isLoading } = useTypesSearch(searchTerm);
   const createTypeMutation = useCreateType();
 
-  // Get the display name for the current selected type
-  const getSelectedTypeName = () => {
-    return selectedTypeName;
-  };
-  
-  // Store selected type name when value changes  
-  useEffect(() => {
-    if (value && types.length > 0) {
-      const selectedType = types.find((t: Type) => t.id === value);
-      if (selectedType) {
-        setSelectedTypeName(selectedType.name);
-        if (!isUserEditing && searchTerm !== selectedType.name) {
-          setSearchTerm(selectedType.name);
-        }
-      }
-    } else {
-      setSelectedTypeName('');
-      if (!isUserEditing && !value) {
-        setSearchTerm('');
-      }
-    }
-  }, [value, types, isUserEditing, searchTerm]);
-  
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        !inputRef.current?.contains(event.target as Node)
-      ) {
-        setShowDropdown(false);
-        setIsUserEditing(false);
-        // If user was editing but didn't select anything, restore to original value
-        if (value) {
-          const selectedTypeName = getSelectedTypeName();
-          if (selectedTypeName && searchTerm !== selectedTypeName) {
-            setSearchTerm(selectedTypeName);
-          }
-        } else if (searchTerm) {
-          // No type selected but there's text, clear it
-          setSearchTerm('');
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [value, searchTerm, types]);
-
-  const handleInputFocus = () => {
-    setIsUserEditing(true);
-    setShowDropdown(true);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newSearchTerm = e.target.value;
-    setSearchTerm(newSearchTerm);
-    setShowDropdown(true);
-    
-    // If the input is cleared, clear the selection
-    if (!newSearchTerm) {
-      onChange(undefined);
-    }
-  };
-
-  const handleInputBlur = () => {
-    // Use setTimeout to allow for selection clicks to register first
-    setTimeout(() => {
-      if (!showDropdown) {
-        setIsUserEditing(false);
-        // If user was editing but didn't select anything, restore to original value
-        if (value) {
-          const selectedTypeName = getSelectedTypeName();
-          if (selectedTypeName && searchTerm !== selectedTypeName) {
-            setSearchTerm(selectedTypeName);
-          }
-        } else if (searchTerm) {
-          // No type selected but there's text, clear it
-          setSearchTerm('');
-        }
-      }
-    }, 150);
-  };
-
-  const handleSelectType = (type: Type) => {
-    onChange(type.id);
-    setSearchTerm(type.name);
-    setSelectedTypeName(type.name);
-    setIsUserEditing(false);
-    setShowDropdown(false);
-  };
-
-  const handleCreateType = () => {
-    setCreateTypeName(searchTerm);
+  const handleCreateType = (term: string) => {
+    setCreateTypeName(term);
     setShowCreateDialog(true);
   };
 
   const handleConfirmCreate = async (typeName: string) => {
     if (!typeName.trim()) return;
-    
+
     const result = await createTypeMutation.mutateAsync({
       body: { name: typeName.trim() }
     });
-    
+
     onChange(result.id);
     setSearchTerm(result.name);
-    setSelectedTypeName(result.name);
-    setIsUserEditing(false);
     setShowCreateDialog(false);
-    setShowDropdown(false);
     setCreateTypeName('');
   };
 
@@ -148,58 +47,35 @@ export function TypeSelector({ value, onChange, placeholder = "Search or create 
     setCreateTypeName('');
   };
 
-  const exactMatch = types.find((t: Type) => t.name.toLowerCase() === searchTerm.toLowerCase());
-  const showCreateOption = searchTerm.trim() && !exactMatch && !isLoading;
+  const renderOption = (type: Type) => (
+    <div className="flex justify-between items-center w-full">
+      <span>{type.name}</span>
+      {typeof type.part_count === 'number' && (
+        <span className="text-xs text-muted-foreground">
+          {type.part_count} part{type.part_count !== 1 ? 's' : ''}
+        </span>
+      )}
+    </div>
+  );
 
   return (
-    <div className="relative">
-      <Input
-        ref={inputRef}
-        value={searchTerm}
-        onChange={handleInputChange}
-        onFocus={handleInputFocus}
-        onBlur={handleInputBlur}
+    <>
+      <SearchableSelect
+        value={value}
+        onChange={onChange}
         placeholder={placeholder}
         error={error}
-        className="w-full"
+        options={types}
+        isLoading={isLoading}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        renderOption={renderOption}
+        enableInlineCreate={true}
+        onCreateNew={handleCreateType}
+        createNewLabel={(term) => `Create type "${term}"`}
+        loadingText="Searching types..."
+        noResultsText="No types found"
       />
-      
-      {showDropdown && (
-        <div
-          ref={dropdownRef}
-          className="absolute top-full left-0 right-0 z-10 mt-1 bg-card border border-input rounded-md shadow-md max-h-60 overflow-y-auto"
-        >
-          {isLoading ? (
-            <div className="p-3">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-sm text-muted-foreground">Searching types...</span>
-              </div>
-            </div>
-          ) : (
-            <>
-              {types.map((type: Type) => (
-                <TypeOption
-                  key={type.id}
-                  type={type}
-                  onClick={() => handleSelectType(type)}
-                />
-              ))}
-              
-              {showCreateOption && (
-                <CreateTypeOption
-                  searchTerm={searchTerm}
-                  onClick={handleCreateType}
-                />
-              )}
-              
-              {types.length === 0 && !showCreateOption && searchTerm && (
-                <div className="p-3 text-sm text-muted-foreground">No types found</div>
-              )}
-            </>
-          )}
-        </div>
-      )}
 
       {showCreateDialog && (
         <TypeCreateDialog
@@ -210,46 +86,7 @@ export function TypeSelector({ value, onChange, placeholder = "Search or create 
           open={showCreateDialog}
         />
       )}
-    </div>
-  );
-}
-
-interface TypeOptionProps {
-  type: Type;
-  onClick: () => void;
-}
-
-function TypeOption({ type, onClick }: TypeOptionProps) {
-  return (
-    <button
-      type="button"
-      className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none flex justify-between items-center"
-      onClick={onClick}
-    >
-      <span>{type.name}</span>
-      {typeof type.part_count === 'number' && (
-        <span className="text-xs text-muted-foreground">
-          {type.part_count} part{type.part_count !== 1 ? 's' : ''}
-        </span>
-      )}
-    </button>
-  );
-}
-
-interface CreateTypeOptionProps {
-  searchTerm: string;
-  onClick: () => void;
-}
-
-function CreateTypeOption({ searchTerm, onClick }: CreateTypeOptionProps) {
-  return (
-    <button
-      type="button"
-      className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none border-t"
-      onClick={onClick}
-    >
-      Create type "{searchTerm}"
-    </button>
+    </>
   );
 }
 
