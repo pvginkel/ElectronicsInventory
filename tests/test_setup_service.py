@@ -9,6 +9,7 @@ from app.exceptions import InvalidOperationException
 from app.models.type import Type
 from app.services.container import ServiceContainer
 from app.services.setup_service import SetupService
+from app.utils.file_parsers import get_types_from_setup
 
 
 class TestSetupService:
@@ -20,6 +21,9 @@ class TestSetupService:
         """Test sync_types_from_setup with empty database adds all types."""
         service = container.setup_service()
 
+        # Get expected count from setup file using the actual parser
+        expected_count = len(get_types_from_setup())
+
         # Verify database is empty
         stmt = select(Type)
         existing_types = list(session.execute(stmt).scalars().all())
@@ -28,13 +32,13 @@ class TestSetupService:
         # Run sync
         added_count = service.sync_types_from_setup()
 
-        # Verify all 99 types were added
-        assert added_count == 99
+        # Verify all types were added
+        assert added_count == expected_count
 
         # Verify types are in database
         stmt = select(Type).order_by(Type.name)
         all_types = list(session.execute(stmt).scalars().all())
-        assert len(all_types) == 99
+        assert len(all_types) == expected_count
 
         # Check some specific types exist (exact names from types.txt)
         type_names = [t.name for t in all_types]
@@ -48,6 +52,9 @@ class TestSetupService:
         """Test sync_types_from_setup with some existing types adds only missing ones."""
         service = container.setup_service()
 
+        # Get expected count from setup file using the actual parser
+        expected_total_count = len(get_types_from_setup())
+
         # Add a few types manually first (use actual names from types.txt)
         existing_type1 = Type(name="Resistor")
         existing_type2 = Type(name="Capacitor")
@@ -55,16 +62,18 @@ class TestSetupService:
         session.add(existing_type2)
         session.flush()
 
+        existing_count = 2
+
         # Run sync
         added_count = service.sync_types_from_setup()
 
-        # Verify only missing types were added (99 total - 2 existing = 97)
-        assert added_count == 97
+        # Verify only missing types were added
+        assert added_count == expected_total_count - existing_count
 
-        # Verify total count is now 99
+        # Verify total count is correct
         stmt = select(Type)
         all_types = list(session.execute(stmt).scalars().all())
-        assert len(all_types) == 99
+        assert len(all_types) == expected_total_count
 
     def test_sync_types_from_setup_idempotent(
         self, app: Flask, session: Session, container: ServiceContainer
@@ -72,9 +81,12 @@ class TestSetupService:
         """Test that running sync multiple times is idempotent."""
         service = container.setup_service()
 
+        # Get expected count from setup file using the actual parser
+        expected_count = len(get_types_from_setup())
+
         # First run
         added_count1 = service.sync_types_from_setup()
-        assert added_count1 == 99
+        assert added_count1 == expected_count
 
         # Second run should add nothing
         added_count2 = service.sync_types_from_setup()
@@ -84,10 +96,10 @@ class TestSetupService:
         added_count3 = service.sync_types_from_setup()
         assert added_count3 == 0
 
-        # Total should still be 99
+        # Total should still be the expected count
         stmt = select(Type)
         all_types = list(session.execute(stmt).scalars().all())
-        assert len(all_types) == 99
+        assert len(all_types) == expected_count
 
     def test_sync_types_from_setup_file_not_found(
         self, app: Flask, session: Session, monkeypatch
