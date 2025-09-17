@@ -557,20 +557,19 @@
             "example": "https://www.arduino.cc/en/Main/arduinoBoardUno",
             "title": "Product Page"
           },
-          "seller": {
+          "seller_id": {
             "anyOf": [
               {
-                "maxLength": 255,
-                "type": "string"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
             "default": null,
-            "description": "Seller/vendor name (user provided)",
-            "example": "Digi-Key",
-            "title": "Seller"
+            "description": "Seller ID reference (user provided)",
+            "example": 1,
+            "title": "Seller Id"
           },
           "seller_link": {
             "anyOf": [
@@ -2178,20 +2177,19 @@
             "example": "https://www.ti.com/product/SN74HC595",
             "title": "Product Page"
           },
-          "seller": {
+          "seller_id": {
             "anyOf": [
               {
-                "maxLength": 255,
-                "type": "string"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
             "default": null,
-            "description": "Vendor/supplier name",
-            "example": "Digi-Key",
-            "title": "Seller"
+            "description": "ID of the seller/vendor",
+            "example": 1,
+            "title": "Seller Id"
           },
           "seller_link": {
             "anyOf": [
@@ -2559,15 +2557,14 @@
           "seller": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/PartResponseSchema.1a46b79.SellerListSchema"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Vendor/supplier name",
-            "example": "Digi-Key",
-            "title": "Seller"
+            "default": null,
+            "description": "Seller/vendor details"
           },
           "seller_link": {
             "anyOf": [
@@ -2669,7 +2666,6 @@
           "type_id",
           "description",
           "tags",
-          "seller",
           "seller_link",
           "cover_attachment_id",
           "created_at",
@@ -2917,6 +2913,29 @@
         "title": "PartAttachmentResponseSchema",
         "type": "object"
       },
+      "PartResponseSchema.1a46b79.SellerListSchema": {
+        "description": "Lightweight schema for seller dropdowns and listings.",
+        "properties": {
+          "id": {
+            "description": "Unique seller ID",
+            "example": 1,
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Seller name",
+            "example": "DigiKey",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "SellerListSchema",
+        "type": "object"
+      },
       "PartResponseSchema.1a46b79.TypeResponseSchema": {
         "description": "Schema for type details.",
         "properties": {
@@ -3124,20 +3143,19 @@
             "example": "https://www.espressif.com/en/products/modules/esp32",
             "title": "Product Page"
           },
-          "seller": {
+          "seller_id": {
             "anyOf": [
               {
-                "maxLength": 255,
-                "type": "string"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
             "default": null,
-            "description": "Updated seller name",
-            "example": "Mouser Electronics",
-            "title": "Seller"
+            "description": "Updated seller ID",
+            "example": 2,
+            "title": "Seller Id"
           },
           "seller_link": {
             "anyOf": [
@@ -3431,15 +3449,14 @@
           "seller": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/PartWithTotalAndLocationsSchemaList.a9993e3.SellerListSchema"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Vendor/supplier name",
-            "example": "Digi-Key",
-            "title": "Seller"
+            "default": null,
+            "description": "Seller/vendor details"
           },
           "seller_link": {
             "anyOf": [
@@ -3536,13 +3553,35 @@
           "description",
           "type_id",
           "tags",
-          "seller",
           "created_at",
           "updated_at",
           "total_quantity",
           "locations"
         ],
         "title": "PartWithTotalAndLocationsSchema",
+        "type": "object"
+      },
+      "PartWithTotalAndLocationsSchemaList.a9993e3.SellerListSchema": {
+        "description": "Lightweight schema for seller dropdowns and listings.",
+        "properties": {
+          "id": {
+            "description": "Unique seller ID",
+            "example": 1,
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Seller name",
+            "example": "DigiKey",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "SellerListSchema",
         "type": "object"
       },
       "PartWithTotalSchemaList.a9993e3": {
@@ -3702,15 +3741,14 @@
           "seller": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/PartWithTotalSchemaList.a9993e3.SellerListSchema"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Vendor/supplier name",
-            "example": "Digi-Key",
-            "title": "Seller"
+            "default": null,
+            "description": "Seller/vendor details"
           },
           "seller_link": {
             "anyOf": [
@@ -3807,12 +3845,34 @@
           "description",
           "type_id",
           "tags",
-          "seller",
           "created_at",
           "updated_at",
           "total_quantity"
         ],
         "title": "PartWithTotalSchema",
+        "type": "object"
+      },
+      "PartWithTotalSchemaList.a9993e3.SellerListSchema": {
+        "description": "Lightweight schema for seller dropdowns and listings.",
+        "properties": {
+          "id": {
+            "description": "Unique seller ID",
+            "example": 1,
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Seller name",
+            "example": "DigiKey",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "SellerListSchema",
         "type": "object"
       },
       "QuantityHistoryResponseSchemaList.a9993e3": {
@@ -3951,6 +4011,146 @@
           "qty"
         ],
         "title": "RemoveStockSchema",
+        "type": "object"
+      },
+      "SellerCreateSchema.ceefe26": {
+        "description": "Schema for creating a new seller.",
+        "properties": {
+          "name": {
+            "description": "Unique seller name",
+            "example": "DigiKey",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "website": {
+            "description": "Seller website URL",
+            "example": "https://www.digikey.com",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Website",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "website"
+        ],
+        "title": "SellerCreateSchema",
+        "type": "object"
+      },
+      "SellerListSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/SellerListSchemaList.a9993e3.SellerListSchema"
+        },
+        "title": "SellerListSchemaList",
+        "type": "array"
+      },
+      "SellerListSchemaList.a9993e3.SellerListSchema": {
+        "description": "Lightweight schema for seller dropdowns and listings.",
+        "properties": {
+          "id": {
+            "description": "Unique seller ID",
+            "example": 1,
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Seller name",
+            "example": "DigiKey",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "SellerListSchema",
+        "type": "object"
+      },
+      "SellerResponseSchema.ceefe26": {
+        "description": "Schema for seller API responses.",
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when seller was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique seller ID",
+            "example": 1,
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Seller name",
+            "example": "DigiKey",
+            "title": "Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "Timestamp when seller was last updated",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "website": {
+            "description": "Seller website URL",
+            "example": "https://www.digikey.com",
+            "title": "Website",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "website",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "SellerResponseSchema",
+        "type": "object"
+      },
+      "SellerUpdateSchema.ceefe26": {
+        "description": "Schema for updating an existing seller.",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Seller name",
+            "example": "DigiKey",
+            "title": "Name"
+          },
+          "website": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Seller website URL",
+            "example": "https://www.digikey.com",
+            "title": "Website"
+          }
+        },
+        "title": "SellerUpdateSchema",
         "type": "object"
       },
       "SetCoverAttachmentSchema.f950e1b": {
@@ -6449,6 +6649,261 @@
           }
         },
         "summary": "Get all locations for a part.",
+        "tags": []
+      }
+    },
+    "/api/sellers": {
+      "get": {
+        "description": "",
+        "operationId": "get__api_sellers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerListSchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "List all sellers.",
+        "tags": []
+      },
+      "post": {
+        "description": "",
+        "operationId": "post__api_sellers",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SellerCreateSchema.ceefe26"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerResponseSchema.ceefe26"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Create new seller.",
+        "tags": []
+      }
+    },
+    "/api/sellers/{seller_id}": {
+      "delete": {
+        "description": "",
+        "operationId": "delete__api_sellers_{seller_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "seller_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Delete seller.",
+        "tags": []
+      },
+      "get": {
+        "description": "",
+        "operationId": "get__api_sellers_{seller_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "seller_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerResponseSchema.ceefe26"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Get seller details.",
+        "tags": []
+      },
+      "put": {
+        "description": "",
+        "operationId": "put__api_sellers_{seller_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "seller_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SellerUpdateSchema.ceefe26"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerResponseSchema.ceefe26"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Update seller.",
         "tags": []
       }
     },

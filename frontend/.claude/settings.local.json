@@ -1,4 +1,5 @@
 {
+  "spinnerTipsEnabled": false,
   "permissions": {
     "allow": [
       "Bash(pnpm generate:api:*)",
@@ -21,7 +22,8 @@
       "Bash(pnpm eslint:*)",
       "Bash(pnpm build:*)",
       "Bash(timeout:*)",
-      "Bash(pnpm add:*)"
+      "Bash(pnpm add:*)",
+      "Bash(pnpm list:*)"
     ],
     "deny": [],
     "ask": []
