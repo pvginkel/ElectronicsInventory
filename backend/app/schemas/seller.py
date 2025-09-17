@@ -81,3 +81,7 @@ class SellerListSchema(BaseModel):
         description="Seller name",
         json_schema_extra={"example": "DigiKey"}
     )
+    website: str = Field(
+        description="Seller website URL",
+        json_schema_extra={"example": "https://www.digikey.com"}
+    )
