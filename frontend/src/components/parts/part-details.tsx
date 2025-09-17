@@ -9,7 +9,6 @@ import { PartForm } from './part-form';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import { PartDocumentGrid } from './part-document-grid';
 import { AddDocumentModal } from '@/components/documents/add-document-modal';
-import { VendorInfo } from './vendor-info';
 import { MoreVerticalIcon } from '@/components/icons/MoreVerticalIcon';
 import { useGetPartsByPartKey, useDeletePartsByPartKey } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
