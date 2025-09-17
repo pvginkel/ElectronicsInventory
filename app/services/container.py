@@ -17,6 +17,7 @@ from app.services.metrics_service import (
 )
 from app.services.part_service import PartService
 from app.services.s3_service import S3Service
+from app.services.seller_service import SellerService
 from app.services.setup_service import SetupService
 from app.services.task_service import TaskService
 from app.services.test_data_service import TestDataService
@@ -43,6 +44,7 @@ class ServiceContainer(containers.DeclarativeContainer):
     part_service = providers.Factory(PartService, db=db_session)
     box_service = providers.Factory(BoxService, db=db_session)
     type_service = providers.Factory(TypeService, db=db_session)
+    seller_service = providers.Factory(SellerService, db=db_session)
     dashboard_service = providers.Factory(DashboardService, db=db_session)
     setup_service = providers.Factory(SetupService, db=db_session)
     test_data_service = providers.Factory(TestDataService, db=db_session)
