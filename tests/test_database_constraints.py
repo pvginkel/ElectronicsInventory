@@ -288,12 +288,13 @@ class TestDatabaseConstraints:
                 # If we get here, DB enforces positive capacity
                 pytest.fail("Database enforces positive capacity constraint")
 
-    def test_empty_box_description_allowed(self, app: Flask):
-        """Test that empty string is allowed for box description."""
+    def test_empty_box_description_rejected(self, app: Flask):
+        """Test that empty string is rejected for box description (converted to NULL, violates NOT NULL)."""
         with app.app_context():
-            # Empty string should be different from NULL
+            # Empty string gets converted to NULL by normalization,
+            # which violates NOT NULL constraint for description field
             box = Box(box_no=1, description="", capacity=5)
             db.session.add(box)
-            db.session.commit()
 
-            assert box.description == ""
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
