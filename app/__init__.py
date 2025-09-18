@@ -30,6 +30,9 @@ def create_app(settings: "Settings | None" = None) -> App:
     # Import models to register them with SQLAlchemy
     from app import models  # noqa: F401
 
+    # Import empty string normalization to register event handlers
+    from app.utils import empty_string_normalization  # noqa: F401
+
     # Initialize SessionLocal for per-request sessions
     # This needs to be done in app context since db.engine requires it
     with app.app_context():
