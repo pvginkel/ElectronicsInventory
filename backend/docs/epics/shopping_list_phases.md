@@ -20,7 +20,7 @@ This document describes the development phases for the Shopping List feature des
 
 **Backend**
 
-* Shopping List entity: **name**, optional **description**, **status = Concept** by default, archive flag.
+* Shopping List entity: **name**, optional **description**, **status = Concept** by default (with Ready and Done as other statuses).
 * Shopping List Line: **Part (required)**, **Seller override (optional)**, **Needed (int ≥ 1)**, **Ordered (int, default 0)**, **Received (int, default 0)**, **Note (optional)**, **Line Status = New**.
 * **Duplicate prevention**: on a given list, a Part may appear **only once** (reject additional inserts for same Part).
 * Basic operations: create/rename/describe/delete list; add/edit/delete line; list lines.
@@ -36,15 +36,15 @@ This document describes the development phases for the Shopping List feature des
   * **Prevent duplicates**: if user tries to add same Part again, show error directing them to edit the existing line.
   * Sorting (Part description, Part/MPN, Category, Date added).
   * Delete line (confirm).
-* Footer action: **Mark “Ready for Ordering”** (enabled when the list has ≥1 line).
+* Footer action: **Mark “Ready”** (enabled when the list has ≥1 line).
 
 ---
 
-# Phase 2 — “Ready for Ordering” view (seller-centric planning)
+# Phase 2 — “Ready” view (seller-centric planning)
 
 **Backend**
 
-* List **status transition**: Concept → Ready for Ordering (and back **only if no line is Ordered**).
+* List **status transition**: Concept → Ready (and back **only if no line is Ordered**).
 * Line **status transitions**: allow **New → Ordered** and back to **New**.
 * Per-seller **Order Note** storage at list+seller grouping level.
 * Operations to set **Ordered** quantity and mark line/group **Ordered**.
@@ -109,16 +109,16 @@ This document describes the development phases for the Shopping List feature des
 
 **Backend**
 
-* Archive/unarchive list. Deleting a list requires confirmation.
+* Mark list as done (final status). Deleting a list requires confirmation.
 * Aggregate counts per list: number of lines by **status** (New/Ordered/Done) and last-updated timestamp.
 
 **Front-end**
 
 * Lists Overview upgrade:
 
-  * Sections: **Active** (Concept/Ready), **Archived**.
+  * Sections: **Active** (Concept/Ready), **Done** (hidden by default).
   * Card shows: name, description, line counts per status, last updated.
-  * Actions: **Archive/Unarchive**, **Delete** (confirm).
+  * Actions: **Mark Done** (manual), **Delete** (confirm).
 * In-list filter toggle: **Hide Done** (default on).
 
 ---
@@ -162,6 +162,6 @@ This document describes the development phases for the Shopping List feature des
 
 ## Final acceptance (end-to-end)
 
-* Create list (Concept) → add parts (no duplicates) → mark Ready for Ordering → set Ordered per seller/line → **Update Stock** in partial shipments → **Mark Done** when reconciled → list visible in Overview with correct counters → **Archive** when finished.
+* Create list (Concept) → add parts (no duplicates) → mark Ready → set Ordered per seller/line → **Update Stock** in partial shipments → **Mark Done** when reconciled → list visible in Overview with correct counters → **Archive** when finished.
 * From Part detail: add to Concept list; see active list badges; see tile/icon indicators.
 * From “Add project to list”: compute shortages, adjust “to order,” respect duplicate prevention, and add to the Concept list.
