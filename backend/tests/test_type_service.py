@@ -4,7 +4,7 @@ import pytest
 from flask import Flask
 from sqlalchemy.orm import Session
 
-from app.exceptions import InvalidOperationException, RecordNotFoundException
+from app.exceptions import DependencyException, RecordNotFoundException
 from app.models.type import Type
 from app.services.container import ServiceContainer
 
@@ -109,8 +109,8 @@ class TestTypeService:
             )
             session.commit()
 
-            # Should raise InvalidOperationException
-            with pytest.raises(InvalidOperationException, match="Cannot delete type .* because it is being used by existing parts"):
+            # Should raise DependencyException
+            with pytest.raises(DependencyException, match="Cannot delete Type .* because it is being used by existing parts"):
                 type_service.delete_type(type_obj.id)
 
     def test_delete_type_nonexistent(self, app: Flask, session: Session, container: ServiceContainer):

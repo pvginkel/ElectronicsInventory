@@ -19,7 +19,8 @@
       "Read(/home/pvginkel/source/ElectronicsInventory/frontend/src/hooks/**)",
       "Read(/home/pvginkel/source/ElectronicsInventory/frontend/src/components/documents/**)",
       "Bash(sed:*)",
-      "Bash(FLASK_ENV=testing poetry run python -c \"\nfrom app import create_app\nfrom app.config import get_settings\n\nprint(''Testing updated exception handling...'')\nsettings = get_settings()\napp = create_app(settings)\n\nprint(''✓ App created successfully with updated exceptions'')\n\n# Test that new exceptions have mandatory error codes\nfrom app.exceptions import RecordNotFoundException, BusinessLogicException\n\ntry:\n    raise RecordNotFoundException(''Part'', ''ABCD'')\nexcept BusinessLogicException as e:\n    print(f''✓ Exception has error code: {e.error_code}'')\n\nprint(''✓ All exception updates working correctly!'')\n\")"
+      "Bash(FLASK_ENV=testing python:*)",
+      "Bash(FLASK_ENV=testing poetry:*)"
     ],
     "deny": [
       "Bash(ruff format:*)",
