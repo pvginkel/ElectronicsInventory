@@ -4293,6 +4293,66 @@
         "title": "TaskStatus",
         "type": "string"
       },
+      "TestErrorResponseSchema.355d24f": {
+        "description": "Schema for testing API error responses.",
+        "properties": {
+          "error": {
+            "description": "Error message",
+            "example": "Database reset already in progress",
+            "title": "Error",
+            "type": "string"
+          },
+          "status": {
+            "description": "Operation status",
+            "example": "busy",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "status"
+        ],
+        "title": "TestErrorResponseSchema",
+        "type": "object"
+      },
+      "TestResetResponseSchema.355d24f": {
+        "description": "Response schema for database reset endpoint.",
+        "properties": {
+          "migrations_applied": {
+            "description": "Number of database migrations applied",
+            "example": 5,
+            "title": "Migrations Applied",
+            "type": "integer"
+          },
+          "mode": {
+            "description": "Environment mode",
+            "example": "testing",
+            "title": "Mode",
+            "type": "string"
+          },
+          "seeded": {
+            "description": "Whether test data was loaded",
+            "example": true,
+            "title": "Seeded",
+            "type": "boolean"
+          },
+          "status": {
+            "description": "Reset operation status",
+            "example": "complete",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "mode",
+          "seeded",
+          "migrations_applied"
+        ],
+        "title": "TestResetResponseSchema",
+        "type": "object"
+      },
       "TypeCreateSchema.50492c8": {
         "description": "Schema for creating a new type.",
         "properties": {
@@ -5373,7 +5433,7 @@
     },
     "/api/health/readyz": {
       "get": {
-        "description": "Returns 503 when the application is shutting down or not ready to serve requests. This signals Kubernetes to remove the pod from service endpoints.",
+        "description": "Returns 503 when the application is shutting down, database is not ready, or migrations are pending. This signals Kubernetes to remove the pod from service endpoints.",
         "operationId": "get__api_health_readyz",
         "parameters": [],
         "responses": {
@@ -7012,6 +7072,57 @@
         ],
         "responses": {},
         "summary": "SSE endpoint for monitoring specific task progress.",
+        "tags": []
+      }
+    },
+    "/api/testing/logs/stream": {
+      "get": {
+        "description": "Streams logs from all loggers at INFO level and above. Each log entry is formatted as structured JSON with correlation ID when available.\n\nEvent Types:     - log: Application log entries     - connection_open: Sent when client connects     - heartbeat: Sent every 30 seconds for keepalive     - connection_close: Sent when server shuts down\n\nReturns:     SSE stream of log events",
+        "operationId": "get__api_testing_logs_stream",
+        "parameters": [],
+        "responses": {},
+        "summary": "SSE endpoint for streaming backend application logs in real-time.",
+        "tags": []
+      }
+    },
+    "/api/testing/reset": {
+      "post": {
+        "description": "Query Parameters:     seed: boolean, default false - Whether to load test data after reset\n\nReturns:     200: Reset completed successfully     503: Reset already in progress (with Retry-After header)",
+        "operationId": "post__api_testing_reset",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestResetResponseSchema.355d24f"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestErrorResponseSchema.355d24f"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Reset database to clean state with optional test data seeding.",
         "tags": []
       }
     },

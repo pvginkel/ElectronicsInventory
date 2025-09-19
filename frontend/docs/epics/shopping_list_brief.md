@@ -11,9 +11,9 @@
 
 * **Shopping List**: Named, with a **List Status** controlling the UI:
 
-  * **Concept** – “editable grid” for composing the list.
-  * **Ready for Ordering** – ordering-optimized view (group by Seller, per-group actions).
-  * (Optional) **Archived** – whole list is tucked away once *you* decide; lists are kept by default.
+  * **Concept** – "editable grid" for composing the list.
+  * **Ready** – ordering-optimized view (group by Seller, per-group actions).
+  * **Done** – completed/archived list that is hidden by default in the UI but still accessible.
 * **Shopping List Line** (always tied to an existing Part):
 
   * **Part** (required; changeable until the line is **Done**).
@@ -40,7 +40,7 @@
 **Screen: Lists Overview**
 
 * Create **New List** → enter *Name* (e.g., “Project X – Rev A”), optional *Description*.
-* See lists grouped by **Active** (Concept/Ready) and **Archived**.
+* See lists grouped by **Active** (Concept/Ready) and **Done** (hidden by default).
 
 **Screen: List (Concept view)**
 
@@ -55,9 +55,9 @@
 
 **Actions**
 
-* **Mark list “Ready for Ordering”** → switches to seller-centric ordering view. (You can still go back to Concept if nothing has been marked Ordered yet.)
+* **Mark list “Ready”** → switches to seller-centric ordering view. (You can still go back to Concept if nothing has been marked Ordered yet.)
 
-## 3.2 Order planning (Ready for Ordering)
+## 3.2 Order planning (Ready)
 
 **Goal:** Prepare and record orders without prices; group by Seller.
 
@@ -133,15 +133,15 @@
 
 1. **Lists Overview**
 
-   * Sections: **Active** (Concept/Ready), **Archived**.
+   * Sections: **Active** (Concept/Ready), **Done** (hidden by default).
    * Card per list: name, description, counts (lines by status), last updated.
-   * Actions: New List, Archive List (manual), Delete (confirm).
+   * Actions: New List, Mark Done (manual), Delete (confirm).
 
 2. **List — Concept**
 
    * Editable grid with add row.
    * Columns: Part | Seller | Needed | Ordered (ro) | Received (ro) | Note | Actions (Delete).
-   * Footer: **Mark Ready for Ordering**.
+   * Footer: **Mark Ready**.
 
 3. **List — Ordering**
 
@@ -167,9 +167,9 @@
   * Set to **Ordered**: requires confirming **Ordered** quantity.
   * **Done**: available from Update Stock (and from list with confirmation).
 * **Receiving:** Only for **Ordered** lines. Multiple receives accumulate in **Received**.
-* **Done semantics:** Archive the line visually; excluded by default in Active views; still discoverable on the list.
-* **List status:** Concept ↔ Ready for Ordering. Returning from Ready to Concept is allowed **only if no line is Ordered**.
-* **Delete vs Archive:** Deleting a line or a list always requires confirmation. By default you **keep** lists (aligns with “keep history” spirit).
+* **Done semantics:** Done lines are excluded by default in Active views; still discoverable on the list. Done lists are hidden by default but remain accessible.
+* **List status:** Concept ↔ Ready → Done. Returning from Ready to Concept is allowed **only if no line is Ordered**. Done is a final status.
+* **Delete vs Done:** Deleting a line or a list always requires confirmation. By default you **keep** lists by marking them Done (aligns with "keep history" spirit).
 * **Guards:** Prevent “Update Stock” on Concept/New; warn on Done with mismatched quantities; prevent changing Part once Done.
 * **Sorting:** Manual drag (Concept), and by Part/Category/Date in both views.
 
@@ -177,11 +177,11 @@
 
 **A. Create & manage lists**
 
-* Can create, rename, describe, archive, delete lists (with confirmations).
+* Can create, rename, describe, mark done, delete lists (with confirmations).
 * Concept view shows an editable grid; can add Parts, set Needed, Note, Seller.
 * Duplicate Part adds merge into one line and sum Needed.
 
-**B. Ready for Ordering**
+**B. Ready**
 
 * Toggling list to Ready shows seller groups with group-level **Order Note**.
 * Per line and per seller group, can set **Ordered** and mark **Ordered**.
