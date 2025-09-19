@@ -6,8 +6,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.exceptions import ResourceConflictException
-from app.models.part import Part
-from app.models.seller import Seller
 from app.services.container import ServiceContainer
 
 

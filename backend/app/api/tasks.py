@@ -2,9 +2,9 @@ from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, jsonify
 
 from app.services.container import ServiceContainer
+from app.utils import get_current_correlation_id
 from app.utils.error_handling import handle_api_errors
 from app.utils.sse_utils import create_sse_response, format_sse_event
-from app.utils import get_current_correlation_id
 
 tasks_bp = Blueprint("tasks", __name__, url_prefix="/tasks")
 

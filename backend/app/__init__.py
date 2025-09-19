@@ -55,14 +55,13 @@ def create_app(settings: "Settings | None" = None) -> App:
     container.config.override(settings)
     container.session_maker.override(SessionLocal)
 
-    # Wire container with API modules (include testing if in testing mode)
+    # Wire container with API modules (always include testing for OpenAPI)
     wire_modules = [
         'app.api.ai_parts', 'app.api.parts', 'app.api.boxes', 'app.api.inventory',
         'app.api.types', 'app.api.sellers', 'app.api.documents', 'app.api.tasks',
-        'app.api.dashboard', 'app.api.metrics', 'app.api.health', 'app.api.utils'
+        'app.api.dashboard', 'app.api.metrics', 'app.api.health', 'app.api.utils',
+        'app.api.testing'
     ]
-    if settings.is_testing:
-        wire_modules.append('app.api.testing')
 
     container.wire(modules=wire_modules)
 
@@ -106,10 +105,9 @@ def create_app(settings: "Settings | None" = None) -> App:
 
     app.register_blueprint(api_bp)
 
-    # Conditionally register testing blueprint
-    if settings.is_testing:
-        from app.api.testing import register_testing_blueprint_conditionally
-        register_testing_blueprint_conditionally(app, settings)
+    # Always register testing blueprint (runtime check handles access control)
+    from app.api.testing import testing_bp
+    app.register_blueprint(testing_bp)
 
     @app.teardown_request
     def close_session(exc):

@@ -19,6 +19,7 @@ from app.exceptions import (
     InvalidOperationException,
     RecordNotFoundException,
     ResourceConflictException,
+    RouteNotAvailableException,
 )
 from app.utils import get_current_correlation_id
 
@@ -39,7 +40,7 @@ def _build_error_response(error: str, details: dict, code: str | None = None, st
     correlation_id = get_current_correlation_id()
     if correlation_id:
         response_data["correlationId"] = correlation_id
-    
+
     return jsonify(response_data), status_code
 
 
@@ -145,6 +146,15 @@ def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Response | tupl
                     {"message": "The requested operation cannot be performed"},
                     code=e.error_code,
                     status_code=409
+                )
+
+            except RouteNotAvailableException as e:
+                # Custom domain exception for route access control
+                return _build_error_response(
+                    e.message,
+                    {"message": "Testing endpoints require FLASK_ENV=testing"},
+                    code=e.error_code,
+                    status_code=400
                 )
 
             except BusinessLogicException as e:
