@@ -1,5 +1,7 @@
 """Tests for health check API endpoints."""
 
+from unittest.mock import patch
+
 from flask import Flask
 from flask.testing import FlaskClient
 
@@ -11,11 +13,15 @@ class TestHealthEndpoints:
 
     def test_readyz_when_ready(self, client: FlaskClient):
         """Test readiness probe returns 200 when ready."""
-        response = client.get("/api/health/readyz")
+        # Mock the database functions since tests use SQLite with create_all() instead of migrations
+        with patch('app.api.health.check_db_connection', return_value=True), \
+             patch('app.api.health.get_pending_migrations', return_value=[]):
 
-        assert response.status_code == 200
-        assert response.json["status"] == "ready"
-        assert response.json["ready"] is True
+            response = client.get("/api/health/readyz")
+
+            assert response.status_code == 200
+            assert response.json["status"] == "ready"
+            assert response.json["ready"] is True
 
     def test_readyz_when_shutting_down(self, app: Flask, client: FlaskClient):
         """Test readiness probe returns 503 when shutting down."""

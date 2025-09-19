@@ -37,43 +37,68 @@ class TestTestingEndpoints:
 
     def test_reset_endpoint_basic_functionality(self, client: FlaskClient, container: ServiceContainer):
         """Test basic database reset functionality."""
-        # Test reset without seeding
-        response = client.post("/api/testing/reset")
+        # Mock the database operations since SQLite tests can't run real PostgreSQL migrations
+        with patch('app.services.testing_service.drop_all_tables'), \
+             patch('app.services.testing_service.upgrade_database') as mock_upgrade, \
+             patch('app.services.testing_service.sync_master_data_from_setup'):
 
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["status"] == "complete"
-        assert data["mode"] == "testing"
-        assert data["seeded"] is False
-        assert "migrations_applied" in data
+            # Configure mock to return migration list
+            mock_upgrade.return_value = ['002', '003', '004']
+
+            # Test reset without seeding
+            response = client.post("/api/testing/reset")
+
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data["status"] == "complete"
+            assert data["mode"] == "testing"
+            assert data["seeded"] is False
+            assert "migrations_applied" in data
 
     def test_reset_endpoint_with_seeding(self, client: FlaskClient, container: ServiceContainer):
         """Test database reset with test data seeding."""
-        # Test reset with seeding
-        response = client.post("/api/testing/reset?seed=true")
+        # Mock the database operations since SQLite tests can't run real PostgreSQL migrations
+        with patch('app.services.testing_service.drop_all_tables'), \
+             patch('app.services.testing_service.upgrade_database') as mock_upgrade, \
+             patch('app.services.testing_service.sync_master_data_from_setup'), \
+             patch('app.services.test_data_service.TestDataService.load_full_dataset'):
 
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data["status"] == "complete"
-        assert data["mode"] == "testing"
-        assert data["seeded"] is True
-        assert "migrations_applied" in data
+            # Configure mock to return migration list
+            mock_upgrade.return_value = ['002', '003', '004']
+
+            response = client.post("/api/testing/reset?seed=true")
+
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data["status"] == "complete"
+            assert data["mode"] == "testing"
+            assert data["seeded"] is True
+            assert "migrations_applied" in data
 
     def test_reset_endpoint_query_parameter_variations(self, client: FlaskClient):
         """Test different query parameter formats for seed parameter."""
-        # Test various true values
-        for seed_value in ["true", "1", "yes", "True", "YES"]:
-            response = client.post(f"/api/testing/reset?seed={seed_value}")
-            assert response.status_code == 200
-            data = response.get_json()
-            assert data["seeded"] is True
+        # Mock the database operations since SQLite tests can't run real PostgreSQL migrations
+        with patch('app.services.testing_service.drop_all_tables'), \
+             patch('app.services.testing_service.upgrade_database') as mock_upgrade, \
+             patch('app.services.testing_service.sync_master_data_from_setup'), \
+             patch('app.services.test_data_service.TestDataService.load_full_dataset'):
 
-        # Test various false values
-        for seed_value in ["false", "0", "no", "False", "NO", ""]:
-            response = client.post(f"/api/testing/reset?seed={seed_value}")
-            assert response.status_code == 200
-            data = response.get_json()
-            assert data["seeded"] is False
+            # Configure mock to return migration list
+            mock_upgrade.return_value = ['002', '003', '004']
+
+            # Test various true values
+            for seed_value in ["true", "1", "yes", "True", "YES"]:
+                response = client.post(f"/api/testing/reset?seed={seed_value}")
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data["seeded"] is True
+
+            # Test various false values
+            for seed_value in ["false", "0", "no", "False", "NO", ""]:
+                response = client.post(f"/api/testing/reset?seed={seed_value}")
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data["seeded"] is False
 
     def test_reset_endpoint_concurrency_control(self, client: FlaskClient, container: ServiceContainer):
         """Test that concurrent reset requests are properly handled."""
@@ -101,19 +126,28 @@ class TestTestingEndpoints:
 
     def test_reset_endpoint_idempotent(self, client: FlaskClient):
         """Test that reset operation is idempotent."""
-        # First reset
-        response1 = client.post("/api/testing/reset?seed=true")
-        assert response1.status_code == 200
-        data1 = response1.get_json()
+        # Mock the database operations since SQLite tests can't run real PostgreSQL migrations
+        with patch('app.services.testing_service.drop_all_tables'), \
+             patch('app.services.testing_service.upgrade_database') as mock_upgrade, \
+             patch('app.services.testing_service.sync_master_data_from_setup'), \
+             patch('app.services.test_data_service.TestDataService.load_full_dataset'):
 
-        # Second reset with same parameters
-        response2 = client.post("/api/testing/reset?seed=true")
-        assert response2.status_code == 200
-        data2 = response2.get_json()
+            # Configure mock to return migration list
+            mock_upgrade.return_value = ['002', '003', '004']
 
-        # Both should succeed with same structure
-        assert data1["status"] == data2["status"] == "complete"
-        assert data1["seeded"] == data2["seeded"] == True
+            # First reset
+            response1 = client.post("/api/testing/reset?seed=true")
+            assert response1.status_code == 200
+            data1 = response1.get_json()
+
+            # Second reset with same parameters
+            response2 = client.post("/api/testing/reset?seed=true")
+            assert response2.status_code == 200
+            data2 = response2.get_json()
+
+            # Both should succeed with same structure
+            assert data1["status"] == data2["status"] == "complete"
+            assert data1["seeded"] == data2["seeded"] == True
 
     @patch('app.services.testing_service.drop_all_tables')
     def test_reset_endpoint_error_handling(self, mock_drop_tables, client: FlaskClient):
@@ -157,7 +191,7 @@ class TestTestingEndpoints:
             events = log_client.get_events()
 
             # Should have captured the log events
-            log_events = [event for event_type, event_data in events if event_type == "log"]
+            log_events = [event_data for event_type, event_data in events if event_type == "log"]
             assert len(log_events) >= 3
 
             # Check that events have proper structure
