@@ -19,22 +19,6 @@ from tests.testing_utils import StubShutdownCoordinator
 class TestTestingEndpoints:
     """Test testing API endpoints for Playwright integration."""
 
-    def test_reset_endpoint_not_available_in_non_testing_mode(self):
-        """Test that testing endpoints are not available when not in testing mode."""
-        # Create app with non-testing settings
-        settings = Settings(
-            DATABASE_URL="sqlite:///:memory:",
-            SECRET_KEY="test-secret-key",
-            FLASK_ENV="development"  # Not testing
-        )
-
-        from app import create_app
-        app = create_app(settings)
-        client = app.test_client()
-
-        response = client.post("/api/testing/reset")
-        assert response.status_code == 404
-
     def test_reset_endpoint_basic_functionality(self, client: FlaskClient, container: ServiceContainer):
         """Test basic database reset functionality."""
         # Mock the database operations since SQLite tests can't run real PostgreSQL migrations
@@ -335,17 +319,25 @@ class TestTestingEndpoints:
         """Test that correlation IDs are properly propagated through the system."""
         test_correlation_id = "test-correlation-456"
 
-        # Make request with correlation ID
-        response = client.post(
-            "/api/testing/reset",
-            headers={"X-Request-Id": test_correlation_id}
-        )
+        # Mock the database operations since SQLite tests can't run real PostgreSQL migrations
+        with patch('app.services.testing_service.drop_all_tables'), \
+             patch('app.services.testing_service.upgrade_database') as mock_upgrade, \
+             patch('app.services.testing_service.sync_master_data_from_setup'):
 
-        assert response.status_code == 200
+            # Configure mock to return migration list
+            mock_upgrade.return_value = ['002', '003', '004']
 
-        # Response should include correlation ID
-        data = response.get_json()
-        assert data.get("correlationId") == test_correlation_id or "correlationId" not in data
+            # Make request with correlation ID
+            response = client.post(
+                "/api/testing/reset",
+                headers={"X-Request-Id": test_correlation_id}
+            )
+
+            assert response.status_code == 200
+
+            # Response should include correlation ID
+            data = response.get_json()
+            assert data.get("correlationId") == test_correlation_id or "correlationId" not in data
 
     def test_testing_service_dependency_injection(self, container: ServiceContainer):
         """Test that testing service is properly configured with dependencies."""

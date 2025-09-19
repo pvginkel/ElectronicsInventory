@@ -225,37 +225,43 @@ class TestFullApplicationShutdownIntegration:
 
     def test_health_endpoints_during_full_shutdown_sequence(self, app: Flask, client):
         """Test health endpoints during complete shutdown sequence."""
-        with app.app_context():
-            # Override container's coordinator with test implementation
-            test_coordinator = TestShutdownCoordinator()
-            app.container.shutdown_coordinator.override(test_coordinator)
-            coordinator = test_coordinator
+        # Mock the database functions since tests use SQLite with create_all() instead of migrations
+        from unittest.mock import patch
 
-            # Initially should be ready
-            response = client.get("/api/health/readyz")
-            assert response.status_code == 200
-            assert response.json["ready"] is True
+        with patch('app.api.health.check_db_connection', return_value=True), \
+             patch('app.api.health.get_pending_migrations', return_value=[]):
 
-            # Healthz should be alive
-            response = client.get("/api/health/healthz")
-            assert response.status_code == 200
-            assert response.json["ready"] is True
+            with app.app_context():
+                # Override container's coordinator with test implementation
+                test_coordinator = TestShutdownCoordinator()
+                app.container.shutdown_coordinator.override(test_coordinator)
+                coordinator = test_coordinator
 
-            # Simulate shutdown
-            if isinstance(coordinator, TestShutdownCoordinator):
-                coordinator.simulate_shutdown()
-            else:
-                coordinator._shutting_down = True
+                # Initially should be ready
+                response = client.get("/api/health/readyz")
+                assert response.status_code == 200
+                assert response.json["ready"] is True
 
-            # After shutdown signal
-            response = client.get("/api/health/readyz")
-            assert response.status_code == 503
-            assert response.json["ready"] is False
+                # Healthz should be alive
+                response = client.get("/api/health/healthz")
+                assert response.status_code == 200
+                assert response.json["ready"] is True
 
-            # Healthz should still be alive
-            response = client.get("/api/health/healthz")
-            assert response.status_code == 200
-            assert response.json["ready"] is True
+                # Simulate shutdown
+                if isinstance(coordinator, TestShutdownCoordinator):
+                    coordinator.simulate_shutdown()
+                else:
+                    coordinator._shutting_down = True
+
+                # After shutdown signal
+                response = client.get("/api/health/readyz")
+                assert response.status_code == 503
+                assert response.json["ready"] is False
+
+                # Healthz should still be alive
+                response = client.get("/api/health/healthz")
+                assert response.status_code == 200
+                assert response.json["ready"] is True
 
     def test_service_container_shutdown_coordinator_injection(self, app: Flask):
         """Test that shutdown coordinator is properly injected into services."""

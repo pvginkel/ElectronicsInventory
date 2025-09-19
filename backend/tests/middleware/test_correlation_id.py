@@ -36,7 +36,7 @@ class TestCorrelationIdMiddleware:
             headers={"Content-Type": "application/json"}
         )
 
-        assert response.status_code == 422  # SpectTree validation returns 422
+        assert response.status_code == 400  # SpectTree validation returns 400 (configured in spectree_config.py)
         # Note: SpectTree may return different error format than our custom error handler
 
 
