@@ -15,4 +15,12 @@ Next you have to look at these aspects:
 - Does the plan say what we're attempting to do
 - Does the plan cover all aspects of what it sets out to do
 
+DO NOT review minor implementation details like:
+- Missing import statements
+- Exact error message wording
+- Minor code style issues
+- Specific variable names
+
+Assume a competent developer will handle these details during implementation.
+
 Report your findings back to the user. The user has to decide how to handle your findings.
