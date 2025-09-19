@@ -21,7 +21,9 @@ None - modifying existing exception file.
 
 **`app/api/testing.py`:**
 - Add `before_request` function to the testing blueprint that:
-  - Uses injected `Settings` service to check `settings.is_testing` property
+  - Accesses the container via `current_app.container`
+  - Gets Settings service using `container.config()`
+  - Checks `settings.is_testing` property
   - If not in testing mode, raises `RouteNotAvailableException`
   - Applies automatically to all routes in the blueprint
 - Remove the `register_testing_blueprint_conditionally` function
@@ -40,13 +42,14 @@ None - modifying existing exception file.
 
 ### Before Request Check:
 1. Blueprint registers a `@testing_bp.before_request` handler
-2. Handler uses dependency injection to get `Settings` service
-3. Checks `settings.is_testing` property
-4. If not in testing mode (is_testing returns False):
+2. Handler accesses container via `current_app.container`
+3. Gets Settings service using `container.config()`
+4. Checks `settings.is_testing` property
+5. If not in testing mode (is_testing returns False):
    - Raises `RouteNotAvailableException`
    - Exception automatically handled by `@handle_api_errors` decorator
-   - Returns HTTP 400 with structured error response
-5. If in testing mode (is_testing returns True):
+   - Returns HTTP 400 with structured error response (400 chosen because endpoint doesn't apply to current server mode)
+6. If in testing mode (is_testing returns True):
    - Request proceeds normally to route handler
 
 ### Error Response Structure:
@@ -69,8 +72,8 @@ None - modifying existing exception file.
 
 ### Dependency Injection Considerations:
 - Keep conditional wiring of testing module for performance
-- Settings service can be injected into before_request handler if needed
-- Maintain existing service injection patterns in route handlers
+- Container accessed via `current_app.container` in before_request handler (Flask pattern)
+- Maintain existing service injection patterns in route handlers using `@inject`
 
 ## Testing Requirements
 
