@@ -1,5 +1,6 @@
 """Flask application factory for Electronics Inventory backend."""
 
+import logging
 from typing import TYPE_CHECKING
 
 from flask import Flask, g
@@ -53,7 +54,17 @@ def create_app(settings: "Settings | None" = None) -> App:
     container = ServiceContainer()
     container.config.override(settings)
     container.session_maker.override(SessionLocal)
-    container.wire(modules=['app.api.ai_parts', 'app.api.parts', 'app.api.boxes', 'app.api.inventory', 'app.api.types', 'app.api.sellers', 'app.api.documents', 'app.api.tasks', 'app.api.dashboard', 'app.api.metrics', 'app.api.health', 'app.api.utils'])
+
+    # Wire container with API modules (include testing if in testing mode)
+    wire_modules = [
+        'app.api.ai_parts', 'app.api.parts', 'app.api.boxes', 'app.api.inventory',
+        'app.api.types', 'app.api.sellers', 'app.api.documents', 'app.api.tasks',
+        'app.api.dashboard', 'app.api.metrics', 'app.api.health', 'app.api.utils'
+    ]
+    if settings.is_testing:
+        wire_modules.append('app.api.testing')
+
+    container.wire(modules=wire_modules)
 
     # Register URL interceptors
     registry = container.url_interceptor_registry()
@@ -65,6 +76,26 @@ def create_app(settings: "Settings | None" = None) -> App:
     # Configure CORS
     CORS(app, origins=settings.CORS_ORIGINS)
 
+    # Initialize Flask-Log-Request-ID for correlation tracking
+    from flask_log_request_id import RequestID
+    RequestID(app)
+
+    # Set up log capture handler in testing mode
+    if settings.is_testing:
+        from app.utils.log_capture import LogCaptureHandler
+        log_handler = LogCaptureHandler.get_instance()
+
+        # Set shutdown coordinator for connection_close events
+        shutdown_coordinator = container.shutdown_coordinator()
+        log_handler.set_shutdown_coordinator(shutdown_coordinator)
+
+        # Attach to root logger
+        root_logger = logging.getLogger()
+        root_logger.addHandler(log_handler)
+        root_logger.setLevel(logging.INFO)
+
+        app.logger.info("Log capture handler initialized for testing mode")
+
     # Register error handlers
     from app.utils.flask_error_handlers import register_error_handlers
 
@@ -74,6 +105,11 @@ def create_app(settings: "Settings | None" = None) -> App:
     from app.api import api_bp
 
     app.register_blueprint(api_bp)
+
+    # Conditionally register testing blueprint
+    if settings.is_testing:
+        from app.api.testing import register_testing_blueprint_conditionally
+        register_testing_blueprint_conditionally(app, settings)
 
     @app.teardown_request
     def close_session(exc):

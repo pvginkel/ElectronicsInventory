@@ -21,9 +21,11 @@ from app.services.seller_service import SellerService
 from app.services.setup_service import SetupService
 from app.services.task_service import TaskService
 from app.services.test_data_service import TestDataService
+from app.services.testing_service import TestingService
 from app.services.type_service import TypeService
 from app.services.url_transformers import LCSCInterceptor, URLInterceptorRegistry
 from app.services.version_service import VersionService
+from app.utils.reset_lock import ResetLock
 from app.utils.shutdown_coordinator import (
     ShutdownCoordinator,
 )
@@ -143,4 +145,14 @@ class ServiceContainer(containers.DeclarativeContainer):
         VersionService,
         settings=config,
         shutdown_coordinator=shutdown_coordinator
+    )
+
+    # Testing utilities - Singleton reset lock for concurrency control
+    reset_lock = providers.Singleton(ResetLock)
+
+    # Testing service - Factory for database reset operations
+    testing_service = providers.Factory(
+        TestingService,
+        db=db_session,
+        reset_lock=reset_lock
     )

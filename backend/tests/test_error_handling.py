@@ -4,10 +4,10 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app.exceptions import (
+    BusinessLogicException,
     CapacityExceededException,
     InsufficientQuantityException,
     InvalidOperationException,
-    InventoryException,
     RecordNotFoundException,
     ResourceConflictException,
 )
@@ -20,9 +20,10 @@ class TestDomainExceptions:
     def test_inventory_exception_base(self):
         """Test base inventory exception."""
         message = "Something went wrong"
-        exception = InventoryException(message)
+        exception = BusinessLogicException(message, "ERROR_CODE")
         assert str(exception) == message
         assert exception.message == message
+        assert exception.error_code == "ERROR_CODE"
 
     def test_record_not_found_exception(self):
         """Test RecordNotFoundException formatting."""

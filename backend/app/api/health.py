@@ -5,8 +5,10 @@ import logging
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, jsonify, request
 from spectree import Response as SpectreeResponse
+from sqlalchemy import text
 
 from app.config import Settings
+from app.database import check_db_connection, get_pending_migrations
 from app.schemas.health_schema import HealthResponse
 from app.services.container import ServiceContainer
 from app.utils.shutdown_coordinator import ShutdownCoordinatorProtocol
@@ -25,17 +27,39 @@ def readyz(
 ):
     """Readiness probe endpoint for Kubernetes.
 
-    Returns 503 when the application is shutting down or not ready to serve requests.
-    This signals Kubernetes to remove the pod from service endpoints.
+    Returns 503 when the application is shutting down, database is not ready,
+    or migrations are pending. This signals Kubernetes to remove the pod from service endpoints.
     """
     # Check if shutdown has been initiated
     if shutdown_coordinator.is_shutting_down():
         return jsonify({"status": "shutting down", "ready": False}), 503
 
-    # Could add additional readiness checks here
-    # For now, we consider the app ready if it's not shutting down
+    # Check database connectivity
+    db_connected = check_db_connection()
+    if not db_connected:
+        return jsonify({
+            "status": "database unavailable",
+            "ready": False,
+            "database": {"connected": False}
+        }), 503
 
-    return jsonify({"status": "ready", "ready": True}), 200
+    # Check for pending migrations
+    pending_migrations = get_pending_migrations()
+    if pending_migrations:
+        return jsonify({
+            "status": "migrations pending",
+            "ready": False,
+            "database": {"connected": True},
+            "migrations": {"pending": len(pending_migrations)}
+        }), 503
+
+    # All checks passed
+    return jsonify({
+        "status": "ready",
+        "ready": True,
+        "database": {"connected": True},
+        "migrations": {"pending": 0}
+    }), 200
 
 
 @health_bp.route("/healthz", methods=["GET"])

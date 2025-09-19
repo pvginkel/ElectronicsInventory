@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
-from app.exceptions import InvalidOperationException, RecordNotFoundException
+from app.exceptions import DependencyException, InvalidOperationException, RecordNotFoundException
 from app.models.type import Type
 from app.services.base import BaseService
 
@@ -54,7 +54,7 @@ class TypeService(BaseService):
 
         # Check if any parts use this type
         if type_obj.parts:
-            raise InvalidOperationException(f"delete type {type_id}", "it is being used by existing parts")
+            raise DependencyException("Type", type_id, "it is being used by existing parts")
 
         self.db.delete(type_obj)
 

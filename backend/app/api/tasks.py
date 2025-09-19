@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify
 from app.services.container import ServiceContainer
 from app.utils.error_handling import handle_api_errors
 from app.utils.sse_utils import create_sse_response, format_sse_event
+from app.utils import get_current_correlation_id
 
 tasks_bp = Blueprint("tasks", __name__, url_prefix="/tasks")
 
@@ -20,37 +21,48 @@ def get_task_stream(task_id: str, task_service=Provide[ServiceContainer.task_ser
     """
     def generate_events():
         """Generate SSE events for the task."""
+        correlation_id = get_current_correlation_id()
+
+        # Send connection_open event
+        yield format_sse_event("connection_open", {"status": "connected"}, correlation_id)
+
         # Check if task exists
         task_info = task_service.get_task_status(task_id)
         if not task_info:
             # Send error event and close
-            yield format_sse_event("error", {"error": "Task not found"})
+            yield format_sse_event("error", {"error": "Task not found"}, correlation_id)
+            yield format_sse_event("connection_close", {"reason": "task_not_found"}, correlation_id)
             return
 
         # Stream task events
-        while True:
-            # Low heartbeat interval because SSE connections aren't aborted
-            # with waitress.
-            events = task_service.get_task_events(task_id, timeout=5.0)
+        try:
+            while True:
+                # Low heartbeat interval because SSE connections aren't aborted
+                # with waitress.
+                events = task_service.get_task_events(task_id, timeout=5.0)
 
-            if not events:
-                # Send keepalive
-                yield format_sse_event("keepalive", {})
-                continue
+                if not events:
+                    # Send heartbeat event instead of raw keepalive
+                    yield format_sse_event("heartbeat", {"timestamp": task_service.get_current_time()}, correlation_id)
+                    continue
 
-            for event in events:
-                event_data = {
-                    "event_type": event.event_type.value,
-                    "task_id": event.task_id,
-                    "timestamp": event.timestamp.isoformat(),
-                    "data": event.data
-                }
+                for event in events:
+                    event_data = {
+                        "event_type": event.event_type.value,
+                        "task_id": event.task_id,
+                        "timestamp": event.timestamp.isoformat(),
+                        "data": event.data
+                    }
 
-                yield format_sse_event("task_event", event_data)
+                    yield format_sse_event("task_event", event_data, correlation_id)
 
-                # Close connection after completion/failure events
-                if event.event_type.value in ["task_completed", "task_failed"]:
-                    return
+                    # Close connection after completion/failure events
+                    if event.event_type.value in ["task_completed", "task_failed"]:
+                        yield format_sse_event("connection_close", {"reason": "task_completed"}, correlation_id)
+                        return
+        except GeneratorExit:
+            # Client disconnected
+            yield format_sse_event("connection_close", {"reason": "client_disconnect"}, correlation_id)
 
     return create_sse_response(generate_events())
 
