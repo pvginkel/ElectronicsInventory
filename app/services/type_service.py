@@ -4,7 +4,10 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
-from app.exceptions import DependencyException, InvalidOperationException, RecordNotFoundException
+from app.exceptions import (
+    DependencyException,
+    RecordNotFoundException,
+)
 from app.models.type import Type
 from app.services.base import BaseService
 

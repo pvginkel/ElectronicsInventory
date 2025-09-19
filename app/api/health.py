@@ -5,7 +5,6 @@ import logging
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, jsonify, request
 from spectree import Response as SpectreeResponse
-from sqlalchemy import text
 
 from app.config import Settings
 from app.database import check_db_connection, get_pending_migrations

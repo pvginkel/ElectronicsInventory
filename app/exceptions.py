@@ -63,3 +63,10 @@ class DependencyException(BusinessLogicException):
     def __init__(self, resource_type: str, identifier: str | int, dependency_desc: str) -> None:
         message = f"Cannot delete {resource_type} {identifier} because {dependency_desc}"
         super().__init__(message, error_code="TYPE_IN_USE")
+
+
+class RouteNotAvailableException(BusinessLogicException):
+    """Exception raised when accessing endpoints that are not available in the current mode."""
+
+    def __init__(self, message: str = "This endpoint is only available when the server is running in testing mode") -> None:
+        super().__init__(message, error_code="ROUTE_NOT_AVAILABLE")

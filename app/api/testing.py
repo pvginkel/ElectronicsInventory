@@ -6,22 +6,41 @@ from queue import Empty, Queue
 from threading import Event
 
 from dependency_injector.wiring import Provide, inject
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from spectree import Response as SpectreeResponse
 
-from app.config import Settings
+from app.exceptions import RouteNotAvailableException
 from app.schemas.testing import TestErrorResponseSchema, TestResetResponseSchema
 from app.services.container import ServiceContainer
 from app.services.testing_service import TestingService
+from app.utils import get_current_correlation_id
 from app.utils.error_handling import handle_api_errors
 from app.utils.log_capture import LogCaptureHandler
 from app.utils.spectree_config import api
 from app.utils.sse_utils import create_sse_response, format_sse_event
-from app.utils import get_current_correlation_id
 
 logger = logging.getLogger(__name__)
 
 testing_bp = Blueprint("testing", __name__, url_prefix="/api/testing")
+
+
+@testing_bp.before_request
+def check_testing_mode():
+    """Check if the server is running in testing mode before processing any testing endpoint."""
+    from app.utils.error_handling import _build_error_response
+
+    container = current_app.container
+    settings = container.config()
+
+    if not settings.is_testing:
+        # Return error response directly since before_request handlers don't go through @handle_api_errors
+        exception = RouteNotAvailableException()
+        return _build_error_response(
+            exception.message,
+            {"message": "Testing endpoints require FLASK_ENV=testing"},
+            code=exception.error_code,
+            status_code=400
+        )
 
 
 @testing_bp.route("/reset", methods=["POST"])
@@ -140,11 +159,4 @@ def stream_logs():
     return create_sse_response(log_stream())
 
 
-def register_testing_blueprint_conditionally(app, settings: Settings):
-    """Register testing blueprint only when in testing mode."""
-    if settings.is_testing:
-        logger.info("Registering testing endpoints (testing mode enabled)")
-        app.register_blueprint(testing_bp)
-    else:
-        logger.debug("Skipping testing endpoints (not in testing mode)")
 

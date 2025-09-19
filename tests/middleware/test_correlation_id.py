@@ -1,13 +1,12 @@
 """Tests for correlation ID handling middleware and functionality."""
 
 import json
-from unittest.mock import patch
 
 from flask import Flask
 from flask.testing import FlaskClient
 
-from app.utils.sse_utils import format_sse_event
 from app.utils import get_current_correlation_id
+from app.utils.sse_utils import format_sse_event
 
 
 class TestCorrelationIdMiddleware:
@@ -103,8 +102,9 @@ class TestCorrelationIdInLogs:
 
     def test_log_capture_without_correlation_id(self, app: Flask):
         """Test log capture when no correlation ID is available."""
-        from app.utils.log_capture import LogCaptureHandler
         import logging
+
+        from app.utils.log_capture import LogCaptureHandler
 
         handler = LogCaptureHandler.get_instance()
 

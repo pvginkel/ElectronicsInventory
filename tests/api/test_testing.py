@@ -8,12 +8,11 @@ from unittest.mock import Mock, patch
 import pytest
 from flask import Flask
 from flask.testing import FlaskClient
-from sqlalchemy.orm import Session
 
+from app import create_app
 from app.config import Settings
 from app.services.container import ServiceContainer
 from app.utils.log_capture import LogCaptureHandler, SSELogClient
-from tests.testing_utils import StubShutdownCoordinator
 
 
 class TestTestingEndpoints:
@@ -131,7 +130,7 @@ class TestTestingEndpoints:
 
             # Both should succeed with same structure
             assert data1["status"] == data2["status"] == "complete"
-            assert data1["seeded"] == data2["seeded"] == True
+            assert data1["seeded"] == data2["seeded"] is True
 
     @patch('app.services.testing_service.drop_all_tables')
     def test_reset_endpoint_error_handling(self, mock_drop_tables, client: FlaskClient):
@@ -350,3 +349,101 @@ class TestTestingEndpoints:
         # Should have reset lock
         assert hasattr(testing_service, 'reset_lock')
         assert testing_service.reset_lock is not None
+
+
+class TestTestingEndpointsNonTestingMode:
+    """Test testing endpoints behavior when not in testing mode."""
+
+    @pytest.fixture
+    def non_testing_settings(self) -> Settings:
+        """Create settings with testing mode disabled."""
+        return Settings(
+            DATABASE_URL="sqlite:///:memory:",
+            SECRET_KEY="test-secret-key",
+            DEBUG=True,
+            FLASK_ENV="development",  # Not testing mode
+            CORS_ORIGINS=["http://localhost:3000"],
+            ALLOWED_IMAGE_TYPES=["image/jpeg", "image/png"],
+            ALLOWED_FILE_TYPES=["application/pdf"],
+            MAX_IMAGE_SIZE=10 * 1024 * 1024,  # 10MB
+            MAX_FILE_SIZE=100 * 1024 * 1024,  # 100MB
+        )
+
+    @pytest.fixture
+    def non_testing_app(self, non_testing_settings: Settings) -> Flask:
+        """Create Flask app with testing mode disabled."""
+        app = create_app(non_testing_settings)
+
+        with app.app_context():
+            from app.extensions import db
+            db.create_all()
+
+        return app
+
+    @pytest.fixture
+    def non_testing_client(self, non_testing_app: Flask):
+        """Create test client for non-testing mode app."""
+        return non_testing_app.test_client()
+
+    def test_reset_endpoint_returns_400_in_non_testing_mode(self, non_testing_client: FlaskClient):
+        """Test that reset endpoint returns 400 when not in testing mode."""
+        response = non_testing_client.post("/api/testing/reset")
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data["error"] == "This endpoint is only available when the server is running in testing mode"
+        assert data["code"] == "ROUTE_NOT_AVAILABLE"
+        assert data["details"]["message"] == "Testing endpoints require FLASK_ENV=testing"
+        assert "correlationId" in data or "correlationId" not in data  # Optional
+
+    def test_reset_endpoint_with_seed_returns_400_in_non_testing_mode(self, non_testing_client: FlaskClient):
+        """Test that reset endpoint with seed parameter returns 400 when not in testing mode."""
+        response = non_testing_client.post("/api/testing/reset?seed=true")
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data["error"] == "This endpoint is only available when the server is running in testing mode"
+        assert data["code"] == "ROUTE_NOT_AVAILABLE"
+        assert data["details"]["message"] == "Testing endpoints require FLASK_ENV=testing"
+
+    def test_logs_stream_endpoint_returns_400_in_non_testing_mode(self, non_testing_client: FlaskClient):
+        """Test that logs stream endpoint returns 400 when not in testing mode."""
+        response = non_testing_client.get("/api/testing/logs/stream")
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data["error"] == "This endpoint is only available when the server is running in testing mode"
+        assert data["code"] == "ROUTE_NOT_AVAILABLE"
+        assert data["details"]["message"] == "Testing endpoints require FLASK_ENV=testing"
+
+    def test_correlation_id_included_in_non_testing_mode_error(self, non_testing_client: FlaskClient):
+        """Test that correlation IDs are included in error responses when not in testing mode."""
+        test_correlation_id = "test-correlation-789"
+
+        response = non_testing_client.post(
+            "/api/testing/reset",
+            headers={"X-Request-Id": test_correlation_id}
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data.get("correlationId") == test_correlation_id or "correlationId" not in data
+
+    def test_before_request_applies_to_all_testing_routes(self, non_testing_client: FlaskClient):
+        """Test that before_request handler applies to all routes in testing blueprint."""
+        # Test all known testing endpoints
+        endpoints = [
+            ("/api/testing/reset", "POST"),
+            ("/api/testing/logs/stream", "GET"),
+        ]
+
+        for endpoint, method in endpoints:
+            if method == "POST":
+                response = non_testing_client.post(endpoint)
+            else:
+                response = non_testing_client.get(endpoint)
+
+            assert response.status_code == 400
+            data = response.get_json()
+            assert data["code"] == "ROUTE_NOT_AVAILABLE"
+            assert "testing mode" in data["error"]

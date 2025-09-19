@@ -6,10 +6,10 @@ from dependency_injector.wiring import Provide, inject
 from flask import Blueprint
 
 from app.services.container import ServiceContainer
+from app.utils import get_current_correlation_id
 from app.utils.error_handling import handle_api_errors
 from app.utils.shutdown_coordinator import LifetimeEvent
 from app.utils.sse_utils import create_sse_response, format_sse_event
-from app.utils import get_current_correlation_id
 
 utils_bp = Blueprint("utils", __name__, url_prefix="/utils")
 
