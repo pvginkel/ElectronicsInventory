@@ -7,17 +7,22 @@ from flask import Response
 SSE_HEARTBEAT_INTERVAL = 5  # Will be overridden by config
 
 
-def format_sse_event(event: str, data: dict | str) -> str:
+def format_sse_event(event: str, data: dict | str, correlation_id: str | None = None) -> str:
     """Format event name and data into SSE format.
 
     Args:
         event: The event name
         data: The event data (dict will be JSON-encoded)
+        correlation_id: Optional correlation ID to include in event data
 
     Returns:
         Formatted SSE event string
     """
     if isinstance(data, dict):
+        # Add correlation ID to event data if provided
+        if correlation_id and "correlation_id" not in data:
+            data = data.copy()  # Don't modify the original dict
+            data["correlation_id"] = correlation_id
         data = json.dumps(data)
     return f"event: {event}\ndata: {data}\n\n"
 
