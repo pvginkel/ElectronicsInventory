@@ -259,7 +259,7 @@ def copy_attachment(document_service: DocumentService = Provide[ServiceContainer
 
 # URL Preview Endpoints
 @documents_bp.route("/attachment-preview", methods=["POST"])
-@api.validate(json=UrlPreviewRequestSchema, resp=SpectreeResponse(HTTP_200=UrlPreviewResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_422=ErrorResponseSchema))
+@api.validate(json=UrlPreviewRequestSchema, resp=SpectreeResponse(HTTP_200=UrlPreviewResponseSchema, HTTP_400=ErrorResponseSchema))
 @handle_api_errors
 @inject
 def attachment_preview(document_service : DocumentService = Provide[ServiceContainer.document_service]):

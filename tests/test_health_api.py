@@ -70,11 +70,14 @@ class TestHealthEndpoints:
 
     def test_health_endpoints_response_format(self, client: FlaskClient):
         """Test that health endpoints return correct response format."""
-        # Test readyz format
-        readyz_response = client.get("/api/health/readyz")
-        assert "status" in readyz_response.json
-        assert "ready" in readyz_response.json
-        assert isinstance(readyz_response.json["ready"], bool)
+        # Mock the database functions since tests use SQLite with create_all() instead of migrations
+        with patch('app.api.health.check_db_connection', return_value=True), \
+             patch('app.api.health.get_pending_migrations', return_value=[]):
+            # Test readyz format
+            readyz_response = client.get("/api/health/readyz")
+            assert "status" in readyz_response.json
+            assert "ready" in readyz_response.json
+            assert isinstance(readyz_response.json["ready"], bool)
 
         # Test healthz format
         healthz_response = client.get("/api/health/healthz")
@@ -84,17 +87,23 @@ class TestHealthEndpoints:
 
     def test_health_endpoints_content_type(self, client: FlaskClient):
         """Test that health endpoints return JSON content type."""
-        readyz_response = client.get("/api/health/readyz")
-        assert readyz_response.content_type == "application/json"
+        # Mock the database functions since tests use SQLite with create_all() instead of migrations
+        with patch('app.api.health.check_db_connection', return_value=True), \
+             patch('app.api.health.get_pending_migrations', return_value=[]):
+            readyz_response = client.get("/api/health/readyz")
+            assert readyz_response.content_type == "application/json"
 
         healthz_response = client.get("/api/health/healthz")
         assert healthz_response.content_type == "application/json"
 
     def test_health_endpoint_urls(self, client: FlaskClient):
         """Test that health endpoints are available at expected URLs."""
-        # Test readyz is available
-        readyz_response = client.get("/api/health/readyz")
-        assert readyz_response.status_code in [200, 503]
+        # Mock the database functions since tests use SQLite with create_all() instead of migrations
+        with patch('app.api.health.check_db_connection', return_value=True), \
+             patch('app.api.health.get_pending_migrations', return_value=[]):
+            # Test readyz is available
+            readyz_response = client.get("/api/health/readyz")
+            assert readyz_response.status_code in [200, 503]
 
         # Test healthz is available
         healthz_response = client.get("/api/health/healthz")
@@ -102,22 +111,26 @@ class TestHealthEndpoints:
 
     def test_readyz_status_transitions(self, app: Flask, client: FlaskClient):
         """Test readiness probe status transitions during shutdown."""
-        with app.app_context():
-            coordinator = app.container.shutdown_coordinator()
+        # Mock the database functions since tests use SQLite with create_all() instead of migrations
+        with patch('app.api.health.check_db_connection', return_value=True), \
+             patch('app.api.health.get_pending_migrations', return_value=[]):
 
-            # Initially should be ready
-            response = client.get("/api/health/readyz")
-            assert response.status_code == 200
-            assert response.json["ready"] is True
+            with app.app_context():
+                coordinator = app.container.shutdown_coordinator()
 
-            # After shutdown signal, should not be ready
-            if isinstance(coordinator, StubShutdownCoordinator):
-                coordinator.simulate_shutdown()
-            else:
-                coordinator._shutting_down = True
+                # Initially should be ready
+                response = client.get("/api/health/readyz")
+                assert response.status_code == 200
+                assert response.json["ready"] is True
 
-            response = client.get("/api/health/readyz")
-            assert response.status_code == 503
+                # After shutdown signal, should not be ready
+                if isinstance(coordinator, StubShutdownCoordinator):
+                    coordinator.simulate_shutdown()
+                else:
+                    coordinator._shutting_down = True
+
+                response = client.get("/api/health/readyz")
+                assert response.status_code == 503
             assert response.json["ready"] is False
 
     def test_multiple_readyz_calls_during_shutdown(self, app: Flask, client: FlaskClient):
@@ -160,36 +173,42 @@ class TestHealthEndpointIntegration:
 
     def test_readyz_with_task_service(self, app: Flask, client: FlaskClient):
         """Test readiness during task service operations."""
-        with app.app_context():
-            # Verify task service is available
-            task_service = app.container.task_service()
-            assert task_service is not None
+        # Mock the database functions since tests use SQLite with create_all() instead of migrations
+        with patch('app.api.health.check_db_connection', return_value=True), \
+             patch('app.api.health.get_pending_migrations', return_value=[]):
+            with app.app_context():
+                # Verify task service is available
+                task_service = app.container.task_service()
+                assert task_service is not None
 
-        response = client.get("/api/health/readyz")
-        assert response.status_code == 200
-
-    def test_health_endpoints_with_noop_coordinator(self, app: Flask, client: FlaskClient):
-        """Test health endpoints work correctly with StubShutdownCoordinator."""
-        with app.app_context():
-            coordinator = app.container.shutdown_coordinator()
-
-            # Should work with either type of coordinator
             response = client.get("/api/health/readyz")
             assert response.status_code == 200
 
-            response = client.get("/api/health/healthz")
-            assert response.status_code == 200
+    def test_health_endpoints_with_noop_coordinator(self, app: Flask, client: FlaskClient):
+        """Test health endpoints work correctly with StubShutdownCoordinator."""
+        # Mock the database functions since tests use SQLite with create_all() instead of migrations
+        with patch('app.api.health.check_db_connection', return_value=True), \
+             patch('app.api.health.get_pending_migrations', return_value=[]):
+            with app.app_context():
+                coordinator = app.container.shutdown_coordinator()
 
-            # Test shutdown simulation with StubShutdownCoordinator
-            if isinstance(coordinator, StubShutdownCoordinator):
-                coordinator.simulate_shutdown()
-
+                # Should work with either type of coordinator
                 response = client.get("/api/health/readyz")
-                assert response.status_code == 503
+                assert response.status_code == 200
 
-                # Healthz should still be 200
                 response = client.get("/api/health/healthz")
                 assert response.status_code == 200
+
+                # Test shutdown simulation with StubShutdownCoordinator
+                if isinstance(coordinator, StubShutdownCoordinator):
+                    coordinator.simulate_shutdown()
+
+                    response = client.get("/api/health/readyz")
+                    assert response.status_code == 503
+
+                    # Healthz should still be 200
+                    response = client.get("/api/health/healthz")
+                    assert response.status_code == 200
 
     def test_health_endpoints_basic_functionality(self, app: Flask, client: FlaskClient):
         """Test basic health endpoint functionality."""
@@ -226,39 +245,45 @@ class TestHealthEndpointIntegration:
 
     def test_health_check_service_lifecycle_simple(self, app: Flask, client: FlaskClient):
         """Test health checks during service lifecycle - simplified."""
-        with app.app_context():
-            coordinator = app.container.shutdown_coordinator()
+        # Mock the database functions since tests use SQLite with create_all() instead of migrations
+        with patch('app.api.health.check_db_connection', return_value=True), \
+             patch('app.api.health.get_pending_migrations', return_value=[]):
+            with app.app_context():
+                coordinator = app.container.shutdown_coordinator()
 
-            # Test during normal operation
-            response = client.get("/api/health/readyz")
-            initial_status = response.status_code
-            assert initial_status == 200
-
-            # Test during shutdown (simple simulation)
-            if isinstance(coordinator, StubShutdownCoordinator):
-                coordinator.simulate_shutdown()
-
-                # Health check should now return 503
+                # Test during normal operation
                 response = client.get("/api/health/readyz")
-                assert response.status_code == 503
+                initial_status = response.status_code
+                assert initial_status == 200
+
+                # Test during shutdown (simple simulation)
+                if isinstance(coordinator, StubShutdownCoordinator):
+                    coordinator.simulate_shutdown()
+
+                    # Health check should now return 503
+                    response = client.get("/api/health/readyz")
+                    assert response.status_code == 503
 
     def test_readyz_status_messages(self, app: Flask, client: FlaskClient):
         """Test that readyz returns appropriate status messages."""
-        with app.app_context():
-            coordinator = app.container.shutdown_coordinator()
+        # Mock the database functions since tests use SQLite with create_all() instead of migrations
+        with patch('app.api.health.check_db_connection', return_value=True), \
+             patch('app.api.health.get_pending_migrations', return_value=[]):
+            with app.app_context():
+                coordinator = app.container.shutdown_coordinator()
 
-            # Ready state
-            response = client.get("/api/health/readyz")
-            assert response.json["status"] == "ready"
+                # Ready state
+                response = client.get("/api/health/readyz")
+                assert response.json["status"] == "ready"
 
-            # Shutting down state
-            if isinstance(coordinator, StubShutdownCoordinator):
-                coordinator.simulate_shutdown()
-            else:
-                coordinator._shutting_down = True
+                # Shutting down state
+                if isinstance(coordinator, StubShutdownCoordinator):
+                    coordinator.simulate_shutdown()
+                else:
+                    coordinator._shutting_down = True
 
-            response = client.get("/api/health/readyz")
-            assert response.json["status"] == "shutting down"
+                response = client.get("/api/health/readyz")
+                assert response.json["status"] == "shutting down"
 
     def test_healthz_status_consistency(self, app: Flask, client: FlaskClient):
         """Test that healthz always returns consistent status."""
