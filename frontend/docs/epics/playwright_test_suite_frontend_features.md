@@ -1,6 +1,12 @@
 # Playwright Test Suite - Frontend Features Checklist
 
-This checklist tracks all frontend features required for the complete Playwright test suite implementation, derived from the test suite epics. Items marked with ✅ are included in the current Playwright setup plan.
+This checklist tracks all frontend features required for the complete Playwright test suite implementation, derived from the test suite epics.
+
+## Status Legend
+- ✅ Completed (Phase 1)
+- 🚧 In Progress (Phase 2)
+- ⏳ Planned (Future phases)
+- [ ] Not yet scheduled
 
 ## Core Playwright Infrastructure
 
@@ -30,27 +36,28 @@ This checklist tracks all frontend features required for the complete Playwright
 - [x] Environment configuration (.env.test.example)
 - [x] Basic smoke test for verification
 
-### Service Orchestration (Removed from current plan)
-- [ ] Optional start/stop script execution fixtures
-- [ ] APP_START_SCRIPT / APP_STOP_SCRIPT environment variables
-- [ ] WEB_START_SCRIPT / WEB_STOP_SCRIPT environment variables
-- [ ] Script daemonization and PID management
-- [ ] Automatic service lifecycle management
+### Service Orchestration (Phase 2 - In Progress)
+- 🚧 Optional start/stop script execution fixtures
+- 🚧 APP_START_SCRIPT / APP_STOP_SCRIPT environment variables
+- 🚧 WEB_START_SCRIPT / WEB_STOP_SCRIPT environment variables
+- 🚧 Script daemonization and PID management
+- 🚧 Automatic service lifecycle management
+- 🚧 Global teardown for service cleanup
 
-## Frontend Instrumentation (Not in current plan)
+## Frontend Instrumentation
 
-### Test Mode Configuration
-- [ ] Add TEST_MODE environment flag
-- [ ] Conditional instrumentation based on TEST_MODE
-- [ ] Ensure all instrumentation is no-op in production builds
-- [ ] Build-time vs runtime configuration for test mode
-- [ ] Production build verification that test code is excluded
+### Test Mode Configuration (Phase 2 - In Progress)
+- 🚧 Add TEST_MODE environment flag (VITE_TEST_MODE)
+- 🚧 Conditional instrumentation based on TEST_MODE
+- 🚧 Ensure all instrumentation is no-op in production builds
+- 🚧 Build-time vs runtime configuration for test mode
+- 🚧 Production build verification that test code is excluded
 
-### Structured Test Events System
-- [ ] Create centralized emit utility for TEST_EVT
-- [ ] Log one-line JSON prefixed with `TEST_EVT:` to console
-- [ ] Mirror events to window.__TEST_SIGNALS__ (test mode only)
-- [ ] Implement event kinds with specific payloads:
+### Structured Test Events System (Phase 2 - Foundation, Phase 3 - Full Implementation)
+- 🚧 Create centralized emit utility for TEST_EVT (foundation only)
+- 🚧 Log one-line JSON prefixed with `TEST_EVT:` to console (stub implementation)
+- 🚧 Mirror events to window.__TEST_SIGNALS__ (test mode only) (structure prepared)
+- ⏳ Implement event kinds with specific payloads:
   - [ ] `route` - Navigation events (from→to)
   - [ ] `form` - Form lifecycle (id, phase: open|submit|success|error)
   - [ ] `api` - API calls (name, method, status, correlationId, durationMs)
@@ -59,38 +66,38 @@ This checklist tracks all frontend features required for the complete Playwright
   - [ ] `query_error` - TanStack Query errors (queryKey, status, message)
   - [ ] `sse` - SSE events (streamId, phase: open|event|heartbeat|close)
 
-### Console Error Policy
-- [ ] Configure tests to treat console.error as test failure
-- [ ] Audit and migrate misused console.error to console.warn/log
-- [ ] Add ability to explicitly silence expected console.error in tests
+### Console Error Policy (Phase 2 - In Progress)
+- 🚧 Configure tests to treat console.error as test failure
+- 🚧 Audit and migrate misused console.error to console.warn/log
+- 🚧 Add ability to explicitly silence expected console.error in tests
 
-### Global Error & Toast Integration
-- [ ] Wire toast layer to emit TEST_EVT:toast
-- [ ] Wire error boundary to emit TEST_EVT:error
-- [ ] Ensure consistent error surfacing across the app
+### Global Error & Toast Integration (Phase 3 - Planned)
+- ⏳ Wire toast layer to emit TEST_EVT:toast
+- ⏳ Wire error boundary to emit TEST_EVT:error
+- ⏳ Ensure consistent error surfacing across the app
 
-### TanStack Query Integration
-- [ ] Add global onError hook emitting TEST_EVT:query_error
+### TanStack Query Integration (Phase 3 - Planned)
+- ⏳ Add global onError hook emitting TEST_EVT:query_error
 - [ ] Add global onSettled hook for query lifecycle
 - [ ] Include queryKey, HTTP status, normalized message in events
 - [ ] Ensure domain validation errors trigger structured events
 - [ ] Correlation ID propagation in query errors
 - [ ] Integration with centralized error handling system
 
-### Router Instrumentation
-- [ ] Emit TEST_EVT:route on every navigation
-- [ ] Include from and to route information
+### Router Instrumentation (Phase 3 - Planned)
+- ⏳ Emit TEST_EVT:route on every navigation
+- ⏳ Include from and to route information
 
-### Forms & Mutations Instrumentation
-- [ ] Emit TEST_EVT:form at lifecycle points (open, submit, success, error)
+### Forms & Mutations Instrumentation (Phase 3 - Planned)
+- ⏳ Emit TEST_EVT:form at lifecycle points (open, submit, success, error)
 - [ ] Include stable formId in events
 - [ ] Add minimal payload for debugging
 - [ ] Form validation error integration
 - [ ] Mutation success/error event correlation
 - [ ] Stable formId generation strategy
 
-### API Client Instrumentation
-- [ ] Emit TEST_EVT:api for every request/response
+### API Client Instrumentation (Phase 3 - Planned)
+- ⏳ Emit TEST_EVT:api for every request/response
 - [ ] Include operation name, method, status, duration
 - [ ] Propagate X-Request-Id header
 - [ ] Generate correlation ID if not present
@@ -98,18 +105,18 @@ This checklist tracks all frontend features required for the complete Playwright
 - [ ] Duration measurement (durationMs)
 - [ ] Request/response lifecycle tracking
 
-### SSE Client Instrumentation
-- [ ] Emit TEST_EVT:sse for connection lifecycle
+### SSE Client Instrumentation (Phase 3 - Planned)
+- ⏳ Emit TEST_EVT:sse for connection lifecycle
 - [ ] Log open, close, and heartbeat events (~30s intervals)
 - [ ] Include minimal metadata for debugging
 - [ ] Stream ID management
 - [ ] Event type logging
 - [ ] Integration with SSE-aware timeout fixtures
 
-## UI Testing Support (Not in current plan)
+## UI Testing Support
 
-### Data Test Attributes
-- [ ] Adopt data-test attributes as primary selector strategy
+### Data Test Attributes (Phase 4 - Planned)
+- ⏳ Adopt data-test attributes as primary selector strategy
 - [ ] Apply to Types screens and components
 - [ ] Establish comprehensive naming patterns:
   - [ ] Page level: types.page, parts.page, boxes.page, etc.
@@ -133,10 +140,10 @@ This checklist tracks all frontend features required for the complete Playwright
 - [ ] SSE-specific timeout handling (30-35s for SSE operations)
 - [ ] Clear indication of waiting states
 
-### Testing Utilities Exposure
-- [ ] Expose emitTestEvt helper for LLM usage
-- [ ] Document helper usage in CLAUDE.md
-- [ ] Ensure helper is no-op in production builds
+### Testing Utilities Exposure (Phase 2 - Foundation)
+- 🚧 Expose emitTestEvt helper for LLM usage (stub implementation)
+- ⏳ Document helper usage in CLAUDE.md
+- 🚧 Ensure helper is no-op in production builds
 
 ## Documentation (Partially in current plan)
 
@@ -168,10 +175,10 @@ This checklist tracks all frontend features required for the complete Playwright
 - [ ] Document readyz endpoint enhancements
 - [ ] Document correlation ID debugging workflows
 
-## Test Coverage Requirements (Not in current plan)
+## Test Coverage Requirements
 
-### Types Feature Tests
-- [ ] Create specific tests for Types CRUD operations
+### Types Feature Tests (Phase 4 - Planned)
+- ⏳ Create specific tests for Types CRUD operations
 - [ ] Create E2E test for complete Types workflow
 - [ ] Test blocked delete with reverse dependencies (TYPE_IN_USE error)
 - [ ] Test HTTP 409 response handling for blocked operations
@@ -192,7 +199,7 @@ This checklist tracks all frontend features required for the complete Playwright
 - [ ] Test tolerance for preexisting data
 - [ ] Collision avoidance with randomized suffixes
 
-## Backend Integration Points (Partially in current plan)
+## Backend Integration Points
 
 ### API Communication
 - [x] Handle /api/health/readyz endpoint (for readiness polling)
@@ -200,8 +207,8 @@ This checklist tracks all frontend features required for the complete Playwright
 - [ ] Propagate correlation IDs (X-Request-Id header)
 - [ ] Reset concurrency handling (503 responses with Retry-After)
 
-### Backend Log Streaming (Critical for LLM observability)
-- [ ] Connect to /api/testing/logs/stream SSE endpoint
+### Backend Log Streaming (Phase 5 - Planned)
+- ⏳ Connect to /api/testing/logs/stream SSE endpoint
 - [ ] Parse structured JSON log format:
   - [ ] timestamp (ISO format)
   - [ ] level (ERROR, WARNING, INFO, DEBUG)
@@ -221,10 +228,10 @@ This checklist tracks all frontend features required for the complete Playwright
 - [ ] Detect FLASK_ENV=testing on backend
 - [ ] Conditionally enable test features based on backend mode
 
-## Performance and Production Safety (Not in current plan)
+## Performance and Production Safety
 
-### Build-Time Safety
-- [ ] Conditional compilation of test features
+### Build-Time Safety (Phase 2 - In Progress)
+- 🚧 Conditional compilation of test features
 - [ ] Production build verification
 - [ ] Test mode detection and gating
 - [ ] Runtime safety checks
@@ -247,38 +254,43 @@ This checklist tracks all frontend features required for the complete Playwright
 
 ## Summary
 
-**Currently in Playwright Setup Plan:** 21/110+ items (~19%)
-- Core Playwright infrastructure ✅
-- Basic test helpers and fixtures ✅
-- Directory structure and configuration ✅
-- Readiness polling (health checks) ✅
+### Phase Status
 
-**Not in Current Plan:** 89+ items (~81%)
-- Service orchestration (start/stop scripts)
-- Frontend instrumentation system
-- Structured test events (TEST_EVT)
-- Data-test attributes implementation
-- Types feature test coverage
-- Complete documentation
-- Backend integration beyond health checks
+**Phase 1 - Basic Infrastructure (Completed):** 21 items
+- ✅ Core Playwright infrastructure
+- ✅ Basic test helpers and fixtures
+- ✅ Directory structure and configuration
+- ✅ Readiness polling (health checks)
 
-The current plan provides a solid foundation for Playwright testing but does not include the comprehensive instrumentation and observability features required for effective LLM-driven test authoring and debugging.
+**Phase 2 - Service Orchestration & Test Mode (In Progress):** ~20 items
+- 🚧 Service orchestration (start/stop scripts)
+- 🚧 Test mode configuration infrastructure
+- 🚧 Console error policy
+- 🚧 Test event system foundation (stub only)
+- 🚧 Build-time safety for production
 
-### Key Gaps by Priority
+**Phase 3 - Frontend Instrumentation (Planned):** ~30 items
+- ⏳ Full structured test events (TEST_EVT) implementation
+- ⏳ Router, API, and forms instrumentation
+- ⏳ TanStack Query integration
+- ⏳ Toast and error boundary integration
+- ⏳ SSE client instrumentation
 
-**Critical (Required for LLM testing):**
-1. Frontend instrumentation system (TEST_EVT events)
-2. Data-test attributes implementation
-3. Error handling and console policy
-4. Correlation ID system
+**Phase 4 - UI Testing & Types Features (Planned):** ~25 items
+- ⏳ Data-test attributes implementation
+- ⏳ Types feature test coverage
+- ⏳ Test patterns and helpers
+- ⏳ Documentation updates
 
-**Important (Enhanced testing capabilities):**
-1. Backend testing endpoints integration
-2. Backend log streaming (critical for LLM debugging)
-3. TanStack Query and Router instrumentation
-4. Types feature test implementation
+**Phase 5 - Backend Integration (Planned):** ~15 items
+- ⏳ Backend testing endpoints integration
+- ⏳ Backend log streaming for LLM observability
+- ⏳ Reset endpoint and correlation IDs
+- ⏳ Full end-to-end test capabilities
 
-**Nice to Have (Can be added later):**
-1. Service orchestration (start/stop scripts)
-2. Performance optimizations
-3. Advanced debugging features
+### Implementation Progress
+- **Completed:** ~19% (Phase 1)
+- **In Progress:** ~18% (Phase 2)
+- **Remaining:** ~63% (Phases 3-5)
+
+The phased approach ensures each layer builds properly on the previous one, with Phase 2 providing the critical infrastructure for test mode and service management that subsequent phases will depend on.
