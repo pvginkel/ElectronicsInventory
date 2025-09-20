@@ -15,6 +15,7 @@ cd "$BACKEND_DIR" || {
 # Set testing environment
 export FLASK_ENV=testing
 export FLASK_DEBUG=false
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/electronics_inventory_test
 
 # Run the Flask server
 echo "Starting Electronics Inventory backend in testing mode..."
