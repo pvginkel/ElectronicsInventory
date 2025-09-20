@@ -5,6 +5,7 @@
 
 import { emitTestEvent } from './event-emitter';
 import { TestEventKind, type ErrorTestEvent } from '@/types/test-events';
+import { getGlobalCorrelationContext } from '@/contexts/correlation-context';
 
 /**
  * Extract error code from error object
@@ -22,12 +23,10 @@ function extractErrorCode(error: Error): string | undefined {
 
 /**
  * Get correlation ID from current context
- * In practice, this could be extracted from current request headers or context
  */
 function getCurrentCorrelationId(): string | undefined {
-  // For now, try to find the most recent correlation ID from any ongoing request
-  // This is a simplified implementation - in a real app you might have a context provider
-  return undefined;
+  const context = getGlobalCorrelationContext();
+  return context?.getCorrelationId();
 }
 
 /**

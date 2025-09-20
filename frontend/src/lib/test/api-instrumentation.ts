@@ -7,15 +7,30 @@ import type { Client } from 'openapi-fetch';
 import { ulid } from 'ulid';
 import { emitTestEvent } from './event-emitter';
 import { TestEventKind, type ApiTestEvent } from '@/types/test-events';
+import { getGlobalCorrelationContext } from '@/contexts/correlation-context';
 
 // Store request timing information
 const requestTiming = new Map<string, number>();
 
 /**
  * Generate a correlation ID for tracking requests
+ * Checks context for existing ID or generates a new one
  */
-function generateCorrelationId(): string {
-  return ulid();
+function getOrGenerateCorrelationId(): string {
+  const context = getGlobalCorrelationContext();
+  const existingId = context?.getCorrelationId();
+
+  if (existingId) {
+    return existingId;
+  }
+
+  // Generate new correlation ID
+  const newId = ulid();
+
+  // Store in context if available
+  context?.setCorrelationId(newId);
+
+  return newId;
 }
 
 /**
@@ -39,7 +54,7 @@ export function setupApiInstrumentation(client: Client<any>): void {
   // Request interceptor
   client.use({
     onRequest({ request }) {
-      const correlationId = generateCorrelationId();
+      const correlationId = getOrGenerateCorrelationId();
 
       // Add correlation ID header
       request.headers.set('X-Request-Id', correlationId);

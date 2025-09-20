@@ -1,8 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
 import { parseApiError, is404Error } from '@/lib/utils/error-parsing'
-import { isTestMode } from '@/lib/config/test-mode'
-import { emitTestEvent } from '@/lib/test/event-emitter'
-import { TestEventKind, type QueryErrorTestEvent } from '@/types/test-events'
+import { setupQueryInstrumentation } from '@/lib/test/query-instrumentation'
 
 // Store the toast function reference to avoid circular dependencies
 let toastFunction: ((message: string) => void) | null = null
@@ -37,17 +35,6 @@ export const queryClient = new QueryClient({
     mutations: {
       retry: false, // Don't retry mutations by default
       onError: (error: any) => {
-        // Emit test event in test mode
-        if (isTestMode()) {
-          const queryErrorEvent: Omit<QueryErrorTestEvent, 'timestamp'> = {
-            kind: TestEventKind.QUERY_ERROR,
-            queryKey: 'mutation:unknown',
-            status: (error as any)?.status || undefined,
-            message: error instanceof Error ? error.message : String(error),
-          };
-          emitTestEvent(queryErrorEvent);
-        }
-
         // Always show mutation errors to the user
         if (toastFunction) {
           const message = parseApiError(error)
@@ -58,4 +45,5 @@ export const queryClient = new QueryClient({
   }
 })
 
-// Note: Query error instrumentation is handled directly in the onError handler above
+// Setup query instrumentation in test mode
+setupQueryInstrumentation(queryClient)
