@@ -5,11 +5,15 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$(dirname "$SCRIPT_DIR")"
-PID_FILE="/tmp/inventory-backend.pid"
-LOG_FILE="/tmp/inventory-backend.log"
+TMP_DIR="$BACKEND_DIR/tmp"
+PID_FILE="$TMP_DIR/inventory-backend.pid"
+LOG_FILE="$TMP_DIR/inventory-backend.log"
 
 start_daemon() {
     echo "Starting Electronics Inventory backend in testing mode..."
+
+    # Ensure tmp directory exists
+    mkdir -p "$TMP_DIR"
 
     # Check if already running
     if [ -f "$PID_FILE" ]; then
