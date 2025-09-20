@@ -57,4 +57,18 @@ export default defineConfig({
     port: 3000,
     allowedHosts: true
   },
+  define: {
+    // Ensure VITE_TEST_MODE is available at runtime
+    // Environment variables starting with VITE_ are automatically included
+    // but we explicitly define it here to ensure it's always available
+    'import.meta.env.VITE_TEST_MODE': JSON.stringify(process.env.VITE_TEST_MODE || 'false'),
+  },
+  build: {
+    // Ensure test mode is disabled in production builds
+    rollupOptions: {
+      external: process.env.NODE_ENV === 'production' && process.env.VITE_TEST_MODE === 'true'
+        ? ['./src/lib/test/*']
+        : []
+    }
+  }
 })

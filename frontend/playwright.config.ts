@@ -9,7 +9,8 @@ if (fs.existsSync(testEnvPath)) {
 }
 
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3100';
-const backendUrl = process.env.BACKEND_URL || 'http://localhost:5100';
+
+const playwrightManagedServices = process.env.PLAYWRIGHT_MANAGED_SERVICES !== 'false';
 
 export default defineConfig({
   testDir: './tests',
@@ -21,6 +22,21 @@ export default defineConfig({
     ['list'],
     ['html', { outputFolder: 'playwright-report' }]
   ],
+
+  webServer: playwrightManagedServices ? [
+    {
+      command: './scripts/testing-server.sh',
+      port: 3100,
+      timeout: 60 * 1000,
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: '../backend/scripts/testing-server.sh',
+      port: 5100,
+      timeout: 60 * 1000,
+      reuseExistingServer: !process.env.CI,
+    }
+  ] : undefined,
 
   use: {
     baseURL: frontendUrl,

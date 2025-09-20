@@ -1,12 +1,20 @@
 import { chromium, FullConfig } from '@playwright/test';
 
-async function globalSetup(config: FullConfig) {
+async function globalSetup(_config: FullConfig) {
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3100';
   const backendUrl = process.env.BACKEND_URL || 'http://localhost:5100';
+  const playwrightManagedServices = process.env.PLAYWRIGHT_MANAGED_SERVICES !== 'false';
 
   console.log('🔧 Setting up Playwright tests...');
   console.log(`Frontend URL: ${frontendUrl}`);
   console.log(`Backend URL: ${backendUrl}`);
+  console.log(`Service management: ${playwrightManagedServices ? 'Playwright managed' : 'External'}`);
+
+  // Skip health checks if Playwright manages services (webServer handles this)
+  if (playwrightManagedServices) {
+    console.log('⏭️ Skipping health checks - Playwright manages services');
+    return;
+  }
 
   const browser = await chromium.launch();
   const page = await browser.newPage();
