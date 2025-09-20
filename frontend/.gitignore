@@ -1,3 +1,10 @@
 node_modules
 .env.local
 /dist
+.pnpm-store
+
+# Playwright artifacts
+/test-results/
+/playwright-report/
+/playwright/.cache/
+.env.test
