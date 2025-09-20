@@ -39,7 +39,7 @@ start_daemon() {
 
     # Start the Flask dev server in background
     echo "Starting Flask development server..."
-    poetry run python -m flask run --host=0.0.0.0 --port=5000 > "$LOG_FILE" 2>&1 &
+    poetry run python -m flask run --host=0.0.0.0 --port=5100 > "$LOG_FILE" 2>&1 &
 
     # Get the PID of the background process
     FLASK_PID=$!
@@ -165,7 +165,7 @@ case "${1:-}" in
         echo
         echo "Environment:"
         echo "  FLASK_ENV=testing is set automatically"
-        echo "  Backend runs on http://0.0.0.0:5000"
+        echo "  Backend runs on http://0.0.0.0:5100"
         echo "  Use /api/health/readyz to check readiness"
         exit 1
         ;;
