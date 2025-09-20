@@ -27,19 +27,9 @@ start_daemon() {
         fi
     fi
 
-    # Change to backend directory
-    cd "$BACKEND_DIR" || {
-        echo "Error: Could not change to backend directory: $BACKEND_DIR"
-        exit 1
-    }
-
-    # Set testing environment
-    export FLASK_ENV=testing
-    export FLASK_DEBUG=false
-
-    # Start the Flask dev server in background
+    # Start the Flask dev server in background using the testing-server.sh script
     echo "Starting Flask development server..."
-    poetry run python -m flask run --host=0.0.0.0 --port=5100 > "$LOG_FILE" 2>&1 &
+    "$SCRIPT_DIR/testing-server.sh" > "$LOG_FILE" 2>&1 &
 
     # Get the PID of the background process
     FLASK_PID=$!
