@@ -4,10 +4,12 @@ import './index.css'
 import App from './App.tsx'
 import { isTestMode } from '@/lib/config/test-mode'
 import { setupConsolePolicy } from '@/lib/test/console-policy'
+import { setupErrorInstrumentation } from '@/lib/test/error-instrumentation'
 
-// Setup console policy if in test mode
+// Setup test mode infrastructure
 if (isTestMode()) {
   setupConsolePolicy();
+  setupErrorInstrumentation();
 }
 
 createRoot(document.getElementById('root')!).render(

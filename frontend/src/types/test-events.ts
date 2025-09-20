@@ -23,7 +23,7 @@ export type TestEventKind = typeof TestEventKind[keyof typeof TestEventKind];
  */
 export interface BaseTestEvent {
   kind: TestEventKind;
-  timestamp: Date;
+  timestamp: string;
 }
 
 /**
@@ -31,7 +31,8 @@ export interface BaseTestEvent {
  */
 export interface RouteTestEvent extends BaseTestEvent {
   kind: 'route';
-  route: string;
+  from: string;
+  to: string;
   params?: Record<string, string>;
 }
 
@@ -40,8 +41,8 @@ export interface RouteTestEvent extends BaseTestEvent {
  */
 export interface FormTestEvent extends BaseTestEvent {
   kind: 'form';
-  action: 'submit' | 'reset' | 'validate';
-  formId?: string;
+  phase: 'open' | 'submit' | 'success' | 'error';
+  formId: string;
   fields?: Record<string, unknown>;
 }
 
@@ -50,10 +51,11 @@ export interface FormTestEvent extends BaseTestEvent {
  */
 export interface ApiTestEvent extends BaseTestEvent {
   kind: 'api';
+  operation: string;
   method: string;
-  url: string;
-  status?: number;
-  duration?: number;
+  status: number;
+  correlationId: string;
+  durationMs: number;
 }
 
 /**
@@ -61,7 +63,8 @@ export interface ApiTestEvent extends BaseTestEvent {
  */
 export interface ToastTestEvent extends BaseTestEvent {
   kind: 'toast';
-  type: 'success' | 'error' | 'warning' | 'info';
+  level: 'success' | 'error' | 'warning' | 'info';
+  code?: string;
   message: string;
 }
 
@@ -70,8 +73,10 @@ export interface ToastTestEvent extends BaseTestEvent {
  */
 export interface ErrorTestEvent extends BaseTestEvent {
   kind: 'error';
-  error: string;
-  source?: string;
+  scope: string;
+  code?: string;
+  message: string;
+  correlationId?: string;
 }
 
 /**
@@ -80,7 +85,8 @@ export interface ErrorTestEvent extends BaseTestEvent {
 export interface QueryErrorTestEvent extends BaseTestEvent {
   kind: 'query_error';
   queryKey: string;
-  error: string;
+  status?: number;
+  message: string;
 }
 
 /**
@@ -88,6 +94,8 @@ export interface QueryErrorTestEvent extends BaseTestEvent {
  */
 export interface SseTestEvent extends BaseTestEvent {
   kind: 'sse';
+  streamId: string;
+  phase: 'open' | 'message' | 'error' | 'close';
   event: string;
   data?: unknown;
 }

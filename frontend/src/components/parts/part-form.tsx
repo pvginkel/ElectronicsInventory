@@ -13,6 +13,8 @@ import { useDuplicatePart } from '@/hooks/use-duplicate-part';
 import { validatePartData } from '@/lib/utils/parts';
 import { useToast } from '@/hooks/use-toast';
 import type { ApiDocument } from '@/lib/utils/document-transformers';
+import { isTestMode } from '@/lib/config/test-mode';
+import { trackFormOpen, trackFormSubmit, trackFormSuccess, generateFormId } from '@/lib/test/form-instrumentation';
 
 interface PartFormData {
   description: string;
@@ -42,6 +44,8 @@ interface PartFormProps {
 }
 
 export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: PartFormProps) {
+  const formId = generateFormId('PartForm', partId ? 'edit' : duplicateFromPartId ? 'duplicate' : 'create');
+
   const [formData, setFormData] = useState<PartFormData>({
     description: '',
     manufacturerCode: '',
@@ -141,6 +145,13 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
     }
   }, [duplicateFormData, duplicateSourceDocuments, duplicateCoverDocumentId, isDuplicating]);
 
+  // Track form open on mount
+  useEffect(() => {
+    if (isTestMode()) {
+      trackFormOpen(formId, { description: formData.description });
+    }
+  }, [formId]); // Only run on mount
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -170,6 +181,11 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
 
     setErrors({});
 
+    // Track form submit
+    if (isTestMode()) {
+      trackFormSubmit(formId, { description: formData.description });
+    }
+
     if (isEditing && partId) {
       // Update existing part
       const result = await updatePartMutation.mutateAsync({
@@ -194,6 +210,12 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
           output_voltage: formData.outputVoltage || null,
         }
       });
+
+      // Track form success
+      if (isTestMode()) {
+        trackFormSuccess(formId, { description: formData.description });
+      }
+
       onSuccess(result.key);
     } else {
       // Create new part
@@ -262,6 +284,11 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
         } finally {
           setIsCopying(false);
         }
+      }
+
+      // Track form success
+      if (isTestMode()) {
+        trackFormSuccess(formId, { description: formData.description });
       }
 
       onSuccess(result.key);

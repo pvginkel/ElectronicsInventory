@@ -2,6 +2,8 @@ import { createContext, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Toast, ToastType } from '@/components/ui/toast'
 import { ToastContainer } from '@/components/ui/toast'
+import { isTestMode } from '@/lib/config/test-mode'
+import { createInstrumentedToastWrapper } from '@/lib/test/toast-instrumentation'
 
 interface ToastContextValue {
   showToast: (message: string, type: ToastType, duration?: number) => void
@@ -48,7 +50,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
-  const contextValue: ToastContextValue = {
+  const baseContextValue: ToastContextValue = {
     showToast,
     showError,
     showSuccess,
@@ -56,6 +58,11 @@ export function ToastProvider({ children }: ToastProviderProps) {
     showInfo,
     removeToast
   }
+
+  // Instrument toast functions in test mode
+  const contextValue = isTestMode()
+    ? createInstrumentedToastWrapper(baseContextValue)
+    : baseContextValue
 
   return (
     <ToastContext.Provider value={contextValue}>

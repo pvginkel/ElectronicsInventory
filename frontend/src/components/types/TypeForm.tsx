@@ -3,6 +3,9 @@ import { Form, FormField, FormLabel } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useFormState } from '@/hooks/use-form-state'
+import { useEffect } from 'react'
+import { isTestMode } from '@/lib/config/test-mode'
+import { trackFormOpen, trackFormSubmit, trackFormSuccess, trackFormError, generateFormId } from '@/lib/test/form-instrumentation'
 
 interface TypeFormData extends Record<string, string> {
   name: string
@@ -19,14 +22,16 @@ interface TypeFormProps {
   submitText: string
 }
 
-export function TypeForm({ 
-  open, 
-  onOpenChange, 
-  onSubmit, 
-  initialValues, 
-  title, 
-  submitText 
+export function TypeForm({
+  open,
+  onOpenChange,
+  onSubmit,
+  initialValues,
+  title,
+  submitText
 }: TypeFormProps) {
+  const formId = generateFormId('TypeForm', initialValues?.name ? 'edit' : 'create');
+
   const form = useFormState<TypeFormData>({
     initialValues: {
       name: initialValues?.name || ''
@@ -39,13 +44,36 @@ export function TypeForm({
       }
     },
     onSubmit: async (values) => {
-      await onSubmit({
-        name: values.name.trim()
-      })
-      onOpenChange(false)
-      form.reset()
+      if (isTestMode()) {
+        trackFormSubmit(formId, { name: values.name });
+      }
+
+      try {
+        await onSubmit({
+          name: values.name.trim()
+        })
+
+        if (isTestMode()) {
+          trackFormSuccess(formId, { name: values.name });
+        }
+
+        onOpenChange(false)
+        form.reset()
+      } catch (error) {
+        if (isTestMode()) {
+          trackFormError(formId, { name: values.name });
+        }
+        throw error; // Re-throw to let normal error handling work
+      }
     }
   })
+
+  // Track form open when dialog opens
+  useEffect(() => {
+    if (open && isTestMode()) {
+      trackFormOpen(formId, { name: form.values.name });
+    }
+  }, [open, formId, form.values.name]);
 
   const handleClose = () => {
     onOpenChange(false)
