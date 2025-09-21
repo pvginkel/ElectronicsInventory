@@ -118,26 +118,64 @@ export const test = base.extend<TestFixtures>({
 });
 ```
 
-**Create: `tests/e2e/types/types.selectors.ts`**
+**Create: `tests/e2e/types/TypesPage.ts`**
 ```typescript
-// Minimal selectors for create test
-export const TYPES_SELECTORS = {
-  page: 'types.page',
-  create: {
-    button: 'types.create.button',
-    modal: 'types.create.modal',
-  },
-  form: {
-    name: 'types.form.name',
-    submit: 'types.form.submit',
-    cancel: 'types.form.cancel',
-  },
-  list: {
-    container: 'types.list.container',
-    card: 'types.list.card',
-    cardName: 'types.list.card.name',
-  },
-};
+import { expect, type Locator, type Page } from '@playwright/test';
+
+export class TypesPage {
+  readonly page: Page;
+  readonly root: Locator;
+  readonly createButton: Locator;
+  readonly listContainer: Locator;
+  readonly cards: Locator;
+
+  constructor(page: Page) {
+    this.page = page;
+    this.root = page.getByTestId('types.page');
+
+    // Prefer role-based selectors, fallback to testid
+    this.createButton = this.root.getByRole('button', { name: /add type/i })
+      .or(this.root.getByTestId('types.create.button'));
+
+    // TypeList uses cards, not table
+    this.listContainer = this.root.getByTestId('types.list.container');
+    this.cards = this.root.getByTestId('types.list.card');
+  }
+
+  async goto() {
+    await this.page.goto('/types');
+    await expect(this.root).toBeVisible();
+  }
+
+  modal(): Locator {
+    return this.page.getByRole('dialog')
+      .or(this.page.getByTestId('types.create.modal'));
+  }
+
+  cardByName(name: string): Locator {
+    return this.cards.filter({ hasText: name });
+  }
+
+  nameInput(): Locator {
+    // Prefer label-based selector
+    return this.page.getByLabel('Name')
+      .or(this.page.getByTestId('types.form.name'));
+  }
+
+  submitButton(): Locator {
+    return this.page.getByRole('button', { name: /add type|update type/i })
+      .or(this.page.getByTestId('types.form.submit'));
+  }
+
+  async createType(name: string) {
+    await this.createButton.click();
+    await expect(this.modal()).toBeVisible();
+    await this.nameInput().fill(name);
+    await this.submitButton().click();
+    await expect(this.modal()).toBeHidden();
+    await expect(this.cardByName(name)).toBeVisible();
+  }
+}
 ```
 
 **Create: `tests/e2e/types/types.helpers.ts`**
@@ -153,53 +191,79 @@ export function createRandomTypeName(): string {
 }
 ```
 
-**Create: `tests/support/helpers.ts`** (New file with improved patterns)
+**Modify: `tests/support/fixtures.ts`**
+Extend fixtures to include page objects:
 ```typescript
+import { test as base } from '@playwright/test';
+import { TypesPage } from '../e2e/types/TypesPage';
+
+type TestFixtures = {
+  frontendUrl: string;
+  backendUrl: string;
+  sseTimeout: number;
+  types: TypesPage; // Add page object fixture
+};
+
+export const test = base.extend<TestFixtures>({
+  // ... existing fixtures ...
+
+  page: async ({ page }, use) => {
+    // Kill all animations for deterministic tests
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.addStyleTag({
+      content: `
+        *, *::before, *::after {
+          transition-duration: 0s !important;
+          animation-duration: 0s !important;
+          animation-delay: 0s !important;
+        }
+      `
+    });
+    await use(page);
+  },
+
+  types: async ({ page }, use) => {
+    await use(new TypesPage(page));
+  },
+});
+```
+
+**Create: `tests/support/helpers.ts`** (Minimal utilities)
+```typescript
+// Only for rare cases where raw CSS selector is needed
 export function testId(id: string): string {
   return `[data-testid="${id}"]`;
 }
-
-// Note: awaitEvent should be avoided per no-sleep-patterns.md
-// Only include if absolutely necessary for debugging
 ```
 
 **Create: `tests/e2e/types/create-type.spec.ts`**
 ```typescript
 import { test, expect } from '../../support/fixtures';
-import { TYPES_SELECTORS } from './types.selectors';
 import { createRandomTypeName } from './types.helpers';
-import { testId } from '../../support/helpers';
 
 test.describe('Types - Create', () => {
-  test('creates a new type', async ({ page }) => {
-    // Navigate and verify page is ready
-    await page.goto('/types');
-    await expect(page.locator(testId(TYPES_SELECTORS.page))).toBeVisible();
+  test('creates a new type', async ({ types }) => {
+    await types.goto();
 
-    // Open create modal
-    await page.locator(testId(TYPES_SELECTORS.create.button)).click();
-    const modal = page.locator(testId(TYPES_SELECTORS.create.modal));
-    await expect(modal).toBeVisible();
-
-    // Fill in type name
     const typeName = createRandomTypeName();
-    await page.locator(testId(TYPES_SELECTORS.form.name)).fill(typeName);
+    await types.createType(typeName);
 
-    // Submit form - UI-first approach
-    const submitButton = page.locator(testId(TYPES_SELECTORS.form.submit));
-    await submitButton.click();
+    // Additional assertion for toast if needed
+    await expect(types.page.getByRole('status')).toHaveText(/created|saved/i);
+  });
 
-    // Assert modal closes
-    await expect(modal).toBeHidden();
+  test('validates required fields', async ({ types }) => {
+    await types.goto();
+    await types.createButton.click();
+    await expect(types.modal()).toBeVisible();
 
-    // Assert the user-visible outcome: new card appears
-    const card = page
-      .locator(testId(TYPES_SELECTORS.list.card))
-      .filter({ hasText: typeName });
-    await expect(card).toBeVisible();
+    // Try to submit without filling name
+    await types.submitButton.click();
 
-    // Assert toast message via role (preferred over custom events)
-    await expect(page.getByRole('status')).toHaveText(/created|saved/i);
+    // Should still be in modal with error
+    await expect(types.modal()).toBeVisible();
+    // Check for validation error (adjust based on actual error display)
+    await expect(types.page.getByText(/required/i)).toBeVisible();
   });
 });
 ```
@@ -273,53 +337,137 @@ Expand test coverage to include all CRUD operations, edge cases, and blocked del
 
 #### 2. Expand Test Infrastructure
 
-**Update: `tests/e2e/types/types.selectors.ts`**
-Add complete selector set:
+**Update: `tests/e2e/types/TypesPage.ts`**
+Add complete page object implementation:
 ```typescript
-export const TYPES_SELECTORS = {
-  page: 'types.page',
-  list: {
-    container: 'types.list.container',
-    card: 'types.list.card',
-    cardName: 'types.list.card.name',
-    cardEdit: 'types.list.card.edit',
-    cardDelete: 'types.list.card.delete',
-    cardActions: 'types.list.card.actions',
-  },
-  form: {
-    container: 'types.form.container',
-    name: 'types.form.name',
-    submit: 'types.form.submit',
-    cancel: 'types.form.cancel',
-    error: 'types.form.error',
-  },
-  create: {
-    button: 'types.create.button',
-    modal: 'types.create.modal',
-  },
-  edit: {
-    modal: 'types.edit.modal',
-  },
-  modal: {
-    close: 'types.modal.close',
-  },
-};
+import { expect, type Locator, type Page } from '@playwright/test';
+
+export class TypesPage {
+  readonly page: Page;
+  readonly root: Locator;
+  readonly createButton: Locator;
+  readonly listContainer: Locator;
+  readonly cards: Locator;
+  readonly searchInput: Locator;
+
+  constructor(page: Page) {
+    this.page = page;
+    this.root = page.getByTestId('types.page');
+
+    // Main page elements
+    this.createButton = this.root.getByRole('button', { name: /add type/i })
+      .or(this.root.getByTestId('types.create.button'));
+    this.searchInput = this.root.getByPlaceholder('Search...');
+
+    // List elements (cards, not table)
+    this.listContainer = this.root.getByTestId('types.list.container');
+    this.cards = this.root.getByTestId('types.list.card');
+  }
+
+  async goto() {
+    await this.page.goto('/types');
+    await expect(this.root).toBeVisible();
+  }
+
+  // Modal locators (dynamic since they're not always present)
+  createModal(): Locator {
+    return this.page.getByTestId('types.create.modal');
+  }
+
+  editModal(): Locator {
+    return this.page.getByTestId('types.edit.modal');
+  }
+
+  modal(): Locator {
+    return this.page.getByRole('dialog');
+  }
+
+  // Form elements (work in both create and edit modals)
+  nameInput(): Locator {
+    return this.page.getByLabel('Name')
+      .or(this.page.getByTestId('types.form.name'));
+  }
+
+  submitButton(): Locator {
+    return this.modal().getByRole('button', { name: /add type|update type/i })
+      .or(this.page.getByTestId('types.form.submit'));
+  }
+
+  cancelButton(): Locator {
+    return this.modal().getByRole('button', { name: /cancel/i })
+      .or(this.page.getByTestId('types.form.cancel'));
+  }
+
+  // Card-specific methods
+  cardByName(name: string): Locator {
+    return this.cards.filter({ hasText: name });
+  }
+
+  editButtonForCard(name: string): Locator {
+    return this.cardByName(name)
+      .getByRole('button', { name: /edit/i })
+      .or(this.cardByName(name).getByTestId('types.list.card.edit'));
+  }
+
+  deleteButtonForCard(name: string): Locator {
+    return this.cardByName(name)
+      .getByRole('button', { name: /delete/i })
+      .or(this.cardByName(name).getByTestId('types.list.card.delete'));
+  }
+
+  // High-level actions
+  async createType(name: string) {
+    await this.createButton.click();
+    await expect(this.createModal()).toBeVisible();
+    await this.nameInput().fill(name);
+    await this.submitButton().click();
+    await expect(this.createModal()).toBeHidden();
+    await expect(this.cardByName(name)).toBeVisible();
+  }
+
+  async editType(oldName: string, newName: string) {
+    await this.editButtonForCard(oldName).click();
+    await expect(this.editModal()).toBeVisible();
+    await this.nameInput().clear();
+    await this.nameInput().fill(newName);
+    await this.submitButton().click();
+    await expect(this.editModal()).toBeHidden();
+    await expect(this.cardByName(newName)).toBeVisible();
+  }
+
+  async deleteType(name: string) {
+    await this.deleteButtonForCard(name).click();
+    // Confirm dialog appears
+    const confirmDialog = this.page.getByRole('dialog', { name: /delete type/i });
+    await expect(confirmDialog).toBeVisible();
+    // Click the Delete button in the confirm dialog
+    await confirmDialog.getByRole('button', { name: 'Delete' }).click();
+    await expect(confirmDialog).toBeHidden();
+    await expect(this.cardByName(name)).toBeHidden();
+  }
+
+  async search(term: string) {
+    await this.searchInput.fill(term);
+    // Wait for filtered results (cards update immediately)
+  }
+}
 ```
 
 **Update: `tests/e2e/types/types.helpers.ts`**
-Add additional helpers:
+Keep helpers minimal - page object handles most actions:
 ```typescript
-export async function waitForTypeCreation(page: Page, typeName: string) {
-  // Implementation
+export function generateRandomId(): string {
+  return Math.random().toString(36).substring(2, 8);
 }
 
-export async function expectBlockedDelete(page: Page) {
-  // Implementation
+export function createRandomTypeName(): string {
+  const prefix = 'type';
+  const shortId = generateRandomId();
+  return `${prefix}-${shortId}`;
 }
 
-export async function deleteType(page: Page, typeName: string) {
-  // Implementation
-}
+// Only add helpers that don't belong in page object
+// Most actions should be methods on TypesPage
 ```
 
 #### 3. Create Additional Tests
@@ -332,24 +480,47 @@ export async function deleteType(page: Page, typeName: string) {
 
 **Testing Pattern Examples:**
 ```typescript
-// Edit test - UI-first approach
-await page.getByRole('button', { name: 'Edit' }).click();
-await expect(page.locator(testId(TYPES_SELECTORS.edit.modal))).toBeVisible();
+// Using the page object pattern
+import { test, expect } from '../../support/fixtures';
 
-// Delete test - Assert UI change
-await page.getByRole('button', { name: 'Delete' }).click();
-await expect(page.getByRole('dialog', { name: /confirm/i })).toBeVisible();
-await page.getByRole('button', { name: 'Delete' }).click(); // Confirm button text is "Delete"
-// Use filter instead of :has-text
-const card = page.locator(testId(TYPES_SELECTORS.list.card)).filter({ hasText: typeName });
-await expect(card).toBeHidden();
+test('edits an existing type', async ({ types }) => {
+  await types.goto();
+  const oldName = createRandomTypeName();
+  const newName = createRandomTypeName();
 
-// Validation test - Assert error appears
-await page.getByLabel('Type name').fill('');
-await page.getByRole('button', { name: 'Submit' }).click();
-await expect(page.getByRole('alert')).toHaveText(/required/i);
-// OR with data-testid:
-await expect(page.locator('[data-testid="form.error"]')).toBeVisible();
+  // Create a type first
+  await types.createType(oldName);
+
+  // Edit it
+  await types.editType(oldName, newName);
+
+  // Verify old name is gone, new name exists
+  await expect(types.cardByName(oldName)).toBeHidden();
+  await expect(types.cardByName(newName)).toBeVisible();
+});
+
+test('deletes a type', async ({ types }) => {
+  await types.goto();
+  const typeName = createRandomTypeName();
+
+  await types.createType(typeName);
+  await types.deleteType(typeName);
+
+  // Verify it's gone
+  await expect(types.cardByName(typeName)).toBeHidden();
+});
+
+test('handles validation errors', async ({ types }) => {
+  await types.goto();
+  await types.createButton.click();
+
+  // Submit without filling required field
+  await types.submitButton.click();
+
+  // Modal should stay open with error
+  await expect(types.modal()).toBeVisible();
+  await expect(types.page.getByText(/required/i)).toBeVisible();
+});
 ```
 
 **Create: `tests/e2e/types/types-workflow.spec.ts`**
@@ -357,8 +528,9 @@ await expect(page.locator('[data-testid="form.error"]')).toBeVisible();
 - Navigate → Create → Edit → Delete attempt
 - Test with multiple types
 
-**Rename: `tests/support/selectors.ts` → `tests/support/common.selectors.ts`**
-- Update for shared selectors
+**Delete: `tests/support/selectors.ts`**
+- Remove in favor of page objects
+- Each feature owns its page object
 
 ### Phase 4b Test Coverage
 
@@ -394,23 +566,26 @@ Document patterns, update CLAUDE.md, and establish guidelines for future feature
 
 #### 1. Update CLAUDE.md
 - Complete Playwright testing section
-- Document selector naming conventions
+- Document page object pattern
 - Add TEST_EVT assertion patterns
 - Include debugging guidelines
 - **Add No-Sleep Testing Rules section**
 - Document allowed wait patterns
 - Include common replacement patterns
+- Reference new selector patterns document
 
 #### 2. Create Testing Guidelines
 - Document folder structure patterns
-- Selector organization strategy
+- Page object organization strategy
 - Helper function patterns
 - Event assertion patterns
+- **Create selector-patterns.md** documenting the page object approach
 
 #### 3. Create Examples
 - Example test for future features
-- Template for feature selectors
+- Template for feature page objects
 - Template for feature helpers
+- Migration guide from selector maps to page objects
 
 ## Dependencies (All Completed)
 
