@@ -5,7 +5,7 @@ import { config } from 'dotenv';
 
 const testEnvPath = path.resolve(process.cwd(), '.env.test');
 if (fs.existsSync(testEnvPath)) {
-  config({ path: testEnvPath });
+  config({ path: testEnvPath, quiet: true });
 }
 
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3100';
@@ -20,7 +20,10 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [
     ['list'],
-    ['html', { outputFolder: 'playwright-report' }]
+    ['html', {
+      outputFolder: 'playwright-report',
+      open: process.env.CI || process.env.CLAUDECODE ? 'never' : 'on-failure'
+    }]
   ],
 
   webServer: playwrightManagedServices ? [

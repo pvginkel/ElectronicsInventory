@@ -189,23 +189,33 @@ Only handle errors manually for:
 - **Form validation** that requires field-specific error display
 - **Silent errors** where toast notification isn't appropriate
 
-## Testing Requirements
+## UI Testing (Playwright) — How Claude should work
 
-**IMPORTANT: Testing framework is not yet implemented.**
+The project uses **Playwright** for end-to-end testing with a focus on the Types feature as the pilot implementation. The testing strategy emphasizes stable selectors, observable events, and feature ownership patterns.
 
-The project currently has **no testing infrastructure** in place. While testing is important for code quality, the current codebase does not have:
+### Running Tests Locally
 
-- No test runner (Vitest, Jest, etc.)
-- No testing utilities (@testing-library/react, etc.) 
-- No test files (`*.test.ts` or `*.spec.ts`)
-- No testing scripts in `package.json`
-- No coverage reporting
+**Headless mode (CI/default):**
+```bash
+pnpm playwright test
+```
 
-### Future Testing Considerations
-When implementing tests, consider:
-- **Vitest** (integrates well with Vite)
-- **@testing-library/react** for component testing
-- **MSW** for API mocking using the generated OpenAPI types
+Playwright tests cannot be run headed.
+
+**Debug mode:**
+```bash
+pnpm playwright test --debug
+```
+
+**Run specific test file:**
+```bash
+pnpm playwright test tests/e2e/types/types-workflow.spec.ts
+```
+
+**Run specific test:**
+```bash
+pnpm playwright test -g "should create a new type successfully"
+```
 
 ## Definition of Done
 

@@ -29,17 +29,19 @@ export async function awaitEvent(
     const handler = (msg: any) => {
       try {
         const text = msg.text();
-        if (text.startsWith(`[TEST-EVENT:${kind}]`)) {
-          const payload = JSON.parse(text.substring(`[TEST-EVENT:${kind}]`.length));
+        if (text.startsWith('TEST_EVT: ')) {
+          const eventData = JSON.parse(text.substring('TEST_EVT: '.length));
 
-          if (!filter || filter(payload)) {
-            clearTimeout(timeoutId);
-            page.off('console', handler);
-            resolve(payload);
+          if (eventData.kind === kind) {
+            if (!filter || filter(eventData)) {
+              clearTimeout(timeoutId);
+              page.off('console', handler);
+              resolve(eventData);
+            }
           }
         }
       } catch (e) {
-        // Ignore non-test-event console messages
+        // Ignore non-test-event console messages or malformed JSON
       }
     };
 
