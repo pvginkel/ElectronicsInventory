@@ -1,3 +1,4 @@
+import * as React from 'react'
 import * as ToastPrimitive from '@radix-ui/react-toast'
 import { cn } from '@/lib/utils'
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon'
@@ -11,12 +12,18 @@ export interface Toast {
   duration?: number
 }
 
-interface ToastProps {
+type NativeToastRootProps = React.ComponentPropsWithoutRef<typeof ToastPrimitive.Root>;
+type NativeToastViewportProps = React.ComponentPropsWithoutRef<typeof ToastPrimitive.Viewport>;
+
+interface ToastProps extends Omit<NativeToastRootProps, 'duration' | 'onOpenChange'> {
   toast: Toast
   onRemove: (id: string) => void
 }
 
-function ToastComponent({ toast, onRemove }: ToastProps) {
+const ToastComponent = React.forwardRef<
+  React.ElementRef<typeof ToastPrimitive.Root>,
+  ToastProps
+>(({ toast, onRemove, className, ...props }, ref) => {
   const typeStyles = {
     success: 'bg-green-50 border-green-200 text-green-800',
     error: 'bg-red-50 border-red-200 text-red-800',
@@ -33,6 +40,8 @@ function ToastComponent({ toast, onRemove }: ToastProps) {
 
   return (
     <ToastPrimitive.Root
+      ref={ref}
+      {...props}
       duration={toast.duration || 5000}
       onOpenChange={(open) => {
         if (!open) {
@@ -44,7 +53,8 @@ function ToastComponent({ toast, onRemove }: ToastProps) {
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out',
         'data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full',
         'data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full',
-        typeStyles[toast.type]
+        typeStyles[toast.type],
+        className
       )}
     >
       <div className="p-4">
@@ -69,20 +79,37 @@ function ToastComponent({ toast, onRemove }: ToastProps) {
       </div>
     </ToastPrimitive.Root>
   )
-}
+})
+ToastComponent.displayName = "ToastComponent"
 
 interface ToastContainerProps {
   toasts: Toast[]
   onRemove: (id: string) => void
+  viewportProps?: NativeToastViewportProps
+  getItemProps?: (toast: Toast) => Partial<ToastProps>
 }
 
-export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
+export function ToastContainer({ toasts, onRemove, viewportProps, getItemProps }: ToastContainerProps) {
   return (
     <ToastPrimitive.Provider swipeDirection="right">
-      {toasts.map((toast) => (
-        <ToastComponent key={toast.id} toast={toast} onRemove={onRemove} />
-      ))}
-      <ToastPrimitive.Viewport className="fixed bottom-0 right-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]" />
+      {toasts.map((toast) => {
+        const itemProps = getItemProps?.(toast) || {}
+        return (
+          <ToastComponent
+            key={toast.id}
+            toast={toast}
+            onRemove={onRemove}
+            {...itemProps}
+          />
+        )
+      })}
+      <ToastPrimitive.Viewport
+        {...viewportProps}
+        className={cn(
+          "fixed bottom-0 right-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
+          viewportProps?.className
+        )}
+      />
     </ToastPrimitive.Provider>
   )
 }

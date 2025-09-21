@@ -1,40 +1,38 @@
-import { type ReactNode, forwardRef } from 'react'
+import * as React from 'react'
 import { Slot } from '@radix-ui/react-slot'
 import { cn } from '@/lib/utils'
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  children: ReactNode
-  onClick?: () => void
+type NativeButtonProps = React.ComponentPropsWithoutRef<"button">
+
+interface ButtonProps extends NativeButtonProps {
   variant?: 'default' | 'primary' | 'secondary' | 'outline' | 'ghost' | 'ai_assisted'
   size?: 'sm' | 'md' | 'lg'
-  disabled?: boolean
   loading?: boolean
-  icon?: ReactNode
-  className?: string
-  type?: 'button' | 'submit' | 'reset'
+  icon?: React.ReactNode
   preventValidation?: boolean
   asChild?: boolean
 }
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ 
-    children, 
-    onClick, 
-    variant = 'default', 
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({
+    variant = 'default',
     size = 'md',
-    disabled = false,
     loading = false,
     icon,
-    className = '',
+    className,
+    onClick,
+    onMouseUp,
+    disabled,
     type = 'button',
     preventValidation = false,
     asChild = false,
+    children,
     ...props
   }, ref) => {
     const Comp = asChild ? Slot : 'button'
-    
+
     const baseClasses = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
-    
+
     const variantClasses = {
       default: 'bg-primary text-primary-foreground hover:bg-primary/90',
       primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
@@ -43,7 +41,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ghost: 'hover:bg-accent hover:text-accent-foreground',
       ai_assisted: 'bg-gradient-to-r from-[#0afecf] to-[#16bbd4] ai-glare'
     }
-    
+
     const sizeClasses = {
       sm: 'h-8 px-2 text-sm',
       md: 'h-10 px-4',
@@ -53,26 +51,27 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     if (preventValidation && !onClick) {
       throw new Error('onClick must be provided when preventValidation is set')
     }
-    
-    const handleMouseUp = preventValidation && onClick ? (e: React.MouseEvent) => {
-      if (e.button === 0) {
-        e.preventDefault()
-        e.stopPropagation()
-        onClick()
-      }
-    } : undefined
 
-    const handleClick = onClick ? (e: React.MouseEvent) => {
-      if (e.button === 0) {
+    const handleMouseUp: React.MouseEventHandler<HTMLButtonElement> = (e) => {
+      if (preventValidation && onClick && e.button === 0) {
         e.preventDefault()
         e.stopPropagation()
-        onClick()
+        onClick(e)
       }
-    } : undefined
+      onMouseUp?.(e)
+    }
+
+    const handleClick: React.MouseEventHandler<HTMLButtonElement> = (e) => {
+      if (preventValidation) {
+        return
+      }
+      onClick?.(e)
+    }
 
     return (
       <Comp
         ref={ref}
+        {...props}
         type={type}
         onClick={handleClick}
         onMouseUp={handleMouseUp}
@@ -83,7 +82,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           sizeClasses[size],
           className
         )}
-        {...props}
       >
         {loading ? (
           <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />

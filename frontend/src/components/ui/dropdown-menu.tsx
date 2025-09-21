@@ -1,49 +1,61 @@
+import * as React from 'react';
 import type { ReactNode } from 'react';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { cn } from '@/lib/utils';
 
-interface DropdownMenuProps {
+type NativeDropdownMenuRootProps = React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root>;
+
+interface DropdownMenuProps extends NativeDropdownMenuRootProps {
   children: ReactNode;
 }
 
-export function DropdownMenu({ children }: DropdownMenuProps) {
+export function DropdownMenu({ children, ...props }: DropdownMenuProps) {
   return (
-    <DropdownMenuPrimitive.Root>
+    <DropdownMenuPrimitive.Root {...props}>
       {children}
     </DropdownMenuPrimitive.Root>
   );
 }
 
-interface DropdownMenuTriggerProps {
+type NativeDropdownMenuTriggerProps = React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Trigger>;
+
+interface DropdownMenuTriggerProps extends NativeDropdownMenuTriggerProps {
   children: ReactNode;
-  asChild?: boolean;
-  className?: string;
 }
 
-export function DropdownMenuTrigger({ children, asChild = false, className }: DropdownMenuTriggerProps) {
+export const DropdownMenuTrigger = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Trigger>,
+  DropdownMenuTriggerProps
+>(({ children, className, ...props }, ref) => {
   return (
-    <DropdownMenuPrimitive.Trigger asChild={asChild} className={className}>
+    <DropdownMenuPrimitive.Trigger
+      ref={ref}
+      {...props}
+      className={className}
+    >
       {children}
     </DropdownMenuPrimitive.Trigger>
   );
-}
+});
+DropdownMenuTrigger.displayName = "DropdownMenuTrigger";
 
-interface DropdownMenuContentProps {
+type NativeDropdownMenuContentProps = React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>;
+
+interface DropdownMenuContentProps extends Omit<NativeDropdownMenuContentProps, 'align' | 'sideOffset'> {
   align?: 'start' | 'center' | 'end';
   sideOffset?: number;
-  className?: string;
   children: ReactNode;
 }
 
-export function DropdownMenuContent({ 
-  align = 'start', 
-  sideOffset = 4,
-  className, 
-  children 
-}: DropdownMenuContentProps) {
+export const DropdownMenuContent = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Content>,
+  DropdownMenuContentProps
+>(({ align = 'start', sideOffset = 4, className, children, ...props }, ref) => {
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
+        ref={ref}
+        {...props}
         align={align}
         sideOffset={sideOffset}
         className={cn(
@@ -56,25 +68,25 @@ export function DropdownMenuContent({
       </DropdownMenuPrimitive.Content>
     </DropdownMenuPrimitive.Portal>
   );
-}
+});
+DropdownMenuContent.displayName = "DropdownMenuContent";
 
-interface DropdownMenuItemProps {
+type NativeDropdownMenuItemProps = React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item>;
+
+interface DropdownMenuItemProps extends Omit<NativeDropdownMenuItemProps, 'onSelect'> {
   onClick?: () => void;
-  disabled?: boolean;
-  className?: string;
   children: ReactNode;
 }
 
-export function DropdownMenuItem({ 
-  onClick, 
-  disabled = false, 
-  className, 
-  children 
-}: DropdownMenuItemProps) {
+export const DropdownMenuItem = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Item>,
+  DropdownMenuItemProps
+>(({ onClick, className, children, ...props }, ref) => {
   return (
     <DropdownMenuPrimitive.Item
+      ref={ref}
+      {...props}
       onSelect={onClick}
-      disabled={disabled}
       className={cn(
         'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors',
         'focus:bg-accent focus:text-accent-foreground',
@@ -86,31 +98,45 @@ export function DropdownMenuItem({
       {children}
     </DropdownMenuPrimitive.Item>
   );
-}
+});
+DropdownMenuItem.displayName = "DropdownMenuItem";
 
-interface DropdownMenuSeparatorProps {
-  className?: string;
-}
+type NativeDropdownMenuSeparatorProps = React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Separator>;
 
-export function DropdownMenuSeparator({ className }: DropdownMenuSeparatorProps) {
+type DropdownMenuSeparatorProps = NativeDropdownMenuSeparatorProps;
+
+export const DropdownMenuSeparator = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Separator>,
+  DropdownMenuSeparatorProps
+>(({ className, ...props }, ref) => {
   return (
     <DropdownMenuPrimitive.Separator
+      ref={ref}
+      {...props}
       className={cn('-mx-1 my-1 h-px bg-muted', className)}
     />
   );
-}
+});
+DropdownMenuSeparator.displayName = "DropdownMenuSeparator";
 
-interface DropdownMenuLabelProps {
-  className?: string;
+type NativeDropdownMenuLabelProps = React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Label>;
+
+interface DropdownMenuLabelProps extends NativeDropdownMenuLabelProps {
   children: ReactNode;
 }
 
-export function DropdownMenuLabel({ className, children }: DropdownMenuLabelProps) {
+export const DropdownMenuLabel = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Label>,
+  DropdownMenuLabelProps
+>(({ className, children, ...props }, ref) => {
   return (
     <DropdownMenuPrimitive.Label
+      ref={ref}
+      {...props}
       className={cn('px-2 py-1.5 text-sm font-semibold', className)}
     >
       {children}
     </DropdownMenuPrimitive.Label>
   );
-}
+});
+DropdownMenuLabel.displayName = "DropdownMenuLabel";

@@ -95,6 +95,7 @@ export function TypeForm({
               </FormLabel>
               <Input
                 id="name"
+                data-testid="types.form.name"
                 maxLength={255}
                 placeholder="Enter type name (e.g., Resistor, Capacitor, IC)"
                 {...form.getFieldProps('name')}
@@ -103,13 +104,20 @@ export function TypeForm({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" preventValidation onClick={handleClose}>
+            <Button
+              type="button"
+              variant="outline"
+              preventValidation
+              onClick={handleClose}
+              data-testid="types.form.cancel"
+            >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={!form.isValid || form.isSubmitting}
               loading={form.isSubmitting}
+              data-testid="types.form.submit"
             >
               {submitText}
             </Button>

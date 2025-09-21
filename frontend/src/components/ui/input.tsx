@@ -1,30 +1,42 @@
-import { type ReactNode, forwardRef } from 'react'
+import * as React from 'react'
+import { cn } from '@/lib/utils'
 import { ClearButtonIcon } from '../icons/clear-button-icon'
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  icon?: ReactNode
+type NativeInputProps = React.ComponentPropsWithoutRef<"input">
+
+interface InputProps extends NativeInputProps {
+  icon?: React.ReactNode
   error?: string
-  action?: ReactNode
+  action?: React.ReactNode
   clearable?: boolean
   onClear?: () => void
+  invalid?: boolean
 }
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ icon, error, action, clearable, onClear, className = '', value, ...props }, ref) => {
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({
+    icon,
+    error,
+    action,
+    clearable,
+    onClear,
+    className,
+    value,
+    invalid,
+    ...props
+  }, ref) => {
     const baseClasses = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
-    
-    const errorClasses = error ? 'border-destructive' : ''
+
+    const hasError = error || invalid
     const hasRightContent = action || (clearable && value)
     const hasBothButtons = action && clearable && value
     const paddingRightClass = hasBothButtons ? 'pr-16' : hasRightContent ? 'pr-10' : ''
     const paddingLeftClass = icon ? 'pl-10' : ''
-    
+
     const handleClear = () => {
-      if (onClear) {
-        onClear()
-      }
+      onClear?.()
     }
-    
+
     return (
       <div className="relative">
         {icon && (
@@ -32,14 +44,21 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {icon}
           </div>
         )}
-        
+
         <input
           ref={ref}
-          value={value}
-          className={`${baseClasses} ${errorClasses} ${paddingLeftClass} ${paddingRightClass} ${className}`}
           {...props}
+          value={value}
+          aria-invalid={hasError ? 'true' : undefined}
+          className={cn(
+            baseClasses,
+            hasError && 'border-destructive',
+            paddingLeftClass,
+            paddingRightClass,
+            className
+          )}
         />
-        
+
         {hasRightContent && (
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
             {clearable && value && (
@@ -55,7 +74,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {action}
           </div>
         )}
-        
+
         {error && (
           <p className="mt-1 text-sm text-destructive">{error}</p>
         )}

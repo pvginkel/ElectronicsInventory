@@ -349,6 +349,7 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
               </FormLabel>
               <Input
                 id="description"
+                data-testid="parts.form.description"
                 value={formData.description}
                 onChange={(e) => updateFormData('description', e.target.value)}
                 error={errors.description}
@@ -362,6 +363,7 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
               </FormLabel>
               <Input
                 id="manufacturerCode"
+                data-testid="parts.form.manufacturer"
                 value={formData.manufacturerCode}
                 onChange={(e) => updateFormData('manufacturerCode', e.target.value)}
                 error={errors.manufacturerCode}
@@ -641,6 +643,7 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
             type="submit"
             disabled={isLoading}
             loading={isLoading}
+            data-testid="parts.form.submit"
           >
             {isCopying ? 'Copying Documents...' : isEditing ? 'Update Part' : isDuplicating ? 'Create Duplicate' : 'Add Part'}
           </Button>

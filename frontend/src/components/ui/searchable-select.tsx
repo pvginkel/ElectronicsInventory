@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { Input } from '@/components/ui/input';
@@ -9,12 +10,11 @@ interface SearchableSelectOption {
   [key: string]: unknown; // Allow additional properties
 }
 
-interface SearchableSelectProps<T extends SearchableSelectOption> {
+type NativeInputProps = React.ComponentPropsWithoutRef<"input">;
+
+interface SearchableSelectProps<T extends SearchableSelectOption> extends Omit<NativeInputProps, "value" | "onChange" | "role" | "aria-expanded" | "aria-haspopup" | "aria-autocomplete"> {
   value?: number;
   onChange: (value: number | undefined) => void;
-  placeholder?: string;
-  error?: string;
-  className?: string;
 
   // Data fetching
   options: T[];
@@ -33,13 +33,15 @@ interface SearchableSelectProps<T extends SearchableSelectOption> {
   // Loading states
   loadingText?: string;
   noResultsText?: string;
+
+  // Error state
+  error?: string;
 }
 
-export function SearchableSelect<T extends SearchableSelectOption>({
+function SearchableSelectComponent<T extends SearchableSelectOption>({
   value,
   onChange,
   placeholder = "Search or select...",
-  error,
   className,
   options = [],
   isLoading,
@@ -50,20 +52,27 @@ export function SearchableSelect<T extends SearchableSelectOption>({
   onCreateNew,
   createNewLabel = (term) => `Create "${term}"`,
   loadingText = "Searching...",
-  noResultsText = "No results found"
-}: SearchableSelectProps<T>) {
+  noResultsText = "No results found",
+  error,
+  onFocus,
+  ...props
+}: SearchableSelectProps<T>, ref: React.Ref<HTMLInputElement>) {
   const [open, setOpen] = useState(false);
   const [isUserEditing, setIsUserEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Merge refs
+  React.useImperativeHandle(ref, () => inputRef.current!);
 
   // Find the selected option
   const selectedOption = value ? options.find(option => option.id === value) : null;
 
   // Handle input focus
-  const handleInputFocus = () => {
+  const handleInputFocus: React.FocusEventHandler<HTMLInputElement> = (e) => {
     setIsUserEditing(true);
     // Use a small delay to avoid conflicts with Radix UI's internal handlers
     setTimeout(() => setOpen(true), 0);
+    onFocus?.(e);
   };
 
   // Handle input change
@@ -154,15 +163,16 @@ export function SearchableSelect<T extends SearchableSelectOption>({
   return (
     <Popover.Root open={open} onOpenChange={handleOpenChange} modal={false}>
       <Popover.Anchor asChild>
-        <div className={cn("relative", className)}>
+        <div className="relative">
           <Input
             ref={inputRef}
+            {...props}
             value={searchTerm}
             onChange={handleInputChange}
             onFocus={handleInputFocus}
             placeholder={placeholder}
             error={error}
-            className="w-full pr-8"
+            className={cn("w-full pr-8", className)}
             aria-expanded={open}
             aria-haspopup="listbox"
             aria-autocomplete="list"
@@ -246,6 +256,12 @@ export function SearchableSelect<T extends SearchableSelectOption>({
     </Popover.Root>
   );
 }
+
+export const SearchableSelect = React.forwardRef(SearchableSelectComponent) as <T extends SearchableSelectOption>(
+  props: SearchableSelectProps<T> & { ref?: React.Ref<HTMLInputElement> }
+) => React.ReactElement;
+
+(SearchableSelect as { displayName?: string }).displayName = "SearchableSelect";
 
 interface SearchableSelectOptionProps<T extends SearchableSelectOption> {
   option: T;

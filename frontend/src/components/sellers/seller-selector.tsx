@@ -55,7 +55,7 @@ export function SellerSelector({
       onChange(result.id)
       setSearchTerm(result.name)
       setCreateDialogOpen(false)
-    } catch (error) {
+    } catch {
       // Error handling is automatic via React Query
     }
   }, [onChange, createMutation])
