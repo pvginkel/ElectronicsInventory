@@ -1,4 +1,4 @@
-# Playwright Test Types Feature Phase 4 - Technical Plan (Revised)
+# Playwright Test Types Feature Phase 4 - Technical Plan (Phased Approach)
 
 ## Brief Description
 
@@ -10,382 +10,298 @@ This is Phase 4 of the Playwright test suite implementation, building on:
 - **Phase 1-3**: Basic infrastructure, service orchestration, and frontend instrumentation (✅ Complete)
 - **Pre-Phase 4**: Component refactoring to accept data-* attributes and forward refs (✅ Complete)
 
-This phase focuses on:
-1. Adding data-testid attributes to Types feature components and routes
-2. Creating specific (near-unit) and E2E tests for Types CRUD operations
-3. Testing blocked delete scenarios with reverse dependencies
-4. Updating documentation for Playwright testing workflow
-5. Establishing selector naming and test patterns for future features
+**Phase 4 is now divided into sub-phases:**
+- **Phase 4a**: Single test implementation - Create a type
+- **Phase 4b**: Complete CRUD tests and edge cases
+- **Phase 4c**: Documentation and patterns establishment
 
-### Existing Infrastructure Context
+## Phase 4a: Single Test Implementation (Create Type)
 
-The project has comprehensive infrastructure from completed phases:
-- **Component refactoring**: All UI components now accept data-testid attributes and forward refs
-- **Test infrastructure**: `tests/smoke.spec.ts`, `tests/support/` directory with fixtures, global-setup, helpers, and selectors
-- **Service orchestration**: Playwright webServer configuration for frontend and backend
-- **TEST_EVT events**: Console events emitted by the instrumented frontend for observability
-  - Event kinds: api, form, toast, route, query_error (SSE events deferred)
-  - Events include correlation IDs for backend log correlation
+### Goal
+Implement and successfully run a single end-to-end test that creates a type and validates its creation. This establishes the foundation for all subsequent testing.
 
-## Files to Create or Modify
+### Files to Create or Modify
 
-### Data-testid Attributes Implementation
+#### 1. Add Minimal Data-testid Attributes
 
-**Important Note**: Thanks to Pre-Phase 4 component refactoring, all UI components now accept data-testid attributes natively. We only need to add the attributes when using the components.
-
-#### Modify: `src/routes/types/index.tsx`
+**Modify: `src/routes/types/index.tsx`**
 - Add `data-testid="types.page"` to main page container
-- Add `data-testid="types.list.container"` to list wrapper
 - Add `data-testid="types.create.button"` to create button
-- Components already forward these attributes to DOM elements
 
-#### Modify: `src/components/types/TypeList.tsx`
+**Modify: `src/components/types/type-create-dialog.tsx`**
+- Add `data-testid="types.create.modal"` to Dialog contentProps
+
+**Verify: `src/components/types/TypeForm.tsx`**
+- Verify `data-testid="types.form.name"` on Input component
+- Verify `data-testid="types.form.submit"` on submit Button
+- Note: These should already exist from Pre-Phase 4
+
+**Modify: `src/components/types/TypeList.tsx`**
 - Add `data-testid="types.list.table"` to table element
 - Add `data-testid="types.list.row"` to each table row
 - Add `data-testid="types.list.row.name"` to name cells
-- Add `data-testid="types.list.row.actions"` to action buttons container
+
+#### 2. Create Minimal Test Infrastructure
+
+**Create: `tests/e2e/types/types.selectors.ts`**
+```typescript
+// Minimal selectors for create test
+export const TYPES_SELECTORS = {
+  page: 'types.page',
+  create: {
+    button: 'types.create.button',
+    modal: 'types.create.modal',
+  },
+  form: {
+    name: 'types.form.name',
+    submit: 'types.form.submit',
+  },
+  list: {
+    table: 'types.list.table',
+    row: 'types.list.row',
+    rowName: 'types.list.row.name',
+  },
+};
+```
+
+**Create: `tests/e2e/types/types.helpers.ts`**
+```typescript
+import { generateRandomId } from '../../support/helpers';
+
+export function createRandomTypeName(): string {
+  const prefix = 'type';
+  const shortId = generateRandomId();
+  return `${prefix}-${shortId}`;
+}
+```
+
+**Modify: `tests/support/helpers.ts`**
+Add only the essential helper:
+```typescript
+export function testId(id: string): string {
+  return `[data-testid="${id}"]`;
+}
+```
+
+**Create: `tests/e2e/types/create-type.spec.ts`**
+```typescript
+import { test, expect } from '../../support/fixtures';
+import { TYPES_SELECTORS } from './types.selectors';
+import { createRandomTypeName } from './types.helpers';
+import { testId, awaitEvent } from '../../support/helpers';
+
+test.describe('Types - Create', () => {
+  test('should create a new type successfully', async ({ page }) => {
+    // Navigate to Types page
+    await page.goto('/types');
+    await page.waitForSelector(testId(TYPES_SELECTORS.page));
+
+    // Wait for route event
+    await awaitEvent(page, 'route', { to: '/types' });
+
+    // Click create button
+    await page.click(testId(TYPES_SELECTORS.create.button));
+    await page.waitForSelector(testId(TYPES_SELECTORS.create.modal));
+
+    // Fill in type name
+    const typeName = createRandomTypeName();
+    await page.fill(testId(TYPES_SELECTORS.form.name), typeName);
+
+    // Submit form
+    await page.click(testId(TYPES_SELECTORS.form.submit));
+
+    // Wait for API success event
+    await awaitEvent(page, 'api', { status: 201 });
+
+    // Wait for form success event
+    await awaitEvent(page, 'form', { phase: 'success' });
+
+    // Verify type appears in list
+    await page.waitForSelector(testId(TYPES_SELECTORS.list.table));
+    const rowWithName = page.locator(
+      `${testId(TYPES_SELECTORS.list.row)}:has-text("${typeName}")`
+    );
+    await expect(rowWithName).toBeVisible();
+
+    // Verify toast success (via event)
+    await awaitEvent(page, 'toast', { level: 'success' });
+  });
+});
+```
+
+### Phase 4a Verification Checklist
+
+Before proceeding to Phase 4b, ensure:
+
+1. ✅ All required data-testid attributes are in place
+2. ✅ The create-type test runs successfully
+3. ✅ TEST_EVT events are properly captured:
+   - route navigation to /types
+   - form submission
+   - API call with status 201
+   - form success phase
+   - toast success notification
+4. ✅ The test works on both clean and dirty databases
+5. ✅ The test completes within 10 seconds
+6. ✅ No console.error messages appear during the test
+
+### Phase 4a Implementation Steps
+
+1. **Add data-testid attributes** (30 minutes)
+   - Add minimal attributes needed for create flow
+   - Verify components accept and forward attributes
+
+2. **Create test infrastructure** (45 minutes)
+   - Create types.selectors.ts with minimal selectors
+   - Create types.helpers.ts with name generation
+   - Add testId helper to support/helpers.ts
+
+3. **Write and debug the test** (1-2 hours)
+   - Create create-type.spec.ts
+   - Debug selector issues
+   - Verify event sequence
+   - Ensure test passes consistently
+
+4. **Validate robustness** (30 minutes)
+   - Run test 5 times consecutively
+   - Test with dirty database
+   - Verify no flakiness
+
+## Phase 4b: Complete Test Coverage (After 4a Success)
+
+### Goal
+Expand test coverage to include all CRUD operations, edge cases, and blocked delete scenarios.
+
+### Additional Files to Modify
+
+#### 1. Complete Data-testid Attributes
+
+**Modify: `src/components/types/TypeList.tsx`**
 - Add `data-testid="types.list.row.edit"` to edit buttons
 - Add `data-testid="types.list.row.delete"` to delete buttons
+- Add `data-testid="types.list.row.actions"` to actions container
 
-#### Verify: `src/components/types/TypeForm.tsx`
-- Verify `data-testid="types.form.name"` on Input component
-- Verify `data-testid="types.form.submit"` on submit Button
-- Verify `data-testid="types.form.cancel"` on cancel Button
-- Add `data-testid="types.form.container"` to form wrapper if missing
-- Add `data-testid="types.form.error"` to error display areas if missing
-- Note: Per Pre-Phase 4 completion, TypeForm already has basic attributes added
+**Modify: `src/components/types/TypeForm.tsx`**
+- Add `data-testid="types.form.container"` to form wrapper
+- Add `data-testid="types.form.cancel"` to cancel button
+- Add `data-testid="types.form.error"` to error display areas
 
-#### Modify: `src/components/types/type-create-dialog.tsx`
-- Add `data-testid="types.create.modal"` to Dialog contentProps
-- Add `data-testid="types.create.modal.close"` to DialogClose component
-- Add `data-testid="types.create.modal.overlay"` to Dialog overlayProps
-- Dialog component already supports prop distribution from Pre-Phase 4
+**Modify: `src/components/types/type-create-dialog.tsx`**
+- Add `data-testid="types.create.modal.close"` to close button
+- Add `data-testid="types.create.modal.overlay"` to overlay
 
-#### Toast Attributes (Already Supported)
-- Toast component refactored in Pre-Phase 4 supports data-testid via getItemProps pattern
-- Verify toast creation includes type-specific attributes:
-  - `data-testid="toast.success"` for success toasts
-  - `data-testid="toast.error"` for error toasts
-  - `data-testid="toast.warning"` for warning toasts
-  - `data-testid="toast.info"` for info toasts
-  - `data-testid="toast.close"` to close buttons
+#### 2. Expand Test Infrastructure
 
-### Playwright Test Implementation
-
-#### Test Directory Structure (Feature Ownership Pattern)
-
-Reorganize test structure to establish clear feature ownership:
-```
-tests/
-├── e2e/
-│   ├── types/                      # Types feature owns this directory (NEW)
-│   │   ├── types.selectors.ts      # Types-specific selectors (NEW)
-│   │   ├── types-workflow.spec.ts  # E2E workflow test (NEW)
-│   │   └── types.helpers.ts        # Types-specific helpers (NEW)
-│   └── specific/
-│       └── types/
-│           └── types-crud.spec.ts  # Specific Types tests (NEW)
-├── support/
-│   ├── common.selectors.ts         # Shared UI selectors (RENAME from selectors.ts)
-│   ├── fixtures.ts                 # Test fixtures (EXISTING)
-│   ├── helpers.ts                  # General helpers (EXISTING - refactor)
-│   └── global-setup.ts            # Global setup (EXISTING)
-├── smoke.spec.ts                   # Smoke test (EXISTING - keep for now)
+**Update: `tests/e2e/types/types.selectors.ts`**
+Add complete selector set:
+```typescript
+export const TYPES_SELECTORS = {
+  page: 'types.page',
+  list: {
+    container: 'types.list.container',
+    table: 'types.list.table',
+    row: 'types.list.row',
+    rowName: 'types.list.row.name',
+    rowEdit: 'types.list.row.edit',
+    rowDelete: 'types.list.row.delete',
+    rowActions: 'types.list.row.actions',
+  },
+  form: {
+    container: 'types.form.container',
+    name: 'types.form.name',
+    submit: 'types.form.submit',
+    cancel: 'types.form.cancel',
+    error: 'types.form.error',
+  },
+  create: {
+    button: 'types.create.button',
+    modal: 'types.create.modal',
+    modalClose: 'types.create.modal.close',
+    modalOverlay: 'types.create.modal.overlay',
+  },
+};
 ```
 
-#### Create: `tests/e2e/types/types.selectors.ts`
-- Types feature owns its selectors
-- Co-located with Types tests for clear ownership
-- Import shared testId helper from support directory
-- Export selector identifiers (not full CSS selectors):
-  ```typescript
-  // Import shared helper from support
-  import { testId } from '../../support/helpers';
+**Update: `tests/e2e/types/types.helpers.ts`**
+Add additional helpers:
+```typescript
+export async function waitForTypeCreation(page: Page, typeName: string) {
+  // Implementation
+}
 
-  // Export just the identifiers for flexibility
-  export const TYPES_SELECTORS = {
-    page: 'types.page',
-    list: {
-      table: 'types.list.table',
-      row: 'types.list.row',
-      rowName: 'types.list.row.name',
-      rowEdit: 'types.list.row.edit',
-      rowDelete: 'types.list.row.delete',
-    },
-    form: {
-      container: 'types.form.container',
-      name: 'types.form.name',
-      submit: 'types.form.submit',
-      cancel: 'types.form.cancel',
-      error: 'types.form.error',
-    },
-    create: {
-      button: 'types.create.button',
-      modal: 'types.create.modal',
-      modalClose: 'types.create.modal.close',
-    },
-  };
-  ```
+export async function expectBlockedDelete(page: Page) {
+  // Implementation
+}
 
-#### Rename: `tests/support/selectors.ts` → `tests/support/common.selectors.ts`
-- Rename existing selectors file to clarify it contains only shared UI selectors
-- Update imports in existing tests
-- Only truly shared UI components, not owned by any specific feature:
-  ```typescript
-  export const COMMON_SELECTORS = {
-    toast: {
-      success: 'toast.success',
-      error: 'toast.error',
-      warning: 'toast.warning',
-      info: 'toast.info',
-      close: 'toast.close',
-    },
-    loading: 'loading',
-    error: 'error',
-    modal: {
-      overlay: 'modal.overlay',
-      container: 'modal.container',
-      close: 'modal.close',
-    },
-  };
-  ```
+export async function deleteType(page: Page, typeName: string) {
+  // Implementation
+}
+```
 
-#### Create: `tests/e2e/types/types.helpers.ts`
-- Types-specific test utilities
-- Co-located with Types tests:
-  ```typescript
-  import { Page } from '@playwright/test';
-  import { TYPES_SELECTORS } from './types.selectors';
-  import { generateRandomId, testId } from '../../support/helpers';
+#### 3. Create Additional Tests
 
-  export function createRandomTypeName(): string {
-    const prefix = 'type';
-    const shortId = generateRandomId(); // from general helpers
-    return `${prefix}-${shortId}`;
-  }
+**Create: `tests/e2e/specific/types/types-crud.spec.ts`**
+- Test edit functionality
+- Test delete functionality
+- Test validation (empty name, duplicates, special characters)
+- Test blocked delete with dependencies
 
-  export async function waitForTypeCreation(page: Page, typeName: string) {
-    // Wait for creation events and list update
-  }
+**Create: `tests/e2e/types/types-workflow.spec.ts`**
+- Complete E2E workflow test
+- Navigate → Create → Edit → Delete attempt
+- Test with multiple types
 
-  export async function expectBlockedDelete(page: Page) {
-    // Assert blocked delete scenario
-  }
-  ```
+**Rename: `tests/support/selectors.ts` → `tests/support/common.selectors.ts`**
+- Update for shared selectors
 
-#### Create: `tests/e2e/specific/types/types-crud.spec.ts`
-- Specific (near-unit) tests for Types CRUD operations
-- Import selectors from feature directory: `import { TYPES_SELECTORS } from '../../types/types.selectors'`
-- Import testId helper from support: `import { testId } from '../../../support/helpers'`
-- Test individual UI behaviors with real backend
-- Test validation edge cases:
-  - Duplicate name handling
-  - Whitespace normalization
-  - Empty name validation
-  - Too-long names
-  - Invalid characters
-- Test error handling and recovery scenarios
-- Test blocked delete with reverse dependencies (HTTP 409 handling)
+### Phase 4b Test Coverage
 
-#### Create: `tests/e2e/types/types-workflow.spec.ts`
-- End-to-end workflow test for Types feature
-- Import selectors from same directory: `import { TYPES_SELECTORS } from './types.selectors'`
-- Import helpers from same directory: `import { createRandomTypeName, waitForTypeCreation } from './types.helpers'`
-- Import testId from support: `import { testId } from '../../support/helpers'`
-- Complete user journey: navigate → create → list update → edit → delete attempt
-- Test randomized naming using prefix-shortId pattern
-- Test toast notifications and TEST_EVT events
-- Test navigation and route events
-- Test API call sequences and correlation IDs
-
-#### Modify: `tests/support/helpers.ts`
-- Keep only general, feature-agnostic helpers
-- Add testId helper function that will be shared across all tests:
-  ```typescript
-  export function testId(id: string): string {
-    return `[data-testid="${id}"]`;
-  }
-  ```
-- Add general event assertion helpers:
-  - `expectEventSequence()` - waits for specific event order
-  - `expectApiSuccess()` - waits for successful API calls
-  - `expectToastMessage()` - waits for toast notifications
-- Keep existing `generateRandomId()` function for use across features
-- Feature-specific helpers move to feature directories (e.g., `tests/e2e/types/types.helpers.ts`)
-
-### Documentation Updates
-
-#### Modify: `/work/frontend/CLAUDE.md`
-- Update "UI Testing (Playwright) — How Claude should work" section
-- Document how to run tests locally (headless and headed modes)
-- Document how to add data-testid selectors following naming patterns
-- Document how to assert using TEST_EVT events
-- Document console.error policy and debugging approach
-- Document randomized naming convention (prefix-shortId)
-- Document timeout strategies (10s default, no SSE exceptions for Types)
-- Document test isolation and no-cleanup policy
-
-## Step-by-Step Implementation
-
-### 1. Data-testid Attributes (Priority 1)
-
-1.1. Types page route:
-   - Add page-level container selector
-   - Add create button selector
-   - Add list container selector
-
-1.2. TypeList component:
-   - Add table and row selectors
-   - Add action button selectors
-   - Follow naming pattern: feature.component.element
-
-1.3. TypeForm component:
-   - Verify existing data-testid attributes from Pre-Phase 4
-   - Add any missing selectors for error displays
-   - Ensure form container has proper selector
-
-1.4. Modal components:
-   - Use Dialog's contentProps for modal container selector
-   - Use overlayProps for overlay selector
-   - Add selector to DialogClose component
-
-1.5. Toast components:
-   - Use getItemProps pattern from refactored Toast component
-   - Add type-specific selectors when creating toasts
-
-### 2. Specific Tests Implementation
-
-2.1. Create test file structure:
-   - Follow feature ownership pattern
-   - Use TypeScript with proper imports
-   - Import fixtures and helpers
-
-2.2. Test individual CRUD operations:
-   - Create type with valid data
-   - Create type with invalid data (validation testing)
+1. **CRUD Operations**
+   - ✅ Create (from Phase 4a)
    - Edit existing type
-   - Delete type (success case)
-   - Delete type with dependencies (blocked case)
+   - Delete type successfully
+   - List and search types
 
-2.3. Test edge cases:
-   - Duplicate names
-   - Whitespace handling
-   - Length limits
-   - Character validation
+2. **Validation Tests**
+   - Empty name validation
+   - Duplicate name handling
+   - Whitespace normalization
+   - Maximum length validation
+   - Special characters handling
 
-2.4. Event and API assertion:
-   - Wait for TEST_EVT:api events
-   - Wait for TEST_EVT:form events
-   - Wait for TEST_EVT:toast events
-   - Assert on HTTP status codes and error messages
+3. **Error Scenarios**
+   - Network failure simulation
+   - Blocked delete (409 response)
+   - Server error handling
 
-### 3. E2E Workflow Test
+4. **Event Sequences**
+   - Complete form lifecycle
+   - API correlation IDs
+   - Toast notifications for all operations
 
-3.1. Complete user journey:
-   - Navigate to Types page (assert route event)
-   - Create new type with randomized name
-   - Verify creation in list (assert list update)
-   - Edit the created type
-   - Verify edit in list
-   - Attempt delete (may be blocked if has dependencies)
-   - Assert appropriate outcome (success or blocked)
+## Phase 4c: Documentation and Patterns (After 4b Success)
 
-3.2. Event sequence validation:
-   - Track navigation events
-   - Track form lifecycle events
-   - Track API call events with correlation IDs
-   - Track toast notification events
+### Goal
+Document patterns, update CLAUDE.md, and establish guidelines for future features.
 
-### 4. Helper Utilities Enhancement
+### Documentation Tasks
 
-4.1. Add Types-specific helpers:
-   - Random name generation following prefix-shortId pattern
-   - Event waiting utilities
-   - Common assertion patterns
+#### 1. Update CLAUDE.md
+- Complete Playwright testing section
+- Document selector naming conventions
+- Add TEST_EVT assertion patterns
+- Include debugging guidelines
 
-4.2. Establish reusable patterns:
-   - Event sequence assertions
-   - API success/error patterns
-   - Toast message verification
+#### 2. Create Testing Guidelines
+- Document folder structure patterns
+- Selector organization strategy
+- Helper function patterns
+- Event assertion patterns
 
-### 5. Documentation
-
-5.1. Update Playwright section in CLAUDE.md:
-   - Local testing workflow
-   - Selector strategy and naming conventions
-   - Event assertion patterns
-   - Debugging with console events
-   - No-cleanup and randomization policies
-
-5.2. Document for future features:
-   - Selector naming patterns established by Types
-   - Test structure patterns
-   - Event assertion patterns
-
-## Algorithm Details
-
-### Randomized Naming Algorithm
-
-1. Generate random type names:
-   ```typescript
-   function createRandomTypeName(): string {
-     const prefix = 'type';
-     const shortId = generateRandomId(); // from existing helpers
-     return `${prefix}-${shortId}`;
-   }
-   ```
-
-2. Collision avoidance:
-   - Use existing generateRandomId() function
-   - No need to check for duplicates (shortId is sufficiently random)
-   - Tests tolerate preexisting data
-
-### Event Sequence Assertion Algorithm
-
-1. Define expected event sequences based on TEST_EVT console events:
-   ```typescript
-   // Events follow the pattern TEST_EVT:{kind} with JSON data
-   const createTypeSequence = [
-     { kind: 'form', data: { phase: 'submit' } },
-     { kind: 'api', data: { status: 201 } },
-     { kind: 'form', data: { phase: 'success' } },
-     { kind: 'toast', data: { level: 'success' } }
-   ];
-   ```
-
-2. Wait for events in order:
-   - Use existing awaitEvent helper from tests/support/helpers.ts
-   - Parse console messages for TEST_EVT: prefix
-   - Assert each event matches expected pattern
-   - Include correlation ID tracking where applicable
-
-### Blocked Delete Testing Algorithm
-
-1. Test blocked delete scenario:
-   - Create type with known dependencies (if possible)
-   - Attempt delete operation
-   - Assert HTTP 409 response
-   - Assert domain error code (TYPE_IN_USE)
-   - Assert error toast appears
-   - Assert type remains in list
-
-2. Event verification:
-   - TEST_EVT:api with status 409
-   - TEST_EVT:toast with error level
-   - TEST_EVT:query_error if TanStack Query involved
-
-## Verification Steps
-
-1. All Types components have data-testid attributes following naming patterns
-2. Specific tests cover CRUD operations and edge cases
-3. E2E test covers complete user workflow
-4. Tests pass using only console events and selectors (no visual assertions)
-5. Blocked delete scenario properly tested and verified
-6. Random naming prevents collisions in dirty database runs
-7. Documentation provides clear guidance for future test development
-8. Event sequences are properly captured and asserted
-9. All tests complete within 10s timeout limits
-10. Tests run successfully in both clean and dirty database states
+#### 3. Create Examples
+- Example test for future features
+- Template for feature selectors
+- Template for feature helpers
 
 ## Dependencies (All Completed)
 
@@ -395,53 +311,79 @@ tests/
 - **Backend testing endpoints** ✅ - Types CRUD API endpoints are functional
 - **Types feature components** ✅ - All Types UI components are implemented and working
 
-## Next Phase Preview
+## Success Criteria
 
-- **Phase 5**: Backend integration with log streaming and correlation ID debugging
-  - Connect to `/api/testing/logs/stream` SSE endpoint
-  - Parse structured JSON logs with correlation IDs
-  - Correlate frontend TEST_EVT with backend operations
-- **Additional Features**: Apply patterns established by Types to other features (Parts, Boxes, etc.)
+### Phase 4a Success Criteria
+- Single test (create-type.spec.ts) runs successfully
+- Test completes in under 10 seconds
+- No console errors during execution
+- Works on dirty database
+- Events properly captured and asserted
 
-## Implementation Priority
+### Phase 4b Success Criteria
+- All CRUD operations tested
+- Edge cases covered
+- Blocked delete scenario tested
+- All tests pass consistently
+- Test suite completes in under 2 minutes
 
-1. **High Priority** (Required for pilot):
-   - Data-testid attributes on Types components
-   - Basic CRUD test coverage
-   - E2E workflow test
-   - Blocked delete testing
+### Phase 4c Success Criteria
+- Documentation complete and clear
+- Patterns established for future features
+- Examples provided for other developers
 
-2. **Medium Priority** (Essential patterns):
-   - Comprehensive edge case testing
-   - Helper utilities and patterns
-   - Documentation updates
+## Risk Mitigation
 
-3. **Lower Priority** (Can be refined later):
-   - Advanced error scenarios
-   - Performance optimizations
-   - Extended debugging utilities
+### Phase 4a Risks
+- **Selector issues**: Components might not forward data-testid properly
+  - Mitigation: Verify in browser DevTools before writing tests
+
+- **Event timing**: Events might not fire as expected
+  - Mitigation: Add console logging during initial development
+
+- **Modal interactions**: Dialog might not be accessible
+  - Mitigation: Test Dialog contentProps forwarding first
+
+### Phase 4b Risks
+- **Test interdependencies**: Tests might affect each other
+  - Mitigation: Use randomized names, don't rely on specific state
+
+- **Performance**: Full suite might exceed timeout
+  - Mitigation: Optimize selectors, reduce unnecessary waits
+
+## Implementation Order
+
+### Phase 4a (Immediate)
+1. Add minimal data-testid attributes (30 min)
+2. Create test infrastructure (45 min)
+3. Write create-type test (1-2 hours)
+4. Debug and verify (30 min)
+5. **STOP AND VALIDATE** before proceeding
+
+### Phase 4b (After 4a validation)
+1. Add remaining data-testid attributes
+2. Expand test helpers
+3. Write CRUD tests
+4. Write validation tests
+5. Test blocked delete scenario
+
+### Phase 4c (After 4b completion)
+1. Update CLAUDE.md
+2. Document patterns
+3. Create templates and examples
 
 ## Notes
 
-- This phase establishes the foundation for testing all other features
-- Component refactoring from Pre-Phase 4 ensures all components accept data-testid attributes
-- Selector organization follows feature ownership pattern - each feature owns its test assets
-- Selectors are co-located with tests to establish clear ownership and maintainability
-- Common selectors only contain truly shared UI components not owned by any feature
-- Selector files export identifiers, not full CSS selectors, for flexibility
-- Event assertion patterns should be reusable across features
-- Tests must work reliably on dirty databases using randomization
-- No visual assertions - rely entirely on structured events and selectors
-- Backend log streaming (Phase 5) will provide additional debugging capability
-- Focus on the Types feature as specified in the brief as the pilot implementation
-- This pattern scales naturally: future features (Parts, Boxes, etc.) will follow the same structure
+- **Phase 4a is the foundation** - Do not proceed until it works perfectly
+- Component refactoring from Pre-Phase 4 ensures components accept data-testid
+- Focus on the single test until it's robust and reliable
+- Backend log streaming (Phase 5) will add debugging capability later
+- This phased approach reduces risk and ensures a solid foundation
 
-## Key Changes from Original Plan
+## Key Principles
 
-1. **Component Refactoring Complete**: Pre-Phase 4 has been implemented, so all UI components now accept data-testid attributes natively
-2. **TypeForm Already Updated**: According to Pre-Phase 4 completion, TypeForm already has data-testid attributes added
-3. **Toast Pattern Changed**: Toast uses getItemProps pattern from refactoring, not direct attribute addition
-4. **Dialog Pattern Changed**: Dialog uses contentProps/overlayProps from refactoring for attribute distribution
-5. **Backend Log Streaming**: Deferred to Phase 5 but will provide correlation ID debugging capability
-6. **Selector Strategy**: Uses data-testid instead of data-test to align with industry standards
-7. **Component Capabilities**: All components forward refs and accept native props, simplifying test interactions
+1. **Start small**: One test that works is better than ten that don't
+2. **Validate early**: Ensure Phase 4a works before expanding
+3. **Build incrementally**: Each phase builds on the previous success
+4. **Document as you go**: Capture learnings from each phase
+5. **Test the tests**: Ensure tests are reliable before adding more
