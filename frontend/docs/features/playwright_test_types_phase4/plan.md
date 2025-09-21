@@ -68,25 +68,39 @@ Implement and successfully run a single end-to-end test that creates a type and 
 - Add `data-testid="types.page"` to main page container
 - Add `data-testid="types.create.button"` to create button
 
-**Modify: `src/components/types/type-create-dialog.tsx`**
-- Add `data-testid="types.create.modal"` to Dialog contentProps
-
-**Verify: `src/components/types/TypeForm.tsx`**
-- Verify `data-testid="types.form.name"` on Input component
-- Verify `data-testid="types.form.submit"` on submit Button
-- Note: These should already exist from Pre-Phase 4
+**Modify: `src/components/types/TypeForm.tsx`**
+- Add `data-testid="types.create.modal"` to Dialog element (for create mode)
+- Add `data-testid="types.edit.modal"` to Dialog element (for edit mode)
+- Update existing `data-testid="types.form.name"` if needed
+- Update existing `data-testid="types.form.submit"` if needed
+- Update existing `data-testid="types.form.cancel"` if needed
 
 **Modify: `src/components/types/TypeList.tsx`**
-- Add `data-testid="types.list.table"` to table element
-- Add `data-testid="types.list.row"` to each table row
-- Add `data-testid="types.list.row.name"` to name cells
+- Add `data-testid="types.list.container"` to grid container
+- Note: TypeList uses cards, not a table structure
 
 #### 2. Create Minimal Test Infrastructure
 
 **Modify: `tests/support/fixtures.ts`**
-Add animation killing to test setup:
+Add animation killing to the existing fixture:
 ```typescript
-export const test = base.extend({
+export const test = base.extend<TestFixtures>({
+  frontendUrl: async ({}, use) => {
+    const url = process.env.FRONTEND_URL || 'http://localhost:3100';
+    await use(url);
+  },
+
+  backendUrl: async ({}, use) => {
+    const url = process.env.BACKEND_URL || 'http://localhost:5100';
+    await use(url);
+  },
+
+  sseTimeout: async ({}, use) => {
+    // SSE-aware timeout for operations that may involve server-sent events
+    await use(35000); // 35 seconds
+  },
+
+  // Add page fixture override for animation killing
   page: async ({ page }, use) => {
     // Kill all animations for deterministic tests
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -116,18 +130,21 @@ export const TYPES_SELECTORS = {
   form: {
     name: 'types.form.name',
     submit: 'types.form.submit',
+    cancel: 'types.form.cancel',
   },
   list: {
-    table: 'types.list.table',
-    row: 'types.list.row',
-    rowName: 'types.list.row.name',
+    container: 'types.list.container',
+    card: 'types.list.card',
+    cardName: 'types.list.card.name',
   },
 };
 ```
 
 **Create: `tests/e2e/types/types.helpers.ts`**
 ```typescript
-import { generateRandomId } from '../../support/helpers';
+export function generateRandomId(): string {
+  return Math.random().toString(36).substring(2, 8);
+}
 
 export function createRandomTypeName(): string {
   const prefix = 'type';
@@ -136,20 +153,14 @@ export function createRandomTypeName(): string {
 }
 ```
 
-**Modify: `tests/support/helpers.ts`**
-Add only the essential helper:
+**Create: `tests/support/helpers.ts`** (New file with improved patterns)
 ```typescript
 export function testId(id: string): string {
   return `[data-testid="${id}"]`;
 }
 
-// Keep generateRandomId for name generation
-export function generateRandomId(): string {
-  return Math.random().toString(36).substring(2, 8);
-}
-
-// Optional: awaitEvent only if truly needed (prefer UI assertions)
-// Consider removing if not used in Phase 4a
+// Note: awaitEvent should be avoided per no-sleep-patterns.md
+// Only include if absolutely necessary for debugging
 ```
 
 **Create: `tests/e2e/types/create-type.spec.ts`**
@@ -174,27 +185,21 @@ test.describe('Types - Create', () => {
     const typeName = createRandomTypeName();
     await page.locator(testId(TYPES_SELECTORS.form.name)).fill(typeName);
 
-    // Submit form (optionally wait for API response)
+    // Submit form - UI-first approach
     const submitButton = page.locator(testId(TYPES_SELECTORS.form.submit));
-    await Promise.all([
-      // Optional: only if UI assertions below aren't sufficient
-      page.waitForResponse(r => r.url().endsWith('/api/types') && r.ok()),
-      submitButton.click(),
-    ]);
+    await submitButton.click();
 
     // Assert modal closes
     await expect(modal).toBeHidden();
 
-    // Assert the user-visible outcome: new row appears
-    const row = page
-      .locator(testId(TYPES_SELECTORS.list.row))
+    // Assert the user-visible outcome: new card appears
+    const card = page
+      .locator(testId(TYPES_SELECTORS.list.card))
       .filter({ hasText: typeName });
-    await expect(row).toBeVisible();
+    await expect(card).toBeVisible();
 
-    // Optional: assert toast message via role or testid
+    // Assert toast message via role (preferred over custom events)
     await expect(page.getByRole('status')).toHaveText(/created|saved/i);
-    // OR if using data-testid:
-    // await expect(page.locator('[data-testid="toast"]')).toHaveText(/created/i);
   });
 });
 ```
@@ -208,8 +213,8 @@ Before proceeding to Phase 4b, ensure:
 3. ✅ **UI-First assertions work**:
    - Page visibility confirmed
    - Modal opens/closes properly
-   - New row appears in list
-   - Toast message visible (if applicable)
+   - New card appears in list (not row, since TypeList uses cards)
+   - Toast message visible via role selector
 4. ✅ The test works on both clean and dirty databases
 5. ✅ The test completes within 10 seconds (should be <3 seconds)
 6. ✅ No console.error messages appear during the test
@@ -251,19 +256,20 @@ Expand test coverage to include all CRUD operations, edge cases, and blocked del
 
 #### 1. Complete Data-testid Attributes
 
-**Modify: `src/components/types/TypeList.tsx`**
-- Add `data-testid="types.list.row.edit"` to edit buttons
-- Add `data-testid="types.list.row.delete"` to delete buttons
-- Add `data-testid="types.list.row.actions"` to actions container
+**Modify: `src/components/types/TypeCard.tsx`** (Component that renders each type)
+- Add `data-testid="types.list.card"` to card container
+- Add `data-testid="types.list.card.name"` to name element
+- Add `data-testid="types.list.card.edit"` to edit button
+- Add `data-testid="types.list.card.delete"` to delete button
+- Add `data-testid="types.list.card.actions"` to actions container
 
 **Modify: `src/components/types/TypeForm.tsx`**
 - Add `data-testid="types.form.container"` to form wrapper
-- Add `data-testid="types.form.cancel"` to cancel button
 - Add `data-testid="types.form.error"` to error display areas
-
-**Modify: `src/components/types/type-create-dialog.tsx`**
-- Add `data-testid="types.create.modal.close"` to close button
-- Add `data-testid="types.create.modal.overlay"` to overlay
+- Add `data-testid="types.modal.close"` to Dialog close button (if accessible)
+- Add conditional modal testids based on mode:
+  - `data-testid="types.create.modal"` when creating
+  - `data-testid="types.edit.modal"` when editing
 
 #### 2. Expand Test Infrastructure
 
@@ -274,12 +280,11 @@ export const TYPES_SELECTORS = {
   page: 'types.page',
   list: {
     container: 'types.list.container',
-    table: 'types.list.table',
-    row: 'types.list.row',
-    rowName: 'types.list.row.name',
-    rowEdit: 'types.list.row.edit',
-    rowDelete: 'types.list.row.delete',
-    rowActions: 'types.list.row.actions',
+    card: 'types.list.card',
+    cardName: 'types.list.card.name',
+    cardEdit: 'types.list.card.edit',
+    cardDelete: 'types.list.card.delete',
+    cardActions: 'types.list.card.actions',
   },
   form: {
     container: 'types.form.container',
@@ -291,8 +296,12 @@ export const TYPES_SELECTORS = {
   create: {
     button: 'types.create.button',
     modal: 'types.create.modal',
-    modalClose: 'types.create.modal.close',
-    modalOverlay: 'types.create.modal.overlay',
+  },
+  edit: {
+    modal: 'types.edit.modal',
+  },
+  modal: {
+    close: 'types.modal.close',
   },
 };
 ```
@@ -325,15 +334,15 @@ export async function deleteType(page: Page, typeName: string) {
 ```typescript
 // Edit test - UI-first approach
 await page.getByRole('button', { name: 'Edit' }).click();
-await expect(page.getByRole('dialog')).toBeVisible();
+await expect(page.locator(testId(TYPES_SELECTORS.edit.modal))).toBeVisible();
 
 // Delete test - Assert UI change
 await page.getByRole('button', { name: 'Delete' }).click();
 await expect(page.getByRole('dialog', { name: /confirm/i })).toBeVisible();
-await page.getByRole('button', { name: 'Confirm' }).click();
+await page.getByRole('button', { name: 'Delete' }).click(); // Confirm button text is "Delete"
 // Use filter instead of :has-text
-const row = page.locator('[data-testid="type-row"]').filter({ hasText: typeName });
-await expect(row).toBeHidden();
+const card = page.locator(testId(TYPES_SELECTORS.list.card)).filter({ hasText: typeName });
+await expect(card).toBeHidden();
 
 // Validation test - Assert error appears
 await page.getByLabel('Type name').fill('');
@@ -406,10 +415,10 @@ Document patterns, update CLAUDE.md, and establish guidelines for future feature
 ## Dependencies (All Completed)
 
 - **Phase 1-3 infrastructure** ✅ - Basic Playwright setup, service orchestration, frontend instrumentation
-- **Pre-Phase 4 component refactoring** ✅ - All UI components accept data-testid and forward refs
+- **Component architecture** ✅ - TypeForm handles both create and edit modes with Dialog integration
 - **TEST_EVT console events** ✅ - Frontend emits structured events for observability
 - **Backend testing endpoints** ✅ - Types CRUD API endpoints are functional
-- **Types feature components** ✅ - All Types UI components are implemented and working
+- **Types feature components** ✅ - TypeList, TypeForm, and TypeCard components are implemented and working
 
 ## Success Criteria
 
