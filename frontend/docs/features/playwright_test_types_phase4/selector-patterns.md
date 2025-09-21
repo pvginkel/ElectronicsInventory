@@ -179,20 +179,27 @@ export class FeaturePage {
 
 ### Using .or() for Fallbacks
 
-Combine semantic and testid selectors:
+Combine semantic and testid selectors (requires Playwright ≥1.33):
 
 ```typescript
-// Try role first, fallback to testid
-this.submitButton = this.page
-  .getByRole('button', { name: /submit|save|create/i })
-  .or(this.page.getByTestId('form.submit'));
+// Try exact text first, then fallback
+this.createButton = this.root
+  .getByRole('button', { name: 'Add Type' })  // Exact match preferred
+  .or(this.root.getByTestId('types.create.button'));
 
-// Multiple fallback options
+// Case-insensitive label matching
 this.nameInput = this.page
-  .getByLabel('Name')
-  .or(this.page.getByLabel(/type name/i))
+  .getByLabel(/name/i)  // Case-insensitive
   .or(this.page.getByTestId('types.form.name'));
+
+// Dialog with accessible name
+this.modal = () => this.page
+  .getByRole('dialog', { name: /create type/i })  // Requires aria-label
+  .or(this.page.getByRole('dialog'))
+  .or(this.page.getByTestId('types.create.modal'));
 ```
+
+**Important**: Ensure Radix Dialog components have proper `aria-label` or `aria-labelledby` for robust selectors.
 
 ### Scoping with Root Container
 
@@ -213,9 +220,36 @@ constructor(page: Page) {
 }
 ```
 
+## Playwright Configuration
+
+### Base URL Setup
+
+Always configure `baseURL` in playwright.config.ts to enable relative navigation:
+
+```typescript
+// playwright.config.ts
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  use: {
+    baseURL: process.env.FRONTEND_URL ?? 'http://localhost:3100',
+  },
+  webServer: {
+    command: 'pnpm dev',
+    url: process.env.FRONTEND_URL ?? 'http://localhost:3100',
+    reuseExistingServer: !process.env.CI,
+  },
+});
+```
+
+This allows clean navigation in page objects:
+```typescript
+await this.page.goto('/types');  // Uses baseURL automatically
+```
+
 ## Fixture Integration
 
-Use fixtures to provide page objects to tests:
+### Complete Fixture Setup with Error Enforcement
 
 ```typescript
 // tests/support/fixtures.ts
@@ -228,10 +262,24 @@ export const test = base.extend<{
   parts: PartsPage;
 }>({
   page: async ({ page }, use) => {
-    // Kill animations
+    // Fail on console errors - enforces clean code
+    page.on('console', msg => {
+      if (msg.type() === 'error') {
+        throw new Error(`Console error: ${msg.text()}`);
+      }
+    });
+    page.on('pageerror', err => {
+      throw err;
+    });
+
+    // Kill animations for deterministic tests
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.addStyleTag({
-      content: `*{animation-duration:0s!important;transition-duration:0s!important;}`
+      content: `*, *::before, *::after {
+        transition-duration: 0s !important;
+        animation-duration: 0s !important;
+        animation-delay: 0s !important;
+      }`
     });
     await use(page);
   },
@@ -407,6 +455,37 @@ test('new way', async ({ types }) => {
 
 ## Common Patterns
 
+### Toast Assertions
+
+Handle multiple toasts by filtering:
+
+```typescript
+toast(text?: string | RegExp): Locator {
+  const toast = this.page.getByRole('status');
+  return text ? toast.filter({ hasText: text }) : toast;
+}
+
+// Usage
+await expect(types.toast(/created/i)).toBeVisible();
+await expect(types.toast(/error/i)).toBeHidden();
+```
+
+### Deletion Verification
+
+Combine count and visibility checks:
+
+```typescript
+async deleteType(name: string) {
+  const countBefore = await this.cards.count();
+
+  // ... perform deletion ...
+
+  // Verify with both count and specific element
+  await expect(this.cards).toHaveCount(countBefore - 1);
+  await expect(this.cardByName(name)).toHaveCount(0);  // More precise than toBeHidden()
+}
+```
+
 ### Dynamic Content
 
 ```typescript
@@ -482,15 +561,41 @@ await types.setStateValue('isOpen', true);
 await types.triggerRerender();
 ```
 
+## Key Requirements
+
+### Playwright Version
+- **Minimum**: Playwright ≥1.33 (for `.or()` and `.clear()` support)
+- Pin version in `package.json` to avoid CI surprises
+
+### Accessibility Requirements
+- Add `aria-label` or `aria-labelledby` to Radix Dialog components
+- Ensure toasts have proper `role="status"` for reliable selection
+- Use semantic HTML where possible
+
+### Folder Structure
+- Keep tests organized: `tests/e2e/{feature}/`
+- Page objects live next to tests: `tests/e2e/{feature}/{Feature}Page.ts`
+- Avoid nested structures like `tests/e2e/specific/types/`
+
+## toBeHidden vs not.toBeVisible
+
+Understand the difference:
+- `toBeHidden()` - Element is hidden OR detached from DOM
+- `not.toBeVisible()` - Element exists but is not visible
+
+Usually `toBeHidden()` is what you want for "element gone" assertions.
+
 ## Summary
 
 - **Don't** create centralized selector maps
-- **Do** create feature-specific page objects
+- **Do** create feature-specific page objects with baseURL configured
 - **Don't** use raw strings for selectors
-- **Do** return Locator objects
-- **Don't** start with data-testid
-- **Do** prefer semantic selectors
-- **Don't** test implementation
-- **Do** test user-visible behavior
+- **Do** return Locator objects with semantic selectors first
+- **Don't** ignore console errors
+- **Do** enforce clean console with error handlers
+- **Don't** use arbitrary folder structures
+- **Do** keep consistent `tests/e2e/{feature}/` organization
+- **Don't** rely only on data-testid
+- **Do** add ARIA labels and use role selectors
 
-This approach scales with your application, keeps tests maintainable, and naturally improves accessibility by encouraging semantic HTML and ARIA patterns.
+This approach scales with your application, keeps tests maintainable, catches errors early, and naturally improves accessibility by encouraging semantic HTML and ARIA patterns.

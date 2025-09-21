@@ -69,17 +69,35 @@ Implement and successfully run a single end-to-end test that creates a type and 
 - Add `data-testid="types.create.button"` to create button
 
 **Modify: `src/components/types/TypeForm.tsx`**
-- Add `data-testid="types.create.modal"` to Dialog element (for create mode)
-- Add `data-testid="types.edit.modal"` to Dialog element (for edit mode)
-- Update existing `data-testid="types.form.name"` if needed
-- Update existing `data-testid="types.form.submit"` if needed
-- Update existing `data-testid="types.form.cancel"` if needed
+- Add `aria-label` to Dialog for accessibility (e.g., "Create Type" or "Edit Type")
+- Add conditional `data-testid` to Dialog element:
+  - `data-testid="types.create.modal"` when creating
+  - `data-testid="types.edit.modal"` when editing
+- Existing testids are fine: `types.form.name`, `types.form.submit`, `types.form.cancel`
 
 **Modify: `src/components/types/TypeList.tsx`**
 - Add `data-testid="types.list.container"` to grid container
 - Note: TypeList uses cards, not a table structure
 
-#### 2. Create Minimal Test Infrastructure
+#### 2. Configure Playwright
+
+**Create: `playwright.config.ts`**
+```typescript
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  use: {
+    baseURL: process.env.FRONTEND_URL ?? 'http://localhost:3100',
+  },
+  webServer: {
+    command: 'pnpm dev',
+    url: process.env.FRONTEND_URL ?? 'http://localhost:3100',
+    reuseExistingServer: !process.env.CI,
+  },
+});
+```
+
+#### 3. Create Minimal Test Infrastructure
 
 **Modify: `tests/support/fixtures.ts`**
 Add animation killing to the existing fixture:
@@ -133,8 +151,8 @@ export class TypesPage {
     this.page = page;
     this.root = page.getByTestId('types.page');
 
-    // Prefer role-based selectors, fallback to testid
-    this.createButton = this.root.getByRole('button', { name: /add type/i })
+    // Prefer exact text for stability, fallback to testid
+    this.createButton = this.root.getByRole('button', { name: 'Add Type' })
       .or(this.root.getByTestId('types.create.button'));
 
     // TypeList uses cards, not table
@@ -143,12 +161,14 @@ export class TypesPage {
   }
 
   async goto() {
-    await this.page.goto('/types');
+    await this.page.goto('/types');  // baseURL configured in playwright.config.ts
     await expect(this.root).toBeVisible();
   }
 
   modal(): Locator {
-    return this.page.getByRole('dialog')
+    // Use accessible name once added to TypeForm Dialog
+    return this.page.getByRole('dialog', { name: /type/i })
+      .or(this.page.getByRole('dialog'))
       .or(this.page.getByTestId('types.create.modal'));
   }
 
@@ -157,14 +177,20 @@ export class TypesPage {
   }
 
   nameInput(): Locator {
-    // Prefer label-based selector
-    return this.page.getByLabel('Name')
+    // Case-insensitive label match
+    return this.page.getByLabel(/name/i)
       .or(this.page.getByTestId('types.form.name'));
   }
 
   submitButton(): Locator {
-    return this.page.getByRole('button', { name: /add type|update type/i })
+    // Use exact button text from TypeForm
+    return this.modal().getByRole('button', { name: /add type|update type/i })
       .or(this.page.getByTestId('types.form.submit'));
+  }
+
+  toast(text?: string | RegExp): Locator {
+    const toast = this.page.getByRole('status');
+    return text ? toast.filter({ hasText: text }) : toast;
   }
 
   async createType(name: string) {
@@ -174,6 +200,7 @@ export class TypesPage {
     await this.submitButton().click();
     await expect(this.modal()).toBeHidden();
     await expect(this.cardByName(name)).toBeVisible();
+    await expect(this.toast(/created|saved/i)).toBeVisible();
   }
 }
 ```
@@ -192,32 +219,41 @@ export function createRandomTypeName(): string {
 ```
 
 **Modify: `tests/support/fixtures.ts`**
-Extend fixtures to include page objects:
+Extend fixtures to include page objects and error enforcement:
 ```typescript
 import { test as base } from '@playwright/test';
 import { TypesPage } from '../e2e/types/TypesPage';
 
 type TestFixtures = {
-  frontendUrl: string;
   backendUrl: string;
-  sseTimeout: number;
-  types: TypesPage; // Add page object fixture
+  types: TypesPage;
 };
 
 export const test = base.extend<TestFixtures>({
-  // ... existing fixtures ...
+  backendUrl: async ({}, use) => {
+    const url = process.env.BACKEND_URL || 'http://localhost:5100';
+    await use(url);
+  },
 
   page: async ({ page }, use) => {
+    // Fail on console errors
+    page.on('console', msg => {
+      if (msg.type() === 'error') {
+        throw new Error(`Console error: ${msg.text()}`);
+      }
+    });
+    page.on('pageerror', err => {
+      throw err;
+    });
+
     // Kill all animations for deterministic tests
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.addStyleTag({
-      content: `
-        *, *::before, *::after {
-          transition-duration: 0s !important;
-          animation-duration: 0s !important;
-          animation-delay: 0s !important;
-        }
-      `
+      content: `*, *::before, *::after {
+        transition-duration: 0s !important;
+        animation-duration: 0s !important;
+        animation-delay: 0s !important;
+      }`
     });
     await use(page);
   },
@@ -246,10 +282,7 @@ test.describe('Types - Create', () => {
     await types.goto();
 
     const typeName = createRandomTypeName();
-    await types.createType(typeName);
-
-    // Additional assertion for toast if needed
-    await expect(types.page.getByRole('status')).toHaveText(/created|saved/i);
+    await types.createType(typeName);  // includes toast assertion
   });
 
   test('validates required fields', async ({ types }) => {
@@ -288,28 +321,33 @@ Before proceeding to Phase 4b, ensure:
 
 ### Phase 4a Implementation Steps
 
-1. **Add data-testid attributes** (30 minutes)
-   - Add minimal attributes needed for create flow
-   - Verify components accept and forward attributes
-   - Consider adding ARIA roles for better selector options
+1. **Configure Playwright** (15 minutes)
+   - Create/update playwright.config.ts with baseURL
+   - Configure webServer for automatic dev server startup
+   - Set Playwright version requirement (≥1.33)
 
-2. **Create test infrastructure** (45 minutes)
-   - Create types.selectors.ts with minimal selectors
+2. **Add data-testid and ARIA attributes** (30 minutes)
+   - Add aria-label to Dialog components for accessibility
+   - Add minimal data-testid attributes for create flow
+   - Add data-testid to TypeCard components
+
+3. **Create test infrastructure** (45 minutes)
+   - Create TypesPage.ts with page object pattern
    - Create types.helpers.ts with name generation
-   - Add testId helper to support/helpers.ts
-   - Ensure animation killing is in fixtures
+   - Update fixtures.ts with console error enforcement
+   - Add types fixture for page object
 
-3. **Write and debug the test** (1-2 hours)
-   - Create create-type.spec.ts following UI-first approach
-   - Use roles and filter() instead of :has-text
+4. **Write and debug the test** (1-2 hours)
+   - Create create-type.spec.ts using page object
+   - Use semantic selectors with testid fallbacks
    - Verify UI signals work without custom events
-   - Ensure test passes consistently
+   - Ensure console errors fail tests
 
-4. **Validate robustness** (30 minutes)
+5. **Validate robustness** (30 minutes)
    - Run test 10 times consecutively
    - Test should complete in <3 seconds
+   - Verify no console errors
    - Verify no flakiness
-   - Remove any unnecessary waits
 
 ## Phase 4b: Complete Test Coverage (After 4a Success)
 
@@ -436,14 +474,20 @@ export class TypesPage {
   }
 
   async deleteType(name: string) {
+    const countBefore = await this.cards.count();
     await this.deleteButtonForCard(name).click();
+
     // Confirm dialog appears
     const confirmDialog = this.page.getByRole('dialog', { name: /delete type/i });
     await expect(confirmDialog).toBeVisible();
+
     // Click the Delete button in the confirm dialog
     await confirmDialog.getByRole('button', { name: 'Delete' }).click();
     await expect(confirmDialog).toBeHidden();
-    await expect(this.cardByName(name)).toBeHidden();
+
+    // Verify deletion with count and specific card
+    await expect(this.cards).toHaveCount(countBefore - 1);
+    await expect(this.cardByName(name)).toHaveCount(0);
   }
 
   async search(term: string) {
@@ -472,9 +516,9 @@ export function createRandomTypeName(): string {
 
 #### 3. Create Additional Tests
 
-**Create: `tests/e2e/specific/types/types-crud.spec.ts`**
+**Create: `tests/e2e/types/types-crud.spec.ts`**
 - Test edit functionality (assert UI changes, no waits)
-- Test delete functionality (assert row removal)
+- Test delete functionality (assert card removal)
 - Test validation (assert error messages appear)
 - Test blocked delete with dependencies (assert error toast)
 
@@ -587,13 +631,20 @@ Document patterns, update CLAUDE.md, and establish guidelines for future feature
 - Template for feature helpers
 - Migration guide from selector maps to page objects
 
-## Dependencies (All Completed)
+## Dependencies
 
+### Required
+- **Playwright ≥1.33** - For `.or()` and `.clear()` support
 - **Phase 1-3 infrastructure** ✅ - Basic Playwright setup, service orchestration, frontend instrumentation
 - **Component architecture** ✅ - TypeForm handles both create and edit modes with Dialog integration
 - **TEST_EVT console events** ✅ - Frontend emits structured events for observability
 - **Backend testing endpoints** ✅ - Types CRUD API endpoints are functional
 - **Types feature components** ✅ - TypeList, TypeForm, and TypeCard components are implemented and working
+
+### To Be Added
+- **ARIA labels on Dialogs** - For robust role-based selectors
+- **Console error enforcement** - Auto-fail tests on console errors
+- **BaseURL configuration** - For proper navigation
 
 ## Success Criteria
 
