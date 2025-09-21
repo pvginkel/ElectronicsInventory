@@ -117,7 +117,7 @@ export const FormControl = React.forwardRef<HTMLDivElement, FormControlProps>(
       <div
         ref={ref}
         {...props}
-        className={cn('', className)}
+        className={className}
       >
         {children}
       </div>

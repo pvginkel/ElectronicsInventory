@@ -12,29 +12,66 @@ interface SearchableSelectOption {
 
 type NativeInputProps = React.ComponentPropsWithoutRef<"input">;
 
+/**
+ * SearchableSelect - A fully accessible searchable select component
+ *
+ * Features:
+ * - Full keyboard navigation and screen reader support
+ * - Native HTML input props support (data-testid, etc.)
+ * - Ref forwarding to the input element
+ * - Generic TypeScript support for custom option types
+ * - Inline creation of new options
+ * - Custom option rendering
+ *
+ * @example
+ * ```tsx
+ * <SearchableSelect
+ *   value={selectedId}
+ *   onChange={setSelectedId}
+ *   options={items}
+ *   isLoading={isLoading}
+ *   searchTerm={search}
+ *   onSearchChange={setSearch}
+ *   data-testid="my-select"
+ * />
+ * ```
+ */
 interface SearchableSelectProps<T extends SearchableSelectOption> extends Omit<NativeInputProps, "value" | "onChange" | "role" | "aria-expanded" | "aria-haspopup" | "aria-autocomplete"> {
+  /** The currently selected option's ID */
   value?: number;
+  /** Callback when selection changes */
   onChange: (value: number | undefined) => void;
 
   // Data fetching
+  /** Array of options to display */
   options: T[];
+  /** Whether options are being loaded */
   isLoading: boolean;
+  /** Current search term value */
   searchTerm: string;
+  /** Callback when search term changes */
   onSearchChange: (term: string) => void;
 
   // Custom rendering
+  /** Custom function to render each option */
   renderOption?: (option: T) => ReactNode;
 
   // Inline creation
+  /** Enable creating new options inline */
   enableInlineCreate?: boolean;
+  /** Callback when creating a new option */
   onCreateNew?: (searchTerm: string) => void;
+  /** Custom label for create option */
   createNewLabel?: (searchTerm: string) => string;
 
   // Loading states
+  /** Text to show while loading */
   loadingText?: string;
+  /** Text to show when no results found */
   noResultsText?: string;
 
   // Error state
+  /** Error message to display (backward compatibility) */
   error?: string;
 }
 

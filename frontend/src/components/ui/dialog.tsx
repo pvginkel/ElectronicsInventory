@@ -8,11 +8,41 @@ type DialogOverlayProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.
 type DialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 type DialogPortalProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.Portal>
 
+/**
+ * Dialog - Accessible modal dialog component built on Radix UI
+ *
+ * This component uses a prop distribution pattern to allow full customization
+ * of each Radix primitive while maintaining a clean API.
+ *
+ * Prop Distribution:
+ * - Root props: Control the dialog state (open, onOpenChange, etc.)
+ * - overlayProps: Customize the backdrop overlay
+ * - contentProps: Customize the dialog content container (receives data-testid)
+ * - portalProps: Control the rendering portal
+ * - className: Maps to contentProps.className for backward compatibility
+ *
+ * The ref is forwarded to DialogPrimitive.Content as it's the main interactive element.
+ *
+ * @example
+ * ```tsx
+ * <Dialog
+ *   open={isOpen}
+ *   onOpenChange={setIsOpen}
+ *   contentProps={{ 'data-testid': 'my-dialog' }}
+ * >
+ *   <DialogContent>...</DialogContent>
+ * </Dialog>
+ * ```
+ */
 interface DialogProps extends DialogRootProps {
+  /** Props for the overlay/backdrop element */
   overlayProps?: DialogOverlayProps
+  /** Props for the content container (receives data-testid) */
   contentProps?: DialogContentProps
+  /** Props for the portal element */
   portalProps?: DialogPortalProps
-  className?: string // For backward compatibility, maps to contentProps.className
+  /** Backward compatibility - maps to contentProps.className */
+  className?: string
 }
 
 export const Dialog = React.forwardRef<
