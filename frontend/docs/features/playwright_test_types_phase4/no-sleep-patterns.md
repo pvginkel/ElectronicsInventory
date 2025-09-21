@@ -1,7 +1,31 @@
 # No-Sleep Playwright Testing Patterns Reference
 
-## Core Principle
-**Every wait must be for a specific, observable signal. No arbitrary delays.**
+## Core Principles
+1. **Every wait must be for a specific, observable signal. No arbitrary delays.**
+2. **UI-First**: Prefer asserting visible UI changes over custom events
+3. **User-Focused**: Test what users see, not internal implementation
+
+## Testing Priority Order
+
+### 1. Prefer UI Signals (Best)
+Assert what the user sees:
+- Element visibility/hidden states
+- Text content changes
+- URL changes
+- Element counts
+- Form field values
+
+### 2. Use Network Waits When UI Insufficient (OK)
+Only when UI doesn't provide enough signal:
+```typescript
+await Promise.all([
+  page.waitForResponse(r => r.url().endsWith('/api/types') && r.ok()),
+  submitButton.click(),
+]);
+```
+
+### 3. Custom Events as Last Resort (Avoid)
+Only use `awaitEvent()` when absolutely no UI signal exists.
 
 ## Common UI Patterns and Their No-Sleep Solutions
 
@@ -29,21 +53,22 @@ await page.click('[data-testid="submit"]');
 await page.waitForTimeout(2000); // BAD! Waiting for save
 ```
 
-✅ **CORRECT - Assert UI feedback:**
+✅ **CORRECT - Assert UI feedback (prioritized):**
 ```typescript
-// Option 1: Wait for specific API response
+// BEST: Assert visible UI changes
+await page.getByRole('button', { name: 'Submit' }).click();
+await expect(modal).toBeHidden(); // Modal closes
+await expect(page.getByRole('row', { name: typeName })).toBeVisible(); // New item appears
+
+// OK: Include network wait if UI alone isn't enough
 await Promise.all([
-  page.waitForResponse(r => r.url().includes('/api/types') && r.ok()),
-  page.click('[data-testid="submit"]'),
+  page.waitForResponse(r => r.url().endsWith('/api/types') && r.ok()),
+  page.getByRole('button', { name: 'Submit' }).click(),
 ]);
+await expect(modal).toBeHidden();
 
-// Option 2: Assert toast/success message
-await page.click('[data-testid="submit"]');
-await expect(page.locator('[data-testid="toast"]')).toHaveText(/saved/i);
-
-// Option 3: Assert button state change
-await page.click('[data-testid="submit"]');
-await expect(page.locator('[data-testid="submit"]')).toBeEnabled();
+// AVOID: Custom events unless no UI signal
+// await awaitEvent(page, 'form', { phase: 'success' });
 ```
 
 ### List Updates After CRUD Operations
@@ -55,11 +80,23 @@ await page.waitForTimeout(1000); // BAD! Waiting for list update
 const rows = await page.locator('[data-testid="type-row"]').count();
 ```
 
-✅ **CORRECT - Assert new item appears:**
+❌ **AVOID - :has-text selector (substring matching):**
+```typescript
+await expect(page.locator('[data-testid="type-row"]:has-text("Resistor")')).toBeVisible();
+```
+
+✅ **CORRECT - Use filter or role:**
 ```typescript
 await createType('Resistor');
-await expect(page.locator('[data-testid="type-row"]:has-text("Resistor")')).toBeVisible();
-// OR assert count change
+
+// BEST: Use filter for exact matching
+const row = page.locator('[data-testid="type-row"]').filter({ hasText: 'Resistor' });
+await expect(row).toBeVisible();
+
+// ALSO GOOD: Use role with name
+await expect(page.getByRole('row', { name: 'Resistor' })).toBeVisible();
+
+// Count assertion
 await expect(page.locator('[data-testid="type-row"]')).toHaveCount(previousCount + 1);
 ```
 
@@ -71,11 +108,19 @@ await page.click('[data-testid="nav-types"]');
 await page.waitForTimeout(500); // BAD! Waiting for route
 ```
 
-✅ **CORRECT - Assert URL and content:**
+❌ **AVOID - Custom route events:**
+```typescript
+await awaitEvent(page, 'route', { to: '/types' }); // Unnecessary
+```
+
+✅ **CORRECT - Assert visible UI (simpler is better):**
 ```typescript
 await page.click('[data-testid="nav-types"]');
-await expect(page).toHaveURL(/\/types$/);
+// Just assert the page content is visible - simplest and most reliable
 await expect(page.locator('[data-testid="types.page"]')).toBeVisible();
+
+// Optional: Also check URL if testing routing specifically
+await expect(page).toHaveURL(/\/types$/);
 ```
 
 ### Toast Notifications
@@ -87,9 +132,19 @@ await page.waitForTimeout(300); // BAD! Waiting for toast
 const toast = page.locator('.toast');
 ```
 
-✅ **CORRECT - Assert toast content:**
+❌ **AVOID - Custom toast events:**
+```typescript
+await awaitEvent(page, 'toast', { level: 'success' }); // Unnecessary
+```
+
+✅ **CORRECT - Use role or testid:**
 ```typescript
 await saveForm();
+
+// BEST: Use ARIA role
+await expect(page.getByRole('status')).toHaveText(/saved|created/i);
+
+// ALSO GOOD: Use data-testid
 await expect(page.locator('[data-testid="toast"]')).toBeVisible();
 await expect(page.locator('[data-testid="toast"]')).toHaveText(/success/i);
 ```
@@ -127,22 +182,35 @@ await expect(page.locator('[data-testid="types-list"]')).toBeVisible();
 await expect(page.locator('[data-testid="loading"]')).toBeHidden();
 ```
 
-## TEST_EVT Event Patterns
+## TEST_EVT Event Patterns (Use Sparingly)
 
-### Waiting for Console Events
+### When to Use Custom Events
 
-✅ **CORRECT - Event-driven approach:**
+⚠️ **Only use custom events when UI signals are insufficient:**
+- Background processes with no UI feedback
+- Debugging complex async flows
+- Verifying internal state when required
+
+### Prefer UI Over Events
+
+❌ **AVOID - Unnecessary custom events:**
 ```typescript
-// awaitEvent helper waits for specific console events
-await Promise.all([
-  awaitEvent(page, 'api', { status: 201 }),
-  page.click('[data-testid="submit"]'),
-]);
+await awaitEvent(page, 'route', { to: '/types' }); // Just check UI instead
+await awaitEvent(page, 'form', { phase: 'success' }); // Check modal closed
+await awaitEvent(page, 'toast', { level: 'success' }); // Check toast text
+```
 
-// Sequential events
-await awaitEvent(page, 'form', { phase: 'submit' });
-await awaitEvent(page, 'api', { status: 200 });
-await awaitEvent(page, 'form', { phase: 'success' });
+✅ **CORRECT - UI-first approach:**
+```typescript
+// Instead of route event, check visible content
+await expect(page.locator('[data-testid="types.page"]')).toBeVisible();
+
+// Instead of form event, check UI changes
+await expect(modal).toBeHidden();
+await expect(newRow).toBeVisible();
+
+// Instead of toast event, check toast content
+await expect(page.getByRole('status')).toHaveText(/saved/i);
 ```
 
 ## Animation Killing Setup
@@ -219,17 +287,43 @@ if grep -r "waitForTimeout\|waitForLoadState" tests/; then
 fi
 ```
 
+## Selector Best Practices
+
+### Prefer Semantic Selectors
+
+1. **BEST - ARIA Roles**:
+   ```typescript
+   page.getByRole('button', { name: 'Submit' })
+   page.getByRole('dialog')
+   page.getByRole('row', { name: 'Resistor' })
+   page.getByRole('status') // for toasts
+   ```
+
+2. **GOOD - Labels and Test IDs**:
+   ```typescript
+   page.getByLabel('Type name')
+   page.getByTestId('types.form.name')
+   page.locator('[data-testid="modal"]')
+   ```
+
+3. **AVOID - Implementation Details**:
+   ```typescript
+   page.locator('.css-class-name') // Brittle
+   page.locator('div:nth-child(3)') // Position-dependent
+   page.locator(':has-text("substr")') // Use filter instead
+   ```
+
 ## Quick Reference Cheat Sheet
 
 | Scenario | ❌ Don't Use | ✅ Use Instead |
 |----------|--------------|----------------|
 | Modal opens | `waitForTimeout(500)` | `expect(modal).toBeVisible()` |
 | Modal closes | `waitForTimeout(500)` | `expect(modal).toBeHidden()` |
-| Form saves | `waitForTimeout(2000)` | `expect(toast).toHaveText(/saved/)` |
-| List updates | `waitForTimeout(1000)` | `expect(row).toBeVisible()` |
-| Navigation | `waitForTimeout(500)` | `expect(page).toHaveURL()` |
-| API call | `waitForLoadState()` | `waitForResponse(predicate)` |
-| Loading done | `waitForTimeout(3000)` | `expect(loader).toBeHidden()` |
+| Form saves | `awaitEvent('form', ...)` | `expect(modal).toBeHidden()` + `expect(row).toBeVisible()` |
+| List updates | `:has-text("name")` | `.filter({ hasText: 'name' })` |
+| Navigation | `awaitEvent('route', ...)` | `expect(page.locator('[data-testid]')).toBeVisible()` |
+| Toast appears | `awaitEvent('toast', ...)` | `expect(page.getByRole('status')).toHaveText(/saved/)` |
+| API completes | `waitForLoadState()` | `waitForResponse()` or just assert UI |
 
 ## Remember
 

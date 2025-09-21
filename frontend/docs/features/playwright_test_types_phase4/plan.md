@@ -10,26 +10,39 @@ Implement data-testid attributes and end-to-end test coverage for the Types feat
 
 📚 **See full patterns guide**: [`no-sleep-patterns.md`](./no-sleep-patterns.md)
 
+### Testing Philosophy
+- **UI-First**: Prefer asserting visible UI changes over custom events
+- **User-Focused**: Test what users see, not internal implementation
+- **Fast & Deterministic**: Kill animations, assert observable signals
+
 ### Banned Patterns
 - ❌ `page.waitForTimeout(...)` - NEVER use
 - ❌ `setTimeout`/`sleep` helpers - NEVER use
 - ❌ `page.waitForLoadState('networkidle')` - Too coarse for SPAs
 - ❌ `test.slow()` or timeout increases to "make it pass"
+- ❌ `:has-text(...)` - Use `filter({ hasText })` or roles instead
 
 ### Required Patterns
 - ✅ After every async UI action, assert a UI signal
 - ✅ Use locator assertions: `toBeVisible()`, `toBeHidden()`, `toBeEnabled()`, `toHaveCount()`
 - ✅ Assert dependent UI changes, not time
-- ✅ Kill animations in test setup
+- ✅ Kill animations in test setup (beforeEach)
+- ✅ Prefer UI assertions over custom events (TEST_EVT)
 
-### Allowed Waits (Explicit List)
-- `expect(locator)...` assertions (visibility, text, count)
-- `page.waitForSelector(sel, { state: 'visible' | 'hidden' })`
-- `page.waitForResponse(predicate)` for a specific known call
-- `expect(page).toHaveURL(...)`
-- `awaitEvent()` helper for TEST_EVT console events
+### Allowed Waits (Prioritized)
+1. **Prefer UI signals**:
+   - `expect(locator).toBeVisible()/toBeHidden()`
+   - `expect(page).toHaveURL(...)`
+   - `expect(locator).toHaveText(...)`
+   - `expect(locator).toHaveCount(n)`
 
-**Bottom line:** If a test needs a delay, the UI is missing a signal or the test isn't listening for it.
+2. **Use network waits only when UI insufficient**:
+   - `page.waitForResponse(r => r.url().endsWith('/api/...') && r.ok())`
+
+3. **Custom events as last resort**:
+   - `awaitEvent()` only when no UI signal exists
+
+**Bottom line:** Assert what the user sees, not what the system does internally.
 
 ## Phase Overview
 
@@ -129,6 +142,14 @@ Add only the essential helper:
 export function testId(id: string): string {
   return `[data-testid="${id}"]`;
 }
+
+// Keep generateRandomId for name generation
+export function generateRandomId(): string {
+  return Math.random().toString(36).substring(2, 8);
+}
+
+// Optional: awaitEvent only if truly needed (prefer UI assertions)
+// Consider removing if not used in Phase 4a
 ```
 
 **Create: `tests/e2e/types/create-type.spec.ts`**
@@ -136,53 +157,44 @@ export function testId(id: string): string {
 import { test, expect } from '../../support/fixtures';
 import { TYPES_SELECTORS } from './types.selectors';
 import { createRandomTypeName } from './types.helpers';
-import { testId, awaitEvent } from '../../support/helpers';
+import { testId } from '../../support/helpers';
 
 test.describe('Types - Create', () => {
-  test('should create a new type successfully', async ({ page }) => {
-    // Navigate to Types page
+  test('creates a new type', async ({ page }) => {
+    // Navigate and verify page is ready
     await page.goto('/types');
-
-    // Assert page is ready (no fixed wait)
     await expect(page.locator(testId(TYPES_SELECTORS.page))).toBeVisible();
-    await awaitEvent(page, 'route', { to: '/types' });
 
-    // Click create button and assert modal appears
-    const createButton = page.locator(testId(TYPES_SELECTORS.create.button));
-    await createButton.click();
-
-    // Assert modal is visible (no fixed wait for animation)
+    // Open create modal
+    await page.locator(testId(TYPES_SELECTORS.create.button)).click();
     const modal = page.locator(testId(TYPES_SELECTORS.create.modal));
     await expect(modal).toBeVisible();
 
     // Fill in type name
     const typeName = createRandomTypeName();
-    const nameInput = page.locator(testId(TYPES_SELECTORS.form.name));
-    await nameInput.fill(typeName);
+    await page.locator(testId(TYPES_SELECTORS.form.name)).fill(typeName);
 
-    // Submit form and wait for specific response
+    // Submit form (optionally wait for API response)
     const submitButton = page.locator(testId(TYPES_SELECTORS.form.submit));
-
-    // Wait for both the click and the API response
     await Promise.all([
-      awaitEvent(page, 'api', { status: 201 }),
+      // Optional: only if UI assertions below aren't sufficient
+      page.waitForResponse(r => r.url().endsWith('/api/types') && r.ok()),
       submitButton.click(),
     ]);
 
-    // Assert modal closes (no fixed wait)
+    // Assert modal closes
     await expect(modal).toBeHidden();
 
-    // Assert form success event
-    await awaitEvent(page, 'form', { phase: 'success' });
+    // Assert the user-visible outcome: new row appears
+    const row = page
+      .locator(testId(TYPES_SELECTORS.list.row))
+      .filter({ hasText: typeName });
+    await expect(row).toBeVisible();
 
-    // Assert type appears in list (no fixed wait)
-    const rowWithName = page.locator(
-      `${testId(TYPES_SELECTORS.list.row)}:has-text("${typeName}")`
-    );
-    await expect(rowWithName).toBeVisible();
-
-    // Verify toast success (via event)
-    await awaitEvent(page, 'toast', { level: 'success' });
+    // Optional: assert toast message via role or testid
+    await expect(page.getByRole('status')).toHaveText(/created|saved/i);
+    // OR if using data-testid:
+    // await expect(page.locator('[data-testid="toast"]')).toHaveText(/created/i);
   });
 });
 ```
@@ -193,40 +205,42 @@ Before proceeding to Phase 4b, ensure:
 
 1. ✅ All required data-testid attributes are in place
 2. ✅ The create-type test runs successfully
-3. ✅ TEST_EVT events are properly captured:
-   - route navigation to /types
-   - form submission
-   - API call with status 201
-   - form success phase
-   - toast success notification
+3. ✅ **UI-First assertions work**:
+   - Page visibility confirmed
+   - Modal opens/closes properly
+   - New row appears in list
+   - Toast message visible (if applicable)
 4. ✅ The test works on both clean and dirty databases
-5. ✅ The test completes within 10 seconds
+5. ✅ The test completes within 10 seconds (should be <3 seconds)
 6. ✅ No console.error messages appear during the test
 7. ✅ **NO FIXED WAITS** - Test uses only event-driven assertions
 8. ✅ Animations are killed in test setup
-9. ✅ All waits are for specific UI signals or events
+9. ✅ No `:has-text` selectors - using `filter({ hasText })` or roles
 
 ### Phase 4a Implementation Steps
 
 1. **Add data-testid attributes** (30 minutes)
    - Add minimal attributes needed for create flow
    - Verify components accept and forward attributes
+   - Consider adding ARIA roles for better selector options
 
 2. **Create test infrastructure** (45 minutes)
    - Create types.selectors.ts with minimal selectors
    - Create types.helpers.ts with name generation
    - Add testId helper to support/helpers.ts
+   - Ensure animation killing is in fixtures
 
 3. **Write and debug the test** (1-2 hours)
-   - Create create-type.spec.ts
-   - Debug selector issues
-   - Verify event sequence
+   - Create create-type.spec.ts following UI-first approach
+   - Use roles and filter() instead of :has-text
+   - Verify UI signals work without custom events
    - Ensure test passes consistently
 
 4. **Validate robustness** (30 minutes)
-   - Run test 5 times consecutively
-   - Test with dirty database
+   - Run test 10 times consecutively
+   - Test should complete in <3 seconds
    - Verify no flakiness
+   - Remove any unnecessary waits
 
 ## Phase 4b: Complete Test Coverage (After 4a Success)
 
@@ -309,21 +323,24 @@ export async function deleteType(page: Page, typeName: string) {
 
 **Testing Pattern Examples:**
 ```typescript
-// Edit test - NO FIXED WAITS
-await editButton.click();
-await expect(editModal).toBeVisible(); // Not waitForTimeout!
+// Edit test - UI-first approach
+await page.getByRole('button', { name: 'Edit' }).click();
+await expect(page.getByRole('dialog')).toBeVisible();
 
 // Delete test - Assert UI change
-await deleteButton.click();
-await expect(confirmDialog).toBeVisible();
-await confirmButton.click();
-await expect(typeRow).toBeHidden(); // Row disappears
+await page.getByRole('button', { name: 'Delete' }).click();
+await expect(page.getByRole('dialog', { name: /confirm/i })).toBeVisible();
+await page.getByRole('button', { name: 'Confirm' }).click();
+// Use filter instead of :has-text
+const row = page.locator('[data-testid="type-row"]').filter({ hasText: typeName });
+await expect(row).toBeHidden();
 
 // Validation test - Assert error appears
-await nameInput.fill('');
-await submitButton.click();
-await expect(errorMessage).toBeVisible();
-await expect(errorMessage).toHaveText(/required/i);
+await page.getByLabel('Type name').fill('');
+await page.getByRole('button', { name: 'Submit' }).click();
+await expect(page.getByRole('alert')).toHaveText(/required/i);
+// OR with data-testid:
+await expect(page.locator('[data-testid="form.error"]')).toBeVisible();
 ```
 
 **Create: `tests/e2e/types/types-workflow.spec.ts`**
@@ -485,3 +502,5 @@ Document patterns, update CLAUDE.md, and establish guidelines for future feature
 5. **Test the tests**: Ensure tests are reliable before adding more
 6. **NO FIXED WAITS**: Event-driven tests only - if you need a delay, find the UI signal
 7. **Fast and deterministic**: Tests should run quickly and consistently
+8. **UI-First**: Prefer visible UI assertions over custom events
+9. **User-Focused**: Test what users see, not internal implementation
