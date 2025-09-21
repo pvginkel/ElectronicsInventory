@@ -4,6 +4,33 @@
 
 Implement data-testid attributes and end-to-end test coverage for the Types feature to serve as the pilot implementation for the Playwright test suite. This phase leverages the completed component refactoring from Pre-Phase 4, which enables all components to accept data-testid attributes and forward refs.
 
+## Critical Testing Rules - No-Sleep Policy
+
+**HARD RULE: No fixed waits are allowed. Tests must be event-driven, fast, and deterministic.**
+
+📚 **See full patterns guide**: [`no-sleep-patterns.md`](./no-sleep-patterns.md)
+
+### Banned Patterns
+- ❌ `page.waitForTimeout(...)` - NEVER use
+- ❌ `setTimeout`/`sleep` helpers - NEVER use
+- ❌ `page.waitForLoadState('networkidle')` - Too coarse for SPAs
+- ❌ `test.slow()` or timeout increases to "make it pass"
+
+### Required Patterns
+- ✅ After every async UI action, assert a UI signal
+- ✅ Use locator assertions: `toBeVisible()`, `toBeHidden()`, `toBeEnabled()`, `toHaveCount()`
+- ✅ Assert dependent UI changes, not time
+- ✅ Kill animations in test setup
+
+### Allowed Waits (Explicit List)
+- `expect(locator)...` assertions (visibility, text, count)
+- `page.waitForSelector(sel, { state: 'visible' | 'hidden' })`
+- `page.waitForResponse(predicate)` for a specific known call
+- `expect(page).toHaveURL(...)`
+- `awaitEvent()` helper for TEST_EVT console events
+
+**Bottom line:** If a test needs a delay, the UI is missing a signal or the test isn't listening for it.
+
 ## Phase Overview
 
 This is Phase 4 of the Playwright test suite implementation, building on:
@@ -42,6 +69,27 @@ Implement and successfully run a single end-to-end test that creates a type and 
 - Add `data-testid="types.list.row.name"` to name cells
 
 #### 2. Create Minimal Test Infrastructure
+
+**Modify: `tests/support/fixtures.ts`**
+Add animation killing to test setup:
+```typescript
+export const test = base.extend({
+  page: async ({ page }, use) => {
+    // Kill all animations for deterministic tests
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.addStyleTag({
+      content: `
+        *, *::before, *::after {
+          transition-duration: 0s !important;
+          animation-duration: 0s !important;
+          animation-delay: 0s !important;
+        }
+      `
+    });
+    await use(page);
+  },
+});
+```
 
 **Create: `tests/e2e/types/types.selectors.ts`**
 ```typescript
@@ -94,30 +142,40 @@ test.describe('Types - Create', () => {
   test('should create a new type successfully', async ({ page }) => {
     // Navigate to Types page
     await page.goto('/types');
-    await page.waitForSelector(testId(TYPES_SELECTORS.page));
 
-    // Wait for route event
+    // Assert page is ready (no fixed wait)
+    await expect(page.locator(testId(TYPES_SELECTORS.page))).toBeVisible();
     await awaitEvent(page, 'route', { to: '/types' });
 
-    // Click create button
-    await page.click(testId(TYPES_SELECTORS.create.button));
-    await page.waitForSelector(testId(TYPES_SELECTORS.create.modal));
+    // Click create button and assert modal appears
+    const createButton = page.locator(testId(TYPES_SELECTORS.create.button));
+    await createButton.click();
+
+    // Assert modal is visible (no fixed wait for animation)
+    const modal = page.locator(testId(TYPES_SELECTORS.create.modal));
+    await expect(modal).toBeVisible();
 
     // Fill in type name
     const typeName = createRandomTypeName();
-    await page.fill(testId(TYPES_SELECTORS.form.name), typeName);
+    const nameInput = page.locator(testId(TYPES_SELECTORS.form.name));
+    await nameInput.fill(typeName);
 
-    // Submit form
-    await page.click(testId(TYPES_SELECTORS.form.submit));
+    // Submit form and wait for specific response
+    const submitButton = page.locator(testId(TYPES_SELECTORS.form.submit));
 
-    // Wait for API success event
-    await awaitEvent(page, 'api', { status: 201 });
+    // Wait for both the click and the API response
+    await Promise.all([
+      awaitEvent(page, 'api', { status: 201 }),
+      submitButton.click(),
+    ]);
 
-    // Wait for form success event
+    // Assert modal closes (no fixed wait)
+    await expect(modal).toBeHidden();
+
+    // Assert form success event
     await awaitEvent(page, 'form', { phase: 'success' });
 
-    // Verify type appears in list
-    await page.waitForSelector(testId(TYPES_SELECTORS.list.table));
+    // Assert type appears in list (no fixed wait)
     const rowWithName = page.locator(
       `${testId(TYPES_SELECTORS.list.row)}:has-text("${typeName}")`
     );
@@ -144,6 +202,9 @@ Before proceeding to Phase 4b, ensure:
 4. ✅ The test works on both clean and dirty databases
 5. ✅ The test completes within 10 seconds
 6. ✅ No console.error messages appear during the test
+7. ✅ **NO FIXED WAITS** - Test uses only event-driven assertions
+8. ✅ Animations are killed in test setup
+9. ✅ All waits are for specific UI signals or events
 
 ### Phase 4a Implementation Steps
 
@@ -241,10 +302,29 @@ export async function deleteType(page: Page, typeName: string) {
 #### 3. Create Additional Tests
 
 **Create: `tests/e2e/specific/types/types-crud.spec.ts`**
-- Test edit functionality
-- Test delete functionality
-- Test validation (empty name, duplicates, special characters)
-- Test blocked delete with dependencies
+- Test edit functionality (assert UI changes, no waits)
+- Test delete functionality (assert row removal)
+- Test validation (assert error messages appear)
+- Test blocked delete with dependencies (assert error toast)
+
+**Testing Pattern Examples:**
+```typescript
+// Edit test - NO FIXED WAITS
+await editButton.click();
+await expect(editModal).toBeVisible(); // Not waitForTimeout!
+
+// Delete test - Assert UI change
+await deleteButton.click();
+await expect(confirmDialog).toBeVisible();
+await confirmButton.click();
+await expect(typeRow).toBeHidden(); // Row disappears
+
+// Validation test - Assert error appears
+await nameInput.fill('');
+await submitButton.click();
+await expect(errorMessage).toBeVisible();
+await expect(errorMessage).toHaveText(/required/i);
+```
 
 **Create: `tests/e2e/types/types-workflow.spec.ts`**
 - Complete E2E workflow test
@@ -291,6 +371,9 @@ Document patterns, update CLAUDE.md, and establish guidelines for future feature
 - Document selector naming conventions
 - Add TEST_EVT assertion patterns
 - Include debugging guidelines
+- **Add No-Sleep Testing Rules section**
+- Document allowed wait patterns
+- Include common replacement patterns
 
 #### 2. Create Testing Guidelines
 - Document folder structure patterns
@@ -319,6 +402,8 @@ Document patterns, update CLAUDE.md, and establish guidelines for future feature
 - No console errors during execution
 - Works on dirty database
 - Events properly captured and asserted
+- **ZERO fixed waits** (`waitForTimeout` = automatic failure)
+- All assertions are for observable UI signals
 
 ### Phase 4b Success Criteria
 - All CRUD operations tested
@@ -340,9 +425,15 @@ Document patterns, update CLAUDE.md, and establish guidelines for future feature
 
 - **Event timing**: Events might not fire as expected
   - Mitigation: Add console logging during initial development
+  - **NO FIXED WAITS**: Use UI assertions instead
 
-- **Modal interactions**: Dialog might not be accessible
-  - Mitigation: Test Dialog contentProps forwarding first
+- **Modal animations**: Dialog animations might cause timing issues
+  - Mitigation: Kill animations in test setup
+  - Assert visibility states, not arbitrary delays
+
+- **Race conditions**: UI might update before events fire
+  - Mitigation: Use Promise.all() for concurrent actions/waits
+  - Assert dependent UI changes
 
 ### Phase 4b Risks
 - **Test interdependencies**: Tests might affect each other
@@ -379,6 +470,11 @@ Document patterns, update CLAUDE.md, and establish guidelines for future feature
 - Focus on the single test until it's robust and reliable
 - Backend log streaming (Phase 5) will add debugging capability later
 - This phased approach reduces risk and ensures a solid foundation
+- **No-Sleep Policy is non-negotiable** - See [`no-sleep-patterns.md`](./no-sleep-patterns.md) for patterns
+- If a test seems to need a sleep, the problem is either:
+  - Missing UI signal (add data-testid or observable state)
+  - Wrong assertion (find the right signal to wait for)
+  - Animation not killed (check test setup)
 
 ## Key Principles
 
@@ -387,3 +483,5 @@ Document patterns, update CLAUDE.md, and establish guidelines for future feature
 3. **Build incrementally**: Each phase builds on the previous success
 4. **Document as you go**: Capture learnings from each phase
 5. **Test the tests**: Ensure tests are reliable before adding more
+6. **NO FIXED WAITS**: Event-driven tests only - if you need a delay, find the UI signal
+7. **Fast and deterministic**: Tests should run quickly and consistently
