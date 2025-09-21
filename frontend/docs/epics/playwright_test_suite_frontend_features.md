@@ -118,10 +118,92 @@ This checklist tracks all frontend features required for the complete Playwright
 - [ ] Event type logging
 - [ ] Integration with SSE-aware timeout fixtures
 
+## Component Refactoring (Pre-Phase 4 - NEW)
+
+### Goals
+- 🎯 Enable components to accept data-* attributes (required for data-testid)
+- 🎯 Forward refs to DOM elements for better Playwright interaction
+- 🎯 Improve accessibility (a11y) which improves test discoverability
+- 🎯 **No backward compatibility required** - refactor the entire app as needed
+
+### Core Refactoring Pattern
+- [ ] All components extend React.ComponentPropsWithoutRef<element>
+- [ ] Use React.forwardRef for ref forwarding
+- [ ] Props spread order: {...props} first, then critical props
+- [ ] Class merging with cn() utility
+- [ ] Event handler composition instead of replacement
+- [ ] displayName set for all components
+
+### High Priority Components (Types Workflow)
+- [ ] Button (`src/components/ui/button.tsx`)
+  - [ ] Convert to forwardRef
+  - [ ] Extend native button props
+  - [ ] Enforce type="button" by default
+  - [ ] Compose onClick handlers
+- [ ] Input (`src/components/ui/input.tsx`)
+  - [ ] Convert to forwardRef
+  - [ ] Extend native input props
+  - [ ] Add aria-invalid support
+  - [ ] Handle aria-describedby for errors
+- [ ] Dialog (`src/components/ui/dialog.tsx`)
+  - [ ] Forward refs through Radix primitives
+  - [ ] Allow pass-through props (overlayProps, contentProps)
+  - [ ] Use DialogPrimitive.Description for a11y
+  - [ ] Ensure data-* reaches DOM
+- [ ] Form Components (`src/components/ui/form.tsx`)
+  - [ ] FormField forwards refs and data-*
+  - [ ] FormControl passes props to inputs
+  - [ ] FormMessage has aria-live
+  - [ ] FormLabel connects with htmlFor
+- [ ] Card Components (`src/components/ui/card.tsx`)
+  - [ ] Card, CardHeader, CardContent, CardFooter
+  - [ ] All extend native div props
+  - [ ] All forward refs
+- [ ] SearchableSelect (`src/components/ui/searchable-select.tsx`)
+  - [ ] Complex combobox ARIA pattern
+  - [ ] Forward ref to input element
+  - [ ] Proper role and aria attributes
+
+### Medium Priority Components
+- [ ] Badge (`src/components/ui/badge.tsx`)
+- [ ] ProgressBar (`src/components/ui/progress-bar.tsx`)
+  - [ ] Add role="progressbar"
+  - [ ] Include aria-valuemin/max/now
+  - [ ] Support indeterminate state
+- [ ] Toast (`src/components/ui/toast.tsx`)
+  - [ ] Forward props through Radix Toast
+  - [ ] Ensure data-* reaches toast items
+- [ ] DropdownMenu (`src/components/ui/dropdown-menu.tsx`)
+  - [ ] Trigger accepts data-* attributes
+
+### Domain Components (Minimal Changes)
+- [ ] TypeForm (`src/components/types/TypeForm.tsx`)
+  - [ ] Use refactored base components (Button, Input, etc.)
+  - [ ] Add data-testid attributes directly to elements
+  - Note: No need for ref forwarding or extending native props
+- [ ] PartForm (`src/components/parts/PartForm.tsx`)
+  - [ ] Use refactored base components
+  - [ ] Add data-testid attributes directly to elements
+  - Note: Domain components just need test IDs, not full refactoring
+
+### Accessibility Improvements
+- [ ] Use semantic HTML elements
+- [ ] Add ARIA attributes only when needed
+- [ ] Ensure keyboard navigation works
+- [ ] Connect labels to inputs
+- [ ] Add aria-describedby for error states
+
+### Testing Approach
+- [ ] Verify each component after refactoring
+- [ ] Check data-testid appears in DOM
+- [ ] Test ref.current?.focus() works
+- [ ] No visual regressions
+- [ ] TypeScript type checking passes
+
 ## UI Testing Support
 
-### Data Test Attributes (Phase 4 - Planned)
-- ⏳ Adopt data-test attributes as primary selector strategy
+### Data Test Attributes (Phase 4 - Planned, depends on Pre-Phase 4)
+- ⏳ Adopt data-testid attributes as primary selector strategy
 - [ ] Apply to Types screens and components
 - [ ] Establish comprehensive naming patterns:
   - [ ] Page level: types.page, parts.page, boxes.page, etc.
@@ -274,17 +356,24 @@ This checklist tracks all frontend features required for the complete Playwright
 - ✅ Test event system foundation
 - ✅ Build-time safety for production
 
-**Phase 3 - Frontend Instrumentation (Carved Out for Implementation):** ~25 items
-- 📋 Full structured test events (TEST_EVT) implementation
-- 📋 Router instrumentation (from→to navigation tracking)
-- 📋 API client instrumentation (correlation IDs, duration)
-- 📋 Toast and error boundary integration
-- 📋 TanStack Query error hooks
-- 📋 Forms lifecycle tracking (TypeForm and PartForm initially)
+**Phase 3 - Frontend Instrumentation (Completed):** ~25 items
+- ✅ Full structured test events (TEST_EVT) implementation
+- ✅ Router instrumentation (from→to navigation tracking)
+- ✅ API client instrumentation (correlation IDs, duration)
+- ✅ Toast and error boundary integration
+- ✅ TanStack Query error hooks
+- ✅ Forms lifecycle tracking (TypeForm and PartForm initially)
 - Note: SSE client instrumentation deferred to later phase
 
-**Phase 4 - UI Testing & Types Features (Planned):** ~25 items
-- ⏳ Data-test attributes implementation
+**Pre-Phase 4 - Component Refactoring (NEW - To Be Implemented):** ~35 items
+- 🎯 Refactor all UI components to accept data-* attributes
+- 🎯 Forward refs to DOM elements
+- 🎯 Improve accessibility (ARIA, semantic HTML)
+- 🎯 Maintain backward compatibility
+- 🎯 Follow patterns from component refactoring guide
+
+**Phase 4 - UI Testing & Types Features (Planned, depends on Pre-Phase 4):** ~25 items
+- ⏳ Data-testid attributes implementation
 - ⏳ Types feature test coverage
 - ⏳ Test patterns and helpers
 - ⏳ Documentation updates
@@ -296,14 +385,21 @@ This checklist tracks all frontend features required for the complete Playwright
 - ⏳ Full end-to-end test capabilities
 
 ### Implementation Progress
-- **Completed:** ~38% (Phase 1 + Phase 2)
-- **Carved Out for Phase 3:** ~24% (Core instrumentation)
-- **Remaining:** ~38% (Phases 4-5 and deferred items)
+- **Completed:** ~46% (Phases 1, 2, and 3)
+- **Next Up:** Pre-Phase 4 Component Refactoring
+- **Remaining:** ~54% (Pre-Phase 4, Phase 4, Phase 5, and deferred items)
 
-### Phase 3 Focus Areas
-The Phase 3 implementation plan (`docs/features/playwright_test_instrumentation_phase3/plan.md`) focuses on:
-1. **High Priority**: API client, router, and toast instrumentation
-2. **Medium Priority**: TanStack Query and error boundary integration
-3. **Incremental**: Form lifecycle tracking (starting with key forms)
+### Current Focus: Pre-Phase 4 Component Refactoring
+The component refactoring plan (`docs/features/component_refactoring_pre_phase4/plan.md`) addresses:
+1. **Critical Requirement**: Components must accept data-testid attributes for Playwright testing
+2. **Accessibility**: Improved ARIA support and semantic HTML benefits both testing and users
+3. **Best Practices**: Following the patterns from `docs/epics/component_refactoring.md`
+4. **Full Refactoring Freedom**: No backward compatibility needed - update the entire app as necessary
 
-The phased approach ensures each layer builds properly on the previous one, with Phase 2's test infrastructure now complete and ready to support Phase 3's comprehensive instrumentation.
+### Why Pre-Phase 4 is Essential
+- Phase 4 tests require components to accept data-testid attributes
+- Current components don't forward native props or refs
+- Refactoring improves both testability and accessibility
+- Aligns codebase with React best practices
+
+The phased approach ensures a solid foundation for testing, with component refactoring enabling reliable test selectors in Phase 4.

@@ -66,6 +66,27 @@
 
 # Frontend — required changes
 
+## Component Refactoring Prerequisites (NEW - Pre-Phase 4)
+
+Before implementing selectors and tests, components must be refactored to:
+
+1. **Accept native props**: Extend `React.ComponentPropsWithoutRef<element>` to accept all HTML attributes including `data-*`
+2. **Forward refs**: Use `React.forwardRef` to enable DOM element access in tests
+3. **Improve accessibility**: Semantic HTML, proper ARIA attributes, keyboard support
+4. **No backward compatibility concerns**: The app is small enough to refactor entirely - update all usages as needed
+
+This follows the patterns in `docs/epics/component_refactoring.md`.
+
+**Reusable UI components** (need full refactoring):
+- Button, Input, Dialog, Form components
+- Card, Badge, ProgressBar, Toast
+- SearchableSelect, DropdownMenu
+
+**Domain components** (minimal changes - just add data-testid):
+- TypeForm, PartForm - only need to add data-testid attributes directly, no refactoring needed
+
+## Test Infrastructure Changes
+
 1. **Test mode switch**
 
 * Add a single flag (e.g., `TEST_MODE=true`) derived from env/build config that **enables/disables all instrumentation**.
@@ -111,9 +132,10 @@
 
 9. **Selectors for stability**
 
-* Adopt `data-test="..."` attributes as the **primary selector** strategy.
+* Adopt `data-testid="..."` attributes as the **primary selector** strategy.
 * Apply them across the **Types** screens and any shared controls used in those flows.
 * Keep names short and semantic (e.g., `types.page`, `types.form.name`, `types.list.row`, `toast.error`).
+* **Prerequisite**: Components must first be refactored to accept data-* attributes and forward refs.
 
 10. **Dual-port dev/testing hardening**
 
@@ -134,7 +156,7 @@
 * Add a "UI Testing (Playwright) — How Claude should work" section to your AGENTS frontend doc covering:
 
   * How to run locally (headless), required URLs, optional start/stop scripts.
-  * How to add `data-test` selectors.
+  * How to add `data-testid` selectors.
   * How to assert using `TEST_EVT` and treat `console.error`.
   * How to connect to backend log stream (`/api/testing/logs/stream`) for debugging.
   * How to correlate frontend events with backend logs using correlation IDs.
@@ -179,9 +201,10 @@
 
 ## Acceptance (for designers to target)
 
+* **Components are refactored** to accept data-* attributes, forward refs, and follow accessibility best practices.
 * In **test mode**, the app emits the agreed `TEST_EVT` taxonomy; in production it does not.
 * Backend exposes `reset` and `logs/stream` only in test mode and returns stable, machine-usable responses; `readyz` enhanced with DB checks.
 * Backend log streaming provides structured JSON logs with correlation IDs for complete observability.
-* The Types flow is fully selectable via `data-test` attributes and surfaces a **blocked delete** through standardized errors → toasts → structured events.
+* The Types flow is fully selectable via `data-testid` attributes and surfaces a **blocked delete** through standardized errors → toasts → structured events.
 * Playwright can run headless against a real backend with **only URLs provided**, and optionally orchestrate start/stop via scripts.
 * Default test assertions complete within **≤10s**; SSE-related waits are explicit and limited in scope.

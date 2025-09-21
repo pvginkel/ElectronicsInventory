@@ -45,10 +45,11 @@
 
 # Selector strategy & accessibility
 
-* Adopt **`data-test="..."`** attributes as primary selectors; stable names per feature, e.g.:
+* Adopt **`data-testid="..."`** attributes as primary selectors; stable names per feature, e.g.:
 
   * `types.page`, `types.list.table`, `types.list.row`, `types.form.name`, `types.form.submit`, `toast.error`, `toast.info`.
 * Do not rely on text/role selectors for core flows.
+* **Prerequisite**: Components must be refactored to accept data-* attributes and forward refs (see component refactoring guide).
 
 # Data & environment strategy
 
@@ -142,7 +143,7 @@ Add sections to your **AGENTS-frontend.md** and **AGENTS-backend.md**:
    * For clean runs, call `POST /api/testing/reset?seed=true` before tests.
 2. **Add a new test**
 
-   * Prefer `data-test` selectors; add them if missing.
+   * Prefer `data-testid` selectors; add them if missing.
    * Use randomized names with `prefix-<shortId>`.
    * Do **not** clean up.
 3. **Interpret signals**
@@ -190,14 +191,15 @@ Add sections to your **AGENTS-frontend.md** and **AGENTS-backend.md**:
 
 * **Flakiness from async UI:** Mitigate with event-sequence assertions (e.g., wait for `api:success` then `form:success`).
 * **SSE heartbeat (30s):** Scope longer awaits to SSE-related steps only; never relax global defaults.
-* **Selector drift:** Lock on `data-test`; mandate adding selectors in UI changes.
+* **Selector drift:** Lock on `data-testid`; mandate adding selectors in UI changes.
 * **Over-logging:** Keep payloads compact; log IDs/status/codes, not full bodies.
 
 # Rollout steps (high-level)
 
 1. **Instrumentation** (frontend): add test mode flag + `emitTestEvt`, wire to toasts, TanStack Query errors, router, forms, API, SSE.
 2. **Backend reset/health** endpoints behind env flag.
-3. **Selector pass** on Types screens/components.
-4. **Playwright skeleton**: config (no retries, 10s), fixtures (URLs, optional scripts), helpers (awaitEvent, id suffix).
-5. **Pilot tests**: one specific + one E2E for Types (including blocked delete with clear surfacing).
-6. **Docs**: add AGENTS sections above.
+3. **Component refactoring**: Update UI components to accept data-* attributes, forward refs, and improve accessibility.
+4. **Selector pass** on Types screens/components with data-testid attributes.
+5. **Playwright skeleton**: config (no retries, 10s), fixtures (URLs, optional scripts), helpers (awaitEvent, id suffix).
+6. **Pilot tests**: one specific + one E2E for Types (including blocked delete with clear surfacing).
+7. **Docs**: add AGENTS sections above.
