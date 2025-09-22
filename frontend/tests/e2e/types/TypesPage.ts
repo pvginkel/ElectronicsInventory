@@ -59,6 +59,5 @@ export class TypesPage {
     await this.submitButton().click();
     await expect(this.modal()).toBeHidden();
     await expect(this.cardByName(name)).toBeVisible();
-    // Toast assertion removed per no-sleep patterns - UI visibility is sufficient
   }
 }

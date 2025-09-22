@@ -1,12 +1,10 @@
 import { test, expect } from './support/fixtures';
 import { selectors } from './support/selectors';
-import { waitForPageReady } from './support/helpers';
 
 test.describe('Smoke Tests', () => {
   test('should access frontend and verify basic functionality', async ({ page, frontendUrl }) => {
     // Navigate to the frontend
     await page.goto(frontendUrl);
-    await waitForPageReady(page);
 
     // Check that the page loaded successfully
     await expect(page).toHaveTitle(/Electronics Inventory/i);

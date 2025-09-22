@@ -71,20 +71,22 @@ Implement and successfully run a single end-to-end test that creates a type and 
 
 #### 1. Add Minimal Data-testid Attributes
 
+**Note**: Following the selector patterns guidance, data-testid attributes should only be added when elements cannot be confidently found by ARIA roles or textual labels. Prefer semantic selectors first.
+
 **Modify: `src/routes/types/index.tsx`**
-- Add `data-testid="types.page"` to main page container
-- Add `data-testid="types.create.button"` to create button
+- Add `data-testid="types.page"` to main page container (needed for scoping)
 
 **Modify: `src/components/types/TypeForm.tsx`**
 - Add `aria-label` to Dialog for accessibility (e.g., "Create Type" or "Edit Type")
-- Add conditional `data-testid` to Dialog element:
+- Add conditional `data-testid` to Dialog element only if ARIA labels don't work:
   - `data-testid="types.create.modal"` when creating
   - `data-testid="types.edit.modal"` when editing
-- Existing testids are fine: `types.form.name`, `types.form.submit`, `types.form.cancel`
+- Keep minimal testids only where semantic selectors fail: `types.form.name`, `types.form.submit`, `types.form.cancel`
 
 **Modify: `src/components/types/TypeList.tsx`**
-- Add `data-testid="types.list.container"` to grid container
-- Note: TypeList uses cards, not a table structure
+- Add `data-testid="types.list.container"` to grid container (for container selection)
+- Add `data-testid="types.list.card"` to cards (for repeated elements)
+- Add `data-testid="types.create.button"` only if the button text isn't stable
 
 #### 2. Configure Playwright
 
@@ -175,7 +177,6 @@ export class TypesPage {
     await this.submitButton().click();
     await expect(this.modal()).toBeHidden();
     await expect(this.cardByName(name)).toBeVisible();
-    await expect(this.toast(/created|saved/i)).toBeVisible();
   }
 }
 ```
@@ -248,7 +249,7 @@ test.describe('Types - Create', () => {
     await types.goto();
 
     const typeName = testData.types.randomTypeName();
-    await types.createType(typeName);  // includes toast assertion
+    await types.createType(typeName);  // verifies modal and card visibility
   });
 
   test('validates required fields', async ({ types }) => {
@@ -322,19 +323,17 @@ Expand test coverage to include all CRUD operations, edge cases, and blocked del
 #### 1. Complete Data-testid Attributes
 
 **Modify: `src/components/types/TypeCard.tsx`** (Component that renders each type)
-- Add `data-testid="types.list.card"` to card container
-- Add `data-testid="types.list.card.name"` to name element
-- Add `data-testid="types.list.card.edit"` to edit button
-- Add `data-testid="types.list.card.delete"` to delete button
-- Add `data-testid="types.list.card.actions"` to actions container
+- Add `data-testid="types.list.card"` to card container (needed for repeated elements)
+- Only add button testids if role selectors with button text aren't stable:
+  - `data-testid="types.list.card.edit"` to edit button (if "Edit" text changes)
+  - `data-testid="types.list.card.delete"` to delete button (if "Delete" text changes)
 
 **Modify: `src/components/types/TypeForm.tsx`**
-- Add `data-testid="types.form.container"` to form wrapper
-- Add `data-testid="types.form.error"` to error display areas
-- Add `data-testid="types.modal.close"` to Dialog close button (if accessible)
-- Add conditional modal testids based on mode:
-  - `data-testid="types.create.modal"` when creating
-  - `data-testid="types.edit.modal"` when editing
+- Only add testids where semantic selectors fail:
+  - `data-testid="types.form.error"` to error display areas (if no role="alert")
+  - Keep conditional modal testids only if ARIA labels don't work:
+    - `data-testid="types.create.modal"` when creating
+    - `data-testid="types.edit.modal"` when editing
 
 #### 2. Expand Test Infrastructure
 

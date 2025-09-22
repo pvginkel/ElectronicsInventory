@@ -13,40 +13,33 @@ export function generateRandomId(prefix: string = 'test'): string {
 }
 
 /**
- * Waits for a console event matching the given criteria
+ * Waits for a TEST_EVT console event to be emitted
+ * @param page The Playwright page instance
+ * @param kind The event kind to wait for
+ * @param filter Optional filter function to match specific event payloads
+ * @param timeout Maximum time to wait for the event
+ * @returns The event data payload
  */
-export async function awaitEvent(
+export async function waitTestEvent<T = any>(
   page: Page,
   kind: string,
-  filter?: (payload: any) => boolean,
-  timeout: number = 10000
-): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      reject(new Error(`Timeout waiting for event "${kind}" after ${timeout}ms`));
-    }, timeout);
-
-    const handler = (msg: any) => {
+  filter?: (payload: T) => boolean,
+  timeout = 10_000
+): Promise<T> {
+  const msg = await page.waitForEvent('console', {
+    timeout,
+    predicate: (m) => {
+      const text = m.text();
+      if (!text.startsWith('TEST_EVT: ')) return false;
       try {
-        const text = msg.text();
-        if (text.startsWith('TEST_EVT: ')) {
-          const eventData = JSON.parse(text.substring('TEST_EVT: '.length));
-
-          if (eventData.kind === kind) {
-            if (!filter || filter(eventData)) {
-              clearTimeout(timeoutId);
-              page.off('console', handler);
-              resolve(eventData);
-            }
-          }
-        }
-      } catch (e) {
-        // Ignore non-test-event console messages or malformed JSON
+        const data = JSON.parse(text.slice('TEST_EVT: '.length));
+        return data?.kind === kind && (!filter || filter(data));
+      } catch {
+        return false;
       }
-    };
-
-    page.on('console', handler);
+    },
   });
+  return JSON.parse(msg.text().slice('TEST_EVT: '.length)) as T;
 }
 
 /**
@@ -66,15 +59,3 @@ export async function waitForElement(page: Page, selector: string, timeout: numb
   return page.locator(selector);
 }
 
-/**
- * Waits for page to be ready (no loading indicators)
- */
-export async function waitForPageReady(page: Page, timeout: number = 10000) {
-  // Wait for potential loading spinners to disappear
-  await expect(page.locator('[data-testid="loading"]')).toBeHidden({ timeout }).catch(() => {
-    // Ignore if no loading indicator exists
-  });
-
-  // Wait for network to be idle
-  await page.waitForLoadState('networkidle', { timeout });
-}

@@ -51,10 +51,10 @@
       "icon": { "id": "server" },
       "problemMatcher": [],
       "presentation": {
-        "panel": "new",
+        "panel": "dedicated",
         "reveal": "always",
         "focus": false,
-        "showReuseMessage": false
+        "showReuseMessage": true
       },
       "runOptions": {
         "reevaluateOnRerun": true
