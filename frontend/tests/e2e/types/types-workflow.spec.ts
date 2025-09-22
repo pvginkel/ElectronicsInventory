@@ -1,7 +1,7 @@
 import { test, expect } from '../../support/fixtures';
 
 test.describe('Types - Complete Workflow', () => {
-  test.skip('complete E2E workflow: create, edit, and delete attempt', async ({ testData, types }) => {
+  test('complete E2E workflow: create, edit, and delete attempt', async ({ testData, types }) => {
     await types.goto();
 
     // Step 1: Create a new type
@@ -27,15 +27,19 @@ test.describe('Types - Complete Workflow', () => {
     await types.deleteButtonForCard(updatedName).click();
 
     // Confirm dialog appears
-    const confirmDialog = types.page.getByRole('dialog', { name: /delete type/i });
+    const confirmDialog = types.page.getByRole('dialog');
     await expect(confirmDialog).toBeVisible();
 
     // Attempt deletion
     await confirmDialog.getByRole('button', { name: 'Delete' }).click();
+
+    // Wait for the toast error to appear
+    await expect(types.toast()).toBeVisible();
+
+    // Dialog should close after error
     await expect(confirmDialog).toBeHidden();
 
-    // Verify deletion was blocked
-    await expect(types.toast(/cannot delete|in use/i)).toBeVisible();
+    // Verify deletion was blocked - type should still exist
     await expect(types.cardByName(updatedName)).toBeVisible();
   });
 

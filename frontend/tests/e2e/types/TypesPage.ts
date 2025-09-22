@@ -46,15 +46,11 @@ export class TypesPage {
   }
 
   editButtonForCard(name: string): Locator {
-    return this.cardByName(name)
-      .getByRole('button', { name: /edit/i })
-      .or(this.cardByName(name).getByTestId('types.list.card.edit'));
+    return this.cardByName(name).getByRole('button', { name: /edit/i });
   }
 
   deleteButtonForCard(name: string): Locator {
-    return this.cardByName(name)
-      .getByRole('button', { name: /delete/i })
-      .or(this.cardByName(name).getByTestId('types.list.card.delete'));
+    return this.cardByName(name).getByRole('button', { name: /delete/i });
   }
 
   // Form elements (work in both create and edit modals)

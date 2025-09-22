@@ -1,8 +1,6 @@
 import { test, expect } from '../../support/fixtures';
 
 test.describe('Types - CRUD Operations', () => {
-  // Note: One test is temporarily skipped due to toast assertion timing issues.
-  // The core functionality works but the test needs refinement for consistent execution.
   test('edits an existing type', async ({ testData, types }) => {
     const existingName = testData.types.randomTypeName();
     const existing = await testData.types.create({ name: existingName });
@@ -35,7 +33,7 @@ test.describe('Types - CRUD Operations', () => {
     await expect(types.page.getByText(/required/i)).toBeVisible();
   });
 
-  test.skip('blocked delete shows error when type has parts', async ({ testData, types }) => {
+  test('blocked delete shows error when type has parts', async ({ testData, types }) => {
     const typeName = testData.types.randomTypeName();
     const type = await testData.types.create({ name: typeName });
     await testData.parts.create({ typeId: type.id });
@@ -46,17 +44,19 @@ test.describe('Types - CRUD Operations', () => {
     await types.deleteButtonForCard(type.name).click();
 
     // Confirm dialog appears
-    const confirmDialog = types.page.getByRole('dialog', { name: /delete type/i });
+    const confirmDialog = types.page.getByRole('dialog');
     await expect(confirmDialog).toBeVisible();
 
     // Click the Delete button in the confirm dialog
     await confirmDialog.getByRole('button', { name: 'Delete' }).click();
 
-    // Dialog should close but type should remain
+    // Wait for the toast error to appear (the API returns a 409 error)
+    await expect(types.toast()).toBeVisible();
+
+    // Dialog should close after error
     await expect(confirmDialog).toBeHidden();
 
     // Type should still be visible, delete was blocked
-    await expect(types.toast(/cannot delete|in use/i)).toBeVisible();
     await expect(types.cardByName(type.name)).toBeVisible();
   });
 

@@ -43,8 +43,9 @@ export const test = base.extend<TestFixtures>({
         const text = msg.text();
         // Ignore expected errors during testing
         if (text.includes('409') || text.includes('CONFLICT') ||
-            text.includes('already exists') || text.includes('duplicate')) {
-          // 409 errors and duplicates are expected for validation tests
+            text.includes('already exists') || text.includes('duplicate') ||
+            text.includes('cannot delete') || text.includes('in use')) {
+          // 409 errors and validation errors are expected for tests
           return;
         }
         // Ignore form submission errors for validation tests
