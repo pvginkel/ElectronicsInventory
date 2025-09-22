@@ -193,6 +193,8 @@ Only handle errors manually for:
 
 The project uses **Playwright** for end-to-end testing with a focus on the Types feature as the pilot implementation. The testing strategy emphasizes stable selectors, observable events, and feature ownership patterns.
 
+The document at `tests/README.md` has technical guidance on how to write tests for the Playwright test suite.
+
 ### Running Tests Locally
 
 **Headless mode (CI/default):**
