@@ -135,7 +135,7 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Types</h1>
-        <Button onClick={() => setCreateFormOpen(true)}>
+        <Button onClick={() => setCreateFormOpen(true)} data-testid="types.create.button">
           Add Type
         </Button>
       </div>
@@ -192,7 +192,7 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="types.list.container">
           {filteredTypes.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })).map((type: { id: number; name: string; part_count?: number }) => (
             <TypeCard
               key={type.id}

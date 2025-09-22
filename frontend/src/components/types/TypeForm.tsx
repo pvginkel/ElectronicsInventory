@@ -80,9 +80,13 @@ export function TypeForm({
     form.reset()
   }
 
+  const isEditMode = !!initialValues?.name;
+  const modalTestId = isEditMode ? "types.edit.modal" : "types.create.modal";
+  const ariaLabel = isEditMode ? "Edit Type" : "Create Type";
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent>
+      <DialogContent data-testid={modalTestId} aria-label={ariaLabel}>
         <Form onSubmit={form.handleSubmit}>
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>

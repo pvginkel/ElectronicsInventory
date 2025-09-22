@@ -1,5 +1,6 @@
 import { test as base, expect } from '@playwright/test';
 import { createApiClient, createTestDataBundle } from '../api';
+import { TypesPage } from '../e2e/types/TypesPage';
 
 type TestFixtures = {
   frontendUrl: string;
@@ -7,6 +8,7 @@ type TestFixtures = {
   sseTimeout: number;
   apiClient: ReturnType<typeof createApiClient>;
   testData: ReturnType<typeof createTestDataBundle>;
+  types: TypesPage;
 };
 
 export const test = base.extend<TestFixtures>({
@@ -33,6 +35,31 @@ export const test = base.extend<TestFixtures>({
   testData: async ({ apiClient }, use) => {
     const testData = createTestDataBundle(apiClient);
     await use(testData);
+  },
+
+  page: async ({ page }, use) => {
+    page.on('console', msg => {
+      if (msg.type() === 'error') {
+        throw new Error(`Console error: ${msg.text()}`);
+      }
+    });
+    page.on('pageerror', err => {
+      throw err;
+    });
+
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.addStyleTag({
+      content: `*, *::before, *::after {
+        transition-duration: 0s !important;
+        animation-duration: 0s !important;
+        animation-delay: 0s !important;
+      }`
+    });
+    await use(page);
+  },
+
+  types: async ({ page }, use) => {
+    await use(new TypesPage(page));
   },
 });
 

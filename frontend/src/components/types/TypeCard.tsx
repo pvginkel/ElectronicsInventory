@@ -15,7 +15,7 @@ interface TypeCardProps {
 export function TypeCard({ type, partCount, onEdit, onDelete }: TypeCardProps) {
   const displayPartCount = type.part_count ?? partCount ?? 0;
   return (
-    <Card variant="content" className="hover:shadow-md transition-shadow">
+    <Card variant="content" className="hover:shadow-md transition-shadow" data-testid="types.list.card">
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div>
