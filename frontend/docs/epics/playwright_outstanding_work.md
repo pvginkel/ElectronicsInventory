@@ -2,18 +2,7 @@
 
 This document consolidates all remaining work for the Playwright test suite implementation. Items are organized by category and priority.
 
-## 1. Backend Integration
-
-### Backend Testing Endpoints
-- [ ] Handle `/api/testing/reset?seed=true|false` endpoint (test mode only)
-  - Reset database to clean state
-  - Optional seed data parameter
-  - Run before test suites (not individual tests)
-- [ ] Reset concurrency handling (503 responses with Retry-After)
-  - Handle concurrent reset requests gracefully
-  - Implement retry logic with backoff
-
-## 2. Production Build Verification
+## 1. Production Build Verification
 
 ### Build Analysis
 - [ ] Production build verification (manual process)
@@ -28,7 +17,7 @@ This document consolidates all remaining work for the Playwright test suite impl
 - [ ] Confirm no test fixtures leak to production
 - [ ] Validate no debug logging in production
 
-## 3. Error Handling & Validation Patterns
+## 2. Error Handling & Validation Patterns
 
 ### Form Validation Integration
 - [ ] Form validation error integration
@@ -53,7 +42,7 @@ This document consolidates all remaining work for the Playwright test suite impl
 - [ ] Add ability to explicitly silence expected console.error in tests
 - [ ] Document console error policy for new tests
 
-## 4. Documentation & Patterns
+## 3. Documentation & Patterns
 
 ### Testing Patterns Documentation
 - [ ] Document how to assert using TEST_EVT (extend current partial docs)
@@ -69,7 +58,7 @@ This document consolidates all remaining work for the Playwright test suite impl
 - [ ] Selector strategy decisions
 - [ ] Debugging failed tests guide
 
-## 5. Test Coverage Extension
+## 4. Test Coverage Extension
 
 ### Parts Feature Tests
 - [ ] Create PartFactory for test data
@@ -144,7 +133,7 @@ This document consolidates all remaining work for the Playwright test suite impl
   - [ ] Use items → Update quantities
   - [ ] Move items between locations
 
-## 6. Test Artifacts & Debugging
+## 5. Test Artifacts & Debugging
 
 ### Artifact Organization
 - [ ] Artifact organization for LLM consumption
@@ -164,7 +153,16 @@ This document consolidates all remaining work for the Playwright test suite impl
 - [ ] Test step logging
 - [ ] Visual regression testing setup
 
-## 7. Backend Integration (nice to haves)
+## 6. Backend Integration (nice to haves)
+
+### Backend Testing Endpoints
+- [ ] Handle `/api/testing/reset?seed=true|false` endpoint (test mode only)
+  - Reset database to clean state
+  - Optional seed data parameter
+  - Run before test suites (not individual tests)
+- [ ] Reset concurrency handling (503 responses with Retry-After)
+  - Handle concurrent reset requests gracefully
+  - Implement retry logic with backoff
 
 ### Backend Log Streaming
 - [ ] Connect to `/api/testing/logs/stream` SSE endpoint
@@ -197,7 +195,7 @@ This document consolidates all remaining work for the Playwright test suite impl
 - [ ] Document readyz endpoint enhancements
 - [ ] Document correlation ID debugging workflows
 
-## 8. SSE (Server-Sent Events) Instrumentation
+## 7. SSE (Server-Sent Events) Instrumentation
 
 ### SSE Client Implementation
 - [ ] Emit TEST_EVT:sse for connection lifecycle
