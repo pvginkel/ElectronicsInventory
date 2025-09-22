@@ -59,6 +59,14 @@ if (error) {
 
 This should be abstracted into a wrapper function in the client to avoid repetition.
 
+### 🔴 Functional Bug
+**Falsy Overrides Are Ignored**
+- `tests/api/factories/type-factory.ts:24` and `tests/api/factories/part-factory.ts:47-48` use the `||` operator to fall back to generated defaults. This prevents callers from supplying intentional falsy values (e.g. empty strings) to exercise validation scenarios, undermining the dirty-DB testing strategy. Switch these to the nullish coalescing operator (`??`) so explicit falsy overrides are respected.
+
+### 🟠 Contract Mismatch
+**Part Factory May Return `type: null`**
+- `tests/api/factories/part-factory.ts:32-84` advertises returning both the part and its type reference, but when a `typeId` is provided the factory resolves with `{ part, type: null }`. Either fetch/accept the type entity when the ID is supplied or adjust the return type and documentation so consumers are not forced to guard against `null`.
+
 ### 🟡 Minor Improvements
 
 1. **Error Messages Could Be More Descriptive**
