@@ -4,6 +4,7 @@ node_modules
 /dist
 .pnpm-store
 /browsers
+/.local
 
 # Playwright artifacts
 /test-results/

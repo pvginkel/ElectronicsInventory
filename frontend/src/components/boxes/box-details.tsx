@@ -47,10 +47,14 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
     })
 
     if (confirmed) {
-      await deleteMutation.mutateAsync({
-        path: { box_no: boxNo }
-      })
-      onDeleted?.()
+      deleteMutation.mutate(
+        { path: { box_no: boxNo } },
+        {
+          onSuccess: () => {
+            onDeleted?.()
+          }
+        }
+      )
     }
   }
 

@@ -60,7 +60,7 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
     })
 
     if (confirmed) {
-      await deleteMutation.mutateAsync({
+      deleteMutation.mutate({
         path: { box_no: box.box_no }
       })
     }

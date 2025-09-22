@@ -78,7 +78,7 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
     })
 
     if (confirmed) {
-      await deleteMutation.mutateAsync({
+      deleteMutation.mutate({
         path: { seller_id: seller.id }
       })
     }

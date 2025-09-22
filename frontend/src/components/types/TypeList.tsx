@@ -77,7 +77,7 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
     })
 
     if (confirmed) {
-      await deleteMutation.mutateAsync({
+      deleteMutation.mutate({
         path: { type_id: type.id }
       })
     }

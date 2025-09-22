@@ -105,6 +105,7 @@ function generateHooks(spec) {
   
   const hooksContent = `// Generated TanStack Query hooks - do not edit manually
 import { ${Array.from(imports).join(', ')} } from '@tanstack/react-query';
+import { toApiError } from '@/lib/api/api-error';
 import { api } from './client';
 import type { paths, components } from './types';
 
@@ -171,7 +172,7 @@ export function ${hookName}(${paramsArg}${(hasParams || supportsQueryParams) ? '
     queryKey: ['${transformedOperationId}'${(hasParams || supportsQueryParams) ? ', params' : ''}],
     queryFn: async () => {
       const { data, error } = await api.${method.toUpperCase()}(${pathWithParams}${queryOptions});
-      if (error) throw error;
+      if (error) throw toApiError(error);
       return data;
     },
     ...options
@@ -236,7 +237,7 @@ export function ${hookName}(options?: Omit<Parameters<typeof useMutation>[0], 'm
   return useMutation({
     mutationFn: async (${(variablesType == 'void' ? '' : 'variables: ' + variablesType)}) => {
       const { data, error } = await api.${method.toUpperCase()}(${pathWithParams}${mutationArgs});
-      if (error) throw error;
+      if (error) throw toApiError(error);
       return data;
     },
     onSuccess: () => {

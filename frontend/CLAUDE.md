@@ -183,6 +183,15 @@ The system automatically:
 3. Handles network errors, validation errors, and server errors
 4. Provides retry logic for transient failures
 
+#### Mutation usage guidelines
+
+- Prefer `mutation.mutate(...)` for actions that only need toast feedback (e.g., delete flows initiated from confirmation dialogs). React Query will surface the toast via `onError`, and using `mutate` avoids unhandled promise rejections when an API returns a conflict.
+- Reserve `mutation.mutateAsync(...)` for flows that must await the server response (forms that close on success, workflows that need returned data, etc.). Always wrap awaited calls in try/catch when using `mutateAsync` to keep promise chains clean, and show the error to the user in the catch.
+
+#### API error wrapping
+
+Generated hooks now throw an `ApiError` (see `src/lib/api/api-error.ts`) so unhandled exceptions carry human-readable messages plus HTTP status/details. Catch blocks can rely on `error.message` instead of opaque `[object Object]` payloads.
+
 #### When to Handle Errors Manually
 Only handle errors manually for:
 - **Custom error recovery logic** (e.g., redirect on auth failure)

@@ -22,7 +22,7 @@ export default defineConfig({
     ['list'],
     ['html', {
       outputFolder: 'playwright-report',
-      open: process.env.CI || process.env.CLAUDECODE ? 'never' : 'on-failure'
+      open: process.env.CI || process.env.CLAUDECODE || process.env.CODEX_MANAGED_BY_NPM ? 'never' : 'on-failure'
     }]
   ],
 
