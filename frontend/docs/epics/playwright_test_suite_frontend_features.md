@@ -37,9 +37,9 @@ This checklist tracks all frontend features required for the complete Playwright
 - ✅ Basic smoke test for verification
 
 ### API Test Data (Phase 4)
-- ⏳ Node-friendly API client for Playwright fixtures (tests/api/client.ts)
-- ⏳ Type and Part factories exposed through `testData` fixture
-- ⏳ Type factory exposes `randomTypeName()` (and similar helpers) for consistent prefixes
+- ✅ Node-friendly API client for Playwright fixtures (tests/api/client.ts)
+- ✅ Type and Part factories exposed through `testData` fixture
+- ✅ Type factory exposes `randomTypeName()` (and similar helpers) for consistent prefixes
 
 ### Service Orchestration (Phase 2 - Completed)
 - ✅ Testing server script (scripts/testing-server.sh)
@@ -64,13 +64,13 @@ This checklist tracks all frontend features required for the complete Playwright
 - ✅ Mirror events to window.__TEST_SIGNALS__ (test mode only)
 - ✅ TypeScript interfaces for event types (src/types/test-events.ts)
 - ✅ clearTestSignals() and getTestSignals() utilities
-- 📋 **Phase 3 - Carved Out**: Implement event kinds with specific payloads:
-  - 📋 `route` - Navigation events (from→to)
-  - 📋 `form` - Form lifecycle (id, phase: open|submit|success|error)
-  - 📋 `api` - API calls (name, method, status, correlationId, durationMs)
-  - 📋 `toast` - Toast notifications (level, code, message)
-  - 📋 `error` - Application errors (scope, code, message, correlationId)
-  - 📋 `query_error` - TanStack Query errors (queryKey, status, message)
+- ✅ **Phase 3 - Carved Out**: Implement event kinds with specific payloads:
+  - ✅ `route` - Navigation events (from→to)
+  - ✅ `form` - Form lifecycle (id, phase: open|submit|success|error)
+  - ✅ `api` - API calls (name, method, status, correlationId, durationMs)
+  - ✅ `toast` - Toast notifications (level, code, message)
+  - ✅ `error` - Application errors (scope, code, message, correlationId)
+  - ✅ `query_error` - TanStack Query errors (queryKey, status, message)
   - [ ] `sse` - SSE events (streamId, phase: open|event|heartbeat|close) [Not in Phase 3 scope]
 
 ### Console Error Policy (Phase 2 - Completed)
@@ -81,39 +81,39 @@ This checklist tracks all frontend features required for the complete Playwright
 - [ ] Add ability to explicitly silence expected console.error in tests (deferred)
 
 ### Global Error & Toast Integration (Phase 3 - Carved Out)
-- 📋 Wire toast layer to emit TEST_EVT:toast
-- 📋 Wire error boundary to emit TEST_EVT:error
-- 📋 Ensure consistent error surfacing across the app
+- ✅ Wire toast layer to emit TEST_EVT:toast
+- ✅ Wire error boundary to emit TEST_EVT:error
+- ✅ Ensure consistent error surfacing across the app
 
 ### TanStack Query Integration (Phase 3 - Carved Out)
-- 📋 Add global onError hook emitting TEST_EVT:query_error
-- 📋 Include queryKey, HTTP status, normalized message in events
-- 📋 Ensure domain validation errors trigger structured events
+- ✅ Add global onError hook emitting TEST_EVT:query_error
+- ✅ Include queryKey, HTTP status, normalized message in events
+- ✅ Ensure domain validation errors trigger structured events
 - [ ] Add global onSettled hook for query lifecycle (deferred)
 - [ ] Correlation ID propagation in query errors (deferred)
 - [ ] Integration with centralized error handling system (deferred)
 
 ### Router Instrumentation (Phase 3 - Carved Out)
-- 📋 Emit TEST_EVT:route on every navigation
-- 📋 Include from and to route information
+- ✅ Emit TEST_EVT:route on every navigation
+- ✅ Include from and to route information
 
 ### Forms & Mutations Instrumentation (Phase 3 - Carved Out)
-- 📋 Emit TEST_EVT:form at lifecycle points (open, submit, success, error)
-- 📋 Include stable formId in events
-- 📋 Add minimal payload for debugging
-- 📋 Start with TypeForm and PartForm components
+- ✅ Emit TEST_EVT:form at lifecycle points (open, submit, success, error)
+- ✅ Include stable formId in events
+- ✅ Add minimal payload for debugging
+- ✅ Start with TypeForm and PartForm components
 - [ ] Form validation error integration (deferred)
 - [ ] Mutation success/error event correlation (deferred)
 - [ ] Stable formId generation strategy (deferred)
 
 ### API Client Instrumentation (Phase 3 - Carved Out)
-- 📋 Emit TEST_EVT:api for every request/response
-- 📋 Include operation name, method, status, duration
-- 📋 Propagate X-Request-Id header
-- 📋 Generate correlation ID if not present
-- 📋 Extract operation name from OpenAPI client
-- 📋 Duration measurement (durationMs)
-- 📋 Request/response lifecycle tracking
+- ✅ Emit TEST_EVT:api for every request/response
+- ✅ Include operation name, method, status, duration
+- ✅ Propagate X-Request-Id header
+- ✅ Generate correlation ID if not present
+- ✅ Extract operation name from OpenAPI client
+- ✅ Duration measurement (durationMs)
+- ✅ Request/response lifecycle tracking
 
 ### SSE Client Instrumentation (Not in Phase 3)
 - [ ] Emit TEST_EVT:sse for connection lifecycle
@@ -278,7 +278,7 @@ This checklist tracks all frontend features required for the complete Playwright
 ## Test Coverage Requirements
 
 ### Types Feature Tests (Phase 4 - Planned)
-- ⏳ Create specific tests for Types CRUD operations
+- ✅ Create specific tests for Types CRUD operations
 - [ ] Create E2E test for complete Types workflow
 - [ ] Test blocked delete with reverse dependencies (TYPE_IN_USE error)
 - [ ] Test HTTP 409 response handling for blocked operations
@@ -308,7 +308,7 @@ This checklist tracks all frontend features required for the complete Playwright
 - [ ] Reset concurrency handling (503 responses with Retry-After - Phase 5)
 
 ### Backend Log Streaming (Phase 5 - Planned)
-- ⏳ Connect to /api/testing/logs/stream SSE endpoint
+- [ ] Connect to /api/testing/logs/stream SSE endpoint
 - [ ] Parse structured JSON log format:
   - [ ] timestamp (ISO format)
   - [ ] level (ERROR, WARNING, INFO, DEBUG)
@@ -325,8 +325,7 @@ This checklist tracks all frontend features required for the complete Playwright
 - [ ] Service operation tracking
 
 ### Environment Detection
-- [ ] Detect FLASK_ENV=testing on backend
-- [ ] Conditionally enable test features based on backend mode
+- ✅ Detect FLASK_ENV=testing on backend
 
 ## Performance and Production Safety
 
@@ -336,12 +335,6 @@ This checklist tracks all frontend features required for the complete Playwright
 - ✅ Runtime safety checks (all test functions are no-op in production)
 - [ ] Production build verification (manual process, deferred)
 - [ ] No test code in production bundles (needs build analysis, deferred)
-
-### Performance Optimizations
-- [ ] Minimal overhead for test instrumentation
-- [ ] Efficient event emission
-- [ ] Compact payload requirements
-- [ ] Event batching where appropriate
 
 ## Artifacts and Debugging (Partially in current plan)
 
