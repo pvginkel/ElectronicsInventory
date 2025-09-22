@@ -14,18 +14,19 @@ Give Playwright tests a Node-friendly, API-first path to create prerequisite dat
 ## Files to Create or Modify
 
 ### 1. Create `tests/api/client.ts`
-- Instantiate `openapi-fetch` with `globalThis.fetch` (Node LTS) and `process.env.BACKEND_URL ?? 'http://localhost:5100'`.
-- Import only the generated `paths` type from `src/lib/api/generated/types.ts` to ensure shared DTO definitions.
+- Instantiate `openapi-fetch` with `globalThis.fetch` (Node LTS) and `process.env.BACKEND_URL ?? 'http://localhost:5100'` (matching the test environment's API port).
+- Import only the generated `paths` type from `src/lib/api/generated/types.ts` to ensure shared DTO definitions (this type contains all the API path definitions and their request/response schemas).
 - Provide a tiny factory (`createApiClient()`) that returns the typed client. No auth configuration needed.
+- Include a simple request wrapper that throws on non-2xx responses to keep factory code concise (part of MVP scope).
 
 ### 2. Create `tests/api/factories/type-factory.ts`
 - Export a `TypeTestFactory` class with:
-  - `create(overrides?: Partial<TypeCreateSchema>)` for API-backed creation.
+  - `create(overrides?: Partial<TypeCreateSchema>)` for API-backed creation using the generated TypeCreateSchema type from the OpenAPI spec.
   - `randomTypeName(prefix?: string)` to generate unique type names (uses shared random-id helper internally).
 - Return the created entity so tests can assert on IDs or names later.
 
 ### 3. Create `tests/api/factories/part-factory.ts`
-- Export `PartTestFactory` with `create(options?: { overrides?: Partial<PartCreateSchema>; typeId?: string; })`.
+- Export `PartTestFactory` with `create(options?: { overrides?: Partial<PartCreateSchema>; typeId?: string; })` using the generated PartCreateSchema type from the OpenAPI spec.
 - When `typeId` is omitted, call `TypeTestFactory.create()` to ensure the part is associated with a fresh type.
 - Return both the part and its type reference for convenience.
 
@@ -45,8 +46,9 @@ Give Playwright tests a Node-friendly, API-first path to create prerequisite dat
 
 ### Client Design
 - Node ≥18 provides `fetch`, so no polyfills are needed.
-- Avoid importing `src/lib/api/generated/client.ts`; it depends on `import.meta.env` and test instrumentation that does not exist in the Playwright runtime.
-- Optionally surface a simple request wrapper that throws on non-2xx responses to keep factory code concise.
+- Create a separate client specifically for the test suite, avoiding `src/lib/api/generated/client.ts` which depends on Vite-specific `import.meta.env` and test instrumentation that does not exist in the Playwright/Node runtime.
+- The test environment runs the API on port 5100 and UI on port 3100 (already configured in existing Playwright setup).
+- Include a request wrapper that throws on non-2xx responses to keep factory code concise (required for MVP).
 
 ### Factory Usage
 - Factories should remain stateless; tests decide when to create related entities.
@@ -80,6 +82,7 @@ Give Playwright tests a Node-friendly, API-first path to create prerequisite dat
 
 ## Dependencies
 
-- Generated OpenAPI DTOs in `src/lib/api/generated/types.ts`.
-- `openapi-fetch` package (already part of the project).
+- Generated OpenAPI DTOs in `src/lib/api/generated/types.ts` (specifically the `paths` type which contains all API path definitions and their request/response schemas).
+- `openapi-fetch` package (already installed in the project).
 - Backend endpoints must remain accessible in test mode and require no authentication.
+- Existing Playwright setup with API on port 5100 and UI on port 3100.
