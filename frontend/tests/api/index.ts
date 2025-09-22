@@ -21,6 +21,7 @@ export function createTestDataBundle(client?: ReturnType<typeof createApiClient>
     types: {
       create: typeFactory.create.bind(typeFactory),
       randomTypeName: typeFactory.randomTypeName.bind(typeFactory),
+      findByName: typeFactory.findByName.bind(typeFactory),
     },
     parts: {
       create: partFactory.create.bind(partFactory),

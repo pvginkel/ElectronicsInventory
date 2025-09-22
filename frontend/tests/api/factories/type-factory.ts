@@ -42,4 +42,21 @@ export class TypeTestFactory {
   randomTypeName(prefix: string = 'Type'): string {
     return generateRandomId(prefix);
   }
+
+  /**
+   * Finds a type by name
+   * @param name - The name of the type to find
+   * @returns The type if found, otherwise throws an error
+   */
+  async findByName(name: string): Promise<TypeResponseSchema> {
+    const response = await apiRequest(() =>
+      this.client.GET('/api/types', {})
+    );
+
+    const type = response.find(t => t.name === name);
+    if (!type) {
+      throw new Error(`Type with name "${name}" not found`);
+    }
+    return type;
+  }
 }

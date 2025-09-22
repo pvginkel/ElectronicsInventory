@@ -31,10 +31,10 @@ export function TypeCard({ type, partCount, onEdit, onDelete }: TypeCardProps) {
       <CardContent className="pt-0">
         <div className="flex justify-end items-center">
           <div className="flex space-x-2">
-            <Button variant="ghost" size="sm" onClick={onEdit}>
+            <Button variant="ghost" size="sm" onClick={onEdit} data-testid="types.list.card.edit">
               Edit
             </Button>
-            <Button variant="ghost" size="sm" onClick={onDelete}>
+            <Button variant="ghost" size="sm" onClick={onDelete} data-testid="types.list.card.delete">
               Delete
             </Button>
           </div>
