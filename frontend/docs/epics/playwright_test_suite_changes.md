@@ -183,6 +183,7 @@ This follows the patterns in `docs/epics/component_refactoring.md`.
 
 * Tests do **not** clean up. Use randomized suffixes so the suite can re-run on a dirty DB.
 * Seed dataset available via reset, but tests must **not** depend on specific records being present.
+* Prerequisite entities are created via backend APIs from Playwright fixtures; UI flows only exercise the functionality under test.
 
 4. **Types pilot (scope marker)**
 

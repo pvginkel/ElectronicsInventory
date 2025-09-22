@@ -36,6 +36,11 @@ This checklist tracks all frontend features required for the complete Playwright
 - [x] Environment configuration (.env.test.example)
 - [x] Basic smoke test for verification
 
+### API Test Data (Phase 4)
+- ⏳ Node-friendly API client for Playwright fixtures (tests/api/client.ts)
+- ⏳ Type and Part factories exposed through `testData` fixture
+- ⏳ Type factory exposes `randomTypeName()` (and similar helpers) for consistent prefixes
+
 ### Service Orchestration (Phase 2 - Completed)
 - ✅ Testing server script (scripts/testing-server.sh)
 - ✅ Playwright webServer configuration for both frontend and backend

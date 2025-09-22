@@ -50,6 +50,13 @@ This is Phase 4 of the Playwright test suite implementation, building on:
 - **Phase 1-3**: Basic infrastructure, service orchestration, and frontend instrumentation (✅ Complete)
 - **Pre-Phase 4**: Component refactoring to accept data-* attributes and forward refs (✅ Complete)
 
+## Test Data Strategy (API-First)
+
+- Test data for any prerequisite entity must be created through the Playwright API factories described in `docs/features/playwright_api_test_data/plan.md`.
+- `tests/support/fixtures.ts` exposes a `testData` fixture (for example `testData.types.create()`, `testData.types.randomTypeName()`, `testData.parts.create()`) that wraps the Node-friendly API client.
+- Maintain the dirty database policy: rely on randomized helpers exposed by the factories and never delete data inside tests.
+- Page objects stay UI-only; factories are only accessed via fixtures inside the tests themselves.
+
 **Phase 4 is now divided into sub-phases:**
 - **Phase 4a**: Single test implementation - Create a type
 - **Phase 4b**: Complete CRUD tests and edge cases
@@ -100,41 +107,9 @@ export default defineConfig({
 #### 3. Create Minimal Test Infrastructure
 
 **Modify: `tests/support/fixtures.ts`**
-Add animation killing to the existing fixture:
-```typescript
-export const test = base.extend<TestFixtures>({
-  frontendUrl: async ({}, use) => {
-    const url = process.env.FRONTEND_URL || 'http://localhost:3100';
-    await use(url);
-  },
-
-  backendUrl: async ({}, use) => {
-    const url = process.env.BACKEND_URL || 'http://localhost:5100';
-    await use(url);
-  },
-
-  sseTimeout: async ({}, use) => {
-    // SSE-aware timeout for operations that may involve server-sent events
-    await use(35000); // 35 seconds
-  },
-
-  // Add page fixture override for animation killing
-  page: async ({ page }, use) => {
-    // Kill all animations for deterministic tests
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.addStyleTag({
-      content: `
-        *, *::before, *::after {
-          transition-duration: 0s !important;
-          animation-duration: 0s !important;
-          animation-delay: 0s !important;
-        }
-      `
-    });
-    await use(page);
-  },
-});
-```
+- Keep existing frontend/backend URL fixtures and animation killing.
+- Extend the fixture to provide a Node-friendly API client plus `testData` factories (see detailed snippet below).
+- Auto-fail on `console.error`/`pageerror`.
 
 **Create: `tests/e2e/types/TypesPage.ts`**
 ```typescript
@@ -205,38 +180,37 @@ export class TypesPage {
 }
 ```
 
-**Create: `tests/e2e/types/types.helpers.ts`**
-```typescript
-export function generateRandomId(): string {
-  return Math.random().toString(36).substring(2, 8);
-}
-
-export function createRandomTypeName(): string {
-  const prefix = 'type';
-  const shortId = generateRandomId();
-  return `${prefix}-${shortId}`;
-}
-```
+**Factory-provided helpers**
+- Use `testData.types.randomTypeName()` (or similar factory methods) rather than adding Types-specific utilities to shared helper files.
 
 **Modify: `tests/support/fixtures.ts`**
-Extend fixtures to include page objects and error enforcement:
+Extend fixtures to include the API client factories alongside page objects:
 ```typescript
 import { test as base } from '@playwright/test';
 import { TypesPage } from '../e2e/types/TypesPage';
+import { createApiClient, createTestData } from '../api';
 
 type TestFixtures = {
   backendUrl: string;
+  apiClient: ReturnType<typeof createApiClient>;
+  testData: ReturnType<typeof createTestData>;
   types: TypesPage;
 };
 
 export const test = base.extend<TestFixtures>({
   backendUrl: async ({}, use) => {
-    const url = process.env.BACKEND_URL || 'http://localhost:5100';
-    await use(url);
+    await use(process.env.BACKEND_URL || 'http://localhost:5100');
+  },
+
+  apiClient: async ({ backendUrl }, use) => {
+    await use(createApiClient({ baseUrl: backendUrl }));
+  },
+
+  testData: async ({ apiClient }, use) => {
+    await use(createTestData(apiClient));
   },
 
   page: async ({ page }, use) => {
-    // Fail on console errors
     page.on('console', msg => {
       if (msg.type() === 'error') {
         throw new Error(`Console error: ${msg.text()}`);
@@ -246,7 +220,6 @@ export const test = base.extend<TestFixtures>({
       throw err;
     });
 
-    // Kill all animations for deterministic tests
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.addStyleTag({
       content: `*, *::before, *::after {
@@ -264,24 +237,17 @@ export const test = base.extend<TestFixtures>({
 });
 ```
 
-**Create: `tests/support/helpers.ts`** (Minimal utilities)
-```typescript
-// Only for rare cases where raw CSS selector is needed
-export function testId(id: string): string {
-  return `[data-testid="${id}"]`;
-}
-```
+- Existing fixtures such as `frontendUrl` and `sseTimeout` remain unchanged from earlier phases.
 
 **Create: `tests/e2e/types/create-type.spec.ts`**
 ```typescript
 import { test, expect } from '../../support/fixtures';
-import { createRandomTypeName } from './types.helpers';
 
 test.describe('Types - Create', () => {
-  test('creates a new type', async ({ types }) => {
+  test('creates a new type', async ({ testData, types }) => {
     await types.goto();
 
-    const typeName = createRandomTypeName();
+    const typeName = testData.types.randomTypeName();
     await types.createType(typeName);  // includes toast assertion
   });
 
@@ -290,12 +256,9 @@ test.describe('Types - Create', () => {
     await types.createButton.click();
     await expect(types.modal()).toBeVisible();
 
-    // Try to submit without filling name
-    await types.submitButton.click();
+    await types.submitButton().click();
 
-    // Should still be in modal with error
     await expect(types.modal()).toBeVisible();
-    // Check for validation error (adjust based on actual error display)
     await expect(types.page.getByText(/required/i)).toBeVisible();
   });
 });
@@ -332,9 +295,9 @@ Before proceeding to Phase 4b, ensure:
    - Add data-testid to TypeCard components
 
 3. **Create test infrastructure** (45 minutes)
-   - Create TypesPage.ts with page object pattern
-   - Create types.helpers.ts with name generation
-   - Update fixtures.ts with console error enforcement
+  - Create TypesPage.ts with page object pattern
+  - Add `randomTypeName()` helper to the Types factory
+  - Update fixtures.ts with console error enforcement and testData exposure
    - Add types fixture for page object
 
 4. **Write and debug the test** (1-2 hours)
@@ -497,73 +460,61 @@ export class TypesPage {
 }
 ```
 
-**Update: `tests/e2e/types/types.helpers.ts`**
-Keep helpers minimal - page object handles most actions:
-```typescript
-export function generateRandomId(): string {
-  return Math.random().toString(36).substring(2, 8);
-}
-
-export function createRandomTypeName(): string {
-  const prefix = 'type';
-  const shortId = generateRandomId();
-  return `${prefix}-${shortId}`;
-}
-
-// Only add helpers that don't belong in page object
-// Most actions should be methods on TypesPage
-```
+**Factory-provided helpers**
+- Leverage `testData.types.randomTypeName()` (and similar methods) instead of adding feature-specific utilities to shared helper files.
 
 #### 3. Create Additional Tests
 
 **Create: `tests/e2e/types/types-crud.spec.ts`**
-- Test edit functionality (assert UI changes, no waits)
-- Test delete functionality (assert card removal)
-- Test validation (assert error messages appear)
-- Test blocked delete with dependencies (assert error toast)
+- Seed prerequisite data with the `testData` fixture before navigating to the UI.
+- Cover edit (rename), delete success, validation errors, and blocked delete scenarios.
 
 **Testing Pattern Examples:**
 ```typescript
-// Using the page object pattern
 import { test, expect } from '../../support/fixtures';
 
-test('edits an existing type', async ({ types }) => {
+test('edits an existing type', async ({ testData, types }) => {
+  const existingName = testData.types.randomTypeName();
+  const existing = await testData.types.create({ name: existingName });
+
   await types.goto();
-  const oldName = createRandomTypeName();
-  const newName = createRandomTypeName();
+  const newName = testData.types.randomTypeName();
+  await types.editType(existing.name, newName);
 
-  // Create a type first
-  await types.createType(oldName);
-
-  // Edit it
-  await types.editType(oldName, newName);
-
-  // Verify old name is gone, new name exists
-  await expect(types.cardByName(oldName)).toBeHidden();
+  await expect(types.cardByName(existing.name)).toHaveCount(0);
   await expect(types.cardByName(newName)).toBeVisible();
 });
 
-test('deletes a type', async ({ types }) => {
+test('deletes a type', async ({ testData, types }) => {
+  const existingName = testData.types.randomTypeName();
+  const existing = await testData.types.create({ name: existingName });
+
   await types.goto();
-  const typeName = createRandomTypeName();
+  await types.deleteType(existing.name);
 
-  await types.createType(typeName);
-  await types.deleteType(typeName);
-
-  // Verify it's gone
-  await expect(types.cardByName(typeName)).toBeHidden();
+  await expect(types.cardByName(existing.name)).toHaveCount(0);
 });
 
 test('handles validation errors', async ({ types }) => {
   await types.goto();
   await types.createButton.click();
 
-  // Submit without filling required field
-  await types.submitButton.click();
+  await types.submitButton().click();
 
-  // Modal should stay open with error
   await expect(types.modal()).toBeVisible();
   await expect(types.page.getByText(/required/i)).toBeVisible();
+});
+
+test('blocked delete shows toast when reverse deps exist', async ({ testData, types }) => {
+  const typeName = testData.types.randomTypeName();
+  const type = await testData.types.create({ name: typeName });
+  await testData.parts.create({ typeId: type.id });
+
+  await types.goto();
+  await types.deleteType(type.name);
+
+  await expect(types.toast(/cannot delete/i)).toBeVisible();
+  await expect(types.cardByName(type.name)).toBeVisible();
 });
 ```
 
