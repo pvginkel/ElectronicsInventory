@@ -1,4 +1,4 @@
-import { createApiClient } from '../client';
+import { createApiClient, apiRequest } from '../client';
 import { generateRandomId } from '../../support/helpers';
 import { TypeTestFactory } from './type-factory';
 import type { components } from '../../../src/lib/api/generated/types';
@@ -27,25 +27,35 @@ export class PartTestFactory {
   /**
    * Creates a new part with optional overrides and type
    * @param options - Configuration for creating the part
-   * @returns Object containing the created part and its type reference
+   * @returns Object containing the created part and its associated type
    */
   async create(options?: PartCreateOptions): Promise<{
     part: PartResponseSchema;
-    type: TypeResponseSchema | null;
+    type: TypeResponseSchema;
   }> {
-    let type: TypeResponseSchema | null = null;
+    let type: TypeResponseSchema;
     let typeId = options?.typeId;
 
-    // Create a new type if no typeId is provided
+    // Create a new type if no typeId is provided, otherwise fetch the existing type
     if (!typeId) {
       type = await this.typeFactory.create();
       typeId = type.id;
+    } else {
+      // Fetch the existing type to fulfill the contract
+      const finalTypeId = typeId; // TypeScript needs this for type narrowing
+      const typeResponse = await apiRequest(() =>
+        this.client.GET('/api/types/{type_id}', {
+          params: { path: { type_id: finalTypeId } },
+        })
+      );
+      type = typeResponse;
     }
 
     // Build the request body with defaults and overrides
+    // Use nullish coalescing to allow falsy overrides (like empty strings for validation testing)
     const partData: PartCreateSchema = {
-      description: options?.overrides?.description || this.randomPartDescription(),
-      manufacturer_code: options?.overrides?.manufacturer_code || this.randomManufacturerCode(),
+      description: options?.overrides?.description ?? this.randomPartDescription(),
+      manufacturer_code: options?.overrides?.manufacturer_code ?? this.randomManufacturerCode(),
       type_id: typeId,
       // Set all nullable fields to null by default
       dimensions: null,
@@ -66,20 +76,14 @@ export class PartTestFactory {
       ...options?.overrides,
     };
 
-    const { data, error, response } = await this.client.POST('/api/parts', {
-      body: partData,
-    });
-
-    if (error) {
-      throw new Error(`Failed to create part: ${response.status} ${response.statusText}`);
-    }
-
-    if (!data) {
-      throw new Error('Failed to create part: no data returned');
-    }
+    const part = await apiRequest(() =>
+      this.client.POST('/api/parts', {
+        body: partData,
+      })
+    );
 
     return {
-      part: data,
+      part,
       type,
     };
   }

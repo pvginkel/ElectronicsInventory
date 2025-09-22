@@ -5,6 +5,35 @@ import type { paths } from '../../src/lib/api/generated/types';
 const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:5100';
 
 /**
+ * Request wrapper that throws on non-2xx responses
+ * @param requestFn - The API request function to execute
+ * @returns The response data
+ * @throws Error if the request fails or returns no data
+ */
+export async function apiRequest<T>(
+  requestFn: () => Promise<{ data?: T; error?: any; response: Response }>
+): Promise<T> {
+  const { data, error, response } = await requestFn();
+
+  if (error || !response.ok) {
+    // Try to extract more detail from the error if available
+    const errorMessage = error?.message || error?.detail || '';
+    const statusInfo = `${response.status} ${response.statusText}`;
+    throw new Error(
+      errorMessage
+        ? `API request failed: ${statusInfo} - ${errorMessage}`
+        : `API request failed: ${statusInfo}`
+    );
+  }
+
+  if (!data) {
+    throw new Error('API request succeeded but returned no data');
+  }
+
+  return data;
+}
+
+/**
  * Creates a typed API client for use in tests.
  * Uses the generated paths type from the OpenAPI spec for full type safety.
  */
@@ -15,7 +44,6 @@ export function createApiClient() {
     fetch: globalThis.fetch,
   });
 
-  // Return the client directly - openapi-fetch already provides full type safety
-  // We'll handle errors at the factory level for cleaner code
-  return client;
+  // Return the client with the request wrapper attached for convenience
+  return Object.assign(client, { apiRequest });
 }

@@ -1,4 +1,4 @@
-import { createApiClient } from '../client';
+import { createApiClient, apiRequest } from '../client';
 import { generateRandomId } from '../../support/helpers';
 import type { components } from '../../../src/lib/api/generated/types';
 
@@ -21,24 +21,17 @@ export class TypeTestFactory {
    * @returns The created type from the API
    */
   async create(overrides?: Partial<TypeCreateSchema>): Promise<TypeResponseSchema> {
-    const typeName = overrides?.name || this.randomTypeName();
+    // Use nullish coalescing to allow falsy overrides (like empty strings for validation testing)
+    const typeName = overrides?.name ?? this.randomTypeName();
 
-    const { data, error, response } = await this.client.POST('/api/types', {
-      body: {
-        name: typeName,
-        ...overrides,
-      },
-    });
-
-    if (error) {
-      throw new Error(`Failed to create type: ${response.status} ${response.statusText}`);
-    }
-
-    if (!data) {
-      throw new Error('Failed to create type: no data returned');
-    }
-
-    return data;
+    return apiRequest(() =>
+      this.client.POST('/api/types', {
+        body: {
+          name: typeName,
+          ...overrides,
+        },
+      })
+    );
   }
 
   /**

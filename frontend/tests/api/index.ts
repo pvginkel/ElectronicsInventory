@@ -1,9 +1,9 @@
-import { createApiClient } from './client';
+import { createApiClient, apiRequest } from './client';
 import { TypeTestFactory } from './factories/type-factory';
 import { PartTestFactory } from './factories/part-factory';
 
 // Re-export the main functions and factories
-export { createApiClient };
+export { createApiClient, apiRequest };
 export { TypeTestFactory };
 export { PartTestFactory };
 
