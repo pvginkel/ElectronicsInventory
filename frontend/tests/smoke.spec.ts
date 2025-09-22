@@ -31,7 +31,7 @@ test.describe('Smoke Tests', () => {
     console.log('✅ Backend health check passed');
   });
 
-  test('should verify test infrastructure works', async ({ page, sseTimeout }) => {
+  test('should verify test infrastructure works', async ({ sseTimeout }) => {
     // Test that our custom fixtures work
     expect(sseTimeout).toBe(35000);
 
