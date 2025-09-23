@@ -58,10 +58,11 @@ export default defineConfig({
     allowedHosts: true
   },
   define: {
-    // Ensure VITE_TEST_MODE is available at runtime
-    // Environment variables starting with VITE_ are automatically included
-    // but we explicitly define it here to ensure it's always available
-    'import.meta.env.VITE_TEST_MODE': JSON.stringify(process.env.VITE_TEST_MODE || 'false'),
+    // In production builds, always set VITE_TEST_MODE to 'false' to enable tree-shaking
+    // In development, use the environment variable if set
+    'import.meta.env.VITE_TEST_MODE': process.env.NODE_ENV === 'production'
+      ? JSON.stringify('false')
+      : JSON.stringify(process.env.VITE_TEST_MODE || 'false'),
   },
   build: {
     // Ensure test mode is disabled in production builds
