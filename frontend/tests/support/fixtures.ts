@@ -1,6 +1,10 @@
 import { test as base, expect } from '@playwright/test';
 import { createApiClient, createTestDataBundle } from '../api';
 import { TypesPage } from '../e2e/types/TypesPage';
+import { TestEventCapture, createTestEventCapture } from './helpers/test-events';
+import { ToastHelper, createToastHelper } from './helpers/toast-helpers';
+import { SSEMocker, createSSEMocker } from './helpers/sse-mock';
+import { FileUploadHelper, createFileUploadHelper } from './helpers/file-upload';
 
 type TestFixtures = {
   frontendUrl: string;
@@ -9,6 +13,10 @@ type TestFixtures = {
   apiClient: ReturnType<typeof createApiClient>;
   testData: ReturnType<typeof createTestDataBundle>;
   types: TypesPage;
+  testEvents: TestEventCapture;
+  toastHelper: ToastHelper;
+  sseMocker: SSEMocker;
+  fileUploadHelper: FileUploadHelper;
 };
 
 export const test = base.extend<TestFixtures>({
@@ -94,6 +102,30 @@ export const test = base.extend<TestFixtures>({
 
   types: async ({ page }, use) => {
     await use(new TypesPage(page));
+  },
+
+  testEvents: async ({ page }, use) => {
+    const testEvents = createTestEventCapture(page);
+    await testEvents.startCapture();
+    await use(testEvents);
+    await testEvents.stopCapture();
+  },
+
+  toastHelper: async ({ page }, use) => {
+    const toastHelper = createToastHelper(page);
+    await use(toastHelper);
+  },
+
+  sseMocker: async ({ page }, use) => {
+    const sseMocker = createSSEMocker(page);
+    await sseMocker.setupSSEMonitoring();
+    await use(sseMocker);
+    sseMocker.closeAllStreams();
+  },
+
+  fileUploadHelper: async ({ page }, use) => {
+    const fileUploadHelper = createFileUploadHelper(page);
+    await use(fileUploadHelper);
   },
 });
 

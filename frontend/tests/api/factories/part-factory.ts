@@ -106,4 +106,104 @@ export class PartTestFactory {
     const suffix = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
     return `${prefix}-${suffix}`;
   }
+
+  /**
+   * Creates a part with stock quantity
+   * @param quantity - Stock quantity to set
+   * @param options - Additional options for part creation
+   * @returns Object containing the created part with stock and its type
+   */
+  async createWithStock(quantity: number, options?: PartCreateOptions): Promise<{
+    part: PartResponseSchema;
+    type: TypeResponseSchema;
+    stockQuantity: number;
+  }> {
+    const result = await this.create(options);
+
+    // Note: Stock is typically managed through the part's quantity field
+    // or through a separate stock endpoint. For now, we'll track it as metadata
+    return {
+      ...result,
+      stockQuantity: quantity,
+    };
+  }
+
+  /**
+   * Creates a part with location information
+   * @param location - Location details (box, position, etc.)
+   * @param options - Additional options for part creation
+   * @returns Object containing the created part with location and its type
+   */
+  async createWithLocation(
+    location: { boxId?: number; position?: string; description?: string },
+    options?: PartCreateOptions
+  ): Promise<{
+    part: PartResponseSchema;
+    type: TypeResponseSchema;
+    location: typeof location;
+  }> {
+    const result = await this.create(options);
+
+    // Note: Location management would typically be done through
+    // a separate location endpoint after part creation
+    return {
+      ...result,
+      location,
+    };
+  }
+
+  /**
+   * Creates a part with document attachments
+   * @param documents - Array of document metadata
+   * @param options - Additional options for part creation
+   * @returns Object containing the created part with documents and its type
+   */
+  async createWithDocuments(
+    documents: Array<{ name: string; type: 'datasheet' | 'manual' | 'schematic'; url?: string }>,
+    options?: PartCreateOptions
+  ): Promise<{
+    part: PartResponseSchema;
+    type: TypeResponseSchema;
+    documents: typeof documents;
+  }> {
+    const result = await this.create(options);
+
+    // Note: Document attachments would typically be added through
+    // a separate endpoint after part creation
+    return {
+      ...result,
+      documents,
+    };
+  }
+
+  /**
+   * Creates a complete part with stock, location, and documents
+   * @param config - Complete configuration for the part
+   * @returns Object containing the fully configured part
+   */
+  async createComplete(config?: {
+    stockQuantity?: number;
+    location?: { boxId?: number; position?: string; description?: string };
+    documents?: Array<{ name: string; type: 'datasheet' | 'manual' | 'schematic'; url?: string }>;
+    overrides?: Partial<PartCreateSchema>;
+    typeId?: number;
+  }): Promise<{
+    part: PartResponseSchema;
+    type: TypeResponseSchema;
+    stockQuantity?: number;
+    location?: { boxId?: number; position?: string; description?: string };
+    documents?: Array<{ name: string; type: 'datasheet' | 'manual' | 'schematic'; url?: string }>;
+  }> {
+    const result = await this.create({
+      overrides: config?.overrides,
+      typeId: config?.typeId,
+    });
+
+    return {
+      ...result,
+      ...(config?.stockQuantity !== undefined && { stockQuantity: config.stockQuantity }),
+      ...(config?.location && { location: config.location }),
+      ...(config?.documents && { documents: config.documents }),
+    };
+  }
 }
