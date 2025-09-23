@@ -60,78 +60,90 @@ This document consolidates all remaining work for the Playwright test suite impl
 
 ## 4. Test Coverage Extension
 
-### Parts Feature Tests
-- [ ] Create PartFactory for test data
-  - [ ] Random part generation helpers
-  - [ ] Location assignment helpers
-  - [ ] Quantity management helpers
-- [ ] Create PartPage object model
-  - [ ] Navigation and element locators
-  - [ ] High-level actions (createPart, editPart, deletePart)
-  - [ ] Location management actions
-  - [ ] Quantity adjustment actions
-- [ ] Parts CRUD operations tests
-  - [ ] Create part with all fields
-  - [ ] Edit part details
-  - [ ] Delete part (with and without locations)
-  - [ ] Validation tests
-- [ ] Part-Type relationship tests
-  - [ ] Create part with existing type
-  - [ ] Change part type
-  - [ ] Handle type deletion with existing parts
-- [ ] Part locations and quantities tests
-  - [ ] Add part to location
-  - [ ] Move part between locations
-  - [ ] Split quantities across locations
-  - [ ] Remove from location
-- [ ] Part search and filtering
+### Core Test Infrastructure
+- [ ] Expand API factories and helpers
+  - [ ] Enhance `PartTestFactory` with stock/location/document helpers for complex UI preconditions
+  - [ ] Add `BoxTestFactory` with capacity defaults, location seeding, and part-assignment utilities
+  - [ ] Add `SellerTestFactory` with random name/URL generation and part linkage helpers
+- [ ] Extend Playwright fixtures & page objects
+  - [ ] Shared helpers for toast assertions, TEST_EVT capture, SSE mocking, and file upload utilities
+  - [ ] Parts: list, detail, form, AI dialog, location editor, and document grid abstractions
+  - [ ] Boxes: list/grid interactions and detailed location view helpers
+  - [ ] Sellers: list/forms plus selector harness for inline creation
+  - [ ] Dashboard: widget accessors (metrics, health score, low stock, docs, categories, storage) and sidebar/mobile shell controls
+- [ ] Add testing hooks to simulate deployment-version updates for banner coverage
 
-### Boxes Feature Tests
-- [ ] Create BoxFactory for test data
-  - [ ] Random box number generation
-  - [ ] Location generation within boxes
-- [ ] Create BoxPage object model
-  - [ ] Navigation and element locators
-  - [ ] High-level actions (createBox, editBox, deleteBox)
-  - [ ] Location management within boxes
-- [ ] Box CRUD operations tests
-  - [ ] Create box with locations
-  - [ ] Edit box details
-  - [ ] Delete box (empty and with parts)
-- [ ] Location management tests
-  - [ ] View box locations
-  - [ ] Check location availability
-  - [ ] Location assignment workflows
-- [ ] Box organization tests
-  - [ ] Location suggestions
-  - [ ] Box fill patterns
+### Types Feature Coverage
+- [ ] Cover TypeList loading/empty/error states and persisted search queries
+- [ ] Verify part-count badges update after creating and deleting linked parts
+- [ ] Exercise TypeSelector inline create/edit flows inside Part form and AI review experiences
+- [ ] Assert TypeForm instrumentation emits expected TEST_EVT sequences (open, submit, success, validation)
 
-### Seller Feature Tests
-- [ ] Create SellerFactory for test data
-- [ ] Seller management tests
-  - [ ] Add seller to part
-  - [ ] Edit seller information
-  - [ ] Remove seller
-- [ ] Seller-Part relationship tests
-  - [ ] Multiple parts from same seller
-  - [ ] Seller product links
-  - [ ] Search by seller
+### Parts Feature Coverage
+- [ ] Part list & navigation
+  - [ ] Validate card rendering (cover image, type badge, tags, vendor link, quantity summary)
+  - [ ] Search by description/manufacturer code/type/tag and confirm clear search resets results
+  - [ ] Loading skeleton, API error card, empty-state CTA, and navigation from list to detail/AI dialog
+- [ ] Part creation & editing
+  - [ ] Create part with required/optional fields; verify success toast, redirect, and persisted values
+  - [ ] Form validation edges (required description, numeric bounds, max lengths) and cancel behavior
+  - [ ] SellerSelector inline creation, tag add/remove, and mounting type selector behaviors
+  - [ ] Edit existing part, confirm updated metadata, and ensure cancel leaves data unchanged
+- [ ] Part duplication & attachment copy
+  - [ ] Launch duplicate from detail, deselect attachments, toggle cover, observe copy progress UI, and assert success/error toasts
+  - [ ] Confirm duplicated part retains specs/tags while generating new identifiers
+- [ ] Location management
+  - [ ] Add stock manually and via `Use Suggested` when type recommendations exist
+  - [ ] Adjust quantities with increment/decrement, inline edits (including zero to delete) and verify total quantity badge updates
+  - [ ] Prevent duplicate box/location assignments and surface backend errors via toast instrumentation
+- [ ] Document management
+  - [ ] Upload file attachment (mock backend) and add URL attachment with preview/skeleton/error handling
+  - [ ] Operate media viewer (open image/PDF, carousel navigation), set cover, and delete with confirmation
+  - [ ] Validate clipboard paste upload path and camera option gracefully disabling when unavailable
+- [ ] AI-assisted creation
+  - [ ] Full happy path: input → SSE progress → review adjustments → create part (single + create-another loops)
+  - [ ] Failure handling: server analysis error displays retry; cancel returns to input step cleanly
+  - [ ] Review editing: convert suggested type into real type, adjust documents/tags, select seller before submit
+  - [ ] Dialog lifecycle regressions (close/reopen resets state appropriately)
+- [ ] Deletion rules & safeguards
+  - [ ] Delete succeeds only when total quantity is zero and redirects to list with toast
+  - [ ] Attempting delete with stock present surfaces error toast and preserves record
 
-### Cross-Feature Workflows
-- [ ] Part creation complete workflow
-  - [ ] Create type → Create part → Assign location → Adjust quantity
-- [ ] Box organization workflow
-  - [ ] Create box → Add parts → Reorganize locations
-- [ ] Search across entities
-  - [ ] Global search functionality
-  - [ ] Filter by type, box, location
-- [ ] Location suggestion workflow
-  - [ ] Get suggestions for new part
-  - [ ] Accept/reject suggestions
-- [ ] Quantity management workflow
-  - [ ] Receive items → Distribute to locations
-  - [ ] Use items → Update quantities
-  - [ ] Move items between locations
+### Boxes Feature Coverage
+- [ ] Box list
+  - [ ] Create/edit/delete flows with validation (capacity bounds, description length) and toast assertions
+  - [ ] Search by box number/description, handle empty/filter-empty/error states, and confirm usage metrics update after part moves
+- [ ] Box detail
+  - [ ] Verify summary (number, description, capacity, usage bar, last updated) reflects API data
+  - [ ] Location list styling for occupied vs empty slots, part badges, quantities, and fallback rendering when enhanced API fails
+  - [ ] Delete from detail redirects back to list; edit dialog updates live metadata
+
+### Sellers Feature Coverage
+- [ ] Seller list create/edit/delete flows with URL/name validation, loading/empty/error views, and toast checks
+- [ ] Ensure deleting seller associated with parts surfaces backend error (or confirm allowed behavior) without losing associations
+- [ ] SellerSelector inline creation from Part form & AI review, including website link opening in new tab
+
+### Dashboard Coverage
+- [ ] Enhanced metrics cards show data, skeleton during load, and reflect updated fixtures (parts/boxes/low stock)
+- [ ] Inventory health score renders tooltip breakdown, hover behavior, and click target
+- [ ] Storage utilization grid ordering, summary stats, empty/error states, and navigation to box detail
+- [ ] Recent activity timeline grouping, show more/less controls, empty CTA, and part navigation
+- [ ] Low stock alerts: severity styling, quick-add toggle, dismiss/restore, show more flow, and CTA navigation
+- [ ] Documentation status: milestone badges, quick fix list, bulk upload CTA placeholder, and 100% celebration state
+- [ ] Category distribution: bar rendering, tooltips, smart insights, show-all toggle, and navigation hooks
+
+### App Shell & Auxiliary Pages
+- [ ] Sidebar navigation collapse/expand, active route styling, and link coverage for Dashboard/Parts/Boxes/Types/Sellers/About
+- [ ] Mobile menu overlay open/close interactions and navigation behavior
+- [ ] Deployment notification banner appears when simulated version SSE fires and reload button refreshes app
+- [ ] About page hero CTAs, feature grid counts, and quick start guide visibility
+- [ ] Smoke test for root layout ensuring QueryClientProvider/ToastProvider bootstrap without console errors
+
+### Cross-Domain Workflows & Regression Guards
+- [ ] End-to-end flow: create type → create part (with seller + location) → verify Part detail, Type part counts, and dashboard metrics update
+- [ ] Move part between boxes and assert both Part detail and Box detail reflect new allocation
+- [ ] Delete box with assigned parts is blocked (toast + unchanged locations)
+- [ ] Capture TEST_EVT / toast instrumentation snapshots for critical flows (form submit success/error, document upload failure, AI analysis error)
 
 ## 5. Test Artifacts & Debugging
 
