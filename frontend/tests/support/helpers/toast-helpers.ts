@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 import { Page, Locator, expect } from '@playwright/test';
 
 /**

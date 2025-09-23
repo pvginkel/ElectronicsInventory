@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 import { Page } from '@playwright/test';
 
 /**
@@ -9,7 +10,22 @@ export interface TestEvent {
   phase?: 'request' | 'success' | 'failure' | 'user-override' | 'start' | 'complete';
   correlationId?: string;
   metadata?: Record<string, any>;
-  timestamp: number;
+  timestamp: string;
+}
+
+function normalizeEvent(raw: any): TestEvent {
+  const timestamp = typeof raw?.timestamp === 'string'
+    ? raw.timestamp
+    : new Date((typeof raw?.timestamp === 'number' ? raw.timestamp : Date.now())).toISOString();
+
+  return {
+    kind: raw?.kind,
+    feature: raw?.feature,
+    phase: raw?.phase,
+    correlationId: raw?.correlationId,
+    metadata: raw?.metadata,
+    timestamp,
+  } satisfies TestEvent;
 }
 
 /**
@@ -18,6 +34,8 @@ export interface TestEvent {
 export class TestEventCapture {
   private events: TestEvent[] = [];
   private isCapturing = false;
+  private bufferSize = 100;
+  private cursor = 0;
 
   constructor(private readonly page: Page) {}
 
@@ -26,35 +44,28 @@ export class TestEventCapture {
    * @param options - Configuration options
    */
   async startCapture(options?: { bufferSize?: number }): Promise<void> {
-    const bufferSize = options?.bufferSize ?? 100;
+    this.bufferSize = options?.bufferSize ?? 100;
+    this.events = [];
 
-    await this.page.evaluate((maxSize) => {
-      // Store events in window for access
-      (window as any).__testEvents = [];
-      (window as any).__maxTestEvents = maxSize;
+    await this.page.addInitScript(() => {
+      const globalAny = globalThis as Record<string, any>;
+      if (!('__TEST_SIGNALS__' in globalAny)) {
+        globalAny.__TEST_SIGNALS__ = [];
+      }
+    });
 
-      // Override dispatchEvent to capture TEST_EVT
-      const originalDispatch = window.dispatchEvent;
-      window.dispatchEvent = function(event: Event) {
-        if (event.type === 'TEST_EVT' && 'detail' in event) {
-          const testEvents = (window as any).__testEvents;
-          const maxEvents = (window as any).__maxTestEvents;
+    await this.page.evaluate(() => {
+      const globalAny = globalThis as Record<string, any>;
+      if (!('__TEST_SIGNALS__' in globalAny)) {
+        globalAny.__TEST_SIGNALS__ = [];
+      }
+    });
 
-          const eventData = {
-            ...(event as CustomEvent).detail,
-            timestamp: Date.now(),
-          };
-
-          testEvents.push(eventData);
-
-          // Maintain circular buffer
-          if (testEvents.length > maxEvents) {
-            testEvents.shift();
-          }
-        }
-        return originalDispatch.call(window, event);
-      };
-    }, bufferSize);
+    this.cursor = await this.page.evaluate(() => {
+      const globalAny = globalThis as Record<string, any>;
+      const signals = globalAny.__TEST_SIGNALS__;
+      return Array.isArray(signals) ? signals.length : 0;
+    });
 
     this.isCapturing = true;
   }
@@ -63,16 +74,6 @@ export class TestEventCapture {
    * Stops capturing TEST_EVT events
    */
   async stopCapture(): Promise<void> {
-    if (!this.isCapturing) {
-      return;
-    }
-
-    await this.page.evaluate(() => {
-      // Restore original dispatchEvent
-      const originalDispatch = Object.getPrototypeOf(window).dispatchEvent;
-      window.dispatchEvent = originalDispatch;
-    });
-
     this.isCapturing = false;
   }
 
@@ -82,15 +83,29 @@ export class TestEventCapture {
    */
   async getEvents(): Promise<TestEvent[]> {
     if (!this.isCapturing) {
-      return this.events;
+      return [...this.events];
     }
 
-    const events = await this.page.evaluate(() => {
-      return (window as any).__testEvents || [];
-    });
+    const result = await this.page.evaluate(({ start }) => {
+      const globalAny = globalThis as Record<string, any>;
+      const signals = globalAny.__TEST_SIGNALS__;
+      if (!Array.isArray(signals)) {
+        return { events: [], total: 0 };
+      }
 
-    this.events = events;
-    return events;
+      return {
+        events: signals.slice(start),
+        total: signals.length,
+      };
+    }, { start: this.cursor });
+
+    if (result.total > this.cursor) {
+      const newEvents = (result.events ?? []).map(normalizeEvent);
+      this.cursor = result.total;
+      this.events = [...this.events, ...newEvents].slice(-this.bufferSize);
+    }
+
+    return [...this.events];
   }
 
   /**
@@ -98,12 +113,11 @@ export class TestEventCapture {
    */
   async clearEvents(): Promise<void> {
     this.events = [];
-
-    if (this.isCapturing) {
-      await this.page.evaluate(() => {
-        (window as any).__testEvents = [];
-      });
-    }
+    this.cursor = await this.page.evaluate(() => {
+      const globalAny = globalThis as Record<string, any>;
+      const signals = globalAny.__TEST_SIGNALS__;
+      return Array.isArray(signals) ? signals.length : 0;
+    });
   }
 
   /**
@@ -114,9 +128,10 @@ export class TestEventCapture {
    */
   async waitForEvent(
     matcher: (event: TestEvent) => boolean,
-    options?: { timeout?: number }
+    options?: { timeout?: number; intervalMs?: number }
   ): Promise<TestEvent> {
     const timeout = options?.timeout ?? 5000;
+    const intervalMs = options?.intervalMs ?? 100;
     const startTime = Date.now();
 
     while (Date.now() - startTime < timeout) {
@@ -127,7 +142,7 @@ export class TestEventCapture {
         return matchedEvent;
       }
 
-      await this.page.waitForTimeout(100);
+      await this.page.waitForTimeout(intervalMs);
     }
 
     throw new Error(`Timeout waiting for event matching criteria after ${timeout}ms`);
@@ -146,7 +161,8 @@ export class TestEventCapture {
         if (value === undefined) {
           return true;
         }
-        return JSON.stringify(event[key as keyof TestEvent]) === JSON.stringify(value);
+        const actual = event[key as keyof TestEvent];
+        return JSON.stringify(actual) === JSON.stringify(value);
       });
     });
 
@@ -177,7 +193,8 @@ export class TestEventCapture {
           if (value === undefined) {
             return true;
           }
-          return JSON.stringify(event[key as keyof TestEvent]) === JSON.stringify(value);
+          const actual = event[key as keyof TestEvent];
+          return JSON.stringify(actual) === JSON.stringify(value);
         });
 
         if (matches) {
@@ -263,11 +280,23 @@ export function createTestEventCapture(page: Page): TestEventCapture {
  * @param event - The event to emit
  */
 export async function emitTestEvent(page: Page, event: Omit<TestEvent, 'timestamp'>): Promise<void> {
-  await page.evaluate((eventData) => {
-    const event = new CustomEvent('TEST_EVT', {
-      detail: eventData,
-      bubbles: true,
-    });
-    window.dispatchEvent(event);
-  }, event);
+  await page.evaluate(({ evt }) => {
+    const globalAny = globalThis as Record<string, any>;
+    const payload = {
+      ...evt,
+      timestamp: new Date().toISOString(),
+    };
+
+    const signals = globalAny.__TEST_SIGNALS__;
+    if (Array.isArray(signals)) {
+      signals.push(payload);
+    }
+
+    const message = `TEST_EVT: ${JSON.stringify(payload)}`;
+    globalAny.console?.log?.(message);
+  }, { evt: event });
 }
+
+/**
+ * Serializes a pattern for cross-context usage
+ */

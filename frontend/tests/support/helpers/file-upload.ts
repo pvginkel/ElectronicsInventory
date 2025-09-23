@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 import { Page, Locator } from '@playwright/test';
 
 /**
@@ -132,7 +133,11 @@ export class FileUploadHelper {
         selector: dropZoneSelector,
         fileName: config.fileName,
         mimeType: config.mimeType,
-        content: config.content || this.generateDefaultContent(config.mimeType, config.size),
+        content: typeof config.content === 'string'
+          ? config.content
+          : config.content
+            ? config.content.toString()
+            : this.generateDefaultContent(config.mimeType, config.size),
       }
     );
   }
