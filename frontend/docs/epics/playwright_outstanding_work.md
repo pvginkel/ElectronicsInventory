@@ -20,27 +20,27 @@ This document consolidates all remaining work for the Playwright test suite impl
 ## 2. Error Handling & Validation Patterns
 
 ### Form Validation Integration
-- [ ] Form validation error integration
-- [ ] Field-level error display patterns
-- [ ] Form-level error aggregation
-- [ ] Stable formId generation strategy
+- [x] Form validation error integration
+- [x] Field-level error display patterns
+- [x] Form-level error aggregation
+- [x] Stable formId generation strategy
 
 ### Mutation Error Handling
-- [ ] Mutation success/error event correlation
-- [ ] Optimistic update rollback testing
-- [ ] Retry logic testing
-- [ ] Conflict resolution patterns (409 errors)
+- [x] Mutation success/error event correlation
+- [x] Optimistic update rollback testing
+- [x] Retry logic testing
+- [x] Conflict resolution patterns (409 errors)
 
 ### Query Error Patterns
-- [ ] Add global onSettled hook for query lifecycle
-- [ ] Correlation ID propagation in query errors
-- [ ] Integration with centralized error handling system
-- [ ] Network failure simulation and recovery
+- [x] Add global onSettled hook for query lifecycle
+- [x] Correlation ID propagation in query errors
+- [x] Integration with centralized error handling system
+- [x] Network failure simulation and recovery
 
 ### Console Error Management
-- [ ] Audit and migrate misused console.error to console.warn/log
-- [ ] Add ability to explicitly silence expected console.error in tests
-- [ ] Document console error policy for new tests
+- [x] Audit and migrate misused console.error to console.warn/log
+- [x] Add ability to explicitly silence expected console.error in tests
+- [x] Document console error policy for new tests
 
 ## 3. Documentation & Patterns
 
