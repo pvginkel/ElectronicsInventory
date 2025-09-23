@@ -29,11 +29,6 @@ Thumbs.db
 .git
 .gitignore
 
-# Documentation
-README.md
-docs
-*.md
-
 # Test files
 coverage
 .nyc_output

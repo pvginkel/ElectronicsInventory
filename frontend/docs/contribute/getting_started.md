@@ -68,6 +68,6 @@ Playwright uses `scripts/testing-server.sh` to start the frontend on port **3100
 
 ## Next Steps
 
-- Learn how the test suite is structured: [Testing Overview](./testing/README.md)
+- Learn how the test suite is structured: [Testing Overview](./testing/)
 - Review instrumentation requirements: [Test Instrumentation](./architecture/test_instrumentation.md)
 - Follow the workflow for new E2E coverage: [Add an E2E Test](./howto/add_e2e_test.md)

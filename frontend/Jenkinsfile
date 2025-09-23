@@ -22,6 +22,18 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko') {
             }
         }
 
+        stage("Building ElectronicsInventory Contributor Documentation") {
+            container('kaniko') {
+                helmCharts.kaniko(
+                    "Dockerfile.docs",
+                    ".",
+                    [
+                    "registry:5000/electronics-inventory-docs:${currentBuild.number}",
+                    "registry:5000/electronics-inventory-docs:latest"
+                ])
+            }
+        }
+
         stage('Deploy Helm charts') {
             build job: 'HelmCharts', wait: false
         }

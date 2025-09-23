@@ -7,7 +7,7 @@ Follow this procedure whenever you extend Playwright coverage for a new workflow
 - Identify the user flow and success criteria.
 - List prerequisite data (types, parts, boxes, etc.).
 - Confirm instrumentation exists for key signals (forms, toasts). If not, plan to add it.
-- Review [Testing Overview](../testing/README.md) to ensure the scenario fits existing patterns.
+- Review [Testing Overview](../testing/) to ensure the scenario fits existing patterns.
 
 ## 2. Prepare Factories & API Support
 

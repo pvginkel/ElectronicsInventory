@@ -48,7 +48,7 @@ This document consolidates all remaining work for the Playwright test suite impl
 - [x] Document how to assert using TEST_EVT (see [docs/contribute/testing/error_handling_and_validation.md](../contribute/testing/error_handling_and_validation.md))
 - [x] Event sequence assertion patterns (see [docs/contribute/testing/playwright_developer_guide.md](../contribute/testing/playwright_developer_guide.md) and [docs/contribute/architecture/test_instrumentation.md](../contribute/architecture/test_instrumentation.md))
 - [x] Instrumentation extension guidelines (see [docs/contribute/architecture/test_instrumentation.md](../contribute/architecture/test_instrumentation.md))
-- [x] Common testing patterns and anti-patterns (see [docs/contribute/testing/README.md](../contribute/testing/README.md))
+- [x] Common testing patterns and anti-patterns (see [docs/contribute/testing/index.md](../contribute/testing/index.md))
 - [x] Performance testing guidelines (see [docs/contribute/testing/no_sleep_patterns.md](../contribute/testing/no_sleep_patterns.md) and [docs/contribute/testing/ci_and_execution.md](../contribute/testing/ci_and_execution.md))
 
 ### Developer Guides

@@ -12,13 +12,13 @@ This plan enumerates the files to create/modify, the consolidation approach, and
 
 ### New documentation structure under `docs/contribute/`
 
-- `docs/contribute/README.md` (or `index.md`)
+- `docs/contribute/index.md`
   - Hub page: audience, scope, navigation to sub-guides.
 - `docs/contribute/getting_started.md`
   - Local setup, environment, scripts, ports, generating API client, quick run.
 - `docs/contribute/environment.md`
   - Environment variables: `FRONTEND_URL`, `BACKEND_URL`, `VITE_TEST_MODE`, `PLAYWRIGHT_MANAGED_SERVICES`, `.env.test` usage.
-- `docs/contribute/testing/README.md`
+- `docs/contribute/testing/index.md`
   - Overview of E2E strategy, dirty DB policy, API-first data setup, page objects, no fixed waits.
 - `docs/contribute/testing/playwright_developer_guide.md`
   - Canonical developer guide (migrate and supersede `tests/README.md`).
@@ -57,7 +57,7 @@ Add brief “Moved to docs/contribute” headers inside the original `tests/*.md
 - `AGENTS.md` → update “UI Testing (Playwright) — How Claude should work” references from `tests/README.md` to the new `docs/contribute/testing/playwright_developer_guide.md` and related pages.
 - `docs/epics/playwright_outstanding_work.md` → link its “Documentation & Patterns” items to the new `docs/contribute` pages; mark coverage where appropriate.
 - `docs/epics/playwright_test_suite_brief.md` → replace “to be embedded in AGENTS docs” with links into `docs/contribute`.
-- Root `README.md` → Contributing section points to `docs/contribute/README.md`.
+- Root `README.md` → Contributing section points to `docs/contribute/index.md`.
 
 ### Source files to reference (documentation targets; no code changes required)
 
@@ -126,7 +126,7 @@ Add brief “Moved to docs/contribute” headers inside the original `tests/*.md
 
 - Cross-link epics/briefs to the canonical pages.
 - Final pass for consistency (terminology, headings, anchors).
-- Optional: add a brief “What’s where” index to `docs/contribute/README.md`.
+- Optional: add a brief “What’s where” index to `docs/contribute/index.md`.
 
 ## Notes and Reconciliation Items
 

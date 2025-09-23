@@ -5,7 +5,7 @@ Keep this file light and point contributors to the canonical documentation.
 ## Core References
 
 - `docs/product_brief.md` — product context and workflows the app must serve.
-- `docs/contribute/README.md` — contributor hub with setup, environment, testing, and how-to guides.
+- `docs/contribute/index.md` — contributor hub with setup, environment, testing, and how-to guides.
 - `docs/contribute/architecture/application_overview.md` — architecture snapshot of React 19 + TanStack Router/Query, generated API client, Tailwind, and Vite.
 - `docs/contribute/testing/playwright_developer_guide.md` — Playwright usage, selector strategy, factories, and instrumentation checklist.
 

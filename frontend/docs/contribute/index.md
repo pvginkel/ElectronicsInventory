@@ -12,7 +12,7 @@ Welcome! This section is the canonical reference for engineers, QA, and technica
 
 - [Getting Started](./getting_started.md) – clone, install, and run the app locally.
 - [Environment Reference](./environment.md) – required environment variables and port conventions.
-- [Testing Overview](./testing/README.md) – how the Playwright suite is structured and how we keep reruns stable.
+- [Testing Overview](./testing/) – how the Playwright suite is structured and how we keep reruns stable.
 - [Add an E2E Test](./howto/add_e2e_test.md) – step-by-step workflow when expanding coverage for a feature.
 
 ## Testing Deep Dives

@@ -5,6 +5,7 @@ node_modules
 .pnpm-store
 /browsers
 /.local
+.vitepress
 
 # Playwright artifacts
 /test-results/
