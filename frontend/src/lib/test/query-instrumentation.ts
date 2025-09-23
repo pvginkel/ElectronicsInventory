@@ -28,14 +28,34 @@ export function setupQueryInstrumentation(queryClient: QueryClient): void {
         ? query.queryKey.join(':')
         : String(query.queryKey);
 
-      // Extract HTTP status from error object
+      // Extract HTTP status and correlation ID from error object
       let status: number | undefined;
+      let correlationId: string | undefined;
       const error = query.state.error;
+
       if (error && typeof error === 'object') {
+        // Check for status
         if ('status' in error && typeof error.status === 'number') {
           status = error.status;
         } else if ('response' in error && error.response && typeof error.response === 'object' && 'status' in error.response) {
           status = (error.response as { status: number }).status;
+        }
+
+        // Check for correlation ID
+        if ('correlationId' in error && typeof error.correlationId === 'string') {
+          correlationId = error.correlationId;
+        } else if ('headers' in error && error.headers && typeof error.headers === 'object') {
+          const headers = error.headers as Record<string, string>;
+          correlationId = headers['x-correlation-id'] || headers['X-Correlation-Id'];
+        }
+      }
+
+      // Prepare metadata for conflict errors
+      const metadata: Record<string, unknown> = {};
+      if (status === 409) {
+        metadata.isConflict = true;
+        if (error && typeof error === 'object' && 'data' in error) {
+          metadata.conflictDetails = error.data;
         }
       }
 
@@ -45,6 +65,8 @@ export function setupQueryInstrumentation(queryClient: QueryClient): void {
         queryKey,
         status,
         message: error instanceof Error ? error.message : String(error),
+        correlationId,
+        ...(Object.keys(metadata).length > 0 && { metadata }),
       };
 
       emitTestEvent(queryErrorEvent);
@@ -60,14 +82,34 @@ export function setupQueryInstrumentation(queryClient: QueryClient): void {
       // Extract mutation information
       const queryKey = `mutation:${mutation.options.mutationKey?.join(':') || 'unknown'}`;
 
-      // Extract HTTP status from error object
+      // Extract HTTP status and correlation ID from error object
       let status: number | undefined;
+      let correlationId: string | undefined;
       const error = mutation.state.error;
+
       if (error && typeof error === 'object') {
+        // Check for status
         if ('status' in error && typeof error.status === 'number') {
           status = error.status;
         } else if ('response' in error && error.response && typeof error.response === 'object' && 'status' in error.response) {
           status = (error.response as { status: number }).status;
+        }
+
+        // Check for correlation ID
+        if ('correlationId' in error && typeof error.correlationId === 'string') {
+          correlationId = error.correlationId;
+        } else if ('headers' in error && error.headers && typeof error.headers === 'object') {
+          const headers = error.headers as Record<string, string>;
+          correlationId = headers['x-correlation-id'] || headers['X-Correlation-Id'];
+        }
+      }
+
+      // Prepare metadata for conflict errors
+      const metadata: Record<string, unknown> = {};
+      if (status === 409) {
+        metadata.isConflict = true;
+        if (error && typeof error === 'object' && 'data' in error) {
+          metadata.conflictDetails = error.data;
         }
       }
 
@@ -77,6 +119,8 @@ export function setupQueryInstrumentation(queryClient: QueryClient): void {
         queryKey,
         status,
         message: error instanceof Error ? error.message : String(error),
+        correlationId,
+        ...(Object.keys(metadata).length > 0 && { metadata }),
       };
 
       emitTestEvent(queryErrorEvent);

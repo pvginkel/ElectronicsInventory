@@ -38,10 +38,26 @@ export const test = base.extend<TestFixtures>({
   },
 
   page: async ({ page }, use) => {
+    // Track expected console errors for this test
+    const expectedErrors: RegExp[] = [];
+
+    // Add method to page for registering expected errors
+    await page.exposeFunction('__registerExpectedError', (pattern: string) => {
+      expectedErrors.push(new RegExp(pattern));
+    });
+
     page.on('console', msg => {
       if (msg.type() === 'error') {
         const text = msg.text();
-        // Ignore expected errors during testing
+
+        // Check if this error matches any expected patterns
+        if (expectedErrors.some(pattern => pattern.test(text))) {
+          // This error was expected, don't fail the test
+          return;
+        }
+
+        // Legacy backwards compatibility - keep existing hardcoded patterns for now
+        // These should eventually be replaced with explicit expectConsoleError calls
         if (text.includes('409') || text.includes('CONFLICT') ||
             text.includes('already exists') || text.includes('duplicate') ||
             text.includes('cannot delete') || text.includes('in use')) {
@@ -67,7 +83,13 @@ export const test = base.extend<TestFixtures>({
         animation-delay: 0s !important;
       }`
     });
-    await use(page);
+
+    // Clear expected errors after each test
+    try {
+      await use(page);
+    } finally {
+      expectedErrors.length = 0;
+    }
   },
 
   types: async ({ page }, use) => {

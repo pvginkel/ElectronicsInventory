@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useFormState } from '@/hooks/use-form-state'
 import { useEffect } from 'react'
-import { isTestMode } from '@/lib/config/test-mode'
-import { trackFormOpen, trackFormSubmit, trackFormSuccess, trackFormError, generateFormId } from '@/lib/test/form-instrumentation'
+import { trackFormOpen, trackFormSubmit, trackFormSuccess, trackFormError, trackFormValidationError, generateFormId } from '@/lib/test/form-instrumentation'
 
 interface TypeFormData extends Record<string, string> {
   name: string
@@ -38,31 +37,32 @@ export function TypeForm({
     },
     validationRules: {
       name: (value: string) => {
-        if (!value.trim()) return 'Name is required'
-        if (value.length > 255) return 'Name must be 255 characters or less'
-        return undefined
+        let error: string | undefined;
+        if (!value.trim()) error = 'Name is required'
+        else if (value.length > 255) error = 'Name must be 255 characters or less'
+
+        // Emit validation error event if there's an error
+        if (error) {
+          trackFormValidationError(formId, 'name', error);
+        }
+
+        return error;
       }
     },
     onSubmit: async (values) => {
-      if (isTestMode()) {
-        trackFormSubmit(formId, { name: values.name });
-      }
+      trackFormSubmit(formId, { name: values.name });
 
       try {
         await onSubmit({
           name: values.name.trim()
         })
 
-        if (isTestMode()) {
-          trackFormSuccess(formId, { name: values.name });
-        }
+        trackFormSuccess(formId, { name: values.name });
 
         onOpenChange(false)
         form.reset()
       } catch (error) {
-        if (isTestMode()) {
-          trackFormError(formId, { name: values.name });
-        }
+        trackFormError(formId, { name: values.name });
         throw error; // Re-throw to let normal error handling work
       }
     }
@@ -70,7 +70,7 @@ export function TypeForm({
 
   // Track form open when dialog opens
   useEffect(() => {
-    if (open && isTestMode()) {
+    if (open) {
       trackFormOpen(formId, { name: form.values.name });
     }
   }, [open, formId, form.values.name]);

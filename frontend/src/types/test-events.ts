@@ -41,9 +41,14 @@ export interface RouteTestEvent extends BaseTestEvent {
  */
 export interface FormTestEvent extends BaseTestEvent {
   kind: 'form';
-  phase: 'open' | 'submit' | 'success' | 'error';
+  phase: 'open' | 'submit' | 'success' | 'error' | 'validation_error';
   formId: string;
   fields?: Record<string, unknown>;
+  metadata?: {
+    field?: string;
+    error?: string;
+    [key: string]: unknown;
+  };
 }
 
 /**
@@ -87,6 +92,8 @@ export interface QueryErrorTestEvent extends BaseTestEvent {
   queryKey: string;
   status?: number;
   message: string;
+  correlationId?: string;
+  metadata?: Record<string, unknown>;
 }
 
 /**

@@ -59,3 +59,56 @@ export async function waitForElement(page: Page, selector: string, timeout: numb
   return page.locator(selector);
 }
 
+/**
+ * Waits for a form validation error event
+ * @param page The Playwright page instance
+ * @param formId The form ID to match
+ * @param field Optional field name to match
+ * @param timeout Maximum time to wait for the event
+ * @returns The validation error event data
+ */
+export async function waitForFormValidationError(
+  page: Page,
+  formId: string,
+  field?: string,
+  timeout = 10000
+): Promise<any> {
+  return waitTestEvent(page, 'form', (event: any) => {
+    return event.phase === 'validation_error' &&
+           event.formId === formId &&
+           (!field || event.metadata?.field === field);
+  }, timeout);
+}
+
+/**
+ * Waits for a 409 conflict error event
+ * @param page The Playwright page instance
+ * @param correlationId Optional correlation ID to match
+ * @param timeout Maximum time to wait for the event
+ * @returns The conflict error event data
+ */
+export async function expectConflictError(
+  page: Page,
+  correlationId?: string,
+  timeout = 10000
+): Promise<any> {
+  return waitTestEvent(page, 'query_error', (event: any) => {
+    return event.status === 409 &&
+           (!correlationId || event.correlationId === correlationId);
+  }, timeout);
+}
+
+/**
+ * Registers a console error pattern as expected for the current test
+ * This prevents the test from failing when the specified console error occurs
+ * @param page The Playwright page instance
+ * @param pattern Regular expression pattern to match against console errors
+ */
+export async function expectConsoleError(page: Page, pattern: RegExp): Promise<void> {
+  // Use the exposed function to register the expected error pattern
+  await page.evaluate((patternSource) => {
+    // @ts-expect-error - This function is exposed by our fixture
+    window.__registerExpectedError(patternSource);
+  }, pattern.source);
+}
+

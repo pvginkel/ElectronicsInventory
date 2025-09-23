@@ -90,6 +90,18 @@ export function setupApiInstrumentation(client: Client<any>): void {
 
       emitTestEvent(apiEvent);
 
+      // For error responses, try to attach correlation ID to the response
+      // This helps query-instrumentation.ts pick it up later
+      if (!response.ok && response.status >= 400) {
+        // Try to attach correlation ID to response for downstream error handling
+        try {
+          // Store correlation ID in a way that error handlers can access
+          (response as any).correlationId = correlationId;
+        } catch {
+          // Ignore if we can't attach
+        }
+      }
+
       return response;
     }
   });
