@@ -178,7 +178,7 @@ Serves the production build locally for testing before deployment.
 
 ## Contributing
 
-This is a research project exploring AI-assisted development workflows. Contributions should follow these guidelines:
+This is a research project exploring AI-assisted development workflows. Contributions should follow these guidelines (see [docs/contribute/README.md](docs/contribute/README.md) for the complete contributor handbook):
 
 1. **Fork and Pull Request**: Create feature branches and submit PRs for review
 2. **Code Standards**: Follow patterns established in [CLAUDE.md](CLAUDE.md)

@@ -130,7 +130,9 @@
 * **Edge patterns** (domain specifics left to your later analysis): duplicate name handling, whitespace normalization, too-long names, invalid characters, transient server/network error path (shows normalized error).
 * This pilot sets the **selector naming**, **event taxonomy**, and **data randomization** patterns used by future features.
 
-# LLM usage playbook (to be embedded in AGENTS docs)
+# LLM usage playbook
+
+> Maintained contributor guidance now lives in `docs/contribute/testing/playwright_developer_guide.md` and related pages. Use the summary below for historical context when updating the epics.
 
 Add sections to your **AGENTS-frontend.md** and **AGENTS-backend.md**:
 

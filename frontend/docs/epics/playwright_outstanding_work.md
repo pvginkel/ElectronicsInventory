@@ -45,18 +45,18 @@ This document consolidates all remaining work for the Playwright test suite impl
 ## 3. Documentation & Patterns
 
 ### Testing Patterns Documentation
-- [ ] Document how to assert using TEST_EVT (extend current partial docs)
-- [ ] Event sequence assertion patterns
-- [ ] Instrumentation extension guidelines
-- [ ] Common testing patterns and anti-patterns
-- [ ] Performance testing guidelines
+- [x] Document how to assert using TEST_EVT (see [docs/contribute/testing/error_handling_and_validation.md](../contribute/testing/error_handling_and_validation.md))
+- [x] Event sequence assertion patterns (see [docs/contribute/testing/playwright_developer_guide.md](../contribute/testing/playwright_developer_guide.md) and [docs/contribute/architecture/test_instrumentation.md](../contribute/architecture/test_instrumentation.md))
+- [x] Instrumentation extension guidelines (see [docs/contribute/architecture/test_instrumentation.md](../contribute/architecture/test_instrumentation.md))
+- [x] Common testing patterns and anti-patterns (see [docs/contribute/testing/README.md](../contribute/testing/README.md))
+- [x] Performance testing guidelines (see [docs/contribute/testing/no_sleep_patterns.md](../contribute/testing/no_sleep_patterns.md) and [docs/contribute/testing/ci_and_execution.md](../contribute/testing/ci_and_execution.md))
 
 ### Developer Guides
-- [ ] Guide for adding tests to new features
-- [ ] Page Object Model best practices
-- [ ] Factory pattern guidelines
-- [ ] Selector strategy decisions
-- [ ] Debugging failed tests guide
+- [x] Guide for adding tests to new features (see [docs/contribute/howto/add_e2e_test.md](../contribute/howto/add_e2e_test.md))
+- [x] Page Object Model best practices (see [docs/contribute/testing/page_objects.md](../contribute/testing/page_objects.md))
+- [x] Factory pattern guidelines (see [docs/contribute/testing/factories_and_fixtures.md](../contribute/testing/factories_and_fixtures.md))
+- [x] Selector strategy decisions (see [docs/contribute/testing/selector_patterns.md](../contribute/testing/selector_patterns.md))
+- [x] Debugging failed tests guide (see [docs/contribute/testing/troubleshooting.md](../contribute/testing/troubleshooting.md))
 
 ## 4. Test Coverage Extension
 
