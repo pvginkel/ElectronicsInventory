@@ -28,7 +28,7 @@ Welcome! This section is the canonical reference for engineers, QA, and technica
 
 ## Architecture Notes
 
-- [Test Instrumentation](./architecture/test_instrumentation.md) – TEST_EVT taxonomy and emitters.
+- [Test Instrumentation](./architecture/test_instrumentation.md) – Test-event taxonomy and emitters.
 - [Application Overview](./architecture/application_overview.md) – high-level frontend architecture in context of the inventory domain.
 
 All docs assume familiarity with TypeScript, React 19, TanStack Router/Query, and Playwright. When in doubt, align with the patterns documented here and cross-link new material back to this hub.

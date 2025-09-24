@@ -1,10 +1,10 @@
 # Playwright Native Event Bridge – Technical Plan
 
 ## Brief Description
-Replace the current app-to-Playwright communication mechanisms (structured `TEST_EVT:` console logs and `window.__TEST_SIGNALS__` buffer) with a Playwright-native binding that provides direct, type-safe communication without relying on console parsing or global variables.
+Replace the current app-to-Playwright communication mechanisms with a Playwright-native binding that provides direct, type-safe communication without relying on console parsing or global variables.
 
 ## Existing Communication Mechanisms
-- **Structured console logs (`TEST_EVT:`)** — `src/lib/test/event-emitter.ts` logs JSON payloads prefixed with `TEST_EVT:` when `isTestMode()` is true; Playwright helpers such as `waitTestEvent` listen to `page.waitForEvent('console')` and parse these strings.
+- **Legacy structured console logs (`TEST_EVT:`)** — `src/lib/test/event-emitter.ts` previously logged JSON payloads prefixed with `TEST_EVT:` when `isTestMode()` was true; Playwright helpers listened to `page.waitForEvent('console')` and parsed these strings. (To be replaced.)
 - **In-page event buffer (`window.__TEST_SIGNALS__`)** — The same emitter pushes each payload into a global array so tests (and manual debugging) can poll them (`tests/support/helpers/test-events.ts`). Production build scripts assert the array is absent.
 - **Expected-error registry (`window.__registerExpectedError`)** — `tests/support/fixtures.ts` exposes a function that lets tests mark console errors as "expected"; application code does not call into Playwright but relies on this glue for tolerating intentional errors.
 - **Miscellaneous custom events (`window.dispatchEvent('deployment-update')`, `mock-sse-event`)** — Helpers in `tests/support/helpers/sse-mock.ts` and other utilities fire DOM events for test orchestration; these target the application, not Playwright, and remain outside the scope of replacing app→Playwright signalling.
@@ -28,8 +28,7 @@ Replace the current app-to-Playwright communication mechanisms (structured `TEST
 2. **Update emitter to use binding**
    - Modify `emitTestEvent` in `src/lib/test/event-emitter.ts` to check for `window.__playwright_emitTestEvent`.
    - When binding exists, invoke it with the event payload.
-   - Keep console.log output for manual debugging (developers can still see TEST_EVT: in browser console).
-   - Remove all `window.__TEST_SIGNALS__` code.
+  - Remove all `window.__TEST_SIGNALS__` code.
 
 3. **Refactor Playwright helpers**
    - Update `waitTestEvent` in `tests/support/helpers.ts` to query the fixture buffer instead of parsing console.
@@ -53,7 +52,6 @@ Replace the current app-to-Playwright communication mechanisms (structured `TEST
    - App calls `emitTestEvent(payload)`.
    - Function checks for `window.__playwright_emitTestEvent` existence.
    - If present, calls binding with full event (including timestamp).
-   - Still logs to console for manual debugging visibility.
 
 3. **Event consumption**:
    - `waitTestEvent` and `TestEventCapture` methods query fixture buffer.
@@ -63,7 +61,7 @@ Replace the current app-to-Playwright communication mechanisms (structured `TEST
 ## Error Handling
 - **Binding registration failure**: Fixture setup will throw, failing the entire test suite.
 - **Buffer overflow**: Silently drop oldest events when exceeding 500 events.
-- **Missing binding in app**: Gracefully degrade to console-only output.
+- **Missing binding in app**: No payload is emitted; tests relying on the bridge will fail, making the misconfiguration visible.
 
 ## Testing Strategy
 1. **Unit tests for the bridge**:
@@ -88,4 +86,3 @@ Replace the current app-to-Playwright communication mechanisms (structured `TEST
 - `docs/contribute/testing/playwright_developer_guide.md` — Update waitTestEvent and TestEventCapture documentation.
 - `docs/contribute/testing/factories_and_fixtures.md` — Document the new testEvents fixture behavior.
 - Remove all references to window.__TEST_SIGNALS__ from documentation.
-

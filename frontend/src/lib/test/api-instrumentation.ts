@@ -1,6 +1,6 @@
 /**
  * API client instrumentation for test events
- * Adds request/response interceptors to emit TEST_EVT:api events
+ * Adds request/response interceptors to emit API test-event payloads
  */
 
 import type { Client } from 'openapi-fetch';
@@ -48,7 +48,7 @@ function extractOperationName(url: string, method: string): string {
 }
 
 /**
- * Setup API instrumentation to emit TEST_EVT:api events
+ * Setup API instrumentation to emit API test-event payloads
  */
 export function setupApiInstrumentation(client: Client<any>): void {
   // Request interceptor

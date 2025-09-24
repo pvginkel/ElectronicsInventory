@@ -8,7 +8,7 @@ The Electronics Inventory frontend ships with a Playwright-based end-to-end suit
 2. **Dirty database friendly** – Tests randomize identifiers and never clean up, enabling fast reruns without resets.
 3. **Page objects over selector maps** – Each feature owns a page object colocated with its tests for readable UI interactions.
 4. **No arbitrary waits** – Assertions rely on observable UI state or deterministic events; `waitForTimeout` is banned.
-5. **Test-mode instrumentation** – Frontend emits `TEST_EVT` console events only when `VITE_TEST_MODE=true`, powering deterministic assertions and debugging.
+5. **Test-mode instrumentation** – Frontend emits structured test events only when `VITE_TEST_MODE=true`, and Playwright captures them via a dedicated bridge for deterministic assertions.
 
 ## Folder Layout
 
@@ -29,7 +29,7 @@ tests/
 ## Test Taxonomy
 
 - `tests/e2e/types/*` – Types feature pilot coverage (CRUD, blocked delete)
-- `tests/support/fixtures.ts` – Registers shared fixtures (`testData`, `types`, console guarding)
+- `tests/support/fixtures.ts` – Registers shared fixtures (`testData`, `types`, console guarding, test-event bridge)
 - `tests/support/global-setup.ts` – Configures environment before the suite (sets `FRONTEND_URL`, etc.)
 
 As additional features gain coverage, follow the same foldering: keep page objects next to their specs and reuse shared helpers from `tests/support`.
@@ -43,7 +43,7 @@ As additional features gain coverage, follow the same foldering: keep page objec
 
 ## Instrumentation & Signals
 
-- The frontend emits structured console events prefixed with `TEST_EVT:` while in test mode.
+- The frontend emits structured test events through the Playwright bridge while in test mode.
 - Tests use helpers such as `waitTestEvent` and `expectConsoleError` from `tests/support/helpers.ts`.
 - Review [Test Instrumentation](../architecture/test_instrumentation.md) for the precise taxonomy (`route`, `form`, `api`, `toast`, `error`, `query_error`, `sse`).
 

@@ -13,7 +13,7 @@ This document consolidates all remaining work for the Playwright test suite impl
 
 ### Production Safety
 - [x] Verify isTestMode() gates work correctly
-- [x] Ensure no TEST_EVT emissions in production
+- [x] Ensure no test-event emissions in production
 - [x] Confirm no test fixtures leak to production
 - [x] Validate no debug logging in production
 
@@ -45,7 +45,7 @@ This document consolidates all remaining work for the Playwright test suite impl
 ## 3. Documentation & Patterns
 
 ### Testing Patterns Documentation
-- [x] Document how to assert using TEST_EVT (see [docs/contribute/testing/error_handling_and_validation.md](../contribute/testing/error_handling_and_validation.md))
+- [x] Document how to assert using test events (see [docs/contribute/testing/error_handling_and_validation.md](../contribute/testing/error_handling_and_validation.md))
 - [x] Event sequence assertion patterns (see [docs/contribute/testing/playwright_developer_guide.md](../contribute/testing/playwright_developer_guide.md) and [docs/contribute/architecture/test_instrumentation.md](../contribute/architecture/test_instrumentation.md))
 - [x] Instrumentation extension guidelines (see [docs/contribute/architecture/test_instrumentation.md](../contribute/architecture/test_instrumentation.md))
 - [x] Common testing patterns and anti-patterns (see [docs/contribute/testing/index.md](../contribute/testing/index.md))
@@ -66,7 +66,7 @@ This document consolidates all remaining work for the Playwright test suite impl
   - [ ] Add `BoxTestFactory` with capacity defaults, location seeding, and part-assignment utilities
   - [ ] Add `SellerTestFactory` with random name/URL generation and part linkage helpers
 - [ ] Extend Playwright fixtures & page objects
-  - [ ] Shared helpers for toast assertions, TEST_EVT capture, SSE mocking, and file upload utilities
+  - [ ] Shared helpers for toast assertions, test-event capture, SSE mocking, and file upload utilities
   - [ ] Parts: list, detail, form, AI dialog, location editor, and document grid abstractions
   - [ ] Boxes: list/grid interactions and detailed location view helpers
   - [ ] Sellers: list/forms plus selector harness for inline creation
@@ -77,7 +77,7 @@ This document consolidates all remaining work for the Playwright test suite impl
 - [ ] Cover TypeList loading/empty/error states and persisted search queries
 - [ ] Verify part-count badges update after creating and deleting linked parts
 - [ ] Exercise TypeSelector inline create/edit flows inside Part form and AI review experiences
-- [ ] Assert TypeForm instrumentation emits expected TEST_EVT sequences (open, submit, success, validation)
+- [ ] Assert TypeForm instrumentation emits expected test-event sequences (open, submit, success, validation)
 
 ### Parts Feature Coverage
 - [ ] Part list & navigation
@@ -143,7 +143,7 @@ This document consolidates all remaining work for the Playwright test suite impl
 - [ ] End-to-end flow: create type → create part (with seller + location) → verify Part detail, Type part counts, and dashboard metrics update
 - [ ] Move part between boxes and assert both Part detail and Box detail reflect new allocation
 - [ ] Delete box with assigned parts is blocked (toast + unchanged locations)
-- [ ] Capture TEST_EVT / toast instrumentation snapshots for critical flows (form submit success/error, document upload failure, AI analysis error)
+- [ ] Capture test-event / toast instrumentation snapshots for critical flows (form submit success/error, document upload failure, AI analysis error)
 
 ## 5. Test Artifacts & Debugging
 
@@ -186,7 +186,7 @@ This document consolidates all remaining work for the Playwright test suite impl
   - [ ] correlation_id (from Flask-Log-Request-ID)
   - [ ] extra fields
 - [ ] Stream consumption from connection time (no historical buffer)
-- [ ] Correlation ID matching between frontend TEST_EVT and backend logs
+- [ ] Correlation ID matching between frontend test events and backend logs
 - [ ] Test helper to consume and filter log stream during test execution
 - [ ] Assertion helpers for backend log content
 - [ ] Error detection in backend logs
@@ -210,7 +210,7 @@ This document consolidates all remaining work for the Playwright test suite impl
 ## 7. SSE (Server-Sent Events) Instrumentation
 
 ### SSE Client Implementation
-- [ ] Emit TEST_EVT:sse for connection lifecycle
+- [ ] Emit `sse` test events for connection lifecycle
 - [ ] Log open, close, and heartbeat events (~30s intervals)
 - [ ] Include minimal metadata for debugging
 - [ ] Stream ID management

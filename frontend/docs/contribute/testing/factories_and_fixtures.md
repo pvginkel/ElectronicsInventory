@@ -37,7 +37,8 @@ Custom fixtures extend Playwright’s base test:
 | `apiClient` | Return of `createApiClient()` | Raw OpenAPI client for advanced usage. |
 | `testData` | Return of `createTestDataBundle()` | Aggregated factories. |
 | `types` | `TypesPage` instance | Feature page object for the Types flow. |
-| `page` override | `Page` | Enforces console error policy and disables animations. |
+| `page` override | `Page` | Registers the Playwright test-event bridge, enforces console error policy, and disables animations. |
+| `testEvents` | `TestEventCapture` | Access to the Playwright-managed buffer of test-event payloads. |
 
 Extend `TestFixtures` when adding new domains (e.g., `parts: PartsPage`). Keep fixture code minimal and reusable; complexity belongs in page objects or factories.
 
@@ -56,7 +57,7 @@ Provides convenience utilities used across specs:
 - `waitForFormValidationError(page, formId, field?)`
 - `expectConflictError(page, correlationId?)`
 - `expectConsoleError(page, pattern)`
-- `emitTestEvt(page, kind, payload)` for ad-hoc instrumentation
+- `emitTestEvent(page, payload)` from `tests/support/helpers/test-events` for ad-hoc instrumentation
 
 Avoid duplicating helper logic in specs—centralize shared behaviors here.
 

@@ -8,7 +8,7 @@ This document captures the environment variables, port conventions, and configur
 | --- | --- | --- |
 | `FRONTEND_URL` | `http://localhost:3100` (tests) / Vite default `http://localhost:3000` (dev) | Base URL the Playwright suite points to. Managed automatically when using `scripts/testing-server.sh`. |
 | `BACKEND_URL` | `http://localhost:5100` | Backend base URL for Playwright fixtures and API factories. |
-| `VITE_TEST_MODE` | `false` | Toggles frontend test instrumentation and TEST_EVT emission. Set to `true` automatically when running `scripts/testing-server.sh`. |
+| `VITE_TEST_MODE` | `false` | Toggles frontend test instrumentation and test-event emission. Set to `true` automatically when running `scripts/testing-server.sh`. |
 | `PLAYWRIGHT_MANAGED_SERVICES` | `true` | When not explicitly set to `false`, Playwright starts the frontend/backend via `scripts/testing-server.sh`. Set to `false` when you manage servers manually. |
 | `APP_START_SCRIPT` / `APP_STOP_SCRIPT` | unset | Optional hook executed by Playwright before/after tests. Accepts `start` and `stop` args. |
 | `WEB_START_SCRIPT` / `WEB_STOP_SCRIPT` | unset | Alternate hook for frontend orchestration. |
@@ -31,8 +31,8 @@ If you prefer to launch services manually, export `PLAYWRIGHT_MANAGED_SERVICES=f
 ## Test Mode Responsibilities
 
 When `VITE_TEST_MODE=true` the frontend:
-- Enables emitters in `src/lib/test/*` to log `TEST_EVT` payloads.
-- Sets `window.__TEST_SIGNALS__` for debugging.
+- Enables emitters in `src/lib/test/*` to publish test-event payloads through the Playwright bridge.
+- Registers the Playwright bridge (`window.__playwright_emitTestEvent`) for deterministic event capture.
 - Ensures console policies treat unexpected errors as test failures.
 
 Production builds automatically strip these hooks; keep instrumentation behind `isTestMode()` checks when adding new emitters. See [Test Instrumentation](./architecture/test_instrumentation.md) for details.

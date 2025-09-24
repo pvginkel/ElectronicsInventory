@@ -1,7 +1,12 @@
 import { test as base, expect } from '@playwright/test';
 import { createApiClient, createTestDataBundle } from '../api';
 import { TypesPage } from '../e2e/types/TypesPage';
-import { TestEventCapture, createTestEventCapture } from './helpers/test-events';
+import {
+  TestEventCapture,
+  createTestEventCapture,
+  ensureTestEventBridge,
+  releaseTestEventBridge,
+} from './helpers/test-events';
 import { ToastHelper, createToastHelper } from './helpers/toast-helpers';
 import { SSEMocker, createSSEMocker } from './helpers/sse-mock';
 import { FileUploadHelper, createFileUploadHelper } from './helpers/file-upload';
@@ -48,6 +53,8 @@ export const test = base.extend<TestFixtures>({
   page: async ({ page }, use) => {
     // Track expected console errors for this test
     const expectedErrors: RegExp[] = [];
+
+    await ensureTestEventBridge(page);
 
     // Add method to page for registering expected errors
     await page.exposeFunction('__registerExpectedError', (pattern: string) => {
@@ -97,6 +104,7 @@ export const test = base.extend<TestFixtures>({
       await use(page);
     } finally {
       expectedErrors.length = 0;
+      releaseTestEventBridge(page);
     }
   },
 
@@ -105,6 +113,8 @@ export const test = base.extend<TestFixtures>({
   },
 
   testEvents: async ({ page }, use) => {
+    await ensureTestEventBridge(page);
+
     const testEvents = createTestEventCapture(page);
     await testEvents.startCapture();
     await use(testEvents);

@@ -9,7 +9,7 @@ import { TestEventKind, type QueryErrorTestEvent } from '@/types/test-events';
 import { isTestMode } from '@/lib/config/test-mode';
 
 /**
- * Setup query error instrumentation to emit TEST_EVT:query_error events
+ * Setup query error instrumentation to emit query-error test-event payloads
  */
 export function setupQueryInstrumentation(queryClient: QueryClient): void {
   // Only set up instrumentation in test mode

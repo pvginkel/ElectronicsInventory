@@ -1,4 +1,6 @@
+import type { TestEvent } from '@/types/test-events';
 import { Page, expect } from '@playwright/test';
+import { getTestEventBuffer } from './helpers/test-events';
 
 /**
  * Generates a random ID with prefix-shortId pattern for test data
@@ -13,42 +15,31 @@ export function generateRandomId(prefix: string = 'test'): string {
 }
 
 /**
- * Waits for a TEST_EVT console event to be emitted
+ * Waits for a test-event payload exposed through the Playwright bridge
  * @param page The Playwright page instance
  * @param kind The event kind to wait for
  * @param filter Optional filter function to match specific event payloads
  * @param timeout Maximum time to wait for the event
  * @returns The event data payload
  */
-export async function waitTestEvent<T = any>(
+export async function waitTestEvent<T = TestEvent>(
   page: Page,
   kind: string,
   filter?: (payload: T) => boolean,
   timeout = 10_000
 ): Promise<T> {
-  const msg = await page.waitForEvent('console', {
-    timeout,
-    predicate: (m) => {
-      const text = m.text();
-      if (!text.startsWith('TEST_EVT: ')) return false;
-      try {
-        const data = JSON.parse(text.slice('TEST_EVT: '.length));
-        return data?.kind === kind && (!filter || filter(data));
-      } catch {
-        return false;
-      }
-    },
-  });
-  return JSON.parse(msg.text().slice('TEST_EVT: '.length)) as T;
-}
+  const buffer = getTestEventBuffer(page);
+  const matchedEvent = await buffer.waitForEvent((event) => {
+    if (event.kind !== kind) {
+      return false;
+    }
+    if (!filter) {
+      return true;
+    }
+    return filter(event as unknown as T);
+  }, timeout);
 
-/**
- * Emits a test event via console.log for monitoring
- */
-export async function emitTestEvt(page: Page, kind: string, payload: any): Promise<void> {
-  await page.evaluate(([kind, payload]) => {
-    console.log(`[TEST-EVENT:${kind}]${JSON.stringify(payload)}`);
-  }, [kind, payload]);
+  return matchedEvent as unknown as T;
 }
 
 /**

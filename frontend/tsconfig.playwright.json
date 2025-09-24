@@ -33,7 +33,8 @@
   },
   "include": [
     "tests/**/*",
-    "playwright.config.ts"
+    "playwright.config.ts",
+    "src/types/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",

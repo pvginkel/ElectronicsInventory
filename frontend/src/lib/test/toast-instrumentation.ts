@@ -1,6 +1,6 @@
 /**
  * Toast instrumentation for test events
- * Wraps toast functions to emit TEST_EVT:toast events
+ * Wraps toast functions to emit toast test-event payloads
  */
 
 import { emitTestEvent } from './event-emitter';

@@ -1,13 +1,13 @@
 # Test Instrumentation
 
-The frontend exposes deterministic telemetry while running in test mode (`VITE_TEST_MODE=true`). Instrumentation lives under `src/lib/test/` and emits structured console events prefixed with `TEST_EVT:`. Tests read these signals via Playwright helpers for precise assertions.
+The frontend exposes deterministic telemetry while running in test mode (`VITE_TEST_MODE=true`). Instrumentation lives under `src/lib/test/` and publishes structured test-event payloads through a Playwright binding. Fixtures capture those payloads in a shared buffer so tests can assert on them without scraping the console.
 
 ## Runtime Flow
 
 1. `isTestMode()` (from `src/lib/config/test-mode.ts`) checks `import.meta.env.VITE_TEST_MODE === 'true'`.
 2. When true, UI code calls helpers such as `trackFormSubmit` or `emitTestEvent`.
-3. `src/lib/test/event-emitter.ts` prints `TEST_EVT: {...}` to `console.log` and pushes the payload to `window.__TEST_SIGNALS__` for debugging.
-4. Playwright helpers (`waitTestEvent`, `expectConflictError`) parse these logs and return typed payloads.
+3. `src/lib/test/event-emitter.ts` forwards each payload through the Playwright binding (`window.__playwright_emitTestEvent`).
+4. Playwright fixtures register the binding, capture events in a 500-entry circular buffer, and helpers (`waitTestEvent`, `expectConflictError`) read from that buffer for typed payloads.
 
 ## Event Taxonomy (`src/types/test-events.ts`)
 
@@ -25,7 +25,7 @@ All payloads include a `timestamp` (injected by the emitter).
 
 ## Instrumentation Modules
 
-- **`event-emitter.ts`** – Core emitter that writes to console and `window.__TEST_SIGNALS__`.
+- **`event-emitter.ts`** – Core emitter that forwards payloads to the Playwright bridge.
 - **`router-instrumentation.ts`** – Subscribes to TanStack Router transitions; emits `route` events.
 - **`form-instrumentation.ts`** – Exposes `trackForm*` helpers and stable `generateFormId`.
 - **`toast-instrumentation.ts`** – Hooks the toast provider to emit `toast` events.
@@ -60,15 +60,15 @@ function trackWizardStep(step: string) {
 
 ## Correlation IDs & Backend Logs
 
-- The API client propagates `X-Request-Id` into `TEST_EVT:api.correlationId` when available.
+- The API client propagates `X-Request-Id` into `api` test events when available.
 - Backend SSE logging (`/api/testing/logs/stream`) includes the same ID, enabling cross-correlation.
 - When diagnosing conflicts or errors, capture both the frontend event and backend log entry.
 
-## Debugging with TEST_EVT
+## Debugging Test Events
 
-- In the browser console, run `window.__TEST_SIGNALS__` to inspect captured events during manual repro.
+- When running managed Playwright services locally, call `await testEvents.dumpEvents()` inside a spec to inspect the buffered payloads.
 - Playwright helpers can filter by `kind`, `formId`, or `correlationId`.
-- Tests should assert on event sequences sparingly—prefer UI assertions first, use TEST_EVT for invisible state (forms, toasts, background API behavior).
+- Tests should assert on event sequences sparingly—prefer UI assertions first, and reach for test events when state would otherwise be invisible (forms, toasts, background API behavior).
 
 ## Maintenance Checklist
 

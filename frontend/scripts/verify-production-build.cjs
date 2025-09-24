@@ -11,8 +11,7 @@ const path = require('path');
 // Test markers to search for
 const TEST_MARKERS = [
   'TEST_EVT',
-  'emitTestEvt',
-  '__TEST_SIGNALS__',
+  '__playwright_emitTestEvent',
   'src/lib/test/',
 ];
 

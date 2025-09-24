@@ -1,6 +1,6 @@
 # Error Handling & Validation Patterns
 
-The frontend ships with a centralized instrumentation layer that surfaces error states to Playwright through `TEST_EVT` payloads and console policies. This guide explains how to integrate forms, mutations, and validation flows so tests can assert on observable signals.
+The frontend ships with a centralized instrumentation layer that surfaces error states to Playwright through structured test-event payloads and console policies. This guide explains how to integrate forms, mutations, and validation flows so tests can assert on observable signals.
 
 ## Form Instrumentation
 
@@ -62,7 +62,7 @@ Event payload shape:
 
 React Query hooks are wrapped by `@/lib/test/query-instrumentation` and `@/lib/test/error-instrumentation`:
 
-- Automatically emits `TEST_EVT:query_error` with `{ queryKey, status, message, correlationId }` on failures.
+- Automatically emits a `query_error` test event with `{ queryKey, status, message, correlationId }` on failures.
 - Marks HTTP `409` conflicts with `metadata.isConflict=true` to support optimistic concurrency tests.
 - Captures network failures and normalized error messages produced by `src/lib/utils/error-parsing.ts`.
 
@@ -90,16 +90,16 @@ Avoid sprinkling `console.error` in production code—rely on the centralized er
 
 ## Toast Notifications
 
-`@/lib/test/toast-instrumentation` emits `TEST_EVT:toast` with `{ level, code, message }` whenever the toast provider shows a message. Prefer asserting on the UI element (`getByRole('status')`) and use the event stream for supplementary checks in complex flows.
+`@/lib/test/toast-instrumentation` emits `toast` test events with `{ level, code, message }` whenever the toast provider shows a message. Prefer asserting on the UI element (`getByRole('status')`) and use the event stream for supplementary checks in complex flows.
 
 ## Router & API Events
 
-- `@/lib/test/router-instrumentation` emits `TEST_EVT:route` for navigation, including `from`, `to`, and optional params.
+- `@/lib/test/router-instrumentation` emits `route` test events for navigation, including `from`, `to`, and optional params.
 - `@/lib/test/api-instrumentation` (optional integration) captures REST calls with `operation`, `method`, `status`, `correlationId`, `durationMs`.
 
 These events help correlate UI state with backend activity when debugging failures.
 
-## TEST_EVT Taxonomy Reference
+## Test-Event Taxonomy Reference
 
 | Kind | Use case |
 | --- | --- |

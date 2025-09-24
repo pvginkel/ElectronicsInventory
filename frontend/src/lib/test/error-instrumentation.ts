@@ -1,6 +1,6 @@
 /**
  * Error instrumentation for test events
- * Sets up global error handling to emit TEST_EVT:error events
+ * Sets up global error handling to emit error test-event payloads
  */
 
 import { emitTestEvent } from './event-emitter';
@@ -30,7 +30,7 @@ function getCurrentCorrelationId(): string | undefined {
 }
 
 /**
- * Setup global error instrumentation to emit TEST_EVT:error events
+ * Setup global error instrumentation to emit error test-event payloads
  */
 export function setupErrorInstrumentation(): () => void {
   // Handle unhandled errors

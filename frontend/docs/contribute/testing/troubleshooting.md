@@ -11,7 +11,7 @@ Use this checklist when Playwright runs fail or behave inconsistently.
 
 ## Tests Hang on Startup
 
-- Check that `VITE_TEST_MODE` is set to `true` (managed services handle this). Without it, TEST_EVT emitters stay silent and helpers may wait forever.
+- Check that `VITE_TEST_MODE` is set to `true` (managed services handle this). Without it, test event emitters stay silent and helpers may wait forever.
 - Inspect `test-results/` and `playwright-report/` for traces.
 - Ensure `PLAYWRIGHT_MANAGED_SERVICES` is not `false` when you expect automatic orchestration.
 
@@ -19,7 +19,7 @@ Use this checklist when Playwright runs fail or behave inconsistently.
 
 - Re-run the spec with `pnpm playwright test -g "<test name>"` to isolate.
 - Use `expectConsoleError(page, <pattern>)` if the error is expected (e.g., blocked delete).
-- Inspect frontend console output for stack traces; instrumentation often logs the same message as a `TEST_EVT:error`.
+- Inspect frontend console output for stack traces; instrumentation often mirrors the same payload via the `error` test event.
 
 ## Dirty Database Collisions
 
@@ -27,10 +27,10 @@ Use this checklist when Playwright runs fail or behave inconsistently.
 - If collisions persist, add clearer prefixes (e.g., `types.randomTypeName('EditFlow')`).
 - Remember that tests never clean up; design flows to tolerate existing data.
 
-## Missing TEST_EVT Signals
+## Missing Test Events
 
 - Verify the relevant instrumentation is guarded by `isTestMode()` and lives in the UI code path being executed.
-- Check `window.__TEST_SIGNALS__` in the browser console when reproducing manually.
+- From within a Playwright spec, call `await testEvents.dumpEvents()` to inspect the buffered payloads; for manual repros, rely on UI signals because the bridge is Playwright-only.
 - Inspect `src/lib/test/*` emitters if new components require additional hooks.
 
 ## Network Errors / 409 Conflicts
@@ -43,7 +43,7 @@ Use this checklist when Playwright runs fail or behave inconsistently.
 
 - Use the shared `sseTimeout` fixture for operations that legitimately exceed 10s.
 - Verify the backend SSE endpoint is available in testing mode.
-- Confirm the test listens for `TEST_EVT:sse` where applicable.
+- Confirm the test listens for the `sse` test event where applicable.
 
 ## Flaky Selectors
 
@@ -54,7 +54,7 @@ Use this checklist when Playwright runs fail or behave inconsistently.
 ## Still Stuck?
 
 - Run `pnpm playwright test --debug` to inspect the DOM in real time.
-- Capture console output (`TEST_EVT:` lines) and compare against expected sequences in [Test Instrumentation](../architecture/test_instrumentation.md).
+- Capture the buffered events (`await testEvents.dumpEvents()`) and compare against expected sequences in [Test Instrumentation](../architecture/test_instrumentation.md).
 - Cross-check the `playwright.config.ts` settings for timeouts and managed services.
 
 Related docs: [CI & Execution](./ci_and_execution.md), [Factories & Fixtures](./factories_and_fixtures.md), [Error Handling & Validation](./error_handling_and_validation.md).

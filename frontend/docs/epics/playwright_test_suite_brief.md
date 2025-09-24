@@ -3,7 +3,7 @@
 * **Goals**
 
   * Reliable **Playwright** suite (Chromium, headless by default) that drives the real frontend **against the real backend**.
-  * Make **Claude Code** effective via **structured, machine-readable visibility** (console/events), not pixels.
+  * Make **Claude Code** effective via **structured, machine-readable telemetry** (test events + backend logs), not pixels.
   * Cover one feature end-to-end now: **Types** (CRUD + delete blocked when reverse deps exist), with both **“specific” near-unit flows** and **E2E flows** implemented in Playwright.
   * Allow fast iteration: re-runnable on **dirty DB**; optional full reset for end-to-end runs.
 * **Non-goals**
@@ -26,9 +26,9 @@
 * Streams logs from connection time onward (no historical buffer)
 * Only available in testing mode
 
-**Structured console events**
+**Structured test events**
 
-* Frontend emits **one-line JSON** prefixed with `TEST_EVT:`; also mirrors to `window.__TEST_SIGNALS__` (in test mode).
+* Frontend emits structured payloads through the Playwright bridge (`window.__playwright_emitTestEvent`, available only in test mode).
 * Minimal, stable event “kinds” the LLM can assert on:
 
   * `route` (from→to), `form` (id, phase: open|submit|success|error), `api` (name, method, status, correlationId, durationMs), `toast` (level, code, message), `error` (scope, code, message, correlationId), `query_error` (tanstack key, status), `sse` (streamId, phase: open|event|heartbeat|close).
@@ -94,7 +94,7 @@
 
 **Artifacts**
 
-* Keep screenshots/videos/traces for humans. LLM ignores them; it relies on console events and assertions only.
+* Keep screenshots/videos/traces for humans. LLM ignores them; it relies on emitted test events and assertions only.
 
 # Test layout & coverage model
 
@@ -118,15 +118,15 @@
 * Failing signals:
 
   * Any `console.error`.
-  * Any `TEST_EVT:error` or `TEST_EVT:query_error` unless tests explicitly expect them.
+  * Any `error` or `query_error` test event unless tests explicitly expect them.
 * Passing signals:
 
   * Expected sequence of `route`, `form`, `api` (2xx), and `toast` (level `info`|`success`) within **≤10s** per step (SSE steps may use a named 30–35s await only when applicable).
-* Tests prefer **console events** over parsing UI toasts; toasts remain visible for humans.
+* Tests prefer **test events** over parsing UI toasts; toasts remain visible for humans.
 
 # “Types” pilot coverage (in scope, details deferred)
 
-* **Happy path**: list → create randomized name → visible in list → rename → visible renamed → delete attempt → if reverse deps exist, **fail with clear error** (assert on `TEST_EVT:toast/error` + `api` 4xx/409 if applicable).
+* **Happy path**: list → create randomized name → visible in list → rename → visible renamed → delete attempt → if reverse deps exist, **fail with clear error** (assert on toast/error + API events as needed).
 * **Edge patterns** (domain specifics left to your later analysis): duplicate name handling, whitespace normalization, too-long names, invalid characters, transient server/network error path (shows normalized error).
 * This pilot sets the **selector naming**, **event taxonomy**, and **data randomization** patterns used by future features.
 
@@ -150,19 +150,19 @@ Add sections to your **AGENTS-frontend.md** and **AGENTS-backend.md**:
    * Do **not** clean up.
 3. **Interpret signals**
 
-   * Read `console` for `TEST_EVT:` lines; treat any `console.error`/`TEST_EVT:error` as failure unless the test expects it.
+   * Use the Playwright `testEvents` fixture to observe telemetry; treat any unexpected `error`/`query_error` payloads as failures.
    * Connect to `/api/testing/logs/stream` to monitor backend logs during test execution.
    * Correlate frontend events with backend logs using correlation IDs.
    * Prefer asserting on `api` + `toast` + `form` event sequences rather than DOM text.
 4. **Debug with backend logs**
 
    * When tests fail, examine backend log stream for root causes.
-   * Match correlation IDs between frontend TEST_EVT and backend logs.
+   * Match correlation IDs between frontend test events and backend logs.
    * Backend logs show SQL queries, service operations, error stack traces.
 5. **Extend instrumentation**
 
-   * Use `emitTestEvt(kind, payload)` utility (provided by the app in test mode).
-   * Never emit in production builds (utility is a no-op outside test mode).
+   * Use `emitTestEvent` utilities (in `src/lib/test/event-emitter` for UI code, `tests/support/helpers/test-events` for synthetic injections).
+   * Never emit in production builds (all helpers guard on `isTestMode()`).
 6. **Timeouts**
 
    * Default 10s per assertion; only use the provided **SSE-aware helper** for streams (up to \~35s).
@@ -175,7 +175,7 @@ Add sections to your **AGENTS-frontend.md** and **AGENTS-backend.md**:
    * `POST /api/testing/reset?seed=true|false`
    * `GET /api/testing/logs/stream` (SSE stream of backend logs)
 2. **No auth**, environment flag gates availability.
-3. **X-Request-Id** handled by Flask-Log-Request-ID package; the frontend propagates/echoes it in `TEST_EVT:api`.
+3. **X-Request-Id** handled by Flask-Log-Request-ID package; the frontend propagates/echoes it in `api` test events.
 4. Log streaming provides structured JSON with correlation IDs for debugging.
 5. Seeding data is allowed but tests must be robust to extra data.
 
@@ -183,11 +183,11 @@ Add sections to your **AGENTS-frontend.md** and **AGENTS-backend.md**:
 
 * Running `pnpm playwright test` (with `FRONTEND_URL`/`BACKEND_URL` set) executes:
 
-  * At least one **specific** test and one **E2E** test for **Types**, both **fully headless**, both passing solely via **console events** + selectors.
-* Frontend in test mode **emits** the agreed `TEST_EVT` taxonomy; production build does not.
+  * At least one **specific** test and one **E2E** test for **Types**, both **fully headless**, both passing solely via **test events** + selectors.
+* Frontend in test mode **emits** the agreed test-event taxonomy; production build does not.
 * Backend exposes `reset` endpoint **only** in testing mode; `readyz` enhanced with DB/migration checks.
 * No retries, global expect timeout **10s**, SSE steps use named longer await only when needed.
-* Deleting a Type with reverse deps is **blocked** and verifiably surfaced to the test via `TEST_EVT`.
+* Deleting a Type with reverse deps is **blocked** and verifiably surfaced to the test via the emitted events.
 
 # Risks & mitigations
 
@@ -198,7 +198,7 @@ Add sections to your **AGENTS-frontend.md** and **AGENTS-backend.md**:
 
 # Rollout steps (high-level)
 
-1. **Instrumentation** (frontend): add test mode flag + `emitTestEvt`, wire to toasts, TanStack Query errors, router, forms, API, SSE.
+1. **Instrumentation** (frontend): add test mode flag + `emitTestEvent`, wire to toasts, TanStack Query errors, router, forms, API, SSE.
 2. **Backend reset/health** endpoints behind env flag.
 3. **Component refactoring**: Update UI components to accept data-* attributes, forward refs, and improve accessibility.
 4. **Selector pass** on Types screens/components with data-testid attributes.

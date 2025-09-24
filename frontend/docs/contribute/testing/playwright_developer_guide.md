@@ -6,14 +6,14 @@ The Playwright suite drives the production frontend against the real backend in 
 
 1. Complete the [Getting Started](../getting_started.md) setup and ensure `pnpm playwright test` passes locally.
 2. Understand the [Environment Reference](../environment.md) to configure URLs and test mode.
-3. Review the [Test Instrumentation](../architecture/test_instrumentation.md) taxonomy—tests frequently assert on `TEST_EVT` payloads.
+3. Review the [Test Instrumentation](../architecture/test_instrumentation.md) taxonomy—tests frequently assert on emitted test-event payloads.
 
 ## Core Principles
 
 1. **API-first data setup** – Always create prerequisite data with factories; UI interactions are only for the scenario under test.
 2. **Dirty database policy** – Tests never reset or clean up. Use randomized identifiers so reruns tolerate existing data.
 3. **Feature-owned page objects** – Each feature folder exposes actions/locators tailored to that UI.
-4. **Deterministic waits** – Assertions rely on UI visibility, network promises, or TEST_EVT signals—never fixed sleeps.
+4. **Deterministic waits** – Assertions rely on UI visibility, network promises, or test-event signals—never fixed sleeps.
 5. **Console is the contract** – Unexpected `console.error` fails the test unless explicitly marked as expected via helpers.
 
 ## Suite Architecture
@@ -48,7 +48,8 @@ Custom fixtures extend Playwright's base test:
 - `frontendUrl` / `backendUrl` – Read from environment variables (`FRONTEND_URL`, `BACKEND_URL`).
 - `testData` – Bundled factories for `types`, `parts`, etc.
 - `types` – Page object for the Types feature (`tests/e2e/types/TypesPage.ts`).
-- `page` override – Enforces console error policy (unexpected errors fail the test) and disables animations for determinism.
+- `page` override – Registers the Playwright test-event bridge, enforces console error policy (unexpected errors fail the test), and disables animations for determinism.
+- `testEvents` – Provides access to the circular buffer of test-event payloads (`TestEventCapture`) for sequence assertions and debugging dumps.
 - `sseTimeout` – Shared SSE-aware timeout (35s) for long polling scenarios.
 
 Import fixtures via:
@@ -62,7 +63,7 @@ import { test, expect } from '../support/fixtures';
 Utility functions that complement fixtures:
 
 - `generateRandomId(prefix)` – Standard prefix-shortId generator.
-- `waitTestEvent(page, kind, filter?, timeout?)` – Await specific TEST_EVT payloads.
+- `waitTestEvent(page, kind, filter?, timeout?)` – Await specific test-event payloads from the Playwright-managed buffer.
 - `waitForFormValidationError(page, formId, field?)`
 - `expectConflictError(page, correlationId?)`
 - `expectConsoleError(page, pattern)` – Allow known console errors for a test.
@@ -102,7 +103,7 @@ await expectConsoleError(page, /cannot delete type/i);
 await types.attemptDelete(blockedType.name);
 ```
 
-### TEST_EVT Assertions
+### Test-Event Assertions
 
 Prefer UI assertions first, but when behavior is exposed via instrumentation (forms, toasts, SSE), use helpers for precision.
 
@@ -143,7 +144,7 @@ Follow the [No-Sleep Patterns](./no_sleep_patterns.md) reference. Use `Promise.a
 
 1. Update or add factories if new backend endpoints are required.
 2. Introduce or extend a page object in `tests/e2e/<feature>/`.
-3. Write scenarios that create preconditions through factories, exercise the UI flow, and assert via UI + TEST_EVT signals.
+3. Write scenarios that create preconditions through factories, exercise the UI flow, and assert via UI + test-event signals.
 4. Run `pnpm playwright test tests/e2e/<feature>/<file>.spec.ts` locally before committing.
 
 For a checklist-style walkthrough, see [How to Add an E2E Test](../howto/add_e2e_test.md).

@@ -65,7 +65,7 @@ The test coverage extension will be implemented in 6 distinct phases, each focus
 - [ ] Implement Deployment notification banner tests
 - [ ] Implement About page tests
 - [ ] Implement Cross-domain workflow tests
-- [ ] Implement TEST_EVT/toast instrumentation snapshots
+- [ ] Implement test-event/toast instrumentation snapshots
 - [ ] Verify test suite runs successfully
 - [ ] Mark all completed items in outstanding work document
 - [ ] Final sign-off
@@ -78,14 +78,14 @@ The test coverage extension will be implemented in 6 distinct phases, each focus
 - `tests/api/factories/box-factory.ts` - BoxTestFactory with capacity defaults and location seeding
 - `tests/api/factories/seller-factory.ts` - SellerTestFactory with random generation utilities
 - `tests/support/page-objects/base-page.ts` - Base page object with common patterns
-- `tests/support/helpers/test-events.ts` - TEST_EVT capture and assertion utilities
+- `tests/support/helpers/test-events.ts` - Test-event capture and assertion utilities
 - `tests/support/helpers/toast-helpers.ts` - Toast assertion helpers
 - `tests/support/helpers/sse-mock.ts` - SSE mocking utilities
 - `tests/support/helpers/file-upload.ts` - File upload mock utilities
 
 **Files to Modify:**
 - `tests/api/factories/part-factory.ts` - Add stock, location, and document helper methods
-- `tests/support/fixtures.ts` - Add shared fixtures for toast assertions, TEST_EVT capture
+- `tests/support/fixtures.ts` - Add shared fixtures for toast assertions, test-event capture
 
 ### Phase 2: Types Feature Coverage
 
@@ -145,12 +145,12 @@ The test coverage extension will be implemented in 6 distinct phases, each focus
 - `tests/e2e/shell/deployment-banner.spec.ts` - Deployment notification tests
 - `tests/e2e/about/about-page.spec.ts` - About page tests
 - `tests/e2e/workflows/end-to-end.spec.ts` - Cross-domain workflow tests
-- `tests/e2e/workflows/instrumentation-snapshots.spec.ts` - TEST_EVT/toast snapshots
+- `tests/e2e/workflows/instrumentation-snapshots.spec.ts` - Test-event/toast snapshots
 
 ## Algorithms and Patterns
 
-### TEST_EVT Capture Pattern
-1. Hook into window.dispatchEvent for TEST_EVT emissions
+### Test-Event Capture Pattern
+1. Hook into the Playwright binding for test-event emissions
 2. Store events in a circular buffer with timestamp and metadata
 3. Provide assertion helpers to validate event sequences
 4. Clear buffer between test scenarios
@@ -182,7 +182,7 @@ The AI-assisted creation tests in Phase 3 should cover the following scenarios i
 - Test that descriptions like "0603 100nF ceramic capacitor" produce tags like "SMD", "0603", "100nF", "ceramic"
 - Verify tag suggestions appear in real-time as the user types
 - Test that users can accept, modify, or reject suggested tags
-- Verify TEST_EVT emissions for AI tag generation (start, success, failure)
+- Verify test-event emissions for AI tag generation (start, success, failure)
 
 ### Photo Intake (Mobile Camera)
 - Mock file upload with sample component images
@@ -197,7 +197,7 @@ The AI-assisted creation tests in Phase 3 should cover the following scenarios i
 - Verify PDF is downloaded and attached to the part automatically
 - Test user confirmation flow before storing fetched documents
 - Handle cases where multiple datasheets are found or none are found
-- Verify TEST_EVT for datasheet fetch attempts and results
+- Verify test-event payloads for datasheet fetch attempts and results
 
 ### Edge Cases & Error Handling
 - Test AI service unavailability (graceful degradation)
@@ -207,7 +207,7 @@ The AI-assisted creation tests in Phase 3 should cover the following scenarios i
 - Verify correlation IDs link AI requests to form submissions
 
 ### Instrumentation Requirements
-Each AI interaction should emit TEST_EVT with:
+Each AI interaction should emit test events with:
 - `kind: 'ai'`
 - `feature`: 'auto-tag' | 'photo-intake' | 'datasheet-fetch'
 - `phase`: 'request' | 'success' | 'failure' | 'user-override'
@@ -223,7 +223,7 @@ Phase 1 has been successfully completed with all core test infrastructure enhanc
 - Created BoxTestFactory with capacity defaults and location seeding
 - Created SellerTestFactory with vendor database and random generation utilities
 - Created BasePage object providing common page interaction patterns
-- Implemented TEST_EVT capture system for instrumentation assertions
+- Implemented test-event capture system for instrumentation assertions
 - Implemented ToastHelper for toast notification testing
 - Implemented SSEMocker with deployment version update simulation
 - Implemented FileUploadHelper for file upload testing

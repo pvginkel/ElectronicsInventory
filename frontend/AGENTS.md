@@ -19,7 +19,7 @@ Keep this file light and point contributors to the canonical documentation.
 
 1. Follow the patterns documented in the contributor guides; prefer extending existing abstractions over introducing new ones.
 2. Use the generated API hooks and centralized error handling — avoid ad hoc `fetch` or manual toast logic.
-3. Keep instrumentation behind `isTestMode()` and follow the TEST_EVT taxonomy when enhancing test visibility.
+3. Keep instrumentation behind `isTestMode()` and follow the documented test-event taxonomy when enhancing visibility.
 4. When in doubt, defer to `docs/contribute/` rather than copying guidance back into this file.
 
 ## Development Workflow (Quick Links)

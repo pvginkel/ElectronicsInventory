@@ -1,17 +1,14 @@
-/// <reference lib="dom" />
+import type { TestEvent } from '@/types/test-events';
 import { Page } from '@playwright/test';
 
-/**
- * TEST_EVT event structure for instrumentation
- */
-export interface TestEvent {
-  kind: string;
-  feature?: string;
-  phase?: 'request' | 'success' | 'failure' | 'user-override' | 'start' | 'complete';
-  correlationId?: string;
-  metadata?: Record<string, any>;
-  timestamp: string;
-}
+const DEFAULT_BUFFER_CAPACITY = 500;
+const PLAYWRIGHT_BINDING_NAME = '__playwright_emitTestEvent';
+
+type Waiter = {
+  matcher: (event: TestEvent) => boolean;
+  resolve: (event: TestEvent) => void;
+  timeoutId?: NodeJS.Timeout;
+};
 
 function normalizeEvent(raw: any): TestEvent {
   const timestamp = typeof raw?.timestamp === 'string'
@@ -19,140 +16,224 @@ function normalizeEvent(raw: any): TestEvent {
     : new Date((typeof raw?.timestamp === 'number' ? raw.timestamp : Date.now())).toISOString();
 
   return {
-    kind: raw?.kind,
-    feature: raw?.feature,
-    phase: raw?.phase,
-    correlationId: raw?.correlationId,
-    metadata: raw?.metadata,
+    ...raw,
     timestamp,
-  } satisfies TestEvent;
+  } as TestEvent;
 }
 
-/**
- * Helper class for capturing and asserting TEST_EVT emissions
- */
+export class TestEventBuffer {
+  private events: TestEvent[] = [];
+  private dropped = 0;
+  private capacity: number;
+  private waiters: Waiter[] = [];
+
+  constructor(capacity: number = DEFAULT_BUFFER_CAPACITY) {
+    this.capacity = Math.max(capacity, 1);
+  }
+
+  setCapacity(capacity: number): void {
+    this.capacity = Math.max(capacity, 1);
+    this.trimIfNeeded();
+  }
+
+  addEvent(event: TestEvent): void {
+    const normalized = normalizeEvent(event);
+    this.events.push(normalized);
+    this.trimIfNeeded();
+    this.notifyWaiters(normalized);
+  }
+
+  clear(): void {
+    this.events = [];
+    this.dropped = 0;
+  }
+
+  snapshot(cursor: number): { events: TestEvent[]; total: number } {
+    const total = this.dropped + this.events.length;
+    const relativeStart = Math.max(cursor - this.dropped, 0);
+    const events = relativeStart < this.events.length
+      ? this.events.slice(relativeStart)
+      : [];
+    return { events, total };
+  }
+
+  getTotalCount(): number {
+    return this.dropped + this.events.length;
+  }
+
+  async waitForEvent(
+    matcher: (event: TestEvent) => boolean,
+    timeout: number
+  ): Promise<TestEvent> {
+    const existing = this.events.find(matcher);
+    if (existing) {
+      return existing;
+    }
+
+    return new Promise<TestEvent>((resolve, reject) => {
+      const waiter: Waiter = {
+        matcher,
+        resolve: (event) => {
+          if (waiter.timeoutId) {
+            clearTimeout(waiter.timeoutId);
+          }
+          resolve(event);
+        },
+      };
+
+      if (timeout > 0) {
+        waiter.timeoutId = setTimeout(() => {
+          this.removeWaiter(waiter);
+          reject(new Error(`Timeout waiting for event matching criteria after ${timeout}ms`));
+        }, timeout);
+      }
+
+      this.waiters.push(waiter);
+    });
+  }
+
+  dispose(): void {
+    for (const waiter of this.waiters) {
+      if (waiter.timeoutId) {
+        clearTimeout(waiter.timeoutId);
+      }
+    }
+    this.waiters = [];
+    this.clear();
+  }
+
+  private trimIfNeeded(): void {
+    if (this.events.length <= this.capacity) {
+      return;
+    }
+
+    const overflow = this.events.length - this.capacity;
+    this.events.splice(0, overflow);
+    this.dropped += overflow;
+  }
+
+  private notifyWaiters(event: TestEvent): void {
+    if (this.waiters.length === 0) {
+      return;
+    }
+
+    const remaining: Waiter[] = [];
+
+    for (const waiter of this.waiters) {
+      if (waiter.matcher(event)) {
+        waiter.resolve(event);
+        continue;
+      }
+
+      remaining.push(waiter);
+    }
+
+    this.waiters = remaining;
+  }
+
+  private removeWaiter(waiter: Waiter): void {
+    this.waiters = this.waiters.filter(candidate => candidate !== waiter);
+  }
+}
+
+const bufferRegistry = new WeakMap<Page, TestEventBuffer>();
+const bindingRegistry = new WeakSet<Page>();
+
+export async function ensureTestEventBridge(page: Page): Promise<TestEventBuffer> {
+  let buffer = bufferRegistry.get(page);
+
+  if (!buffer) {
+    buffer = new TestEventBuffer(DEFAULT_BUFFER_CAPACITY);
+    bufferRegistry.set(page, buffer);
+  }
+
+  if (!bindingRegistry.has(page)) {
+    try {
+      await page.exposeBinding(PLAYWRIGHT_BINDING_NAME, async (_source, rawEvent) => {
+        buffer!.addEvent(rawEvent as TestEvent);
+      });
+      bindingRegistry.add(page);
+    } catch (error) {
+      bufferRegistry.delete(page);
+      throw new Error(
+        `Failed to register Playwright test event binding: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  buffer.setCapacity(DEFAULT_BUFFER_CAPACITY);
+  return buffer;
+}
+
+export function releaseTestEventBridge(page: Page): void {
+  const buffer = bufferRegistry.get(page);
+  if (buffer) {
+    buffer.dispose();
+  }
+  bufferRegistry.delete(page);
+  bindingRegistry.delete(page);
+}
+
+export function getTestEventBuffer(page: Page): TestEventBuffer {
+  const buffer = bufferRegistry.get(page);
+  if (!buffer) {
+    throw new Error('Test event bridge not initialized for this page. Ensure the testEvents fixture is registered.');
+  }
+  return buffer;
+}
+
 export class TestEventCapture {
   private events: TestEvent[] = [];
   private isCapturing = false;
-  private bufferSize = 100;
+  private bufferSize = DEFAULT_BUFFER_CAPACITY;
   private cursor = 0;
 
-  constructor(private readonly page: Page) {}
+  constructor(private readonly buffer: TestEventBuffer) {}
 
-  /**
-   * Starts capturing TEST_EVT events
-   * @param options - Configuration options
-   */
   async startCapture(options?: { bufferSize?: number }): Promise<void> {
-    this.bufferSize = options?.bufferSize ?? 100;
+    this.bufferSize = Math.max(options?.bufferSize ?? DEFAULT_BUFFER_CAPACITY, 1);
     this.events = [];
-
-    await this.page.addInitScript(() => {
-      const globalAny = globalThis as Record<string, any>;
-      if (!('__TEST_SIGNALS__' in globalAny)) {
-        globalAny.__TEST_SIGNALS__ = [];
-      }
-    });
-
-    await this.page.evaluate(() => {
-      const globalAny = globalThis as Record<string, any>;
-      if (!('__TEST_SIGNALS__' in globalAny)) {
-        globalAny.__TEST_SIGNALS__ = [];
-      }
-    });
-
-    this.cursor = await this.page.evaluate(() => {
-      const globalAny = globalThis as Record<string, any>;
-      const signals = globalAny.__TEST_SIGNALS__;
-      return Array.isArray(signals) ? signals.length : 0;
-    });
-
+    this.cursor = this.buffer.getTotalCount();
     this.isCapturing = true;
   }
 
-  /**
-   * Stops capturing TEST_EVT events
-   */
   async stopCapture(): Promise<void> {
     this.isCapturing = false;
   }
 
-  /**
-   * Gets all captured events
-   * @returns Array of captured events
-   */
   async getEvents(): Promise<TestEvent[]> {
-    if (!this.isCapturing) {
-      return [...this.events];
-    }
-
-    const result = await this.page.evaluate(({ start }) => {
-      const globalAny = globalThis as Record<string, any>;
-      const signals = globalAny.__TEST_SIGNALS__;
-      if (!Array.isArray(signals)) {
-        return { events: [], total: 0 };
+    if (this.isCapturing) {
+      const snapshot = this.buffer.snapshot(this.cursor);
+      if (snapshot.total > this.cursor) {
+        const newEvents = snapshot.events.map(normalizeEvent);
+        this.cursor = snapshot.total;
+        this.events = [...this.events, ...newEvents].slice(-this.bufferSize);
       }
-
-      return {
-        events: signals.slice(start),
-        total: signals.length,
-      };
-    }, { start: this.cursor });
-
-    if (result.total > this.cursor) {
-      const newEvents = (result.events ?? []).map(normalizeEvent);
-      this.cursor = result.total;
-      this.events = [...this.events, ...newEvents].slice(-this.bufferSize);
     }
 
     return [...this.events];
   }
 
-  /**
-   * Clears the event buffer
-   */
   async clearEvents(): Promise<void> {
     this.events = [];
-    this.cursor = await this.page.evaluate(() => {
-      const globalAny = globalThis as Record<string, any>;
-      const signals = globalAny.__TEST_SIGNALS__;
-      return Array.isArray(signals) ? signals.length : 0;
-    });
+    this.cursor = this.buffer.getTotalCount();
   }
 
-  /**
-   * Waits for a specific event to be emitted
-   * @param matcher - Function to match the desired event
-   * @param options - Wait options
-   * @returns The matched event
-   */
   async waitForEvent(
     matcher: (event: TestEvent) => boolean,
     options?: { timeout?: number; intervalMs?: number }
   ): Promise<TestEvent> {
     const timeout = options?.timeout ?? 5000;
-    const intervalMs = options?.intervalMs ?? 100;
-    const startTime = Date.now();
+    const events = await this.getEvents();
+    const existing = events.find(matcher);
 
-    while (Date.now() - startTime < timeout) {
-      const events = await this.getEvents();
-      const matchedEvent = events.find(matcher);
-
-      if (matchedEvent) {
-        return matchedEvent;
-      }
-
-      await this.page.waitForTimeout(intervalMs);
+    if (existing) {
+      return existing;
     }
 
-    throw new Error(`Timeout waiting for event matching criteria after ${timeout}ms`);
+    return this.buffer.waitForEvent(matcher, timeout);
   }
 
-  /**
-   * Asserts that an event with specific properties was emitted
-   * @param expectedEvent - Partial event to match
-   * @returns The matched event
-   */
   async assertEventEmitted(expectedEvent: Partial<TestEvent>): Promise<TestEvent> {
     const events = await this.getEvents();
 
@@ -176,10 +257,6 @@ export class TestEventCapture {
     return matchedEvent;
   }
 
-  /**
-   * Asserts that a sequence of events was emitted in order
-   * @param expectedSequence - Array of partial events to match in order
-   */
   async assertEventSequence(expectedSequence: Array<Partial<TestEvent>>): Promise<void> {
     const events = await this.getEvents();
     let eventIndex = 0;
@@ -213,40 +290,24 @@ export class TestEventCapture {
     }
   }
 
-  /**
-   * Gets events filtered by kind
-   * @param kind - The event kind to filter by
-   * @returns Filtered events
-   */
   async getEventsByKind(kind: string): Promise<TestEvent[]> {
     const events = await this.getEvents();
     return events.filter(event => event.kind === kind);
   }
 
-  /**
-   * Gets events filtered by feature
-   * @param feature - The feature to filter by
-   * @returns Filtered events
-   */
   async getEventsByFeature(feature: string): Promise<TestEvent[]> {
     const events = await this.getEvents();
-    return events.filter(event => event.feature === feature);
+    return events.filter(event => {
+      const candidate = event as unknown as { feature?: string };
+      return candidate.feature === feature;
+    });
   }
 
-  /**
-   * Gets the most recent event
-   * @returns The most recent event or undefined
-   */
   async getLastEvent(): Promise<TestEvent | undefined> {
     const events = await this.getEvents();
     return events[events.length - 1];
   }
 
-  /**
-   * Counts events matching a criteria
-   * @param matcher - Function to match events
-   * @returns Count of matching events
-   */
   async countEvents(matcher?: (event: TestEvent) => boolean): Promise<number> {
     const events = await this.getEvents();
     if (!matcher) {
@@ -255,48 +316,37 @@ export class TestEventCapture {
     return events.filter(matcher).length;
   }
 
-  /**
-   * Dumps all captured events for debugging
-   * @returns Formatted string of all events
-   */
   async dumpEvents(): Promise<string> {
     const events = await this.getEvents();
     return JSON.stringify(events, null, 2);
   }
 }
 
-/**
- * Creates a TEST_EVT capture helper for a page
- * @param page - The Playwright page
- * @returns TestEventCapture instance
- */
 export function createTestEventCapture(page: Page): TestEventCapture {
-  return new TestEventCapture(page);
+  const buffer = getTestEventBuffer(page);
+  return new TestEventCapture(buffer);
 }
 
-/**
- * Emits a TEST_EVT event from the page context
- * @param page - The Playwright page
- * @param event - The event to emit
- */
 export async function emitTestEvent(page: Page, event: Omit<TestEvent, 'timestamp'>): Promise<void> {
-  await page.evaluate(({ evt }) => {
+  await page.evaluate(async ({ evt, binding }) => {
     const globalAny = globalThis as Record<string, any>;
     const payload = {
       ...evt,
       timestamp: new Date().toISOString(),
     };
 
-    const signals = globalAny.__TEST_SIGNALS__;
-    if (Array.isArray(signals)) {
-      signals.push(payload);
+    const bridge = globalAny[binding];
+
+    if (typeof bridge !== 'function') {
+      throw new Error('Playwright test event binding is not registered on the page.');
     }
 
-    const message = `TEST_EVT: ${JSON.stringify(payload)}`;
-    globalAny.console?.log?.(message);
-  }, { evt: event });
+    await bridge(payload);
+  }, { evt: event, binding: PLAYWRIGHT_BINDING_NAME });
 }
 
-/**
- * Serializes a pattern for cross-context usage
- */
+export function unregisterTestEventBuffer(page: Page): void {
+  releaseTestEventBridge(page);
+}
+
+export { DEFAULT_BUFFER_CAPACITY as TEST_EVENT_BUFFER_CAPACITY };

@@ -36,7 +36,7 @@ src/
 ## Server State & Error Handling
 
 - React Query handles caching and background refresh.
-- Mutation errors surface through a centralized toast system and emit TEST_EVT payloads in test mode.
+- Mutation errors surface through a centralized toast system and emit structured test-event payloads in test mode.
 - Forms rely on `useFormState` hooks and instrumentation helpers to keep validation synchronized with tests.
 
 ## Test Mode Architecture

@@ -85,7 +85,7 @@ page.getByTestId('parts.list.card');
 
 - Place attributes on the smallest stable element (`data-testid="types.form.submit"`).
 - Keep names consistent with the feature structure.
-- Guard new instrumentation with `isTestMode()` only when emitting TEST_EVT events—`data-testid` attributes are safe for production builds.
+- Guard new instrumentation with `isTestMode()` only when emitting test events—`data-testid` attributes are safe for production builds.
 
 ## Accessibility Matters
 

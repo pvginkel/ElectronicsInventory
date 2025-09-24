@@ -70,7 +70,7 @@ pnpm playwright test
 ## Debugging Tips
 
 - Use `pnpm playwright test --debug` to launch the inspector and step through tests.
-- Tail frontend logs for `TEST_EVT:` entries; they mirror `window.__TEST_SIGNALS__`.
+- Use the `testEvents` fixture (e.g., `await testEvents.dumpEvents()`) to inspect emitted payloads when debugging locally.
 - When managed services fail to start, run scripts manually to inspect output (`./scripts/testing-server.sh start`).
 
 Related docs: [Environment Reference](../environment.md), [Playwright Developer Guide](./playwright_developer_guide.md), [Troubleshooting](./troubleshooting.md).

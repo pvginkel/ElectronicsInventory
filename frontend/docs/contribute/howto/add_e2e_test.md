@@ -33,7 +33,7 @@ Follow this procedure whenever you extend Playwright coverage for a new workflow
 
 - Place the spec next to the feature (`tests/e2e/<feature>/<scenario>.spec.ts`).
 - Import fixtures: `import { test, expect } from '../support/fixtures';`
-- Use factories for setup, page objects for interactions, and `expect`/TEST_EVT helpers for assertions.
+- Use factories for setup, page objects for interactions, and `expect`/test-event helpers for assertions.
 - Avoid fixed sleeps—follow [No-Sleep Patterns](../testing/no_sleep_patterns.md).
 - Mark expected console errors with `expectConsoleError` when necessary.
 

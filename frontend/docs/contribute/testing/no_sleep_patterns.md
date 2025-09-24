@@ -4,9 +4,9 @@ Never rely on fixed delays in Playwright tests. This reference shows how to wait
 
 ## Rules of Thumb
 
-1. **Every wait needs a signal** – UI visibility, network completion, or TEST_EVT payload.
+1. **Every wait needs a signal** – UI visibility, network completion, or a test-event payload.
 2. **Prefer UI assertions** – If the user can see it, assert it.
-3. **Reserve helpers for gaps** – Use network waits or TEST_EVT helpers only when UI signals are insufficient.
+3. **Reserve helpers for gaps** – Use network waits or test-event helpers only when UI signals are insufficient.
 
 ## Common Scenarios
 
@@ -62,7 +62,7 @@ await expect(page.getByRole('status')).toContainText(/saved/i);
 await expect(page.getByTestId('toast')).toBeVisible();
 ```
 
-## TEST_EVT When Necessary
+## Test Events When Necessary
 
 Use `waitTestEvent` only when no reliable UI or network signal exists.
 
@@ -82,7 +82,7 @@ The shared fixture disables CSS transitions and animations by default. You rarel
 
 - [ ] No `waitForTimeout` or magic numbers.
 - [ ] Assertions describe observable behavior.
-- [ ] TEST_EVT helpers used sparingly.
+- [ ] Test-event helpers used sparingly.
 - [ ] Page objects expose meaningful locators to keep waits readable.
 
 Related docs: [Playwright Developer Guide](./playwright_developer_guide.md), [Factories & Fixtures](./factories_and_fixtures.md).
