@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AIPartInputStep } from './ai-part-input-step';
 import { AIPartProgressStep } from './ai-part-progress-step';
 import { AIPartReviewStep } from './ai-part-review-step';
@@ -159,6 +159,9 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
       className={isReviewStep ? "w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h m-[30px]" : undefined}
     >
       <DialogContent className={isReviewStep ? "h-full flex flex-col" : ""}>
+        <DialogHeader className="sr-only">
+          <DialogTitle>AI Part Assistant</DialogTitle>
+        </DialogHeader>
         {renderCurrentStep()}
       </DialogContent>
     </Dialog>

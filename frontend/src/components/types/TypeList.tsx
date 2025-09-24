@@ -107,9 +107,16 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
             </button>
           )}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+          data-testid="types.list.loading"
+        >
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-32 bg-muted animate-pulse rounded-lg" />
+            <div
+              key={i}
+              className="h-32 bg-muted animate-pulse rounded-lg"
+              data-testid="types.list.loading.skeleton"
+            />
           ))}
         </div>
       </div>
@@ -118,7 +125,7 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
 
   if (error) {
     return (
-      <div>
+      <div data-testid="types.list.error">
         <div className="text-center py-12">
           <p className="text-lg text-muted-foreground">Failed to load types</p>
           <p className="text-sm text-muted-foreground mt-2">{String(error)}</p>
@@ -162,7 +169,10 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
 
       {/* Results Summary */}
       {!isEmpty && (
-        <div className="flex justify-between items-center text-sm text-muted-foreground mb-6">
+        <div
+          className="flex justify-between items-center text-sm text-muted-foreground mb-6"
+          data-testid="types.list.summary"
+        >
           <span>
             {isFiltered 
               ? `${filteredTypes.length} of ${types.length} types`
@@ -172,7 +182,7 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
       )}
 
       {isEmpty ? (
-        <div className="text-center py-12">
+        <div className="text-center py-12" data-testid="types.list.empty">
           <h3 className="text-lg font-medium text-muted-foreground">No types yet</h3>
           <p className="text-sm text-muted-foreground mt-2">
             Add your first part type to start organizing your electronics parts.
@@ -185,7 +195,7 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
           </Button>
         </div>
       ) : noSearchResults ? (
-        <div className="text-center py-12">
+        <div className="text-center py-12" data-testid="types.list.no-results">
           <h3 className="text-lg font-medium text-muted-foreground">No matching types</h3>
           <p className="text-sm text-muted-foreground mt-2">
             Try adjusting your search terms or add a new type.

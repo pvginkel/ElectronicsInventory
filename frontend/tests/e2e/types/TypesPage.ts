@@ -7,6 +7,11 @@ export class TypesPage {
   readonly listContainer: Locator;
   readonly cards: Locator;
   readonly searchInput: Locator;
+  readonly loadingSkeletons: Locator;
+  readonly summary: Locator;
+  readonly emptyState: Locator;
+  readonly noResultsState: Locator;
+  readonly errorState: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -20,6 +25,11 @@ export class TypesPage {
     // List elements (cards, not table)
     this.listContainer = this.root.getByTestId('types.list.container');
     this.cards = this.root.getByTestId('types.list.card');
+    this.loadingSkeletons = this.root.getByTestId('types.list.loading').locator('[data-testid="types.list.loading.skeleton"]');
+    this.summary = this.root.getByTestId('types.list.summary');
+    this.emptyState = this.root.getByTestId('types.list.empty');
+    this.noResultsState = this.root.getByTestId('types.list.no-results');
+    this.errorState = this.root.getByTestId('types.list.error');
   }
 
   async goto() {
@@ -43,6 +53,10 @@ export class TypesPage {
   // Card-specific methods
   cardByName(name: string): Locator {
     return this.cards.filter({ hasText: name });
+  }
+
+  partCountBadge(name: string): Locator {
+    return this.cardByName(name).getByText(/parts$/i);
   }
 
   editButtonForCard(name: string): Locator {

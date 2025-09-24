@@ -74,10 +74,10 @@ This document consolidates all remaining work for the Playwright test suite impl
 - [ ] Add testing hooks to simulate deployment-version updates for banner coverage
 
 ### Types Feature Coverage
-- [ ] Cover TypeList loading/empty/error states and persisted search queries
-- [ ] Verify part-count badges update after creating and deleting linked parts
-- [ ] Exercise TypeSelector inline create/edit flows inside Part form and AI review experiences
-- [ ] Assert TypeForm instrumentation emits expected test-event sequences (open, submit, success, validation)
+- [x] Cover TypeList loading/empty/error states and persisted search queries
+- [x] Verify part-count badges update after creating and deleting linked parts
+- [x] Exercise TypeSelector inline create/edit flows inside Part form and AI review experiences
+- [x] Assert TypeForm instrumentation emits expected test-event sequences (open, submit, success, validation)
 
 ### Parts Feature Coverage
 - [ ] Part list & navigation
