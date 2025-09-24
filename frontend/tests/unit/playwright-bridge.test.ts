@@ -17,14 +17,26 @@ function createFormEvent(overrides: Partial<FormTestEvent> = {}): FormTestEvent 
 }
 
 test.describe('TestEventBuffer', () => {
-  test('enforces capacity and drops oldest events', () => {
+  test('enforces capacity and tracks overflow error', () => {
     const buffer = new TestEventBuffer(3);
 
+    // Fill buffer to capacity
     buffer.addEvent(createFormEvent({ metadata: { index: 0 } }));
     buffer.addEvent(createFormEvent({ metadata: { index: 1 } }));
     buffer.addEvent(createFormEvent({ metadata: { index: 2 } }));
+
+    // No overflow yet
+    expect(buffer.getOverflowError()).toBeNull();
+
+    // Trigger overflow
     buffer.addEvent(createFormEvent({ metadata: { index: 3 } }));
     buffer.addEvent(createFormEvent({ metadata: { index: 4 } }));
+
+    // Overflow error should be set
+    const error = buffer.getOverflowError();
+    expect(error).toBeTruthy();
+    expect(error?.message).toContain('Test event buffer overflow');
+    expect(error?.message).toContain('Buffer capacity (3) exceeded');
 
     const snapshot = buffer.snapshot(0);
 
@@ -59,5 +71,29 @@ test.describe('TestEventBuffer', () => {
     const buffer = new TestEventBuffer();
 
     await expect(buffer.waitForEvent(() => false, 50)).rejects.toThrow(/Timeout/);
+  });
+
+  test('clear() resets overflow error', () => {
+    const buffer = new TestEventBuffer(2);
+
+    // Trigger overflow
+    buffer.addEvent(createFormEvent({ metadata: { index: 0 } }));
+    buffer.addEvent(createFormEvent({ metadata: { index: 1 } }));
+    buffer.addEvent(createFormEvent({ metadata: { index: 2 } }));
+
+    expect(buffer.getOverflowError()).toBeTruthy();
+
+    // Clear should reset the error
+    buffer.clear();
+    expect(buffer.getOverflowError()).toBeNull();
+
+    // Can overflow again
+    buffer.addEvent(createFormEvent({ metadata: { index: 3 } }));
+    buffer.addEvent(createFormEvent({ metadata: { index: 4 } }));
+    buffer.addEvent(createFormEvent({ metadata: { index: 5 } }));
+
+    const newError = buffer.getOverflowError();
+    expect(newError).toBeTruthy();
+    expect(newError?.message).toContain('Buffer capacity (2) exceeded');
   });
 });

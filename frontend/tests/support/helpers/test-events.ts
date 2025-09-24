@@ -26,6 +26,7 @@ export class TestEventBuffer {
   private dropped = 0;
   private capacity: number;
   private waiters: Waiter[] = [];
+  private overflowError: Error | null = null;
 
   constructor(capacity: number = DEFAULT_BUFFER_CAPACITY) {
     this.capacity = Math.max(capacity, 1);
@@ -46,6 +47,11 @@ export class TestEventBuffer {
   clear(): void {
     this.events = [];
     this.dropped = 0;
+    this.overflowError = null;
+  }
+
+  getOverflowError(): Error | null {
+    return this.overflowError;
   }
 
   snapshot(cursor: number): { events: TestEvent[]; total: number } {
@@ -110,6 +116,15 @@ export class TestEventBuffer {
     const overflow = this.events.length - this.capacity;
     this.events.splice(0, overflow);
     this.dropped += overflow;
+
+    // Set error on first overflow
+    if (!this.overflowError) {
+      this.overflowError = new Error(
+        `Test event buffer overflow! Buffer capacity (${this.capacity}) exceeded. ` +
+        `${overflow} event(s) were dropped. Total events dropped: ${this.dropped}. ` +
+        `Consider increasing buffer capacity or reducing event volume in this test.`
+      );
+    }
   }
 
   private notifyWaiters(event: TestEvent): void {

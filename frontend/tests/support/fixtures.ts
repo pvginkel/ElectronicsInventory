@@ -54,7 +54,7 @@ export const test = base.extend<TestFixtures>({
     // Track expected console errors for this test
     const expectedErrors: RegExp[] = [];
 
-    await ensureTestEventBridge(page);
+    const buffer = await ensureTestEventBridge(page);
 
     // Add method to page for registering expected errors
     await page.exposeFunction('__registerExpectedError', (pattern: string) => {
@@ -103,6 +103,11 @@ export const test = base.extend<TestFixtures>({
     try {
       await use(page);
     } finally {
+      // Check for buffer overflow before cleanup
+      const overflowError = buffer.getOverflowError();
+      if (overflowError) {
+        throw overflowError;
+      }
       expectedErrors.length = 0;
       releaseTestEventBridge(page);
     }
@@ -113,12 +118,22 @@ export const test = base.extend<TestFixtures>({
   },
 
   testEvents: async ({ page }, use) => {
-    await ensureTestEventBridge(page);
+    const buffer = await ensureTestEventBridge(page);
 
     const testEvents = createTestEventCapture(page);
     await testEvents.startCapture();
-    await use(testEvents);
-    await testEvents.stopCapture();
+
+    try {
+      await use(testEvents);
+    } finally {
+      await testEvents.stopCapture();
+
+      // Check for buffer overflow
+      const overflowError = buffer.getOverflowError();
+      if (overflowError) {
+        throw overflowError;
+      }
+    }
   },
 
   toastHelper: async ({ page }, use) => {

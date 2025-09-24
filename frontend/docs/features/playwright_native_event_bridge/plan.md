@@ -60,7 +60,7 @@ Replace the current app-to-Playwright communication mechanisms with a Playwright
 
 ## Error Handling
 - **Binding registration failure**: Fixture setup will throw, failing the entire test suite.
-- **Buffer overflow**: Silently drop oldest events when exceeding 500 events.
+- **Buffer overflow**: Test fails when buffer capacity (500 events) is exceeded. Oldest events are dropped to maintain capacity, but an error is thrown at test completion to alert developers to reduce event volume or increase buffer size.
 - **Missing binding in app**: No payload is emitted; tests relying on the bridge will fail, making the misconfiguration visible.
 
 ## Testing Strategy
