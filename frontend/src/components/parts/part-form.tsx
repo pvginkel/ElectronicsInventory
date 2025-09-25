@@ -13,7 +13,8 @@ import { useDuplicatePart } from '@/hooks/use-duplicate-part';
 import { validatePartData } from '@/lib/utils/parts';
 import { useToast } from '@/hooks/use-toast';
 import type { ApiDocument } from '@/lib/utils/document-transformers';
-import { trackFormOpen, trackFormSubmit, trackFormSuccess, trackFormValidationErrors, generateFormId } from '@/lib/test/form-instrumentation';
+import { useFormInstrumentation } from '@/hooks/use-form-instrumentation';
+import { generateFormId } from '@/lib/test/form-instrumentation';
 
 interface PartFormData {
   description: string;
@@ -86,6 +87,13 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
   // Fetch duplicate part data if duplicating
   const { formData: duplicateFormData, documents: duplicateSourceDocuments, coverDocumentId: duplicateCoverDocumentId, isLoading: isDuplicateLoading } = useDuplicatePart(duplicateFromPartId);
 
+  const isFormReady = (!isEditing || !isLoadingPart) && (!isDuplicating || !isDuplicateLoading);
+  const instrumentation = useFormInstrumentation({
+    formId,
+    isOpen: isFormReady,
+    snapshotFields: () => ({ description: formData.description })
+  });
+
   // Populate form with existing part data
   useEffect(() => {
     if (existingPart && isEditing) {
@@ -144,11 +152,6 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
     }
   }, [duplicateFormData, duplicateSourceDocuments, duplicateCoverDocumentId, isDuplicating]);
 
-  // Track form open on mount
-  useEffect(() => {
-    trackFormOpen(formId, { description: formData.description });
-  }, [formId, formData.description]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -175,7 +178,7 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
       setErrors(validation.errors);
 
       // Emit validation error events for all field errors
-      trackFormValidationErrors(formId, validation.errors, { description: formData.description });
+      instrumentation.trackValidationErrors(validation.errors, { description: formData.description });
 
       return;
     }
@@ -183,110 +186,109 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
     setErrors({});
 
     // Track form submit
-    trackFormSubmit(formId, { description: formData.description });
+    instrumentation.trackSubmit({ description: formData.description });
 
-    if (isEditing && partId) {
-      // Update existing part
-      const result = await updatePartMutation.mutateAsync({
-        path: { part_key: partId },
-        body: {
-          description: formData.description,
-          manufacturer_code: formData.manufacturerCode || null,
-          type_id: formData.typeId || null,
-          tags: formData.tags.length > 0 ? formData.tags : null,
-          manufacturer: formData.manufacturer || null,
-          product_page: formData.productPage || null,
-          seller_id: formData.sellerId || null,
-          seller_link: formData.sellerLink || null,
-          dimensions: formData.dimensions || null,
-          mounting_type: formData.mountingType || null,
-          package: formData.package || null,
-          pin_count: formData.pinCount ? parseInt(formData.pinCount, 10) : null,
-          pin_pitch: formData.pinPitch || null,
-          series: formData.series || null,
-          voltage_rating: formData.voltageRating || null,
-          input_voltage: formData.inputVoltage || null,
-          output_voltage: formData.outputVoltage || null,
-        }
-      });
+    try {
+      if (isEditing && partId) {
+        // Update existing part
+        const result = await updatePartMutation.mutateAsync({
+          path: { part_key: partId },
+          body: {
+            description: formData.description,
+            manufacturer_code: formData.manufacturerCode || null,
+            type_id: formData.typeId || null,
+            tags: formData.tags.length > 0 ? formData.tags : null,
+            manufacturer: formData.manufacturer || null,
+            product_page: formData.productPage || null,
+            seller_id: formData.sellerId || null,
+            seller_link: formData.sellerLink || null,
+            dimensions: formData.dimensions || null,
+            mounting_type: formData.mountingType || null,
+            package: formData.package || null,
+            pin_count: formData.pinCount ? parseInt(formData.pinCount, 10) : null,
+            pin_pitch: formData.pinPitch || null,
+            series: formData.series || null,
+            voltage_rating: formData.voltageRating || null,
+            input_voltage: formData.inputVoltage || null,
+            output_voltage: formData.outputVoltage || null,
+          }
+        });
 
-      // Track form success
-      trackFormSuccess(formId, { description: formData.description });
+        instrumentation.trackSuccess({ description: formData.description });
+        onSuccess(result.key);
+      } else {
+        // Create new part
+        const result = await createPartMutation.mutateAsync({
+          body: {
+            description: formData.description,
+            manufacturer_code: formData.manufacturerCode || null,
+            type_id: formData.typeId || null,
+            tags: formData.tags.length > 0 ? formData.tags : null,
+            manufacturer: formData.manufacturer || null,
+            product_page: formData.productPage || null,
+            seller_id: formData.sellerId || null,
+            seller_link: formData.sellerLink || null,
+            dimensions: formData.dimensions || null,
+            mounting_type: formData.mountingType || null,
+            package: formData.package || null,
+            pin_count: formData.pinCount ? parseInt(formData.pinCount, 10) : null,
+            pin_pitch: formData.pinPitch || null,
+            series: formData.series || null,
+            voltage_rating: formData.voltageRating || null,
+            input_voltage: formData.inputVoltage || null,
+            output_voltage: formData.outputVoltage || null,
+          }
+        });
 
-      onSuccess(result.key);
-    } else {
-      // Create new part
-      const result = await createPartMutation.mutateAsync({
-        body: {
-          description: formData.description,
-          manufacturer_code: formData.manufacturerCode || null,
-          type_id: formData.typeId || null,
-          tags: formData.tags.length > 0 ? formData.tags : null,
-          manufacturer: formData.manufacturer || null,
-          product_page: formData.productPage || null,
-          seller_id: formData.sellerId || null,
-          seller_link: formData.sellerLink || null,
-          dimensions: formData.dimensions || null,
-          mounting_type: formData.mountingType || null,
-          package: formData.package || null,
-          pin_count: formData.pinCount ? parseInt(formData.pinCount, 10) : null,
-          pin_pitch: formData.pinPitch || null,
-          series: formData.series || null,
-          voltage_rating: formData.voltageRating || null,
-          input_voltage: formData.inputVoltage || null,
-          output_voltage: formData.outputVoltage || null,
-        }
-      });
+        if (isDuplicating && duplicateDocuments.length > 0) {
+          setIsCopying(true);
+          setCopyProgress({ completed: 0, total: duplicateDocuments.length });
 
-      // If duplicating, copy documents
-      if (isDuplicating && duplicateDocuments.length > 0) {
-        setIsCopying(true);
-        setCopyProgress({ completed: 0, total: duplicateDocuments.length });
+          const failedDocs: string[] = [];
 
-        const failedDocs: string[] = [];
-        
-        try {
-          for (let i = 0; i < duplicateDocuments.length; i++) {
-            const doc = duplicateDocuments[i];
-            const isThisCover = coverDocumentId === parseInt(doc.id);
+          try {
+            for (let i = 0; i < duplicateDocuments.length; i++) {
+              const doc = duplicateDocuments[i];
+              const isThisCover = coverDocumentId === parseInt(doc.id);
 
-            try {
-              await copyAttachmentMutation.mutateAsync({
-                body: {
-                  attachment_id: parseInt(doc.id),
-                  target_part_key: result.key,
-                  set_as_cover: isThisCover
-                }
-              });
-            } catch (error) {
-              failedDocs.push(doc.name);
-              console.error(`Failed to copy document ${doc.name}:`, error);
+              try {
+                await copyAttachmentMutation.mutateAsync({
+                  body: {
+                    attachment_id: parseInt(doc.id),
+                    target_part_key: result.key,
+                    set_as_cover: isThisCover
+                  }
+                });
+              } catch (error) {
+                failedDocs.push(doc.name);
+                console.error(`Failed to copy document ${doc.name}:`, error);
+              }
+
+              setCopyProgress(prev => ({ ...prev, completed: i + 1 }));
             }
 
-            setCopyProgress(prev => ({ ...prev, completed: i + 1 }));
-          }
+            if (failedDocs.length > 0) {
+              const failedCount = failedDocs.length;
+              const successCount = duplicateDocuments.length - failedCount;
 
-          // Show results to user
-          if (failedDocs.length > 0) {
-            const failedCount = failedDocs.length;
-            const successCount = duplicateDocuments.length - failedCount;
-            
-            if (successCount > 0) {
-              showSuccess(`Part duplicated successfully! ${successCount} documents copied, ${failedCount} failed.`);
+              if (successCount > 0) {
+                showSuccess(`Part duplicated successfully! ${successCount} documents copied, ${failedCount} failed.`);
+              }
+              showError(`Failed to copy ${failedCount} document${failedCount > 1 ? 's' : ''}: ${failedDocs.join(', ')}`);
+            } else {
+              showSuccess(`Part and all ${duplicateDocuments.length} documents duplicated successfully!`);
             }
-            showError(`Failed to copy ${failedCount} document${failedCount > 1 ? 's' : ''}: ${failedDocs.join(', ')}`);
-          } else {
-            showSuccess(`Part and all ${duplicateDocuments.length} documents duplicated successfully!`);
+          } finally {
+            setIsCopying(false);
           }
-        } finally {
-          setIsCopying(false);
         }
+
+        instrumentation.trackSuccess({ description: formData.description });
+        onSuccess(result.key);
       }
-
-      // Track form success
-      trackFormSuccess(formId, { description: formData.description });
-
-      onSuccess(result.key);
+    } catch (error) {
+      instrumentation.trackError({ description: formData.description });
+      throw error;
     }
   };
 

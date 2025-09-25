@@ -3,8 +3,9 @@ import { Form, FormField, FormLabel } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useFormState } from '@/hooks/use-form-state'
-import { useEffect } from 'react'
-import { trackFormOpen, trackFormSubmit, trackFormSuccess, trackFormError, trackFormValidationError, generateFormId } from '@/lib/test/form-instrumentation'
+import { useRef } from 'react'
+import { useFormInstrumentation, type UseFormInstrumentationResult } from '@/hooks/use-form-instrumentation'
+import { generateFormId } from '@/lib/test/form-instrumentation'
 
 interface TypeFormData extends Record<string, string> {
   name: string
@@ -30,6 +31,7 @@ export function TypeForm({
   submitText
 }: TypeFormProps) {
   const formId = generateFormId('TypeForm', initialValues?.name ? 'edit' : 'create');
+  const instrumentationRef = useRef<UseFormInstrumentationResult<{ name: string }> | null>(null);
 
   const form = useFormState<TypeFormData>({
     initialValues: {
@@ -43,37 +45,38 @@ export function TypeForm({
 
         // Emit validation error event if there's an error
         if (error) {
-          trackFormValidationError(formId, 'name', error);
+          instrumentationRef.current?.trackValidationError('name', error, { name: value });
         }
 
         return error;
       }
     },
     onSubmit: async (values) => {
-      trackFormSubmit(formId, { name: values.name });
+      instrumentationRef.current?.trackSubmit({ name: values.name });
 
       try {
         await onSubmit({
           name: values.name.trim()
         })
 
-        trackFormSuccess(formId, { name: values.name });
+        instrumentationRef.current?.trackSuccess({ name: values.name });
 
         onOpenChange(false)
         form.reset()
       } catch (error) {
-        trackFormError(formId, { name: values.name });
+        instrumentationRef.current?.trackError({ name: values.name });
         throw error; // Re-throw to let normal error handling work
       }
     }
   })
 
-  // Track form open when dialog opens
-  useEffect(() => {
-    if (open) {
-      trackFormOpen(formId, { name: form.values.name });
-    }
-  }, [open, formId, form.values.name]);
+  const instrumentation = useFormInstrumentation({
+    formId,
+    isOpen: open,
+    snapshotFields: () => ({ name: form.values.name })
+  });
+
+  instrumentationRef.current = instrumentation;
 
   const handleClose = () => {
     onOpenChange(false)
