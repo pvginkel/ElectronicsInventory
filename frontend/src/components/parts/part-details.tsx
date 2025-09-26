@@ -148,6 +148,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
   }
 
   const { displayId, displayDescription, displayManufacturerCode, displayManufacturer, displayProductPage } = formatPartForDisplay(part);
+  const hasCoverAttachment = Boolean(part.cover_attachment);
 
   return (
     <div>
@@ -195,6 +196,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
                 </div>
                 <CoverImageDisplay 
                   partId={partId} 
+                  hasCoverAttachment={hasCoverAttachment}
                   size="medium" 
                   className="ml-4" 
                   showPlaceholder={false}
@@ -426,6 +428,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
             <PartDocumentGrid
               key={documentKey}
               partId={partId}
+              hasCoverAttachment={hasCoverAttachment}
               onDocumentChange={() => setDocumentKey(prev => prev + 1)}
             />
           </div>

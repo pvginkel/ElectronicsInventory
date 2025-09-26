@@ -6,6 +6,7 @@ import { ImagePlaceholderIcon } from '@/components/icons/ImagePlaceholderIcon';
 
 interface CoverImageDisplayProps {
   partId: string;
+  hasCoverAttachment?: boolean;
   size?: 'small' | 'medium' | 'large';
   className?: string;
   showPlaceholder?: boolean;
@@ -13,11 +14,12 @@ interface CoverImageDisplayProps {
 
 export function CoverImageDisplay({ 
   partId, 
+  hasCoverAttachment,
   size = 'medium', 
   className = '', 
   showPlaceholder = false 
 }: CoverImageDisplayProps) {
-  const { coverAttachment, isLoading, dataUpdatedAt } = useCoverAttachment(partId);
+  const { coverAttachment, isLoading, dataUpdatedAt } = useCoverAttachment(partId, hasCoverAttachment);
   const [imageError, setImageError] = useState(false);
 
   // Generate cache buster based on when the cover data was last updated
@@ -30,7 +32,7 @@ export function CoverImageDisplay({
     setImageError(false);
   }, [cacheBuster]);
 
-  if (isLoading) {
+  if (hasCoverAttachment !== false && isLoading) {
     return (
       <div className={`rounded-lg bg-muted animate-pulse ${getSizeClasses(size)} ${className}`} />
     );

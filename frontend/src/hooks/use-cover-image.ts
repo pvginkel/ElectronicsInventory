@@ -4,18 +4,19 @@ import {
   useDeletePartsCoverByPartKey,
 } from '@/lib/api/generated/hooks';
 
-export function useCoverAttachment(partId: string) {
+export function useCoverAttachment(partId: string | undefined, hasCoverAttachment?: boolean) {
+  const shouldFetch = Boolean(partId) && hasCoverAttachment !== false;
+
   const query = useGetPartsCoverByPartKey(
-    { path: { part_key: partId } },
-    { 
-      enabled: !!partId,
-      retry: false // Don't retry cover image requests - 404 is normal when no cover exists
+    { path: { part_key: partId ?? '__unset__' } },
+    {
+      enabled: shouldFetch,
     }
   );
 
   return {
     ...query,
-    coverAttachment: query.data?.attachment || null,
+    coverAttachment: shouldFetch ? query.data?.attachment ?? null : null,
   };
 }
 

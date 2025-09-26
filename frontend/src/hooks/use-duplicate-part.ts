@@ -5,12 +5,13 @@ import { useCoverAttachment } from './use-cover-image';
 
 export function useDuplicatePart(partId: string | undefined) {
   const partQuery = useGetPartsByPartKey(
-    { path: { part_key: partId! } },
+    { path: { part_key: partId ?? '__unset__' } },
     { enabled: !!partId }
   );
 
-  const { documents } = usePartDocuments(partId!);
-  const { coverAttachment } = useCoverAttachment(partId!);
+  const { documents } = usePartDocuments(partId);
+  const hasCoverAttachment = partQuery.data ? Boolean(partQuery.data.cover_attachment) : undefined;
+  const { coverAttachment } = useCoverAttachment(partId, hasCoverAttachment);
 
   // Transform API part data to form data format
   const formData = useMemo(() => {

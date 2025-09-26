@@ -10,6 +10,7 @@ interface ThumbnailProps {
   className?: string;
   onClick?: () => void;
   isPdf?: boolean;
+  hasImage?: boolean;
   fallbackIcon?: React.ReactNode;
 }
 
@@ -21,19 +22,18 @@ export function Thumbnail({
   className = '',
   onClick,
   isPdf = false,
+  hasImage,
   fallbackIcon
 }: ThumbnailProps) {
-  const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const shouldShowImage = hasImage !== false;
 
   const handleImageLoad = useCallback(() => {
     setIsLoading(false);
-    setImageError(false);
   }, []);
 
   const handleImageError = useCallback(() => {
     setIsLoading(false);
-    setImageError(true);
   }, []);
 
   const baseClasses = 'rounded-lg bg-muted flex items-center justify-center overflow-hidden';
@@ -46,7 +46,7 @@ export function Thumbnail({
   const clickableClasses = onClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : '';
   const combinedClasses = `${baseClasses} ${sizeClasses[size]} ${clickableClasses} ${className}`;
 
-  if (isPdf || imageError) {
+  if (isPdf || !shouldShowImage) {
     // Show PDF icon or fallback
     return (
       <div className={combinedClasses} onClick={onClick}>
@@ -59,21 +59,23 @@ export function Thumbnail({
 
   return (
     <div className={combinedClasses} onClick={onClick}>
-      {isLoading && (
+      {isLoading && shouldShowImage && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
         </div>
       )}
-      <img
-        src={getThumbnailUrl(partKey, attachmentId, size)}
-        srcSet={generateSrcSet(partKey, attachmentId)}
-        sizes={getSizesAttribute()}
-        alt={alt}
-        className={`w-full h-full object-cover ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity`}
-        onLoad={handleImageLoad}
-        onError={handleImageError}
-        loading="lazy"
-      />
+      {shouldShowImage && (
+        <img
+          src={getThumbnailUrl(partKey, attachmentId, size)}
+          srcSet={generateSrcSet(partKey, attachmentId)}
+          sizes={getSizesAttribute()}
+          alt={alt}
+          className={`w-full h-full object-cover ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity`}
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+          loading="lazy"
+        />
+      )}
     </div>
   );
 }

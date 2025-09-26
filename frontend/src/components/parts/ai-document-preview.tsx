@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,8 +13,6 @@ interface AIDocumentPreviewProps {
 }
 
 export function AIDocumentPreview({ document, onDelete, className }: AIDocumentPreviewProps) {
-  const [imageError, setImageError] = useState(false);
-
   const getDocumentIcon = () => {
     const docType = document.document_type.toLowerCase();
     if (docType.includes('image') || docType.includes('png') || docType.includes('jpg') || docType.includes('jpeg')) {
@@ -79,13 +76,12 @@ export function AIDocumentPreview({ document, onDelete, className }: AIDocumentP
           </div>
 
           {/* Preview Image */}
-          {document.preview?.image_url && !imageError && (
+          {document.preview?.image_url && (
             <div className="flex-shrink-0">
               <img
                 src={document.preview.image_url}
                 alt="Document preview"
                 className="w-16 h-16 object-cover rounded border"
-                onError={() => setImageError(true)}
               />
             </div>
           )}

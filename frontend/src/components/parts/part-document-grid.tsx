@@ -9,18 +9,20 @@ import type { DocumentItem } from '@/types/documents';
 
 interface PartDocumentGridProps {
   partId: string;
+  hasCoverAttachment?: boolean;
   onDocumentChange?: () => void;
 }
 
 export function PartDocumentGrid({ 
   partId, 
+  hasCoverAttachment,
   onDocumentChange 
 }: PartDocumentGridProps) {
   const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
 
   const { documents: apiDocuments } = usePartDocuments(partId);
-  const { coverAttachment } = useCoverAttachment(partId);
+  const { coverAttachment } = useCoverAttachment(partId, hasCoverAttachment);
   const setCoverMutation = useSetCoverAttachment();
   const deleteDocumentMutation = useDeleteDocument();
   const { showError } = useToast();

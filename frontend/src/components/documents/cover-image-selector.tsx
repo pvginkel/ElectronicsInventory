@@ -98,6 +98,7 @@ export function CoverImageSelector({ partId, open, onOpenChange }: CoverImageSel
                           attachmentId={doc.id}
                           alt={doc.name}
                           size="medium"
+                          hasImage={doc.has_image}
                           isPdf={isPdf}
                           className="mb-2"
                         />

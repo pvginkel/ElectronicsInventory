@@ -1,6 +1,5 @@
 import type { Route } from '@playwright/test';
 import { test, expect } from '../../support/fixtures';
-import { expectConsoleError } from '../../support/helpers';
 
 const analyzeEndpoint = '**/api/ai-parts/analyze';
 
@@ -73,8 +72,6 @@ test.describe('TypeSelector - AI review flow', () => {
     const newTypeName = testData.types.randomTypeName('AINew');
     const streamPath = '/api/testing/ai-mock-stream';
 
-    await expectConsoleError(page, /404/);
-
     await page.route(analyzeEndpoint, route => fulfillJson(route, {
       task_id: 'mock-task',
       stream_url: streamPath,
@@ -82,8 +79,6 @@ test.describe('TypeSelector - AI review flow', () => {
 
     try {
       await page.goto('/parts');
-      await expectConsoleError(page, /404/);
-      await expectConsoleError(page, /Failed to load resource/);
 
       await page.getByRole('button', { name: /add with ai/i }).click();
 

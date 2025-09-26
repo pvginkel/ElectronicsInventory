@@ -172,6 +172,7 @@ export function QuickFindWidget({ className }: QuickFindWidgetProps) {
                     <div className="flex-shrink-0 w-12 h-12 bg-muted rounded-md overflow-hidden">
                       <CoverImageDisplay 
                         partId={displayId} 
+                        hasCoverAttachment={part.has_cover_attachment}
                         size="small"
                         className="w-full h-full object-cover"
                       />

@@ -6,9 +6,9 @@ import {
   usePutPartsAttachmentsByPartKeyAndAttachmentId,
 } from '@/lib/api/generated/hooks';
 
-export function usePartDocuments(partId: string) {
+export function usePartDocuments(partId: string | undefined) {
   const query = useGetPartsAttachmentsByPartKey(
-    { path: { part_key: partId } },
+    { path: { part_key: partId ?? '__unset__' } },
     { enabled: !!partId }
   );
 
