@@ -196,7 +196,7 @@ export function AIPartReviewStep({
   }, []);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" data-testid="parts.ai.review-step">
       <div className="flex-shrink-0 text-center mb-6">
         <h2 className="text-2xl font-semibold mb-2">Review & Edit Part Details</h2>
         <p className="text-muted-foreground">
@@ -494,16 +494,25 @@ export function AIPartReviewStep({
       </div>
 
       {/* Actions - Sticky Footer */}
-      <div className="flex-shrink-0 mt-8 pt-6 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex-shrink-0 mt-8 pt-6 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60" data-testid="parts.ai.review-actions">
         <div className="flex justify-between items-center">
           {onBack && (
-            <Button variant="outline" onClick={onBack} disabled={isCreating}>
+            <Button
+              variant="outline"
+              onClick={onBack}
+              disabled={isCreating}
+              data-testid="parts.ai.review.back"
+            >
               Back
             </Button>
           )}
           
           <div className="flex gap-3">
-            <Button onClick={() => handleCreatePart(false)} disabled={isCreating}>
+            <Button
+              onClick={() => handleCreatePart(false)}
+              disabled={isCreating}
+              data-testid="parts.ai.review.submit"
+            >
               {isCreating ? 'Creating...' : 'Add Part'}
             </Button>
           </div>

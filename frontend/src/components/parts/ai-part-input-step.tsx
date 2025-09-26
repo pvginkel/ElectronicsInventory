@@ -28,7 +28,7 @@ export function AIPartInputStep({ onSubmit, isLoading = false, initialText }: AI
   const canSubmit = textInput.trim() && !isLoading;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="parts.ai.input-step">
       <div className="text-center">
         <h2 className="text-2xl font-semibold mb-2">Add Part with AI</h2>
         <p className="text-muted-foreground">
@@ -36,7 +36,7 @@ export function AIPartInputStep({ onSubmit, isLoading = false, initialText }: AI
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6" data-testid="parts.ai.input-form">
         {/* Text Input */}
         <div className="space-y-2">
           <Label htmlFor="text-input">
@@ -49,6 +49,7 @@ export function AIPartInputStep({ onSubmit, isLoading = false, initialText }: AI
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
             disabled={isLoading}
+            data-testid="parts.ai.input"
           />
           <p className="text-sm text-muted-foreground">
             Enter a manufacturer part number, model, or brief description
@@ -61,6 +62,7 @@ export function AIPartInputStep({ onSubmit, isLoading = false, initialText }: AI
           type="submit"
           disabled={!canSubmit}
           className="w-full"
+          data-testid="parts.ai.input.submit"
         >
           {isLoading ? 'Analyzing...' : 'Analyze Part'}
         </Button>

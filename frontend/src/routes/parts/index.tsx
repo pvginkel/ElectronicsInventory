@@ -43,7 +43,7 @@ function Parts() {
   }
 
   return (
-    <div>
+    <div data-testid="parts.page">
       {/* Breadcrumb */}
       <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
         <span>Parts</span>

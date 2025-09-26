@@ -21,7 +21,7 @@ export function AIPartProgressStep({
 }: AIPartProgressStepProps) {
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6" data-testid="parts.ai.progress-step" data-state="error">
         <div className="text-center">
           <h2 className="text-2xl font-semibold mb-2">Analysis Failed</h2>
           <p className="text-muted-foreground">
@@ -29,7 +29,7 @@ export function AIPartProgressStep({
           </p>
         </div>
 
-        <Card className="p-6">
+        <Card className="p-6" data-testid="parts.ai.progress-error">
           <div className="text-center space-y-4">
             <div className="w-16 h-16 mx-auto bg-destructive/10 rounded-full flex items-center justify-center">
               <X className="h-8 w-8 text-destructive" />
@@ -37,7 +37,7 @@ export function AIPartProgressStep({
             
             <div>
               <h3 className="text-lg font-medium mb-2">Analysis Error</h3>
-              <p className="text-sm text-muted-foreground">{error}</p>
+              <p className="text-sm text-muted-foreground" data-testid="parts.ai.progress-error-message">{error}</p>
             </div>
             
             <div className="flex gap-3 justify-center">
@@ -59,7 +59,7 @@ export function AIPartProgressStep({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="parts.ai.progress-step" data-state="running">
       <div className="text-center">
         <h2 className="text-2xl font-semibold mb-2">Analyzing Part</h2>
         <p className="text-muted-foreground">
@@ -67,7 +67,7 @@ export function AIPartProgressStep({
         </p>
       </div>
 
-      <Card className="p-6">
+      <Card className="p-6" data-testid="parts.ai.progress-card">
         <div className="space-y-6">
           {/* Progress Animation */}
           <div className="flex justify-center">
@@ -88,7 +88,7 @@ export function AIPartProgressStep({
 
           {/* Progress Message */}
           <div className="text-center">
-            <p className="text-sm font-medium">
+            <p className="text-sm font-medium" data-testid="parts.ai.progress-message">
               {progress?.message || 'Starting analysis...'}
             </p>
           </div>

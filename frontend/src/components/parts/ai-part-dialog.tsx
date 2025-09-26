@@ -158,7 +158,11 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
       onOpenChange={handleDialogClose} 
       className={isReviewStep ? "w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h m-[30px]" : undefined}
     >
-      <DialogContent className={isReviewStep ? "h-full flex flex-col" : ""}>
+      <DialogContent
+        className={isReviewStep ? "h-full flex flex-col" : ""}
+        data-testid="parts.ai.dialog"
+        data-step={currentStep}
+      >
         <DialogHeader className="sr-only">
           <DialogTitle>AI Part Assistant</DialogTitle>
         </DialogHeader>

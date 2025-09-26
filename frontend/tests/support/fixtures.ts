@@ -1,6 +1,10 @@
 import { test as base, expect } from '@playwright/test';
 import { createApiClient, createTestDataBundle } from '../api';
 import { TypesPage } from '../e2e/types/TypesPage';
+import { PartsPage } from './page-objects/parts-page';
+import { AIDialogPage } from './page-objects/ai-dialog-page';
+import { LocationEditorPage } from './page-objects/location-editor-page';
+import { DocumentGridPage } from './page-objects/document-grid-page';
 import {
   TestEventCapture,
   createTestEventCapture,
@@ -18,6 +22,10 @@ type TestFixtures = {
   apiClient: ReturnType<typeof createApiClient>;
   testData: ReturnType<typeof createTestDataBundle>;
   types: TypesPage;
+  parts: PartsPage;
+  partsAI: AIDialogPage;
+  partsLocations: LocationEditorPage;
+  partsDocuments: DocumentGridPage;
   testEvents: TestEventCapture;
   toastHelper: ToastHelper;
   sseMocker: SSEMocker;
@@ -115,6 +123,22 @@ export const test = base.extend<TestFixtures>({
 
   types: async ({ page }, use) => {
     await use(new TypesPage(page));
+  },
+
+  parts: async ({ page }, use) => {
+    await use(new PartsPage(page));
+  },
+
+  partsAI: async ({ page }, use) => {
+    await use(new AIDialogPage(page));
+  },
+
+  partsLocations: async ({ page }, use) => {
+    await use(new LocationEditorPage(page));
+  },
+
+  partsDocuments: async ({ page }, use) => {
+    await use(new DocumentGridPage(page));
   },
 
   testEvents: async ({ page }, use) => {

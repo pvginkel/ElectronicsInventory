@@ -81,7 +81,7 @@ export function PartDocumentGrid({
   };
 
   return (
-    <>
+    <div data-testid="parts.documents.grid">
       <DocumentGridBase
         documents={documents}
         onTileClick={handleTileClick}
@@ -97,6 +97,6 @@ export function PartDocumentGrid({
         onClose={handleCloseViewer}
         onNavigate={handleViewerNavigate}
       />
-    </>
+    </div>
   );
 }

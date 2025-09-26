@@ -151,7 +151,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
   const hasCoverAttachment = Boolean(part.cover_attachment);
 
   return (
-    <div>
+    <div data-testid="parts.detail">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">{displayDescription}</h1>
@@ -182,9 +182,9 @@ export function PartDetails({ partId }: PartDetailsProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" data-testid="parts.detail.summary-grid">
         <div className="lg:col-span-1">
-          <Card>
+          <Card data-testid="parts.detail.information">
             <CardHeader>
               <CardTitle>Part Information</CardTitle>
             </CardHeader>
@@ -396,7 +396,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
         </div>
 
         <div className="lg:col-span-1">
-          <Card>
+          <Card data-testid="parts.detail.locations">
             <CardHeader>
               <CardTitle>Stock Locations</CardTitle>
             </CardHeader>
@@ -411,13 +411,14 @@ export function PartDetails({ partId }: PartDetailsProps) {
       </div>
 
       {/* Documents Section */}
-      <Card className="mt-6">
+      <Card className="mt-6" data-testid="parts.detail.documents">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Documents</CardTitle>
             <Button
               onClick={() => setShowAddDocument(true)}
               size="sm"
+              data-testid="parts.detail.documents.add"
             >
               Add Document
             </Button>

@@ -101,7 +101,10 @@ function AddDocumentModalContent({
   return (
     <>
       <Dialog open={open && !showCamera} onOpenChange={handleClose}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent
+          className="max-w-2xl max-h-[80vh] overflow-y-auto"
+          data-testid="parts.documents.modal"
+        >
           <DialogHeader>
             <DialogTitle>Add Document</DialogTitle>
           </DialogHeader>
@@ -117,6 +120,7 @@ function AddDocumentModalContent({
                 value={document?.url || ''}
                 onChange={(e) => handleUrlChange(e.target.value)}
                 disabled={isUploading}
+                data-testid="parts.documents.modal.url"
               />
               {urlPreview.isLoading && (
                 <p className="text-xs text-muted-foreground mt-1">
@@ -140,6 +144,7 @@ function AddDocumentModalContent({
                 value={document?.name || ''}
                 onChange={(e) => handleNameChange(e.target.value)}
                 disabled={isUploading}
+                data-testid="parts.documents.modal.name"
               />
             </div>
 
@@ -148,7 +153,7 @@ function AddDocumentModalContent({
               <FormLabel className="block mb-2">
                 Preview
               </FormLabel>
-              
+
               {document && isPreviewImage ? (
                 // Image Preview
                 <div className="border-2 border-dashed border-muted rounded-lg p-4">
@@ -220,7 +225,7 @@ function AddDocumentModalContent({
                 </div>
               ) : (
                 // Drop zone
-                <div>
+                <div data-testid="parts.documents.modal.dropzone">
                   <DropZone
                     onFilesSelected={handleFileSelect}
                     disabled={isUploading}
@@ -264,13 +269,19 @@ function AddDocumentModalContent({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={handleClose} disabled={isUploading}>
+            <Button
+              variant="outline"
+              onClick={handleClose}
+              disabled={isUploading}
+              data-testid="parts.documents.modal.cancel"
+            >
               Cancel
             </Button>
             <Button 
               onClick={handleSubmitWrapper}
               disabled={!canSubmit}
               loading={isUploading}
+              data-testid="parts.documents.modal.submit"
             >
               Add Document
             </Button>

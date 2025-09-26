@@ -59,7 +59,7 @@ export function PartLocationGrid({ partId, typeId }: PartLocationGridProps) {
 
   if (locations.length === 0 && totalQuantity === 0) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4" data-testid="parts.locations.empty">
         <EmptyLocationsState onAddStock={() => setShowAddRow(true)} />
         {showAddRow && (
           <AddLocationRow
@@ -77,8 +77,8 @@ export function PartLocationGrid({ partId, typeId }: PartLocationGridProps) {
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between items-center mb-4">
+    <div className="space-y-2" data-testid="parts.locations">
+      <div className="flex justify-between items-center mb-4" data-testid="parts.locations.total">
         <div className="text-sm text-muted-foreground">
           Total: {totalQuantity}
         </div>
@@ -106,6 +106,7 @@ export function PartLocationGrid({ partId, typeId }: PartLocationGridProps) {
           size="sm"
           onClick={() => setShowAddRow(true)}
           className="mt-2"
+          data-testid="parts.locations.add-location"
         >
           Add Location
         </Button>
@@ -239,7 +240,12 @@ function LocationRow({
   };
 
   return (
-    <div className="flex items-center py-1 gap-4 w-fit">
+    <div
+      className="flex items-center py-1 gap-4 w-fit"
+      data-testid="parts.locations.row"
+      data-box={location.box_no}
+      data-location={location.loc_no}
+    >
       <div className="flex-shrink-0 pb-0.5">
         <span className="text-sm">#{location.box_no}</span>
         <span className="text-sm text-muted-foreground ml-1">{boxDescription}</span>
@@ -258,11 +264,13 @@ function LocationRow({
             className="w-16 h-8"
             min="0"
             autoFocus
+            data-testid="parts.locations.quantity-input"
           />
         ) : (
           <button
             className="text-sm hover:bg-accent hover:text-accent-foreground px-2 py-1 rounded"
             onClick={onStartEdit}
+            data-testid="parts.locations.quantity"
           >
             {location.qty}
           </button>
@@ -296,6 +304,7 @@ function LocationRow({
               onClick={handleIncrement}
               disabled={addStockMutation.isPending || removeStockMutation.isPending}
               className="h-8 w-8 p-0"
+              aria-label="Increase quantity"
             >
               <Plus />
             </Button>
@@ -305,18 +314,20 @@ function LocationRow({
               onClick={handleDecrement}
               disabled={addStockMutation.isPending || removeStockMutation.isPending}
               className="h-8 w-8 p-0"
+              aria-label="Decrease quantity"
             >
               <Minus />
             </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleRemove}
-              disabled={removeStockMutation.isPending || addStockMutation.isPending}
-              className="text-destructive hover:text-destructive"
-            >
-              Remove
-            </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleRemove}
+          disabled={removeStockMutation.isPending || addStockMutation.isPending}
+          className="text-destructive hover:text-destructive"
+          data-testid="parts.locations.remove"
+        >
+          Remove
+        </Button>
           </>
         )}
       </div>
@@ -384,11 +395,12 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
   };
 
   return (
-    <div className="flex items-center gap-2 p-2 border rounded bg-muted/30">
+    <div className="flex items-center gap-2 p-2 border rounded bg-muted/30" data-testid="parts.locations.add-row">
       <BoxSelector
         value={boxNo}
         onChange={setBoxNo}
         placeholder="Select box..."
+        testId="parts.locations.box-selector"
       />
       <Input
         type="number"
@@ -398,6 +410,7 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
         onKeyDown={handleKeyDown}
         className="w-20 h-8"
         min="1"
+        data-testid="parts.locations.location-input"
       />
       <Input
         type="number"
@@ -407,6 +420,7 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
         onKeyDown={handleKeyDown}
         className="w-20 h-8"
         min="1"
+        data-testid="parts.locations.quantity-add"
       />
       
       {suggestions && Array.isArray(suggestions) && suggestions.length > 0 && (
@@ -425,6 +439,7 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
         onClick={handleAdd}
         disabled={!boxNo || !locNo || !quantity || addStockMutation.isPending}
         loading={addStockMutation.isPending}
+        data-testid="parts.locations.add-save"
       >
         Add
       </Button>
@@ -433,6 +448,7 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
         variant="outline"
         onClick={onCancel}
         disabled={addStockMutation.isPending}
+        data-testid="parts.locations.add-cancel"
       >
         Cancel
       </Button>
@@ -446,7 +462,7 @@ interface EmptyLocationsStateProps {
 
 function EmptyLocationsState({ onAddStock }: EmptyLocationsStateProps) {
   return (
-    <div className="text-center py-8">
+    <div className="text-center py-8" data-testid="parts.locations.empty-state">
       <div className="text-sm text-muted-foreground mb-4">
         No stock locations assigned
       </div>

@@ -72,7 +72,7 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
 
   if (error) {
     return (
-      <Card className="p-6">
+      <Card className="p-6" data-testid="parts.list.error">
         <div className="text-center">
           <h2 className="text-lg font-semibold mb-2">Failed to load parts</h2>
           <p className="text-muted-foreground">
@@ -84,7 +84,7 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="parts.list">
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Parts</h1>
@@ -105,12 +105,13 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
       </div>
 
       {/* Search */}
-      <div className="w-full relative">
+      <div className="w-full relative" data-testid="parts.list.search-container">
         <Input
           placeholder="Search..."
           value={searchTerm}
           onChange={(e) => handleSearchChange(e.target.value)}
           className="w-full pr-8"
+          data-testid="parts.list.search"
         />
         {searchTerm && (
           <button
@@ -124,29 +125,35 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
       </div>
 
       {/* Results Summary */}
-      <div className="flex justify-between items-center text-sm text-muted-foreground">
+      <div className="flex justify-between items-center text-sm text-muted-foreground" data-testid="parts.list.summary">
         <span>
-          {isLoading 
-            ? 'Loading...' 
+          {isLoading
+            ? 'Loading...'
             : `${filteredParts.length}`
               + (filteredParts.length == parts.length ? '' : ` of ${parts.length}`)
               + ' parts'
-            }
+          }
         </span>
       </div>
 
       {/* Parts List */}
       <div>
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div
+            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+            data-testid="parts.list.loading"
+          >
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="animate-pulse">
+              <div key={i} className="animate-pulse" data-testid="parts.list.loading.skeleton">
                 <div className="h-48 bg-muted rounded-lg"></div>
               </div>
             ))}
           </div>
         ) : filteredParts.length === 0 ? (
-          <Card className="p-8">
+          <Card
+            className="p-8"
+            data-testid={searchTerm ? 'parts.list.no-results' : 'parts.list.empty'}
+          >
             <div className="text-center">
               <h3 className="text-lg font-medium mb-2">
                 {searchTerm ? 'No parts found' : 'No parts yet'}
@@ -164,7 +171,10 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
             </div>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div
+            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+            data-testid="parts.list.container"
+          >
             {filteredParts.sort((a, b) => a.description.localeCompare(b.description, undefined, { numeric: true, sensitivity: 'base' })).map((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => (
               <PartListItem
                 key={part.key}
@@ -197,6 +207,8 @@ function PartListItem({ part, typeMap, onClick }: PartListItemProps) {
           : ''
       } active:scale-[0.98]`}
       onClick={onClick}
+      data-testid="parts.list.card"
+      data-part-key={part.key}
     >
       {/* Header Section */}
       <div className="flex items-start gap-3 mb-3">
