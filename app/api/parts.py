@@ -42,6 +42,7 @@ def _convert_part_to_schema_data(part, total_quantity: int) -> dict:
         "manufacturer": part.manufacturer,
         "seller": seller_data,
         "seller_link": part.seller_link,
+        "has_cover_attachment": part.has_cover_attachment,
         "package": part.package,
         "pin_count": part.pin_count,
         "pin_pitch": part.pin_pitch,

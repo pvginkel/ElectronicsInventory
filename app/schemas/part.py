@@ -287,6 +287,15 @@ class PartResponseSchema(BaseModel):
         default=None
     )
 
+    @computed_field(  # type: ignore[prop-decorator]
+        return_type=bool,
+        description="True when the part has a cover attachment defined.",
+        json_schema_extra={"example": True}
+    )
+    def has_cover_attachment(self) -> bool:
+        """Flag indicating a cover attachment is configured for the part."""
+        return self.cover_attachment_id is not None
+
     # Extended technical fields
     package: str | None = Field(
         default=None,
@@ -414,6 +423,10 @@ class PartWithTotalSchema(BaseModel):
         default=None,
         description="Product page URL at seller",
         json_schema_extra={"example": "https://www.digikey.com/product-detail/..."}
+    )
+    has_cover_attachment: bool = Field(
+        description="True when the part has a cover attachment defined.",
+        json_schema_extra={"example": True}
     )
 
     # Extended technical fields

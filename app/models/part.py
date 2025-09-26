@@ -101,6 +101,11 @@ class Part(db.Model):  # type: ignore[name-defined]
         foreign_keys=[cover_attachment_id]
     )
 
+    @property
+    def has_cover_attachment(self) -> bool:
+        """Return whether a cover attachment has been assigned without triggering relationship loads."""
+        return self.cover_attachment_id is not None
+
     def __repr__(self) -> str:
         specs = []
         if self.package:
