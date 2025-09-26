@@ -9,13 +9,14 @@ interface CoverImageSelectorProps {
   partId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  hasCoverAttachment?: boolean;
 }
 
-export function CoverImageSelector({ partId, open, onOpenChange }: CoverImageSelectorProps) {
+export function CoverImageSelector({ partId, open, onOpenChange, hasCoverAttachment }: CoverImageSelectorProps) {
   const [selectedAttachmentId, setSelectedAttachmentId] = useState<number | null>(null);
   
   const { documents, isLoading: documentsLoading } = usePartDocuments(partId);
-  const { coverAttachment } = useCoverAttachment(partId);
+  const { coverAttachment } = useCoverAttachment(partId, hasCoverAttachment);
   const setCoverMutation = useSetCoverAttachment();
   const removeCoverMutation = useRemoveCoverAttachment();
 
