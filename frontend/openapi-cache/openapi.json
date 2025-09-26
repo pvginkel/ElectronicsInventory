@@ -3316,6 +3316,12 @@
             "example": "20x15x5mm",
             "title": "Dimensions"
           },
+          "has_cover_attachment": {
+            "description": "True when the part has a cover attachment defined.",
+            "example": true,
+            "title": "Has Cover Attachment",
+            "type": "boolean"
+          },
           "input_voltage": {
             "anyOf": [
               {
@@ -3560,6 +3566,7 @@
           "description",
           "type_id",
           "tags",
+          "has_cover_attachment",
           "created_at",
           "updated_at",
           "total_quantity",
@@ -3634,6 +3641,12 @@
             "description": "Physical dimensions",
             "example": "20x15x5mm",
             "title": "Dimensions"
+          },
+          "has_cover_attachment": {
+            "description": "True when the part has a cover attachment defined.",
+            "example": true,
+            "title": "Has Cover Attachment",
+            "type": "boolean"
           },
           "input_voltage": {
             "anyOf": [
@@ -3859,6 +3872,7 @@
           "description",
           "type_id",
           "tags",
+          "has_cover_attachment",
           "created_at",
           "updated_at",
           "total_quantity"
@@ -5868,16 +5882,6 @@
               }
             },
             "description": "Bad Request"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Unprocessable Content"
           }
         },
         "summary": "Get URL preview metadata (title and backend image endpoint URL).",
