@@ -1,7 +1,10 @@
-"""Testing service for test operations like database reset."""
+"""Testing service for test operations like database reset and utilities."""
 
+import io
 import logging
 from typing import Any
+
+from PIL import Image, ImageDraw, ImageFont
 
 from app.database import drop_all_tables, sync_master_data_from_setup, upgrade_database
 from app.services.base import BaseService
@@ -14,6 +17,19 @@ logger = logging.getLogger(__name__)
 class TestingService(BaseService):
     """Service for testing operations like database reset."""
 
+    IMAGE_WIDTH = 400
+    IMAGE_HEIGHT = 100
+    IMAGE_BACKGROUND_COLOR = "#2478BD"
+    IMAGE_TEXT_COLOR = "#000000"
+    IMAGE_FONT_SIZE = 60
+    _FONT_CANDIDATES = (
+        "LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
+        "DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    )
+
     def __init__(self, db: Any, reset_lock: ResetLock):
         """Initialize service with database session and reset lock.
 
@@ -23,6 +39,7 @@ class TestingService(BaseService):
         """
         super().__init__(db)
         self.reset_lock = reset_lock
+        self._fake_image_font: ImageFont.ImageFont | None = None
 
     def reset_database(self, seed: bool = False) -> dict[str, Any]:
         """
@@ -90,3 +107,50 @@ class TestingService(BaseService):
         """Check if database reset is currently in progress."""
         return self.reset_lock.is_resetting()
 
+    def create_fake_image(self, text: str) -> bytes:
+        """Create a 400x100 PNG with centered text on a light blue background.
+
+        Args:
+            text: Text to render on the generated image.
+
+        Returns:
+            PNG image bytes containing the rendered text.
+        """
+        font = self._get_fake_image_font()
+
+        image = Image.new(
+            "RGB",
+            (self.IMAGE_WIDTH, self.IMAGE_HEIGHT),
+            color=self.IMAGE_BACKGROUND_COLOR
+        )
+
+        if text:
+            draw = ImageDraw.Draw(image)
+            draw.text(
+                (self.IMAGE_WIDTH / 2, self.IMAGE_HEIGHT / 2),
+                text,
+                font=font,
+                fill=self.IMAGE_TEXT_COLOR,
+                anchor="mm"
+            )
+
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        return buffer.getvalue()
+
+    def _get_fake_image_font(self) -> ImageFont.ImageFont:
+        """Load and cache the font used for fake image generation."""
+        if self._fake_image_font is not None:
+            return self._fake_image_font
+
+        for candidate in self._FONT_CANDIDATES:
+            try:
+                self._fake_image_font = ImageFont.truetype(candidate, self.IMAGE_FONT_SIZE)
+                break
+            except (OSError, IOError):
+                continue
+
+        if self._fake_image_font is None:
+            raise RuntimeError("Unable to load a suitable font for fake image generation")
+
+        return self._fake_image_font

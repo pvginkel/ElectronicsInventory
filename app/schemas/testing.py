@@ -32,3 +32,13 @@ class TestErrorResponseSchema(BaseModel):
 
     error: str = Field(..., description="Error message", example="Database reset already in progress")
     status: str = Field(..., description="Operation status", example="busy")
+
+
+class FakeImageQuerySchema(BaseModel):
+    """Query parameters for the fake image generation endpoint."""
+
+    text: str = Field(
+        ...,
+        description="Text to render on the generated image",
+        example="Playwright Test"
+    )
