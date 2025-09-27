@@ -26,11 +26,17 @@ test.describe('Parts - List View', () => {
   });
 
   test('surfaces error state when request fails', async ({ page, parts }) => {
-    await withRoute(page, route => route.fulfill({
-      status: 500,
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ message: 'Internal Server Error' }),
-    }));
+    await page.evaluate(() => {
+      (window as unknown as { __registerExpectedError?: (pattern: string) => void }).__registerExpectedError?.('Internal Server Error');
+    });
+
+    await page.route(partsEndpoint, route => {
+      route.fulfill({
+        status: 500,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ message: 'Internal Server Error' }),
+      });
+    });
 
     await parts.gotoList();
     await expect(parts.errorState).toBeVisible({ timeout: 15000 });
@@ -54,9 +60,10 @@ test.describe('Parts - List View', () => {
     });
 
     const box = await testData.boxes.create();
+    const locationNumber = 3;
     await apiClient.POST('/api/inventory/parts/{part_key}/stock', {
       params: { path: { part_key: part.key } },
-      body: { box_no: box.box_no, loc_no: 3, qty: 12 },
+      body: { box_no: box.box_no, loc_no: locationNumber, qty: 12 },
     });
 
     await parts.gotoList();
@@ -68,7 +75,7 @@ test.describe('Parts - List View', () => {
     await expect(card).toContainText('OMRON G5Q-1A4');
     await expect(card).toContainText(type.name);
     await expect(card).toContainText('12');
-    await expect(card).toContainText(`#${box.box_no}`);
+    await expect(card).toContainText(`Box ${box.box_no}-${locationNumber}`);
 
     await card.click();
     await expect(parts.detailRoot).toBeVisible();

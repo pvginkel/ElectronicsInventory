@@ -107,13 +107,49 @@ export class PartsPage extends BasePage {
     return this.page.getByRole('button', { name: /delete part/i });
   }
 
+  get deleteDialog(): Locator {
+    return this.page.getByRole('dialog', { name: /delete part/i });
+  }
+
   get overflowMenuButton(): Locator {
-    return this.page.getByRole('button', { name: /more/i });
+    return this.page
+      .getByTestId('parts.detail')
+      .locator('div.flex.space-x-2')
+      .locator('button')
+      .last();
   }
 
   async duplicateCurrentPart(): Promise<void> {
     await this.overflowMenuButton.click();
     await this.page.getByRole('menuitem', { name: /duplicate part/i }).click();
+  }
+
+  async openDeleteDialog(): Promise<void> {
+    await this.deletePartButton.click();
+    await expect(this.deleteDialog).toBeVisible();
+  }
+
+  async confirmDelete(partKey: string, options?: { expectNavigation?: boolean }): Promise<void> {
+    const pendingResponses: Array<Promise<unknown>> = [];
+
+    pendingResponses.push(
+      this.page.waitForResponse(response => {
+        return response.request().method() === 'DELETE'
+          && response.url().includes(`/api/parts/${partKey}`);
+      })
+    );
+
+    await Promise.all([
+      this.deleteDialog.getByRole('button', { name: 'Delete' }).click(),
+      ...pendingResponses,
+    ]);
+
+    if (options?.expectNavigation !== false) {
+      await expect.poll(async () => {
+        const url = await this.getUrl();
+        return url.includes('/parts') ? url : null;
+      }).toBeTruthy();
+    }
   }
 
   async expectDetailHeading(text: string | RegExp): Promise<void> {

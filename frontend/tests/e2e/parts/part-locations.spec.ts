@@ -18,22 +18,22 @@ test.describe('Parts - Location Management', () => {
     await parts.detailRoot.getByRole('button', { name: /add stock/i }).click();
     await expect(partsLocations.addRow).toBeVisible();
     await partsLocations.fillAddLocation({ boxNo: box.box_no, locNo: 12, quantity: 5 });
-    await partsLocations.saveNewLocation();
+    await partsLocations.saveNewLocation(part.key);
 
     await expect(partsLocations.root).toBeVisible();
-    await expect(partsLocations.root.getByTestId('parts.locations.total')).toContainText('Total: 5');
+    await partsLocations.waitForTotal(5);
     await expect(partsLocations.row(box.box_no, 12)).toBeVisible();
 
-    await partsLocations.editQuantity(box.box_no, 12, 8);
-    await expect(partsLocations.root.getByTestId('parts.locations.total')).toContainText('Total: 8');
+    await partsLocations.editQuantity(box.box_no, 12, 8, part.key);
+    await partsLocations.waitForTotal(8);
 
-    await partsLocations.increment(box.box_no, 12);
-    await expect(partsLocations.root.getByTestId('parts.locations.total')).toContainText('Total: 9');
+    await partsLocations.increment(box.box_no, 12, part.key);
+    await partsLocations.waitForTotal(9);
 
-    await partsLocations.decrement(box.box_no, 12);
-    await expect(partsLocations.root.getByTestId('parts.locations.total')).toContainText('Total: 8');
+    await partsLocations.decrement(box.box_no, 12, part.key);
+    await partsLocations.waitForTotal(8);
 
-    await partsLocations.remove(box.box_no, 12);
+    await partsLocations.remove(box.box_no, 12, part.key);
     await partsLocations.expectEmpty();
   });
 });

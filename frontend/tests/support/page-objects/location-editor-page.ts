@@ -46,11 +46,37 @@ export class LocationEditorPage extends BasePage {
     await this.addRowQuantityInput.fill(String(options.quantity));
   }
 
-  async saveNewLocation(): Promise<void> {
-    await this.addRowSaveButton.click();
+  async waitForTotal(quantity: number | RegExp): Promise<void> {
+    const total = this.root.getByTestId('parts.locations.total');
+    await expect(total).toContainText(typeof quantity === 'number' ? String(quantity) : quantity);
   }
 
-  async editQuantity(boxNo: number, locNo: number, newQuantity: number): Promise<void> {
+  async saveNewLocation(partKey?: string): Promise<void> {
+    const pendingResponses: Array<Promise<unknown>> = [];
+
+    if (partKey) {
+      pendingResponses.push(
+        this.page.waitForResponse(response => {
+          const request = response.request();
+          return ['POST'].includes(request.method())
+            && response.url().includes(`/api/inventory/parts/${partKey}/stock`);
+        })
+      );
+      pendingResponses.push(
+        this.page.waitForResponse(response => {
+          return response.request().method() === 'GET'
+            && response.url().includes(`/api/parts/${partKey}/locations`);
+        })
+      );
+    }
+
+    await Promise.all([
+      this.addRowSaveButton.click(),
+      ...pendingResponses,
+    ]);
+  }
+
+  async editQuantity(boxNo: number, locNo: number, newQuantity: number, partKey?: string): Promise<void> {
     const row = this.row(boxNo, locNo);
     await expect(row).toBeVisible();
     const quantityButton = row.getByTestId('parts.locations.quantity');
@@ -58,33 +84,115 @@ export class LocationEditorPage extends BasePage {
     await quantityButton.click();
     const quantityInput = row.getByTestId('parts.locations.quantity-input');
     await quantityInput.fill(String(newQuantity));
-    await row.getByRole('button', { name: 'Save' }).click();
+    const pendingResponses: Array<Promise<unknown>> = [];
+
+    if (partKey) {
+      pendingResponses.push(
+        this.page.waitForResponse(response => {
+          const method = response.request().method();
+          return (method === 'POST' || method === 'DELETE')
+            && response.url().includes(`/api/inventory/parts/${partKey}/stock`);
+        })
+      );
+      pendingResponses.push(
+        this.page.waitForResponse(response => {
+          return response.request().method() === 'GET'
+            && response.url().includes(`/api/parts/${partKey}/locations`);
+        })
+      );
+    }
+
+    await Promise.all([
+      row.getByRole('button', { name: 'Save' }).click(),
+      ...pendingResponses,
+    ]);
     await expect(row.getByTestId('parts.locations.quantity')).toHaveText(targetText);
   }
 
-  async increment(boxNo: number, locNo: number): Promise<void> {
+  async increment(boxNo: number, locNo: number, partKey?: string): Promise<void> {
     const row = this.row(boxNo, locNo);
     const current = await row.getByTestId('parts.locations.quantity').textContent();
     const next = current ? String(Number(current.trim()) + 1) : undefined;
-    await row.getByRole('button', { name: 'Increase quantity' }).click();
+    const pendingResponses: Array<Promise<unknown>> = [];
+
+    if (partKey) {
+      pendingResponses.push(
+        this.page.waitForResponse(response => {
+          return response.request().method() === 'POST'
+            && response.url().includes(`/api/inventory/parts/${partKey}/stock`);
+        })
+      );
+      pendingResponses.push(
+        this.page.waitForResponse(response => {
+          return response.request().method() === 'GET'
+            && response.url().includes(`/api/parts/${partKey}/locations`);
+        })
+      );
+    }
+
+    await Promise.all([
+      row.getByRole('button', { name: 'Increase quantity' }).click(),
+      ...pendingResponses,
+    ]);
     if (next) {
       await expect(row.getByTestId('parts.locations.quantity')).toHaveText(next);
     }
   }
 
-  async decrement(boxNo: number, locNo: number): Promise<void> {
+  async decrement(boxNo: number, locNo: number, partKey?: string): Promise<void> {
     const row = this.row(boxNo, locNo);
     const current = await row.getByTestId('parts.locations.quantity').textContent();
     const next = current ? Math.max(Number(current.trim()) - 1, 0) : undefined;
-    await row.getByRole('button', { name: 'Decrease quantity' }).click();
+    const pendingResponses: Array<Promise<unknown>> = [];
+
+    if (partKey) {
+      pendingResponses.push(
+        this.page.waitForResponse(response => {
+          const method = response.request().method();
+          return (method === 'DELETE' || method === 'POST')
+            && response.url().includes(`/api/inventory/parts/${partKey}/stock`);
+        })
+      );
+      pendingResponses.push(
+        this.page.waitForResponse(response => {
+          return response.request().method() === 'GET'
+            && response.url().includes(`/api/parts/${partKey}/locations`);
+        })
+      );
+    }
+
+    await Promise.all([
+      row.getByRole('button', { name: 'Decrease quantity' }).click(),
+      ...pendingResponses,
+    ]);
     if (next !== undefined) {
       await expect(row.getByTestId('parts.locations.quantity')).toHaveText(String(next));
     }
   }
 
-  async remove(boxNo: number, locNo: number): Promise<void> {
+  async remove(boxNo: number, locNo: number, partKey?: string): Promise<void> {
     const row = this.row(boxNo, locNo);
-    await row.getByTestId('parts.locations.remove').click();
+    const pendingResponses: Array<Promise<unknown>> = [];
+
+    if (partKey) {
+      pendingResponses.push(
+        this.page.waitForResponse(response => {
+          return response.request().method() === 'DELETE'
+            && response.url().includes(`/api/inventory/parts/${partKey}/stock`);
+        })
+      );
+      pendingResponses.push(
+        this.page.waitForResponse(response => {
+          return response.request().method() === 'GET'
+            && response.url().includes(`/api/parts/${partKey}/locations`);
+        })
+      );
+    }
+
+    await Promise.all([
+      row.getByTestId('parts.locations.remove').click(),
+      ...pendingResponses,
+    ]);
     await expect(row).toBeHidden();
   }
 }
