@@ -21,14 +21,6 @@ class TestingService(BaseService):
     IMAGE_HEIGHT = 100
     IMAGE_BACKGROUND_COLOR = "#2478BD"
     IMAGE_TEXT_COLOR = "#000000"
-    IMAGE_FONT_SIZE = 60
-    _FONT_CANDIDATES = (
-        "LiberationSans-Regular.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
-        "DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    )
 
     def __init__(self, db: Any, reset_lock: ResetLock):
         """Initialize service with database session and reset lock.
@@ -39,7 +31,6 @@ class TestingService(BaseService):
         """
         super().__init__(db)
         self.reset_lock = reset_lock
-        self._fake_image_font: ImageFont.ImageFont | None = None
 
     def reset_database(self, seed: bool = False) -> dict[str, Any]:
         """
@@ -116,7 +107,7 @@ class TestingService(BaseService):
         Returns:
             PNG image bytes containing the rendered text.
         """
-        font = self._get_fake_image_font()
+        font = ImageFont.load_default()
 
         image = Image.new(
             "RGB",
@@ -137,20 +128,3 @@ class TestingService(BaseService):
         buffer = io.BytesIO()
         image.save(buffer, format="PNG")
         return buffer.getvalue()
-
-    def _get_fake_image_font(self) -> ImageFont.ImageFont:
-        """Load and cache the font used for fake image generation."""
-        if self._fake_image_font is not None:
-            return self._fake_image_font
-
-        for candidate in self._FONT_CANDIDATES:
-            try:
-                self._fake_image_font = ImageFont.truetype(candidate, self.IMAGE_FONT_SIZE)
-                break
-            except (OSError, IOError):
-                continue
-
-        if self._fake_image_font is None:
-            raise RuntimeError("Unable to load a suitable font for fake image generation")
-
-        return self._fake_image_font
