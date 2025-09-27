@@ -46,8 +46,8 @@ def create_part(part_service=Provide[ServiceContainer.part_service]):
 Services contain all business logic and database operations using instance-based dependency injection.
 
 **Requirements:**
-- Services are instance-based classes that inherit from `BaseService`
-- Database session injected via constructor (stored as `self.db`)
+- Services are instance-based classes. Inherit from `BaseService` when a database session is required; use a simple class when no database access is needed.
+- For services inheriting `BaseService`, inject the database session via the constructor (stored as `self.db`).
 - Return SQLAlchemy model instances, not dicts
 - Raise typed exceptions (`RecordNotFoundException`, `InvalidOperationException`)
 - No HTTP-specific code (no Flask imports)

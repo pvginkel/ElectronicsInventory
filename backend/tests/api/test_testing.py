@@ -1,5 +1,6 @@
 """Tests for testing API endpoints."""
 
+import io
 import json
 import threading
 import time
@@ -8,6 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 from flask import Flask
 from flask.testing import FlaskClient
+from PIL import Image
 
 from app import create_app
 from app.config import Settings
@@ -131,6 +133,45 @@ class TestTestingEndpoints:
             # Both should succeed with same structure
             assert data1["status"] == data2["status"] == "complete"
             assert data1["seeded"] == data2["seeded"] is True
+
+    def test_fake_image_endpoint_generates_expected_png(self, client: FlaskClient):
+        """Test that the fake image endpoint returns a valid PNG with text rendering."""
+        response = client.get("/api/testing/fake-image", query_string={"text": "Hello"})
+
+        assert response.status_code == 200
+        assert response.mimetype == "image/png"
+        assert response.headers.get("Content-Disposition") == "attachment; filename=fake-image.png"
+        assert response.headers.get("Cache-Control") == "no-store, no-cache, must-revalidate, max-age=0"
+        assert response.headers.get("Pragma") == "no-cache"
+
+        image_stream = io.BytesIO(response.data)
+
+        with Image.open(image_stream) as image:
+            assert image.format == "PNG"
+            assert image.mode == "RGB"
+            assert image.size == (400, 100)
+
+            background_pixel = image.getpixel((10, 10))
+            assert background_pixel == (36, 120, 189)
+
+            has_black_pixel = any(pixel == (0, 0, 0) for pixel in image.getdata())
+            assert has_black_pixel, "Expected at least one black pixel representing rendered text"
+
+    def test_fake_image_endpoint_requires_text_parameter(self, client: FlaskClient):
+        """Test that the fake image endpoint enforces required query parameters."""
+        response = client.get("/api/testing/fake-image")
+
+        assert response.status_code == 400
+        payload = response.get_json()
+
+        if isinstance(payload, str):
+            payload = json.loads(payload)
+
+        assert isinstance(payload, list)
+        assert payload, "Expected validation error details"
+        first_error = payload[0]
+        assert first_error.get("msg") == "Field required"
+        assert first_error.get("loc") == ["text"]
 
     @patch('app.services.testing_service.drop_all_tables')
     def test_reset_endpoint_error_handling(self, mock_drop_tables, client: FlaskClient):
@@ -406,6 +447,16 @@ class TestTestingEndpointsNonTestingMode:
         assert data["code"] == "ROUTE_NOT_AVAILABLE"
         assert data["details"]["message"] == "Testing endpoints require FLASK_ENV=testing"
 
+    def test_fake_image_endpoint_returns_400_in_non_testing_mode(self, non_testing_client: FlaskClient):
+        """Test that fake image endpoint is unavailable outside testing mode."""
+        response = non_testing_client.get("/api/testing/fake-image", query_string={"text": "Hello"})
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data["error"] == "This endpoint is only available when the server is running in testing mode"
+        assert data["code"] == "ROUTE_NOT_AVAILABLE"
+        assert data["details"]["message"] == "Testing endpoints require FLASK_ENV=testing"
+
     def test_logs_stream_endpoint_returns_400_in_non_testing_mode(self, non_testing_client: FlaskClient):
         """Test that logs stream endpoint returns 400 when not in testing mode."""
         response = non_testing_client.get("/api/testing/logs/stream")
@@ -435,6 +486,7 @@ class TestTestingEndpointsNonTestingMode:
         endpoints = [
             ("/api/testing/reset", "POST"),
             ("/api/testing/logs/stream", "GET"),
+            ("/api/testing/fake-image?text=test", "GET"),
         ]
 
         for endpoint, method in endpoints:

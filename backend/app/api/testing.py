@@ -10,7 +10,11 @@ from flask import Blueprint, current_app, jsonify, request
 from spectree import Response as SpectreeResponse
 
 from app.exceptions import RouteNotAvailableException
-from app.schemas.testing import TestErrorResponseSchema, TestResetResponseSchema
+from app.schemas.testing import (
+    FakeImageQuerySchema,
+    TestErrorResponseSchema,
+    TestResetResponseSchema,
+)
 from app.services.container import ServiceContainer
 from app.services.testing_service import TestingService
 from app.utils import get_current_correlation_id
@@ -158,5 +162,30 @@ def stream_logs():
 
     return create_sse_response(log_stream())
 
+
+@testing_bp.route("/fake-image", methods=["GET"])
+@api.validate(query=FakeImageQuerySchema)
+@handle_api_errors
+@inject
+def generate_fake_image(
+    testing_service: TestingService = Provide[ServiceContainer.testing_service]
+):
+    """Return a fake PNG image containing the requested text.
+
+    Query Parameters:
+        text: Text string to render on the generated image.
+
+    Returns:
+        Response: PNG image response with caching disabled for deterministic tests.
+    """
+    query = FakeImageQuerySchema.model_validate(request.args.to_dict())
+    image_bytes = testing_service.create_fake_image(query.text)
+
+    response = current_app.response_class(image_bytes, mimetype="image/png")
+    response.headers["Content-Disposition"] = "attachment; filename=fake-image.png"
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Content-Length"] = str(len(image_bytes))
+    return response
 
 
