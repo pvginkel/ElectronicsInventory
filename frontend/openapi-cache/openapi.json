@@ -1538,6 +1538,22 @@
         "title": "ErrorDetailsSchema",
         "type": "object"
       },
+      "FakeImageQuerySchema.355d24f": {
+        "description": "Query parameters for the fake image generation endpoint.",
+        "properties": {
+          "text": {
+            "description": "Text to render on the generated image",
+            "example": "Playwright Test",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "FakeImageQuerySchema",
+        "type": "object"
+      },
       "HealthResponse.d817ae2": {
         "description": "Health check response.",
         "properties": {
@@ -7076,6 +7092,29 @@
         ],
         "responses": {},
         "summary": "SSE endpoint for monitoring specific task progress.",
+        "tags": []
+      }
+    },
+    "/api/testing/fake-image": {
+      "get": {
+        "description": "Query Parameters:     text: Text string to render on the generated image.\n\nReturns:     Response: PNG image response with caching disabled for deterministic tests.",
+        "operationId": "get__api_testing_fake-image",
+        "parameters": [
+          {
+            "description": "Text to render on the generated image",
+            "in": "query",
+            "name": "text",
+            "required": true,
+            "schema": {
+              "description": "Text to render on the generated image",
+              "example": "Playwright Test",
+              "title": "Text",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {},
+        "summary": "Return a fake PNG image containing the requested text.",
         "tags": []
       }
     },
