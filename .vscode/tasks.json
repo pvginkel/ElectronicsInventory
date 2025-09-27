@@ -4,7 +4,7 @@
     {
       "label": "Claude",
       "type": "shell",
-      "command": "../llmbox/claude.sh",
+      "command": "claudebox",
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -17,14 +17,15 @@
         "showReuseMessage": false
       },
       "runOptions": {
-        "reevaluateOnRerun": true
+        "reevaluateOnRerun": true,
+        "instanceLimit": 999
       },
       "isBackground": true
     },
     {
       "label": "Codex",
       "type": "shell",
-      "command": "../llmbox/codex.sh",
+      "command": "codexbox",
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -37,7 +38,8 @@
         "showReuseMessage": false
       },
       "runOptions": {
-        "reevaluateOnRerun": true
+        "reevaluateOnRerun": true,
+        "instanceLimit": 999
       },
       "isBackground": true
     },
