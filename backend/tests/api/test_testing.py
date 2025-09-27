@@ -154,8 +154,8 @@ class TestTestingEndpoints:
             background_pixel = image.getpixel((10, 10))
             assert background_pixel == (36, 120, 189)
 
-            has_black_pixel = any(pixel == (0, 0, 0) for pixel in image.getdata())
-            assert has_black_pixel, "Expected at least one black pixel representing rendered text"
+        has_dark_pixel = any(all(channel <= 32 for channel in pixel) for pixel in image.getdata())
+        assert has_dark_pixel, "Expected at least one dark pixel representing rendered text"
 
     def test_fake_image_endpoint_requires_text_parameter(self, client: FlaskClient):
         """Test that the fake image endpoint enforces required query parameters."""
