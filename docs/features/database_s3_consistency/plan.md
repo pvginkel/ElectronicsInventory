@@ -1,139 +1,78 @@
 # Database-S3 Consistency Invariants
 
 ## Overview
+We need to guarantee that part attachments stay consistent between the SQL database and S3: attachment rows should only persist when the corresponding object exists in storage, and S3 deletions must never race ahead of a successful database commit. The current Flask app relies on a per-request transaction commit in `app/__init__.py`, so the service layer has to stage S3 work carefully while respecting the teardown-based transaction lifecycle.
 
-Ensure consistency between database records and S3 storage by implementing two key invariants:
-1. **Create/Update**: Only complete a transaction if S3 storage has succeeded
-2. **Delete**: Only delete S3 objects after the database transaction has been successfully committed
-
-## Current Issues
-
-### Create/Update Operations
-- S3 uploads occur before database record creation in `DocumentService.create_file_attachment()` (line 150)
-- S3 uploads occur before database record creation in `URLThumbnailService.download_and_store_thumbnail()` (line 460)
-- If database operations fail after S3 upload, orphaned files remain in storage
-
-### Delete Operations
-- S3 deletions happen before database deletion in `DocumentService.delete_attachment()` (line 311)
-- S3 deletion failures are silently suppressed with `pass` statement (line 313)
-- Database records are removed even when S3 cleanup fails
-
-### Transaction Management
-- Flask uses transaction-per-request pattern with commit in `teardown_request` (`app/__init__.py` line 74-75)
-- Services use `db.flush()` throughout but rely on request teardown for final commit
-- Most operations work correctly within transaction scope, just need reordering
+## Current Behavior (April 2024 codebase)
+- `app/services/document_service.py::_create_attachment` streams file content to S3 **before** the `PartAttachment` row is added/flushed. If the subsequent flush or later logic fails, the S3 object is orphaned.
+- Both `create_file_attachment()` and `create_url_attachment()` delegate to `_create_attachment`, so the same ordering bug applies to all attachment types (uploaded files, URL thumbnails, HTML preview images).
+- `DocumentService.delete_attachment()` deletes the S3 object first and suppresses `InvalidOperationException`, then deletes the database row. If the database transaction later rolls back, the row reappears without the backing file, and operators never see the S3 error.
+- When anything outside the database raises, we currently rely on exceptions propagating so the teardown hook rolls back; there is no explicit `needs_rollback` flagging when we decide to keep the exception but continue execution. We accept that this can leave orphaned S3 blobs because the database remaining authoritative is the higher priority.
+- No plan currently documents the desired invariants in `CLAUDE.md`, so new contributors have no reference for the sequencing requirements.
 
 ## Files and Functions to Modify
-
 ### Modified Files
+- `app/services/document_service.py`
+  - Introduce a module logger.
+  - Rework `_create_attachment` to defer S3 uploads until after the row has been added and flushed, and to mark the session for rollback if the upload fails.
+  - Ensure `create_file_attachment()` and `create_url_attachment()` forward any additional data that `_create_attachment` needs (e.g., original filename) without duplicating S3 handling.
+  - Update `delete_attachment()` to capture metadata, perform database mutations (including cover image reassignment and thumbnail cleanup), commit, then attempt S3 deletion with logging instead of `pass`.
+- `app/services/image_service.py`
+  - No functional changes expected, but confirm thumbnail cleanup calls still operate correctly when invoked before the explicit commit. Adjust if the API needs to return a boolean or raise for missing thumbnails.
+- `app/utils/error_handling.py`
+  - Ensure helper routines that convert exceptions to HTTP responses set `db_session.info['needs_rollback'] = True` when propagating S3 failures, or add a small helper if reuse is needed.
+- `CLAUDE.md`
+  - Document the two invariants and the safe patterns for create/update/delete so future work follows the same ordering.
+- Tests
+  - `tests/test_document_service.py`: extend unit tests to cover upload failures triggering rollback flags and to assert S3 deletion happens after the database commit path.
+  - `tests/test_document_api.py` and/or `tests/test_document_integration.py`: add integration coverage that exercises the Flask request lifecycle to ensure teardown rolls back on upload errors and that failed S3 deletions surface in logs while keeping the database consistent.
 
-#### `app/services/document_service.py`
-- `create_file_attachment()` - Reorder operations to upload after flush
-- `create_url_attachment()` - Keep as-is (already correct if URL service is fixed)
-- `delete_attachment()` - Add explicit commit before S3 deletion
+## Implementation Phases
+### Phase 1 – Attachment Creation Ordering
+1. Refactor `_create_attachment`:
+   - Validate inputs as today, but collect `file_bytes`, content metadata, and the intended S3 key before writing anything to S3.
+   - Create the `PartAttachment` instance with the generated `s3_key`, add it to the session, and call `self.db.flush()` so constraints (including cover image updates) run before any external side effects.
+   - Attempt the S3 upload inside a `try` block. On failure, set `self.db.info['needs_rollback'] = True`, log the error at warning level, and re-raise `InvalidOperationException` so the request aborts and teardown rolls back the flush.
+   - On success, return the attachment as before. Cover image assignment should continue to happen through the existing flush logic.
+2. Ensure both `create_file_attachment()` and `create_url_attachment()` pass the right arguments (filename, preview image content, etc.) to the refactored `_create_attachment` without duplicating S3 logic.
 
-#### `app/services/url_thumbnail_service.py`
-- `download_and_store_thumbnail()` - Return metadata without S3 upload, let caller handle upload after flush
+### Phase 2 – Safe Deletions
+1. In `delete_attachment()` gather the attachment, its `s3_key`, and cover-image status before mutating the database.
+2. Remove the attachment row, recompute the cover image if required, clean up thumbnails, and call `self.db.flush()` to persist those changes.
+3. Commit the transaction (`self.db.commit()`) to permanently remove the row before touching S3. This deliberate commit bypasses the per-request teardown contract; we accept that tradeoff to ensure S3 changes only occur after the database state is final.
+4. After a successful commit, attempt S3 deletion in a `try/except`, logging failures with context but not raising so callers can proceed. Do not swallow the exception silently; include the attachment id/key in the log to aid cleanup scripts.
 
-#### `CLAUDE.md`
-- Add section documenting S3-database consistency patterns
+### Phase 3 – Transaction Safety Hooks
+1. Audit existing exception-handling paths in `DocumentService` that might intercept S3 errors. Ensure they either propagate or mark the session for rollback.
+2. If additional helpers are needed (e.g., a `_mark_session_for_rollback()` utility), implement them inside `DocumentService` to keep rollback behavior consistent.
 
-### New Files
-- `tests/test_transaction_consistency.py` - Integration tests for consistency
+### Phase 4 – Testing & Documentation
+1. Update unit tests to stub `s3_service.upload_file`/`delete_file` and verify:
+   - Upload failures leave no `PartAttachment` in the database and flag the session for rollback.
+   - Successful attachment creation keeps the existing API contract.
+   - Delete failures still remove the DB row and issue a log warning.
+2. Add integration tests that run through the Flask client to confirm request teardown commits/rolls back appropriately when S3 operations succeed or fail.
+3. Extend `CLAUDE.md` with a new "S3 Storage Consistency" section summarizing the invariants, ordering rules, and testing expectations.
 
-## Implementation Steps
+## Algorithms / Ordering Guarantees
+### Safe Upload Algorithm
+1. Validate request payload (size, MIME type, attachment type).
+2. Generate the S3 key using part metadata.
+3. Add the `PartAttachment` row (with the target `s3_key`) and flush.
+4. Attempt the S3 upload; on failure, mark session for rollback and re-raise.
+5. Let request teardown commit when the response succeeds; the DB record only persists if the upload did.
 
-### Phase 1: Fix Create/Update Operations
+### Safe Delete Algorithm
+1. Read the attachment row and cache `s3_key` + derived data.
+2. Delete the row, reassign cover image, and flush.
+3. Commit the transaction.
+4. Attempt the S3 delete, logging any failure.
 
-1. **Update `DocumentService.create_file_attachment()`**:
-   - Keep all validation and processing as-is
-   - Create database record and call `db.flush()` to get ID
-   - Move S3 upload to AFTER the flush (currently line 150 should move after line 165)
-   - If S3 upload fails, exception bubbles up and triggers automatic rollback
-   - No need to store record without s3_key first - do it all in one go
+## Testing Strategy
+- **Unit tests**: Patch the S3 service to force success/failure branches and assert DB state, session flags, and log messages.
+- **Integration tests**: Use the Flask test client with mocked S3 service to verify teardown commits/rolls back as expected across HTTP endpoints.
+- **Regression tests**: Ensure existing document API/service tests still pass, especially cover-image and thumbnail handling.
 
-2. **Update `URLThumbnailService.download_and_store_thumbnail()`**:
-   - Split into two methods: one for downloading/preparing data, one for S3 upload
-   - Return the prepared data without uploading to S3
-   - Let `DocumentService.create_url_attachment()` handle S3 upload after flush
-   - This ensures S3 upload is within transaction scope
-
-### Phase 2: Fix Delete Operations
-
-1. **Update `DocumentService.delete_attachment()`**:
-   - Delete database record first
-   - Call `self.db.commit()` explicitly to ensure deletion is committed
-   - Only then attempt S3 deletion
-   - Keep the try/except for S3 deletion - log failures but don't error (record is already gone)
-
-```python
-# Simplified approach:
-def delete_attachment(self, attachment_id: int):
-    attachment = self.get_attachment(attachment_id)
-    s3_key = attachment.s3_key
-    
-    # Delete from database and commit
-    self.db.delete(attachment)
-    self.db.commit()
-    
-    # Now safe to delete from S3
-    if s3_key:
-        try:
-            self.s3_service.delete_file(s3_key)
-        except Exception as e:
-            # Log error but don't fail - record is committed as deleted
-            logger.warning(f"Failed to delete S3 file {s3_key}: {e}")
-```
-
-### Phase 3: Testing
-
-1. **Create `tests/test_transaction_consistency.py`**:
-   - Test that S3 upload failure prevents database record creation
-   - Test that database deletion completes even if S3 deletion fails
-   - Mock S3 service to simulate failures
-   - Verify no orphaned database records or S3 files in success cases
-
-2. **Update existing tests**:
-   - Ensure tests still pass with reordered operations
-   - Add test cases for the new failure scenarios
-
-### Phase 4: Documentation
-
-1. **Update `CLAUDE.md`**:
-   - Add "S3 Storage Consistency" section
-   - Document the two invariants clearly
-   - Provide examples of correct patterns
-   - Warn against common pitfalls
-
-## Algorithms
-
-### Safe S3 Upload Pattern (Create/Update)
-1. Validate all input data
-2. Prepare/process file data (resize images, etc.)
-3. Generate S3 key using database ID (may need to flush first)
-4. Create database record with all fields
-5. Call `db.flush()` to get ID and trigger constraints
-6. Upload to S3 using the generated key
-7. If S3 fails, exception triggers automatic rollback via teardown_request
-8. If successful, teardown_request commits the transaction
-
-### Safe S3 Delete Pattern
-1. Retrieve record and S3 key
-2. Delete database record
-3. Explicitly commit the transaction with `self.db.commit()`
-4. Attempt S3 deletion (after commit succeeds)
-5. Log but don't fail if S3 deletion fails
-
-## Why This Approach Works
-
-- **No post-commit hooks needed**: Explicit commit for deletes is simpler
-- **Transaction safety for creates**: S3 upload within transaction scope means automatic rollback on failure
-- **Consistency guarantee**: Database is source of truth; S3 orphans are acceptable (can be cleaned up), but database inconsistency is not
-- **Minimal code changes**: Just reordering operations and one explicit commit
-
-## Implementation Order
-
-1. **First**: Fix create operations (just reordering, low risk)
-2. **Second**: Fix delete operations (add explicit commit)
-3. **Third**: Add comprehensive tests
-4. **Fourth**: Update documentation
+## Documentation
+- Update `CLAUDE.md` with the invariants and practical examples (create/update/delete) so future work follows the same sequencing.
+- Mention the new tests or scenarios in any developer onboarding docs if applicable.
