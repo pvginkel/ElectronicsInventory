@@ -9,6 +9,22 @@ Keep this file light and point contributors to the canonical documentation.
 - `docs/contribute/architecture/application_overview.md` — architecture snapshot of React 19 + TanStack Router/Query, generated API client, Tailwind, and Vite.
 - `docs/contribute/testing/playwright_developer_guide.md` — Playwright usage, selector strategy, factories, and instrumentation checklist.
 
+## Sandbox Environment
+
+- Backend and frontend worktrees are bind-mounted into `/work` inside the container.
+- Each repository’s `.git` directory is mapped read-only, so staging or committing must happen outside the sandbox.
+- The container includes the standard project toolchain; request Dockerfile updates if more tooling is needed.
+- With Git safeguarded externally, no additional safety guardrails are enforced beyond the project’s own guidelines.
+
+### Playwright Test Requirements (Review Before Every Change)
+
+- `docs/contribute/testing/index.md` — high-level testing principles, mandatory real-backend policy, and backend coordination steps.
+- `docs/contribute/testing/playwright_developer_guide.md` — authoring patterns, backend extension expectations, and deterministic workflows.
+- `docs/contribute/testing/factories_and_fixtures.md` — API factory usage and the prohibition on request interception.
+- `docs/contribute/testing/ci_and_execution.md` — execution policies, managed services, and headless rules.
+
+Designers drafting plans and developers implementing Playwright work must re-read these documents before touching the suite.
+
 ## Architecture Snapshot
 
 - Modern React 19 + TypeScript app with TanStack Router/Query and generated OpenAPI hooks.
@@ -28,6 +44,12 @@ Keep this file light and point contributors to the canonical documentation.
 - Environment variables & ports: `docs/contribute/environment.md`
 - Commands reference: `pnpm dev`, `pnpm type-check`, `pnpm lint`, `pnpm generate:api`, `pnpm build`, `pnpm preview`
 - Playwright execution: `pnpm playwright test`, `pnpm playwright test --debug` (headless by default). Detailed policies live in `docs/contribute/testing/ci_and_execution.md`.
+
+## Readability Comments
+
+- Add short “guidepost” comments in non-trivial functions to outline the flow or highlight invariants.
+- Keep existing explanatory comments unless they are clearly wrong; prefer updating over deleting.
+- Focus on intent-level commentary (why/what) rather than narrating obvious statements (how).
 
 ## Definition of Done
 

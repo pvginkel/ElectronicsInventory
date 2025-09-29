@@ -11,10 +11,11 @@ The Playwright suite drives the production frontend against the real backend in 
 ## Core Principles
 
 1. **API-first data setup** – Always create prerequisite data with factories; UI interactions are only for the scenario under test.
-2. **Dirty database policy** – Tests never reset or clean up. Use randomized identifiers so reruns tolerate existing data.
-3. **Feature-owned page objects** – Each feature folder exposes actions/locators tailored to that UI.
-4. **Deterministic waits** – Assertions rely on UI visibility, network promises, or test-event signals—never fixed sleeps.
-5. **Console is the contract** – Unexpected `console.error` fails the test unless explicitly marked as expected via helpers.
+2. **Real backend always** – Specs must hit the live backend endpoints. Do not intercept, stub, or shortcut HTTP calls. Missing behavior belongs in the backend, not in Playwright helpers.
+3. **Dirty database policy** – Tests never reset or clean up. Use randomized identifiers so reruns tolerate existing data, never rely on data seeded by another test, and ignore any concerns about residual records—databases are rebuilt between runs. If volume ever reveals performance issues, treat that as a backend optimization problem.
+4. **Feature-owned page objects** – Each feature folder exposes actions/locators tailored to that UI.
+5. **Deterministic waits** – Assertions rely on UI visibility, network promises, or test-event signals—never fixed sleeps.
+6. **Console is the contract** – Unexpected `console.error` fails the test unless explicitly marked as expected via helpers.
 
 ## Suite Architecture
 
@@ -84,6 +85,7 @@ test('edits an existing type', async ({ testData, types }) => {
 
 - Never drive prerequisite flows through the UI (no create-via-form followed by edit assertions).
 - Use factory overrides to craft edge cases (duplicate names, dependency chains, etc.).
+- Seed data uniquely for each spec. If multiple tests need similar state, each must create its own records.
 
 ### Randomize Identifiers
 
@@ -132,6 +134,11 @@ The event schema is documented in [Test Instrumentation](../architecture/test_in
 ### No Fixed Waits
 
 Follow the [No-Sleep Patterns](./no_sleep_patterns.md) reference. Use `Promise.all` with `waitForResponse` or scoped `expect` checks instead of `waitForTimeout`.
+
+### Backend Extensions for Complex Flows
+
+- When a scenario needs deterministic backend behavior (for example, AI analysis over SSE), add test-specific hooks to the service. The pattern is: seed a prebaked response through an API exposed for tests, then drive the UI using a sentinel input such as `test-response-12345` that instructs the backend to emit the prepared payload. Do not emulate the SSE stream in Playwright.
+- If the backend cannot yet support the scenario, pause the Playwright work and extend the backend first. Route interception is not an acceptable fallback.
 
 ## Suite Conventions
 

@@ -1,6 +1,6 @@
 # Factories & Fixtures
 
-Factories and fixtures power the API-first testing strategy. They create deterministic data, expose shared helpers, and keep specs concise.
+Factories and fixtures power the API-first testing strategy. They create deterministic data, expose shared helpers, and keep specs concise—so that every spec can hit the real backend without relying on request interception.
 
 ## API Client & Data Bundle
 
@@ -24,6 +24,7 @@ const testData = createTestDataBundle(apiClient);
 - Pending factories live under `tests/api/factories/`; extend the bundle when new domains gain coverage.
 
 All factories follow the same shape: accept overrides, return structured DTOs, and expose random helpers for collision-free runs.
+- If a factory is missing behavior you need, add it here and extend the backend as required. Do **not** replace the gap with Playwright `page.route` stubs.
 
 ## Test Fixtures (`tests/support/fixtures.ts`)
 
@@ -66,6 +67,7 @@ Avoid duplicating helper logic in specs—centralize shared behaviors here.
 - Use factory helpers (e.g., `testData.types.randomTypeName('Resistor')`).
 - Prefix identifiers with domain-specific tokens to aid debugging.
 - Keep randomization deterministic length-wise to avoid UI layout drift.
+- Seed fresh data per spec. Even if two tests need identical state, create separate records to avoid hidden coupling.
 
 ## Extending the Bundle
 

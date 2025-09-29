@@ -4,11 +4,13 @@ The Electronics Inventory frontend ships with a Playwright-based end-to-end suit
 
 ## Guiding Principles
 
-1. **API-first data setup** – Tests create prerequisite data through API factories; never click UI to seed state.
-2. **Dirty database friendly** – Tests randomize identifiers and never clean up, enabling fast reruns without resets.
-3. **Page objects over selector maps** – Each feature owns a page object colocated with its tests for readable UI interactions.
-4. **No arbitrary waits** – Assertions rely on observable UI state or deterministic events; `waitForTimeout` is banned.
-5. **Test-mode instrumentation** – Frontend emits structured test events only when `VITE_TEST_MODE=true`, and Playwright captures them via a dedicated bridge for deterministic assertions.
+1. **API-first data setup** – Tests create prerequisite data through API factories; the UI is only used for the behavior under test.
+2. **Real backend always** – Specs must exercise the production backend endpoints directly; do not intercept or stub HTTP requests. If a scenario needs special behavior, extend the backend with test-friendly hooks instead of mocking.
+3. **Fresh data per test** – Every scenario seeds its own data via factories with randomized identifiers; never reuse records across tests.
+4. **Dirty database friendly** – We do not care about accumulated test data. Databases are torn down between runs, so favor clarity over cleanup. If data volume exposes performance issues, treat that as a signal to optimize the backing service.
+5. **Page objects over selector maps** – Each feature owns a page object colocated with its tests for readable UI interactions.
+6. **No arbitrary waits** – Assertions rely on observable UI state or deterministic events; `waitForTimeout` is banned.
+7. **Test-mode instrumentation** – Frontend emits structured test events only when `VITE_TEST_MODE=true`, and Playwright captures them via a dedicated bridge for deterministic assertions.
 
 ## Folder Layout
 
@@ -39,7 +41,12 @@ As additional features gain coverage, follow the same foldering: keep page objec
 - Seed complex state through factories instead of long UI flows.
 - Prefer specific assertions over broad waits to keep runs fast.
 - Avoid duplicate coverage—exercise each backend path once per spec unless a regression requires more.
-- Use parallel-safe random data (`prefix-shortId`) so reruns skip costly resets.
+- Use parallel-safe random data (`prefix-shortId`) so reruns skip costly resets; never reuse data seeded by another test.
+
+## Backend Responsibilities
+
+- When a flow needs deterministic behavior (e.g., AI analysis responses, long-running jobs), add explicit testing hooks to the backend rather than stubbing network calls. For example, the AI analysis SSE endpoint should expose a test trigger that Playwright can seed via the API—for instance, POST a prebaked payload to a testing route and then issue a UI search for a sentinel such as `test-response-12345` to stream that payload back.
+- If a feature cannot currently be exercised without interception, treat that as a backend gap. Before any Playwright work begins, add a **Blocking Issues** section at the top of the feature plan that calls out the missing backend support so it can be coordinated and resolved.
 
 ## Instrumentation & Signals
 
