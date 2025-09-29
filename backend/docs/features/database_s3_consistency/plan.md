@@ -14,13 +14,13 @@ We need to guarantee that part attachments stay consistent between the SQL datab
 ### Modified Files
 - `app/services/document_service.py`
   - Introduce a module logger.
-  - Rework `_create_attachment` to defer S3 uploads until after the row has been added and flushed, and to mark the session for rollback if the upload fails.
+  - Rework `_create_attachment` to defer S3 uploads until after the row has been added and flushed, letting any upload failure bubble up so the caller’s transaction manager can roll back.
   - Ensure `create_file_attachment()` and `create_url_attachment()` forward any additional data that `_create_attachment` needs (e.g., original filename) without duplicating S3 handling.
-  - Update `delete_attachment()` to capture metadata, perform database mutations (including cover image reassignment and thumbnail cleanup), commit, then attempt S3 deletion with logging instead of `pass`.
+  - Update `delete_attachment()` to capture metadata, perform database mutations (including cover image reassignment and thumbnail cleanup), flush, then attempt S3 deletion with logging instead of `pass`.
 - `app/services/image_service.py`
   - No functional changes expected, but confirm thumbnail cleanup calls still operate correctly when invoked before the explicit commit. Adjust if the API needs to return a boolean or raise for missing thumbnails.
 - `app/utils/error_handling.py`
-  - Ensure helper routines that convert exceptions to HTTP responses set `db_session.info['needs_rollback'] = True` when propagating S3 failures, or add a small helper if reuse is needed.
+  - Confirm helpers that translate exceptions to HTTP responses continue to flag the scoped session for rollback so API requests rely on the existing teardown behavior (no new service-level flags).
 - `CLAUDE.md`
   - Document the two invariants and the safe patterns for create/update/delete so future work follows the same ordering.
 - Tests
@@ -32,23 +32,23 @@ We need to guarantee that part attachments stay consistent between the SQL datab
 1. Refactor `_create_attachment`:
    - Validate inputs as today, but collect `file_bytes`, content metadata, and the intended S3 key before writing anything to S3.
    - Create the `PartAttachment` instance with the generated `s3_key`, add it to the session, and call `self.db.flush()` so constraints (including cover image updates) run before any external side effects.
-   - Attempt the S3 upload inside a `try` block. On failure, set `self.db.info['needs_rollback'] = True`, log the error at warning level, and re-raise `InvalidOperationException` so the request aborts and teardown rolls back the flush.
+   - Attempt the S3 upload inside a `try` block. Let any failure bubble up as `InvalidOperationException`; rely on the caller’s transaction management (e.g., Flask teardown via `handle_api_errors`) to decide whether to roll back. Log context so operators can diagnose the failure, but don’t manipulate the session flags directly.
    - On success, return the attachment as before. Cover image assignment should continue to happen through the existing flush logic.
 2. Ensure both `create_file_attachment()` and `create_url_attachment()` pass the right arguments (filename, preview image content, etc.) to the refactored `_create_attachment` without duplicating S3 logic.
 
 ### Phase 2 – Safe Deletions
 1. In `delete_attachment()` gather the attachment, its `s3_key`, and cover-image status before mutating the database.
 2. Remove the attachment row, recompute the cover image if required, clean up thumbnails, and call `self.db.flush()` to persist those changes.
-3. Commit the transaction (`self.db.commit()`) to permanently remove the row before touching S3. This deliberate commit bypasses the per-request teardown contract; we accept that tradeoff to ensure S3 changes only occur after the database state is final.
-4. After a successful commit, attempt S3 deletion in a `try/except`, logging failures with context but not raising so callers can proceed. Do not swallow the exception silently; include the attachment id/key in the log to aid cleanup scripts.
+3. Flush the session so subsequent logic (cover reassignment, constraints) runs, then let the caller’s transaction boundary perform the commit/rollback.
+4. After the flush, attempt S3 deletion in a `try/except`, logging failures with context but not raising so callers can proceed. Do not swallow the exception silently; include the attachment id/key in the log to aid cleanup scripts.
 
 ### Phase 3 – Transaction Safety Hooks
-1. Audit existing exception-handling paths in `DocumentService` that might intercept S3 errors. Ensure they either propagate or mark the session for rollback.
-2. If additional helpers are needed (e.g., a `_mark_session_for_rollback()` utility), implement them inside `DocumentService` to keep rollback behavior consistent.
+1. Audit existing exception-handling paths in `DocumentService` that might intercept S3 errors. Ensure they propagate upstream rather than swallowing failures locally.
+2. Avoid introducing service-level helpers to mutate session state; rely on the caller to own the transaction lifecycle per the project guidelines.
 
 ### Phase 4 – Testing & Documentation
 1. Update unit tests to stub `s3_service.upload_file`/`delete_file` and verify:
-   - Upload failures leave no `PartAttachment` in the database and flag the session for rollback.
+   - Upload failures leave no `PartAttachment` in the database once the caller rolls back and keep the part cover unset.
    - Successful attachment creation keeps the existing API contract.
    - Delete failures still remove the DB row and issue a log warning.
 2. Add integration tests that run through the Flask client to confirm request teardown commits/rolls back appropriately when S3 operations succeed or fail.
@@ -59,13 +59,13 @@ We need to guarantee that part attachments stay consistent between the SQL datab
 1. Validate request payload (size, MIME type, attachment type).
 2. Generate the S3 key using part metadata.
 3. Add the `PartAttachment` row (with the target `s3_key`) and flush.
-4. Attempt the S3 upload; on failure, mark session for rollback and re-raise.
-5. Let request teardown commit when the response succeeds; the DB record only persists if the upload did.
+4. Attempt the S3 upload; on failure, let the exception propagate so the transaction owner can roll back.
+5. Let request teardown (or the ambient caller) commit when the response succeeds; the DB record only persists if the upload did.
 
 ### Safe Delete Algorithm
 1. Read the attachment row and cache `s3_key` + derived data.
 2. Delete the row, reassign cover image, and flush.
-3. Commit the transaction.
+3. Allow the transaction owner to commit; do not call `commit()` directly in the service.
 4. Attempt the S3 delete, logging any failure.
 
 ## Testing Strategy
