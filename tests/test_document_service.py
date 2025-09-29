@@ -1,11 +1,13 @@
 """Unit tests for DocumentService."""
 
 import io
+import logging
 import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
 from flask import Flask
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -106,6 +108,35 @@ class TestDocumentService:
         assert attachment.content_type == "image/jpeg"
         assert attachment.s3_key == "parts/123/attachments/test.jpg"
 
+    def test_create_file_attachment_upload_runs_after_flush(self, document_service, session, sample_part, sample_image_file, mock_s3_service):
+        """Ensure S3 upload runs after the attachment is flushed to the database."""
+        with patch('magic.from_buffer') as mock_magic:
+            mock_magic.return_value = 'image/jpeg'
+
+            def upload_side_effect(_file_obj, key, _content_type):
+                persisted = session.scalar(
+                    select(PartAttachment).where(PartAttachment.title == "Flush First")
+                )
+                assert persisted is not None
+                assert persisted.s3_key == key
+                return True
+
+            mock_s3_service.upload_file.side_effect = upload_side_effect
+
+            sample_image_file.seek(0)
+            attachment = document_service.create_file_attachment(
+                part_key=sample_part.key,
+                title="Flush First",
+                file_data=sample_image_file,
+                filename="flush.jpg"
+            )
+
+        mock_s3_service.upload_file.side_effect = None
+
+        assert attachment.title == "Flush First"
+        assert attachment.s3_key == "parts/123/attachments/test.jpg"
+        assert mock_s3_service.upload_file.called
+
     def test_create_file_attachment_pdf_success(self, document_service, session, sample_part, sample_pdf_file):
         """Test successful PDF attachment creation."""
         with patch('magic.from_buffer') as mock_magic:
@@ -122,6 +153,38 @@ class TestDocumentService:
         assert attachment.title == "Test PDF"
         assert attachment.filename == "datasheet.pdf"
         assert attachment.content_type == "application/pdf"
+
+    def test_create_file_attachment_s3_failure_rolls_back(
+        self,
+        document_service,
+        session,
+        sample_part,
+        sample_image_file,
+        mock_s3_service,
+    ):
+        """S3 failures should mark the transaction for rollback and leave no attachment behind."""
+        with patch('magic.from_buffer') as mock_magic:
+            mock_magic.return_value = 'image/jpeg'
+            mock_s3_service.upload_file.side_effect = InvalidOperationException("upload file", "S3 failure")
+
+            sample_image_file.seek(0)
+            with pytest.raises(InvalidOperationException):
+                document_service.create_file_attachment(
+                    part_key=sample_part.key,
+                    title="Rollback Image",
+                    file_data=sample_image_file,
+                    filename="rollback.jpg"
+                )
+
+        mock_s3_service.upload_file.side_effect = None
+        session.rollback()
+
+        remaining = session.scalars(select(PartAttachment)).all()
+        assert remaining == []
+
+        refreshed_part = session.get(Part, sample_part.id)
+        if refreshed_part:
+            assert refreshed_part.cover_attachment_id is None
 
     def test_create_file_attachment_part_not_found(self, document_service, session, sample_image_file):
         """Test file attachment creation with non-existent part."""
@@ -329,8 +392,40 @@ class TestDocumentService:
         # Verify image cleanup was called
         mock_image_service.cleanup_thumbnails.assert_called_once_with(attachment_id)
 
-    def test_delete_attachment_s3_cleanup_fails(self, document_service, session, sample_part, mock_s3_service):
+    def test_delete_attachment_s3_runs_after_flush(
+        self,
+        document_service,
+        session,
+        sample_part,
+        mock_s3_service,
+        mock_image_service,
+    ):
+        """Ensure S3 deletion happens only after the row has been flushed away."""
+        attachment = PartAttachment(
+            part_id=sample_part.id,
+            attachment_type=AttachmentType.IMAGE,
+            title="Flush Delete",
+            s3_key="flush-delete.jpg"
+        )
+        session.add(attachment)
+        session.flush()
+        attachment_id = attachment.id
+
+        def delete_side_effect(_key: str):
+            assert session.get(PartAttachment, attachment_id) is None
+            return True
+
+        mock_s3_service.delete_file.side_effect = delete_side_effect
+
+        document_service.delete_attachment(attachment_id)
+
+        mock_s3_service.delete_file.assert_called_once_with("flush-delete.jpg")
+        mock_image_service.cleanup_thumbnails.assert_called_once_with(attachment_id)
+        mock_s3_service.delete_file.side_effect = None
+
+    def test_delete_attachment_s3_cleanup_fails(self, document_service, session, sample_part, mock_s3_service, caplog):
         """Test attachment deletion when S3 cleanup fails."""
+        caplog.set_level(logging.WARNING, logger='app.services.document_service')
         mock_s3_service.delete_file.side_effect = InvalidOperationException("delete", "S3 error")
 
         attachment = PartAttachment(
@@ -349,6 +444,8 @@ class TestDocumentService:
         # Verify attachment is still deleted from database
         with pytest.raises(RecordNotFoundException):
             document_service.get_attachment(attachment_id)
+
+        assert any("S3 deletion failed" in record.message for record in caplog.records)
 
     def test_get_attachment_file_data_pdf_with_file(self, document_service, session, sample_part):
         """Test getting file data for PDF with stored file."""
@@ -1314,8 +1411,20 @@ class TestDocumentService:
                 target_part_key=target_part.key
             )
 
-        assert "copy attachment" in str(exc_info.value)
-        assert "failed to copy S3 file" in str(exc_info.value)
+        assert "source file not found" in str(exc_info.value)
+
+        mock_s3_service.copy_file.assert_called_once_with(
+            "parts/123/attachments/test.jpg",
+            "parts/456/attachments/uuid.jpg",
+        )
+
+        session.rollback()
+        copied = session.scalars(
+            select(PartAttachment).where(PartAttachment.part_id == target_part.id)
+        ).all()
+        assert copied == []
+
+        mock_s3_service.copy_file.side_effect = None
 
     def test_copy_attachment_to_part_url_with_set_as_cover(self, document_service, session, sample_part):
         """Test copying URL attachment and setting as cover (any type can be cover)."""

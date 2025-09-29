@@ -1,5 +1,6 @@
 """Document service for managing part attachments."""
 
+import logging
 from io import BytesIO
 from typing import BinaryIO
 
@@ -20,6 +21,9 @@ from app.services.s3_service import S3Service
 from app.services.url_transformers import URLInterceptorRegistry
 from app.utils.text_utils import truncate_with_ellipsis
 from app.utils.url_utils import get_filename_from_url
+
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentService(BaseService):
@@ -234,68 +238,58 @@ class DocumentService(BaseService):
             attachment_type=upload_doc.detected_type
         )
 
-    def _create_attachment(self, part_key: str, content: DocumentContentSchema | None, title: str, url: str | None = None, filename: str | None = None, attachment_type: AttachmentType | None = None) -> PartAttachment:
+    def _create_attachment(self, part_key: str, content: DocumentContentSchema | None, title: str,
+                            url: str | None = None, filename: str | None = None,
+                            attachment_type: AttachmentType | None = None) -> PartAttachment:
         if not content and not url:
             raise InvalidOperationException("create attachment", "either content or URL must be provided")
 
-        # Get the part
         stmt = select(Part).where(Part.key == part_key)
         part = self.db.scalar(stmt)
         if not part:
             raise RecordNotFoundException("Part", part_key)
 
-        if content:
-            # Read file data for validation
-            file_size = len(content.content)
+        upload_payload: DocumentContentSchema | None = content
+        upload_s3_key: str | None
+        file_size: int | None
 
-            # Validate against allowed types
+        if upload_payload:
+            file_size = len(upload_payload.content)
+
             allowed_image_types = self.settings.ALLOWED_IMAGE_TYPES
             allowed_file_types = self.settings.ALLOWED_FILE_TYPES
             all_allowed = allowed_image_types + allowed_file_types
 
-            if content.content_type not in all_allowed:
-                raise InvalidOperationException("create file attachment", f"file type not allowed: {content.content_type}")
+            if upload_payload.content_type not in all_allowed:
+                raise InvalidOperationException("create file attachment", f"file type not allowed: {upload_payload.content_type}")
 
-            is_image = content.content_type.startswith('image/')
+            is_image = upload_payload.content_type.startswith('image/')
             self._validate_file_size(file_size, is_image)
 
-            # Determine attachment type
             if not attachment_type:
-                if content.content_type == 'application/pdf':
+                if upload_payload.content_type == 'application/pdf':
                     attachment_type = AttachmentType.PDF
                 elif is_image:
                     attachment_type = AttachmentType.IMAGE
                 else:
-                    raise InvalidOperationException("create file attachment", f"unsupported file type: {content.content_type}")
+                    raise InvalidOperationException("create file attachment", f"unsupported file type: {upload_payload.content_type}")
 
-            # Generate S3 key
             filename_for_s3 = filename
             if not filename_for_s3:
-                if url:
-                    filename_for_s3 = get_filename_from_url(url, title)
-                else:
-                    filename_for_s3 = "upload"
+                filename_for_s3 = get_filename_from_url(url, title) if url else "upload"
 
-            s3_key = self.s3_service.generate_s3_key(part.id, filename_for_s3)
-
-            # Store images verbatim without conversion
-
-            # Upload to S3
-            file_data = BytesIO(content.content)
-            self.s3_service.upload_file(file_data, s3_key, content.content_type)
-
+            upload_s3_key = self.s3_service.generate_s3_key(part.id, filename_for_s3)
         else:
-            s3_key = None
+            upload_s3_key = None
             file_size = None
 
-        # Create attachment record
         attachment = PartAttachment(
             part_id=part.id,
             attachment_type=attachment_type,
             title=title,
-            s3_key=s3_key,
+            s3_key=upload_s3_key,
             filename=filename,
-            content_type=content.content_type if content else None,
+            content_type=upload_payload.content_type if upload_payload else None,
             file_size=file_size,
             url=url
         )
@@ -303,10 +297,30 @@ class DocumentService(BaseService):
         self.db.add(attachment)
         self.db.flush()
 
-        # Auto-set as cover image if this is the first image attachment and part has no cover
         if not part.cover_attachment_id:
             part.cover_attachment_id = attachment.id
             self.db.flush()
+
+        if upload_payload and upload_s3_key:
+            # Database state is durable at this point; perform external upload now.
+            try:
+                self.s3_service.upload_file(BytesIO(upload_payload.content), upload_s3_key, upload_payload.content_type)
+            except InvalidOperationException:
+                logger.exception(
+                    "Failed to upload attachment to S3 for part %s (attachment_id=%s, key=%s)",
+                    part_key,
+                    attachment.id,
+                    upload_s3_key,
+                )
+                raise
+            except Exception as exc:  # pragma: no cover - unexpected failure path
+                logger.exception(
+                    "Unexpected error uploading attachment to S3 for part %s (attachment_id=%s, key=%s)",
+                    part_key,
+                    attachment.id,
+                    upload_s3_key,
+                )
+                raise InvalidOperationException("upload attachment", "unexpected S3 upload error") from exc
 
         return attachment
 
@@ -378,24 +392,11 @@ class DocumentService(BaseService):
         """
         attachment = self.get_attachment(attachment_id)
         part = attachment.part
+        is_cover_image = part.cover_attachment_id == attachment_id
+        s3_key = attachment.s3_key
+        attachment_type = attachment.attachment_type
 
-        # Check if this attachment is the current cover image
-        is_cover_image = (part.cover_attachment_id == attachment_id)
-
-        # Clean up S3 file if exists
-        if attachment.s3_key:
-            try:
-                self.s3_service.delete_file(attachment.s3_key)
-            except InvalidOperationException:
-                pass  # File might not exist, continue with deletion
-
-        # Clean up thumbnails if it's an image
-        if attachment.attachment_type == AttachmentType.IMAGE:
-            self.image_service.cleanup_thumbnails(attachment.id)
-
-        # If we just deleted the cover image, find a new one
         if is_cover_image:
-            # Find the oldest remaining image attachment for this part (excluding the one being deleted)
             stmt = select(PartAttachment).where(
                 PartAttachment.part_id == part.id,
                 PartAttachment.attachment_type == AttachmentType.IMAGE,
@@ -404,11 +405,31 @@ class DocumentService(BaseService):
 
             new_cover = self.db.scalar(stmt)
             part.cover_attachment_id = new_cover.id if new_cover else None
-            self.db.flush()
 
-        # Remove from database
         self.db.delete(attachment)
         self.db.flush()
+
+        if attachment_type == AttachmentType.IMAGE:
+            self.image_service.cleanup_thumbnails(attachment_id)
+
+        if s3_key:
+            # S3 is best-effort after database state is durable.
+            try:
+                self.s3_service.delete_file(s3_key)
+            except InvalidOperationException as exc:
+                logger.warning(
+                    "S3 deletion failed for attachment %s (key=%s); leaving orphaned object",
+                    attachment_id,
+                    s3_key,
+                )
+                logger.debug("Ignored S3 deletion failure due to non-transactional storage", exc_info=exc)
+            except Exception as exc:  # pragma: no cover - unexpected failure path
+                logger.warning(
+                    "Unexpected error deleting S3 object for attachment %s (key=%s); continuing",
+                    attachment_id,
+                    s3_key,
+                )
+                logger.debug("Unexpected S3 deletion error", exc_info=exc)
 
     def get_attachment_file_data(self, attachment_id: int) -> tuple[BytesIO, str, str] | None:
         """Get attachment file data for download.
@@ -563,20 +584,9 @@ class DocumentService(BaseService):
         if not target_part:
             raise RecordNotFoundException("Part", target_part_key)
 
-        # Handle S3 file copying for images and PDFs
-        new_s3_key = None
-        if source_attachment.s3_key:
-            # Generate new S3 key for target part
-            original_filename = source_attachment.filename or "attachment"
-            new_s3_key = self.s3_service.generate_s3_key(target_part.id, original_filename)
+        original_filename = source_attachment.filename or "attachment"
+        new_s3_key = self.s3_service.generate_s3_key(target_part.id, original_filename) if source_attachment.s3_key else None
 
-            # Copy file in S3
-            try:
-                self.s3_service.copy_file(source_attachment.s3_key, new_s3_key)
-            except InvalidOperationException as e:
-                raise InvalidOperationException("copy attachment", f"failed to copy S3 file: {str(e)}") from e
-
-        # Create new attachment record with same metadata but target part_id
         new_attachment = PartAttachment(
             part_id=target_part.id,
             attachment_type=source_attachment.attachment_type,
@@ -596,6 +606,26 @@ class DocumentService(BaseService):
             target_part.cover_attachment_id = new_attachment.id
             self.db.flush()
 
+        if source_attachment.s3_key and new_s3_key:
+            try:
+                self.s3_service.copy_file(source_attachment.s3_key, new_s3_key)
+            except InvalidOperationException:
+                logger.exception(
+                    "Failed to copy attachment %s to part %s (new_attachment_id=%s, key=%s)",
+                    source_attachment.id,
+                    target_part_key,
+                    new_attachment.id,
+                    new_s3_key,
+                )
+                raise
+            except Exception as exc:  # pragma: no cover - unexpected failure path
+                logger.exception(
+                    "Unexpected error copying attachment %s to part %s (new_attachment_id=%s, key=%s)",
+                    source_attachment.id,
+                    target_part_key,
+                    new_attachment.id,
+                    new_s3_key,
+                )
+                raise InvalidOperationException("copy attachment", "unexpected S3 copy error") from exc
+
         return new_attachment
-
-
