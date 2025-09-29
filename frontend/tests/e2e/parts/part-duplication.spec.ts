@@ -1,6 +1,7 @@
 import { test, expect } from '../../support/fixtures';
+import { getBackendUrl } from '../../support/backend-url';
 
-const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:5100';
+const backendUrl = getBackendUrl();
 
 async function createAttachment(partKey: string, title: string) {
   const formData = new FormData();

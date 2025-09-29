@@ -7,7 +7,7 @@ This document captures the environment variables, port conventions, and configur
 | Variable | Default | Description |
 | --- | --- | --- |
 | `FRONTEND_URL` | `http://localhost:3100` (tests) / Vite default `http://localhost:3000` (dev) | Base URL the Playwright suite points to. Managed automatically when using `scripts/testing-server.sh`. |
-| `BACKEND_URL` | `http://localhost:5100` | Backend base URL for Playwright fixtures and API factories. |
+| `BACKEND_URL` | `http://localhost:5100` (tests) / `http://localhost:5000` (dev proxy default) | Backend origin used by Node-side tooling and the Vite `/api` proxy. |
 | `VITE_TEST_MODE` | `false` | Toggles frontend test instrumentation and test-event emission. Set to `true` automatically when running `scripts/testing-server.sh`. |
 | `PLAYWRIGHT_MANAGED_SERVICES` | `true` | When not explicitly set to `false`, Playwright starts the frontend/backend via `scripts/testing-server.sh`. Set to `false` when you manage servers manually. |
 | `APP_START_SCRIPT` / `APP_STOP_SCRIPT` | unset | Optional hook executed by Playwright before/after tests. Accepts `start` and `stop` args. |
@@ -15,13 +15,14 @@ This document captures the environment variables, port conventions, and configur
 
 ## Environment Files
 
-- `.env` – consumed by Vite during local development. Use this for runtime values like API base URLs or feature flags that mirror production behavior.
+- `.env` – consumed by Vite during local development. Override `BACKEND_URL` here if your backend is not running on `http://localhost:5000`.
 - `.env.test` – automatically loaded by `playwright.config.ts` via `dotenv`. Use this to override Playwright-specific values such as `FRONTEND_URL`, `BACKEND_URL`, or toggling `PLAYWRIGHT_MANAGED_SERVICES`.
 
 > `.env.test` is ignored by git; commit durable defaults to documentation and keep machine-specific overrides local.
 
-## Ports & Managed Services
+## Vite API Proxy & Managed Services
 
+- **API Proxy**: Vite forwards browser requests matching `/api/**` to the backend. During regular development the proxy targets `http://localhost:5000` unless `BACKEND_URL` is set. The Playwright testing harness exports `BACKEND_URL=http://localhost:5100` before starting Vite so the proxy points at the testing backend automatically.
 - **Frontend (test mode)**: `scripts/testing-server.sh` starts Vite on port **3100** with `VITE_TEST_MODE=true`.
 - **Backend (test mode)**: `../backend/scripts/testing-server.sh` starts the Flask API on port **5100** with `FLASK_ENV=testing`.
 - Playwright waits for both services to report healthy before running tests. See [CI & Execution](./testing/ci_and_execution.md) for health check details.

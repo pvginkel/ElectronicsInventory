@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getApiBaseUrl } from '@/lib/utils/api-config';
 
 interface VersionEvent {
   version: string;
@@ -38,8 +37,7 @@ export function useVersionSSE(): UseVersionSSEReturn {
     // Clean up existing connection
     disconnect();
     
-    const baseUrl = getApiBaseUrl();
-    const eventSource = new EventSource(`${baseUrl}/api/utils/version/stream`);
+    const eventSource = new EventSource('/api/utils/version/stream');
     eventSourceRef.current = eventSource;
 
     const scheduleReconnect = () => {

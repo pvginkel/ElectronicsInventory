@@ -1,8 +1,9 @@
 import { chromium, FullConfig } from '@playwright/test';
+import { getBackendUrl } from './backend-url';
 
 async function globalSetup(_config: FullConfig) {
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3100';
-  const backendUrl = process.env.BACKEND_URL || 'http://localhost:5100';
+  const backendUrl = getBackendUrl();
   const playwrightManagedServices = process.env.PLAYWRIGHT_MANAGED_SERVICES !== 'false';
 
   console.log('🔧 Setting up Playwright tests...');

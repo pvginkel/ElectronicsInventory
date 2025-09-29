@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { isValidUrl, normalizeUrl } from '@/lib/utils/url-metadata';
 import { usePostPartsAttachmentPreview } from '@/lib/api/generated/hooks';
-import { getApiBaseUrl } from '@/lib/utils/api-config';
 
 export interface UrlPreviewState {
   url: string;
@@ -65,13 +64,22 @@ export function useUrlPreview() {
         body: { url: normalizedUrl }
       });
       
-      // Convert relative image_url to absolute URL pointing to backend
-      const baseUrl = getApiBaseUrl();
-      
-      const absoluteImageUrl = previewData.image_url 
-        ? (previewData.image_url.startsWith('http') 
-            ? previewData.image_url 
-            : `${baseUrl}${previewData.image_url}`)
+      const toAbsoluteUrl = (url: string) => {
+        if (url.startsWith('http')) {
+          return url;
+        }
+        if (typeof window !== 'undefined') {
+          try {
+            return new URL(url, window.location.origin).toString();
+          } catch {
+            // Fall through to returning the original URL if parsing fails
+          }
+        }
+        return url;
+      };
+
+      const absoluteImageUrl = previewData.image_url
+        ? toAbsoluteUrl(previewData.image_url)
         : null;
 
       setPreviewState(prev => ({

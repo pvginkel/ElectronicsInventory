@@ -9,7 +9,6 @@ Enable deployment-version notifications to run exclusively against the real back
 - `src/lib/config/test-mode.ts` + new helper `src/lib/config/sse-request-id.ts` — centralise id generation/persistence and expose a Playwright reset hook guarded by `isTestMode()`.
 - `src/types/playwright-binding.d.ts` — extend the global `Window` shape with the reset bridge so TypeScript recognises it.
 - `src/hooks/use-deployment-notification.ts` — surface the seeded request id alongside the existing deployment banner state.
-- `src/lib/utils/api-config.ts` — surface the base URL helper used when composing SSE URLs; ensure it supports extra query params.
 - `tests/support/helpers/sse-mock.ts:465-520` — delete `simulateDeploymentUpdate` / `simulateDeploymentSequence` and guard any legacy exports with lint suppressions.
 - `tests/support/helpers/test-events.ts` — wire assertions for the new deployment SSE test event stream.
 - `tests/e2e/_fixtures/deployment-banner.spec.ts` (new file name placeholder) — future Playwright coverage skeleton capturing the backend-driven flow once available.
@@ -29,7 +28,7 @@ Enable deployment-version notifications to run exclusively against the real back
 
 3. **Update `useVersionSSE` connection**
    - Expand `useVersionSSE` to accept optional `requestId` and `extraParams` args when invoking `connect`.
-   - Build the stream URL as `${baseUrl}/api/utils/version/stream?${params.toString()}` with `params.set('requestId', requestId)` whenever provided.
+   - Build the stream URL as `/api/utils/version/stream?${params.toString()}` with `params.set('requestId', requestId)` whenever provided.
    - Maintain existing retry/backoff logic; the only change is the URL construction.
    - Fail fast (throw or console.error + abort connect) when running outside `import.meta.env.DEV` and no request id is passed so missing wiring surfaces immediately; continue tolerating the omission in development to avoid breaking local exploration.
 

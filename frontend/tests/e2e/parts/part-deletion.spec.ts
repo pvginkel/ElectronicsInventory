@@ -1,3 +1,4 @@
+import type { EventEmitter } from 'node:events';
 import { test, expect } from '../../support/fixtures';
 
 test.describe('Parts - Deletion', () => {
@@ -56,9 +57,10 @@ test.describe('Parts - Deletion', () => {
       body: { box_no: box.box_no, loc_no: 1, qty: 2 },
     });
 
-    const originalPageErrorListeners = page.listeners('pageerror');
-    page.removeAllListeners('pageerror');
-    page.on('pageerror', error => {
+    const pageEmitter = page as unknown as EventEmitter;
+    const originalPageErrorListeners = pageEmitter.listeners('pageerror');
+    pageEmitter.removeAllListeners('pageerror');
+    pageEmitter.on('pageerror', error => {
       if (/Cannot delete part/i.test(error.message)) {
         return;
       }

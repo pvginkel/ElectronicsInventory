@@ -1,8 +1,6 @@
 import createClient from 'openapi-fetch';
 import type { paths } from '../../src/lib/api/generated/types';
-
-// Use Node's native fetch (available in Node 18+)
-const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:5100';
+import { getBackendUrl } from '../support/backend-url';
 
 /**
  * Request wrapper that throws on non-2xx responses
@@ -38,6 +36,7 @@ export async function apiRequest<T>(
  * Uses the generated paths type from the OpenAPI spec for full type safety.
  */
 export function createApiClient() {
+  const backendUrl = getBackendUrl();
   const client = createClient<paths>({
     baseUrl: backendUrl,
     // Use globalThis.fetch which is available in Node 18+

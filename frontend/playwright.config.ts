@@ -28,14 +28,14 @@ export default defineConfig({
 
   webServer: playwrightManagedServices ? [
     {
-      command: './scripts/testing-server.sh',
-      port: 3100,
+      command: '../backend/scripts/testing-server.sh',
+      port: 5100,
       timeout: 60 * 1000,
       reuseExistingServer: !process.env.CI,
     },
     {
-      command: '../backend/scripts/testing-server.sh',
-      port: 5100,
+      command: './scripts/testing-server.sh',
+      port: 3100,
       timeout: 60 * 1000,
       reuseExistingServer: !process.env.CI,
     }

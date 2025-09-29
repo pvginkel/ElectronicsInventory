@@ -1,7 +1,8 @@
 import { test, expect } from '../../support/fixtures';
 import type { components } from '../../../src/lib/api/generated/types';
+import { getBackendUrl } from '../../support/backend-url';
 
-const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:5100';
+const backendUrl = getBackendUrl();
 const fakeAssetUrl = `${backendUrl}/api/testing/fake-image?text=datasheet`;
 
 type AttachmentResponse = components['schemas']['PartAttachmentResponseSchema.f950e1b'];
@@ -38,9 +39,10 @@ test.describe('Parts - Document management', () => {
     const buildAttachment = (title: string, url: string): AttachmentResponse => {
       const timestamp = new Date().toISOString();
       const nextId = attachments.length > 0 ? attachments[attachments.length - 1]?.id + 1 : 1000;
+      const fallbackPartId = Number.parseInt(part.key, 36);
       return {
         id: nextId,
-        part_id: part.id,
+        part_id: Number.isNaN(fallbackPartId) ? nextId : fallbackPartId,
         title,
         url,
         filename: 'test-attachment.png',
@@ -48,7 +50,7 @@ test.describe('Parts - Document management', () => {
         attachment_type: 'url',
         has_preview: true,
         file_size: 2048,
-        s3_key: `parts/${part.id}/attachments/${nextId}.png`,
+        s3_key: `parts/${part.key}/attachments/${nextId}.png`,
         created_at: timestamp,
         updated_at: timestamp,
       };

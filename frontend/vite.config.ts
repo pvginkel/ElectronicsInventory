@@ -39,9 +39,54 @@ function versionPlugin(): Plugin {
   }
 }
 
+function backendProxyStatusPlugin(target: string): Plugin {
+  const probeUrl = new URL('/api/health/readyz', target).toString()
+
+  const checkBackend = async () => {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 2000)
+
+    try {
+      const response = await fetch(probeUrl, { signal: controller.signal })
+      if (!response.ok) {
+        console.warn(
+          `[vite] Backend at ${target} responded with ${response.status}. ` +
+          'Ensure the backend is running or update BACKEND_URL.'
+        )
+      }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'Unknown error'
+      console.warn(
+        `[vite] Unable to reach backend at ${target}: ${reason}. ` +
+        'Start the backend or set BACKEND_URL to a reachable URL.'
+      )
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  }
+
+  const safeCheck = () => {
+    checkBackend().catch(() => {
+      // Connectivity issues are already reported above; no additional handling required.
+    })
+  }
+
+  return {
+    name: 'backend-proxy-status',
+    configureServer() {
+      safeCheck()
+    },
+    configurePreviewServer() {
+      safeCheck()
+    }
+  }
+}
+
+const backendProxyTarget = process.env.BACKEND_URL || 'http://localhost:5000'
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), versionPlugin()],
+  plugins: [react(), versionPlugin(), backendProxyStatusPlugin(backendProxyTarget)],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -55,7 +100,23 @@ export default defineConfig({
   server: {
     host: true,
     port: 3000,
-    allowedHosts: true
+    allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: backendProxyTarget,
+        changeOrigin: true,
+        secure: false,
+      }
+    }
+  },
+  preview: {
+    proxy: {
+      '/api': {
+        target: backendProxyTarget,
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   },
   define: {
     // In production builds, always set VITE_TEST_MODE to 'false' to enable tree-shaking

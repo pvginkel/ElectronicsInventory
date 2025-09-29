@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import type { components } from '@/lib/api/generated/types';
 import { useSSETask } from './use-sse-task';
 import { transformAIPartAnalysisResult } from '@/lib/utils/ai-parts';
-import { getApiBaseUrl } from '@/lib/utils/api-config';
 
 type AIPartAnalysisResult = components['schemas']['AIPartAnalysisTaskResultSchema.63ff6da.AIPartAnalysisResultSchema'];
 
@@ -23,8 +22,6 @@ interface UseAIPartAnalysisReturn {
 
 export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAIPartAnalysisReturn {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  
-  const baseUrl = getApiBaseUrl();
   
   const {
     connect: connectSSE,
@@ -70,7 +67,7 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
       }
 
       // Submit to analyze endpoint
-      const response = await fetch(`${baseUrl}/api/ai-parts/analyze`, {
+      const response = await fetch('/api/ai-parts/analyze', {
         method: 'POST',
         body: formData,
       });
@@ -89,9 +86,18 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
       }
       
       // Ensure stream URL is absolute
-      const absoluteStreamUrl = streamUrl.startsWith('http') 
-        ? streamUrl 
-        : `${baseUrl}${streamUrl}`;
+      const absoluteStreamUrl = streamUrl.startsWith('http')
+        ? streamUrl
+        : (() => {
+            if (typeof window !== 'undefined') {
+              try {
+                return new URL(streamUrl, window.location.origin).toString();
+              } catch {
+                // Fall through to returning the original stream URL
+              }
+            }
+            return streamUrl;
+          })();
       
       // Connect to SSE stream for progress updates
       connectSSE(absoluteStreamUrl);
@@ -101,7 +107,7 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
       setIsAnalyzing(false);
       options.onError?.(error instanceof Error ? error.message : 'Failed to start analysis');
     }
-  }, [isAnalyzing, connectSSE, options, baseUrl]);
+  }, [isAnalyzing, connectSSE, options]);
 
   const cancelAnalysis = useCallback(() => {
     disconnectSSE();

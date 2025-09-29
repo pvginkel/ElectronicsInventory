@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { DocumentGridBase } from '@/components/documents/document-grid-base';
 import { MediaViewerBase } from '@/components/documents/media-viewer-base';
-import { getApiBaseUrl } from '@/lib/utils/api-config';
 import type { DocumentItem } from '@/types/documents';
 import type { components } from '@/lib/api/generated/types';
 
@@ -60,12 +59,17 @@ export function AIDocumentGridWrapper({
 
   // Transform AI documents to DocumentItem format
   const transformedDocuments: DocumentItem[] = useMemo(() => {
-    const baseUrl = getApiBaseUrl();
-    
     const getFullUrl = (url: string | null | undefined): string | null => {
       if (!url) return null;
-      if (url.startsWith('/')) {
-        return `${baseUrl}${url}`;
+      if (url.startsWith('http')) {
+        return url;
+      }
+      if (typeof window !== 'undefined') {
+        try {
+          return new URL(url, window.location.origin).toString();
+        } catch {
+          // Fall through to return the original value
+        }
       }
       return url;
     };

@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { validateFile } from '@/lib/utils/file-validation';
-import { getApiBaseUrl } from '@/lib/utils/api-config';
 import { useToast } from '@/hooks/use-toast';
 import { parseApiError } from '@/lib/utils/error-parsing';
 
@@ -30,8 +29,6 @@ export function useDocumentUpload() {
   const queryClient = useQueryClient();
   const toast = useToast();
   
-  const baseUrl = getApiBaseUrl();
-
   const uploadDocument = useCallback(async (options: DocumentUploadOptions): Promise<DocumentUploadResult> => {
     const { partId, file, url, name, onProgress } = options;
     
@@ -90,7 +87,7 @@ export function useDocumentUpload() {
           [uploadKey]: { ...prev[uploadKey], progress: 50 }
         }));
 
-        response = await fetch(`${baseUrl}/api/parts/${encodeURIComponent(partId)}/attachments`, {
+        response = await fetch(`/api/parts/${encodeURIComponent(partId)}/attachments`, {
           method: 'POST',
           body: formData,
         });
@@ -108,7 +105,7 @@ export function useDocumentUpload() {
           [uploadKey]: { ...prev[uploadKey], progress: 50 }
         }));
 
-        response = await fetch(`${baseUrl}/api/parts/${encodeURIComponent(partId)}/attachments`, {
+        response = await fetch(`/api/parts/${encodeURIComponent(partId)}/attachments`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -186,7 +183,7 @@ export function useDocumentUpload() {
 
       throw error;
     }
-  }, [queryClient, baseUrl, toast]);
+  }, [queryClient, toast]);
 
   return {
     uploadDocument,

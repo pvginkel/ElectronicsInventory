@@ -5,6 +5,7 @@ import { PartsPage } from './page-objects/parts-page';
 import { AIDialogPage } from './page-objects/ai-dialog-page';
 import { LocationEditorPage } from './page-objects/location-editor-page';
 import { DocumentGridPage } from './page-objects/document-grid-page';
+import { getBackendUrl } from './backend-url';
 import {
   TestEventCapture,
   createTestEventCapture,
@@ -39,8 +40,7 @@ export const test = base.extend<TestFixtures>({
   },
 
   backendUrl: async ({}, use) => {
-    const url = process.env.BACKEND_URL || 'http://localhost:5100';
-    await use(url);
+    await use(getBackendUrl());
   },
 
   sseTimeout: async ({}, use) => {
