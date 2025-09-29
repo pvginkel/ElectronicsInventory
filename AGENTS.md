@@ -15,6 +15,13 @@ app/
 └── utils/        # Shared utilities and error handling
 ```
 
+## Sandbox Environment
+
+- Backend and frontend worktrees are bind-mounted into `/work` inside the container.
+- Each repository’s `.git` directory is mapped read-only, so staging or committing must happen outside the sandbox.
+- The container includes the standard project toolchain; request Dockerfile updates if more tooling is needed.
+- With Git safeguarded externally, no additional safety guardrails are enforced beyond the project’s own guidelines.
+
 ## Code Organization Patterns
 
 ### 1. API Layer (`app/api/`)
@@ -158,6 +165,29 @@ class TestPartService:
 - ✅ Model constraints and relationships
 - ✅ Cascade behavior
 - ✅ Data integrity
+
+### Readability Comments
+- Add short “guidepost” comments in non-trivial functions to outline the flow or highlight invariants.
+- Keep existing explanatory comments unless they are clearly wrong; prefer updating over deleting.
+- Focus on intent-level commentary (why/what) rather than narrating obvious statements (how).
+
+## S3 Storage Consistency
+
+The document pipeline maintains two invariants:
+- Database rows for `PartAttachment` must only persist when the corresponding object is present in S3.
+- S3 deletions must never execute before the database commit that removes the attachment row.
+
+**Safe upload sequence**
+- Stage validation and metadata (bytes, filename, inferred attachment type) before touching S3.
+- Insert the `PartAttachment`, flush, and only then attempt the S3 upload.
+- On any storage error, set `session.info['needs_rollback'] = True`, log context, and re-raise so request teardown rolls the transaction back.
+
+**Safe delete sequence**
+- Capture the attachment metadata (S3 key, cover-image status) first.
+- Reassign the cover image, delete the row, flush, and commit the transaction.
+- After the commit succeeds, attempt the S3 deletion and log (but do not raise) any failure so operators can reconcile orphaned objects without resurrecting the row.
+
+Unit and integration tests must stub the S3 service to cover both success paths and failure handling for these sequences.
 
 ## Code Quality Standards
 
