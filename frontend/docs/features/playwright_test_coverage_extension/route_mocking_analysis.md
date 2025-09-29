@@ -4,21 +4,22 @@ This document inventories every mocking hook we currently use in the Playwright 
 
 ## Inventory of Route / SSE Mocks
 
-| Location | Endpoint / Helper | Purpose of Mock | Data Setup Fix? | Backend Support Needed? | Remove Test? | Notes |
-| --- | --- | --- | --- | --- | --- | --- |
-| `tests/e2e/types/type-list.spec.ts:17` | `page.route('**/api/types?include_stats=true', abort)` | Force a network failure to assert the error state UI | No – requires server-side failure | Yes – add test hook to emit 5xx when a sentinel query/header is present | No | Keep the assertion but trigger it via backend feature flag (e.g., `?testFailure=types`) |
-| `tests/e2e/types/type-list.spec.ts:32` | Capture request to delay fulfillment for skeleton assertions | No – skeleton needs deterministic delay | Yes – expose backend delay toggle or add frontend test events for loading | No | Prefer emitting a `query:start` test event or backend delay flag instead of interception |
-| `tests/e2e/types/type-list.spec.ts:50` | Return `[]` so the "No types yet" empty state renders | No – shared DB makes global emptiness impossible | Yes – support per-test tenant or scoped listing via backend | No | Backend could accept `?testTenant=<id>` seeded via factory to isolate results |
-| `tests/e2e/types/type-list.spec.ts:68` | Return static list to exercise search persistence | **Yes** – seed three types via factories and rely on real API | No | No | Replace with `testData.types.create` calls and allow real backend filtering |
-| `tests/e2e/types/type-selector.spec.ts:75` | Stub `POST /api/ai-parts/analyze` to hand out mock SSE stream URL | No – depends on AI service behaviour | Yes – backend should return deterministic stream when prompt contains sentinel | No | Introduce backend testing endpoint that registers a prebaked stream before the UI call |
-| `tests/e2e/parts/part-list.spec.ts:13` | Delay `GET /api/parts/with-locations` to catch loading skeleton | No | Yes – same approach as Types (delay toggle or test-event instrumentation) | No | Emit loading test events or allow backend to delay when header is set |
-| `tests/e2e/parts/part-list.spec.ts:33` | Force `500` to assert list error state | No | Yes – backend hook for 5xx | Optional | If we decide the UI shouldn't assert on network failures, drop the test; otherwise add backend toggle |
-| `tests/e2e/parts/part-ai-creation.spec.ts:53` | Stub `POST /api/ai-parts/analyze` for AI dialog | No | Yes – sentinel-based analysis response | No | Same mechanism as TypeSelector |
-| `tests/e2e/parts/part-ai-creation.spec.ts:61` | Intercept `POST /api/ai-parts/create` to call `/api/parts` directly | No – UI expects AI service orchestration | Yes – backend needs a testing path that creates deterministic parts for AI flows | No | Add backend testing endpoint (e.g., `/api/testing/ai/create`) triggered by sentinel prompt |
-| `tests/e2e/parts/part-documents.spec.ts:61-185` | Stub attachments CRUD, cover toggle, previews, thumbnails | No – current backend requires S3 and lacks lightweight fixtures | Yes – provide testing endpoints for attachments that return placeholder assets | No | Implement backend helpers that accept simple JSON payloads and serve canned thumbnails/previews |
-| `tests/e2e/specific/cover-presence.spec.ts:66-125` | Fabricate list of parts and cover assets | No – depends on attachment support above | Yes – once attachments API is test-friendly we can seed real parts | No | After backend supports attachments/cover via factories, rewrite test to use them |
-| `tests/support/helpers/sse-mock.ts:48-137` | `sseMocker.mockSSE` & `sendEvent` | Simulate AI SSE stream events | No (today) | Yes – backend should emit canned streams when prompted with sentinel text | No | Keep helper only as thin transport once backend can be triggered without interception |
-| `tests/support/helpers/sse-mock.ts:465-520` | `simulateDeploymentUpdate` / `simulateDeploymentSequence` | Fake deployment-version SSE notifications and banner state | No | Yes – backend should deliver version updates keyed by request ID or sentinel stream | No | Add backend support that processes `X-Request-Id` on `EventSource` and emits "deployment" events when test code calls a coordinating endpoint |
+| Location                                           | Endpoint / Helper                                                   | Purpose of Mock                                                 | Data Setup Fix?                                                                | Backend Support Needed?                                                                                                                                                             | Remove Test? | Notes |
+| -------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/e2e/types/type-list.spec.ts:17`             | `page.route('**/api/types?include_stats=true', abort)`              | Force a network failure to assert the error state UI            | No                                                                             | No                                                                                                                                                                                  | **Yes**      | Drop this scenario—we do not simulate transient network failures in Playwright.                                                             |
+| `tests/e2e/types/type-list.spec.ts:32`             | `page.route('**/api/types?include_stats=true', handler)`            | Pause the list response to surface loading skeletons            | No – requires a deterministic delay                                | **Yes** – add backend delay toggles or assert via frontend test events                                                                       | **No**       | Replace interception with backend-controlled delays or explicit loading instrumentation.                                                    |
+| `tests/e2e/types/type-list.spec.ts:50`             | `page.route('**/api/types?include_stats=true', fulfill [])`         | Force an empty list to render the "no types" state              | No – baseline migrations seed required types                       | No                                                                                                                                                                                  | **Yes**      | Empty state cannot occur in production; remove the test.                                                                                    |
+| `tests/e2e/types/type-list.spec.ts:68`             | `page.route('**/api/types?include_stats=true', fulfill list)`       | Provide deterministic data for search persistence               | **Yes** – seed three types via factories                           | No                                                                                                                                                                                  | **No**       | Seed data with `testData.types.create` and exercise the real endpoint.                                                                      |
+| `tests/e2e/types/type-selector.spec.ts:75`         | `POST /api/ai-parts/analyze`                                       | Hand out a canned SSE stream for AI review                      | No – depends on AI service behaviour                               | **Yes** – backend should return a deterministic stream for sentinel prompts                                                                  | **No**       | Introduce a backend testing endpoint that registers the stream ahead of the UI call.                                                        |
+| `tests/e2e/parts/part-list.spec.ts:13`             | `GET /api/parts/with-locations`                                    | Delay list fetch to surface loading skeletons                   | No                                                                 | **Yes** – mirror the Types solution (delay toggle or loading test events)                                                                     | **No**       | Move to backend-controlled delays or explicit instrumentation; stop intercepting once available.                                           |
+| `tests/e2e/parts/part-list.spec.ts:33`             | `GET /api/parts/with-locations`                                    | Force a 500 response to assert error state                      | No                                                                 | No                                                                                                                                                                                  | **Yes**      | Remove this test; we are not simulating random network failures.                                                                           |
+| `tests/e2e/parts/part-ai-creation.spec.ts:53`      | `POST /api/ai-parts/analyze`                                       | Provide SSE data for the AI analysis dialog                     | No                                                                 | No (keep mocked for now)                                                                                                                                                           | **No**       | Retain the SSE mock for this flow and document the lint waiver covering the exception.                                                      |
+| `tests/e2e/parts/part-ai-creation.spec.ts:61`      | `POST /api/ai-parts/create`                                        | Proxy AI create requests to `/api/parts`                        | No – endpoint is callable directly                                  | No                                                                                                                                                                                  | **No**       | Stop intercepting; call `/api/ai-parts/create` directly in the test.                                                                       |
+| `tests/e2e/parts/part-documents.spec.ts:61-185`    | `GET/POST /api/parts/{part_key}/attachments*`                      | Stub attachments CRUD, cover toggles, thumbnails                | No – backend already exposes deterministic endpoints                | No                                                                                                                                                                                  | **No**       | Use the real API and leverage `/api/testing/fake-image?text=...` for placeholder assets.                                                   |
+| `tests/e2e/specific/cover-presence.spec.ts:66-125` | `GET /api/parts/with-locations**`, `GET /api/parts/{key}/cover*`   | Fabricate parts with/without cover assets                       | No – relies on proper attachment helpers                            | No                                                                                                                                                                                  | **No**       | Once attachments run against the backend, seed data via factories and drop the mocks entirely.                                             |
+| `tests/support/helpers/sse-mock.ts:48-137`         | `sseMocker.mockSSE` / `sendEvent`                                  | Simulate AI SSE stream events                                   | No (today)                                                         | Partial – long-term preference is backend-driven SSE, but AI analysis remains mocked for now                                                 | **No**       | Keep only the AI analysis SSE mock; every usage must include a documented lint suppression.                                                |
+| `tests/support/helpers/sse-mock.ts:465-520`        | `simulateDeploymentUpdate` / `simulateDeploymentSequence`          | Fake deployment-version SSE notifications and banner state      | No                                                                 | **Yes** – backend should emit deployment events keyed by the app-supplied request id                                                         | **No**       | Add backend support keyed by `X-Request-Id` so tests can trigger deployment streams without mocking.                                      |
+
 
 ### Additional Observations
 
@@ -29,12 +30,10 @@ This document inventories every mocking hook we currently use in the Playwright 
 ## Detailed Recommendations
 
 ### Types – `tests/e2e/types/type-list.spec.ts`
-- **Error state (line 17)**: retain the UI assertion, but add a backend testing hook (e.g., `GET /api/testing/fail-next?target=types`) that forces the next `/api/types` call to throw a 500. Tests would call the hook via `apiClient` before navigating.
-- **Loading skeleton (line 32)**: either
-  1. add a backend delay toggle activated via header/query, or
-  2. emit a `testEvent('types.list.load', { phase: 'start' })` in the frontend and assert against that without manipulating the network.
-- **Empty state (line 50)**: introduce backend scoping. Example: factories create a `testWorkspaceId`, and the list request includes `?workspace=<id>` so that only that workspace’s data is returned. Without that isolation we cannot guarantee emptiness.
-- **Search persistence (line 68)**: replace the mocked payload with three real types seeded by factories; nothing prevents using the live backend here.
+- **Error state (line 17)**: remove the test. We no longer simulate arbitrary network failures, so the Playwright suite should not intercept this request.
+- **Loading skeleton (line 32)**: move to instrumentation. Either expose a backend delay toggle or add a `types.list.load` test event so the test can assert the loading state without capturing the request.
+- **Empty state (line 50)**: remove the test—the application always ships with seed data, so this branch is unreachable.
+- **Search persistence (line 68)**: seed three types with `testData.types.create` and let the real endpoint handle filtering.
 
 ### Types – `tests/e2e/types/type-selector.spec.ts`
 - Replace the `analyze` stub with a backend sentinel. Proposed workflow:
@@ -43,27 +42,19 @@ This document inventories every mocking hook we currently use in the Playwright 
 - Treat SSE mocking as a thin wrapper that only drives already-registered backend streams; no direct application-side data fabrication should remain.
 
 ### Parts – `tests/e2e/parts/part-list.spec.ts`
-- Mirror the Types approach for skeleton and error-state tests. If we decide network failures are outside the UI contract, remove the error test entirely; otherwise, rely on the same backend failure hook.
+- Adopt the same strategy as Types: expose a deterministic loading signal (backend delay toggle or `parts.list.load` test event) and stop intercepting the list call.
+- Remove the 500-error scenario; we are not attempting to validate random network failures.
 
 ### Parts – `tests/e2e/parts/part-ai-creation.spec.ts`
-- Use the same sentinel-driven workflow as TypeSelector. The backend should own:
-  - Registering AI analysis payloads (`POST /api/testing/ai/register`)
-  - Streaming canned SSE events once the sentinel prompt is observed
-  - Optionally creating parts directly when `/api/ai-parts/create` receives a matching sentinel payload (so the test can avoid intercepting that endpoint).
-- `mockSSE` can remain as a control surface for test code to observe connections, but the actual events should originate from the backend.
+- Keep the SSE mock for the analysis dialog. This flow is still too complex to drive from the backend; make sure every usage carries the explicit lint suppression referencing the AI exception.
+- Drop the interception around `/api/ai-parts/create`; the test can call that endpoint directly with the payload generated from the review step.
 
 ### Parts – `tests/e2e/parts/part-documents.spec.ts`
-- Extend the backend with testing helpers, for example:
-  - `POST /api/testing/parts/{part_key}/attachments` to create placeholder attachments bound to the real part record.
-  - `POST /api/testing/attachments/{id}/set-cover` to toggle cover images.
-  - Static routes that return canned thumbnails/previews without hitting S3.
-- Once those exist, replace the mocked routes with real API calls using the existing factories.
+- Switch to the live attachments endpoints. They already support creating links and toggling covers, and the `/api/testing/fake-image?text=...` helper provides deterministic assets for thumbnails/previews.
+- Remove all `page.route` stubs in this spec once the test seeds attachments through the API client.
 
 ### Parts – `tests/e2e/specific/cover-presence.spec.ts`
-- After the attachment helpers are available, create two parts via factories:
-  1. Part with no attachments.
-  2. Part with an attachment marked as cover via backend helper.
-- The spec can then load the real list and assert on `has_cover_attachment` behaviour without any interception.
+- Once the document tests switch to the real attachments API, reuse the same helpers here: seed one part without attachments and one with a cover set via the backend, then drop the route stubs entirely.
 
 ### SSE Deployment Notifications – `simulateDeploymentUpdate` & `simulateDeploymentSequence`
 - Although not currently exercised by tests, these helpers should be backed by the service. Suggested approach:
@@ -74,14 +65,13 @@ This document inventories every mocking hook we currently use in the Playwright 
 
 ## SSE Mocking Considerations
 
-The current `SSEMocker` overrides the browser’s `EventSource` so tests can inject events directly. This is acceptable for rapid feedback, but to align with the real-backend policy we should:
+The current `SSEMocker` overrides the browser’s `EventSource` so tests can inject events directly. To stay within the real-backend policy:
 
-1. Use `SSEMocker` only as a transport inspection tool (to assert connection counts, etc.).
-2. Drive actual event payloads from the backend by registering them ahead of time with a testing endpoint.
-3. Require tests to interact with the UI using sentinel inputs (e.g., `test-response-12345`) that the backend recognises and responds to with the pre-registered SSE stream.
-4. For deployment notifications, add support for matching streams via `X-Request-Id`, allowing Playwright to trigger specific version sequences without mocking.
+1. Restrict mocking to explicitly approved flows—the AI analysis dialog is the only current exception, and every usage must carry a lint suppression that references this policy.
+2. For any new SSE coverage, register payloads through backend testing endpoints and use sentinel inputs (for example `test-response-12345`) so the live service emits the events without Playwright interception.
+3. Ensure the application includes a correlation id (e.g., `X-Request-Id`) on every `EventSource` connection so targeted backend triggers—like the deployment stream—can identify the correct subscriber.
 
-If a scenario arises where backend-driven SSE is infeasible, the test should include an inline waiver explaining why (`// eslint-disable-next-line testing/no-route-mocks -- backend cannot simulate live telemetry`). Each waiver needs review and sign-off.
+If a scenario truly cannot be exercised via the backend, document the limitation next to the lint suppression (`// eslint-disable-next-line testing/no-route-mocks -- backend cannot simulate live telemetry`) and secure sign-off from both frontend and backend maintainers.
 
 ## Enforcement Proposal
 
