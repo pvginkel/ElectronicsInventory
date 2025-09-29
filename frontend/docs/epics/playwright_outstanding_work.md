@@ -61,17 +61,17 @@ This document consolidates all remaining work for the Playwright test suite impl
 ## 4. Test Coverage Extension
 
 ### Core Test Infrastructure
-- [ ] Expand API factories and helpers
-  - [ ] Enhance `PartTestFactory` with stock/location/document helpers for complex UI preconditions
-  - [ ] Add `BoxTestFactory` with capacity defaults, location seeding, and part-assignment utilities
-  - [ ] Add `SellerTestFactory` with random name/URL generation and part linkage helpers
+- [x] Expand API factories and helpers
+  - [x] Enhance `PartTestFactory` with stock/location/document helpers for complex UI preconditions
+  - [x] Add `BoxTestFactory` with capacity defaults, location seeding, and part-assignment utilities
+  - [x] Add `SellerTestFactory` with random name/URL generation and part linkage helpers
 - [ ] Extend Playwright fixtures & page objects
-  - [ ] Shared helpers for toast assertions, test-event capture, SSE mocking, and file upload utilities
-  - [ ] Parts: list, detail, form, AI dialog, location editor, and document grid abstractions
+  - [x] Shared helpers for toast assertions, test-event capture, SSE mocking, and file upload utilities
+  - [x] Parts: list, detail, form, AI dialog, location editor, and document grid abstractions
   - [ ] Boxes: list/grid interactions and detailed location view helpers
   - [ ] Sellers: list/forms plus selector harness for inline creation
   - [ ] Dashboard: widget accessors (metrics, health score, low stock, docs, categories, storage) and sidebar/mobile shell controls
-- [ ] Add testing hooks to simulate deployment-version updates for banner coverage
+- [ ] Add testing hooks to simulate deployment-version updates for banner coverage (helpers exist; awaiting banner coverage)
 
 ### Types Feature Coverage
 - [x] Cover TypeList loading/empty/error states and persisted search queries

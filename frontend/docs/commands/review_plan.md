@@ -4,7 +4,7 @@ You have to look whether the plan conforms to:
 
 - @docs/commands/plan_feature.md
 - @docs/product_brief.md
-- @CLAUDE.md
+- @AGENTS.md
 
 And you have to check whether the plan fits within the current codebase.
 

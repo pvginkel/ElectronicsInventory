@@ -128,7 +128,7 @@ pnpm preview             # Preview production build locally
 
 ### Code Standards
 
-This project follows the development guidelines outlined in [CLAUDE.md](CLAUDE.md). Key principles:
+This project follows the development guidelines outlined in [AGENTS.md](AGENTS.md). Key principles:
 
 - **Type Safety First**: Use generated OpenAPI types exclusively
 - **Domain-Driven Architecture**: Organize code by business domains (parts, boxes, types)
@@ -181,7 +181,7 @@ Serves the production build locally for testing before deployment.
 This is a research project exploring AI-assisted development workflows. Contributions should follow these guidelines (see [docs/contribute/index.md](docs/contribute/index.md) for the complete contributor handbook):
 
 1. **Fork and Pull Request**: Create feature branches and submit PRs for review
-2. **Code Standards**: Follow patterns established in [CLAUDE.md](CLAUDE.md)
+2. **Code Standards**: Follow patterns established in [AGENTS.md](AGENTS.md)
 3. **Type Safety**: Maintain strict TypeScript compliance
 4. **Testing**: Add appropriate tests when the testing framework is implemented
 
