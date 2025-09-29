@@ -171,24 +171,6 @@ class TestPartService:
 - Keep existing explanatory comments unless they are clearly wrong; prefer updating over deleting.
 - Focus on intent-level commentary (why/what) rather than narrating obvious statements (how).
 
-## S3 Storage Consistency
-
-The document pipeline maintains two invariants:
-- Database rows for `PartAttachment` must only persist when the corresponding object is present in S3.
-- S3 deletions must never execute before the database commit that removes the attachment row.
-
-**Safe upload sequence**
-- Stage validation and metadata (bytes, filename, inferred attachment type) before touching S3.
-- Insert the `PartAttachment`, flush, and only then attempt the S3 upload.
-- On any storage error, set `session.info['needs_rollback'] = True`, log context, and re-raise so request teardown rolls the transaction back.
-
-**Safe delete sequence**
-- Capture the attachment metadata (S3 key, cover-image status) first.
-- Reassign the cover image, delete the row, flush, and commit the transaction.
-- After the commit succeeds, attempt the S3 deletion and log (but do not raise) any failure so operators can reconcile orphaned objects without resurrecting the row.
-
-Unit and integration tests must stub the S3 service to cover both success paths and failure handling for these sequences.
-
 ## Code Quality Standards
 
 ### Linting and Formatting

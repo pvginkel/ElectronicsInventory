@@ -159,7 +159,7 @@ poetry run python -m app.cli load-test-data --yes-i-am-sure
 
 ## Contributing
 
-This project follows strict code organization patterns and testing requirements as defined in [CLAUDE.md](CLAUDE.md).
+This project follows strict code organization patterns and testing requirements as defined in [AGENTS.md](AGENTS.md).
 
 **Pull Request Process**:
 1. Fork the repository and create a feature branch
