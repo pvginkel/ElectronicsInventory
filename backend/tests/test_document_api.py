@@ -1,15 +1,18 @@
 """Integration tests for document API endpoints."""
 
 import io
+import logging
 from unittest.mock import patch
 
 from flask import Flask
 from flask.testing import FlaskClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.part import Part
 from app.models.part_attachment import AttachmentType, PartAttachment
 from app.services.container import ServiceContainer
+from app.exceptions import InvalidOperationException
 
 
 class TestDocumentAPI:
@@ -18,7 +21,7 @@ class TestDocumentAPI:
     @patch('app.services.document_service.magic.from_buffer')
     @patch('app.services.s3_service.S3Service.upload_file', return_value=True)
     @patch('app.services.s3_service.S3Service.generate_s3_key', return_value="parts/TEST/attachments/test.jpg")
-    def test_create_file_attachment_success(self, mock_generate_key, mock_upload, mock_magic, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session, sample_image_file):
+    def test_create_file_attachment_success(self, _mock_generate_key, _mock_upload, mock_magic, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session, sample_image_file):
         """Test successful file attachment creation via API."""
         mock_magic.return_value = 'image/jpeg'
 
@@ -47,6 +50,58 @@ class TestDocumentAPI:
         assert data['attachment_type'] == 'image'
         assert data['filename'] == 'test.jpg'
         assert data['has_preview'] is True
+
+    @patch('app.services.document_service.magic.from_buffer')
+    @patch('app.services.s3_service.S3Service.upload_file')
+    @patch('app.services.s3_service.S3Service.generate_s3_key', return_value="parts/TEST/attachments/fail.jpg")
+    def test_create_file_attachment_s3_failure_rolls_back(
+        self,
+        _mock_generate_key,
+        mock_upload,
+        mock_magic,
+        client: FlaskClient,
+        app: Flask,
+        container: ServiceContainer,
+        session: Session,
+        sample_image_file,
+    ):
+        """S3 failures should trigger a rollback and leave the database unchanged."""
+        mock_magic.return_value = 'image/jpeg'
+        mock_upload.side_effect = InvalidOperationException("upload file", "S3 failure")
+
+        with app.app_context():
+            part_type = container.type_service().create_type("S3 Failure Type")
+            part = container.part_service().create_part(
+                description="S3 failure part",
+                manufacturer_code="FAIL-001",
+                type_id=part_type.id
+            )
+            session.commit()
+            part_id = part.id
+
+            sample_image_file.seek(0)
+            response = client.post(
+                f'/api/parts/{part.key}/attachments',
+                data={
+                    'title': 'Failure Image',
+                    'file': (sample_image_file, 'fail.jpg', 'image/jpeg')
+                },
+                content_type='multipart/form-data'
+            )
+
+        assert response.status_code == 409
+        error = response.get_json()
+        assert error['error'] == 'Cannot upload file because S3 failure'
+
+        session.expire_all()
+        remaining = session.scalars(
+            select(PartAttachment).where(PartAttachment.part_id == part_id)
+        ).all()
+        assert remaining == []
+
+        refreshed_part = session.get(Part, part_id)
+        assert refreshed_part.cover_attachment_id is None
+        mock_upload.assert_called_once()
 
     @patch('app.services.document_service.DocumentService.process_upload_url')
     def test_create_url_attachment_success(self, mock_process_url, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
@@ -239,7 +294,7 @@ class TestDocumentAPI:
         assert 'has_preview' in data  # Field should be present in update responses
 
     @patch('app.services.s3_service.S3Service.delete_file', return_value=True)
-    def test_delete_attachment(self, mock_delete, client: FlaskClient, container: ServiceContainer, session: Session):
+    def test_delete_attachment(self, _mock_delete, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test deleting attachment."""
         # Create test part using service
         part_type = container.type_service().create_type("Delete Test Type")
@@ -263,6 +318,41 @@ class TestDocumentAPI:
         response = client.delete(f'/api/parts/{part.key}/attachments/{attachment_id}')
 
         assert response.status_code == 204
+
+    @patch('app.services.s3_service.S3Service.delete_file')
+    def test_delete_attachment_s3_failure_logs(self, mock_delete, client: FlaskClient, container: ServiceContainer, session: Session, caplog):
+        """Deleting an attachment should log S3 failures but keep the database consistent."""
+        caplog.set_level(logging.WARNING, logger='app.services.document_service')
+        mock_delete.side_effect = InvalidOperationException("delete file", "S3 missing")
+
+        part_type = container.type_service().create_type("Delete Failure Type")
+        part = container.part_service().create_part(
+            description="Delete failure part",
+            manufacturer_code="DFLT-001",
+            type_id=part_type.id
+        )
+        session.commit()
+
+        attachment = PartAttachment(
+            part_id=part.id,
+            attachment_type=AttachmentType.IMAGE,
+            title="To Delete",
+            s3_key="missing.jpg"
+        )
+        session.add(attachment)
+        session.commit()
+
+        response = client.delete(f'/api/parts/{part.key}/attachments/{attachment.id}')
+
+        assert response.status_code == 204
+
+        session.expire_all()
+        remaining = session.scalars(
+            select(PartAttachment).where(PartAttachment.part_id == part.id)
+        ).all()
+        assert remaining == []
+
+        assert any("S3 deletion failed" in record.message for record in caplog.records)
 
     @patch('app.services.s3_service.S3Service.download_file', return_value=io.BytesIO(b"fake pdf content"))
     def test_download_attachment(self, mock_download, client: FlaskClient, container: ServiceContainer, session: Session):

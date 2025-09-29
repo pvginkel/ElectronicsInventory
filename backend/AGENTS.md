@@ -222,6 +222,12 @@ poetry run pytest          # Full test suite
 - Use `scalars().all()` for multiple results
 - Always handle the case where records don't exist
 
+## S3 Storage Consistency
+
+- Persist attachment rows (and cover updates) before hitting S3. Flush the session, then perform uploads so a failure rolls the transaction back instead of leaving orphaned blobs.
+- On deletes, remove the row, handle cover reassignment, flush, then attempt S3 deletion. Log and swallow storage errors because S3 cleanup is best-effort.
+- When copying attachments, create and flush the cloned row first, then copy the object in S3 and surface any failure as an `InvalidOperationException`.
+
 ## Development Workflow
 
 1. **Plan** - Understand requirements from `docs/product_brief.md`
