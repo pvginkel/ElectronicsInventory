@@ -1,7 +1,7 @@
 # Playwright Deployment SSE Support
 
 ## Brief Description
-Enable deployment-version notifications to run exclusively against the real backend by attaching deterministic correlation ids to SSE connections, wiring the deployment banner to use them, and removing the Playwright-only deployment stream mocks. Tests will drive backend-provisioned events once the matching trigger endpoint lands.
+Enable deployment-version notifications to run exclusively against the real backend by attaching deterministic correlation ids to SSE connections, wiring the deployment banner to use them, and removing the Playwright-only deployment stream mocks. Backend support (request_id-aware stream plus `POST /api/testing/deployments/version`) is live, so the plan now focuses on integrating with those services.
 
 ## Files / Modules In Scope
 - `src/hooks/use-version-sse.ts` — origin of the deployment EventSource connection; needs request-id handling and query-string injection.
@@ -28,32 +28,33 @@ Enable deployment-version notifications to run exclusively against the real back
 
 3. **Update `useVersionSSE` connection**
    - Expand `useVersionSSE` to accept optional `requestId` and `extraParams` args when invoking `connect`.
-   - Build the stream URL as `/api/utils/version/stream?${params.toString()}` with `params.set('requestId', requestId)` whenever provided.
+   - Build the stream URL as `/api/utils/version/stream?${params.toString()}` with `params.set('request_id', requestId)` whenever provided, matching the backend contract.
    - Maintain existing retry/backoff logic; the only change is the URL construction.
    - Fail fast (throw or console.error + abort connect) when running outside `import.meta.env.DEV` and no request id is passed so missing wiring surfaces immediately; continue tolerating the omission in development to avoid breaking local exploration.
 
 4. **Surface id for instrumentation and tests**
    - Emit a test event once the deployment SSE connects via the existing `emitTestEvent` helper (`src/lib/test/event-emitter.ts`) using the current taxonomy, for example `emitTestEvent({ kind: 'sse', streamId: 'deployment.version', phase: 'open', event: 'connected', data: { requestId } })`, and guard it behind `isTestMode()` so Playwright can capture the id for backend triggers.
-   - Update `tests/support/helpers/test-events.ts` to provide assertion helpers for the new `kind: 'sse'` event so the future spec can wait on it without bypassing the schema.
+   - Update `tests/support/helpers/test-events.ts` to provide assertion helpers for the new `kind: 'sse'` event so the future spec can wait on it without bypassing the schema, and mention in the helper docs that backend events now echo the `request_id` on every message for correlation.
 
 5. **Detach deployment mocks**
    - Remove `simulateDeploymentUpdate` and `simulateDeploymentSequence` definitions from `tests/support/helpers/sse-mock.ts` (`lines 465-520`). If other helpers reference them, replace calls with `throw new Error('Removed – use backend trigger')` so accidental usage fails loudly.
    - Add an inline comment near the remaining `SSEMocker` exports clarifying that AI analysis is the only permitted mock (per route-mocking analysis).
 
 6. **Plan the Playwright spec scaffold**
-   - Create `tests/e2e/deployment/deployment-banner.spec.ts` with a skipped test outlining the intended flow: seed backend trigger (pending endpoint), wait for the `kind: 'sse'` event with `streamId: 'deployment.version'` and `phase: 'open'`, call the trigger, assert banner visibility.
-   - Document the prerequisites in a leading comment so it’s unskipped once backend work finishes.
+   - Create `tests/e2e/deployment/deployment-banner.spec.ts` with a skipped test outlining the intended flow: reset/request the correlation id, wait for the `kind: 'sse'` event with `streamId: 'deployment.version'` and `phase: 'open'`, call the real trigger endpoint (`POST /api/testing/deployments/version`), assert banner visibility, and verify the SSE payload includes the echoed `request_id`.
+   - Capture/assert the trigger response’s delivery flag (immediate vs queued) so the spec reflects how the backend communicates hand-off state.
+   - Document the prerequisites in a leading comment so it’s unskipped once frontend wiring lands; backend support is ready.
 
 7. **Documentation touch points**
-   - Update `docs/contribute/testing/playwright_developer_guide.md` to call out that deployment coverage relies on the new SSE correlation query param and backend trigger, replacing the old mock section.
-   - Amend `docs/features/playwright_test_coverage_extension/route_mocking_analysis.md` to mark the deployment mock removal as “In progress/complete” and link back to this feature plan.
+   - Update `docs/contribute/testing/playwright_developer_guide.md` to call out that deployment coverage relies on the `request_id` query param and the `POST /api/testing/deployments/version` trigger, replacing the old mock section.
+   - Amend `docs/features/playwright_test_coverage_extension/route_mocking_analysis.md` to mark the deployment mock removal as “In progress/complete” and link back to this feature plan (highlight the backend’s `request_id` echo semantics).
 
 8. **Validation steps**
-   - Manually load the app in production build mode (`pnpm build && pnpm preview`) and verify via browser devtools network panel that the deployment SSE request includes `?requestId=` and uses a stable value across reconnects.
-   - In Playwright test mode, assert the emitted request id persists across reconnects, and exercise `window.__resetDeploymentRequestId` (via the helper) to confirm the next connection receives a fresh id.
+   - Manually load the app in production build mode (`pnpm build && pnpm preview`) and verify via browser devtools network panel that the deployment SSE request includes `?request_id=` and uses a stable value across reconnects.
+   - In Playwright test mode, assert the emitted `requestId` persists across reconnects, and exercise `window.__resetDeploymentRequestId` (via the helper) to confirm the next connection receives a fresh id that is threaded through to the backend as `request_id`.
 
-## Backend Coordination Requirements
-- Accept a `requestId` query parameter on `GET /api/utils/version/stream` and expose it to the streaming logic so events can be targeted per client.
-- Add `POST /api/testing/deployments/trigger` taking `{ requestId, version, changelog? }`; the handler should queue events and, when the matching SSE subscriber connects, push the real deployment payload over the live stream.
-- Ensure telemetry/logging records the correlation id for debugging failed deliveries.
-- Provide a deterministic fixture payload (version string, changelog text) documented for Playwright usage.
+## Backend Support (implemented)
+- `GET /api/utils/version/stream` now accepts `request_id`, registers every subscription with `VersionService`, and emits the correlation id with each event (auto-generating when none supplied).
+- `POST /api/testing/deployments/version` accepts `{ request_id, version, changelog? }`, delivering immediately when possible or queueing until the matching subscriber reconnects.
+- Deterministic assets for Playwright live under `/api/testing/content/*` (see accompanying AI flow plan) and should be treated as the canonical fixtures.
+- Telemetry already records the correlation id; frontend work should surface/log it where helpful.

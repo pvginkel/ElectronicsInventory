@@ -10,7 +10,7 @@ Re-align the AI-assisted Playwright flows with the real-backend policy from `doc
 - `tests/e2e/parts/part-ai-creation.spec.ts` — remove the `page.route('**/api/ai-parts/create', …)` interception, adopt the shared helper, and capture the created part from the real response/navigation.
 - `tests/e2e/types/type-selector.spec.ts` — drop inline mocking logic, reuse the shared helper for AI analysis, and keep the test focused on UI behaviour.
 - `tests/support/helpers/sse-mock.ts` — extend with any utility needed by the helper (e.g., connection waiters) and document the AI exception inline.
-- Backend repository (external dependency) — surface `/api/testing/ai/documents/*` endpoints; unblock this plan once they ship.
+- Backend repository (implemented) — `/api/testing/content/*` endpoints (image, pdf, html, html-with-banner) now live; coordinate with backend notes in `../backend/docs/features/testing_content_deployment_support/backend_changes.md`.
 
 ## Technical Steps
 1. **Introduce shared AI analysis mock helper**
@@ -24,13 +24,14 @@ Re-align the AI-assisted Playwright flows with the real-backend policy from `doc
    - Extend `tests/support/fixtures.ts` with a fixture (e.g., `aiAnalysisMock`) that instantiates the helper per test, guarantees `dispose()` runs in `finally`, and surfaces helper methods to specs alongside existing fixtures.
    - Ensure any new TypeScript types live next to the helper and are imported into the fixture without weakening strict mode.
 
-3. **Expose deterministic document fixtures via testing endpoints**
-   - Add backend testing routes that serve stable assets consumed by the AI flows (delivered by the backend team; treat as a blocking external prerequisite):
-     - `GET /api/testing/ai/documents/pdf?title=<text>` → returns a small deterministic PDF whose metadata/title matches the provided query string.
-     - `GET /api/testing/ai/documents/html?title=<text>` → returns HTML without a banner, with the `<title>` element set from the query string.
-     - `GET /api/testing/ai/documents/html-with-banner?title=<text>` → returns HTML containing the standard banner wrapper plus the configurable title.
-   - Document these endpoints in `docs/contribute/testing/factories_and_fixtures.md` so Playwright authors know how to stage documents for the AI create payload without fabricating external URLs.
-   - Update the AI specs to point their document suggestions at the new endpoints using the dynamic backend base URL (e.g., ``const documentBase = `${backendUrl}/api/testing/ai/documents`;``) so the `create` request stays fully backed by the real backend in every environment.
+3. **Adopt deterministic document fixtures from backend testing endpoints**
+   - Backend work has landed; rely on the shipped routes instead of fabricating documents:
+     - `GET /api/testing/content/pdf?title=<text>` → streams a deterministic PDF (see backend notes for bundled asset expectations).
+     - `GET /api/testing/content/html?title=<text>` → returns HTML without the banner wrapper.
+     - `GET /api/testing/content/html-with-banner?title=<text>` → returns HTML that includes the standard banner wrapper alongside the supplied title.
+   - Document the `/api/testing/content/*` family in `docs/contribute/testing/factories_and_fixtures.md`, including the renamed image helper so authors stop referencing the legacy path.
+   - Update AI specs to reference the new base path (e.g., ``const documentBase = `${backendUrl}/api/testing/content`;``) so `/api/ai-parts/create` remains fully backed by the real backend in every environment.
+   - Action item: every mention of the old `/api/testing/fake-image` helper must be updated to `/api/testing/content/image` (including docs and fixtures) to stay aligned with the backend rename.
 
 4. **Refactor `part-ai-creation.spec.ts` to rely on the real create endpoint**
    - Replace inline `page.route` and manual SSE event code with the helper/fixture methods; the spec should only orchestrate the scenario at a high level.
