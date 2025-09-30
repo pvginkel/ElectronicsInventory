@@ -4,6 +4,8 @@ import io
 import json
 import threading
 import time
+from pathlib import Path
+from urllib.parse import urlsplit
 from unittest.mock import Mock, patch
 
 import pytest
@@ -13,7 +15,9 @@ from PIL import Image
 
 from app import create_app
 from app.config import Settings
+from app.models.part_attachment import AttachmentType
 from app.services.container import ServiceContainer
+from app.services.download_cache_service import DownloadResult
 from app.utils.log_capture import LogCaptureHandler, SSELogClient
 
 
@@ -134,13 +138,13 @@ class TestTestingEndpoints:
             assert data1["status"] == data2["status"] == "complete"
             assert data1["seeded"] == data2["seeded"] is True
 
-    def test_fake_image_endpoint_generates_expected_png(self, client: FlaskClient):
-        """Test that the fake image endpoint returns a valid PNG with text rendering."""
-        response = client.get("/api/testing/fake-image", query_string={"text": "Hello"})
+    def test_content_image_endpoint_generates_expected_png(self, client: FlaskClient):
+        """Test that the content image endpoint returns a deterministic PNG with text rendering."""
+        response = client.get("/api/testing/content/image", query_string={"text": "Hello"})
 
         assert response.status_code == 200
         assert response.mimetype == "image/png"
-        assert response.headers.get("Content-Disposition") == "attachment; filename=fake-image.png"
+        assert response.headers.get("Content-Disposition") == "attachment; filename=testing-content-image.png"
         assert response.headers.get("Cache-Control") == "no-store, no-cache, must-revalidate, max-age=0"
         assert response.headers.get("Pragma") == "no-cache"
 
@@ -154,12 +158,12 @@ class TestTestingEndpoints:
             background_pixel = image.getpixel((10, 10))
             assert background_pixel == (36, 120, 189)
 
-        has_dark_pixel = any(all(channel <= 32 for channel in pixel) for pixel in image.getdata())
-        assert has_dark_pixel, "Expected at least one dark pixel representing rendered text"
+            has_dark_pixel = any(all(channel <= 32 for channel in pixel) for pixel in image.getdata())
+            assert has_dark_pixel, "Expected at least one dark pixel representing rendered text"
 
-    def test_fake_image_endpoint_requires_text_parameter(self, client: FlaskClient):
-        """Test that the fake image endpoint enforces required query parameters."""
-        response = client.get("/api/testing/fake-image")
+    def test_content_image_endpoint_requires_text_parameter(self, client: FlaskClient):
+        """Test that the content image endpoint enforces required query parameters."""
+        response = client.get("/api/testing/content/image")
 
         assert response.status_code == 400
         payload = response.get_json()
@@ -172,6 +176,171 @@ class TestTestingEndpoints:
         first_error = payload[0]
         assert first_error.get("msg") == "Field required"
         assert first_error.get("loc") == ["text"]
+
+    def test_content_pdf_endpoint_returns_bundled_asset(self, client: FlaskClient):
+        """Test that the content PDF endpoint streams the bundled fixture."""
+        response = client.get("/api/testing/content/pdf")
+
+        assert response.status_code == 200
+        assert response.mimetype == "application/pdf"
+        assert response.headers.get("Content-Disposition") == "attachment; filename=testing-content.pdf"
+        assert response.headers.get("Cache-Control") == "no-store, no-cache, must-revalidate, max-age=0"
+
+        pdf_path = Path(__file__).resolve().parents[2] / "app" / "assets" / "fake-pdf.pdf"
+        expected_bytes = pdf_path.read_bytes()
+        assert response.data == expected_bytes
+        assert response.headers.get("Content-Length") == str(len(expected_bytes))
+
+    def test_content_html_endpoint_renders_expected_markup(self, client: FlaskClient):
+        """Test HTML content fixture without banner markup."""
+        response = client.get("/api/testing/content/html", query_string={"title": "Fixture Title"})
+
+        assert response.status_code == 200
+        assert response.mimetype == "text/html"
+
+        html_body = response.get_data(as_text=True)
+        assert "<title>Fixture Title</title>" in html_body
+        assert "data-testid=\"deployment-notification\"" not in html_body
+        assert "og:image\" content=\"/api/testing/content/image?text=Fixture+Preview\"" in html_body
+        assert response.headers.get("Content-Length") == str(len(response.data))
+
+    def test_content_html_with_banner_includes_banner_markup(self, client: FlaskClient):
+        """Test HTML content fixture that includes the deployment banner markup."""
+        response = client.get(
+            "/api/testing/content/html-with-banner",
+            query_string={"title": "Release Title"}
+        )
+
+        assert response.status_code == 200
+        html_body = response.get_data(as_text=True)
+        assert "data-testid=\"deployment-notification\"" in html_body
+        assert "data-testid=\"deployment-notification-reload\"" in html_body
+        assert "Release Title" in html_body
+
+    def test_content_html_endpoints_require_title(self, client: FlaskClient):
+        """HTML fixtures should enforce the required title query parameter."""
+        for path in ["/api/testing/content/html", "/api/testing/content/html-with-banner"]:
+            response = client.get(path)
+            assert response.status_code == 400
+            payload = response.get_json()
+            if isinstance(payload, str):
+                payload = json.loads(payload)
+            first_error = payload[0]
+            assert first_error.get("loc") == ["title"]
+
+    def test_document_service_process_upload_url_for_testing_content(
+        self,
+        client: FlaskClient,
+        container: ServiceContainer,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Integration test ensuring DocumentService ingests deterministic content fixtures."""
+
+        document_service = container.document_service()
+        download_service = document_service.download_cache_service
+        html_download_service = document_service.html_handler.download_cache_service
+
+        def fake_download(url: str) -> DownloadResult:
+            parsed = urlsplit(url)
+            path = parsed.path or "/"
+            query = f"?{parsed.query}" if parsed.query else ""
+            response = client.get(f"{path}{query}")
+            assert response.status_code == 200, f"Unexpected status {response.status_code} for {url}"
+            mimetype = response.mimetype or response.headers.get("Content-Type", "application/octet-stream")
+            return DownloadResult(content=response.data, content_type=mimetype)
+
+        monkeypatch.setattr(download_service, "_download_url", fake_download)
+        monkeypatch.setattr(html_download_service, "_download_url", fake_download)
+
+        base_url = "http://localhost.test"
+
+        image_result = document_service.process_upload_url(
+            f"{base_url}/api/testing/content/image?text=Document+Image"
+        )
+        assert image_result.detected_type == AttachmentType.IMAGE
+        assert image_result.content.content_type == "image/png"
+        assert image_result.preview_image is None
+
+        pdf_result = document_service.process_upload_url(
+            f"{base_url}/api/testing/content/pdf"
+        )
+        assert pdf_result.detected_type == AttachmentType.PDF
+        assert pdf_result.content.content_type == "application/pdf"
+        assert pdf_result.preview_image is None
+
+        html_result = document_service.process_upload_url(
+            f"{base_url}/api/testing/content/html-with-banner?title=Banner+Title"
+        )
+        assert html_result.detected_type == AttachmentType.URL
+        assert html_result.content.content_type == "text/html"
+        assert html_result.title == "Banner Title"
+        assert html_result.preview_image is not None
+        assert html_result.preview_image.content_type == "image/png"
+
+    def test_deployment_trigger_endpoint_queues_event_for_future_subscriber(
+        self,
+        client: FlaskClient,
+        container: ServiceContainer,
+    ):
+        version_service = container.version_service()
+        request_id = "playwright-queued"
+
+        response = client.post(
+            "/api/testing/deployments/version",
+            json={"request_id": request_id, "version": "2024.01.0"}
+        )
+
+        assert response.status_code == 202
+        payload = response.get_json()
+        assert payload == {
+            "requestId": request_id,
+            "delivered": False,
+            "status": "queued"
+        }
+
+        queue = version_service.register_subscriber(request_id)
+        try:
+            event_name, event_payload = queue.get_nowait()
+            assert event_name == "version"
+            assert event_payload["version"] == "2024.01.0"
+        finally:
+            version_service.unregister_subscriber(request_id)
+
+    def test_deployment_trigger_endpoint_delivers_to_active_subscriber(
+        self,
+        client: FlaskClient,
+        container: ServiceContainer,
+    ):
+        version_service = container.version_service()
+        request_id = "playwright-live"
+        queue = version_service.register_subscriber(request_id)
+
+        try:
+            response = client.post(
+                "/api/testing/deployments/version",
+                json={
+                    "request_id": request_id,
+                    "version": "2024.02.1",
+                    "changelog": "Testing banner copy"
+                }
+            )
+
+            assert response.status_code == 202
+            payload = response.get_json()
+            assert payload == {
+                "requestId": request_id,
+                "delivered": True,
+                "status": "delivered"
+            }
+
+            event_name, event_payload = queue.get_nowait()
+            assert event_name == "version"
+            assert event_payload == {
+                "version": "2024.02.1",
+                "changelog": "Testing banner copy"
+            }
+        finally:
+            version_service.unregister_subscriber(request_id)
 
     @patch('app.services.testing_service.drop_all_tables')
     def test_reset_endpoint_error_handling(self, mock_drop_tables, client: FlaskClient):
@@ -447,9 +616,9 @@ class TestTestingEndpointsNonTestingMode:
         assert data["code"] == "ROUTE_NOT_AVAILABLE"
         assert data["details"]["message"] == "Testing endpoints require FLASK_ENV=testing"
 
-    def test_fake_image_endpoint_returns_400_in_non_testing_mode(self, non_testing_client: FlaskClient):
-        """Test that fake image endpoint is unavailable outside testing mode."""
-        response = non_testing_client.get("/api/testing/fake-image", query_string={"text": "Hello"})
+    def test_content_image_endpoint_returns_400_in_non_testing_mode(self, non_testing_client: FlaskClient):
+        """Test that content image endpoint is unavailable outside testing mode."""
+        response = non_testing_client.get("/api/testing/content/image", query_string={"text": "Hello"})
 
         assert response.status_code == 400
         data = response.get_json()
@@ -486,12 +655,16 @@ class TestTestingEndpointsNonTestingMode:
         endpoints = [
             ("/api/testing/reset", "POST"),
             ("/api/testing/logs/stream", "GET"),
-            ("/api/testing/fake-image?text=test", "GET"),
+            ("/api/testing/content/image?text=test", "GET"),
+            ("/api/testing/content/pdf", "GET"),
+            ("/api/testing/content/html?title=Fixture", "GET"),
+            ("/api/testing/content/html-with-banner?title=Fixture", "GET"),
+            ("/api/testing/deployments/version", "POST"),
         ]
 
         for endpoint, method in endpoints:
             if method == "POST":
-                response = non_testing_client.post(endpoint)
+                response = non_testing_client.post(endpoint, json={})
             else:
                 response = non_testing_client.get(endpoint)
 

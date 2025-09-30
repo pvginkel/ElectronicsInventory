@@ -10,7 +10,7 @@ podTemplate(inheritFrom: 'jenkins-agent kaniko') {
                 url: 'https://github.com/pvginkel/ElectronicsInventory.git'
         }
 
-        stage("Building ElectronicsIventory") {
+        stage("Building ElectronicsInventory") {
             container('kaniko') {
                 helmCharts.kaniko([
                     "registry:5000/electronics-inventory:${currentBuild.number}",

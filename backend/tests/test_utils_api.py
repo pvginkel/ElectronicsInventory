@@ -1,5 +1,6 @@
 """Tests for infrastructure utility endpoints."""
 
+import threading
 from unittest.mock import Mock, patch
 
 import pytest
@@ -8,6 +9,7 @@ from flask import Flask
 
 from app.services.container import ServiceContainer
 from app.services.version_service import VersionService
+from app.utils.shutdown_coordinator import LifetimeEvent
 
 
 class TestUtilsAPI:
@@ -23,6 +25,59 @@ class TestUtilsAPI:
             assert 'text/event-stream' in response.headers['Content-Type']
             assert response.headers['Cache-Control'] == 'no-cache'
             assert 'Access-Control-Allow-Origin' in response.headers
+
+    def test_version_stream_with_request_id_registers_subscriber(
+        self,
+        client,
+        container: ServiceContainer,
+    ):
+        """Providing request_id should register with VersionService and include correlation IDs."""
+        version_service = container.version_service()
+        request_id = "stream-test-id"
+
+        with patch.object(version_service, 'fetch_frontend_version', return_value='{"version":"1.0.0"}'), \
+             patch.object(version_service, 'register_subscriber', wraps=version_service.register_subscriber) as mock_register, \
+             patch.object(version_service, 'unregister_subscriber', wraps=version_service.unregister_subscriber) as mock_unregister:
+
+            response = client.get('/api/utils/version/stream?request_id=' + request_id, buffered=False)
+            stream = response.response
+
+            first_chunk = next(stream).decode()
+            second_chunk = next(stream).decode()
+            third_chunk = next(stream).decode()
+
+            response.close()
+
+        assert mock_register.called
+        assert mock_unregister.called
+        assert 'connection_open' in first_chunk
+        assert f'"correlation_id": "{request_id}"' in first_chunk
+        assert 'event: version' in second_chunk
+        assert f'"correlation_id": "{request_id}"' in second_chunk
+        assert f'"correlation_id": "{request_id}"' in third_chunk
+
+    def test_version_stream_without_request_id_still_registers(
+        self,
+        client,
+        container: ServiceContainer,
+    ):
+        """Without request_id the stream registers with the generated correlation ID."""
+        version_service = container.version_service()
+
+        with patch.object(version_service, 'fetch_frontend_version', return_value='{"version":"1.0.0"}'), \
+             patch.object(version_service, 'register_subscriber', wraps=version_service.register_subscriber) as mock_register:
+
+            response = client.get('/api/utils/version/stream', buffered=False)
+            stream = response.response
+
+            first_chunk = next(stream).decode()
+            second_chunk = next(stream).decode()
+
+            response.close()
+
+        mock_register.assert_called_once()
+        assert 'correlation_id' in first_chunk
+        assert 'correlation_id' in second_chunk
 
 
 class TestVersionService:
@@ -72,6 +127,96 @@ class TestVersionService:
         with patch('requests.get', side_effect=requests.ConnectionError("Connection failed")):
             with pytest.raises(requests.ConnectionError):
                 version_service.fetch_frontend_version()
+
+    def test_queue_version_event_for_pending_subscriber(self, version_service: VersionService):
+        """Events should be queued for subscribers that have not connected yet."""
+        request_id = "vs-pending"
+
+        delivered = version_service.queue_version_event(request_id, "1.0.0")
+        assert delivered is False
+
+        queue = version_service.register_subscriber(request_id)
+        try:
+            event_name, payload = queue.get_nowait()
+            assert event_name == "version"
+            assert payload["version"] == "1.0.0"
+        finally:
+            version_service.unregister_subscriber(request_id)
+
+    def test_queue_version_event_for_active_subscriber(self, version_service: VersionService):
+        """Events should be delivered immediately to active subscribers."""
+        request_id = "vs-active"
+        queue = version_service.register_subscriber(request_id)
+
+        try:
+            delivered = version_service.queue_version_event(request_id, "2.0.0", changelog="Details")
+            assert delivered is True
+            event_name, payload = queue.get_nowait()
+            assert event_name == "version"
+            assert payload == {"version": "2.0.0", "changelog": "Details"}
+        finally:
+            version_service.unregister_subscriber(request_id)
+
+    def test_unregister_subscriber_removes_listener(self, version_service: VersionService):
+        """Unregistering should drop live queues and fall back to pending events."""
+        request_id = "vs-unregister"
+        version_service.register_subscriber(request_id)
+        version_service.unregister_subscriber(request_id)
+
+        delivered = version_service.queue_version_event(request_id, "3.1.4")
+        assert delivered is False
+
+        queue = version_service.register_subscriber(request_id)
+        try:
+            event_name, payload = queue.get_nowait()
+            assert event_name == "version"
+            assert payload["version"] == "3.1.4"
+        finally:
+            version_service.unregister_subscriber(request_id)
+
+    def test_shutdown_sends_connection_close(self, version_service: VersionService):
+        """Shutdown notifications should flush connection close events to subscribers."""
+        request_id = "vs-shutdown"
+        queue = version_service.register_subscriber(request_id)
+
+        version_service._handle_lifetime_event(LifetimeEvent.PREPARE_SHUTDOWN)
+        event_name, payload = queue.get_nowait()
+        assert event_name == "connection_close"
+        assert payload["reason"] == "server_shutdown"
+
+        version_service._handle_lifetime_event(LifetimeEvent.SHUTDOWN)
+
+        # Reset service state for subsequent tests
+        version_service._is_shutting_down = False
+        version_service._pending_events.clear()
+        version_service._start_cleanup_thread()
+
+    def test_queue_version_event_thread_safety(self, version_service: VersionService):
+        """Concurrent queue writers should not drop events."""
+        request_id = "vs-threaded"
+        queue = version_service.register_subscriber(request_id)
+
+        try:
+            versions = [f"{idx}" for idx in range(10)]
+
+            def worker(version: str) -> None:
+                version_service.queue_version_event(request_id, version)
+
+            threads = [threading.Thread(target=worker, args=(version,)) for version in versions]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+
+            received = []
+            while True:
+                received.append(queue.get_nowait()[1]["version"])
+                if len(received) == len(versions):
+                    break
+
+            assert sorted(received) == sorted(versions)
+        finally:
+            version_service.unregister_subscriber(request_id)
 
 
 class TestSSEUtils:

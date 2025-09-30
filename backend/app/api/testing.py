@@ -11,13 +11,16 @@ from spectree import Response as SpectreeResponse
 
 from app.exceptions import RouteNotAvailableException
 from app.schemas.testing import (
-    FakeImageQuerySchema,
+    ContentHtmlQuerySchema,
+    ContentImageQuerySchema,
+    DeploymentTriggerRequestSchema,
+    DeploymentTriggerResponseSchema,
     TestErrorResponseSchema,
     TestResetResponseSchema,
 )
 from app.services.container import ServiceContainer
 from app.services.testing_service import TestingService
-from app.utils import get_current_correlation_id
+from app.utils import ensure_request_id_from_query, get_current_correlation_id
 from app.utils.error_handling import handle_api_errors
 from app.utils.log_capture import LogCaptureHandler
 from app.utils.spectree_config import api
@@ -98,6 +101,8 @@ def stream_logs():
     Returns:
         SSE stream of log events
     """
+    ensure_request_id_from_query(request.args.get("request_id"))
+
     def log_stream():
         # Get correlation ID for this request
         correlation_id = get_current_correlation_id()
@@ -163,29 +168,103 @@ def stream_logs():
     return create_sse_response(log_stream())
 
 
-@testing_bp.route("/fake-image", methods=["GET"])
-@api.validate(query=FakeImageQuerySchema)
+@testing_bp.route("/content/image", methods=["GET"])
+@api.validate(query=ContentImageQuerySchema)
 @handle_api_errors
 @inject
-def generate_fake_image(
+def generate_content_image(
     testing_service: TestingService = Provide[ServiceContainer.testing_service]
 ):
-    """Return a fake PNG image containing the requested text.
-
-    Query Parameters:
-        text: Text string to render on the generated image.
-
-    Returns:
-        Response: PNG image response with caching disabled for deterministic tests.
-    """
-    query = FakeImageQuerySchema.model_validate(request.args.to_dict())
+    """Return a deterministic PNG image for Playwright fixtures."""
+    query = ContentImageQuerySchema.model_validate(request.args.to_dict())
     image_bytes = testing_service.create_fake_image(query.text)
 
     response = current_app.response_class(image_bytes, mimetype="image/png")
-    response.headers["Content-Disposition"] = "attachment; filename=fake-image.png"
+    response.headers["Content-Disposition"] = "attachment; filename=testing-content-image.png"
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Content-Length"] = str(len(image_bytes))
     return response
 
 
+@testing_bp.route("/content/pdf", methods=["GET"])
+@handle_api_errors
+@inject
+def generate_content_pdf(
+    testing_service: TestingService = Provide[ServiceContainer.testing_service]
+):
+    """Return the bundled deterministic PDF asset."""
+    pdf_bytes = testing_service.get_pdf_fixture()
+
+    response = current_app.response_class(pdf_bytes, mimetype="application/pdf")
+    response.headers["Content-Disposition"] = "attachment; filename=testing-content.pdf"
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Content-Length"] = str(len(pdf_bytes))
+    return response
+
+
+@testing_bp.route("/content/html", methods=["GET"])
+@api.validate(query=ContentHtmlQuerySchema)
+@handle_api_errors
+@inject
+def generate_content_html(
+    testing_service: TestingService = Provide[ServiceContainer.testing_service]
+):
+    """Return deterministic HTML content without deployment banner."""
+    query = ContentHtmlQuerySchema.model_validate(request.args.to_dict())
+    html_doc = testing_service.render_html_fixture(query.title, include_banner=False)
+    html_bytes = html_doc.encode("utf-8")
+
+    response = current_app.response_class(html_bytes, mimetype="text/html; charset=utf-8")
+    response.headers["Content-Disposition"] = "inline; filename=testing-content.html"
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Content-Length"] = str(len(html_bytes))
+    return response
+
+
+@testing_bp.route("/content/html-with-banner", methods=["GET"])
+@api.validate(query=ContentHtmlQuerySchema)
+@handle_api_errors
+@inject
+def generate_content_html_with_banner(
+    testing_service: TestingService = Provide[ServiceContainer.testing_service]
+):
+    """Return deterministic HTML content that includes a deployment banner wrapper."""
+    query = ContentHtmlQuerySchema.model_validate(request.args.to_dict())
+    html_doc = testing_service.render_html_fixture(query.title, include_banner=True)
+    html_bytes = html_doc.encode("utf-8")
+
+    response = current_app.response_class(html_bytes, mimetype="text/html; charset=utf-8")
+    response.headers["Content-Disposition"] = "inline; filename=testing-content-banner.html"
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Content-Length"] = str(len(html_bytes))
+    return response
+
+
+@testing_bp.route("/deployments/version", methods=["POST"])
+@api.validate(json=DeploymentTriggerRequestSchema, resp=SpectreeResponse(HTTP_202=DeploymentTriggerResponseSchema))
+@handle_api_errors
+@inject
+def trigger_version_deployment(
+    version_service=Provide[ServiceContainer.version_service]
+):
+    """Trigger a deterministic version deployment notification for Playwright."""
+    payload = DeploymentTriggerRequestSchema.model_validate(request.get_json() or {})
+
+    delivered = version_service.queue_version_event(
+        request_id=payload.request_id,
+        version=payload.version,
+        changelog=payload.changelog,
+    )
+
+    status = "delivered" if delivered else "queued"
+    response_body = DeploymentTriggerResponseSchema(
+        request_id=payload.request_id,
+        delivered=delivered,
+        status=status,
+    )
+
+    return jsonify(response_body.model_dump(by_alias=True)), 202
