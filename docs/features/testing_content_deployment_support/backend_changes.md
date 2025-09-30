@@ -6,8 +6,9 @@
   - The PDF route must stream the bundled asset at `app/assets/fake-pdf.pdf` verbatim (no query parameters).
   - HTML routes accept a required `title` parameter and should render deterministic markup, with the banner variant including the standard frontend wrapper.
 - Update the testing service to expose helpers for serving the static PDF and rendering HTML fixtures, while reusing the existing fake-image generator.
-- Extend the SSE infrastructure to accept a `request_id` query parameter on `/api/utils/version/stream`, fall back to it when headers are absent, and persist the ID through every emitted event.
-- Provide `POST /api/testing/deployments/version` so Playwright can trigger version notifications by supplying `{request_id, version, changelog?}`; the endpoint should deliver queued events via the subscriber registered through the stream.
+- Extend the SSE infrastructure so `/api/utils/version/stream` always registers with `VersionService`, emits correlation IDs on every event, and honours a `request_id` query parameter (falling back to the auto-generated ID when none is supplied).
+- Upgrade `VersionService` into a singleton with per-subscriber queues, pending buffers, and an idle-cleanup worker so Playwright can disconnect/reconnect without leaking memory.
+- Provide `POST /api/testing/deployments/version` so Playwright can trigger version notifications by supplying `{request_id, version, changelog?}`; the endpoint returns whether the payload was delivered immediately or queued for later consumption.
 
 ## Testing & Validation
 - Reuse `DocumentService.process_upload_url` within tests to verify the new `/api/testing/content/*` endpoints produce payloads the production pipeline recognises (image, PDF, HTML with banner metadata).

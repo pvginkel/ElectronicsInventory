@@ -162,7 +162,7 @@ class Settings(BaseSettings):
     @model_validator(mode='after')
     def set_sse_heartbeat_interval(self):
         """Set SSE heartbeat interval based on environment."""
-        if self.FLASK_ENV != "development":
+        if self.FLASK_ENV == "production":
             self.SSE_HEARTBEAT_INTERVAL = 30
         return self
 

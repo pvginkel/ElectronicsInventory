@@ -140,8 +140,8 @@ class ServiceContainer(containers.DeclarativeContainer):
         metrics_service=metrics_service
     )
 
-    # Version service - Factory for infrastructure utility endpoints
-    version_service = providers.Factory(
+    # Version service - Singleton managing SSE subscribers
+    version_service = providers.Singleton(
         VersionService,
         settings=config,
         shutdown_coordinator=shutdown_coordinator

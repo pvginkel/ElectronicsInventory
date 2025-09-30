@@ -37,7 +37,7 @@ def clear_prometheus_registry():
 @pytest.fixture
 def test_settings() -> Settings:
     """Create test settings with in-memory database."""
-    return Settings(
+    settings = Settings(
         DATABASE_URL="sqlite:///:memory:",
         SECRET_KEY="test-secret-key",
         DEBUG=True,
@@ -48,7 +48,10 @@ def test_settings() -> Settings:
         ALLOWED_FILE_TYPES=["application/pdf"],
         MAX_IMAGE_SIZE=10 * 1024 * 1024,  # 10MB
         MAX_FILE_SIZE=100 * 1024 * 1024,  # 100MB
+        SSE_HEARTBEAT_INTERVAL=1,
     )
+
+    return settings
 
 
 @pytest.fixture
