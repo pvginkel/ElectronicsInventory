@@ -44,6 +44,17 @@ Fortify the Playwright suite’s “real backend” contract for the Hobby Elect
    - Replace the separate `pnpm lint` and `pnpm type-check` invocations with a shared `pnpm check` command that runs both tasks (linting + TypeScript project references) in sequence.
    - Update contributor docs to call out `pnpm check` as the default pre-push guard, and ensure automation (see Step 8) references the consolidated command.
 
+### ESLint debt snapshot
+
+| Rule | Proposed solution | Reasoning |
+| --- | --- | --- |
+| `react-hooks/rules-of-hooks` | Rename the Playwright fixture `use` callback parameter to something neutral (for example `provide`) and update call sites so the helper still receives the Playwright continuation. | The rule interprets the Playwright helper’s `use()` calls as React hooks. Renaming keeps the hook guard active for React code while eliminating the false positives in `tests/support/fixtures.ts`.
+| `no-empty-pattern` | Replace empty destructuring in fixture signatures with underscore placeholders (e.g., change `async ({}, provide)` to `async (_, provide)`). | Empty object patterns add no value and trigger the rule; swapping to `_` maintains the ignored parameter semantics without lint noise.
+| `no-unsafe-finally` | Capture overflow errors inside the `try/finally`, then rethrow after cleanup rather than throwing from inside the `finally` block. | Throwing inside `finally` can mask earlier exceptions; the restructure preserves current behaviour and satisfies ESLint’s safety guard in `tests/support/fixtures.ts`.
+| `@typescript-eslint/no-unused-vars` | Drop the unused `_config` parameter from `tests/support/global-setup.ts` or log the incoming configuration fields we rely on long term. | Keeping an unused argument hides genuine misses; removing it (or using it) clears the error and matches our strict lint posture.
+| `no-useless-escape` | Rework `escapeForRegExp` in `tests/support/helpers/ai-analysis-mock.ts` to rely on a clearer escape strategy (e.g., import `escape-string-regexp`). | The current character class double-escapes `$`, so the rule flags it. Cleaning it up keeps the helper readable and aligned with our lint baseline.
+| `testing/no-route-mocks` | Implement the custom rule under `scripts/eslint-rules/testing/no-route-mocks.ts` and register it through our ESLint plugin namespace before enforcing it in configs. | The suppression in `ai-analysis-mock.ts` depends on this rule existing; defining the rule prevents “rule not found” errors and lets us gate new mocks as planned.
+
 5. **Integrate the rule into the lint configuration**
    - Register the custom rule in `eslint.config.js` by extending the Playwright-specific configuration block (e.g., add a config entry targeting `tests/**/*.{ts,tsx}`) and enabling `'testing/no-route-mocks': 'error'`.
    - Export the rule through a local plugin namespace (e.g., `plugins: { testing: { rules: { 'no-route-mocks': rule } } }`) so it is picked up without publishing a package.
