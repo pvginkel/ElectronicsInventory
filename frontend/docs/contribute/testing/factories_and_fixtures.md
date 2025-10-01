@@ -40,8 +40,13 @@ Custom fixtures extend Playwright’s base test:
 | `types` | `TypesPage` instance | Feature page object for the Types flow. |
 | `page` override | `Page` | Registers the Playwright test-event bridge, enforces console error policy, and disables animations. |
 | `testEvents` | `TestEventCapture` | Access to the Playwright-managed buffer of test-event payloads. |
+| `aiAnalysisMock` | `(options?: AiAnalysisMockOptions) => Promise<AiAnalysisMockSession>` | Shared helper that registers the sanctioned AI analysis SSE mock and disposes it between specs. |
 
 Extend `TestFixtures` when adding new domains (e.g., `parts: PartsPage`). Keep fixture code minimal and reusable; complexity belongs in page objects or factories.
+
+### AI Analysis Flow Helper
+
+`tests/support/helpers/ai-analysis-mock.ts` centralizes the single approved mock for `/api/ai-parts/analyze`. Call the `aiAnalysisMock` fixture to create a session, wait for `waitForConnection`, and drive the flow with `emitStarted`, `emitProgress`, and `emitCompleted` instead of wiring `page.route` by hand.
 
 ## Global Setup (`tests/support/global-setup.ts`)
 
@@ -68,6 +73,17 @@ Avoid duplicating helper logic in specs—centralize shared behaviors here.
 - Prefix identifiers with domain-specific tokens to aid debugging.
 - Keep randomization deterministic length-wise to avoid UI layout drift.
 - Seed fresh data per spec. Even if two tests need identical state, create separate records to avoid hidden coupling.
+
+## Deterministic Testing Content
+
+Use the backend-provided `/api/testing/content/*` endpoints whenever specs need static assets:
+
+- `GET /api/testing/content/image?text=<label>` – stable placeholder PNG (supersedes `/api/testing/fake-image`).
+- `GET /api/testing/content/pdf` – deterministic PDF stream with canned metadata.
+- `GET /api/testing/content/html?title=<text>` – plain HTML response without banners.
+- `GET /api/testing/content/html-with-banner?title=<text>` – HTML response that includes the standard marketing banner.
+
+Build URLs with the `backendUrl` fixture so the same calls work locally and in CI (swap `localhost` for `127.0.0.1` when necessary so backend validation passes), and avoid hand-rolling data URLs or intercepting document fetches.
 
 ## Extending the Bundle
 

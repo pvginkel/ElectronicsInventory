@@ -23,7 +23,7 @@ Align the document-management Playwright coverage with the real-backend policy o
   - Setting / clearing the cover image so spec set-up can run without UI interception.
 - Add read helpers that surface the part detail and list responses (e.g., `GET /api/parts/{part_key}` or `GET /api/parts/with-locations`) so specs can assert `cover_attachment_id` or `has_cover_attachment` without reimplementing fetch logic.
 - Expose the new helpers via `createTestDataBundle` so they are available in Playwright fixtures (`testData.parts.attachments.*`).
-- Document in helper comments that `/api/testing/fake-image?text=...` is deterministic today; if flakiness ever suggests otherwise, coordinate with backend to harden the endpoint.
+- Document in helper comments that `/api/testing/content/image?text=...` is deterministic today; if flakiness ever suggests otherwise, coordinate with backend to harden the endpoint.
 
 ### 2. Surface helpers in shared fixtures
 - Update `tests/support/fixtures.ts` to type the new attachment helpers on `testData` (e.g., `testData.parts.attachments.createUrl`).
@@ -33,7 +33,7 @@ Align the document-management Playwright coverage with the real-backend policy o
 - Remove every `page.route` handler and local in-memory attachment store.
 - Test flow:
   1. Create a part via `testData.parts.create`.
-  2. Use UI interactions to add a URL document (relies on the backend upload; no stubbing). Continue to rely on `/api/testing/fake-image?text=...` as the preview source.
+  2. Use UI interactions to add a URL document (relies on the backend upload; no stubbing). Continue to rely on `/api/testing/content/image?text=...` as the preview source.
   3. After each action (create, set cover, delete) verify both sides:
      - UI: reuse `DocumentGridPage` helpers to wait for modal closure, tile visibility, cover toggle state, and eventual removal, then assert the preview `<img>` resolves with both the expected `alt` text and a `src` that matches the backend thumbnail URL (or wait on the thumbnail/preview network response) so the test fails if the image never loads.
      - Backend: call the attachment helper (or `apiClient`) to confirm the attachment count and cover metadata match the action; prefer `testData.parts.attachments.getCover(part.key)` when you need the cover payload, and use the part detail/list helpers when you specifically need `cover_attachment_id`.
@@ -43,7 +43,7 @@ Align the document-management Playwright coverage with the real-backend policy o
 
 ### 4. Rewrite `cover-presence.spec.ts`
 - Pre-seed data through helpers instead of `page.route`:
-  - Create two parts via `testData`—one without attachments, one where the helper uploads a deterministic image (e.g., use the binary helper with `/api/testing/fake-image`) and marks it as the cover so the backend flags `has_cover_attachment` and serves a real thumbnail.
+  - Create two parts via `testData`—one without attachments, one where the helper uploads a deterministic image (e.g., use the binary helper with `/api/testing/content/image`) and marks it as the cover so the backend flags `has_cover_attachment` and serves a real thumbnail.
   - If the list view requires types, reuse factory helpers so the parts surface naturally in `/api/parts/with-locations`.
 - Update the test to:
   - Navigate to `/parts` and wait for the real list load (existing `PartsPage.waitForCards`).
@@ -63,5 +63,5 @@ Align the document-management Playwright coverage with the real-backend policy o
 - If helper changes touch lint rules, run `pnpm lint tests`.
 
 ## Notes / Follow-ups
-- `/api/testing/fake-image` currently produces deterministic output; if the new coverage encounters non-deterministic content, raise it with the backend team so they can solidify the response.
+- `/api/testing/content/image` currently produces deterministic output; if the new coverage encounters non-deterministic content, raise it with the backend team so they can solidify the response.
 - No additional backend work is expected, but keep `docs/features/playwright_test_coverage_extension/route_mocking_analysis.md` handy to ensure future specs reuse these helpers instead of slipping back into route mocks.

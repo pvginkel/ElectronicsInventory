@@ -14,6 +14,11 @@ import {
 } from './helpers/test-events';
 import { ToastHelper, createToastHelper } from './helpers/toast-helpers';
 import { SSEMocker, createSSEMocker } from './helpers/sse-mock';
+import { createAiAnalysisMock } from './helpers/ai-analysis-mock';
+import type {
+  AiAnalysisMockOptions,
+  AiAnalysisMockSession,
+} from './helpers/ai-analysis-mock';
 import { FileUploadHelper, createFileUploadHelper } from './helpers/file-upload';
 
 type TestFixtures = {
@@ -31,6 +36,7 @@ type TestFixtures = {
   toastHelper: ToastHelper;
   sseMocker: SSEMocker;
   fileUploadHelper: FileUploadHelper;
+  aiAnalysisMock: (options?: AiAnalysisMockOptions) => Promise<AiAnalysisMockSession>;
 };
 
 export const test = base.extend<TestFixtures>({
@@ -170,6 +176,22 @@ export const test = base.extend<TestFixtures>({
     await sseMocker.setupSSEMonitoring();
     await use(sseMocker);
     sseMocker.closeAllStreams();
+  },
+
+  aiAnalysisMock: async ({ page, sseMocker }, use) => {
+    const sessions: AiAnalysisMockSession[] = [];
+
+    const factory = async (options?: AiAnalysisMockOptions) => {
+      const session = await createAiAnalysisMock(page, sseMocker, options);
+      sessions.push(session);
+      return session;
+    };
+
+    try {
+      await use(factory);
+    } finally {
+      await Promise.all(sessions.map(session => session.dispose()));
+    }
   },
 
   fileUploadHelper: async ({ page }, use) => {

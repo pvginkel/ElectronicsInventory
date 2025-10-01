@@ -384,6 +384,57 @@ export class SSEMocker {
   }
 
   /**
+   * Waits for an SSE connection that matches the provided pattern.
+   */
+  async waitForConnection(
+    urlPattern: string | RegExp | undefined,
+    options?: { timeout?: number }
+  ): Promise<void> {
+    await this.ensureSetup();
+
+    const timeout = options?.timeout ?? 10000;
+    const pattern = serializePattern(urlPattern);
+
+    await this.page.waitForFunction((serializedPattern: SerializedPattern | undefined) => {
+      const globalAny = window as unknown as Record<string, any>;
+      const connections = globalAny.__sseConnections;
+      if (!Array.isArray(connections)) {
+        return false;
+      }
+
+      const matchesPattern = (url: string) => {
+        if (!serializedPattern) {
+          return true;
+        }
+        if (serializedPattern.type === 'regex') {
+          try {
+            const regex = new RegExp(serializedPattern.value, serializedPattern.flags || '');
+            return regex.test(url);
+          } catch {
+            return false;
+          }
+        }
+        if (serializedPattern.type === 'string') {
+          return url.includes(serializedPattern.value);
+        }
+        return false;
+      };
+
+      return connections.some((connection: Record<string, unknown>) => {
+        if (!connection || typeof connection !== 'object') {
+          return false;
+        }
+        const url = connection.url as string | undefined;
+        const readyState = connection.readyState as number | undefined;
+        if (typeof url !== 'string') {
+          return false;
+        }
+        return matchesPattern(url) && readyState === EventSource.OPEN;
+      });
+    }, pattern, { timeout });
+  }
+
+  /**
    * Simulates an SSE connection error
    * @param urlPattern - Pattern to match streams
    */
@@ -554,18 +605,25 @@ export class SSEMocker {
   }
 
   /**
+   * Closes SSE streams that match an optional pattern.
+   */
+  async closeStreams(urlPattern?: string | RegExp): Promise<void> {
+    await this.ensureSetup();
+
+    await this.page.evaluate((pattern: SerializedPattern | undefined) => {
+      const globalAny = window as unknown as Record<string, any>;
+      if (typeof globalAny.__closeSSEConnections === 'function') {
+        globalAny.__closeSSEConnections(pattern);
+      }
+    }, serializePattern(urlPattern));
+  }
+
+  /**
    * Closes all active SSE streams
    */
   closeAllStreams(): void {
-    void this.ensureSetup().then(() => {
-      this.page.evaluate(() => {
-        const globalAny = window as unknown as Record<string, any>;
-        if (typeof globalAny.__closeSSEConnections === 'function') {
-          globalAny.__closeSSEConnections(undefined);
-        }
-      }).catch(() => {
-        /* noop - context might be closing */
-      });
+    void this.closeStreams().catch(() => {
+      // noop - page context may already be shutting down
     });
   }
 

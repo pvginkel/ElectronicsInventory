@@ -22,7 +22,7 @@ This document inventories every mocking hook we currently use in the Playwright 
 | `tests/e2e/parts/part-list.spec.ts:33` | `GET /api/parts/with-locations` | Force a 500 response to assert error state | No | No | **Yes** | Remove this test; we are not simulating random network failures. |
 | `tests/e2e/parts/part-ai-creation.spec.ts:53` | `POST /api/ai-parts/analyze` | Provide SSE data for the AI analysis dialog | No | No (keep mocked for now) | **No** | Retain the SSE mock for this flow and document the lint waiver covering the exception. |
 | `tests/e2e/parts/part-ai-creation.spec.ts:61` | `POST /api/ai-parts/create` | Proxy AI create requests to `/api/parts` | No – endpoint is callable directly | No | **No** | Stop intercepting; call `/api/ai-parts/create` directly in the test. |
-| `tests/e2e/parts/part-documents.spec.ts:61-185` | `GET/POST /api/parts/{part_key}/attachments*` | Stub attachments CRUD, cover toggles, thumbnails | No – backend already exposes deterministic endpoints | No | **No** | Use the real API and leverage `/api/testing/fake-image?text=...` for placeholder assets. |
+| `tests/e2e/parts/part-documents.spec.ts:61-185` | `GET/POST /api/parts/{part_key}/attachments*` | Stub attachments CRUD, cover toggles, thumbnails | No – backend already exposes deterministic endpoints | No | **No** | Use the real API and leverage `/api/testing/content/image?text=...` for placeholder assets. |
 | `tests/e2e/specific/cover-presence.spec.ts:66-125` | `GET /api/parts/with-locations**`, `GET /api/parts/{key}/cover*` | Fabricate parts with/without cover assets | No – relies on proper attachment helpers | No | **No** | Once attachments run against the backend, seed data via factories and drop the mocks entirely. |
 | `tests/support/helpers/sse-mock.ts:48-137` | `sseMocker.mockSSE` / `sendEvent` | Simulate AI SSE stream events | No (today) | Partial – long-term preference is backend-driven SSE, but AI analysis remains mocked for now | **No** | Keep only the AI analysis SSE mock; every usage must include a documented lint suppression. |
 | `tests/support/helpers/sse-mock.ts:465-520` | `simulateDeploymentUpdate` / `simulateDeploymentSequence` | Fake deployment-version SSE notifications and banner state | No | **Yes** – backend should emit deployment events keyed by the app-supplied request id | **No** | Add backend support keyed by `X-Request-Id` so tests can trigger deployment streams without mocking. |
@@ -57,7 +57,7 @@ This document inventories every mocking hook we currently use in the Playwright 
 - Drop the interception around `/api/ai-parts/create`; the test can call that endpoint directly with the payload generated from the review step.
 
 ### Parts – `tests/e2e/parts/part-documents.spec.ts`
-- Switch to the live attachments endpoints. They already support creating links and toggling covers, and the `/api/testing/fake-image?text=...` helper provides deterministic assets for thumbnails/previews.
+- Switch to the live attachments endpoints. They already support creating links and toggling covers, and the `/api/testing/content/image?text=...` helper provides deterministic assets for thumbnails/previews.
 - Remove all `page.route` stubs in this spec once the test seeds attachments through the API client.
 
 ### Parts – `tests/e2e/specific/cover-presence.spec.ts`

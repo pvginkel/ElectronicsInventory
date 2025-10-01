@@ -1,15 +1,4 @@
-import type { Route } from '@playwright/test';
 import { test, expect } from '../../support/fixtures';
-
-const analyzeEndpoint = '**/api/ai-parts/analyze';
-
-async function fulfillJson(route: Route, payload: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    body: JSON.stringify(payload),
-    headers: { 'content-type': 'application/json' },
-  });
-}
 
 test.describe('TypeSelector - Part form integration', () => {
   test('supports inline creation of a new type when creating a part', async ({ page, testData }) => {
@@ -65,132 +54,77 @@ test.describe('TypeSelector - AI review flow', () => {
   test('reuses options and supports inline creation during AI review', async ({
     page,
     testData,
-    sseMocker,
+    aiAnalysisMock,
+    sseTimeout,
   }) => {
     const existingType = await testData.types.create({ name: testData.types.randomTypeName('AIExisting') });
     const alternateType = await testData.types.create({ name: testData.types.randomTypeName('AIFallback') });
     const newTypeName = testData.types.randomTypeName('AINew');
     const streamPath = '/api/testing/ai-mock-stream';
+    const aiSession = await aiAnalysisMock({
+      taskId: 'mock-task',
+      streamPath,
+      analysisOverrides: {
+        description: 'AI generated part',
+        manufacturer: 'Acme AI',
+        manufacturer_code: 'AI-001',
+        type: existingType.name,
+        type_is_existing: true,
+        existing_type_id: existingType.id,
+        tags: ['ai', 'suggested'],
+        documents: [],
+        dimensions: null,
+        voltage_rating: null,
+        mounting_type: null,
+        package: null,
+        pin_count: null,
+        pin_pitch: null,
+        series: null,
+        input_voltage: null,
+        output_voltage: null,
+        product_page: null,
+        seller_link: null,
+      },
+    });
 
-    await page.route(analyzeEndpoint, route => fulfillJson(route, {
-      task_id: 'mock-task',
-      stream_url: streamPath,
-    }), { times: 1 });
+    await page.goto('/parts');
 
-    try {
-      await page.goto('/parts');
+    await page.getByRole('button', { name: /add with ai/i }).click();
 
-      await page.getByRole('button', { name: /add with ai/i }).click();
+    const input = page.getByLabel('Part Number or Description');
+    await input.fill('AI powered component');
+    await page.getByRole('button', { name: /analyze part/i }).click();
 
-      const input = page.getByLabel('Part Number or Description');
-      await input.fill('AI powered component');
-      await page.getByRole('button', { name: /analyze part/i }).click();
+    await aiSession.waitForConnection({ timeout: sseTimeout });
+    await aiSession.emitStarted();
+    await aiSession.emitCompleted();
 
-      await page.waitForFunction(() => {
-        const globalAny = window as unknown as Record<string, any>;
-        const connections = globalAny.__sseConnections;
-        if (!Array.isArray(connections)) {
-          return false;
-        }
-        return connections.some((connection: any) => connection.readyState === 1);
-      }, { timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Review & Edit Part Details' })).toBeVisible();
 
-      await sseMocker.sendEvent(/ai-mock-stream/, {
-        event: 'task_event',
-        data: {
-          event_type: 'task_started',
-          task_id: 'mock-task',
-          timestamp: new Date().toISOString(),
-          data: null,
-        },
-      });
+    const typeInput = page.getByPlaceholder('Search or create type...');
+    await expect(typeInput).toHaveValue(existingType.name);
 
-      await sseMocker.sendEvent(/ai-mock-stream/, {
-        event: 'task_event',
-        data: {
-          event_type: 'task_completed',
-          data: {
-            success: true,
-            analysis: {
-              description: 'AI generated part',
-              manufacturer: 'Acme AI',
-              manufacturer_code: 'AI-001',
-              type: existingType.name,
-              type_is_existing: true,
-              existing_type_id: existingType.id,
-              tags: ['ai', 'suggested'],
-              documents: [],
-              dimensions: null,
-              voltage_rating: null,
-              mounting_type: null,
-              package: null,
-              pin_count: null,
-              pin_pitch: null,
-              series: null,
-              input_voltage: null,
-              output_voltage: null,
-              product_page: null,
-              seller_link: null,
-            },
-            error_message: null,
-          },
-        },
-      });
+    await typeInput.click();
+    await typeInput.fill('');
+    await typeInput.type(alternateType.name);
+    const alternateOption = page.getByRole('option', { name: new RegExp(alternateType.name, 'i') });
+    await expect(alternateOption).toBeVisible({ timeout: 15000 });
+    await alternateOption.click();
+    await expect(typeInput).toHaveValue(alternateType.name);
 
-      await page.waitForFunction(() => {
-        const globalAny = window as unknown as Record<string, any>;
-        const connections = globalAny.__sseConnections;
-        if (!Array.isArray(connections)) {
-          return false;
-        }
-        return connections.some((connection: any) => {
-          const events = connection.events as Array<{ type: string; data?: string }> | undefined;
-          if (!Array.isArray(events)) {
-            return false;
-          }
-          return events.some(event => {
-            if (event.type !== 'task_event') {
-              return false;
-            }
-            try {
-              const payload = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-              return payload?.event_type === 'task_completed';
-            } catch {
-              return false;
-            }
-          });
-        });
-      }, { timeout: 10000 });
+    await typeInput.fill(newTypeName);
+    await page.getByRole('button', { name: new RegExp(`Create type "${newTypeName}"`, 'i') }).click();
 
-      await expect(page.getByRole('heading', { name: 'Review & Edit Part Details' })).toBeVisible();
+    const dialog = page.getByRole('dialog', { name: 'Create New Type' });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Create' }).click();
+    await expect(dialog).toBeHidden();
 
-      const typeInput = page.getByPlaceholder('Search or create type...');
-      await expect(typeInput).toHaveValue(existingType.name);
+    await expect(typeInput).toHaveValue(newTypeName);
 
-      await typeInput.click();
-      await typeInput.fill('');
-      await typeInput.type(alternateType.name);
-      const alternateOption = page.getByRole('option', { name: new RegExp(alternateType.name, 'i') });
-      await expect(alternateOption).toBeVisible({ timeout: 15000 });
-      await alternateOption.click();
-      await expect(typeInput).toHaveValue(alternateType.name);
+    const createdType = await testData.types.findByName(newTypeName);
+    expect(createdType.name).toBe(newTypeName);
 
-      await typeInput.fill(newTypeName);
-      await page.getByRole('button', { name: new RegExp(`Create type "${newTypeName}"`, 'i') }).click();
-
-      const dialog = page.getByRole('dialog', { name: 'Create New Type' });
-      await expect(dialog).toBeVisible();
-      await dialog.getByRole('button', { name: 'Create' }).click();
-      await expect(dialog).toBeHidden();
-
-      await expect(typeInput).toHaveValue(newTypeName);
-
-      const createdType = await testData.types.findByName(newTypeName);
-      expect(createdType.name).toBe(newTypeName);
-
-      await page.keyboard.press('Escape');
-    } finally {
-      await page.unroute(analyzeEndpoint);
-    }
+    await page.keyboard.press('Escape');
   });
 });

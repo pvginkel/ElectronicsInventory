@@ -26,7 +26,7 @@ Re-align the AI-assisted Playwright flows with the real-backend policy from `doc
 
 3. **Adopt deterministic document fixtures from backend testing endpoints**
    - Backend work has landed; rely on the shipped routes instead of fabricating documents:
-     - `GET /api/testing/content/pdf?title=<text>` → streams a deterministic PDF (see backend notes for bundled asset expectations).
+    - `GET /api/testing/content/pdf` → streams a deterministic PDF (see backend notes for bundled asset expectations).
      - `GET /api/testing/content/html?title=<text>` → returns HTML without the banner wrapper.
      - `GET /api/testing/content/html-with-banner?title=<text>` → returns HTML that includes the standard banner wrapper alongside the supplied title.
    - Document the `/api/testing/content/*` family in `docs/contribute/testing/factories_and_fixtures.md`, including the renamed image helper so authors stop referencing the legacy path.

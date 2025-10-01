@@ -3,7 +3,7 @@ import type { components } from '../../../src/lib/api/generated/types';
 import { getBackendUrl } from '../../support/backend-url';
 
 const backendUrl = getBackendUrl();
-const fakeAssetUrl = `${backendUrl}/api/testing/fake-image?text=datasheet`;
+const fakeAssetUrl = `${backendUrl}/api/testing/content/image?text=datasheet`;
 
 type AttachmentResponse = components['schemas']['PartAttachmentResponseSchema.f950e1b'];
 
@@ -171,7 +171,7 @@ test.describe('Parts - Document management', () => {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             content_type: 'image/png',
-            image_url: '/api/testing/fake-image?text=preview',
+            image_url: '/api/testing/content/image?text=preview',
             original_url: payload.url ?? fakeAssetUrl,
             title: payload.title ?? 'Datasheet Preview',
           }),
