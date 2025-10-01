@@ -3,9 +3,10 @@
  * Hooks into React Query to emit query error events
  */
 
+import { useEffect, useRef } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { emitTestEvent } from './event-emitter';
-import { TestEventKind, type QueryErrorTestEvent } from '@/types/test-events';
+import { TestEventKind, type QueryErrorTestEvent, type ListLoadingTestEvent } from '@/types/test-events';
 import { isTestMode } from '@/lib/config/test-mode';
 
 /**
@@ -126,4 +127,110 @@ export function setupQueryInstrumentation(queryClient: QueryClient): void {
       emitTestEvent(queryErrorEvent);
     }
   });
+}
+
+interface ListLoadingInstrumentationOptions {
+  scope: string;
+  isLoading: boolean;
+  isFetching?: boolean;
+  error?: unknown;
+  getReadyMetadata?: () => Record<string, unknown> | undefined;
+  getErrorMetadata?: (error: unknown) => Record<string, unknown> | undefined;
+  getAbortedMetadata?: () => Record<string, unknown> | undefined;
+}
+
+/**
+ * Emit list loading lifecycle test events for components that rely on TanStack Query.
+ * Provides deterministic hooks Playwright can await instead of intercepting requests.
+ */
+export function useListLoadingInstrumentation(options: ListLoadingInstrumentationOptions): void {
+  const {
+    scope,
+    isLoading,
+    isFetching = false,
+    error,
+    getReadyMetadata,
+    getErrorMetadata,
+    getAbortedMetadata,
+  } = options;
+
+  const testMode = isTestMode();
+  const instrumentationActiveRef = useRef(false);
+  const readyMetadataRef = useRef(getReadyMetadata);
+  const errorMetadataRef = useRef(getErrorMetadata);
+  const abortedMetadataRef = useRef(getAbortedMetadata);
+
+  useEffect(() => {
+    readyMetadataRef.current = getReadyMetadata;
+  }, [getReadyMetadata]);
+
+  useEffect(() => {
+    errorMetadataRef.current = getErrorMetadata;
+  }, [getErrorMetadata]);
+
+  useEffect(() => {
+    abortedMetadataRef.current = getAbortedMetadata;
+  }, [getAbortedMetadata]);
+
+  useEffect(() => {
+    if (!testMode) {
+      instrumentationActiveRef.current = false;
+      return;
+    }
+
+    const inFlight = isLoading || isFetching;
+
+    if (inFlight && !instrumentationActiveRef.current) {
+      instrumentationActiveRef.current = true;
+      const loadingPayload: Omit<ListLoadingTestEvent, 'timestamp'> = {
+        kind: TestEventKind.LIST_LOADING,
+        scope,
+        phase: 'loading',
+      };
+      emitTestEvent(loadingPayload);
+      return;
+    }
+
+    if (!inFlight && instrumentationActiveRef.current) {
+      instrumentationActiveRef.current = false;
+
+      const hasError = Boolean(error);
+      const metadata = hasError
+        ? errorMetadataRef.current?.(error)
+        : readyMetadataRef.current?.();
+
+      const completionPayload: Omit<ListLoadingTestEvent, 'timestamp'> = {
+        kind: TestEventKind.LIST_LOADING,
+        scope,
+        phase: hasError ? 'error' : 'ready',
+        ...(metadata ? { metadata } : {}),
+      };
+
+      emitTestEvent(completionPayload);
+    }
+  }, [error, isFetching, isLoading, scope, testMode]);
+
+  useEffect(() => {
+    if (!testMode) {
+      return undefined;
+    }
+
+    return () => {
+      if (!instrumentationActiveRef.current) {
+        return;
+      }
+
+      instrumentationActiveRef.current = false;
+      const metadata = abortedMetadataRef.current?.();
+
+      const abortedPayload: Omit<ListLoadingTestEvent, 'timestamp'> = {
+        kind: TestEventKind.LIST_LOADING,
+        scope,
+        phase: 'aborted',
+        ...(metadata ? { metadata } : {}),
+      };
+
+      emitTestEvent(abortedPayload);
+    };
+  }, [scope, testMode]);
 }

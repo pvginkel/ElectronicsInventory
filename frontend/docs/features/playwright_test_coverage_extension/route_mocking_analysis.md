@@ -5,7 +5,7 @@
 - [x] Playwright Documents Real Backend — migrates document workflows to factories and real endpoints so attachment coverage is already backend-driven before we tighten linting.
 - [x] Playwright List Views Cleanup — injects list-view test instrumentation and real data seeding, which the enforcement plan depends on to replace loading-route hacks.
 - [x] Playwright Deployment SSE Support — removes the deployment stream mocks while backend triggers are fresh, preventing new lint failures once enforcement lands.
-- [ ] Playwright No Route Mock Enforcement — enables the lint gate only after every targeted spec is on real data and the sanctioned AI helper exists, minimizing churn from late-breaking violations.
+- [x] Playwright No Route Mock Enforcement — enables the lint gate only after every targeted spec is on real data and the sanctioned AI helper exists, minimizing churn from late-breaking violations.
 
 This document inventories every mocking hook we currently use in the Playwright suite, explains why it was introduced, and outlines how to replace each mock so the tests can exercise the real backend. The analysis also covers the existing SSE mocking helper and proposes enforcement to prevent new mocks from slipping back in.
 

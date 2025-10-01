@@ -7,7 +7,7 @@
     "skipLibCheck": true,
 
     /* Module Resolution */
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "allowJs": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -34,6 +34,7 @@
   "include": [
     "tests/**/*",
     "playwright.config.ts",
+    "scripts/eslint-rules/**/*.ts",
     "src/types/**/*.d.ts"
   ],
   "exclude": [

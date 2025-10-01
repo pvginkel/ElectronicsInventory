@@ -12,11 +12,11 @@ test.describe('Parts - Duplication', () => {
       },
     });
 
-    await testData.parts.attachments.createBinary(part.key, {
+    await testData.attachments.createBinary(part.key, {
       title: 'Datasheet',
       filename: 'datasheet.pdf',
     });
-    await testData.parts.attachments.createBinary(part.key, {
+    await testData.attachments.createBinary(part.key, {
       title: 'Application Note',
       filename: 'application-note.pdf',
     });

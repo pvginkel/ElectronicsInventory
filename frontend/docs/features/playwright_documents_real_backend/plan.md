@@ -22,11 +22,11 @@ Align the document-management Playwright coverage with the real-backend policy o
   - Listing attachments and retrieving the current cover attachment for assertion purposes.
   - Setting / clearing the cover image so spec set-up can run without UI interception.
 - Add read helpers that surface the part detail and list responses (e.g., `GET /api/parts/{part_key}` or `GET /api/parts/with-locations`) so specs can assert `cover_attachment_id` or `has_cover_attachment` without reimplementing fetch logic.
-- Expose the new helpers via `createTestDataBundle` so they are available in Playwright fixtures (`testData.parts.attachments.*`).
+- Expose the new helpers via `createTestDataBundle` so they are available in Playwright fixtures (`testData.attachments.*`).
 - Document in helper comments that `/api/testing/content/image?text=...` is deterministic today; if flakiness ever suggests otherwise, coordinate with backend to harden the endpoint.
 
 ### 2. Surface helpers in shared fixtures
-- Update `tests/support/fixtures.ts` to type the new attachment helpers on `testData` (e.g., `testData.parts.attachments.createUrl`).
+- Update `tests/support/fixtures.ts` to type the new attachment helpers on `testData` (e.g., `testData.attachments.createUrl`).
 - Where convenient, inject a lightweight wrapper on `apiClient` (or reuse the helper) so specs can fetch the current cover state without issuing raw `fetch` calls.
 
 ### 3. Rewrite `part-documents.spec.ts`
@@ -36,8 +36,8 @@ Align the document-management Playwright coverage with the real-backend policy o
   2. Use UI interactions to add a URL document (relies on the backend upload; no stubbing). Continue to rely on `/api/testing/content/image?text=...` as the preview source.
   3. After each action (create, set cover, delete) verify both sides:
      - UI: reuse `DocumentGridPage` helpers to wait for modal closure, tile visibility, cover toggle state, and eventual removal, then assert the preview `<img>` resolves with both the expected `alt` text and a `src` that matches the backend thumbnail URL (or wait on the thumbnail/preview network response) so the test fails if the image never loads.
-     - Backend: call the attachment helper (or `apiClient`) to confirm the attachment count and cover metadata match the action; prefer `testData.parts.attachments.getCover(part.key)` when you need the cover payload, and use the part detail/list helpers when you specifically need `cover_attachment_id`.
-  4. Replace the previous `expect.poll` over in-memory state with assertions against the returned API payload by invoking the helper best matched to the data you need (e.g., `await testData.parts.attachments.getCover(part.key)` for cover payloads).
+    - Backend: call the attachment helper (or `apiClient`) to confirm the attachment count and cover metadata match the action; prefer `testData.attachments.getCover(part.key)` when you need the cover payload, and use the part detail/list helpers when you specifically need `cover_attachment_id`.
+  4. Replace the previous `expect.poll` over in-memory state with assertions against the returned API payload by invoking the helper best matched to the data you need (e.g., `await testData.attachments.getCover(part.key)` for cover payloads).
 - Adjust waits so they rely on existing page-object response watchers (`waitForResponse`) plus toast helper timeouts; extend `toastHelper` only if real network latency requires it.
 - Ensure the spec covers thumbnail / preview rendering by asserting the preview image element resolves with the expected alt text sourced from the attachment title.
 
@@ -49,7 +49,7 @@ Align the document-management Playwright coverage with the real-backend policy o
   - Navigate to `/parts` and wait for the real list load (existing `PartsPage.waitForCards`).
   - Assert UI state: the cover part renders an `<img>` (or PDF placeholder) with the seeded title in the `alt`, while the uncovered part shows the “No cover image” placeholder.
   - Track responses via `page.on('response')` (read-only) to confirm the app requests `/api/parts/{part_key}/cover` for the part flagged with `has_cover_attachment` (allowing multiple requests in case the client revalidates).
-  - For extra safety, query the backend via `testData.parts.attachments.getCover` to confirm the cover remains set post-render.
+  - For extra safety, query the backend via `testData.attachments.getCover` to confirm the cover remains set post-render.
 - Remove all route stubs and inline mock data.
 
 ### 5. Page object and helper updates

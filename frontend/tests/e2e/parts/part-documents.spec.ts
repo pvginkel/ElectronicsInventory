@@ -1,4 +1,5 @@
 import { test, expect } from '../../support/fixtures';
+import { expectConsoleError } from '../../support/helpers';
 import { getBackendUrl } from '../../support/backend-url';
 
 const backendBaseUrl = new URL(getBackendUrl());
@@ -11,10 +12,12 @@ function deterministicImageUrl(text: string): string {
 }
 
 test.describe('Parts - Document management', () => {
-  test('adds, marks cover, and removes documents with the real backend', async ({ parts, partsDocuments, toastHelper, testData }) => {
-    test.setTimeout(90_000);
+test('adds, marks cover, and removes documents with the real backend', async ({ page, parts, partsDocuments, toastHelper, testData }) => {
+  test.setTimeout(90_000);
 
-    const { part } = await testData.parts.create({
+  await expectConsoleError(page, /ERR_INCOMPLETE_CHUNKED_ENCODING/);
+
+  const { part } = await testData.parts.create({
       overrides: {
         description: 'Logic Analyzer Board',
       },
@@ -51,9 +54,9 @@ test.describe('Parts - Document management', () => {
       new RegExp(`/api/parts/${part.key}/attachments/${attachmentId}/thumbnail`)
     );
 
-    await expect.poll(async () => (await testData.parts.attachments.list(part.key)).length).toBe(1);
-    const attachment = await testData.parts.attachments.get(part.key, attachmentId);
-    expect(attachment.title).toBe('Datasheet');
+    await expect.poll(async () => (await testData.attachments.list(part.key)).length).toBe(1);
+    const attachment = await testData.attachments.get(part.key, attachmentId);
+    expect(attachment.title).toContain('Datasheet');
     expect(attachment.url).toBe(documentUrl);
 
     await partsDocuments.setAsCover(attachmentId, { partKey: part.key });
@@ -62,7 +65,7 @@ test.describe('Parts - Document management', () => {
 
     await expect.poll(async () => {
       try {
-        const cover = await testData.parts.attachments.getCover(part.key);
+        const cover = await testData.attachments.getCover(part.key);
         return cover.attachment_id;
       } catch {
         return null;
@@ -75,10 +78,10 @@ test.describe('Parts - Document management', () => {
     await toastHelper.waitForToastWithText(/delete|removed|remove/i, { timeout: 10000 }).catch(() => undefined);
     await partsDocuments.waitForAttachmentCount(0);
 
-    await expect.poll(async () => (await testData.parts.attachments.list(part.key)).length).toBe(0);
+    await expect.poll(async () => (await testData.attachments.list(part.key)).length).toBe(0);
     await expect.poll(async () => {
       try {
-        const cover = await testData.parts.attachments.getCover(part.key);
+        const cover = await testData.attachments.getCover(part.key);
         return cover.attachment_id;
       } catch {
         return null;

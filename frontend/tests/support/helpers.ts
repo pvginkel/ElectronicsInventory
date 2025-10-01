@@ -1,4 +1,4 @@
-import type { TestEvent, UiStateTestEvent } from '@/types/test-events';
+import type { TestEvent, UiStateTestEvent, ListLoadingTestEvent } from '@/types/test-events';
 import { Page, expect } from '@playwright/test';
 import { getTestEventBuffer } from './helpers/test-events';
 
@@ -51,6 +51,20 @@ export async function waitForUiState(
   return waitTestEvent<UiStateTestEvent>(
     page,
     'ui_state',
+    event => event.scope === scope && event.phase === phase,
+    timeout,
+  );
+}
+
+export async function waitForListLoading(
+  page: Page,
+  scope: string,
+  phase: 'loading' | 'ready' | 'error' | 'aborted',
+  timeout = 10_000,
+): Promise<ListLoadingTestEvent> {
+  return waitTestEvent<ListLoadingTestEvent>(
+    page,
+    'list_loading',
     event => event.scope === scope && event.phase === phase,
     timeout,
   );

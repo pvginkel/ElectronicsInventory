@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { waitForUiState as waitForUiStateEvent } from '../../support/helpers';
+import { waitForListLoading } from '../../support/helpers';
 
 export class TypesPage {
   readonly page: Page;
@@ -38,8 +38,8 @@ export class TypesPage {
     await expect(this.root).toBeVisible();
   }
 
-  async waitForUiState(phase: 'loading' | 'ready') {
-    await waitForUiStateEvent(this.page, 'types.list', phase);
+  async waitForListState(phase: 'loading' | 'ready' | 'error' | 'aborted') {
+    await waitForListLoading(this.page, 'types.list', phase);
   }
 
   // Modal locators (dynamic since they're not always present)

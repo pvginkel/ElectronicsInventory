@@ -14,6 +14,7 @@ The result is strictly a technical requirements document that contains the follo
 - List of all relevant files and functions that need to be created or modified.
 - Step-by-step explanation of any algorithms that are used.
 - If the feature is especially large, identify phases in which the feature can be implemented.
+- Plans that touch Playwright coverage must state how tests remain backend-driven (no `page.route`/`mockSSE`) and call out required backend/test instrumentation under a **Blocking Issues** section.
 
 If the user's requirements are unclear, especially after researching the relevant files, ask clarifying questions before writing the plan. Incorporate the user's answers into the plan.
 

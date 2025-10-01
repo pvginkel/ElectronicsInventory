@@ -21,6 +21,8 @@ pnpm playwright -g 'workflow with multiple types'
 pnpm playwright --debug
 ```
 
+Linting and type-checking are part of the default build now—run `pnpm check` locally to execute `eslint` (including the `testing/no-route-mocks` rule) and `tsc --noEmit` before pushing changes.
+
 Playwright is configured in `playwright.config.ts` with `headless: true` by default. Debug mode is the only supported headed execution.
 
 ## Managed Services

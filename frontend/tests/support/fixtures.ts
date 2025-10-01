@@ -40,31 +40,35 @@ type TestFixtures = {
 };
 
 export const test = base.extend<TestFixtures>({
-  frontendUrl: async ({}, use) => {
+  // eslint-disable-next-line no-empty-pattern
+  frontendUrl: async ({}, provide) => {
     const url = process.env.FRONTEND_URL || 'http://localhost:3100';
-    await use(url);
+    await provide(url);
   },
 
-  backendUrl: async ({}, use) => {
-    await use(getBackendUrl());
+  // eslint-disable-next-line no-empty-pattern
+  backendUrl: async ({}, provide) => {
+    await provide(getBackendUrl());
   },
 
-  sseTimeout: async ({}, use) => {
+  // eslint-disable-next-line no-empty-pattern
+  sseTimeout: async ({}, provide) => {
     // SSE-aware timeout for operations that may involve server-sent events
-    await use(35000); // 35 seconds
+    await provide(35000); // 35 seconds
   },
 
-  apiClient: async ({}, use) => {
+  // eslint-disable-next-line no-empty-pattern
+  apiClient: async ({}, provide) => {
     const client = createApiClient();
-    await use(client);
+    await provide(client);
   },
 
-  testData: async ({ apiClient }, use) => {
+  testData: async ({ apiClient }, provide) => {
     const testData = createTestDataBundle(apiClient);
-    await use(testData);
+    await provide(testData);
   },
 
-  page: async ({ page }, use) => {
+  page: async ({ page }, provide) => {
     // Track expected console errors for this test
     const expectedErrors: RegExp[] = [];
 
@@ -114,71 +118,72 @@ export const test = base.extend<TestFixtures>({
     });
 
     // Clear expected errors after each test
+    let overflowError: Error | null = null;
     try {
-      await use(page);
+      await provide(page);
     } finally {
-      // Check for buffer overflow before cleanup
-      const overflowError = buffer.getOverflowError();
-      if (overflowError) {
-        throw overflowError;
-      }
+      overflowError = buffer.getOverflowError();
       expectedErrors.length = 0;
       releaseTestEventBridge(page);
     }
+
+    if (overflowError) {
+      throw overflowError;
+    }
   },
 
-  types: async ({ page }, use) => {
-    await use(new TypesPage(page));
+  types: async ({ page }, provide) => {
+    await provide(new TypesPage(page));
   },
 
-  parts: async ({ page }, use) => {
-    await use(new PartsPage(page));
+  parts: async ({ page }, provide) => {
+    await provide(new PartsPage(page));
   },
 
-  partsAI: async ({ page }, use) => {
-    await use(new AIDialogPage(page));
+  partsAI: async ({ page }, provide) => {
+    await provide(new AIDialogPage(page));
   },
 
-  partsLocations: async ({ page }, use) => {
-    await use(new LocationEditorPage(page));
+  partsLocations: async ({ page }, provide) => {
+    await provide(new LocationEditorPage(page));
   },
 
-  partsDocuments: async ({ page }, use) => {
-    await use(new DocumentGridPage(page));
+  partsDocuments: async ({ page }, provide) => {
+    await provide(new DocumentGridPage(page));
   },
 
-  testEvents: async ({ page }, use) => {
+  testEvents: async ({ page }, provide) => {
     const buffer = await ensureTestEventBridge(page);
 
     const testEvents = createTestEventCapture(page);
     await testEvents.startCapture();
 
+    let overflowError: Error | null = null;
     try {
-      await use(testEvents);
+      await provide(testEvents);
     } finally {
       await testEvents.stopCapture();
+      overflowError = buffer.getOverflowError();
+    }
 
-      // Check for buffer overflow
-      const overflowError = buffer.getOverflowError();
-      if (overflowError) {
-        throw overflowError;
-      }
+    if (overflowError) {
+      throw overflowError;
     }
   },
 
-  toastHelper: async ({ page }, use) => {
+  toastHelper: async ({ page }, provide) => {
     const toastHelper = createToastHelper(page);
-    await use(toastHelper);
+    await provide(toastHelper);
   },
 
-  sseMocker: async ({ page }, use) => {
+  sseMocker: async ({ page }, provide) => {
     const sseMocker = createSSEMocker(page);
     await sseMocker.setupSSEMonitoring();
-    await use(sseMocker);
+    await provide(sseMocker);
     sseMocker.closeAllStreams();
   },
 
-  aiAnalysisMock: async ({ page, sseMocker }, use) => {
+  aiAnalysisMock: async ({ page, sseMocker }, provide) => {
     const sessions: AiAnalysisMockSession[] = [];
 
     const factory = async (options?: AiAnalysisMockOptions) => {
@@ -188,15 +193,15 @@ export const test = base.extend<TestFixtures>({
     };
 
     try {
-      await use(factory);
+      await provide(factory);
     } finally {
       await Promise.all(sessions.map(session => session.dispose()));
     }
   },
 
-  fileUploadHelper: async ({ page }, use) => {
+  fileUploadHelper: async ({ page }, provide) => {
     const fileUploadHelper = createFileUploadHelper(page);
-    await use(fileUploadHelper);
+    await provide(fileUploadHelper);
   },
 });
 

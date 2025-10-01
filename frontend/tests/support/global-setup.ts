@@ -1,7 +1,7 @@
-import { chromium, FullConfig } from '@playwright/test';
+import { chromium } from '@playwright/test';
 import { getBackendUrl } from './backend-url';
 
-async function globalSetup(_config: FullConfig) {
+async function globalSetup() {
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3100';
   const backendUrl = getBackendUrl();
   const playwrightManagedServices = process.env.PLAYWRIGHT_MANAGED_SERVICES !== 'false';

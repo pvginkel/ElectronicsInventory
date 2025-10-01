@@ -3,6 +3,7 @@ import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
+import testingNoRouteMocksRule from './scripts/eslint-rules/testing/no-route-mocks.js'
 
 export default tseslint.config([
   { ignores: ['dist', 'node_modules', '*.gen.ts', 'src/lib/api/generated/**'] },
@@ -24,6 +25,26 @@ export default tseslint.config([
         'warn',
         { allowConstantExport: true },
       ],
+    },
+  },
+  {
+    files: ['tests/**/*.{ts,tsx}'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+    plugins: {
+      testing: {
+        rules: {
+          'no-route-mocks': testingNoRouteMocksRule,
+        },
+      },
+    },
+    rules: {
+      'testing/no-route-mocks': 'error',
     },
   },
 ])

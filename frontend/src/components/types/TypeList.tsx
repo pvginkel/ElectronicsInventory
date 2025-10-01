@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useCreateType, useUpdateType, useDeleteType, useGetTypesWithStats } from '@/hooks/use-types'
 import { TypeCard } from './TypeCard'
@@ -8,8 +8,7 @@ import { Input } from '@/components/ui/input'
 import { ConfirmDialog } from '@/components/ui/dialog'
 import { useConfirm } from '@/hooks/use-confirm'
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon'
-import { beginUiState, endUiState } from '@/lib/test/ui-state'
-import { isTestMode } from '@/lib/config/test-mode'
+import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
 
 interface TypeListProps {
   searchTerm?: string;
@@ -29,8 +28,6 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
   const deleteMutation = useDeleteType()
 
   const [showLoading, setShowLoading] = useState(isLoading)
-  const instrumentationActiveRef = useRef(false)
-  const testMode = isTestMode()
 
   useEffect(() => {
     if (isLoading) {
@@ -43,56 +40,29 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
     }
   }, [isFetching, isLoading])
 
-  useEffect(() => {
-    if (!testMode) {
-      instrumentationActiveRef.current = false
-      return
-    }
-
-    const isQueryLoading = isLoading || isFetching
-
-    if (isQueryLoading && !instrumentationActiveRef.current) {
-      instrumentationActiveRef.current = true
-      beginUiState('types.list')
-    }
-
-    if (!isQueryLoading && instrumentationActiveRef.current) {
-      instrumentationActiveRef.current = false
-
-      const payload = error
-        ? {
-            status: 'error',
-            queries: {
-              types: 'error',
-            },
-            message: error instanceof Error ? error.message : String(error),
-          }
-        : {
-            status: 'success',
-            queries: {
-              types: 'success',
-            },
-            totalTypes: Array.isArray(types) ? types.length : 0,
-          }
-
-      endUiState('types.list', payload)
-    }
-  }, [error, isFetching, isLoading, testMode, types])
-
-  useEffect(() => {
-    if (!testMode) {
-      return
-    }
-
-    return () => {
-      if (instrumentationActiveRef.current) {
-        instrumentationActiveRef.current = false
-        endUiState('types.list', {
-          status: 'aborted',
-        })
-      }
-    }
-  }, [testMode])
+  useListLoadingInstrumentation({
+    scope: 'types.list',
+    isLoading,
+    isFetching,
+    error,
+    getReadyMetadata: () => ({
+      status: 'success',
+      queries: {
+        types: 'success',
+      },
+      totalTypes: Array.isArray(types) ? types.length : 0,
+    }),
+    getErrorMetadata: (err) => ({
+      status: 'error',
+      queries: {
+        types: 'error',
+      },
+      message: err instanceof Error ? err.message : String(err),
+    }),
+    getAbortedMetadata: () => ({
+      status: 'aborted',
+    }),
+  })
 
   const handleSearchChange = (value: string) => {
     if (value) {

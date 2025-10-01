@@ -42,7 +42,7 @@ Designers drafting plans and developers implementing Playwright work must re-rea
 
 - Setup & scripts: `docs/contribute/getting_started.md`
 - Environment variables & ports: `docs/contribute/environment.md`
-- Commands reference: `pnpm dev`, `pnpm type-check`, `pnpm lint`, `pnpm generate:api`, `pnpm build`, `pnpm preview`
+- Commands reference: `pnpm dev`, `pnpm type-check`, `pnpm lint`, `pnpm check`, `pnpm generate:api`, `pnpm build`, `pnpm preview`
 - Playwright execution: `pnpm playwright`, `pnpm playwright --debug` (headless by default). Detailed policies live in `docs/contribute/testing/ci_and_execution.md`.
 
 ## Readability Comments
@@ -56,7 +56,7 @@ Designers drafting plans and developers implementing Playwright work must re-rea
 - TypeScript strict mode passes; no `any` without justification.
 - Generated API types, TanStack Query, and automatic error handling are used consistently.
 - UI state reflects camelCase domain models produced by custom hooks.
-- Playwright coverage or updates follow the how-to guide and instrumentation expectations.
+- Playwright coverage or updates follow the how-to guide and instrumentation expectations (no `page.route`/`mockSSE`; the `testing/no-route-mocks` lint rule must stay green).
 
 ## Command Templates
 

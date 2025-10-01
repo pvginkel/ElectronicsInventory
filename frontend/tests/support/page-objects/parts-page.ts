@@ -1,5 +1,5 @@
 import { expect, Locator, Page } from '@playwright/test';
-import { waitForUiState as waitForUiStateEvent } from '../helpers';
+import { waitForListLoading } from '../helpers';
 import { BasePage } from './base-page';
 
 export class PartsPage extends BasePage {
@@ -33,8 +33,8 @@ export class PartsPage extends BasePage {
     await expect(this.root).toBeVisible();
   }
 
-  async waitForUiState(phase: 'loading' | 'ready'): Promise<void> {
-    await waitForUiStateEvent(this.page, 'parts.list', phase);
+  async waitForListState(phase: 'loading' | 'ready' | 'error' | 'aborted'): Promise<void> {
+    await waitForListLoading(this.page, 'parts.list', phase);
   }
 
   async openNewPartForm(): Promise<void> {
@@ -92,12 +92,12 @@ export class PartsPage extends BasePage {
   }
 
   async waitForLoading(): Promise<void> {
-    await this.waitForUiState('loading');
+    await this.waitForListState('loading');
     await expect(this.loadingSkeletons.first()).toBeVisible();
   }
 
   async waitForCards(): Promise<void> {
-    await this.waitForUiState('ready');
+    await this.waitForListState('ready');
     await expect(this.page.getByTestId('parts.list.container')).toBeVisible();
   }
 

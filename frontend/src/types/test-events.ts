@@ -15,6 +15,7 @@ export const TestEventKind = {
   QUERY_ERROR: 'query_error',
   UI_STATE: 'ui_state',
   SSE: 'sse',
+  LIST_LOADING: 'list_loading',
 } as const;
 
 export type TestEventKind = typeof TestEventKind[keyof typeof TestEventKind];
@@ -119,6 +120,16 @@ export interface UiStateTestEvent extends BaseTestEvent {
 }
 
 /**
+ * List loading lifecycle event (start/ready/error/aborted)
+ */
+export interface ListLoadingTestEvent extends BaseTestEvent {
+  kind: 'list_loading';
+  scope: string;
+  phase: 'loading' | 'ready' | 'error' | 'aborted';
+  metadata?: Record<string, unknown>;
+}
+
+/**
  * Union type for all test events
  */
 export type TestEvent =
@@ -129,6 +140,7 @@ export type TestEvent =
   | ErrorTestEvent
   | QueryErrorTestEvent
   | UiStateTestEvent
+  | ListLoadingTestEvent
   | SseTestEvent;
 
 /**

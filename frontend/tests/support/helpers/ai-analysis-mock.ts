@@ -109,13 +109,14 @@ const defaultAnalysis: AiAnalysisResult = {
 };
 
 function escapeForRegExp(value: string): string {
-  return value.replace(/[|\\{}()[\]^$+*?.]/g, '\$&');
+  return value.replace(/[.*+?^${}()|[\]\\]/g, (character) => `\\${character}`);
 }
 
 async function fulfillAnalyzeRoute(
   route: Route,
   response: AiAnalysisAnalyzeResponse
 ): Promise<void> {
+  // eslint-disable-next-line testing/no-route-mocks -- AI analysis SSE lacks deterministic backend stream
   await route.fulfill({
     status: 200,
     headers: { 'content-type': 'application/json' },
@@ -164,6 +165,7 @@ export async function createAiAnalysisMock(
   // eslint-disable-next-line testing/no-route-mocks -- AI analysis SSE lacks deterministic backend stream
   await page.route(analyzeMatcher, analyzeHandler, { times: 1 });
 
+  // eslint-disable-next-line testing/no-route-mocks -- AI analysis SSE lacks deterministic backend stream
   await sseMocker.mockSSE({
     url: streamPattern,
     events: [],

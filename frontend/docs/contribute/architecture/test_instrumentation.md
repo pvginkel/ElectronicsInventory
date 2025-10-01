@@ -20,6 +20,7 @@ The frontend exposes deterministic telemetry while running in test mode (`VITE_T
 | `error` | `scope`, `code?`, `message`, `correlationId?` |
 | `query_error` | `queryKey`, `status?`, `message`, `correlationId?`, `metadata?` |
 | `ui_state` | `scope`, `phase` (`loading`\|`ready`), `metadata?` |
+| `list_loading` | `scope`, `phase` (`loading`\|`ready`\|`error`\|`aborted`), `metadata?` |
 | `sse` | `streamId`, `phase` (`open`\|`message`\|`error`\|`close`), `event`, `data?` |
 
 All payloads include a `timestamp` (injected by the emitter).
@@ -31,8 +32,8 @@ All payloads include a `timestamp` (injected by the emitter).
 - **`form-instrumentation.ts`** – Exposes `trackForm*` helpers and stable `generateFormId`.
 - **`toast-instrumentation.ts`** – Hooks the toast provider to emit `toast` events.
 - **`error-instrumentation.ts`** – Captures global error notifications and emits `error` events.
-- **`query-instrumentation.ts`** – Wraps React Query to emit `query_error` events and tag conflicts (`metadata.isConflict = true`).
-- **`ui-state.ts`** – Provides `beginUiState` / `endUiState` helpers for emitting list and workflow readiness signals.
+- **`query-instrumentation.ts`** – Wraps React Query to emit `query_error` events, tag conflicts (`metadata.isConflict = true`), and expose `useListLoadingInstrumentation` for deterministic `list_loading` hooks around TanStack Query lifecycles.
+- **`ui-state.ts`** – Provides `beginUiState` / `endUiState` helpers for emitting broader workflow readiness signals where `list_loading` does not apply.
 - **`api-instrumentation.ts`** – Optional integration for fetch wrappers to emit `api` metrics (operation, status, correlation ID).
 - **`console-policy.ts`** – Enforces `console.error` -> throw during tests; Playwright’s fixture mirrors this policy to fail on unexpected errors.
 

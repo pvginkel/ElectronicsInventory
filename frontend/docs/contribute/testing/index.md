@@ -5,7 +5,7 @@ The Electronics Inventory frontend ships with a Playwright-based end-to-end suit
 ## Guiding Principles
 
 1. **API-first data setup** – Tests create prerequisite data through API factories; the UI is only used for the behavior under test.
-2. **Real backend always** – Specs must exercise the production backend endpoints directly; do not intercept or stub HTTP requests. If a scenario needs special behavior, extend the backend with test-friendly hooks instead of mocking.
+2. **Real backend always** – Specs must exercise the production backend endpoints directly; do not intercept or stub HTTP requests. The `testing/no-route-mocks` ESLint rule enforces this for all Playwright sources. If a scenario needs special behavior, extend the backend with test-friendly hooks instead of mocking—the *only* waiver lives alongside the shared AI analysis helper and documents its backend gap.
 3. **Fresh data per test** – Every scenario seeds its own data via factories with randomized identifiers; never reuse records across tests.
 4. **Dirty database friendly** – We do not care about accumulated test data. Databases are torn down between runs, so favor clarity over cleanup. If data volume exposes performance issues, treat that as a signal to optimize the backing service.
 5. **Page objects over selector maps** – Each feature owns a page object colocated with its tests for readable UI interactions.
@@ -52,7 +52,7 @@ As additional features gain coverage, follow the same foldering: keep page objec
 
 - The frontend emits structured test events through the Playwright bridge while in test mode.
 - Tests use helpers such as `waitTestEvent` and `expectConsoleError` from `tests/support/helpers.ts`.
-- Review [Test Instrumentation](../architecture/test_instrumentation.md) for the precise taxonomy (`route`, `form`, `api`, `toast`, `error`, `query_error`, `sse`).
+- Review [Test Instrumentation](../architecture/test_instrumentation.md) for the precise taxonomy (`route`, `form`, `api`, `toast`, `error`, `query_error`, `ui_state`, `list_loading`, `sse`).
 
 ## Next Steps
 

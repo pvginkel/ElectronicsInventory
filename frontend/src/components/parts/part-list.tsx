@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,8 +11,7 @@ import { MetadataBadge } from './metadata-badge';
 import { LocationSummary } from './location-summary';
 import { VendorInfo } from './vendor-info';
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
-import { beginUiState, endUiState } from '@/lib/test/ui-state';
-import { isTestMode } from '@/lib/config/test-mode';
+import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 
 interface PartListProps {
   searchTerm?: string;
@@ -37,8 +36,6 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
   } = useGetTypes();
 
   const [showLoading, setShowLoading] = useState(partsLoading);
-  const instrumentationActiveRef = useRef(false);
-  const testMode = isTestMode();
 
   useEffect(() => {
     if (partsLoading) {
@@ -51,33 +48,30 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
     }
   }, [partsFetching, partsLoading]);
 
-  useEffect(() => {
-    if (!testMode) {
-      instrumentationActiveRef.current = false;
-      return;
-    }
+  const combinedError = partsError ?? typesError;
 
-    const partsInFlight = partsLoading || partsFetching;
-    const typesInFlight = typesLoading || typesFetching;
-    const anyInFlight = partsInFlight || typesInFlight;
-
-    if (anyInFlight && !instrumentationActiveRef.current) {
-      instrumentationActiveRef.current = true;
-      beginUiState('parts.list');
-    }
-
-    if (!anyInFlight && instrumentationActiveRef.current) {
-      instrumentationActiveRef.current = false;
-
+  useListLoadingInstrumentation({
+    scope: 'parts.list',
+    isLoading: partsLoading || typesLoading,
+    isFetching: partsFetching || typesFetching,
+    error: combinedError,
+    getReadyMetadata: () => ({
+      status: 'success',
+      queries: {
+        parts: 'success',
+        types: 'success',
+      },
+      counts: {
+        parts: parts.length,
+        types: types.length,
+      },
+    }),
+    getErrorMetadata: () => {
       const metadata: Record<string, unknown> = {
-        status: partsError || typesError ? 'error' : 'success',
+        status: 'error',
         queries: {
           parts: partsError ? 'error' : 'success',
           types: typesError ? 'error' : 'success',
-        },
-        counts: {
-          parts: parts.length,
-          types: types.length,
         },
       };
 
@@ -89,24 +83,12 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
         metadata.typesMessage = typesError instanceof Error ? typesError.message : String(typesError);
       }
 
-      endUiState('parts.list', metadata);
-    }
-  }, [parts, partsError, partsFetching, partsLoading, testMode, types, typesError, typesFetching, typesLoading]);
-
-  useEffect(() => {
-    if (!testMode) {
-      return;
-    }
-
-    return () => {
-      if (instrumentationActiveRef.current) {
-        instrumentationActiveRef.current = false;
-        endUiState('parts.list', {
-          status: 'aborted',
-        });
-      }
-    };
-  }, [testMode]);
+      return metadata;
+    },
+    getAbortedMetadata: () => ({
+      status: 'aborted',
+    }),
+  });
 
   // Create a lookup map for type names
   const typeMap = useMemo(() => {

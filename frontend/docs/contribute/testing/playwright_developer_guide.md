@@ -11,7 +11,7 @@ The Playwright suite drives the production frontend against the real backend in 
 ## Core Principles
 
 1. **API-first data setup** – Always create prerequisite data with factories; UI interactions are only for the scenario under test.
-2. **Real backend always** – Specs must hit the live backend endpoints. Do not intercept, stub, or shortcut HTTP calls. Missing behavior belongs in the backend, not in Playwright helpers.
+2. **Real backend always** – Specs must hit the live backend endpoints. Do not intercept, stub, or shortcut HTTP calls; the `testing/no-route-mocks` ESLint rule guards this policy. Missing behavior belongs in the backend, not in Playwright helpers—the only suppression lives next to the shared AI analysis mock and documents its backend gap.
 3. **Dirty database policy** – Tests never reset or clean up. Use randomized identifiers so reruns tolerate existing data, never rely on data seeded by another test, and ignore any concerns about residual records—databases are rebuilt between runs. If volume ever reveals performance issues, treat that as a backend optimization problem.
 4. **Feature-owned page objects** – Each feature folder exposes actions/locators tailored to that UI.
 5. **Deterministic waits** – Assertions rely on UI visibility, network promises, or test-event signals—never fixed sleeps.
@@ -40,6 +40,8 @@ const type = await factory.create();               // defaults with random name
 const other = await factory.create({ name: factory.randomTypeName('Capacitor') });
 ```
 
+Attachments are available via `testData.attachments` so specs can seed documents, covers, and previews against the real `/api/parts/:id/attachments/**` endpoints without inline stubs.
+
 See [Factories & Fixtures](./factories_and_fixtures.md) for a catalog of available methods.
 
 ### Fixtures (`tests/support/fixtures.ts`)
@@ -65,7 +67,8 @@ Utility functions that complement fixtures:
 
 - `generateRandomId(prefix)` – Standard prefix-shortId generator.
 - `waitTestEvent(page, kind, filter?, timeout?)` – Await specific test-event payloads from the Playwright-managed buffer.
-- `waitForUiState(page, scope, phase)` – Await structured `ui_state` events for deterministic loading/ready waits.
+- `waitForUiState(page, scope, phase)` – Await structured `ui_state` events for deterministic workflow checkpoints (form submissions, etc.).
+- `waitForListLoading(page, scope, phase)` – Await list loading lifecycle events (`list_loading`) emitted by test-mode instrumentation (`types.list`, `parts.list`, etc.).
 - `waitForFormValidationError(page, formId, field?)`
 - `expectConflictError(page, correlationId?)`
 - `expectConsoleError(page, pattern)` – Allow known console errors for a test.
@@ -115,7 +118,7 @@ await waitTestEvent(page, 'form', evt =>
   evt.formId === 'TypeForm_edit' && evt.phase === 'success'
 );
 
-await waitForUiState(page, 'parts.list', 'ready');
+await waitForListLoading(page, 'parts.list', 'ready');
 ```
 
 For multi-step flows, capture sequences explicitly:
@@ -142,6 +145,7 @@ Follow the [No-Sleep Patterns](./no_sleep_patterns.md) reference. Use `Promise.a
 
 - When a scenario needs deterministic backend behavior (for example, AI analysis over SSE), add test-specific hooks to the service. The pattern is: seed a prebaked response through an API exposed for tests, then drive the UI using a sentinel input such as `test-response-12345` that instructs the backend to emit the prepared payload. Do not emulate the SSE stream in Playwright.
 - If the backend cannot yet support the scenario, pause the Playwright work and extend the backend first. Route interception is not an acceptable fallback.
+- Any temporary waiver must live alongside the shared AI analysis helper and use the `// eslint-disable-next-line testing/no-route-mocks -- <justified reason>` format so the lint rule documents the gap in-line.
 
 ### Deployment Version Stream (real backend only)
 
@@ -164,6 +168,7 @@ Follow the [No-Sleep Patterns](./no_sleep_patterns.md) reference. Use `Promise.a
 2. Introduce or extend a page object in `tests/e2e/<feature>/`.
 3. Write scenarios that create preconditions through factories, exercise the UI flow, and assert via UI + test-event signals.
 4. Run `pnpm playwright tests/e2e/<feature>/<file>.spec.ts` locally before committing.
+5. Run `pnpm check` to ensure lint (including `testing/no-route-mocks`) and type-check pass.
 
 For a checklist-style walkthrough, see [How to Add an E2E Test](../howto/add_e2e_test.md).
 

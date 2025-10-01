@@ -17,12 +17,12 @@ test.describe('Cover presence flag', () => {
       },
     });
 
-    const coverAttachment = await testData.parts.attachments.createUrl(coveredPart.key, {
+    const coverAttachment = await testData.attachments.createUrl(coveredPart.key, {
       title: COVER_TITLE,
       previewText: 'Cover',
     });
 
-    await testData.parts.attachments.setCover(coveredPart.key, coverAttachment.id);
+    await testData.attachments.setCover(coveredPart.key, coverAttachment.id);
 
     await expect.poll(async () => (await testData.parts.getDetail(coveredPart.key)).cover_attachment_id).toBe(coverAttachment.id);
     await expect.poll(async () => {
@@ -58,7 +58,7 @@ test.describe('Cover presence flag', () => {
     await expect.poll(() => coverRequests[coveredPart.key] ?? 0).toBeGreaterThan(0);
     expect(coverRequests[uncoveredPart.key]).toBeUndefined();
 
-    const currentCover = await testData.parts.attachments.getCover(coveredPart.key);
+    const currentCover = await testData.attachments.getCover(coveredPart.key);
     expect(currentCover.attachment_id).toBe(coverAttachment.id);
     expect(currentCover.attachment?.title).toBe(COVER_TITLE);
   });

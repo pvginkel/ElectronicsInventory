@@ -39,6 +39,60 @@ interface RegisterMockPayload {
   pattern?: SerializedPattern;
 }
 
+const AI_STREAM_PREFIXES = ['/tests/ai-stream/', '/api/testing/ai-mock-stream'];
+
+function normalizeForRegex(prefix: string): string {
+  return prefix
+    .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/\//g, '\\/');
+}
+
+const ALLOWED_STREAM_PATTERNS = AI_STREAM_PREFIXES.map((prefix) => ({
+  raw: prefix,
+  regexFragment: normalizeForRegex(prefix),
+}));
+
+function matchesAllowedAiPattern(pattern: string | RegExp | undefined): boolean {
+  if (pattern === undefined) {
+    return false;
+  }
+
+  if (typeof pattern === 'string') {
+    return ALLOWED_STREAM_PATTERNS.some(({ raw }) => pattern.includes(raw));
+  }
+
+  const source = pattern.source;
+  return ALLOWED_STREAM_PATTERNS.some(({ raw, regexFragment }) => {
+    return source.includes(raw) || source.includes(regexFragment);
+  });
+}
+
+function assertAiStreamUsage(
+  pattern: string | RegExp | undefined,
+  caller: string,
+  options: { allowUndefined?: boolean } = {}
+): void {
+  if (pattern === undefined) {
+    if (options.allowUndefined) {
+      return;
+    }
+
+    throw new Error(
+      `[SSEMocker] ${caller} requires a stream pattern. ` +
+      'SSE mocks are restricted to the sanctioned AI analysis flow. '
+      + 'See docs/contribute/testing/playwright_developer_guide.md and the testing/no-route-mocks lint rule.'
+    );
+  }
+
+  if (!matchesAllowedAiPattern(pattern)) {
+    throw new Error(
+      `[SSEMocker] ${caller} is limited to the sanctioned AI analysis stream. ` +
+      'Coordinate backend support instead of adding new SSE mocks. '
+      + '(violates testing/no-route-mocks)'
+    );
+  }
+}
+
 const installSSEMocking = () => {
   const globalAny = window as unknown as Record<string, any>;
   if (globalAny.__sseMockingInstalled) {
@@ -312,6 +366,8 @@ export class SSEMocker {
   async mockSSE(config: SSEMockConfig): Promise<void> {
     await this.ensureSetup();
 
+    assertAiStreamUsage(config.url, 'mockSSE');
+
     const payload: RegisterMockPayload = {
       id: `sse-mock-${Date.now()}-${this.configCounter++}`,
       events: config.events,
@@ -332,44 +388,14 @@ export class SSEMocker {
   }
 
   /**
-   * Handles SSE mocks with heartbeat and optional additional events
-   */
-  async mockSSEWithHeartbeat(
-    url: string | RegExp,
-    heartbeatInterval: number = 30000,
-    additionalEvents?: SSEEvent[]
-  ): Promise<void> {
-    const events: SSEEvent[] = [];
-
-    events.push({
-      event: 'connected',
-      data: { status: 'connected', timestamp: Date.now() },
-    });
-
-    for (let i = 0; i < 3; i++) {
-      events.push(SSEMocker.createHeartbeatEvent());
-    }
-
-    if (additionalEvents) {
-      events.push(...additionalEvents);
-    }
-
-    await this.mockSSE({
-      url,
-      events,
-      delay: heartbeatInterval,
-      autoClose: true,
-      closeAfter: heartbeatInterval * 3,
-    });
-  }
-
-  /**
    * Sends an SSE event to all active streams matching a pattern
    * @param urlPattern - Pattern to match streams
    * @param event - Event to send
    */
   async sendEvent(urlPattern: string | RegExp | undefined, event: SSEEvent): Promise<void> {
     await this.ensureSetup();
+
+    assertAiStreamUsage(urlPattern, 'sendEvent');
 
     await this.page.evaluate(({ pattern, eventInit }) => {
       const globalAny = window as unknown as Record<string, any>;
@@ -391,6 +417,8 @@ export class SSEMocker {
     options?: { timeout?: number }
   ): Promise<void> {
     await this.ensureSetup();
+
+    assertAiStreamUsage(urlPattern, 'waitForConnection');
 
     const timeout = options?.timeout ?? 10000;
     const pattern = serializePattern(urlPattern);
@@ -435,124 +463,12 @@ export class SSEMocker {
   }
 
   /**
-   * Simulates an SSE connection error
-   * @param urlPattern - Pattern to match streams
-   */
-  async simulateError(urlPattern: string | RegExp): Promise<void> {
-    await this.ensureSetup();
-
-    await this.page.evaluate(({ pattern }) => {
-      const globalAny = window as unknown as Record<string, any>;
-      if (typeof globalAny.__emitSSEControlEvent !== 'function') {
-        throw new Error('SSE mocking is not initialized on the page context');
-      }
-      globalAny.__emitSSEControlEvent(pattern, 'error');
-    }, {
-      pattern: serializePattern(urlPattern),
-    });
-  }
-
-  /**
-   * Simulates SSE reconnection
-   * @param urlPattern - Pattern to match streams
-   * @param delay - Reconnection delay in ms
-   */
-  async simulateReconnection(urlPattern: string | RegExp, delay: number = 1000): Promise<void> {
-    await this.simulateError(urlPattern);
-    await this.page.waitForTimeout(delay);
-
-    await this.ensureSetup();
-
-    await this.page.evaluate(({ pattern }) => {
-      const globalAny = window as unknown as Record<string, any>;
-      if (typeof globalAny.__emitSSEControlEvent !== 'function') {
-        throw new Error('SSE mocking is not initialized on the page context');
-      }
-      globalAny.__emitSSEControlEvent(pattern, 'open');
-    }, {
-      pattern: serializePattern(urlPattern),
-    });
-  }
-
-  /**
-   * Gets information about SSE connections
-   * @returns Array of connection information
-   */
-  async getSSEConnections(): Promise<any[]> {
-    await this.ensureSetup();
-    return this.page.evaluate(() => {
-      const globalAny = window as unknown as Record<string, any>;
-      return (globalAny.__sseConnections || []).map((connection: Record<string, unknown>) => ({
-        url: connection.url,
-        readyState: connection.readyState,
-        events: connection.events,
-        opened: connection.opened,
-        closed: connection.closed ?? null,
-      }));
-    });
-  }
-
-  /**
-   * Checks if deployment banner is visible
-   * @returns True if banner is visible
-   */
-  async isDeploymentBannerVisible(): Promise<boolean> {
-    const bannerSelectors = [
-      '[data-testid="deployment-banner"]',
-      '.deployment-notification',
-      '[role="alert"][data-deployment]',
-      '.update-banner',
-    ];
-
-    for (const selector of bannerSelectors) {
-      if (await this.page.locator(selector).isVisible()) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  /**
-   * Dismisses deployment banner if visible
-   */
-  async dismissDeploymentBanner(): Promise<void> {
-    const dismissSelectors = [
-      '[data-testid="deployment-banner"] button',
-      '.deployment-notification button[aria-label="Close"]',
-      '[role="alert"][data-deployment] button',
-      '.update-banner .close',
-    ];
-
-    for (const selector of dismissSelectors) {
-      const button = this.page.locator(selector);
-      if (await button.isVisible()) {
-        await button.click();
-        return;
-      }
-    }
-  }
-
-  /**
-   * Waits for deployment banner to appear
-   * @param options - Wait options
-   * @returns The banner element
-   */
-  async waitForDeploymentBanner(options?: { timeout?: number }) {
-    const timeout = options?.timeout ?? 10000;
-    const banner = this.page.locator(
-      '[data-testid="deployment-banner"], .deployment-notification, [role="alert"][data-deployment]'
-    ).first();
-
-    await banner.waitFor({ state: 'visible', timeout });
-    return banner;
-  }
-
-  /**
    * Closes SSE streams that match an optional pattern.
    */
   async closeStreams(urlPattern?: string | RegExp): Promise<void> {
     await this.ensureSetup();
+
+    assertAiStreamUsage(urlPattern, 'closeStreams', { allowUndefined: true });
 
     await this.page.evaluate((pattern: SerializedPattern | undefined) => {
       const globalAny = window as unknown as Record<string, any>;
@@ -571,57 +487,6 @@ export class SSEMocker {
     });
   }
 
-  /**
-   * Creates a heartbeat event
-   * @param data - Optional heartbeat data
-   * @returns SSE event for heartbeat
-   */
-  static createHeartbeatEvent(data?: any): SSEEvent {
-    return {
-      event: 'heartbeat',
-      data: data || { timestamp: Date.now() },
-    };
-  }
-
-  /**
-   * Creates a deployment notification event
-   * @param version - New version
-   * @param changelog - Optional changelog
-   * @returns SSE event for deployment
-   */
-  static createDeploymentEvent(version: string, changelog?: string): SSEEvent {
-    return {
-      event: 'version',
-      data: {
-        version,
-        changelog: changelog || `Version ${version} deployed`,
-        timestamp: Date.now(),
-      },
-    };
-  }
-
-  /**
-   * Creates a generic notification event
-   * @param type - Notification type
-   * @param message - Notification message
-   * @param metadata - Additional metadata
-   * @returns SSE event for notification
-   */
-  static createNotificationEvent(
-    type: string,
-    message: string,
-    metadata?: Record<string, any>
-  ): SSEEvent {
-    return {
-      event: type,
-      data: {
-        type,
-        message,
-        ...metadata,
-        timestamp: Date.now(),
-      },
-    };
-  }
 }
 
 /**
@@ -629,7 +494,8 @@ export class SSEMocker {
  * @param page - The Playwright page
  * @returns SSEMocker instance
  */
-// Deployment streams must use the real backend; this helper stays for documented AI analysis mocks only.
+// Deployment streams must use the real backend; this helper stays for the sanctioned AI analysis mock only.
+// Additional mocks violate the testing/no-route-mocks lint rule—coordinate backend support instead.
 export function createSSEMocker(page: Page): SSEMocker {
   return new SSEMocker(page);
 }

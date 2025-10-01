@@ -20,7 +20,7 @@ export interface CreateBinaryAttachmentOptions {
   fileContents?: Uint8Array | ArrayBuffer;
 }
 
-export class PartAttachmentTestFactory {
+export class AttachmentTestFactory {
   private readonly client: ReturnType<typeof createApiClient>;
   private readonly backendUrl: string;
 
@@ -61,7 +61,7 @@ export class PartAttachmentTestFactory {
     const title = options.title ?? generateRandomId('Attachment');
     const filename = options.filename ?? this.sanitizeFilename(`${title}.pdf`);
     const contentType = options.contentType ?? 'application/pdf';
-    const fileContents = options.fileContents ?? this.defaultPdfBytes();
+    const fileContents = options.fileContents ?? await this.fetchTestingPdfBytes();
 
     const formData = new FormData();
     formData.set('title', title);
@@ -177,6 +177,19 @@ export class PartAttachmentTestFactory {
     return base.toString();
   }
 
+  private buildDeterministicPdfUrl(): string {
+    const base = new URL('/api/testing/content/pdf', this.backendUrl);
+    base.hostname = '127.0.0.1';
+    return base.toString();
+  }
+
+  private async fetchTestingPdfBytes(): Promise<Uint8Array> {
+    const response = await fetch(this.buildDeterministicPdfUrl());
+    await this.assertResponse(response);
+    const buffer = await response.arrayBuffer();
+    return new Uint8Array(buffer);
+  }
+
   private sanitizeFilename(filename: string): string {
     return filename
       .trim()
@@ -184,13 +197,5 @@ export class PartAttachmentTestFactory {
       .replace(/[^a-z0-9\-_.]+/g, '-')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '') || 'attachment.pdf';
-  }
-
-  private defaultPdfBytes(): Uint8Array {
-    const buffer = Buffer.from(
-      'JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlIC9DYXRhbG9nL1BhZ2VzIDIgMCBSID4+CmVuZG9iagoyIDAgb2JqCjw8L1R5cGUgL1BhZ2VzL0tpZHMgWyAzIDAgUiBdL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwvVHlwZSAvUGFnZS9NZWRpYUJveCBbMCAwIDYxMiA3OTJdL1BhcmVudCAyIDAgUiA+PgplbmRvYmoKeHJlZgowIDQKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDEwIDAwMDAwIG4gCjAwMDAwMDAwNzAgMDAwMDAgbiAKMDAwMDAwMDEyNiAwMDAwMCBuIAp0cmFpbGVyCjw8L1Jvb3QgMSAwIFIvSW5mbyA0IDAgUi9TaXplIDQgPj4Kc3RhcnR4cmVmCjE4NQolJUVPRgo=',
-      'base64'
-    );
-    return new Uint8Array(buffer);
   }
 }
