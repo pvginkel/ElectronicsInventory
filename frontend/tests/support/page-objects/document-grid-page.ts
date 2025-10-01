@@ -43,7 +43,9 @@ export class DocumentGridPage extends BasePage {
   }
 
   async waitForPreviewImage(attachmentId: number | string): Promise<void> {
-    await expect(this.previewImage(attachmentId)).toBeVisible();
+    const image = this.previewImage(attachmentId);
+    await expect(image).toBeVisible();
+    await expect.poll(async () => image.evaluate(node => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   }
 
   async waitForTile(attachmentId: number | string): Promise<void> {

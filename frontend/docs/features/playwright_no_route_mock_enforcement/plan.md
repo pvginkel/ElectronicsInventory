@@ -13,7 +13,7 @@ Fortify the Playwright suite’s “real backend” contract for the Hobby Elect
 - `tests/support/helpers/sse-mock.ts` — limit helpers to the sanctioned AI dialog flow and surface guidance for the new lint rule.
 - New ESLint rule: `scripts/eslint-rules/testing/no-route-mocks.ts` plus unit tests in `scripts/eslint-rules/testing/__tests__/no-route-mocks.test.ts`.
 - `eslint.config.js` — register the custom rule and scope it to Playwright sources.
-- `package.json` — ensure the `lint` script covers the new rule without extra flags.
+- `package.json` — ensure the `lint` script covers the new rule without extra flags, merge the existing `lint` and `type-check` scripts into a `pnpm check` composite command, and extend `pnpm build` so it invokes the lint step (failing the build if linting or type-checking regresses).
 - Documentation touchpoints: `docs/contribute/testing/index.md`, `docs/contribute/testing/playwright_developer_guide.md`, `docs/contribute/testing/ci_and_execution.md`, `docs/commands/plan_feature.md`, `AGENTS.md`.
 - `docs/features/playwright_test_coverage_extension/route_mocking_analysis.md` — link the enforcement work back to the completed migrations.
 
@@ -39,12 +39,17 @@ Fortify the Playwright suite’s “real backend” contract for the Hobby Elect
    - Allow suppression only when the leading comment matches `// eslint-disable-next-line testing/no-route-mocks -- <justified reason>`; parse the comment to ensure a reason is present and fail otherwise.
    - Write unit tests in `scripts/eslint-rules/testing/__tests__/no-route-mocks.test.ts` that cover: allowed code (no mocks), rejected code with each API, and the single approved suppression for the AI SSE flow.
 
-4. **Integrate the rule into the lint configuration**
+4. **Baseline lint debt and converge scripts**
+   - Resolve current ESLint violations across the repository so the new rule is added on a clean slate; blocking issues should be captured and fixed within this feature to avoid cargo-cult suppressions.
+   - Replace the separate `pnpm lint` and `pnpm type-check` invocations with a shared `pnpm check` command that runs both tasks (linting + TypeScript project references) in sequence.
+   - Update contributor docs to call out `pnpm check` as the default pre-push guard, and ensure automation (see Step 8) references the consolidated command.
+
+5. **Integrate the rule into the lint configuration**
    - Register the custom rule in `eslint.config.js` by extending the Playwright-specific configuration block (e.g., add a config entry targeting `tests/**/*.{ts,tsx}`) and enabling `'testing/no-route-mocks': 'error'`.
    - Export the rule through a local plugin namespace (e.g., `plugins: { testing: { rules: { 'no-route-mocks': rule } } }`) so it is picked up without publishing a package.
-   - Confirm `pnpm lint` loads the new rule without additional CLI arguments; adjust the script only if necessary (for example, to pass `--report-unused-disable-directives`).
+   - Confirm the lint stage (now invoked via `pnpm check`) loads the new rule without additional CLI arguments; adjust the script only if necessary (for example, to pass `--report-unused-disable-directives`).
 
-5. **Document the enforcement policy**
+6. **Document the enforcement policy**
   - `docs/contribute/testing/index.md`: spell out that route/SSE mocking is prohibited, describe the AI dialog exemption, and link to the frontend instrumentation + backend coordination steps required for deterministic fixtures.
   - `docs/contribute/testing/playwright_developer_guide.md`: add a subsection on replacing mocks with backend seeds and frontend instrumentation (loading events), include the expected suppression comment for the AI flow, and reference the lint rule so developers know where violations originate.
   - `docs/contribute/testing/ci_and_execution.md`: note that maintainers must run `pnpm lint` locally before merging when specs change (until automated CI is introduced) and that any lint failure on the new rule blocks approval.
@@ -52,14 +57,14 @@ Fortify the Playwright suite’s “real backend” contract for the Hobby Elect
   - `AGENTS.md`: keep the pointer light but highlight that contributors should defer to the updated testing docs for the no-mock policy.
   - Cross-reference `docs/features/playwright_test_coverage_extension/route_mocking_analysis.md` so readers can see the original findings the enforcement closes out.
 
-6. **Apply the sanctioned suppression**
-  - Keep the lint suppression co-located with the shared AI analysis helper so the only waiver lives next to the sanctioned mock implementation.
-  - Verify no spec carries its own suppression; if an additional backend gap remains, document it inline and in the tracking issue before proceeding.
+7. **Apply the sanctioned suppression**
+   - Keep the lint suppression co-located with the shared AI analysis helper so the only waiver lives next to the sanctioned mock implementation.
+   - Verify no spec carries its own suppression; if an additional backend gap remains, document it inline and in the tracking issue before proceeding.
 
-7. **Validation**
-   - Run `pnpm lint` to ensure the new rule flags any lingering mocks and that all intended suppressions pass.
+8. **Validation**
+   - Run `pnpm check` (aliasing lint + type-check) to ensure the new rule flags any lingering mocks and that TypeScript still compiles cleanly.
    - Execute the affected Playwright specs (`pnpm playwright tests/e2e/types/type-list.spec.ts`, etc.) to confirm they succeed against the real backend after the intercepts are removed.
-  - Capture the instrumentation and helper dependencies (loading test events, shared AI analysis helper) in the frontend tracking issue so follow-up work is visible to both teams.
+   - Capture the instrumentation and helper dependencies (loading test events, shared AI analysis helper) in the frontend tracking issue so follow-up work is visible to both teams.
 
 ## Dependencies / Open Questions
 - Frontend must emit deterministic loading instrumentation for list views (`types.list.loading`, `parts.list.loading`) so Playwright can assert skeleton states without mocks; the plan must include the corresponding UI changes.

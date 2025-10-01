@@ -1,31 +1,4 @@
 import { test, expect } from '../../support/fixtures';
-import { getBackendUrl } from '../../support/backend-url';
-
-const backendUrl = getBackendUrl();
-
-async function createAttachment(partKey: string, title: string) {
-  const formData = new FormData();
-  const filename = `${title.toLowerCase().replace(/\s+/g, '-')}.pdf`;
-  const pdfBytes = Buffer.from(
-    'JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PC9UeXBlIC9DYXRhbG9nL1BhZ2VzIDIgMCBSID4+CmVuZG9iagoyIDAgb2JqCjw8L1R5cGUgL1BhZ2VzL0tpZHMgWyAzIDAgUiBdL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwvVHlwZSAvUGFnZS9NZWRpYUJveCBbMCAwIDYxMiA3OTJdL1BhcmVudCAyIDAgUiA+PgplbmRvYmoKeHJlZgowIDQKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDEwIDAwMDAwIG4gCjAwMDAwMDAwNzAgMDAwMDAgbiAKMDAwMDAwMDEyNiAwMDAwMCBuIAp0cmFpbGVyCjw8L1Jvb3QgMSAwIFIvSW5mbyA0IDAgUi9TaXplIDQgPj4Kc3RhcnR4cmVmCjE4NQolJUVPRgo=',
-    'base64'
-  );
-  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-
-  formData.set('title', title);
-  formData.set('file', blob, filename);
-
-  const response = await fetch(`${backendUrl}/api/parts/${encodeURIComponent(partKey)}/attachments`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to create attachment: ${response.status}`);
-  }
-
-  return response.json();
-}
 
 test.describe('Parts - Duplication', () => {
   test('duplicates part along with attachments', async ({ parts, partsDocuments, testData, apiClient }) => {
@@ -39,8 +12,14 @@ test.describe('Parts - Duplication', () => {
       },
     });
 
-    await createAttachment(part.key, 'Datasheet');
-    await createAttachment(part.key, 'Application Note');
+    await testData.parts.attachments.createBinary(part.key, {
+      title: 'Datasheet',
+      filename: 'datasheet.pdf',
+    });
+    await testData.parts.attachments.createBinary(part.key, {
+      title: 'Application Note',
+      filename: 'application-note.pdf',
+    });
 
     await parts.gotoList();
     await parts.waitForCards();
