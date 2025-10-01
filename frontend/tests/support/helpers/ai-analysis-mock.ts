@@ -103,7 +103,7 @@ const defaultAnalysis: AiAnalysisResult = {
   series: 'G5Q',
   input_voltage: '5V DC',
   output_voltage: null,
-  product_page_url: 'https://example.com/relay',
+  product_page: 'https://example.com/relay',
   seller: null,
   seller_link: null,
 };
