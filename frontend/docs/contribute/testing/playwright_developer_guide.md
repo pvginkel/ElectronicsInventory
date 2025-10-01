@@ -143,6 +143,14 @@ Follow the [No-Sleep Patterns](./no_sleep_patterns.md) reference. Use `Promise.a
 - When a scenario needs deterministic backend behavior (for example, AI analysis over SSE), add test-specific hooks to the service. The pattern is: seed a prebaked response through an API exposed for tests, then drive the UI using a sentinel input such as `test-response-12345` that instructs the backend to emit the prepared payload. Do not emulate the SSE stream in Playwright.
 - If the backend cannot yet support the scenario, pause the Playwright work and extend the backend first. Route interception is not an acceptable fallback.
 
+### Deployment Version Stream (real backend only)
+
+- The deployment banner must subscribe to `/api/utils/version/stream?request_id=<uuid>`; the frontend exposes the seeded id via `useDeploymentNotification().deploymentRequestId`.
+- Tests may reset the id by calling `resetDeploymentRequestId(page)` and then wait for the `kind: 'sse'` open event via `waitForSseEvent(page, { streamId: 'deployment.version', phase: 'open' })`.
+- Trigger backend delivery with `POST /api/testing/deployments/version` using the streamed `requestId`. The response echoes `{ requestId, delivered, status }` so specs can assert whether the update arrived immediately or on reconnect.
+- SSE payloads always include `correlation_id` matching the `request_id`; use it to tie Playwright assertions to backend telemetry instead of stubbing deployment updates.
+- Local dev servers do not expose `version.json`; seed a baseline release via the testing trigger before asserting a follow-up update so the banner logic observes a genuine version change.
+
 ## Suite Conventions
 
 - **Specs**: Name files `*.spec.ts` and colocate with feature folders under `tests/e2e/<feature>/`.

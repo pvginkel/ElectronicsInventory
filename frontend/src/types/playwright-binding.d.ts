@@ -12,9 +12,12 @@ type PlaywrightEventBinding = TestModeEnabled extends true
   ? (event: TestEvent) => void | Promise<void>
   : never;
 
+type PlaywrightResetDeploymentRequestIdBinding = TestModeEnabled extends true ? () => void : never;
+
 declare global {
   interface Window {
     __playwright_emitTestEvent?: PlaywrightEventBinding;
+    __resetDeploymentRequestId?: PlaywrightResetDeploymentRequestIdBinding;
   }
 }
 

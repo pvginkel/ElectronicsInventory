@@ -1,4 +1,4 @@
-import type { TestEvent } from '@/types/test-events';
+import type { TestEvent, SseTestEvent } from '@/types/test-events';
 import { Page } from '@playwright/test';
 
 const DEFAULT_BUFFER_CAPACITY = 500;
@@ -384,6 +384,57 @@ export class TestEventCapture {
 export function createTestEventCapture(page: Page): TestEventCapture {
   const buffer = getTestEventBuffer(page);
   return new TestEventCapture(buffer);
+}
+
+type SseEventCriteria = {
+  streamId: string;
+  phase?: SseTestEvent['phase'];
+  event?: string;
+  timeoutMs?: number;
+  matcher?: (event: SseTestEvent) => boolean;
+};
+
+/**
+ * Waits for a matching SSE test event. Deployment streams now echo `correlation_id` values.
+ */
+export async function waitForSseEvent(
+  page: Page,
+  criteria: SseEventCriteria
+): Promise<SseTestEvent> {
+  const buffer = getTestEventBuffer(page);
+  const timeout = criteria.timeoutMs ?? 5000;
+
+  const event = await buffer.waitForEvent(eventCandidate => {
+    if (eventCandidate.kind !== 'sse') {
+      return false;
+    }
+
+    const sseEvent = eventCandidate as SseTestEvent;
+
+    if (sseEvent.streamId !== criteria.streamId) {
+      return false;
+    }
+
+    if (criteria.phase && sseEvent.phase !== criteria.phase) {
+      return false;
+    }
+
+    if (criteria.event && sseEvent.event !== criteria.event) {
+      return false;
+    }
+
+    if (criteria.matcher) {
+      return criteria.matcher(sseEvent);
+    }
+
+    return true;
+  }, timeout);
+
+  return event as SseTestEvent;
+}
+
+export function extractSseData<T = unknown>(event: SseTestEvent): T | undefined {
+  return event.data as T | undefined;
 }
 
 export async function emitTestEvent(page: Page, event: Omit<TestEvent, 'timestamp'>): Promise<void> {

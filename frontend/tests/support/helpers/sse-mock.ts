@@ -493,62 +493,6 @@ export class SSEMocker {
   }
 
   /**
-   * Simulates a deployment version update
-   * @param newVersion - The new version number
-   * @param options - Simulation options
-   */
-  async simulateDeploymentUpdate(
-    newVersion: string,
-    options?: {
-      changelog?: string;
-      delay?: number;
-      showBanner?: boolean;
-    }
-  ): Promise<void> {
-    if (options?.delay) {
-      await this.page.waitForTimeout(options.delay);
-    }
-
-    const deploymentEvent = SSEMocker.createDeploymentEvent(
-      newVersion,
-      options?.changelog || `Application updated to version ${newVersion}`
-    );
-
-    await this.sendEvent(undefined, deploymentEvent);
-
-    if (options?.showBanner !== false) {
-      await this.page.evaluate((version) => {
-        window.dispatchEvent(new CustomEvent('deployment-update', {
-          detail: {
-            version,
-            timestamp: Date.now(),
-          },
-        }));
-
-        localStorage.setItem('app-version', version);
-        sessionStorage.setItem('deployment-notification-shown', 'true');
-      }, newVersion);
-    }
-  }
-
-  /**
-   * Simulates multiple deployment updates in sequence
-   * @param versions - Array of versions to simulate
-   * @param interval - Time between updates in ms
-   */
-  async simulateDeploymentSequence(
-    versions: string[],
-    interval: number = 5000
-  ): Promise<void> {
-    for (const [index, version] of versions.entries()) {
-      await this.simulateDeploymentUpdate(version);
-      if (index !== versions.length - 1) {
-        await this.page.waitForTimeout(interval);
-      }
-    }
-  }
-
-  /**
    * Checks if deployment banner is visible
    * @returns True if banner is visible
    */
@@ -685,6 +629,7 @@ export class SSEMocker {
  * @param page - The Playwright page
  * @returns SSEMocker instance
  */
+// Deployment streams must use the real backend; this helper stays for documented AI analysis mocks only.
 export function createSSEMocker(page: Page): SSEMocker {
   return new SSEMocker(page);
 }

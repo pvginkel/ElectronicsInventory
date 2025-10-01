@@ -4,7 +4,7 @@
 - [x] Playwright AI Flow Adjustments — establishes the shared AI analysis helper and fixture plumbing that downstream plans and lint enforcement require, eliminating bespoke SSE mocks in the AI specs first.
 - [x] Playwright Documents Real Backend — migrates document workflows to factories and real endpoints so attachment coverage is already backend-driven before we tighten linting.
 - [x] Playwright List Views Cleanup — injects list-view test instrumentation and real data seeding, which the enforcement plan depends on to replace loading-route hacks.
-- [ ] Playwright Deployment SSE Support — removes the deployment stream mocks while backend triggers are fresh, preventing new lint failures once enforcement lands.
+- [x] Playwright Deployment SSE Support — removes the deployment stream mocks while backend triggers are fresh, preventing new lint failures once enforcement lands.
 - [ ] Playwright No Route Mock Enforcement — enables the lint gate only after every targeted spec is on real data and the sanctioned AI helper exists, minimizing churn from late-breaking violations.
 
 This document inventories every mocking hook we currently use in the Playwright suite, explains why it was introduced, and outlines how to replace each mock so the tests can exercise the real backend. The analysis also covers the existing SSE mocking helper and proposes enforcement to prevent new mocks from slipping back in.
@@ -25,12 +25,12 @@ This document inventories every mocking hook we currently use in the Playwright 
 | `tests/e2e/parts/part-documents.spec.ts:61-185` | `GET/POST /api/parts/{part_key}/attachments*` | Stub attachments CRUD, cover toggles, thumbnails | No – backend already exposes deterministic endpoints | No | **No** | Use the real API and leverage `/api/testing/content/image?text=...` for placeholder assets. |
 | `tests/e2e/specific/cover-presence.spec.ts:66-125` | `GET /api/parts/with-locations**`, `GET /api/parts/{key}/cover*` | Fabricate parts with/without cover assets | No – relies on proper attachment helpers | No | **No** | Once attachments run against the backend, seed data via factories and drop the mocks entirely. |
 | `tests/support/helpers/sse-mock.ts:48-137` | `sseMocker.mockSSE` / `sendEvent` | Simulate AI SSE stream events | No (today) | Partial – long-term preference is backend-driven SSE, but AI analysis remains mocked for now | **No** | Keep only the AI analysis SSE mock; every usage must include a documented lint suppression. |
-| `tests/support/helpers/sse-mock.ts:465-520` | `simulateDeploymentUpdate` / `simulateDeploymentSequence` | Fake deployment-version SSE notifications and banner state | No | **Yes** – backend should emit deployment events keyed by the app-supplied request id | **No** | Add backend support keyed by `X-Request-Id` so tests can trigger deployment streams without mocking. |
+| `tests/support/helpers/sse-mock.ts:465-520` | `simulateDeploymentUpdate` / `simulateDeploymentSequence` (removed) | Deployment banner coverage now streams from the real backend via `request_id` | No | No | **No** | Helpers deleted; tests rely on `/api/utils/version/stream?request_id=` plus `POST /api/testing/deployments/version`. |
 
 
 ### Additional Observations
 
-- `simulateDeploymentSequence` is currently unused by specs but remains an SSE helper. When dashboard/email coverage arrives, we should coordinate backend hooks before adopting it.
+- Deployment helpers have been removed; any future coverage must use the backend trigger pattern documented above.
 - No other `page.route` or `browserContext.route` usage exists outside the entries listed above.
 - `mockSSE` and the deployment helpers are the only SSE-related mocks.
 
@@ -63,12 +63,10 @@ This document inventories every mocking hook we currently use in the Playwright 
 ### Parts – `tests/e2e/specific/cover-presence.spec.ts`
 - Once the document tests switch to the real attachments API, reuse the same helpers here: seed one part without attachments and one with a cover set via the backend, then drop the route stubs entirely.
 
-### SSE Deployment Notifications – `simulateDeploymentUpdate` & `simulateDeploymentSequence`
-- Although not currently exercised by tests, these helpers should be backed by the service. Suggested approach:
-  1. Ensure the application itself attaches an `X-Request-Id` (or equivalent correlation id) to every `EventSource` connection. Tests can then supply sentinel ids via environment/config, and the backend can correlate incoming SSE connections without Playwright-level intervention.
-  2. Add a backend endpoint such as `POST /api/testing/deployments/trigger` that accepts the request id and version payload. The backend stores the payload and, when the matching SSE connection appears, emits deployment events over the real stream.
-  3. Update future tests to call the backend trigger instead of `simulateDeploymentSequence`.
-- Once implemented, consider removing the helper or leaving it as a thin wrapper that merely calls the backend trigger.
+- Frontend now seeds `request_id` values via `sessionStorage` and surfaces them through `useDeploymentNotification().deploymentRequestId`.
+- The stream endpoint (`GET /api/utils/version/stream`) accepts the query parameter and echoes `correlation_id` on every payload.
+- Tests call `POST /api/testing/deployments/version` with `{ request_id, version, changelog? }` to deliver updates; the response indicates whether delivery was immediate or queued for reconnects.
+- Playwright helpers (`resetDeploymentRequestId`, `waitForSseEvent`) capture the streamed request id so future specs can assert on the backend-driven flow without mocks; `tests/e2e/deployment/deployment-banner.spec.ts` seeds a baseline release and then verifies the banner against a follow-up update.
 
 ## SSE Mocking Considerations
 
