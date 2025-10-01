@@ -56,6 +56,17 @@ test.describe('TestEventBuffer', () => {
     expect(formEvent.metadata?.status).toBe('ready');
   });
 
+  test('rejects when matching event was already observed', async () => {
+    const buffer = new TestEventBuffer();
+    buffer.addEvent(createFormEvent({ metadata: { status: 'ready' } }));
+
+    await buffer.waitForEvent(event => (event as FormTestEvent).metadata?.status === 'ready', 1000);
+
+    await expect(
+      buffer.waitForEvent(event => (event as FormTestEvent).metadata?.status === 'ready', 50)
+    ).rejects.toThrow(/already observed/);
+  });
+
   test('resolves waiters when matching event arrives later', async () => {
     const buffer = new TestEventBuffer();
 
@@ -71,6 +82,18 @@ test.describe('TestEventBuffer', () => {
     const buffer = new TestEventBuffer();
 
     await expect(buffer.waitForEvent(() => false, 50)).rejects.toThrow(/Timeout/);
+  });
+
+  test('second concurrent waiter observes consumption of event', async () => {
+    const buffer = new TestEventBuffer();
+
+    const waiterOne = buffer.waitForEvent(event => (event as FormTestEvent).metadata?.flag === 'x', 1000);
+    const waiterTwo = buffer.waitForEvent(event => (event as FormTestEvent).metadata?.flag === 'x', 50);
+
+    buffer.addEvent(createFormEvent({ metadata: { flag: 'x' } }));
+
+    await expect(waiterOne).resolves.toBeTruthy();
+    await expect(waiterTwo).rejects.toThrow(/already observed/);
   });
 
   test('clear() resets overflow error', () => {

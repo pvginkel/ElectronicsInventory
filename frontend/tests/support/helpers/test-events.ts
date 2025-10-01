@@ -4,9 +4,15 @@ import { Page } from '@playwright/test';
 const DEFAULT_BUFFER_CAPACITY = 500;
 const PLAYWRIGHT_BINDING_NAME = '__playwright_emitTestEvent';
 
+type EventRecord = {
+  event: TestEvent;
+  observed: boolean;
+};
+
 type Waiter = {
   matcher: (event: TestEvent) => boolean;
-  resolve: (event: TestEvent) => void;
+  resolve: (record: EventRecord) => void;
+  observedMatchSeen: boolean;
   timeoutId?: NodeJS.Timeout;
 };
 
@@ -22,7 +28,7 @@ function normalizeEvent(raw: any): TestEvent {
 }
 
 export class TestEventBuffer {
-  private events: TestEvent[] = [];
+  private events: EventRecord[] = [];
   private dropped = 0;
   private capacity: number;
   private waiters: Waiter[] = [];
@@ -39,9 +45,13 @@ export class TestEventBuffer {
 
   addEvent(event: TestEvent): void {
     const normalized = normalizeEvent(event);
-    this.events.push(normalized);
+    const record: EventRecord = {
+      event: normalized,
+      observed: false,
+    };
+    this.events.push(record);
     this.trimIfNeeded();
-    this.notifyWaiters(normalized);
+    this.notifyWaiters(record);
   }
 
   clear(): void {
@@ -58,7 +68,7 @@ export class TestEventBuffer {
     const total = this.dropped + this.events.length;
     const relativeStart = Math.max(cursor - this.dropped, 0);
     const events = relativeStart < this.events.length
-      ? this.events.slice(relativeStart)
+      ? this.events.slice(relativeStart).map(record => record.event)
       : [];
     return { events, total };
   }
@@ -71,26 +81,33 @@ export class TestEventBuffer {
     matcher: (event: TestEvent) => boolean,
     timeout: number
   ): Promise<TestEvent> {
-    const existing = this.events.find(matcher);
-    if (existing) {
-      return existing;
+    const { record: immediateRecord, observedMatchFound } = this.findMatchingEvent(matcher);
+    if (immediateRecord) {
+      this.markObserved(immediateRecord);
+      return immediateRecord.event;
     }
 
     return new Promise<TestEvent>((resolve, reject) => {
       const waiter: Waiter = {
         matcher,
-        resolve: (event) => {
+        observedMatchSeen: observedMatchFound,
+        resolve: (record) => {
           if (waiter.timeoutId) {
             clearTimeout(waiter.timeoutId);
           }
-          resolve(event);
+          this.markObserved(record);
+          resolve(record.event);
         },
       };
 
       if (timeout > 0) {
         waiter.timeoutId = setTimeout(() => {
           this.removeWaiter(waiter);
-          reject(new Error(`Timeout waiting for event matching criteria after ${timeout}ms`));
+          const baseMessage = `Timeout waiting for event matching criteria after ${timeout}ms`;
+          const message = waiter.observedMatchSeen
+            ? `${baseMessage}. A matching event was already observed earlier in this test run.`
+            : baseMessage;
+          reject(new Error(message));
         }, timeout);
       }
 
@@ -127,7 +144,7 @@ export class TestEventBuffer {
     }
   }
 
-  private notifyWaiters(event: TestEvent): void {
+  private notifyWaiters(record: EventRecord): void {
     if (this.waiters.length === 0) {
       return;
     }
@@ -135,8 +152,14 @@ export class TestEventBuffer {
     const remaining: Waiter[] = [];
 
     for (const waiter of this.waiters) {
-      if (waiter.matcher(event)) {
-        waiter.resolve(event);
+      if (waiter.matcher(record.event)) {
+        if (record.observed) {
+          waiter.observedMatchSeen = true;
+          remaining.push(waiter);
+          continue;
+        }
+
+        waiter.resolve(record);
         continue;
       }
 
@@ -148,6 +171,31 @@ export class TestEventBuffer {
 
   private removeWaiter(waiter: Waiter): void {
     this.waiters = this.waiters.filter(candidate => candidate !== waiter);
+  }
+
+  private findMatchingEvent(
+    matcher: (event: TestEvent) => boolean,
+  ): { record: EventRecord | null; observedMatchFound: boolean } {
+    let observedMatchFound = false;
+
+    for (const record of this.events) {
+      if (!matcher(record.event)) {
+        continue;
+      }
+
+      if (record.observed) {
+        observedMatchFound = true;
+        continue;
+      }
+
+      return { record, observedMatchFound };
+    }
+
+    return { record: null, observedMatchFound };
+  }
+
+  private markObserved(record: EventRecord): void {
+    record.observed = true;
   }
 }
 
@@ -239,14 +287,10 @@ export class TestEventCapture {
     options?: { timeout?: number; intervalMs?: number }
   ): Promise<TestEvent> {
     const timeout = options?.timeout ?? 5000;
-    const events = await this.getEvents();
-    const existing = events.find(matcher);
-
-    if (existing) {
-      return existing;
-    }
-
-    return this.buffer.waitForEvent(matcher, timeout);
+    const event = await this.buffer.waitForEvent(matcher, timeout);
+    // Refresh local snapshot so downstream assertions see the consumed event.
+    await this.getEvents();
+    return event;
   }
 
   async assertEventEmitted(expectedEvent: Partial<TestEvent>): Promise<TestEvent> {
