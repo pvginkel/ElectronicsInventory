@@ -1,6 +1,8 @@
 import { test, expect } from '../../support/fixtures';
 
 test.describe('Types - Complete Workflow', () => {
+  test.describe.configure({ timeout: 120_000 });
+
   test('complete E2E workflow: create, edit, and delete attempt', async ({ testData, types }) => {
     await types.goto();
 

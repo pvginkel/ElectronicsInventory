@@ -27,6 +27,25 @@ export class DocumentGridPage extends BasePage {
     return this.page.locator('[data-document-tile]').filter({ hasText: title });
   }
 
+  coverToggleButton(attachmentId: number | string): Locator {
+    return this.documentTileById(attachmentId).locator('button[title*="cover" i]').first();
+  }
+
+  previewImage(attachmentId: number | string): Locator {
+    return this.documentTileById(attachmentId).locator('img');
+  }
+
+  async expectCoverState(attachmentId: number | string, isCover: boolean): Promise<void> {
+    const button = this.coverToggleButton(attachmentId);
+    await expect(button).toBeVisible();
+    const expected = isCover ? /current cover/i : /set as cover/i;
+    await expect(button).toHaveAttribute('title', expected);
+  }
+
+  async waitForPreviewImage(attachmentId: number | string): Promise<void> {
+    await expect(this.previewImage(attachmentId)).toBeVisible();
+  }
+
   async waitForTile(attachmentId: number | string): Promise<void> {
     await expect(this.documentTileById(attachmentId)).toBeVisible();
   }
@@ -37,7 +56,7 @@ export class DocumentGridPage extends BasePage {
 
   async waitForAttachmentCount(expectedCount: number): Promise<void> {
     const tiles = this.gridRoot.locator('[data-document-tile]');
-    await expect(tiles).toHaveCount(expectedCount);
+    await expect(tiles).toHaveCount(expectedCount, { timeout: 20000 });
   }
 
   async createLinkDocument(
@@ -51,6 +70,13 @@ export class DocumentGridPage extends BasePage {
       pendingResponses.push(
         this.page.waitForResponse(response => {
           return response.request().method() === 'POST'
+            && response.url().includes(`/api/parts/${options.partKey}/attachments`);
+        })
+      );
+      pendingResponses.push(
+        this.page.waitForResponse(response => {
+          const request = response.request();
+          return request.method() === 'GET'
             && response.url().includes(`/api/parts/${options.partKey}/attachments`);
         })
       );

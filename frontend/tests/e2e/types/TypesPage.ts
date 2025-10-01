@@ -93,8 +93,12 @@ export class TypesPage {
     await this.createButton.click();
     await expect(this.createModal()).toBeVisible();
     await this.nameInput().fill(name);
-    await this.submitButton().click();
-    await expect(this.createModal()).toBeHidden();
+    const pendingResponses = this.waitForTypesMutation('POST');
+    await Promise.all([
+      this.submitButton().click(),
+      ...pendingResponses,
+    ]);
+    await expect(this.createModal()).toBeHidden({ timeout: 20000 });
     await expect(this.cardByName(name)).toBeVisible();
   }
 
@@ -103,8 +107,12 @@ export class TypesPage {
     await expect(this.editModal()).toBeVisible();
     await this.nameInput().clear();
     await this.nameInput().fill(newName);
-    await this.submitButton().click();
-    await expect(this.editModal()).toBeHidden();
+    const pendingResponses = this.waitForTypesMutation('PUT');
+    await Promise.all([
+      this.submitButton().click(),
+      ...pendingResponses,
+    ]);
+    await expect(this.editModal()).toBeHidden({ timeout: 20000 });
     await expect(this.cardByName(newName)).toBeVisible();
   }
 
@@ -116,8 +124,12 @@ export class TypesPage {
     await expect(confirmDialog).toBeVisible();
 
     // Click the Delete button in the confirm dialog
-    await confirmDialog.getByRole('button', { name: 'Delete' }).click();
-    await expect(confirmDialog).toBeHidden();
+    const pendingResponses = this.waitForTypesMutation('DELETE');
+    await Promise.all([
+      confirmDialog.getByRole('button', { name: 'Delete' }).click(),
+      ...pendingResponses,
+    ]);
+    await expect(confirmDialog).toBeHidden({ timeout: 20000 });
 
     // Verify deletion - card should be gone
     await expect(this.cardByName(name)).toHaveCount(0);
@@ -126,5 +138,43 @@ export class TypesPage {
   async search(term: string) {
     await this.searchInput.fill(term);
     // Wait for filtered results (cards update immediately)
+  }
+
+  private waitForTypesMutation(method: 'POST' | 'PUT' | 'DELETE'): Array<Promise<unknown>> {
+    const mutations: Array<Promise<unknown>> = [];
+
+    mutations.push(
+      this.page.waitForResponse(
+        response => response.request().method() === method && this.isTypesMutationPath(response.url()),
+        { timeout: 20000 }
+      )
+    );
+
+    mutations.push(
+      this.page.waitForResponse(
+        response => response.request().method() === 'GET' && this.isTypesListPath(response.url()),
+        { timeout: 20000 }
+      )
+    );
+
+    return mutations;
+  }
+
+  private isTypesMutationPath(url: string): boolean {
+    try {
+      const { pathname } = new URL(url);
+      return /\/api\/types(?:\/[0-9]+)?$/.test(pathname);
+    } catch {
+      return false;
+    }
+  }
+
+  private isTypesListPath(url: string): boolean {
+    try {
+      const { pathname } = new URL(url);
+      return pathname === '/api/types';
+    } catch {
+      return false;
+    }
   }
 }

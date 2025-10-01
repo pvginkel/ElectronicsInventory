@@ -1,141 +1,65 @@
 import { test, expect } from '../../support/fixtures';
 
-const pngPlaceholder = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGMAAQAABQABDQottgAAAABJRU5ErkJggg==',
-  'base64'
-);
+const COVER_TITLE = 'Mock Cover Image';
+const PLACEHOLDER_TITLE = 'Sensor Without Cover';
 
 test.describe('Cover presence flag', () => {
-  test('skips cover fetch when flag is false and loads when true', async ({ page }) => {
-    const partWithCoverKey = 'ABCD';
-    const partWithoutCoverKey = 'EFGH';
+  test('skips cover fetch when flag is false and loads when true', async ({ page, parts, testData }) => {
+    const { part: uncoveredPart } = await testData.parts.create({
+      overrides: {
+        description: PLACEHOLDER_TITLE,
+      },
+    });
 
-    const partsResponse = [
-      {
-        created_at: new Date().toISOString(),
+    const { part: coveredPart } = await testData.parts.create({
+      overrides: {
         description: 'Amplifier With Cover',
-        dimensions: null,
-        has_cover_attachment: true,
-        input_voltage: null,
-        key: partWithCoverKey,
-        locations: [],
-        manufacturer: null,
-        manufacturer_code: null,
-        mounting_type: null,
-        output_voltage: null,
-        package: null,
-        pin_count: null,
-        pin_pitch: null,
-        product_page: null,
-        seller: null,
-        seller_link: null,
-        series: null,
-        tags: [],
-        total_quantity: 0,
-        type_id: null,
-        updated_at: new Date().toISOString(),
-        voltage_rating: null,
       },
-      {
-        created_at: new Date().toISOString(),
-        description: 'Sensor Without Cover',
-        dimensions: null,
-        has_cover_attachment: false,
-        input_voltage: null,
-        key: partWithoutCoverKey,
-        locations: [],
-        manufacturer: null,
-        manufacturer_code: null,
-        mounting_type: null,
-        output_voltage: null,
-        package: null,
-        pin_count: null,
-        pin_pitch: null,
-        product_page: null,
-        seller: null,
-        seller_link: null,
-        series: null,
-        tags: [],
-        total_quantity: 0,
-        type_id: null,
-        updated_at: new Date().toISOString(),
-        voltage_rating: null,
-      },
-    ];
+    });
 
-    await page.route('**/api/types?include_stats=true', route =>
-      route.fulfill({
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify([]),
-      })
-    );
+    const coverAttachment = await testData.parts.attachments.createUrl(coveredPart.key, {
+      title: COVER_TITLE,
+      previewText: 'Cover',
+    });
 
-    await page.route('**/api/parts/with-locations**', route =>
-      route.fulfill({
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(partsResponse),
-      })
-    );
+    await testData.parts.attachments.setCover(coveredPart.key, coverAttachment.id);
+
+    await expect.poll(async () => (await testData.parts.getDetail(coveredPart.key)).cover_attachment_id).toBe(coverAttachment.id);
+    await expect.poll(async () => {
+      const list = await testData.parts.listWithLocations();
+      return list.find(item => item.key === coveredPart.key)?.has_cover_attachment ?? false;
+    }).toBe(true);
+
+    const uncoveredDetail = await testData.parts.getDetail(uncoveredPart.key);
+    expect(uncoveredDetail.cover_attachment_id).toBeNull();
 
     const coverRequests: Record<string, number> = {};
+    page.on('response', response => {
+      if (response.request().method() !== 'GET') {
+        return;
+      }
 
-    await page.route(/\/api\/parts\/([^/]+)\/cover$/, async route => {
-      const match = route.request().url().match(/\/api\/parts\/([^/]+)\/cover$/);
-      const partKey = match?.[1];
-      if (partKey) {
+      const match = response.url().match(/\/api\/parts\/([^/]+)\/cover$/);
+      if (match) {
+        const partKey = match[1];
         coverRequests[partKey] = (coverRequests[partKey] ?? 0) + 1;
       }
-
-      if (partKey === partWithCoverKey) {
-        await route.fulfill({
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            attachment: {
-              id: 101,
-              title: 'Mock Cover',
-              attachment_type: 'image',
-              filename: 'cover.png',
-              content_type: 'image/png',
-            },
-          }),
-        });
-      } else {
-        await route.fulfill({
-          status: 404,
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ detail: 'Not Found' }),
-        });
-      }
     });
 
-    await page.route(/\/api\/parts\/([^/]+)\/cover\/thumbnail/, async route => {
-      const match = route.request().url().match(/\/api\/parts\/([^/]+)\/cover\//);
-      const partKey = match?.[1];
+    await parts.gotoList();
+    await parts.waitForCards();
 
-      if (partKey === partWithCoverKey) {
-        await route.fulfill({
-          status: 200,
-          headers: { 'content-type': 'image/png' },
-          body: pngPlaceholder,
-        });
-      } else {
-        await route.fulfill({ status: 404 });
-      }
-    });
+    await expect(parts.cardByKey(coveredPart.key)).toBeVisible();
+    await expect(parts.cardByKey(uncoveredPart.key)).toBeVisible();
 
-    await page.goto('/parts');
+    await expect(parts.coverImage(coveredPart.key)).toHaveAttribute('alt', COVER_TITLE);
+    await expect(parts.coverPlaceholder(uncoveredPart.key)).toBeVisible();
 
-    await expect(page.getByRole('heading', { name: 'Parts' })).toBeVisible();
-    await expect(page.getByText('Amplifier With Cover')).toBeVisible();
-    await expect(page.getByText('Sensor Without Cover')).toBeVisible();
+    await expect.poll(() => coverRequests[coveredPart.key] ?? 0).toBeGreaterThan(0);
+    expect(coverRequests[uncoveredPart.key]).toBeUndefined();
 
-    await expect(page.getByText('No cover image')).toBeVisible();
-    await expect(page.locator('img[alt="Mock Cover"]')).toBeVisible();
-
-    await expect.poll(() => coverRequests[partWithCoverKey] ?? 0).toBe(1);
-    expect(coverRequests[partWithoutCoverKey]).toBeUndefined();
+    const currentCover = await testData.parts.attachments.getCover(coveredPart.key);
+    expect(currentCover.attachment_id).toBe(coverAttachment.id);
+    expect(currentCover.attachment?.title).toBe(COVER_TITLE);
   });
 });

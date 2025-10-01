@@ -1,6 +1,7 @@
 import { createApiClient, apiRequest } from './client';
 import { TypeTestFactory } from './factories/type-factory';
 import { PartTestFactory } from './factories/part-factory';
+import { PartAttachmentTestFactory } from './factories/part-attachment-factory';
 import { BoxTestFactory } from './factories/box-factory';
 import { SellerTestFactory } from './factories/seller-factory';
 
@@ -8,6 +9,7 @@ import { SellerTestFactory } from './factories/seller-factory';
 export { createApiClient, apiRequest };
 export { TypeTestFactory };
 export { PartTestFactory };
+export { PartAttachmentTestFactory };
 export { BoxTestFactory };
 export { SellerTestFactory };
 
@@ -20,6 +22,7 @@ export function createTestDataBundle(client?: ReturnType<typeof createApiClient>
   const apiClient = client || createApiClient();
   const typeFactory = new TypeTestFactory(apiClient);
   const partFactory = new PartTestFactory(apiClient);
+  const partAttachmentFactory = new PartAttachmentTestFactory(apiClient);
   const boxFactory = new BoxTestFactory(apiClient);
   const sellerFactory = new SellerTestFactory(apiClient);
 
@@ -37,6 +40,18 @@ export function createTestDataBundle(client?: ReturnType<typeof createApiClient>
       createWithLocation: partFactory.createWithLocation.bind(partFactory),
       createWithDocuments: partFactory.createWithDocuments.bind(partFactory),
       createComplete: partFactory.createComplete.bind(partFactory),
+      getDetail: partFactory.getDetail.bind(partFactory),
+      listWithLocations: partFactory.listWithLocations.bind(partFactory),
+      attachments: {
+        createUrl: partAttachmentFactory.createUrl.bind(partAttachmentFactory),
+        createBinary: partAttachmentFactory.createBinary.bind(partAttachmentFactory),
+        list: partAttachmentFactory.list.bind(partAttachmentFactory),
+        get: partAttachmentFactory.get.bind(partAttachmentFactory),
+        delete: partAttachmentFactory.delete.bind(partAttachmentFactory),
+        getCover: partAttachmentFactory.getCover.bind(partAttachmentFactory),
+        setCover: partAttachmentFactory.setCover.bind(partAttachmentFactory),
+        clearCover: partAttachmentFactory.clearCover.bind(partAttachmentFactory),
+      },
     },
     boxes: {
       create: boxFactory.create.bind(boxFactory),

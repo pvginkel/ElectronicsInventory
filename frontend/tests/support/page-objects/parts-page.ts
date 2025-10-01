@@ -48,6 +48,14 @@ export class PartsPage extends BasePage {
     return this.page.locator(`[data-testid="parts.list.card"][data-part-key="${partKey}"]`);
   }
 
+  coverImage(partKey: string): Locator {
+    return this.cardByKey(partKey).getByRole('img').first();
+  }
+
+  coverPlaceholder(partKey: string): Locator {
+    return this.cardByKey(partKey).getByText('No cover image');
+  }
+
   async openCardByKey(partKey: string): Promise<void> {
     const card = this.cardByKey(partKey);
     await expect(card).toBeVisible();

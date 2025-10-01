@@ -1,8 +1,8 @@
 # Playwright Route Mocking Analysis
 
 ## Execution Checklist
-- [ ] Playwright AI Flow Adjustments — establishes the shared AI analysis helper and fixture plumbing that downstream plans and lint enforcement require, eliminating bespoke SSE mocks in the AI specs first.
-- [ ] Playwright Documents Real Backend — migrates document workflows to factories and real endpoints so attachment coverage is already backend-driven before we tighten linting.
+- [x] Playwright AI Flow Adjustments — establishes the shared AI analysis helper and fixture plumbing that downstream plans and lint enforcement require, eliminating bespoke SSE mocks in the AI specs first.
+- [x] Playwright Documents Real Backend — migrates document workflows to factories and real endpoints so attachment coverage is already backend-driven before we tighten linting.
 - [ ] Playwright List Views Cleanup — injects list-view test instrumentation and real data seeding, which the enforcement plan depends on to replace loading-route hacks.
 - [ ] Playwright Deployment SSE Support — removes the deployment stream mocks while backend triggers are fresh, preventing new lint failures once enforcement lands.
 - [ ] Playwright No Route Mock Enforcement — enables the lint gate only after every targeted spec is on real data and the sanctioned AI helper exists, minimizing churn from late-breaking violations.

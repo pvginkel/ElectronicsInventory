@@ -6,6 +6,7 @@ import type { components } from '../../../src/lib/api/generated/types';
 type PartCreateSchema = components['schemas']['PartCreateSchema.1a46b79'];
 type PartResponseSchema = components['schemas']['PartResponseSchema.1a46b79'];
 type TypeResponseSchema = components['schemas']['TypeResponseSchema.50492c8'];
+type PartWithLocationsSchema = components['schemas']['PartWithTotalAndLocationsSchemaList.a9993e3.PartWithTotalAndLocationsSchema'];
 
 interface PartCreateOptions {
   overrides?: Partial<PartCreateSchema>;
@@ -205,5 +206,23 @@ export class PartTestFactory {
       ...(config?.location && { location: config.location }),
       ...(config?.documents && { documents: config.documents }),
     };
+  }
+
+  /**
+   * Fetches part detail (including cover metadata) from the real backend
+   */
+  async getDetail(partKey: string): Promise<PartResponseSchema> {
+    return apiRequest(() =>
+      this.client.GET('/api/parts/{part_key}', {
+        params: { path: { part_key: partKey } },
+      })
+    );
+  }
+
+  /**
+   * Lists all parts with location metadata; mirrors the grid query used by the app
+   */
+  async listWithLocations(): Promise<PartWithLocationsSchema[]> {
+    return apiRequest(() => this.client.GET('/api/parts/with-locations'));
   }
 }
