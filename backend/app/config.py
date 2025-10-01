@@ -118,6 +118,10 @@ class Settings(BaseSettings):
     OPENAI_DUMMY_RESPONSE_PATH: str | None = Field(
         default=None, description="Path to a JSON file containing a dummy response"
     )
+    DISABLE_REAL_AI_ANALYSIS: bool = Field(
+        default=False,
+        description="When true, disallows real AI analysis requests regardless of API key configuration",
+    )
 
     # Task management settings
     TASK_MAX_WORKERS: int = Field(
@@ -159,11 +163,13 @@ class Settings(BaseSettings):
         description="SSE heartbeat interval in seconds (5 for development, 30 for production)"
     )
 
-    @model_validator(mode='after')
-    def set_sse_heartbeat_interval(self):
-        """Set SSE heartbeat interval based on environment."""
+    @model_validator(mode="after")
+    def configure_environment_defaults(self):
+        """Apply environment-specific defaults after validation."""
         if self.FLASK_ENV == "production":
             self.SSE_HEARTBEAT_INTERVAL = 30
+        if self.FLASK_ENV == "testing":
+            self.DISABLE_REAL_AI_ANALYSIS = True
         return self
 
     @property
@@ -180,6 +186,11 @@ class Settings(BaseSettings):
     def is_testing(self) -> bool:
         """Check if running in testing environment."""
         return self.FLASK_ENV == "testing"
+
+    @property
+    def real_ai_allowed(self) -> bool:
+        """Determine whether real AI analysis is permitted for the current settings."""
+        return not self.DISABLE_REAL_AI_ANALYSIS
 
 
 @lru_cache

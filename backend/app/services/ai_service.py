@@ -9,6 +9,7 @@ from urllib.parse import quote
 from jinja2 import Environment
 
 from app.config import Settings
+from app.exceptions import InvalidOperationException
 from app.models.part_attachment import AttachmentType
 from app.schemas.ai_part_analysis import (
     AIPartAnalysisResultSchema,
@@ -44,12 +45,15 @@ class AIService(BaseService):
         self.download_cache_service = download_cache_service
         self.document_service = document_service
         self.url_classifier_function = URLClassifierFunctionImpl(download_cache_service, document_service)
+        self.real_ai_allowed = config.real_ai_allowed
+        self.runner: AIRunner | None = None
 
-        # Initialize OpenAI client
-        if not config.OPENAI_API_KEY:
-            raise ValueError("OPENAI_API_KEY configuration is required for AI features")
+        # Initialize OpenAI client only when real AI interactions are permitted
+        if self.real_ai_allowed:
+            if not config.OPENAI_API_KEY:
+                raise ValueError("OPENAI_API_KEY configuration is required for AI features")
 
-        self.runner = AIRunner(config.OPENAI_API_KEY, metrics_service)
+            self.runner = AIRunner(config.OPENAI_API_KEY, metrics_service)
 
     def analyze_part(self, user_prompt: str | None, image_data: bytes | None,
                      image_mime_type: str | None, progress_handle: ProgressHandle) -> AIPartAnalysisResultSchema:
@@ -80,6 +84,18 @@ class AIService(BaseService):
                 with open(self.config.OPENAI_DUMMY_RESPONSE_PATH) as f:
                     ai_response = PartAnalysisSuggestion.model_validate(json.loads(f.read()))
             else:
+                if not self.real_ai_allowed:
+                    raise InvalidOperationException(
+                        "perform AI analysis",
+                        "real AI usage is disabled in testing mode",
+                    )
+
+                if not self.runner:
+                    raise InvalidOperationException(
+                        "perform AI analysis",
+                        "the AI runner is not initialized",
+                    )
+
                 # Build input and instructions for Responses API
                 system_prompt = self._build_prompt(type_names)
 
