@@ -81,8 +81,25 @@ test.describe('Parts - AI assisted creation', () => {
     await aiSession.emitCompleted();
     await partsAI.waitForReview();
 
+    const expectFieldValue = async (label: string, value: string | number | null | undefined) => {
+      await expect(partsAI.reviewStep.getByLabel(label, { exact: true }))
+        .toHaveValue(value == null ? '' : String(value));
+    };
+
     await expect(partsAI.reviewStep.getByLabel('Description *')).toHaveValue(analysisResult.description);
     await expect(partsAI.reviewStep).toContainText('relay');
+    await expectFieldValue('Manufacturer', analysisResult.manufacturer);
+    await expectFieldValue('Manufacturer Code', analysisResult.manufacturer_code);
+    await expectFieldValue('Dimensions', analysisResult.dimensions);
+    await expectFieldValue('Voltage Rating', analysisResult.voltage_rating);
+    await expectFieldValue('Input Voltage', analysisResult.input_voltage);
+    await expectFieldValue('Package', analysisResult.package);
+    await expectFieldValue('Pin Count', analysisResult.pin_count);
+    await expectFieldValue('Pin Pitch', analysisResult.pin_pitch);
+    await expectFieldValue('Series', analysisResult.series);
+    await expect(partsAI.reviewStep.getByLabel('Product Page URL'))
+      .toHaveValue('https://example.com/relay');
+    await expect(partsAI.reviewStep).toContainText(datasheetTitle);
 
     const [createResponse] = await Promise.all([
       page.waitForResponse('**/api/ai-parts/create'),

@@ -33,7 +33,6 @@ export interface AiAnalysisResult {
   series: string | null;
   input_voltage: string | null;
   output_voltage: string | null;
-  product_page_url?: string | null;
   product_page?: string | null;
   seller?: string | null;
   seller_link?: string | null;

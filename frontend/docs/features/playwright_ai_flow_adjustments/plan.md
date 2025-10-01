@@ -50,5 +50,5 @@ Re-align the AI-assisted Playwright flows with the real-backend policy from `doc
    - Remove unused code from `tests/support/helpers/sse-mock.ts`.
 
 7. **Validation**
-   - Run `pnpm playwright test tests/e2e/parts/part-ai-creation.spec.ts tests/e2e/types/type-selector.spec.ts --project=chromium --workers=1`.
-   - Follow up with `pnpm playwright test` to guard against regressions elsewhere.
+   - Run `pnpm playwright tests/e2e/parts/part-ai-creation.spec.ts tests/e2e/types/type-selector.spec.ts --workers=1`.
+   - Follow up with `pnpm playwright` to guard against regressions elsewhere.

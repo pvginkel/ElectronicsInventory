@@ -243,8 +243,8 @@ Ready to proceed with Phase 2: Types Feature Coverage.
 Each phase follows this execution pattern:
 
 1. **Implementation**: Create/modify files according to phase requirements
-2. **Test Execution**: Run full test suite with `pnpm playwright test`
-3. **Debug & Fix**: Address any failures using `pnpm playwright test --debug`
+2. **Test Execution**: Run full test suite with `pnpm playwright`
+3. **Debug & Fix**: Address any failures using `pnpm playwright --debug`
 4. **Documentation Update**: Mark completed items in `docs/epics/playwright_outstanding_work.md`
 5. **Sign-off**: Obtain approval before proceeding to next phase
 

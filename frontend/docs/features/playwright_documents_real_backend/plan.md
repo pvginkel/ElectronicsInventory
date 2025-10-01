@@ -58,8 +58,8 @@ Align the document-management Playwright coverage with the real-backend policy o
 - Tweak `toast-helpers` only if the real backend introduces timing that causes existing waits to flake; otherwise keep the helper untouched.
 
 ## Validation
-- `pnpm playwright test tests/e2e/parts/part-documents.spec.ts tests/e2e/specific/cover-presence.spec.ts --project=chromium --workers=1`
-- `pnpm playwright test --project=chromium`
+- `pnpm playwright tests/e2e/parts/part-documents.spec.ts tests/e2e/specific/cover-presence.spec.ts --workers=1`
+- `pnpm playwright`
 - If helper changes touch lint rules, run `pnpm lint tests`.
 
 ## Notes / Follow-ups

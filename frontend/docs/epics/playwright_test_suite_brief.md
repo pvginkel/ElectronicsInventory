@@ -181,7 +181,7 @@ Add sections to your **AGENTS-frontend.md** and **AGENTS-backend.md**:
 
 # Acceptance criteria
 
-* Running `pnpm playwright test` (with `FRONTEND_URL`/`BACKEND_URL` set) executes:
+* Running `pnpm playwright` (with `FRONTEND_URL`/`BACKEND_URL` set) executes:
 
   * At least one **specific** test and one **E2E** test for **Types**, both **fully headless**, both passing solely via **test events** + selectors.
 * Frontend in test mode **emits** the agreed test-event taxonomy; production build does not.

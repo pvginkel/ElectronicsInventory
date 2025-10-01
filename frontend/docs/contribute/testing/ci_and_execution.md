@@ -9,13 +9,16 @@ This guide covers how Playwright runs locally and in CI, including managed servi
 pnpm exec playwright install
 
 # Default run (headless)
-pnpm playwright test
+pnpm playwright
 
 # Focus on a single file
-docs$ pnpm playwright test tests/e2e/types/types-workflow.spec.ts
+pnpm playwright tests/e2e/types/types-workflow.spec.ts
+
+# Focus on a single test
+pnpm playwright -g 'workflow with multiple types'
 
 # Debug mode (headed inspector)
-pnpm playwright test --debug
+pnpm playwright --debug
 ```
 
 Playwright is configured in `playwright.config.ts` with `headless: true` by default. Debug mode is the only supported headed execution.
@@ -57,7 +60,7 @@ Use `.env.test` or shell exports to tweak execution:
 export FRONTEND_URL=http://localhost:4173
 export BACKEND_URL=http://localhost:8000
 export PLAYWRIGHT_MANAGED_SERVICES=false
-pnpm playwright test
+pnpm playwright
 ```
 
 ## CI Integration
@@ -69,7 +72,7 @@ pnpm playwright test
 
 ## Debugging Tips
 
-- Use `pnpm playwright test --debug` to launch the inspector and step through tests.
+- Use `pnpm playwright --debug` to launch the inspector and step through tests.
 - Use the `testEvents` fixture (e.g., `await testEvents.dumpEvents()`) to inspect emitted payloads when debugging locally.
 - When managed services fail to start, run scripts manually to inspect output (`./scripts/testing-server.sh start`).
 
