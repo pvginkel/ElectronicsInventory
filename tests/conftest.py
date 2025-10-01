@@ -42,6 +42,8 @@ def test_settings() -> Settings:
         SECRET_KEY="test-secret-key",
         DEBUG=True,
         FLASK_ENV="testing",
+        DISABLE_REAL_AI_ANALYSIS=True,
+        OPENAI_DUMMY_RESPONSE_PATH=None,
         CORS_ORIGINS=["http://localhost:3000"],
         # Document service configuration
         ALLOWED_IMAGE_TYPES=["image/jpeg", "image/png"],

@@ -1,5 +1,6 @@
 """Tests for AI service."""
 
+import json
 import tempfile
 from collections.abc import Generator
 from unittest.mock import Mock, patch
@@ -8,6 +9,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app.config import Settings
+from app.exceptions import InvalidOperationException
 from app.models.part_attachment import AttachmentType
 from app.models.type import Type
 from app.schemas.ai_part_analysis import DocumentSuggestionSchema
@@ -280,6 +282,81 @@ class TestAIService:
         # Verify the runner was called
         mock_run.assert_called_once()
 
+    def test_analyze_part_disallowed_without_dummy(
+        self,
+        session: Session,
+        temp_file_manager: TempFileManager,
+        mock_type_service: TypeService,
+        mock_download_cache_service: DownloadCacheService,
+        mock_document_service: DocumentService,
+        mock_metrics_service,
+    ):
+        """Real AI usage should be blocked in testing mode without dummy data."""
+        settings = Settings(
+            DATABASE_URL="sqlite:///:memory:",
+            FLASK_ENV="testing",
+            OPENAI_DUMMY_RESPONSE_PATH=None,
+        )
+
+        service = AIService(
+            db=session,
+            config=settings,
+            temp_file_manager=temp_file_manager,
+            type_service=mock_type_service,
+            download_cache_service=mock_download_cache_service,
+            document_service=mock_document_service,
+            metrics_service=mock_metrics_service,
+        )
+
+        mock_progress = Mock()
+
+        with pytest.raises(InvalidOperationException, match="real AI usage is disabled in testing mode"):
+            service.analyze_part("Test prompt", None, None, mock_progress)
+
+    def test_analyze_part_uses_dummy_response_when_disabled(
+        self,
+        tmp_path,
+        session: Session,
+        temp_file_manager: TempFileManager,
+        mock_type_service: TypeService,
+        mock_download_cache_service: DownloadCacheService,
+        mock_document_service: DocumentService,
+        mock_metrics_service,
+    ):
+        """Dummy response should be served when configured in testing mode."""
+        dummy_response = create_mock_ai_response(
+            manufacturer_part_number="DUMMY123",
+            product_category="Relay",
+            product_name="Dummy component",
+            tags=["relay"],
+        )
+        dummy_path = tmp_path / "dummy_response.json"
+        dummy_path.write_text(json.dumps(dummy_response.model_dump()))
+
+        settings = Settings(
+            DATABASE_URL="sqlite:///:memory:",
+            FLASK_ENV="testing",
+            OPENAI_DUMMY_RESPONSE_PATH=str(dummy_path),
+        )
+
+        service = AIService(
+            db=session,
+            config=settings,
+            temp_file_manager=temp_file_manager,
+            type_service=mock_type_service,
+            download_cache_service=mock_download_cache_service,
+            document_service=mock_document_service,
+            metrics_service=mock_metrics_service,
+        )
+
+        mock_progress = Mock()
+
+        result = service.analyze_part("Test prompt", None, None, mock_progress)
+
+        assert result.manufacturer_code == "DUMMY123"
+        assert result.type == "Relay"
+        assert result.description == "Dummy component"
+
     @patch('app.utils.ai.ai_runner.AIRunner.run')
     def test_analyze_part_invalid_json_response(self, mock_run, ai_service: AIService):
         """Test handling of invalid JSON response from OpenAI."""
@@ -481,4 +558,3 @@ class TestAIService:
         assert result.manufacturer_code == "FUNC123"
         assert result.type == "Relay"
         assert result.description == "Function call test relay"
-

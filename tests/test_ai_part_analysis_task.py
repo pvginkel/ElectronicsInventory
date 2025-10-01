@@ -3,7 +3,7 @@
 from unittest.mock import Mock, patch
 
 import pytest
-
+from app.exceptions import InvalidOperationException
 from app.schemas.ai_part_analysis import (
     AIPartAnalysisResultSchema,
     AIPartAnalysisTaskCancelledResultSchema,
@@ -152,6 +152,24 @@ class TestAIPartAnalysisTask:
         assert result.success is False
         assert "AI analysis failed: OpenAI API error" in result.error_message
         assert result.analysis is None
+
+    def test_execute_invalid_operation_returned_as_failure(self, mock_container, mock_ai_service, mock_progress_handle):
+        """Invalid operations should be reported through the failure result."""
+        mock_ai_service.analyze_part.side_effect = InvalidOperationException(
+            "perform AI analysis",
+            "real AI usage is disabled in testing mode",
+        )
+
+        task = AIPartAnalysisTask(mock_container)
+
+        result = task.execute(
+            mock_progress_handle,
+            text_input="Test input"
+        )
+
+        assert isinstance(result, AIPartAnalysisTaskResultSchema)
+        assert result.success is False
+        assert "Cannot perform AI analysis" in result.error_message
 
     def test_execute_task_cancelled_early(self, mock_container, mock_ai_service, mock_progress_handle):
         """Test task execution when cancelled before AI analysis."""

@@ -7,6 +7,8 @@ from flask import Blueprint, jsonify, request
 from spectree import Response as SpectreeResponse
 from werkzeug.datastructures import FileStorage
 
+from app.config import Settings
+from app.exceptions import InvalidOperationException
 from app.models.part_attachment import PartAttachment
 from app.schemas.ai_part_analysis import (
     AIPartAnalysisTaskResultSchema,
@@ -20,7 +22,7 @@ from app.services.container import ServiceContainer
 from app.services.document_service import DocumentService
 from app.services.part_service import PartService
 from app.services.task_service import TaskService
-from app.utils.error_handling import handle_api_errors
+from app.utils.error_handling import _build_error_response, handle_api_errors
 from app.utils.spectree_config import api
 from app.utils.url_utils import get_filename_from_url
 
@@ -38,6 +40,7 @@ ai_parts_bp = Blueprint("ai_parts", __name__, url_prefix="/ai-parts")
 def analyze_part(
     task_service : TaskService = Provide[ServiceContainer.task_service],
     container : ServiceContainer = Provide[ServiceContainer],
+    settings: Settings = Provide[ServiceContainer.config],
 ):
     """
     Start AI analysis task for part creation.
@@ -93,6 +96,19 @@ def analyze_part(
             'error': 'At least one of text or image input must be provided',
             'details': {'message': 'Either text field or image file must be provided', 'field': None}
         }), 400
+
+    # Short-circuit when real AI usage is disabled and no dummy response is configured
+    if not settings.real_ai_allowed and not settings.OPENAI_DUMMY_RESPONSE_PATH:
+        exception = InvalidOperationException(
+            "perform AI analysis",
+            "real AI usage is disabled in testing mode",
+        )
+        return _build_error_response(
+            exception.message,
+            {"message": "The requested operation cannot be performed"},
+            code=exception.error_code,
+            status_code=400,
+        )
 
     # Create and start the AI analysis task
     task = AIPartAnalysisTask(container=container)
@@ -234,4 +250,3 @@ def get_analysis_result(
             'error': 'Invalid result data format',
             'details': {'message': f'Task result validation failed: {str(e)}', 'field': 'result'}
         }), 404
-

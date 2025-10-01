@@ -71,6 +71,21 @@ class TestAIPartsAPI:
             data = response.get_json()
             assert 'At least one of text or image input must be provided' in data['error']
 
+    def test_analyze_part_real_ai_disabled_guard(self, client: FlaskClient, app: Flask):
+        """Test analyze endpoint short-circuits when real AI is disabled without dummy data."""
+        with app.app_context():
+            response = client.post(
+                '/api/ai-parts/analyze',
+                data={'text': 'Analyze this part'},
+                content_type='multipart/form-data'
+            )
+
+            assert response.status_code == 400
+            data = response.get_json()
+            assert data['error'] == 'Cannot perform AI analysis because real AI usage is disabled in testing mode'
+            assert data['details']['message'] == 'The requested operation cannot be performed'
+            assert data['code'] == 'INVALID_OPERATION'
+
     def test_create_part_invalid_json(self, client: FlaskClient, app: Flask):
         """Test create part endpoint with invalid JSON."""
         with app.app_context():
