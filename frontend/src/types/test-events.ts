@@ -13,6 +13,7 @@ export const TestEventKind = {
   TOAST: 'toast',
   ERROR: 'error',
   QUERY_ERROR: 'query_error',
+  UI_STATE: 'ui_state',
   SSE: 'sse',
 } as const;
 
@@ -108,6 +109,16 @@ export interface SseTestEvent extends BaseTestEvent {
 }
 
 /**
+ * UI state lifecycle event (loading/ready)
+ */
+export interface UiStateTestEvent extends BaseTestEvent {
+  kind: 'ui_state';
+  scope: string;
+  phase: 'loading' | 'ready';
+  metadata?: Record<string, unknown>;
+}
+
+/**
  * Union type for all test events
  */
 export type TestEvent =
@@ -117,6 +128,7 @@ export type TestEvent =
   | ToastTestEvent
   | ErrorTestEvent
   | QueryErrorTestEvent
+  | UiStateTestEvent
   | SseTestEvent;
 
 /**

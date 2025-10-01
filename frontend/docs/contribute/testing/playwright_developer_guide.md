@@ -65,6 +65,7 @@ Utility functions that complement fixtures:
 
 - `generateRandomId(prefix)` – Standard prefix-shortId generator.
 - `waitTestEvent(page, kind, filter?, timeout?)` – Await specific test-event payloads from the Playwright-managed buffer.
+- `waitForUiState(page, scope, phase)` – Await structured `ui_state` events for deterministic loading/ready waits.
 - `waitForFormValidationError(page, formId, field?)`
 - `expectConflictError(page, correlationId?)`
 - `expectConsoleError(page, pattern)` – Allow known console errors for a test.
@@ -113,6 +114,8 @@ Prefer UI assertions first, but when behavior is exposed via instrumentation (fo
 await waitTestEvent(page, 'form', evt =>
   evt.formId === 'TypeForm_edit' && evt.phase === 'success'
 );
+
+await waitForUiState(page, 'parts.list', 'ready');
 ```
 
 For multi-step flows, capture sequences explicitly:

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useCreateType, useUpdateType, useDeleteType, useGetTypesWithStats } from '@/hooks/use-types'
 import { TypeCard } from './TypeCard'
@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input'
 import { ConfirmDialog } from '@/components/ui/dialog'
 import { useConfirm } from '@/hooks/use-confirm'
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon'
+import { beginUiState, endUiState } from '@/lib/test/ui-state'
+import { isTestMode } from '@/lib/config/test-mode'
 
 interface TypeListProps {
   searchTerm?: string;
@@ -20,11 +22,77 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
   const [editingType, setEditingType] = useState<{ id: number; name: string; created_at?: string; updated_at?: string } | null>(null)
 
   const { confirm, confirmProps } = useConfirm()
-  
-  const { data: types, isLoading, error } = useGetTypesWithStats()
+
+  const { data: types, isLoading, isFetching, error } = useGetTypesWithStats()
   const createMutation = useCreateType()
   const updateMutation = useUpdateType()
   const deleteMutation = useDeleteType()
+
+  const [showLoading, setShowLoading] = useState(isLoading)
+  const instrumentationActiveRef = useRef(false)
+  const testMode = isTestMode()
+
+  useEffect(() => {
+    if (isLoading) {
+      setShowLoading(true)
+      return
+    }
+
+    if (!isFetching) {
+      setShowLoading(false)
+    }
+  }, [isFetching, isLoading])
+
+  useEffect(() => {
+    if (!testMode) {
+      instrumentationActiveRef.current = false
+      return
+    }
+
+    const isQueryLoading = isLoading || isFetching
+
+    if (isQueryLoading && !instrumentationActiveRef.current) {
+      instrumentationActiveRef.current = true
+      beginUiState('types.list')
+    }
+
+    if (!isQueryLoading && instrumentationActiveRef.current) {
+      instrumentationActiveRef.current = false
+
+      const payload = error
+        ? {
+            status: 'error',
+            queries: {
+              types: 'error',
+            },
+            message: error instanceof Error ? error.message : String(error),
+          }
+        : {
+            status: 'success',
+            queries: {
+              types: 'success',
+            },
+            totalTypes: Array.isArray(types) ? types.length : 0,
+          }
+
+      endUiState('types.list', payload)
+    }
+  }, [error, isFetching, isLoading, testMode, types])
+
+  useEffect(() => {
+    if (!testMode) {
+      return
+    }
+
+    return () => {
+      if (instrumentationActiveRef.current) {
+        instrumentationActiveRef.current = false
+        endUiState('types.list', {
+          status: 'aborted',
+        })
+      }
+    }
+  }, [testMode])
 
   const handleSearchChange = (value: string) => {
     if (value) {
@@ -45,9 +113,12 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
     handleSearchChange('');
   };
 
-  const filteredTypes = types?.filter((type: { name: string }) => 
-    type.name.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || []
+  const allTypes = Array.isArray(types) ? types : []
+  const filteredTypes = searchTerm
+    ? allTypes.filter((type: { name: string }) =>
+        type.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : allTypes
 
   const handleCreateType = async (data: { name: string }) => {
     await createMutation.mutateAsync({ body: data })
@@ -83,7 +154,7 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
     }
   }
 
-  if (isLoading) {
+  if (showLoading) {
     return (
       <div>
         <div className="flex justify-between items-center mb-6">
@@ -134,7 +205,7 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
     )
   }
 
-  const isEmpty = !types || (Array.isArray(types) && types.length === 0)
+  const isEmpty = filteredTypes.length === 0 && allTypes.length === 0
   const isFiltered = searchTerm.trim().length > 0
   const noSearchResults = searchTerm && filteredTypes.length === 0
 
@@ -175,8 +246,8 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
         >
           <span>
             {isFiltered 
-              ? `${filteredTypes.length} of ${types.length} types`
-              : `${types.length} types`}
+              ? `${filteredTypes.length} of ${allTypes.length} types`
+              : `${allTypes.length} types`}
           </span>
         </div>
       )}
@@ -203,7 +274,9 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="types.list.container">
-          {filteredTypes.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })).map((type: { id: number; name: string; part_count?: number }) => (
+          {[...filteredTypes]
+            .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+            .map((type: { id: number; name: string; part_count?: number }) => (
             <TypeCard
               key={type.id}
               type={type}

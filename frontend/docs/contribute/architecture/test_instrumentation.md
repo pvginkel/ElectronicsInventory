@@ -19,6 +19,7 @@ The frontend exposes deterministic telemetry while running in test mode (`VITE_T
 | `toast` | `level` (`success`\|`error`\|`warning`\|`info`), `code?`, `message` |
 | `error` | `scope`, `code?`, `message`, `correlationId?` |
 | `query_error` | `queryKey`, `status?`, `message`, `correlationId?`, `metadata?` |
+| `ui_state` | `scope`, `phase` (`loading`\|`ready`), `metadata?` |
 | `sse` | `streamId`, `phase` (`open`\|`message`\|`error`\|`close`), `event`, `data?` |
 
 All payloads include a `timestamp` (injected by the emitter).
@@ -31,6 +32,7 @@ All payloads include a `timestamp` (injected by the emitter).
 - **`toast-instrumentation.ts`** – Hooks the toast provider to emit `toast` events.
 - **`error-instrumentation.ts`** – Captures global error notifications and emits `error` events.
 - **`query-instrumentation.ts`** – Wraps React Query to emit `query_error` events and tag conflicts (`metadata.isConflict = true`).
+- **`ui-state.ts`** – Provides `beginUiState` / `endUiState` helpers for emitting list and workflow readiness signals.
 - **`api-instrumentation.ts`** – Optional integration for fetch wrappers to emit `api` metrics (operation, status, correlation ID).
 - **`console-policy.ts`** – Enforces `console.error` -> throw during tests; Playwright’s fixture mirrors this policy to fail on unexpected errors.
 

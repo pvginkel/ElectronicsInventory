@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,8 @@ import { MetadataBadge } from './metadata-badge';
 import { LocationSummary } from './location-summary';
 import { VendorInfo } from './vendor-info';
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
+import { beginUiState, endUiState } from '@/lib/test/ui-state';
+import { isTestMode } from '@/lib/config/test-mode';
 
 interface PartListProps {
   searchTerm?: string;
@@ -21,8 +23,90 @@ interface PartListProps {
 
 export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreateWithAI }: PartListProps) {
   const navigate = useNavigate();
-  const { data: parts = [], isLoading, error } = useGetPartsWithLocations();
-  const { data: types = [] } = useGetTypes();
+  const {
+    data: parts = [],
+    isLoading: partsLoading,
+    isFetching: partsFetching,
+    error: partsError,
+  } = useGetPartsWithLocations();
+  const {
+    data: types = [],
+    isLoading: typesLoading,
+    isFetching: typesFetching,
+    error: typesError,
+  } = useGetTypes();
+
+  const [showLoading, setShowLoading] = useState(partsLoading);
+  const instrumentationActiveRef = useRef(false);
+  const testMode = isTestMode();
+
+  useEffect(() => {
+    if (partsLoading) {
+      setShowLoading(true);
+      return;
+    }
+
+    if (!partsFetching) {
+      setShowLoading(false);
+    }
+  }, [partsFetching, partsLoading]);
+
+  useEffect(() => {
+    if (!testMode) {
+      instrumentationActiveRef.current = false;
+      return;
+    }
+
+    const partsInFlight = partsLoading || partsFetching;
+    const typesInFlight = typesLoading || typesFetching;
+    const anyInFlight = partsInFlight || typesInFlight;
+
+    if (anyInFlight && !instrumentationActiveRef.current) {
+      instrumentationActiveRef.current = true;
+      beginUiState('parts.list');
+    }
+
+    if (!anyInFlight && instrumentationActiveRef.current) {
+      instrumentationActiveRef.current = false;
+
+      const metadata: Record<string, unknown> = {
+        status: partsError || typesError ? 'error' : 'success',
+        queries: {
+          parts: partsError ? 'error' : 'success',
+          types: typesError ? 'error' : 'success',
+        },
+        counts: {
+          parts: parts.length,
+          types: types.length,
+        },
+      };
+
+      if (partsError) {
+        metadata.partsMessage = partsError instanceof Error ? partsError.message : String(partsError);
+      }
+
+      if (typesError) {
+        metadata.typesMessage = typesError instanceof Error ? typesError.message : String(typesError);
+      }
+
+      endUiState('parts.list', metadata);
+    }
+  }, [parts, partsError, partsFetching, partsLoading, testMode, types, typesError, typesFetching, typesLoading]);
+
+  useEffect(() => {
+    if (!testMode) {
+      return;
+    }
+
+    return () => {
+      if (instrumentationActiveRef.current) {
+        instrumentationActiveRef.current = false;
+        endUiState('parts.list', {
+          status: 'aborted',
+        });
+      }
+    };
+  }, [testMode]);
 
   // Create a lookup map for type names
   const typeMap = useMemo(() => {
@@ -70,7 +154,7 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
     });
   }, [parts, searchTerm, typeMap]);
 
-  if (error) {
+  if (partsError) {
     return (
       <Card className="p-6" data-testid="parts.list.error">
         <div className="text-center">
@@ -127,7 +211,7 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
       {/* Results Summary */}
       <div className="flex justify-between items-center text-sm text-muted-foreground" data-testid="parts.list.summary">
         <span>
-          {isLoading
+          {showLoading
             ? 'Loading...'
             : `${filteredParts.length}`
               + (filteredParts.length == parts.length ? '' : ` of ${parts.length}`)
@@ -138,7 +222,7 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
 
       {/* Parts List */}
       <div>
-        {isLoading ? (
+        {showLoading ? (
           <div
             className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
             data-testid="parts.list.loading"
