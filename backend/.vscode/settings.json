@@ -14,5 +14,6 @@
   "[python]": {
     "editor.formatOnSave": false
   },
-  "python.REPL.enableREPLSmartSend": false
+  "python.REPL.enableREPLSmartSend": false,
+  "idf.pythonInstallPath": "/usr/bin/python3"
 }
