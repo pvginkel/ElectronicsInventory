@@ -51,7 +51,7 @@ The plan below reflects that baseline and focuses on the remaining roadmap.
 - [x] Implement Seller selector integration coverage (inline create, selection persistence, Part form integration)
 - [x] Verify test suite runs successfully
 - [x] Update outstanding work document for Boxes/Sellers
-- [ ] Sign-off before proceeding to Phase 5
+- [x] Sign-off before proceeding to Phase 5
 
 ### Phase 5: Dashboard Coverage
 - [ ] Add dashboard instrumentation (`ui_state`/`list_loading`) and data-testids for metrics, health, storage, activity, documentation, and alerts
