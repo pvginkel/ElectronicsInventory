@@ -7,9 +7,9 @@
   "scripts": {
     "dev": "vite --host --port 3000",
     "build": "pnpm generate:api:build && pnpm generate:routes && pnpm check && vite build && pnpm verify:build",
-    "lint": "eslint .",
-    "type-check": "tsc -b --noEmit",
-    "check": "pnpm lint && pnpm type-check",
+    "check": "pnpm check:lint && pnpm check:type-check",
+    "check:lint": "eslint .",
+    "check:type-check": "tsc -b --noEmit",
     "preview": "vite preview --port 3000",
     "generate:routes": "tsr generate",
     "generate:api": "node scripts/generate-api.js --fetch",

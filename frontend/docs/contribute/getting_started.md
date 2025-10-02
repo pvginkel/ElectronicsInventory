@@ -48,8 +48,7 @@ The dev server uses your `.env` values and does **not** automatically enable tes
 ### Useful Scripts
 
 ```bash
-pnpm lint          # ESLint rules
-pnpm type-check    # TypeScript project check
+pnpm check         # ESLint rules and TypeScript project check
 pnpm build         # Production build
 pnpm preview       # Preview the production build
 ```

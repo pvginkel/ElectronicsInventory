@@ -114,8 +114,7 @@ This frontend implements Phase 1 of the [hobby electronics inventory system](doc
 ```bash
 # Development
 pnpm dev                 # Start development server with hot reload
-pnpm type-check          # Run TypeScript type checking
-pnpm lint                # Run ESLint for code quality
+pnpm check               # Run TypeScript type checking and ESLint for code quality
 
 # API Client Management
 pnpm generate:api        # Fetch OpenAPI spec and regenerate client
@@ -189,7 +188,7 @@ This is a research project exploring AI-assisted development workflows. Contribu
 
 1. Run `pnpm generate:api` to ensure you have the latest API types
 2. Make your changes following existing patterns
-3. Run `pnpm type-check` and `pnpm lint` to verify code quality
+3. Run `pnpm check` to verify code quality
 4. Test your changes with `pnpm dev`
 5. Submit a pull request with a clear description
 
