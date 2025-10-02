@@ -43,5 +43,5 @@ Refine the type and part list Playwright specs so they run exclusively against t
 
 5. **Validation and follow-up**
    - Verify no `page.route` usages remain in the touched specs or page objects (`rg 'page.route' tests/e2e/types/type-list.spec.ts tests/e2e/parts/part-list.spec.ts tests/support/page-objects`).
-   - Run `pnpm playwright tests/e2e/types/type-list.spec.ts tests/e2e/parts/part-list.spec.ts --workers=1` and then `pnpm playwright`.
+   - Run `pnpm playwright test tests/e2e/types/type-list.spec.ts tests/e2e/parts/part-list.spec.ts --workers=1` and then `pnpm playwright test`.
    - Update any additional documentation or developer notes if new helpers require usage guidance (e.g. link the UI-state helper from the Playwright developer guide).

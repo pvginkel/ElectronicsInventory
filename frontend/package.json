@@ -15,10 +15,7 @@
     "generate:api": "node scripts/generate-api.js --fetch",
     "generate:api:build": "node scripts/generate-api.js --cache-only",
     "verify:build": "node scripts/verify-production-build.cjs",
-    "playwright": "playwright test",
-    "playwright:headed": "playwright test --headed",
-    "playwright:ui": "playwright test --ui",
-    "playwright:install": "playwright install",
+    "playwright": "playwright",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"

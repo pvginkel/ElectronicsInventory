@@ -4,7 +4,7 @@ The Playwright suite drives the production frontend against the real backend in 
 
 ## Before You Start
 
-1. Complete the [Getting Started](../getting_started.md) setup and ensure `pnpm playwright` passes locally.
+1. Complete the [Getting Started](../getting_started.md) setup and ensure `pnpm playwright test` passes locally.
 2. Understand the [Environment Reference](../environment.md) to configure URLs and test mode.
 3. Review the [Test Instrumentation](../architecture/test_instrumentation.md) taxonomy—tests frequently assert on emitted test-event payloads.
 
@@ -167,7 +167,7 @@ Follow the [No-Sleep Patterns](./no_sleep_patterns.md) reference. Use `Promise.a
 1. Update or add factories if new backend endpoints are required.
 2. Introduce or extend a page object in `tests/e2e/<feature>/`.
 3. Write scenarios that create preconditions through factories, exercise the UI flow, and assert via UI + test-event signals.
-4. Run `pnpm playwright tests/e2e/<feature>/<file>.spec.ts` locally before committing.
+4. Run `pnpm playwright test tests/e2e/<feature>/<file>.spec.ts` locally before committing.
 5. Run `pnpm check` to ensure lint (including `testing/no-route-mocks`) and type-check pass.
 
 For a checklist-style walkthrough, see [How to Add an E2E Test](../howto/add_e2e_test.md).

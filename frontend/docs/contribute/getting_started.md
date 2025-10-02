@@ -61,7 +61,7 @@ pnpm preview       # Preview the production build
 pnpm exec playwright install
 
 # Launch the managed services (frontend+backend) and run the suite headless
-pnpm playwright
+pnpm playwright test
 ```
 
 Playwright uses `scripts/testing-server.sh` to start the frontend on port **3100** and the backend on port **5100** when `PLAYWRIGHT_MANAGED_SERVICES` is not set to `false`. See [CI & Execution](./testing/ci_and_execution.md) for full details.

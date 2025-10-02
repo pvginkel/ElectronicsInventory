@@ -43,7 +43,7 @@ Designers drafting plans and developers implementing Playwright work must re-rea
 - Setup & scripts: `docs/contribute/getting_started.md`
 - Environment variables & ports: `docs/contribute/environment.md`
 - Commands reference: `pnpm dev`, `pnpm type-check`, `pnpm lint`, `pnpm check`, `pnpm generate:api`, `pnpm build`, `pnpm preview`
-- Playwright execution: `pnpm playwright`, `pnpm playwright --debug` (headless by default). Detailed policies live in `docs/contribute/testing/ci_and_execution.md`.
+- Playwright execution: `pnpm playwright test`, `pnpm playwright test --debug` (headless by default). Detailed policies live in `docs/contribute/testing/ci_and_execution.md`.
 
 ## Readability Comments
 

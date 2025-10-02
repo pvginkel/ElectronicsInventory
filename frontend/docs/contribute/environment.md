@@ -27,7 +27,7 @@ This document captures the environment variables, port conventions, and configur
 - **Backend (test mode)**: `../backend/scripts/testing-server.sh` starts the Flask API on port **5100** with `FLASK_ENV=testing`.
 - Playwright waits for both services to report healthy before running tests. See [CI & Execution](./testing/ci_and_execution.md) for health check details.
 
-If you prefer to launch services manually, export `PLAYWRIGHT_MANAGED_SERVICES=false` and ensure the URLs above respond before invoking `pnpm playwright`.
+If you prefer to launch services manually, export `PLAYWRIGHT_MANAGED_SERVICES=false` and ensure the URLs above respond before invoking `pnpm playwright test`.
 
 ## Test Mode Responsibilities
 

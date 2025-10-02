@@ -74,7 +74,7 @@ Fortify the Playwright suite’s “real backend” contract for the Hobby Elect
 
 8. **Validation**
    - Run `pnpm check` (aliasing lint + type-check) to ensure the new rule flags any lingering mocks and that TypeScript still compiles cleanly.
-   - Execute the affected Playwright specs (`pnpm playwright tests/e2e/types/type-list.spec.ts`, etc.) to confirm they succeed against the real backend after the intercepts are removed.
+   - Execute the affected Playwright specs (`pnpm playwright test tests/e2e/types/type-list.spec.ts`, etc.) to confirm they succeed against the real backend after the intercepts are removed.
    - Capture the instrumentation and helper dependencies (loading test events, shared AI analysis helper) in the frontend tracking issue so follow-up work is visible to both teams.
 
 ## Dependencies / Open Questions

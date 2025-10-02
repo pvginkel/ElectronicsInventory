@@ -187,7 +187,7 @@ Ready to continue with Phase 4 once the above prerequisites remain satisfied.
 
 ## Execution Strategy
 1. **Implementation**: Update frontend instrumentation and factories first, then add/extend page objects and specs using real backend helpers.
-2. **Targeted Tests**: Run feature-specific specs (e.g., `pnpm playwright tests/e2e/boxes/box-list.spec.ts`) before the full suite.
-3. **Full Validation**: Execute `pnpm playwright` and `pnpm check` (lint + type-check) to guard against regressions and lint violations.
+2. **Targeted Tests**: Run feature-specific specs (e.g., `pnpm playwright test tests/e2e/boxes/box-list.spec.ts`) before the full suite.
+3. **Full Validation**: Execute `pnpm playwright test` and `pnpm check` (lint + type-check) to guard against regressions and lint violations.
 4. **Documentation Update**: Reflect new helpers/instrumentation in `docs/contribute/` and adjust `docs/epics/playwright_outstanding_work.md`.
 5. **Sign-off**: Confirm stakeholders review results before moving to the next phase; keep `testing/no-route-mocks` and instrumentation lint rules green.
