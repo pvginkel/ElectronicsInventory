@@ -19,6 +19,8 @@ from app.services.part_service import PartService
 from app.services.s3_service import S3Service
 from app.services.seller_service import SellerService
 from app.services.setup_service import SetupService
+from app.services.shopping_list_line_service import ShoppingListLineService
+from app.services.shopping_list_service import ShoppingListService
 from app.services.task_service import TaskService
 from app.services.test_data_service import TestDataService
 from app.services.testing_service import TestingService
@@ -50,6 +52,16 @@ class ServiceContainer(containers.DeclarativeContainer):
     dashboard_service = providers.Factory(DashboardService, db=db_session)
     setup_service = providers.Factory(SetupService, db=db_session)
     test_data_service = providers.Factory(TestDataService, db=db_session)
+    shopping_list_service = providers.Factory(
+        ShoppingListService,
+        db=db_session,
+    )
+    shopping_list_line_service = providers.Factory(
+        ShoppingListLineService,
+        db=db_session,
+        part_service=part_service,
+        seller_service=seller_service,
+    )
 
     # Shutdown coordinator - Singleton for managing graceful shutdown
     shutdown_coordinator = providers.Singleton(

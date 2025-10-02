@@ -1,7 +1,8 @@
 """Reset lock utility for concurrency control during database reset operations."""
 
+from __future__ import annotations
+
 import threading
-from typing import Optional
 
 
 class ResetLock:
@@ -43,7 +44,11 @@ class ResetLock:
         """Context manager entry - try to acquire lock."""
         return self.acquire_reset()
 
-    def __exit__(self, exc_type: Optional[type], exc_val: Optional[Exception], exc_tb: Optional[object]) -> None:
+    def __exit__(
+        self,
+        exc_type: type | None,
+        exc_val: Exception | None,
+        exc_tb: object | None,
+    ) -> None:
         """Context manager exit - always release lock."""
         self.release_reset()
-

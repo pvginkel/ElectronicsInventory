@@ -5,8 +5,8 @@ import json
 import threading
 import time
 from pathlib import Path
-from urllib.parse import urlsplit
 from unittest.mock import Mock, patch
+from urllib.parse import urlsplit
 
 import pytest
 from flask import Flask

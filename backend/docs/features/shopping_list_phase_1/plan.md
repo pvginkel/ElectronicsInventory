@@ -13,7 +13,7 @@ Implement the foundational shopping list functionality (Concept lists) that allo
   - `id` (primary key)
   - `name` (required, unique)
   - `description` (optional)
-  - `status` (enum: "concept", "ready", "done", defaults to "concept")
+- `status` (string constrained to "concept", "ready", "done"; defaults to "concept")
     - Note: "done" status represents archived/completed lists that are hidden by default in the UI
   - `created_at`, `updated_at` (timestamps)
   - Relationship to `ShoppingListLine` with cascade delete
@@ -29,7 +29,7 @@ Implement the foundational shopping list functionality (Concept lists) that allo
   - `ordered` (integer, default 0)
   - `received` (integer, default 0)
   - `note` (text, optional)
-  - `status` (enum: "new", "ordered", "done", defaults to "new")
+- `status` (string constrained to "new", "ordered", "done"; defaults to "new")
   - `created_at`, `updated_at` (timestamps)
   - Unique constraint on (shopping_list_id, part_id) for duplicate prevention
   - Check constraint: needed ≥ 1

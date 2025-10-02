@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Spring Synth Build",
+    "description": "Concept list for sourcing parts for the spring synthesizer prototype.",
+    "status": "concept"
+  },
+  {
+    "name": "Bench Replenishment",
+    "description": "Ready-to-order list for regular workshop consumables.",
+    "status": "ready"
+  },
+  {
+    "name": "Audio Mixer Beta",
+    "description": "Archived BOM from the audio mixer beta run.",
+    "status": "done"
+  }
+]

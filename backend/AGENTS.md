@@ -222,6 +222,10 @@ poetry run pytest          # Full test suite
 - Use `scalars().all()` for multiple results
 - Always handle the case where records don't exist
 
+### Enumerations
+- Model domain enums in SQLAlchemy with `native_enum=False` (or explicit check constraints) so they are stored as text in the database.
+- **Do not create PostgreSQL native ENUM types.** They make migrations and reset workflows brittle; prefer plain string columns with constrained values instead.
+
 ## S3 Storage Consistency
 
 - Persist attachment rows (and cover updates) before hitting S3. Flush the session, then perform uploads so a failure rolls the transaction back instead of leaving orphaned blobs.
