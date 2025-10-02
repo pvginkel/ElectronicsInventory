@@ -3,6 +3,7 @@
 from unittest.mock import Mock, patch
 
 import pytest
+
 from app.exceptions import InvalidOperationException
 from app.schemas.ai_part_analysis import (
     AIPartAnalysisResultSchema,

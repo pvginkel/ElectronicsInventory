@@ -7,6 +7,11 @@ from app.models.part import Part
 from app.models.part_attachment import AttachmentType, PartAttachment
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
+from app.models.shopping_list import ShoppingList, ShoppingListStatus
+from app.models.shopping_list_line import (
+    ShoppingListLine,
+    ShoppingListLineStatus,
+)
 from app.models.type import Type
 
 __all__: list[str] = [
@@ -17,5 +22,9 @@ __all__: list[str] = [
     "PartAttachment",
     "PartLocation",
     "QuantityHistory",
+    "ShoppingList",
+    "ShoppingListLine",
+    "ShoppingListLineStatus",
+    "ShoppingListStatus",
     "Type"
 ]

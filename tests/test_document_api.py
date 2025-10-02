@@ -9,10 +9,10 @@ from flask.testing import FlaskClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.exceptions import InvalidOperationException
 from app.models.part import Part
 from app.models.part_attachment import AttachmentType, PartAttachment
 from app.services.container import ServiceContainer
-from app.exceptions import InvalidOperationException
 
 
 class TestDocumentAPI:

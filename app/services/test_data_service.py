@@ -13,6 +13,8 @@ from app.models.part import Part
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
 from app.models.seller import Seller
+from app.models.shopping_list import ShoppingList, ShoppingListStatus
+from app.models.shopping_list_line import ShoppingListLine, ShoppingListLineStatus
 from app.models.type import Type
 from app.services.base import BaseService
 
@@ -29,6 +31,8 @@ class TestDataService(BaseService):
         sellers = self.load_sellers(data_dir)
         boxes = self.load_boxes(data_dir)
         parts = self.load_parts(data_dir, types, sellers)
+        shopping_lists = self.load_shopping_lists(data_dir)
+        self.load_shopping_list_lines(data_dir, shopping_lists, parts, sellers)
         self.load_part_locations(data_dir, parts, boxes)
         self.load_quantity_history(data_dir, parts)
 
@@ -161,6 +165,107 @@ class TestDataService(BaseService):
             parts_map[part_data["key"]] = part
 
         return parts_map
+
+    def load_shopping_lists(self, data_dir: Path) -> dict[str, ShoppingList]:
+        """Load shopping lists from shopping_lists.json."""
+        shopping_lists_file = data_dir / "shopping_lists.json"
+        try:
+            with shopping_lists_file.open() as f:
+                shopping_lists_data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            raise InvalidOperationException(
+                "load shopping lists data",
+                f"failed to read {shopping_lists_file}: {e}",
+            ) from e
+
+        shopping_lists_map: dict[str, ShoppingList] = {}
+        for shopping_list_data in shopping_lists_data:
+            raw_status = shopping_list_data.get("status", ShoppingListStatus.CONCEPT.value)
+            try:
+                status = ShoppingListStatus(raw_status)
+            except ValueError as exc:
+                raise InvalidOperationException(
+                    "load shopping lists data",
+                    f"invalid status '{raw_status}' for shopping list {shopping_list_data.get('name')}",
+                ) from exc
+
+            shopping_list = ShoppingList(
+                name=shopping_list_data["name"],
+                description=shopping_list_data.get("description"),
+                status=status,
+            )
+            self.db.add(shopping_list)
+            self.db.flush()
+            shopping_lists_map[shopping_list.name] = shopping_list
+
+        return shopping_lists_map
+
+    def load_shopping_list_lines(
+        self,
+        data_dir: Path,
+        shopping_lists: dict[str, ShoppingList],
+        parts: dict[str, Part],
+        sellers: dict[int, Seller],
+    ) -> None:
+        """Load shopping list lines from shopping_list_lines.json."""
+        lines_file = data_dir / "shopping_list_lines.json"
+        try:
+            with lines_file.open() as f:
+                lines_data = json.load(f)
+        except FileNotFoundError:
+            return
+        except json.JSONDecodeError as e:
+            raise InvalidOperationException(
+                "load shopping list lines data",
+                f"failed to parse {lines_file}: {e}",
+            ) from e
+
+        for line_data in lines_data:
+            list_name = line_data["shopping_list_name"]
+            shopping_list = shopping_lists.get(list_name)
+            if shopping_list is None:
+                raise InvalidOperationException(
+                    "load shopping list lines data",
+                    f"unknown shopping list '{list_name}'",
+                )
+
+            part_key = line_data["part_key"]
+            part = parts.get(part_key)
+            if part is None:
+                raise InvalidOperationException(
+                    "load shopping list lines data",
+                    f"unknown part key '{part_key}'",
+                )
+
+            seller_id = None
+            if line_data.get("seller_id") is not None:
+                seller = sellers.get(line_data["seller_id"])
+                if seller is None:
+                    raise InvalidOperationException(
+                        "load shopping list lines data",
+                        f"unknown seller id '{line_data['seller_id']}'",
+                    )
+                seller_id = seller.id
+
+            raw_status = line_data.get("status", ShoppingListLineStatus.NEW.value)
+            try:
+                status = ShoppingListLineStatus(raw_status)
+            except ValueError as exc:
+                raise InvalidOperationException(
+                    "load shopping list lines data",
+                    f"invalid status '{raw_status}' for line referencing {part_key}",
+                ) from exc
+
+            line = ShoppingListLine(
+                shopping_list_id=shopping_list.id,
+                part_id=part.id,
+                seller_id=seller_id,
+                needed=line_data["needed"],
+                note=line_data.get("note"),
+                status=status,
+            )
+            self.db.add(line)
+            self.db.flush()
 
     def load_part_locations(self, data_dir: Path, parts: dict[str, Part], boxes: dict[int, Box]) -> None:
         """Load part location assignments from part_locations.json."""

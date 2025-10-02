@@ -1,0 +1,34 @@
+[
+  {
+    "shopping_list_name": "Spring Synth Build",
+    "part_key": "ABCD",
+    "needed": 4,
+    "seller_id": 4,
+    "note": "Prefer DIP packaging for easy prototyping.",
+    "status": "new"
+  },
+  {
+    "shopping_list_name": "Spring Synth Build",
+    "part_key": "EFGH",
+    "needed": 10,
+    "seller_id": null,
+    "note": "Silkscreen legend optional.",
+    "status": "new"
+  },
+  {
+    "shopping_list_name": "Bench Replenishment",
+    "part_key": "IJKL",
+    "needed": 2,
+    "seller_id": 5,
+    "note": "Order extra if lead time > 8 weeks.",
+    "status": "new"
+  },
+  {
+    "shopping_list_name": "Audio Mixer Beta",
+    "part_key": "MNOP",
+    "needed": 6,
+    "seller_id": 4,
+    "note": "Keep archived for reference builds.",
+    "status": "new"
+  }
+]

@@ -22,7 +22,6 @@ from app.services.url_transformers import URLInterceptorRegistry
 from app.utils.text_utils import truncate_with_ellipsis
 from app.utils.url_utils import get_filename_from_url
 
-
 logger = logging.getLogger(__name__)
 
 

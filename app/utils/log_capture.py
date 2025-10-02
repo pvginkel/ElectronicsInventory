@@ -1,10 +1,12 @@
 """Log capture handler for streaming application logs to SSE clients."""
 
+from __future__ import annotations
+
 import logging
 import threading
 import time
 from datetime import UTC, datetime
-from typing import Any, Optional
+from typing import Any
 
 from app.utils import get_current_correlation_id
 from app.utils.shutdown_coordinator import LifetimeEvent, ShutdownCoordinatorProtocol
@@ -13,7 +15,7 @@ from app.utils.shutdown_coordinator import LifetimeEvent, ShutdownCoordinatorPro
 class LogCaptureHandler(logging.Handler):
     """Custom logging handler that captures log records and streams them to SSE clients."""
 
-    _instance: Optional["LogCaptureHandler"] = None
+    _instance: LogCaptureHandler | None = None
     _lock = threading.Lock()
 
     def __init__(self) -> None:
@@ -21,10 +23,10 @@ class LogCaptureHandler(logging.Handler):
         self.level = logging.INFO
         self._clients: set[Any] = set()  # SSE client generators
         self._client_lock = threading.RLock()
-        self.shutdown_coordinator: Optional[ShutdownCoordinatorProtocol] = None
+        self.shutdown_coordinator: ShutdownCoordinatorProtocol | None = None
 
     @classmethod
-    def get_instance(cls) -> "LogCaptureHandler":
+    def get_instance(cls) -> LogCaptureHandler:
         """Get singleton instance of log capture handler."""
         if cls._instance is None:
             with cls._lock:
@@ -128,7 +130,7 @@ class SSELogClient:
         self._lock = threading.Lock()
         self._closed = False
 
-    def __enter__(self) -> "SSELogClient":
+    def __enter__(self) -> SSELogClient:
         self.handler.register_client(self)
         return self
 
@@ -163,4 +165,3 @@ class SSELogClient:
                 return events
             time.sleep(0.01)
         return self.get_events()
-
