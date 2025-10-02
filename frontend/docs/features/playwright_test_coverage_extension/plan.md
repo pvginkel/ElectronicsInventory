@@ -1,255 +1,193 @@
 # Playwright Test Coverage Extension - Technical Plan
 
 ## Brief Description
-
-Implementation of comprehensive end-to-end test coverage for the Electronics Inventory application, extending the existing Playwright test infrastructure to cover all core features and user workflows. The implementation will be executed in phases corresponding to functional areas, with each phase requiring complete test suite verification before proceeding.
+Extend the Playwright suite so every core workflow in the Electronics Inventory frontend is covered end-to-end against the real backend. Phases 1-3 landed via follow-up plans that removed route mocks, centralized AI helpers, and wired deployment SSE support. The remaining phases expand coverage across boxes, sellers, dashboard widgets, and cross-domain workflows while leaning on shared instrumentation and factories documented under `docs/contribute/`.
 
 ## Implementation Phases
+Progress is tracked across six phases. Phases 1-3 were delivered through:
+- `docs/features/playwright_ai_flow_adjustments/plan.md`
+- `docs/features/playwright_documents_real_backend/plan.md`
+- `docs/features/playwright_list_views_cleanup/plan.md`
+- `docs/features/playwright_deployment_sse_support/plan.md`
+- `docs/features/playwright_no_route_mock_enforcement/plan.md`
 
-The test coverage extension will be implemented in 6 distinct phases, each focusing on a specific functional area. Each phase must be completed, tested, and signed off before proceeding to the next.
+The plan below reflects that baseline and focuses on the remaining roadmap.
 
 ## Phase Checklist
 
 ### Phase 1: Core Test Infrastructure ✅
-- [x] Enhance API factories (PartTestFactory, BoxTestFactory, SellerTestFactory)
-- [x] Extend Playwright fixtures and create shared page object utilities
-- [ ] Add deployment version update simulation hooks (helper available; banner flow still untested)
+- [x] Enhance API factories (Part, Box, Seller, Attachments) to seed complex scenarios
+- [x] Extend Playwright fixtures, shared helpers, and page object primitives
+- [x] Integrate deployment banner coverage with the real backend SSE trigger
 - [x] Verify test suite runs successfully
-- [ ] Mark completed items in outstanding work document (pending banner coverage sync)
+- [x] Update outstanding work document for infra completion (synced 2025-10-02)
 - [x] Sign-off before proceeding to Phase 2
 
-### Phase 2: Types Feature Coverage
+### Phase 2: Types Feature Coverage ✅
 - [x] Implement TypeList tests (loading states, search, badges)
-- [x] Implement TypeSelector tests (inline create/edit)
+- [x] Implement TypeSelector tests (inline create/edit) using shared AI helper
 - [x] Implement TypeForm instrumentation tests
 - [x] Verify test suite runs successfully
 - [x] Mark completed items in outstanding work document (synced 2025-09-29)
 - [x] Sign-off before proceeding to Phase 3
 
-### Phase 3: Parts Feature Coverage
-- [x] Implement Part list & navigation tests
-- [x] Implement Part creation & editing tests
-- [x] Implement Part duplication & attachment tests
-- [x] Implement Location management tests
-- [x] Implement Document management tests
-- [x] Implement AI-assisted creation tests
-- [x] Implement Deletion rules & safeguards tests
+### Phase 3: Parts Feature Coverage ✅
+- [x] Implement Part list & navigation tests with list_loading instrumentation
+- [x] Implement Part creation & editing tests on the real backend
+- [x] Implement Part duplication & attachment tests using API factories
+- [x] Implement Location management tests via inventory endpoints
+- [x] Implement Document management tests backed by `/api/testing/content/*`
+- [x] Implement AI-assisted creation tests via `aiAnalysisMock`
+- [x] Implement Deletion rules & safeguards tests with toast/test-event assertions
 - [x] Verify test suite runs successfully
 - [x] Mark completed items in outstanding work document (synced 2025-09-29)
 - [x] Sign-off before proceeding to Phase 4
 
 ### Phase 4: Boxes & Sellers Feature Coverage
-- [ ] Implement Box list tests
-- [ ] Implement Box detail tests
-- [ ] Implement Seller list tests
-- [ ] Implement SellerSelector integration tests
+- [ ] Add list_loading instrumentation, test IDs, and toast/test-event hooks to Boxes & Sellers UIs without introducing route mocks
+- [ ] Implement Box list coverage (loading, search, creation/edit/delete, usage summaries, navigation to detail)
+- [ ] Implement Box detail coverage (location grid with part assignments, usage metrics, delete guard + instrumentation)
+- [ ] Implement Seller list coverage (search, CRUD, external link assertions) using real backend data
+- [ ] Implement Seller selector integration coverage (inline create, selection persistence, Part form integration)
 - [ ] Verify test suite runs successfully
-- [ ] Mark completed items in outstanding work document
+- [ ] Update outstanding work document for Boxes/Sellers
 - [ ] Sign-off before proceeding to Phase 5
 
 ### Phase 5: Dashboard Coverage
-- [ ] Implement Enhanced metrics cards tests
-- [ ] Implement Inventory health score tests
-- [ ] Implement Storage utilization grid tests
-- [ ] Implement Recent activity timeline tests
-- [ ] Implement Low stock alerts tests
-- [ ] Implement Documentation status tests
-- [ ] Implement Category distribution tests
+- [ ] Add dashboard instrumentation (`ui_state`/`list_loading`) and data-testids for metrics, health, storage, activity, documentation, and alerts
+- [ ] Implement Enhanced metrics cards tests (loading, value computation, trend metadata)
+- [ ] Implement Inventory health score tests (inputs from stats, low stock, documentation)
+- [ ] Implement Storage utilization grid tests (ordering, tooltips, navigation to box detail)
+- [ ] Implement Recent activity timeline tests (grouping, pagination)
+- [ ] Implement Low stock alerts tests (severity styling, CTA handling)
+- [ ] Implement Documentation status tests (milestones, celebration state)
+- [ ] Implement Category distribution tests (chart rendering, tooltips, expand/collapse)
 - [ ] Verify test suite runs successfully
-- [ ] Mark completed items in outstanding work document
+- [ ] Update outstanding work document for dashboard
 - [ ] Sign-off before proceeding to Phase 6
 
 ### Phase 6: App Shell & Cross-Domain Workflows
-- [ ] Implement Sidebar navigation tests
-- [ ] Implement Mobile menu tests
-- [ ] Implement Deployment notification banner tests
-- [ ] Implement About page tests
-- [ ] Implement Cross-domain workflow tests
-- [ ] Implement test-event/toast instrumentation snapshots
+- [ ] Add app shell instrumentation/test IDs for sidebar, mobile menu, and global toasts while keeping deployment banner wiring intact
+- [ ] Implement sidebar navigation tests (desktop collapse, active route styling, link coverage)
+- [ ] Implement mobile menu tests (open/close transitions, navigation)
+- [ ] Extend deployment banner coverage to assert reload CTA behaviour while using the real backend trigger
+- [ ] Implement About page tests (hero CTAs, feature grid, quick start guide)
+- [ ] Implement cross-domain workflow tests (type -> part with seller + location -> dashboard visibility, box reassignment, delete protection)
+- [ ] Capture test-event/toast instrumentation snapshots for critical flows (form success/error, document failure, AI error)
 - [ ] Verify test suite runs successfully
-- [ ] Mark all completed items in outstanding work document
+- [ ] Update outstanding work document with final items
 - [ ] Final sign-off
 
 ## Files and Functions to Create or Modify
 
-### Phase 1: Core Test Infrastructure
-
-**Files to Create:**
-- `tests/api/factories/box-factory.ts` - BoxTestFactory with capacity defaults and location seeding
-- `tests/api/factories/seller-factory.ts` - SellerTestFactory with random generation utilities
-- `tests/support/page-objects/base-page.ts` - Base page object with common patterns
-- `tests/support/helpers/test-events.ts` - Test-event capture and assertion utilities
-- `tests/support/helpers/toast-helpers.ts` - Toast assertion helpers
-- `tests/support/helpers/sse-mock.ts` - SSE mocking utilities
-- `tests/support/helpers/file-upload.ts` - File upload mock utilities
-
-**Files to Modify:**
-- `tests/api/factories/part-factory.ts` - Add stock, location, and document helper methods
-- `tests/support/fixtures.ts` - Add shared fixtures for toast assertions, test-event capture
-
-### Phase 2: Types Feature Coverage
-
-**Files to Create:**
-- `tests/e2e/types/type-list.spec.ts` - TypeList component tests
-- `tests/e2e/types/type-selector.spec.ts` - TypeSelector inline creation tests
-- `tests/e2e/types/type-form.spec.ts` - TypeForm instrumentation tests
-
-**Files to Modify:**
-- `tests/e2e/types/TypesPage.ts` - Extend with badge and search assertion methods
-
-### Phase 3: Parts Feature Coverage
-
-**Files to Create:**
-- `tests/support/page-objects/parts-page.ts` - PartsPage object with list, detail, form abstractions
-- `tests/support/page-objects/ai-dialog-page.ts` - AI dialog page object
-- `tests/support/page-objects/location-editor-page.ts` - Location editor page object
-- `tests/support/page-objects/document-grid-page.ts` - Document grid page object
-- `tests/e2e/parts/part-list.spec.ts` - Part list tests
-- `tests/e2e/parts/part-crud.spec.ts` - Part creation/editing tests
-- `tests/e2e/parts/part-duplication.spec.ts` - Part duplication tests
-- `tests/e2e/parts/part-locations.spec.ts` - Location management tests
-- `tests/e2e/parts/part-documents.spec.ts` - Document management tests
-- `tests/e2e/parts/part-ai-creation.spec.ts` - AI-assisted creation tests (see AI Testing Specifics section)
-- `tests/e2e/parts/part-deletion.spec.ts` - Deletion rules tests
+### Delivered (Phases 1-3)
+Baseline work is covered by the executed plans above. Core artifacts include:
+- Shared AI analysis helper and fixture plumbing (`tests/support/helpers/ai-analysis-mock.ts`)
+- Attachment/box/seller factories surfaced through `createTestDataBundle`
+- List-view instrumentation and lint enforcement (`testing/no-route-mocks`)
+- Deployment SSE request-id plumbing and backend trigger documentation
+No further changes are required unless follow-up bugs appear.
 
 ### Phase 4: Boxes & Sellers Feature Coverage
 
-**Files to Create:**
-- `tests/support/page-objects/boxes-page.ts` - BoxesPage object with list/grid interactions
-- `tests/support/page-objects/box-detail-page.ts` - BoxDetailPage object
-- `tests/support/page-objects/sellers-page.ts` - SellersPage object
-- `tests/support/page-objects/seller-selector-page.ts` - SellerSelector harness
-- `tests/e2e/boxes/box-list.spec.ts` - Box list tests
-- `tests/e2e/boxes/box-detail.spec.ts` - Box detail tests
-- `tests/e2e/sellers/seller-crud.spec.ts` - Seller CRUD operations tests
-- `tests/e2e/sellers/seller-integration.spec.ts` - SellerSelector integration tests
+**Files to Modify**
+- `src/components/boxes/box-list.tsx`, `box-card.tsx`, `box-details.tsx`, `location-list.tsx` - add `data-testid`s, list_loading instrumentation, confirm toast/test-event emissions, and dark-mode safe selectors.
+- `src/hooks/use-box-locations.ts` - expose helper metadata for part assignments (quantity, tags) and ensure sorting aligns with test assertions.
+- `src/components/sellers/seller-list.tsx`, `seller-card.tsx`, `seller-form.tsx`, `seller-selector.tsx`, `seller-create-dialog.tsx` - add instrumentation, test IDs, inline create affordances, and guard external link handling.
+- `src/hooks/use-sellers.ts` - thread search term instrumentation and provide eager state signals for tests.
+- `tests/api/factories/box-factory.ts`, `tests/api/factories/part-factory.ts`, `tests/api/index.ts` - add helpers to add stock via `/api/inventory/parts/{part_key}/stock`, seed locations, and relate sellers.
+- `tests/support/fixtures.ts` - expose `boxes`, `boxDetail`, and `sellers` page objects plus seller selector harness.
+- `docs/contribute/testing/factories_and_fixtures.md`, `docs/contribute/testing/playwright_developer_guide.md` - document new helpers and instrumentation expectations.
+
+**Files to Create**
+- `tests/support/page-objects/boxes-page.ts` and `box-detail-page.ts`
+- `tests/support/page-objects/sellers-page.ts` and `seller-selector-harness.ts`
+- `tests/e2e/boxes/box-list.spec.ts`, `tests/e2e/boxes/box-detail.spec.ts`
+- `tests/e2e/sellers/seller-crud.spec.ts`, `tests/e2e/sellers/seller-selector.spec.ts`
+- Utility helper `tests/support/helpers/box-location.ts` (optional) for asserting location grid state.
 
 ### Phase 5: Dashboard Coverage
 
-**Files to Create:**
-- `tests/support/page-objects/dashboard-page.ts` - DashboardPage with widget accessors
-- `tests/e2e/dashboard/metrics-cards.spec.ts` - Enhanced metrics tests
-- `tests/e2e/dashboard/health-score.spec.ts` - Health score tests
-- `tests/e2e/dashboard/storage-utilization.spec.ts` - Storage grid tests
-- `tests/e2e/dashboard/recent-activity.spec.ts` - Activity timeline tests
-- `tests/e2e/dashboard/low-stock.spec.ts` - Low stock alerts tests
-- `tests/e2e/dashboard/documentation-status.spec.ts` - Documentation status tests
-- `tests/e2e/dashboard/category-distribution.spec.ts` - Category distribution tests
+**Files to Modify**
+- `src/hooks/use-dashboard.ts` - emit scoped `ui_state`/`list_loading` events with metadata per widget.
+- `src/components/dashboard/*` - add `data-testid`s, guard loading skeletons with instrumentation, surface accessible names for charts/cards.
+- `src/components/ui/` primitives used by dashboard (e.g., charts) - ensure deterministic rendering in test mode.
+- `tests/support/fixtures.ts` - add `dashboard` page object fixture.
+- Documentation updates mirroring new instrumentation (`docs/contribute/architecture/test_instrumentation.md`).
+
+**Files to Create**
+- `tests/support/page-objects/dashboard-page.ts`
+- `tests/e2e/dashboard/metrics-cards.spec.ts`
+- `tests/e2e/dashboard/health-score.spec.ts`
+- `tests/e2e/dashboard/storage-utilization.spec.ts`
+- `tests/e2e/dashboard/recent-activity.spec.ts`
+- `tests/e2e/dashboard/low-stock.spec.ts`
+- `tests/e2e/dashboard/documentation-status.spec.ts`
+- `tests/e2e/dashboard/category-distribution.spec.ts`
 
 ### Phase 6: App Shell & Cross-Domain Workflows
 
-**Files to Create:**
-- `tests/support/page-objects/app-shell-page.ts` - AppShellPage for navigation and layout
-- `tests/support/page-objects/about-page.ts` - AboutPage object
-- `tests/e2e/shell/navigation.spec.ts` - Sidebar and mobile menu tests
-- `tests/e2e/shell/deployment-banner.spec.ts` - Deployment notification tests
-- `tests/e2e/about/about-page.spec.ts` - About page tests
-- `tests/e2e/workflows/end-to-end.spec.ts` - Cross-domain workflow tests
-- `tests/e2e/workflows/instrumentation-snapshots.spec.ts` - Test-event/toast snapshots
+**Files to Modify**
+- `src/routes/__root.tsx`, `src/components/layout/sidebar.tsx`, `src/components/ui/deployment-notification-bar.tsx` - add test IDs, expose mobile menu state, ensure reload CTA instrumentation.
+- `src/components/parts/part-form.tsx` (or equivalent) - surface seller/location selectors for cross-domain workflows.
+- `tests/e2e/parts/part-crud.spec.ts` (or new workflow spec) - integrate seller/location assertions.
+- Documentation: `docs/contribute/testing/playwright_developer_guide.md` (navigation instrumentation), `docs/features/playwright_test_coverage_extension/route_mocking_analysis.md` (mark completion).
+
+**Files to Create**
+- `tests/support/page-objects/app-shell-page.ts`
+- `tests/support/page-objects/about-page.ts`
+- `tests/e2e/shell/navigation.spec.ts`
+- `tests/e2e/shell/mobile-menu.spec.ts`
+- Extend `tests/e2e/deployment/deployment-banner.spec.ts` or add `tests/e2e/shell/deployment-banner-cta.spec.ts` for reload assertion
+- `tests/e2e/workflows/end-to-end.spec.ts`
+- `tests/e2e/workflows/instrumentation-snapshots.spec.ts`
 
 ## Algorithms and Patterns
 
 ### Test-Event Capture Pattern
-1. Hook into the Playwright binding for test-event emissions
-2. Store events in a circular buffer with timestamp and metadata
-3. Provide assertion helpers to validate event sequences
-4. Clear buffer between test scenarios
+1. Use the `TestEventCapture` fixture to await events via `waitTestEvent` / `waitForListLoading`.
+2. Assert event sequences in tandem with UI state; prefer `Promise.all` to tie UI actions with instrumentation.
+3. Clear buffers between scenarios (`testEvents.clearEvents`) before capturing new flows.
 
 ### Toast Assertion Pattern
-1. Monitor role="status" elements for toast notifications
-2. Capture toast text, type (success/error/info), and timing
-3. Provide fluent assertions for toast content and sequence
-4. Handle toast auto-dismiss timing in assertions
+1. Use `ToastHelper` for `role="status"` tracking and ensure tests await dismissal logic when needed.
+2. Combine toast checks with backend verification (e.g., follow-up GET) to confirm state persisted.
+3. Leverage toast-level metadata in emitted events for severity and codes.
 
-### SSE Mock Pattern
-1. Intercept EventSource connections
-2. Simulate server-sent events with controlled timing
-3. Test reconnection logic and heartbeat handling
-4. Validate correlation IDs between frontend and mock events
+### SSE Pattern (AI Analysis Only)
+1. Use the shared `aiAnalysisMock` helper to register the sanctioned `/api/ai-parts/analyze` stream with lint waiver inline.
+2. Drive flows with helper methods (`waitForConnection`, `emitStarted`, `emitProgress`, `emitCompleted`) and dispose sessions per test.
+3. All other SSE usage (deployment banner) must rely on real backend triggers.
 
 ### Factory Enhancement Pattern
-1. Create domain object with minimal required fields
-2. Add helper methods for common test scenarios (with stock, with documents)
-3. Support override parameters for edge case testing
-4. Return both created object and related entities for assertion
+1. Prefer API-first helpers that create boxes, sellers, and parts with related entities.
+2. Use new helpers to add stock to specific locations and retrieve occupancy metadata for assertions.
+3. Return structured objects (including correlation IDs) to sync UI and backend expectations.
+
+### List Loading Instrumentation
+1. Wrap TanStack Query usage with `useListLoadingInstrumentation` to emit deterministic `list_loading` events.
+2. Provide `scope` constants like `boxes.list`, `sellers.list`, `dashboard.metrics`.
+3. Attach metadata (counts, degraded queries) so tests can assert readiness and fallbacks without intercepting requests.
 
 ## AI Testing Specifics
-
-The AI-assisted creation tests in Phase 3 should cover the following scenarios if implemented:
-
-### Auto-tagging from Description/Manufacturer Code
-- Test that entering a manufacturer code like "OMRON G5Q-1A4" generates appropriate tags (e.g., "relay", "5V", "SPDT")
-- Test that descriptions like "0603 100nF ceramic capacitor" produce tags like "SMD", "0603", "100nF", "ceramic"
-- Verify tag suggestions appear in real-time as the user types
-- Test that users can accept, modify, or reject suggested tags
-- Verify test-event emissions for AI tag generation (start, success, failure)
-
-### Photo Intake (Mobile Camera)
-- Mock file upload with sample component images
-- Test that the AI recognizes part numbers from images (e.g., IC markings, label text)
-- Verify category suggestions based on visual recognition
-- Test fallback behavior when recognition confidence is low
-- Verify user can override AI suggestions before saving
-
-### Datasheet Auto-fetching
-- Test that entering a known part number triggers datasheet search
-- Mock external API responses for datasheet URLs
-- Verify PDF is downloaded and attached to the part automatically
-- Test user confirmation flow before storing fetched documents
-- Handle cases where multiple datasheets are found or none are found
-- Verify test-event payloads for datasheet fetch attempts and results
-
-### Edge Cases & Error Handling
-- Test AI service unavailability (graceful degradation)
-- Test rate limiting scenarios
-- Verify toast notifications for AI failures don't block manual entry
-- Test that AI features can be disabled/skipped entirely
-- Verify correlation IDs link AI requests to form submissions
-
-### Instrumentation Requirements
-Each AI interaction should emit test events with:
-- `kind: 'ai'`
-- `feature`: 'auto-tag' | 'photo-intake' | 'datasheet-fetch'
-- `phase`: 'request' | 'success' | 'failure' | 'user-override'
-- `correlationId`: linking to the parent form operation
-- `metadata`: confidence scores, suggestion counts, processing time
+- Continue using the real `/api/ai-parts/create` endpoint; capture the response and follow-up detail fetches for verification.
+- Rely on `aiAnalysisMock` solely for analysis SSE choreography; maintain the lint suppression within the helper.
+- For datasheet/photo scenarios, use `/api/testing/content/*` assets and backend instrumentation instead of request interception.
+- Emit `kind: 'ai'` test events (request, success, failure, user override) from the feature code so Playwright can assert telemetry.
+- Exercise failure modes by toggling backend-provided fallbacks (service unavailable, rate limits) rather than mocking responses.
 
 ## Phase 1 Completion Notes (2025-09-23)
+- Enhanced Part, Box, Seller, and Attachment factories with helpers for documents, stock, and random data.
+- Created BasePage, PartsPage, AI dialog, Location editor, and Document grid page objects.
+- Implemented test-event capture, toast helper, SSE mocker (AI-only), and file upload helper; wired them into fixtures.
+- Added deployment SSE request-id helper, frontend wiring, and the backend-driven Playwright spec (`tests/e2e/deployment/deployment-banner.spec.ts`).
+- All existing tests (23+) pass, TypeScript strict mode remains green, and lint (including `testing/no-route-mocks`) runs clean.
 
-Phase 1 has been successfully completed with all core test infrastructure enhancements in place:
-
-**Implemented Features:**
-- Enhanced PartTestFactory with stock, location, and document helper methods
-- Created BoxTestFactory with capacity defaults and location seeding
-- Created SellerTestFactory with vendor database and random generation utilities
-- Created BasePage object providing common page interaction patterns
-- Implemented test-event capture system for instrumentation assertions
-- Implemented ToastHelper for toast notification testing
-- Implemented SSEMocker with deployment version update simulation
-- Implemented FileUploadHelper for file upload testing
-- Integrated all helpers into Playwright fixtures
-
-**Test Status:**
-- All 23 existing tests passing
-- TypeScript compilation successful
-- Test infrastructure verified and working
-
-Ready to proceed with Phase 2: Types Feature Coverage.
-
----
+Ready to continue with Phase 4 once the above prerequisites remain satisfied.
 
 ## Execution Strategy
-
-Each phase follows this execution pattern:
-
-1. **Implementation**: Create/modify files according to phase requirements
-2. **Test Execution**: Run full test suite with `pnpm playwright`
-3. **Debug & Fix**: Address any failures using `pnpm playwright --debug`
-4. **Documentation Update**: Mark completed items in `docs/epics/playwright_outstanding_work.md`
-5. **Sign-off**: Obtain approval before proceeding to next phase
-
-The phased approach ensures:
-- Incremental progress with clear checkpoints
-- Early detection of infrastructure issues
-- Maintainable test suite growth
-- Clear progress tracking through the outstanding work document
+1. **Implementation**: Update frontend instrumentation and factories first, then add/extend page objects and specs using real backend helpers.
+2. **Targeted Tests**: Run feature-specific specs (e.g., `pnpm playwright tests/e2e/boxes/box-list.spec.ts`) before the full suite.
+3. **Full Validation**: Execute `pnpm playwright` and `pnpm check` (lint + type-check) to guard against regressions and lint violations.
+4. **Documentation Update**: Reflect new helpers/instrumentation in `docs/contribute/` and adjust `docs/epics/playwright_outstanding_work.md`.
+5. **Sign-off**: Confirm stakeholders review results before moving to the next phase; keep `testing/no-route-mocks` and instrumentation lint rules green.
