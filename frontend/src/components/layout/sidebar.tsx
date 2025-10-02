@@ -33,7 +33,7 @@ export function Sidebar({
 
   return (
     <div
-      className={`bg-card border-r border-border transition-all duration-300 h-full ${isCollapsed ? 'w-19' : 'w-64'}`}
+      className={`bg-card border-r border-border transition-all duration-300 h-full ${isCollapsed ? 'w-20' : 'w-64'}`}
       data-testid="app-shell.sidebar"
       data-state={dataState}
       data-variant={variant}
@@ -77,6 +77,7 @@ export function Sidebar({
                   data-nav-target={item.to}
                   title={item.label}
                   activeProps={{
+                    className: 'active',
                     'data-active': 'true',
                     'aria-current': 'page',
                   }}
