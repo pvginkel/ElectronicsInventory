@@ -1,6 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useDashboardData } from '@/hooks/use-dashboard'
+import { useDashboardDocumentation } from '@/hooks/use-dashboard'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, useMemo } from 'react'
 
@@ -18,8 +18,8 @@ function CircularProgress({ value, size = 120, strokeWidth = 8, showAnimation = 
   const strokeDashoffset = circumference - (value / 100) * circumference
 
   return (
-    <div className="relative inline-flex items-center justify-center">
-      <svg width={size} height={size} className="transform -rotate-90">
+    <div className="relative inline-flex items-center justify-center" data-testid="dashboard.documentation.progress">
+      <svg width={size} height={size} className="transform -rotate-90" role="img" aria-label={`Documentation ${Math.round(value)} percent`}>
         {/* Background circle */}
         <circle
           cx={size / 2}
@@ -47,7 +47,7 @@ function CircularProgress({ value, size = 120, strokeWidth = 8, showAnimation = 
       
       {/* Center content */}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div className="text-2xl font-bold text-primary">
+        <div className="text-2xl font-bold text-primary" data-testid="dashboard.documentation.progress.value">
           {Math.round(value)}%
         </div>
       </div>
@@ -74,7 +74,7 @@ function MilestoneBadge({ milestone, achieved, current }: MilestoneBadgeProps) {
         ? 'bg-primary/20 text-primary border-2 border-primary animate-pulse'
         : 'bg-muted text-muted-foreground'
       }
-    `}>
+    `} data-testid="dashboard.documentation.milestone" data-milestone={milestone} data-achieved={achieved}>
       {milestone}%
       {achieved && (
         <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-600 rounded-full flex items-center justify-center">
@@ -94,12 +94,22 @@ interface UndocumentedPartProps {
 
 function UndocumentedPartItem({ partKey, partDescription, onAddDocumentation, onViewPart }: UndocumentedPartProps) {
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+    <div
+      className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
+      data-testid="dashboard.documentation.item"
+      data-part-key={partKey}
+    >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className="font-mono text-sm font-semibold">{partKey}</span>
+          <span className="font-mono text-sm font-semibold" data-testid="dashboard.documentation.item.part">
+            {partKey}
+          </span>
         </div>
-        <p className="text-sm text-muted-foreground truncate" title={partDescription}>
+        <p
+          className="text-sm text-muted-foreground truncate"
+          title={partDescription}
+          data-testid="dashboard.documentation.item.description"
+        >
           {partDescription}
         </p>
       </div>
@@ -110,6 +120,7 @@ function UndocumentedPartItem({ partKey, partDescription, onAddDocumentation, on
           size="sm"
           onClick={onAddDocumentation}
           className="h-8 px-3 text-xs"
+          data-testid="dashboard.documentation.item.add"
         >
           📄 Add Docs
         </Button>
@@ -118,6 +129,7 @@ function UndocumentedPartItem({ partKey, partDescription, onAddDocumentation, on
           size="sm"
           onClick={onViewPart}
           className="h-8 px-2"
+          data-testid="dashboard.documentation.item.view"
         >
           →
         </Button>
@@ -128,7 +140,7 @@ function UndocumentedPartItem({ partKey, partDescription, onAddDocumentation, on
 
 function DocumentationSkeleton() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="dashboard.documentation.skeleton">
       {/* Progress Ring Skeleton */}
       <div className="flex flex-col items-center space-y-4">
         <div className="w-32 h-32 rounded-full bg-muted animate-pulse" />
@@ -160,7 +172,7 @@ function DocumentationSkeleton() {
 }
 
 export function DocumentationStatus() {
-  const { documentation, stats, isLoading } = useDashboardData()
+  const { data: documentation, stats, isLoading } = useDashboardDocumentation()
   const navigate = useNavigate()
   const [showCelebration, setShowCelebration] = useState(false)
 
@@ -206,9 +218,9 @@ export function DocumentationStatus() {
     console.log('Open bulk upload modal')
   }
 
-  if (isLoading) {
+  if (isLoading && !documentationStats) {
     return (
-      <Card>
+      <Card data-testid="dashboard.documentation" data-state="loading">
         <CardHeader>
           <CardTitle>Documentation Status</CardTitle>
         </CardHeader>
@@ -221,11 +233,11 @@ export function DocumentationStatus() {
 
   if (!documentationStats) {
     return (
-      <Card>
+      <Card data-testid="dashboard.documentation" data-state="error">
         <CardHeader>
           <CardTitle>Documentation Status</CardTitle>
         </CardHeader>
-        <CardContent className="text-center py-8">
+        <CardContent className="text-center py-8" data-testid="dashboard.documentation.error">
           <div className="text-4xl mb-2">❓</div>
           <p className="text-muted-foreground">Unable to load documentation status</p>
         </CardContent>
@@ -243,7 +255,7 @@ export function DocumentationStatus() {
   } = documentationStats
 
   return (
-    <Card className="relative overflow-hidden">
+    <Card className="relative overflow-hidden" data-testid="dashboard.documentation" data-state="ready">
       {/* Celebration Effect */}
       {showCelebration && percentage === 100 && (
         <div className="absolute inset-0 bg-green-500/10 animate-pulse z-[60] pointer-events-none">
@@ -259,11 +271,11 @@ export function DocumentationStatus() {
       
       <CardContent className="space-y-6">
         {/* Progress Ring and Milestones */}
-        <div className="flex flex-col items-center space-y-4">
+        <div className="flex flex-col items-center space-y-4" data-testid="dashboard.documentation.summary">
           <CircularProgress value={percentage} />
           
           <div className="text-center">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground" data-testid="dashboard.documentation.totals">
               {documentedCount} of {totalParts} parts documented
             </div>
             {percentage === 100 && (
@@ -274,7 +286,7 @@ export function DocumentationStatus() {
           </div>
 
           {/* Milestone Badges */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" data-testid="dashboard.documentation.milestones">
             {milestones.map(milestone => (
               <MilestoneBadge
                 key={milestone}
@@ -288,7 +300,7 @@ export function DocumentationStatus() {
 
         {/* Quick Fix List */}
         {undocumentedCount > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-3" data-testid="dashboard.documentation.quick-fixes">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold">Quick Fixes</h3>
               {documentation?.sample_parts && documentation.sample_parts.length > 3 && (
@@ -313,7 +325,7 @@ export function DocumentationStatus() {
         )}
 
         {/* Actions */}
-        <div className="space-y-2 pt-2 border-t">
+        <div className="space-y-2 pt-2 border-t" data-testid="dashboard.documentation.actions">
           {undocumentedCount > 0 && (
             <>
               <Button
@@ -321,6 +333,7 @@ export function DocumentationStatus() {
                 onClick={handleBulkUpload}
                 className="w-full"
                 size="sm"
+                data-testid="dashboard.documentation.bulk-upload"
               >
                 📎 Bulk Upload Documents
               </Button>
@@ -331,6 +344,7 @@ export function DocumentationStatus() {
                   onClick={() => navigate({ to: '/parts' })} // TODO: Add filter for undocumented
                   className="w-full text-xs"
                   size="sm"
+                  data-testid="dashboard.documentation.view-all"
                 >
                   View All {undocumentedCount} Undocumented Parts →
                 </Button>
@@ -339,7 +353,7 @@ export function DocumentationStatus() {
           )}
           
           {percentage === 100 && (
-            <div className="text-center py-2">
+            <div className="text-center py-2" data-testid="dashboard.documentation.complete">
               <span className="text-sm text-green-600 font-medium">
                 🏆 Perfect documentation achieved!
               </span>

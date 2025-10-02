@@ -7,6 +7,7 @@ import { SellersPage } from './page-objects/sellers-page';
 import { AIDialogPage } from './page-objects/ai-dialog-page';
 import { LocationEditorPage } from './page-objects/location-editor-page';
 import { DocumentGridPage } from './page-objects/document-grid-page';
+import { DashboardPage } from './page-objects/dashboard-page';
 import { getBackendUrl } from './backend-url';
 import {
   TestEventCapture,
@@ -36,6 +37,7 @@ type TestFixtures = {
   partsAI: AIDialogPage;
   partsLocations: LocationEditorPage;
   partsDocuments: DocumentGridPage;
+  dashboard: DashboardPage;
   testEvents: TestEventCapture;
   toastHelper: ToastHelper;
   sseMocker: SSEMocker;
@@ -162,6 +164,10 @@ export const test = base.extend<TestFixtures>({
 
   partsDocuments: async ({ page }, provide) => {
     await provide(new DocumentGridPage(page));
+  },
+
+  dashboard: async ({ page }, provide) => {
+    await provide(new DashboardPage(page));
   },
 
   testEvents: async ({ page }, provide) => {

@@ -33,7 +33,7 @@ All payloads include a `timestamp` (injected by the emitter).
 - **`toast-instrumentation.ts`** – Hooks the toast provider to emit `toast` events.
 - **`error-instrumentation.ts`** – Captures global error notifications and emits `error` events.
 - **`query-instrumentation.ts`** – Wraps React Query to emit `query_error` events, tag conflicts (`metadata.isConflict = true`), and expose `useListLoadingInstrumentation` for deterministic `list_loading` hooks around TanStack Query lifecycles.
-- **`ui-state.ts`** – Provides `beginUiState` / `endUiState` helpers for emitting broader workflow readiness signals where `list_loading` does not apply.
+- **`ui-state.ts`** – Provides `beginUiState` / `endUiState` helpers for emitting broader workflow readiness signals where `list_loading` does not apply, plus `useUiStateInstrumentation` to bind widget lifecycle to the event bus inside React components.
 - **`api-instrumentation.ts`** – Optional integration for fetch wrappers to emit `api` metrics (operation, status, correlation ID).
 - **`console-policy.ts`** – Enforces `console.error` -> throw during tests; Playwright’s fixture mirrors this policy to fail on unexpected errors.
 
@@ -60,6 +60,20 @@ function trackWizardStep(step: string) {
 ```
 
 > Remember: production builds strip instrumentation dead code via `isTestMode()` guards. Keep new emitters behind the same check.
+
+## Dashboard Instrumentation Scopes
+
+Dashboard widgets now emit deterministic telemetry to replace brittle loading assertions:
+
+- `dashboard.metrics` – Enhanced metrics cards (total parts, boxes, low stock, activity)
+- `dashboard.health` – Inventory health gauge and breakdown tooltip
+- `dashboard.storage` – Storage utilisation grid and summary stats
+- `dashboard.activity` – Recent activity timeline (grouping, pagination)
+- `dashboard.lowStock` – Low stock alerts (severity, quick-add)
+- `dashboard.documentation` – Documentation status progress ring and quick fixes
+- `dashboard.categories` – Category distribution chart and insights
+
+Each scope uses `useListLoadingInstrumentation` for deterministic `list_loading` events and pairs it with `useUiStateInstrumentation` so tests can assert `data-state` and `ui_state` events in tandem.
 
 ## Correlation IDs & Backend Logs
 

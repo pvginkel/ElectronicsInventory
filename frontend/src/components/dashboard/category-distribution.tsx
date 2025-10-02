@@ -1,6 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useDashboardData } from '@/hooks/use-dashboard'
+import { useDashboardCategories } from '@/hooks/use-dashboard'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, useMemo } from 'react'
 
@@ -22,17 +22,20 @@ function CategoryBar({ categoryName, count, maxCount, color, onCategoryClick }: 
       onClick={() => onCategoryClick(categoryName)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      data-testid="dashboard.categories.bar"
+      data-category={categoryName}
+      data-count={count}
     >
       <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-medium truncate" title={categoryName}>
+        <span className="text-sm font-medium truncate" title={categoryName} data-testid="dashboard.categories.bar.name">
           {categoryName}
         </span>
-        <span className="text-sm font-semibold ml-2">
+        <span className="text-sm font-semibold ml-2" data-testid="dashboard.categories.bar.count">
           {count.toLocaleString()}
         </span>
       </div>
       
-      <div className="relative w-full bg-muted/50 rounded-full h-3 overflow-hidden">
+      <div className="relative w-full bg-muted/50 rounded-full h-3 overflow-hidden" data-testid="dashboard.categories.bar.track">
         <div
           className={`
             h-3 rounded-full transition-all duration-500 ease-out relative
@@ -42,6 +45,7 @@ function CategoryBar({ categoryName, count, maxCount, color, onCategoryClick }: 
             width: `${Math.max(percentage, 2)}%`,
             backgroundColor: color,
           }}
+          data-testid="dashboard.categories.bar.fill"
         >
           {/* Shine effect on hover */}
           {isHovered && (
@@ -61,7 +65,7 @@ function CategoryBar({ categoryName, count, maxCount, color, onCategoryClick }: 
 
       {/* Tooltip */}
       {isHovered && (
-        <div className="absolute bottom-full left-0 mb-2 z-[70] bg-popover border rounded-lg px-3 py-2 shadow-lg text-sm pointer-events-none max-w-xs whitespace-nowrap">
+        <div className="absolute bottom-full left-0 mb-2 z-[70] bg-popover border rounded-lg px-3 py-2 shadow-lg text-sm pointer-events-none max-w-xs whitespace-nowrap" data-testid="dashboard.categories.bar.tooltip">
           <div className="font-semibold">{categoryName}</div>
           <div className="text-muted-foreground">{count} parts ({Math.round(percentage)}%)</div>
         </div>
@@ -105,7 +109,7 @@ function SmartInsight({ insight }: SmartInsightProps) {
   const styles = getInsightStyles(insight.severity)
 
   return (
-    <div className={`rounded-lg border p-3 ${styles.bg}`}>
+    <div className={`rounded-lg border p-3 ${styles.bg}`} data-testid="dashboard.categories.insight" data-severity={insight.severity}>
       <div className="flex items-start gap-2">
         <span className="text-lg">{styles.icon}</span>
         <p className={`text-sm ${styles.text}`}>
@@ -118,7 +122,7 @@ function SmartInsight({ insight }: SmartInsightProps) {
 
 function CategoryDistributionSkeleton() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="dashboard.categories.skeleton">
       {/* Chart Skeleton */}
       <div className="space-y-4">
         {Array.from({ length: 6 }).map((_, i) => (
@@ -166,7 +170,7 @@ const CATEGORY_COLORS = [
 ]
 
 export function CategoryDistribution() {
-  const { categories, isLoading } = useDashboardData()
+  const { data: categories, isLoading } = useDashboardCategories()
   const navigate = useNavigate()
   const [showAll, setShowAll] = useState(false)
 
@@ -233,9 +237,9 @@ export function CategoryDistribution() {
     console.log('Filter by category:', categoryName)
   }
 
-  if (isLoading) {
+  if (isLoading && !processedData) {
     return (
-      <Card>
+      <Card data-testid="dashboard.categories" data-state="loading">
         <CardHeader>
           <CardTitle>Category Distribution</CardTitle>
         </CardHeader>
@@ -248,11 +252,11 @@ export function CategoryDistribution() {
 
   if (!processedData) {
     return (
-      <Card>
+      <Card data-testid="dashboard.categories" data-state="empty">
         <CardHeader>
           <CardTitle>Category Distribution</CardTitle>
         </CardHeader>
-        <CardContent className="text-center py-12">
+        <CardContent className="text-center py-12" data-testid="dashboard.categories.empty">
           <div className="text-6xl mb-4">📊</div>
           <h3 className="font-medium mb-2">No categories found</h3>
           <p className="text-sm text-muted-foreground">
@@ -270,11 +274,11 @@ export function CategoryDistribution() {
   const hasMore = sortedCategories.length > 10
 
   return (
-    <Card>
+    <Card data-testid="dashboard.categories" data-state="ready">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle>Category Distribution</CardTitle>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground" data-testid="dashboard.categories.summary">
             {totalParts.toLocaleString()} total parts
           </div>
         </div>
@@ -282,7 +286,7 @@ export function CategoryDistribution() {
       
       <CardContent className="space-y-6">
         {/* Interactive Bar Chart */}
-        <div className="space-y-4">
+        <div className="space-y-4" data-testid="dashboard.categories.list">
           {displayedCategories.map((category: any) => (
             <CategoryBar
               key={category.type_name}
@@ -302,6 +306,7 @@ export function CategoryDistribution() {
             onClick={() => setShowAll(true)}
             className="w-full"
             size="sm"
+            data-testid="dashboard.categories.show-more"
           >
             Show {sortedCategories.length - 10} More
           </Button>
@@ -313,6 +318,7 @@ export function CategoryDistribution() {
             onClick={() => setShowAll(false)}
             className="w-full"
             size="sm"
+            data-testid="dashboard.categories.show-less"
           >
             Show Less
           </Button>
@@ -320,7 +326,7 @@ export function CategoryDistribution() {
 
         {/* Smart Insights */}
         {insights.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-3" data-testid="dashboard.categories.insights">
             <h3 className="text-sm font-semibold">Insights</h3>
             <div className="space-y-2">
               {insights.map((insight, index) => (
@@ -331,10 +337,10 @@ export function CategoryDistribution() {
         )}
 
         {/* Summary Stats */}
-        <div className="pt-4 border-t">
+        <div className="pt-4 border-t" data-testid="dashboard.categories.stats">
           <div className="grid grid-cols-2 gap-4 text-center">
             <div>
-              <div className="text-lg font-semibold">{sortedCategories.length}</div>
+              <div className="text-lg font-semibold" data-testid="dashboard.categories.stats.count">{sortedCategories.length}</div>
               <div className="text-xs text-muted-foreground">Categories</div>
             </div>
             <div>
@@ -354,6 +360,7 @@ export function CategoryDistribution() {
           <button
             onClick={() => navigate({ to: '/types' })}
             className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+            data-testid="dashboard.categories.manage"
           >
             Manage Categories →
           </button>

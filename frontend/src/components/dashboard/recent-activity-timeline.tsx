@@ -60,33 +60,47 @@ function ActivityItem({
   }
 
   return (
-    <div className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
-         onClick={() => onPartClick(partKey)}>
+    <div
+      className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
+      onClick={() => onPartClick(partKey)}
+      data-testid="dashboard.activity.item"
+      data-part-key={partKey}
+      data-delta={deltaQty}
+    >
       {/* Activity Icon */}
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm border ${getActivityColor()}`}>
+      <div
+        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm border ${getActivityColor()}`}
+        data-testid="dashboard.activity.item.icon"
+      >
         {getActivityIcon()}
       </div>
 
       {/* Activity Details */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className="font-mono text-sm font-semibold">{partKey}</span>
-          <span className={`text-xs px-2 py-0.5 rounded ${getActivityColor()}`}>
+          <span className="font-mono text-sm font-semibold" data-testid="dashboard.activity.item.part">
+            {partKey}
+          </span>
+          <span className={`text-xs px-2 py-0.5 rounded ${getActivityColor()}`} data-testid="dashboard.activity.item.badge">
             {getActivityText()}
           </span>
         </div>
         
-        <p className="text-sm font-medium text-foreground truncate" title={partDescription}>
+        <p
+          className="text-sm font-medium text-foreground truncate"
+          title={partDescription}
+          data-testid="dashboard.activity.item.description"
+        >
           {partDescription}
         </p>
         
         <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
           {locationReference && (
-            <span className="bg-muted px-2 py-0.5 rounded">
+            <span className="bg-muted px-2 py-0.5 rounded" data-testid="dashboard.activity.item.location">
               {locationReference}
             </span>
           )}
-          <span>{formatTimestamp(timestamp)}</span>
+          <span data-testid="dashboard.activity.item.timestamp">{formatTimestamp(timestamp)}</span>
         </div>
       </div>
     </div>
@@ -105,7 +119,7 @@ function ActivityTimelineGroup({
   if (activities.length === 0) return null
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1" data-testid="dashboard.activity.group" data-group-title={title}>
       {/* Group Header - Sticky */}
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm py-2 border-b border-muted/50">
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
@@ -133,7 +147,7 @@ function ActivityTimelineGroup({
 
 function ActivityTimelineSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="dashboard.activity.skeleton">
       {Array.from({ length: 3 }).map((_, groupIndex) => (
         <div key={groupIndex} className="space-y-2">
           <div className="h-4 w-20 bg-muted rounded animate-pulse" />
@@ -207,9 +221,9 @@ export function RecentActivityTimeline() {
 
   const hasMore = activities && activities.length > 10
 
-  if (isLoading) {
+  if (isLoading && (!activities || activities.length === 0)) {
     return (
-      <Card className="h-fit">
+      <Card className="h-fit" data-testid="dashboard.activity" data-state="loading">
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
         </CardHeader>
@@ -222,11 +236,11 @@ export function RecentActivityTimeline() {
 
   if (error) {
     return (
-      <Card>
+      <Card data-testid="dashboard.activity" data-state="error">
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
         </CardHeader>
-        <CardContent className="text-center py-8">
+        <CardContent className="text-center py-8" data-testid="dashboard.activity.error">
           <div className="text-4xl mb-2">⚠️</div>
           <p className="text-muted-foreground">Failed to load activity</p>
         </CardContent>
@@ -236,20 +250,21 @@ export function RecentActivityTimeline() {
 
   if (!activities || activities.length === 0) {
     return (
-      <Card>
+      <Card data-testid="dashboard.activity" data-state="empty">
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
         </CardHeader>
-        <CardContent className="text-center py-12">
+        <CardContent className="text-center py-12" data-testid="dashboard.activity.empty">
           <div className="text-6xl mb-4 opacity-50">🏭</div>
           <h3 className="font-medium mb-2">No recent activity</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Add your first part to get started
           </p>
-          <Button 
+          <Button
             onClick={() => navigate({ to: '/parts/new' })}
             variant="outline"
             size="sm"
+            data-testid="dashboard.activity.empty.cta"
           >
             Add Part
           </Button>
@@ -259,16 +274,16 @@ export function RecentActivityTimeline() {
   }
 
   return (
-    <Card className="h-fit">
+    <Card className="h-fit" data-testid="dashboard.activity" data-state="ready">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle>Recent Activity</CardTitle>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground" data-testid="dashboard.activity.count">
             {activities.length} changes
           </div>
         </div>
       </CardHeader>
-      <CardContent className="max-h-96 overflow-y-auto space-y-4">
+      <CardContent className="max-h-96 overflow-y-auto space-y-4" data-testid="dashboard.activity.groups">
         {Object.entries(groupedActivities).map(([groupTitle, groupActivities]) => (
           <ActivityTimelineGroup
             key={groupTitle}
@@ -277,7 +292,7 @@ export function RecentActivityTimeline() {
             onPartClick={handlePartClick}
           />
         ))}
-        
+
         {hasMore && !showAll && (
           <div className="pt-4 border-t">
             <Button
@@ -285,12 +300,13 @@ export function RecentActivityTimeline() {
               size="sm"
               onClick={() => setShowAll(true)}
               className="w-full"
+              data-testid="dashboard.activity.show-more"
             >
               Show More ({activities.length - 10} more)
             </Button>
           </div>
         )}
-        
+
         {showAll && hasMore && (
           <div className="pt-4 border-t">
             <Button
@@ -298,6 +314,7 @@ export function RecentActivityTimeline() {
               size="sm"
               onClick={() => setShowAll(false)}
               className="w-full"
+              data-testid="dashboard.activity.show-less"
             >
               Show Less
             </Button>

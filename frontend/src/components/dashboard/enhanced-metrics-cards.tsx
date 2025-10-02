@@ -1,5 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card'
-import { useDashboardStats, useDashboardLowStock } from '@/hooks/use-dashboard'
+import { useDashboardMetrics } from '@/hooks/use-dashboard'
 import { useMemo } from 'react'
 
 interface MetricsCardProps {
@@ -14,9 +14,21 @@ interface MetricsCardProps {
   subtitle?: string
   isLoading?: boolean
   className?: string
+  testId: string
+  metricKey: string
 }
 
-function MetricsCard({ title, value, icon, trend, subtitle, isLoading, className }: MetricsCardProps) {
+function MetricsCard({
+  title,
+  value,
+  icon,
+  trend,
+  subtitle,
+  isLoading,
+  className,
+  testId,
+  metricKey,
+}: MetricsCardProps) {
   const formatValue = (val: number | string) => {
     if (isLoading) return '—'
     if (typeof val === 'number') {
@@ -26,19 +38,33 @@ function MetricsCard({ title, value, icon, trend, subtitle, isLoading, className
   }
 
   return (
-    <Card variant="stats" className={className}>
+    <Card
+      variant="stats"
+      className={className}
+      data-testid={testId}
+      data-metric-key={metricKey}
+      data-state={isLoading ? 'loading' : 'ready'}
+    >
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="text-left">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <p className="text-sm font-medium text-muted-foreground" data-testid={`${testId}.title`}>
+              {title}
+            </p>
             <div className="flex items-baseline gap-2">
-              <p className={`text-2xl font-bold ${isLoading ? 'animate-pulse' : ''}`}>
+              <p
+                className={`text-2xl font-bold ${isLoading ? 'animate-pulse' : ''}`}
+                data-testid={`${testId}.value`}
+              >
                 {formatValue(value)}
               </p>
               {trend && !isLoading && (
-                <span className={`text-xs font-medium flex items-center gap-1 ${
-                  trend.isPositive ? 'text-green-600' : 'text-red-600'
-                }`}>
+                <span
+                  className={`text-xs font-medium flex items-center gap-1 ${
+                    trend.isPositive ? 'text-green-600' : 'text-red-600'
+                  }`}
+                  data-testid={`${testId}.trend`}
+                >
                   <span className="text-sm">
                     {trend.isPositive ? '↗' : '↘'}
                   </span>
@@ -47,10 +73,16 @@ function MetricsCard({ title, value, icon, trend, subtitle, isLoading, className
               )}
             </div>
             {subtitle && (
-              <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+              <p className="text-xs text-muted-foreground mt-1" data-testid={`${testId}.subtitle`}>
+                {subtitle}
+              </p>
             )}
           </div>
-          <div className={`text-3xl ${isLoading ? 'animate-pulse opacity-30' : 'opacity-60'}`}>
+          <div
+            className={`text-3xl ${isLoading ? 'animate-pulse opacity-30' : 'opacity-60'}`}
+            aria-hidden="true"
+            data-testid={`${testId}.icon`}
+          >
             {icon}
           </div>
         </div>
@@ -60,10 +92,8 @@ function MetricsCard({ title, value, icon, trend, subtitle, isLoading, className
 }
 
 export function EnhancedMetricsCards() {
-  const { data: stats, isLoading: statsLoading } = useDashboardStats()
-  const { data: lowStock, isLoading: lowStockLoading } = useDashboardLowStock()
+  const { stats, lowStock, isLoading } = useDashboardMetrics()
 
-  // Calculate trends and additional metrics
   const metrics = useMemo(() => {
     if (!stats) {
       return {
@@ -101,10 +131,12 @@ export function EnhancedMetricsCards() {
     }
   }, [stats, lowStock])
 
-  const isLoading = statsLoading || lowStockLoading
-
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+    <div
+      className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6"
+      data-testid="dashboard.metrics"
+      data-state={isLoading ? 'loading' : 'ready'}
+    >
       <MetricsCard
         title="Total Parts"
         value={metrics.totalParts.value}
@@ -112,6 +144,8 @@ export function EnhancedMetricsCards() {
         trend={metrics.totalParts.trend}
         subtitle="Unique components"
         isLoading={isLoading}
+        testId="dashboard.metrics.card.totalParts"
+        metricKey="totalParts"
       />
       
       <MetricsCard
@@ -121,6 +155,8 @@ export function EnhancedMetricsCards() {
         trend={metrics.storageBoxes.trend}
         subtitle="Active locations"
         isLoading={isLoading}
+        testId="dashboard.metrics.card.storageBoxes"
+        metricKey="storageBoxes"
       />
       
       <MetricsCard
@@ -131,6 +167,8 @@ export function EnhancedMetricsCards() {
         subtitle="Need attention"
         isLoading={isLoading}
         className="[&_p:first-child]:text-amber-600 dark:[&_p:first-child]:text-amber-400"
+        testId="dashboard.metrics.card.lowStock"
+        metricKey="lowStock"
       />
       
       <MetricsCard
@@ -140,6 +178,8 @@ export function EnhancedMetricsCards() {
         trend={metrics.recentActivity.trend}
         subtitle="Changes this week"
         isLoading={isLoading}
+        testId="dashboard.metrics.card.activity"
+        metricKey="activity"
       />
     </div>
   )
@@ -148,9 +188,12 @@ export function EnhancedMetricsCards() {
 // Skeleton loader for metrics cards
 export function MetricsCardsSkeleton() {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+    <div
+      className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6"
+      data-testid="dashboard.metrics.skeleton"
+    >
       {Array.from({ length: 4 }).map((_, i) => (
-        <Card key={i} variant="stats">
+        <Card key={i} variant="stats" data-testid="dashboard.metrics.skeleton.card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="text-left space-y-2">

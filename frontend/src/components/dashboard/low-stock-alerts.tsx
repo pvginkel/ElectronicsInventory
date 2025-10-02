@@ -82,15 +82,20 @@ function LowStockItem({
   }
 
   return (
-    <div className={`
+    <div
+      className={`
       rounded-lg border p-4 space-y-3 transition-all duration-300
       ${colors.bg} ${colors.animation}
-    `}>
+    `}
+      data-testid="dashboard.low-stock.item"
+      data-part-key={partKey}
+      data-criticality={criticality}
+    >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="font-mono text-sm font-bold">{partKey}</span>
-          <div className={`px-2 py-1 rounded-full text-xs font-medium ${colors.badge}`}>
+          <span className="font-mono text-sm font-bold" data-testid="dashboard.low-stock.item.part">{partKey}</span>
+          <div className={`px-2 py-1 rounded-full text-xs font-medium ${colors.badge}`} data-testid="dashboard.low-stock.item.badge">
             {currentQty} left
           </div>
           {criticality === 'critical' && (
@@ -103,13 +108,18 @@ function LowStockItem({
           size="sm"
           onClick={onDismiss}
           className="text-muted-foreground hover:text-foreground h-6 w-6 p-0"
+          data-testid="dashboard.low-stock.item.dismiss"
         >
           ×
         </Button>
       </div>
 
       {/* Description */}
-      <p className={`text-sm font-medium truncate ${colors.text}`} title={partDescription}>
+      <p
+        className={`text-sm font-medium truncate ${colors.text}`}
+        title={partDescription}
+        data-testid="dashboard.low-stock.item.description"
+      >
         {partDescription}
       </p>
 
@@ -130,6 +140,7 @@ function LowStockItem({
             onClick={handleQuickAdd}
             disabled={!quickAddAmount || parseInt(quickAddAmount) <= 0}
             className="h-8 px-3"
+            data-testid="dashboard.low-stock.item.quick-add.confirm"
           >
             Add
           </Button>
@@ -141,6 +152,7 @@ function LowStockItem({
               setQuickAddAmount('')
             }}
             className="h-8 px-2"
+            data-testid="dashboard.low-stock.item.quick-add.cancel"
           >
             Cancel
           </Button>
@@ -154,6 +166,7 @@ function LowStockItem({
           size="sm"
           onClick={onAddToShoppingList}
           className="flex-1 h-8 text-xs"
+          data-testid="dashboard.low-stock.item.shopping-list"
         >
           🛒 Add to List
         </Button>
@@ -163,6 +176,7 @@ function LowStockItem({
           size="sm"
           onClick={() => setShowQuickAdd(!showQuickAdd)}
           className="flex-1 h-8 text-xs"
+          data-testid="dashboard.low-stock.item.quick-add.toggle"
         >
           ➕ Quick Add
         </Button>
@@ -172,6 +186,7 @@ function LowStockItem({
           size="sm"
           onClick={onViewPart}
           className="h-8 px-2"
+          data-testid="dashboard.low-stock.item.view"
         >
           →
         </Button>
@@ -182,9 +197,9 @@ function LowStockItem({
 
 function LowStockSkeleton() {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-testid="dashboard.low-stock.skeleton">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="border rounded-lg p-4 space-y-3">
+        <div key={i} className="border rounded-lg p-4 space-y-3" data-testid="dashboard.low-stock.skeleton.card">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-12 h-4 bg-muted rounded animate-pulse" />
@@ -233,15 +248,15 @@ export function LowStockAlerts() {
     ?.filter((item: any) => !dismissedItems.has(item.part_key))
     ?.sort((a: any, b: any) => {
       // Sort by current quantity (ascending) - most critical first
-      return a.current_qty - b.current_qty
+      return (a.current_quantity ?? 0) - (b.current_quantity ?? 0)
     })
 
   const displayedItems = showAll ? filteredItems : filteredItems?.slice(0, 3)
   const hasMore = filteredItems && filteredItems.length > 3
 
-  if (isLoading) {
+  if (isLoading && (!lowStockItems || lowStockItems.length === 0)) {
     return (
-      <Card>
+      <Card data-testid="dashboard.low-stock" data-state="loading">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             ⚠️ Low Stock Alerts
@@ -256,13 +271,13 @@ export function LowStockAlerts() {
 
   if (error) {
     return (
-      <Card>
+      <Card data-testid="dashboard.low-stock" data-state="error">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             ⚠️ Low Stock Alerts
           </CardTitle>
         </CardHeader>
-        <CardContent className="text-center py-8">
+        <CardContent className="text-center py-8" data-testid="dashboard.low-stock.error">
           <div className="text-4xl mb-2">❌</div>
           <p className="text-muted-foreground">Failed to load low stock items</p>
         </CardContent>
@@ -272,13 +287,13 @@ export function LowStockAlerts() {
 
   if (!filteredItems || filteredItems.length === 0) {
     return (
-      <Card>
+      <Card data-testid="dashboard.low-stock" data-state="empty">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             ✅ Stock Status
           </CardTitle>
         </CardHeader>
-        <CardContent className="text-center py-12">
+        <CardContent className="text-center py-12" data-testid="dashboard.low-stock.empty">
           <div className="text-6xl mb-4">📊</div>
           <h3 className="font-medium mb-2 text-green-600">All stock levels good!</h3>
           <p className="text-sm text-muted-foreground">
@@ -289,16 +304,16 @@ export function LowStockAlerts() {
     )
   }
 
-  const criticalCount = filteredItems.filter((item: any) => item.current_qty <= 2).length
+  const criticalCount = filteredItems.filter((item: any) => (item.current_quantity ?? 0) <= 2).length
 
   return (
-    <Card>
+    <Card data-testid="dashboard.low-stock" data-state="ready">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             ⚠️ Low Stock Alerts
           </CardTitle>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground" data-testid="dashboard.low-stock.summary">
             {criticalCount > 0 && (
               <span className="text-red-600 font-medium mr-2">
                 {criticalCount} critical
@@ -310,13 +325,13 @@ export function LowStockAlerts() {
       </CardHeader>
       
       <CardContent className="space-y-4">
-        <div className="space-y-3">
+        <div className="space-y-3" data-testid="dashboard.low-stock.list">
           {displayedItems?.map((item: any) => (
             <LowStockItem
               key={item.part_key}
               partKey={item.part_key}
               partDescription={item.part_description}
-              currentQty={item.current_qty}
+              currentQty={item.current_quantity}
               onAddToShoppingList={() => handleAddToShoppingList(item.part_key)}
               onQuickAddStock={(qty) => handleQuickAddStock(item.part_key, qty)}
               onViewPart={() => handleViewPart(item.part_key)}
@@ -331,6 +346,7 @@ export function LowStockAlerts() {
             onClick={() => setShowAll(true)}
             className="w-full"
             size="sm"
+            data-testid="dashboard.low-stock.show-more"
           >
             Show {filteredItems.length - 3} More
           </Button>
@@ -342,6 +358,7 @@ export function LowStockAlerts() {
             onClick={() => setShowAll(false)}
             className="w-full"
             size="sm"
+            data-testid="dashboard.low-stock.show-less"
           >
             Show Less
           </Button>
@@ -354,6 +371,7 @@ export function LowStockAlerts() {
               size="sm"
               onClick={() => setDismissedItems(new Set())}
               className="w-full text-xs text-muted-foreground"
+              data-testid="dashboard.low-stock.restore-dismissed"
             >
               Show {dismissedItems.size} dismissed alerts
             </Button>
@@ -366,6 +384,7 @@ export function LowStockAlerts() {
             size="sm"
             onClick={() => navigate({ to: '/parts' })} // TODO: Navigate to parts with low stock filter
             className="w-full text-xs"
+            data-testid="dashboard.low-stock.manage-all"
           >
             Manage All Low Stock Items →
           </Button>

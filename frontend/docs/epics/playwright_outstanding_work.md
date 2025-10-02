@@ -70,7 +70,7 @@ This document consolidates all remaining work for the Playwright test suite impl
   - [x] Parts: list, detail, form, AI dialog, location editor, and document grid abstractions
   - [x] Boxes: list/grid interactions and detailed location view helpers
   - [x] Sellers: list/forms plus selector harness for inline creation
-  - [ ] Dashboard: widget accessors (metrics, health score, low stock, docs, categories, storage) and sidebar/mobile shell controls
+- [x] Dashboard: widget accessors (metrics, health score, low stock, docs, categories, storage) and sidebar/mobile shell controls
 - [ ] Add testing hooks to simulate deployment-version updates for banner coverage (helpers exist; awaiting banner coverage)
 
 ### Types Feature Coverage
@@ -124,13 +124,13 @@ This document consolidates all remaining work for the Playwright test suite impl
 - [x] SellerSelector inline creation from Part form & AI review, including website link opening in new tab
 
 ### Dashboard Coverage
-- [ ] Enhanced metrics cards show data, skeleton during load, and reflect updated fixtures (parts/boxes/low stock)
-- [ ] Inventory health score renders tooltip breakdown, hover behavior, and click target
-- [ ] Storage utilization grid ordering, summary stats, empty/error states, and navigation to box detail
-- [ ] Recent activity timeline grouping, show more/less controls, empty CTA, and part navigation
-- [ ] Low stock alerts: severity styling, quick-add toggle, dismiss/restore, show more flow, and CTA navigation
-- [ ] Documentation status: milestone badges, quick fix list, bulk upload CTA placeholder, and 100% celebration state
-- [ ] Category distribution: bar rendering, tooltips, smart insights, show-all toggle, and navigation hooks
+- [x] Enhanced metrics cards show data, skeleton during load, and reflect updated fixtures (parts/boxes/low stock)
+- [x] Inventory health score renders tooltip breakdown, hover behavior, and click target
+- [x] Storage utilization grid ordering, summary stats, empty/error states, and navigation to box detail
+- [x] Recent activity timeline grouping, show more/less controls, empty CTA, and part navigation
+- [x] Low stock alerts: severity styling, quick-add toggle, dismiss/restore, show more flow, and CTA navigation
+- [x] Documentation status: milestone badges, quick fix list, bulk upload CTA placeholder, and 100% celebration state
+- [x] Category distribution: bar rendering, tooltips, smart insights, show-all toggle, and navigation hooks
 
 ### App Shell & Auxiliary Pages
 - [ ] Sidebar navigation collapse/expand, active route styling, and link coverage for Dashboard/Parts/Boxes/Types/Sellers/About
