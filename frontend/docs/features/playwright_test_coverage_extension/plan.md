@@ -54,17 +54,17 @@ The plan below reflects that baseline and focuses on the remaining roadmap.
 - [x] Sign-off before proceeding to Phase 5
 
 ### Phase 5: Dashboard Coverage
-- [ ] Add dashboard instrumentation (`ui_state`/`list_loading`) and data-testids for metrics, health, storage, activity, documentation, and alerts
-- [ ] Implement Enhanced metrics cards tests (loading, value computation, trend metadata)
-- [ ] Implement Inventory health score tests (inputs from stats, low stock, documentation)
-- [ ] Implement Storage utilization grid tests (ordering, tooltips, navigation to box detail)
-- [ ] Implement Recent activity timeline tests (grouping, pagination)
-- [ ] Implement Low stock alerts tests (severity styling, CTA handling)
-- [ ] Implement Documentation status tests (milestones, celebration state)
-- [ ] Implement Category distribution tests (chart rendering, tooltips, expand/collapse)
-- [ ] Verify test suite runs successfully
-- [ ] Update outstanding work document for dashboard
-- [ ] Sign-off before proceeding to Phase 6
+- [x] Add dashboard instrumentation (`ui_state`/`list_loading`) and data-testids for metrics, health, storage, activity, documentation, and alerts
+- [x] Implement Enhanced metrics cards tests (loading, value computation, trend metadata)
+- [x] Implement Inventory health score tests (inputs from stats, low stock, documentation)
+- [x] Implement Storage utilization grid tests (ordering, tooltips, navigation to box detail)
+- [x] Implement Recent activity timeline tests (grouping, pagination)
+- [x] Implement Low stock alerts tests (severity styling, CTA handling)
+- [x] Implement Documentation status tests (milestones, celebration state)
+- [x] Implement Category distribution tests (chart rendering, tooltips, expand/collapse)
+- [x] Verify test suite runs successfully
+- [x] Update outstanding work document for dashboard
+- [x] Sign-off before proceeding to Phase 6
 
 ### Phase 6: App Shell & Cross-Domain Workflows
 - [ ] Add app shell instrumentation/test IDs for sidebar, mobile menu, and global toasts while keeping deployment banner wiring intact

@@ -287,7 +287,7 @@ export function useDashboardStorage() {
   const isFetching = storageQuery.isFetching;
 
   const totalBoxes = storageQuery.data?.length ?? 0;
-  const activeBoxes = storageQuery.data?.filter((box) => (box.occupied_locations ?? 0) > 0).length ?? 0;
+  const activeBoxes = (storageQuery.data?.filter((box) => (box.occupied_locations ?? 0) > 0) ?? []).length;
   const totalLocations = storageQuery.data?.reduce((sum, box) => sum + (box.total_locations ?? 0), 0) ?? 0;
   const occupiedLocations = storageQuery.data?.reduce((sum, box) => sum + (box.occupied_locations ?? 0), 0) ?? 0;
 
@@ -353,7 +353,7 @@ export function useDashboardLowStock() {
   const isLoading = lowStockQuery.isLoading;
   const isFetching = lowStockQuery.isFetching;
 
-  const criticalCount = lowStockQuery.data?.filter((item) => (item.current_quantity ?? 0) <= 2).length ?? 0;
+  const criticalCount = (lowStockQuery.data?.filter((item) => (item.current_quantity ?? 0) <= 2) ?? []).length;
 
   useDashboardWidgetInstrumentation('dashboard.lowStock', {
     isLoading,
