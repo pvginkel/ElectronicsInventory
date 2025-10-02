@@ -143,8 +143,8 @@ Keep track of hobby electronics parts so you always know **what you have**, **wh
 
 6. **Shopping list**
 
-   * Add anything you plan to buy (even if it doesn’t exist as a part yet).
-   * When it arrives, convert to inventory: the app suggests locations, attaches docs, and merges with an existing part if appropriate.
+   * Add any catalogued part you plan to buy (create the part entry first if it is new).
+   * When items arrive, convert the shopping list entry into inventory: the app suggests locations, attaches docs, and merges with the existing part record.
 
 7. **Projects (kits)**
 

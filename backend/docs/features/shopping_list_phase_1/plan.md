@@ -17,6 +17,7 @@ Implement the foundational shopping list functionality (Concept lists) that allo
     - Note: "done" status represents archived/completed lists that are hidden by default in the UI
   - `created_at`, `updated_at` (timestamps)
   - Relationship to `ShoppingListLine` with cascade delete
+  - Relationship configured as `lines = relationship("ShoppingListLine", back_populates="shopping_list", cascade="all, delete-orphan", lazy="selectin")`
 
 **Create `app/models/shopping_list_line.py`:**
 - `ShoppingListLine` model with fields:
@@ -32,6 +33,10 @@ Implement the foundational shopping list functionality (Concept lists) that allo
   - `created_at`, `updated_at` (timestamps)
   - Unique constraint on (shopping_list_id, part_id) for duplicate prevention
   - Check constraint: needed ≥ 1
+  - Relationships configured as:
+    - `shopping_list = relationship("ShoppingList", back_populates="lines", lazy="selectin")`
+    - `part = relationship("Part", lazy="selectin")`
+    - `seller = relationship("Seller", lazy="selectin")`
 
 **Modify `app/models/__init__.py`:**
 - Add imports for ShoppingList and ShoppingListLine
@@ -82,7 +87,7 @@ Implement the foundational shopping list functionality (Concept lists) that allo
 - `GET /shopping-lists`: List all lists (query param: include_done)
 - `GET /shopping-lists/{list_id}`: Get list details with lines
 - `PUT /shopping-lists/{list_id}`: Update list name/description
-- `DELETE /shopping-lists/{list_id}`: Delete list (confirm required)
+- `DELETE /shopping-lists/{list_id}`: Delete list
 - `PUT /shopping-lists/{list_id}/status`: Update list status
 
 **Create `app/api/shopping_list_lines.py`:**
@@ -97,15 +102,29 @@ Implement the foundational shopping list functionality (Concept lists) that allo
 **Modify `app/__init__.py` (application factory):**
 - Add `app.api.shopping_lists` and `app.api.shopping_list_lines` to the container wiring list (around line 53)
 
+### Tests
+
+- `tests/services/test_shopping_list_service.py`: Service CRUD, status transitions, duplicate handling
+- `tests/services/test_shopping_list_line_service.py`: Line CRUD, duplicate prevention, read-only fields
+- `tests/api/test_shopping_lists_api.py`: List endpoints, validation, status codes
+- `tests/api/test_shopping_list_lines_api.py`: Line endpoints, validation, error responses
+
 ### Database Migration
 
-**Create `alembic/versions/012_create_shopping_lists.py`:**
+**Create `alembic/versions/013_create_shopping_lists.py`:**
 - Create `shopping_lists` table
 - Create `shopping_list_lines` table with:
   - Foreign keys to shopping_lists, parts, and sellers
   - Unique constraint on (shopping_list_id, part_id)
   - Check constraint on needed ≥ 1
   - Indexes on shopping_list_id, part_id, status
+
+### Test Dataset Updates
+
+- Update `app/data/test_data/sellers.json` and `app/data/test_data/parts.json` if new fixture sellers/parts are required for shopping list coverage.
+- Add new shopping list fixture files (e.g., `shopping_lists.json`, `shopping_list_lines.json`) storing realistic scenarios, including duplicate prevention and status coverage.
+- Extend `app/services/test_data_service.py` to load the new shopping list fixtures in dependency order.
+- Ensure `poetry run python -m app.cli load-test-data --yes-i-am-sure` succeeds after the schema and dataset updates.
 
 ## Algorithms
 
