@@ -133,17 +133,17 @@ This document consolidates all remaining work for the Playwright test suite impl
 - [x] Category distribution: bar rendering, tooltips, smart insights, show-all toggle, and navigation hooks
 
 ### App Shell & Auxiliary Pages
-- [ ] Sidebar navigation collapse/expand, active route styling, and link coverage for Dashboard/Parts/Boxes/Types/Sellers/About
-- [ ] Mobile menu overlay open/close interactions and navigation behavior
-- [ ] Deployment notification banner appears when simulated version SSE fires and reload button refreshes app
-- [ ] About page hero CTAs, feature grid counts, and quick start guide visibility
-- [ ] Smoke test for root layout ensuring QueryClientProvider/ToastProvider bootstrap without console errors
+- [x] Sidebar navigation collapse/expand, active route styling, and link coverage for Dashboard/Parts/Boxes/Types/Sellers/About
+- [x] Mobile menu overlay open/close interactions and navigation behavior
+- [x] Deployment notification banner appears when simulated version SSE fires and reload button refreshes app
+- [x] About page hero CTAs, feature grid counts, and quick start guide visibility
+- [x] Smoke test for root layout ensuring QueryClientProvider/ToastProvider bootstrap without console errors
 
 ### Cross-Domain Workflows & Regression Guards
-- [ ] End-to-end flow: create type → create part (with seller + location) → verify Part detail, Type part counts, and dashboard metrics update
-- [ ] Move part between boxes and assert both Part detail and Box detail reflect new allocation
-- [ ] Delete box with assigned parts is blocked (toast + unchanged locations)
-- [ ] Capture test-event / toast instrumentation snapshots for critical flows (form submit success/error, document upload failure, AI analysis error)
+- [x] End-to-end flow: create type → create part (with seller + location) → verify Part detail, Type part counts, and dashboard metrics update
+- [x] Move part between boxes and assert both Part detail and Box detail reflect new allocation
+- [x] Delete box with assigned parts is blocked (toast + unchanged locations)
+- [x] Capture test-event / toast instrumentation snapshots for critical flows (form submit success/error, document upload failure, AI analysis error)
 
 ## 5. Test Artifacts & Debugging
 

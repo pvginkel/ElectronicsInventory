@@ -155,6 +155,13 @@ Follow the [No-Sleep Patterns](./no_sleep_patterns.md) reference. Use `Promise.a
 - SSE payloads always include `correlation_id` matching the `request_id`; use it to tie Playwright assertions to backend telemetry instead of stubbing deployment updates.
 - Local dev servers do not expose `version.json`; seed a baseline release via the testing trigger before asserting a follow-up update so the banner logic observes a genuine version change.
 
+### App Shell Instrumentation
+
+- The `AppShellPage` page object (`tests/support/page-objects/app-shell-page.ts`) exposes helpers for the sidebar, mobile menu, deployment banner, and toast viewport. Prefer using it over ad hoc selectors.
+- Sidebar links carry `data-testid="app-shell.sidebar.link.<slug>"` and reflect active state via `data-active="true"`. Collapse state is surfaced by `data-state` on `app-shell.sidebar`; the root layout tracks the mobile menu state with `data-mobile-menu-state`.
+- Global toasts render under `data-testid="app-shell.toast.item"` inside the viewport `data-testid="app-shell.toast.viewport"`. Every toast test should assert via these selectors rather than querying by role.
+- The deployment banner reload CTA is addressable via `data-testid="deployment.banner.reload"` and still relies on the real backend SSE trigger.
+
 ## Suite Conventions
 
 - **Specs**: Name files `*.spec.ts` and colocate with feature folders under `tests/e2e/<feature>/`.

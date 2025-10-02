@@ -8,6 +8,8 @@ import { AIDialogPage } from './page-objects/ai-dialog-page';
 import { LocationEditorPage } from './page-objects/location-editor-page';
 import { DocumentGridPage } from './page-objects/document-grid-page';
 import { DashboardPage } from './page-objects/dashboard-page';
+import { AppShellPage } from './page-objects/app-shell-page';
+import { AboutPage } from './page-objects/about-page';
 import { getBackendUrl } from './backend-url';
 import {
   TestEventCapture,
@@ -31,6 +33,7 @@ type TestFixtures = {
   apiClient: ReturnType<typeof createApiClient>;
   testData: ReturnType<typeof createTestDataBundle>;
   types: TypesPage;
+  appShell: AppShellPage;
   parts: PartsPage;
   boxes: BoxesPage;
   sellers: SellersPage;
@@ -38,6 +41,7 @@ type TestFixtures = {
   partsLocations: LocationEditorPage;
   partsDocuments: DocumentGridPage;
   dashboard: DashboardPage;
+  about: AboutPage;
   testEvents: TestEventCapture;
   toastHelper: ToastHelper;
   sseMocker: SSEMocker;
@@ -142,6 +146,10 @@ export const test = base.extend<TestFixtures>({
     await provide(new TypesPage(page));
   },
 
+  appShell: async ({ page }, provide) => {
+    await provide(new AppShellPage(page));
+  },
+
   parts: async ({ page }, provide) => {
     await provide(new PartsPage(page));
   },
@@ -168,6 +176,10 @@ export const test = base.extend<TestFixtures>({
 
   dashboard: async ({ page }, provide) => {
     await provide(new DashboardPage(page));
+  },
+
+  about: async ({ page }, provide) => {
+    await provide(new AboutPage(page));
   },
 
   testEvents: async ({ page }, provide) => {

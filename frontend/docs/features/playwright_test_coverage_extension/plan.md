@@ -67,16 +67,16 @@ The plan below reflects that baseline and focuses on the remaining roadmap.
 - [x] Sign-off before proceeding to Phase 6
 
 ### Phase 6: App Shell & Cross-Domain Workflows
-- [ ] Add app shell instrumentation/test IDs for sidebar, mobile menu, and global toasts while keeping deployment banner wiring intact
-- [ ] Implement sidebar navigation tests (desktop collapse, active route styling, link coverage)
-- [ ] Implement mobile menu tests (open/close transitions, navigation)
-- [ ] Extend deployment banner coverage to assert reload CTA behaviour while using the real backend trigger
-- [ ] Implement About page tests (hero CTAs, feature grid, quick start guide)
-- [ ] Implement cross-domain workflow tests (type -> part with seller + location -> dashboard visibility, box reassignment, delete protection)
-- [ ] Capture test-event/toast instrumentation snapshots for critical flows (form success/error, document failure, AI error)
-- [ ] Verify test suite runs successfully
-- [ ] Update outstanding work document with final items
-- [ ] Final sign-off
+- [x] Add app shell instrumentation/test IDs for sidebar, mobile menu, and global toasts while keeping deployment banner wiring intact
+- [x] Implement sidebar navigation tests (desktop collapse, active route styling, link coverage)
+- [x] Implement mobile menu tests (open/close transitions, navigation)
+- [x] Extend deployment banner coverage to assert reload CTA behaviour while using the real backend trigger
+- [x] Implement About page tests (hero CTAs, feature grid, quick start guide)
+- [x] Implement cross-domain workflow tests (type -> part with seller + location -> dashboard visibility, box reassignment, delete protection)
+- [x] Capture test-event/toast instrumentation snapshots for critical flows (form success/error, document failure, AI error)
+- [x] Verify test suite runs successfully
+- [x] Update outstanding work document with final items
+- [x] Final sign-off
 
 ## Files and Functions to Create or Modify
 

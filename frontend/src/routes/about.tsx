@@ -64,9 +64,9 @@ function About() {
   ]
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" data-testid="about.page">
       {/* Hero Section */}
-      <div className="text-center py-12">
+      <div className="text-center py-12" data-testid="about.hero">
         <div className="text-6xl mb-4">⚡</div>
         <h1 className="text-4xl font-bold tracking-tight mb-4">
           Electronics Inventory System
@@ -76,11 +76,11 @@ function About() {
           Keep track of what you have, where it is, and how to get more.
         </p>
         <div className="mt-8 flex justify-center gap-4">
-          <Button size="lg">
+          <Button size="lg" data-testid="about.hero.cta.add-part">
             <span className="mr-2">➕</span>
             Add Your First Part
           </Button>
-          <Button variant="outline" size="lg">
+          <Button variant="outline" size="lg" data-testid="about.hero.cta.documentation">
             <span className="mr-2">📖</span>
             View Documentation
           </Button>
@@ -88,12 +88,20 @@ function About() {
       </div>
 
       {/* Features Grid */}
-      <div>
+      <div data-testid="about.features">
         <h2 className="text-3xl font-bold text-center mb-8">Key Features</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          data-testid="about.features.grid"
+        >
           {features.map((feature, index) => (
-            <Card key={index} className="text-center">
-              <CardContent className="pt-6">
+            <Card
+              key={index}
+              className="text-center"
+              data-testid="about.features.item"
+              data-feature-index={index}
+            >
+              <CardContent className="pt-6" data-testid="about.features.item.content">
                 <div className="text-4xl mb-4">{feature.icon}</div>
                 <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
                 <p className="text-sm text-muted-foreground">{feature.description}</p>
@@ -104,14 +112,19 @@ function About() {
       </div>
 
       {/* Quick Start Guide */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8" data-testid="about.quickstart.section">
+        <Card data-testid="about.quickstart">
           <CardHeader>
             <CardTitle className="text-2xl">Quick Start Guide</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {quickStartSteps.map((step, index) => (
-              <div key={index} className="flex gap-4">
+              <div
+                key={index}
+                className="flex gap-4"
+                data-testid="about.quickstart.step"
+                data-step={step.step}
+              >
                 <div className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-semibold">
                   {step.step}
                 </div>
@@ -124,7 +137,7 @@ function About() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="about.overview">
           <CardHeader>
             <CardTitle className="text-2xl">System Overview</CardTitle>
           </CardHeader>
@@ -162,18 +175,18 @@ function About() {
       </div>
 
       {/* Call to Action */}
-      <Card className="text-center bg-muted/30">
+      <Card className="text-center bg-muted/30" data-testid="about.cta">
         <CardContent className="py-12">
           <h2 className="text-2xl font-bold mb-4">Ready to Get Organized?</h2>
           <p className="text-muted-foreground mb-6 max-w-md mx-auto">
             Start managing your electronics inventory with modern tools designed for makers.
           </p>
           <div className="flex justify-center gap-4">
-            <Button size="lg">
+            <Button size="lg" data-testid="about.cta.get-started">
               <span className="mr-2">🚀</span>
               Get Started
             </Button>
-            <Button variant="outline" size="lg">
+            <Button variant="outline" size="lg" data-testid="about.cta.view-dashboard">
               <span className="mr-2">📊</span>
               View Dashboard
             </Button>

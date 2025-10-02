@@ -7,7 +7,7 @@
 - [x] Playwright Deployment SSE Support — removes the deployment stream mocks while backend triggers are fresh, preventing new lint failures once enforcement lands.
 - [x] Playwright No Route Mock Enforcement — enables the lint gate only after every targeted spec is on real data and the sanctioned AI helper exists, minimizing churn from late-breaking violations.
 
-This document inventories every mocking hook we currently use in the Playwright suite, explains why it was introduced, and outlines how to replace each mock so the tests can exercise the real backend. The analysis also covers the existing SSE mocking helper and proposes enforcement to prevent new mocks from slipping back in.
+This document inventories every mocking hook we currently use in the Playwright suite, explains why it was introduced, and outlines how to replace each mock so the tests can exercise the real backend. The analysis also covers the existing SSE mocking helper and proposes enforcement to prevent new mocks from slipping back in. Phase 6 app shell and cross-domain workflow coverage landed without introducing any new route mocks—the suite continues to rely on the sanctioned AI SSE helper only.
 
 ## Inventory of Route / SSE Mocks
 

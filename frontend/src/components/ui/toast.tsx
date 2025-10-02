@@ -85,25 +85,39 @@ ToastComponent.displayName = "ToastComponent"
 interface ToastContainerProps {
   toasts: Toast[]
   onRemove: (id: string) => void
-  viewportProps?: NativeToastViewportProps
-  getItemProps?: (toast: Toast) => Partial<ToastProps>
+  viewportProps?: NativeToastViewportProps & Record<string, unknown>
+  getItemProps?: (toast: Toast) => (Partial<ToastProps> & Record<string, unknown>)
 }
 
 export function ToastContainer({ toasts, onRemove, viewportProps, getItemProps }: ToastContainerProps) {
+  const viewportRecord = (viewportProps ?? {}) as Record<string, unknown>
+  const viewportTestId = (viewportRecord['data-testid'] as string | undefined) ?? 'app-shell.toast.viewport'
+
   return (
     <ToastPrimitive.Provider swipeDirection="right">
       {toasts.map((toast) => {
-        const itemProps = getItemProps?.(toast) || {}
+        const userItemProps = getItemProps?.(toast) || {}
+        const resolvedItemProps: Partial<ToastProps> & Record<string, unknown> = {
+          'data-toast-id': toast.id,
+          'data-toast-level': toast.type,
+          ...userItemProps,
+        }
+
+        if (resolvedItemProps['data-testid'] === undefined) {
+          resolvedItemProps['data-testid'] = 'app-shell.toast.item'
+        }
+
         return (
           <ToastComponent
             key={toast.id}
             toast={toast}
             onRemove={onRemove}
-            {...itemProps}
+            {...resolvedItemProps}
           />
         )
       })}
       <ToastPrimitive.Viewport
+        data-testid={viewportTestId}
         {...viewportProps}
         className={cn(
           "fixed bottom-0 right-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",

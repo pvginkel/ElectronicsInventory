@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import type { components } from '@/lib/api/generated/types';
 import { useSSETask } from './use-sse-task';
 import { transformAIPartAnalysisResult } from '@/lib/utils/ai-parts';
+import { emitComponentError } from '@/lib/test/error-instrumentation';
 
 type AIPartAnalysisResult = components['schemas']['AIPartAnalysisTaskResultSchema.63ff6da.AIPartAnalysisResultSchema'];
 
@@ -37,6 +38,7 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
       setIsAnalyzing(false);
     },
     onError: (message) => {
+      emitComponentError(new Error(message), 'ai-part-analysis');
       options.onError?.(message);
       setIsAnalyzing(false);
     }
@@ -105,6 +107,11 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
     } catch (error) {
       console.error('Failed to submit analysis request:', error);
       setIsAnalyzing(false);
+      if (error instanceof Error) {
+        emitComponentError(error, 'ai-part-analysis');
+      } else {
+        emitComponentError(new Error(String(error)), 'ai-part-analysis');
+      }
       options.onError?.(error instanceof Error ? error.message : 'Failed to start analysis');
     }
   }, [isAnalyzing, connectSSE, options]);

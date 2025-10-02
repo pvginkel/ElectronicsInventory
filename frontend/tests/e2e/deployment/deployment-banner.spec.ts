@@ -9,7 +9,13 @@ import { extractSseData, waitForSseEvent } from '../../support/helpers/test-even
 const DEPLOYMENT_STREAM_ID = 'deployment.version';
 
 test.describe('Deployment banner streaming', () => {
-  test('surfaces backend-driven deployment updates', async ({ page, frontendUrl, backendUrl, testEvents }) => {
+test('surfaces backend-driven deployment updates', async ({
+  page,
+  frontendUrl,
+  backendUrl,
+  testEvents,
+  appShell,
+}) => {
     await page.goto(frontendUrl);
 
     await testEvents.clearEvents();
@@ -96,8 +102,20 @@ test.describe('Deployment banner streaming', () => {
     expect(correlation).toBe(requestId);
     expect(payload?.version).toBe(versionLabel);
 
-    await expect(
-      page.getByText('A new version of the app is available.', { exact: false })
-    ).toBeVisible();
+    const bannerMessage = page.getByText('A new version of the app is available.', { exact: false });
+    await expect(bannerMessage).toBeVisible();
+    await expect(appShell.deploymentReloadButton).toBeVisible();
+
+    const navigationPromise = page.waitForNavigation({ waitUntil: 'load' });
+    await appShell.deploymentReloadButton.click();
+    await navigationPromise;
+    await waitForSseEvent(page, {
+      streamId: DEPLOYMENT_STREAM_ID,
+      phase: 'open',
+      event: 'connected',
+      timeoutMs: 15000,
+    });
+
+    await expect(page.locator('[data-testid="deployment.banner"]')).toHaveCount(0);
   });
 });
