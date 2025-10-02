@@ -18,7 +18,12 @@ interface BoxCardProps {
 
 export function BoxCard({ box, onView, onEdit, onDelete }: BoxCardProps) {
   return (
-    <Card variant="content" className="hover:shadow-md transition-shadow">
+    <Card
+      variant="content"
+      className="hover:shadow-md transition-shadow"
+      data-testid={`boxes.list.item.${box.box_no}`}
+      data-box-no={box.box_no}
+    >
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div>

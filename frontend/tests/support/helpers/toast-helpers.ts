@@ -29,7 +29,10 @@ export class ToastHelper {
    * @returns Locator for the toast container
    */
   private getToastContainer(): Locator {
-    return this.page.locator('[role="status"]');
+    return this.page
+      .locator('[role="status"]')
+      .filter({ hasText: /\S/ })
+      .first();
   }
 
   /**

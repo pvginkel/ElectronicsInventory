@@ -13,6 +13,11 @@ export function LocationItem({ location }: LocationItemProps) {
       tabIndex={0}
       role="button"
       aria-label={`Location ${locationId} - ${location.displayText}`}
+      data-testid={`boxes.detail.locations.item.${locationId}`}
+      data-is-occupied={location.isOccupied ? 'true' : 'false'}
+      {...(location.partAssignments && location.partAssignments.length > 0
+        ? { 'data-primary-part-key': location.partAssignments[0].key ?? undefined }
+        : {})}
     >
       <div className="flex items-center space-x-3">
         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${

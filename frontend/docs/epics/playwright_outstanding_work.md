@@ -68,8 +68,8 @@ This document consolidates all remaining work for the Playwright test suite impl
 - [ ] Extend Playwright fixtures & page objects
   - [x] Shared helpers for toast assertions, test-event capture, SSE mocking, and file upload utilities
   - [x] Parts: list, detail, form, AI dialog, location editor, and document grid abstractions
-  - [ ] Boxes: list/grid interactions and detailed location view helpers
-  - [ ] Sellers: list/forms plus selector harness for inline creation
+  - [x] Boxes: list/grid interactions and detailed location view helpers
+  - [x] Sellers: list/forms plus selector harness for inline creation
   - [ ] Dashboard: widget accessors (metrics, health score, low stock, docs, categories, storage) and sidebar/mobile shell controls
 - [ ] Add testing hooks to simulate deployment-version updates for banner coverage (helpers exist; awaiting banner coverage)
 
@@ -111,17 +111,17 @@ This document consolidates all remaining work for the Playwright test suite impl
 
 ### Boxes Feature Coverage
 - [ ] Box list
-  - [ ] Create/edit/delete flows with validation (capacity bounds, description length) and toast assertions
+  - [x] Create/edit/delete flows with toast assertions (additional validation edge cases pending)
   - [ ] Search by box number/description, handle empty/filter-empty/error states, and confirm usage metrics update after part moves
 - [ ] Box detail
-  - [ ] Verify summary (number, description, capacity, usage bar, last updated) reflects API data
-  - [ ] Location list styling for occupied vs empty slots, part badges, quantities, and fallback rendering when enhanced API fails
+  - [x] Verify summary (number, description, capacity, usage bar, last updated) reflects API data
+  - [x] Location list styling for occupied vs empty slots, part badges, quantities, and fallback rendering when enhanced API fails
   - [ ] Delete from detail redirects back to list; edit dialog updates live metadata
 
 ### Sellers Feature Coverage
-- [ ] Seller list create/edit/delete flows with URL/name validation, loading/empty/error views, and toast checks
+- [x] Seller list create/edit/delete flows with URL/name validation, loading/empty/error views, and toast checks
 - [ ] Ensure deleting seller associated with parts surfaces backend error (or confirm allowed behavior) without losing associations
-- [ ] SellerSelector inline creation from Part form & AI review, including website link opening in new tab
+- [x] SellerSelector inline creation from Part form & AI review, including website link opening in new tab
 
 ### Dashboard Coverage
 - [ ] Enhanced metrics cards show data, skeleton during load, and reflect updated fixtures (parts/boxes/low stock)

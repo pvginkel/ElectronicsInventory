@@ -1,8 +1,11 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { useRef } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, type DialogContentProps } from '@/components/ui/dialog'
 import { Form, FormField, FormLabel } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useFormState } from '@/hooks/use-form-state'
+import { useFormInstrumentation, type UseFormInstrumentationResult } from '@/hooks/use-form-instrumentation'
+import { generateFormId } from '@/lib/test/form-instrumentation'
 
 interface BoxFormData extends Record<string, string> {
   description: string
@@ -19,6 +22,7 @@ interface BoxFormProps {
   }
   title: string
   submitText: string
+  formId?: string
 }
 
 export function BoxForm({ 
@@ -27,8 +31,10 @@ export function BoxForm({
   onSubmit, 
   initialValues, 
   title, 
-  submitText 
+  submitText,
+  formId
 }: BoxFormProps) {
+  const instrumentationRef = useRef<UseFormInstrumentationResult<{ description: string; capacity: string }> | null>(null)
   const form = useFormState<BoxFormData>({
     initialValues: {
       description: initialValues?.description || '',
@@ -50,14 +56,39 @@ export function BoxForm({
       }
     },
     onSubmit: async (values) => {
-      await onSubmit({
+      const payload = {
         description: values.description.trim(),
         capacity: parseInt(values.capacity, 10)
-      })
-      onOpenChange(false)
-      form.reset()
+      }
+      const instrumentationFields = {
+        description: payload.description,
+        capacity: values.capacity
+      }
+
+      try {
+        instrumentationRef.current?.trackSubmit(instrumentationFields)
+        await onSubmit(payload)
+        instrumentationRef.current?.trackSuccess(instrumentationFields)
+        onOpenChange(false)
+        form.reset()
+      } catch {
+        instrumentationRef.current?.trackError(instrumentationFields)
+      }
     }
   })
+
+  const resolvedFormId = formId ?? generateFormId('BoxForm', initialValues ? 'edit' : 'create')
+
+  const instrumentation = useFormInstrumentation({
+    formId: resolvedFormId,
+    isOpen: open,
+    snapshotFields: () => ({
+      description: form.values.description,
+      capacity: form.values.capacity
+    })
+  })
+
+  instrumentationRef.current = instrumentation
 
   const handleClose = () => {
     onOpenChange(false)
@@ -65,9 +96,13 @@ export function BoxForm({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog
+      open={open}
+      onOpenChange={handleClose}
+      contentProps={{ 'data-testid': `${resolvedFormId}.dialog` } as DialogContentProps}
+    >
       <DialogContent>
-        <Form onSubmit={form.handleSubmit}>
+        <Form onSubmit={form.handleSubmit} data-testid={`${resolvedFormId}.form`}>
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
@@ -82,6 +117,7 @@ export function BoxForm({
                   id="description"
                   maxLength={255}
                   {...form.getFieldProps('description')}
+                  data-testid={`${resolvedFormId}.field.description`}
                 />
               </FormField>
 
@@ -95,6 +131,7 @@ export function BoxForm({
                   min="1"
                   max="50"
                   {...form.getFieldProps('capacity')}
+                  data-testid={`${resolvedFormId}.field.capacity`}
                 />
               </FormField>
             </div>
@@ -108,6 +145,7 @@ export function BoxForm({
               type="submit" 
               disabled={!form.isValid || form.isSubmitting}
               loading={form.isSubmitting}
+              data-testid={`${resolvedFormId}.submit`}
             >
               {submitText}
             </Button>

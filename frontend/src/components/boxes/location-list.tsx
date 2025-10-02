@@ -8,15 +8,15 @@ interface LocationListProps {
 export function LocationList({ locations }: LocationListProps) {
   if (!locations || locations.length === 0) {
     return (
-      <div className="text-center py-8">
+      <div className="text-center py-8" data-testid="boxes.detail.locations.empty">
         <p className="text-muted-foreground">No locations available</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-2">
-      <div className="text-sm text-muted-foreground mb-4">
+    <div className="space-y-2" data-testid="boxes.detail.locations.list">
+      <div className="text-sm text-muted-foreground mb-4" data-testid="boxes.detail.locations.count">
         {locations.length} locations
       </div>
       

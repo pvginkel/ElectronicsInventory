@@ -44,13 +44,13 @@ The plan below reflects that baseline and focuses on the remaining roadmap.
 - [x] Sign-off before proceeding to Phase 4
 
 ### Phase 4: Boxes & Sellers Feature Coverage
-- [ ] Add list_loading instrumentation, test IDs, and toast/test-event hooks to Boxes & Sellers UIs without introducing route mocks
-- [ ] Implement Box list coverage (loading, search, creation/edit/delete, usage summaries, navigation to detail)
-- [ ] Implement Box detail coverage (location grid with part assignments, usage metrics, delete guard + instrumentation)
-- [ ] Implement Seller list coverage (search, CRUD, external link assertions) using real backend data
-- [ ] Implement Seller selector integration coverage (inline create, selection persistence, Part form integration)
-- [ ] Verify test suite runs successfully
-- [ ] Update outstanding work document for Boxes/Sellers
+- [x] Add list_loading instrumentation, test IDs, and toast/test-event hooks to Boxes & Sellers UIs without introducing route mocks
+- [x] Implement Box list coverage (loading, search, creation/edit/delete, usage summaries, navigation to detail)
+- [x] Implement Box detail coverage (location grid with part assignments, usage metrics, delete guard + instrumentation)
+- [x] Implement Seller list coverage (search, CRUD, external link assertions) using real backend data
+- [x] Implement Seller selector integration coverage (inline create, selection persistence, Part form integration)
+- [x] Verify test suite runs successfully
+- [x] Update outstanding work document for Boxes/Sellers
 - [ ] Sign-off before proceeding to Phase 5
 
 ### Phase 5: Dashboard Coverage

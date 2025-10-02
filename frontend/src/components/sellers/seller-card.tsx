@@ -20,7 +20,12 @@ export function SellerCard({ seller, onEdit, onDelete }: SellerCardProps) {
   }
 
   return (
-    <Card variant="content" className="hover:shadow-md transition-shadow">
+    <Card
+      variant="content"
+      className="hover:shadow-md transition-shadow"
+      data-testid={`sellers.list.item.${seller.id}`}
+      data-seller-id={seller.id}
+    >
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div className="flex-1 min-w-0">
@@ -28,6 +33,7 @@ export function SellerCard({ seller, onEdit, onDelete }: SellerCardProps) {
             <button
               onClick={handleWebsiteClick}
               className="flex items-center gap-1 mt-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              data-testid={`sellers.list.item.${seller.id}.link`}
             >
               <span className="truncate">{seller.website}</span>
               <ExternalLinkIcon className="w-3 h-3 flex-shrink-0" />

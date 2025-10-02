@@ -7,6 +7,10 @@ import { Page, Locator, expect } from '@playwright/test';
 export class BasePage {
   constructor(protected readonly page: Page) {}
 
+  get playwrightPage(): Page {
+    return this.page;
+  }
+
   /**
    * Navigates to a specific path
    * @param path - The path to navigate to (relative to base URL)

@@ -2,6 +2,8 @@ import { test as base, expect } from '@playwright/test';
 import { createApiClient, createTestDataBundle } from '../api';
 import { TypesPage } from '../e2e/types/TypesPage';
 import { PartsPage } from './page-objects/parts-page';
+import { BoxesPage } from './page-objects/boxes-page';
+import { SellersPage } from './page-objects/sellers-page';
 import { AIDialogPage } from './page-objects/ai-dialog-page';
 import { LocationEditorPage } from './page-objects/location-editor-page';
 import { DocumentGridPage } from './page-objects/document-grid-page';
@@ -29,6 +31,8 @@ type TestFixtures = {
   testData: ReturnType<typeof createTestDataBundle>;
   types: TypesPage;
   parts: PartsPage;
+  boxes: BoxesPage;
+  sellers: SellersPage;
   partsAI: AIDialogPage;
   partsLocations: LocationEditorPage;
   partsDocuments: DocumentGridPage;
@@ -138,6 +142,14 @@ export const test = base.extend<TestFixtures>({
 
   parts: async ({ page }, provide) => {
     await provide(new PartsPage(page));
+  },
+
+  boxes: async ({ page }, provide) => {
+    await provide(new BoxesPage(page));
+  },
+
+  sellers: async ({ page }, provide) => {
+    await provide(new SellersPage(page));
   },
 
   partsAI: async ({ page }, provide) => {

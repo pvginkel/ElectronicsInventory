@@ -1,9 +1,11 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { useEffect, useRef } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, type DialogContentProps } from '@/components/ui/dialog'
 import { Form, FormField, FormLabel } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useFormState } from '@/hooks/use-form-state'
-import { useEffect } from 'react'
+import { useFormInstrumentation, type UseFormInstrumentationResult } from '@/hooks/use-form-instrumentation'
+import { generateFormId } from '@/lib/test/form-instrumentation'
 
 interface SellerCreateDialogProps {
   open: boolean
@@ -11,6 +13,7 @@ interface SellerCreateDialogProps {
   onSuccess: (data: { name: string; website: string }) => void
   onCancel?: () => void
   initialName?: string
+  formId?: string
 }
 
 export function SellerCreateDialog({
@@ -18,8 +21,10 @@ export function SellerCreateDialog({
   onOpenChange,
   onSuccess,
   onCancel,
-  initialName = ''
+  initialName = '',
+  formId
 }: SellerCreateDialogProps) {
+  const instrumentationRef = useRef<UseFormInstrumentationResult<{ name: string; website: string }> | null>(null)
   const form = useFormState({
     initialValues: {
       name: initialName,
@@ -48,20 +53,47 @@ export function SellerCreateDialog({
       }
     },
     onSubmit: async (values) => {
-      onSuccess({
+      const payload = {
         name: values.name.trim(),
         website: values.website.trim()
-      })
-      handleClose()
+      }
+      const instrumentationFields = {
+        name: payload.name,
+        website: values.website
+      }
+
+      try {
+        instrumentationRef.current?.trackSubmit(instrumentationFields)
+        await onSuccess(payload)
+        instrumentationRef.current?.trackSuccess(instrumentationFields)
+        handleClose()
+      } catch {
+        instrumentationRef.current?.trackError(instrumentationFields)
+      }
     }
   })
+
+  const { setValue } = form
 
   // Update form values when dialog opens with new initialName
   useEffect(() => {
     if (open && initialName) {
-      form.setValue('name', initialName)
+      setValue('name', initialName)
     }
-  }, [open, initialName])
+  }, [open, initialName, setValue])
+
+  const resolvedFormId = formId ?? generateFormId('SellerForm', 'inline-create')
+
+  const instrumentation = useFormInstrumentation({
+    formId: resolvedFormId,
+    isOpen: open,
+    snapshotFields: () => ({
+      name: form.values.name,
+      website: form.values.website
+    })
+  })
+
+  instrumentationRef.current = instrumentation
 
   const handleClose = () => {
     if (onCancel) {
@@ -73,9 +105,13 @@ export function SellerCreateDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog
+      open={open}
+      onOpenChange={handleClose}
+      contentProps={{ 'data-testid': `${resolvedFormId}.dialog` } as DialogContentProps}
+    >
       <DialogContent>
-        <Form onSubmit={form.handleSubmit}>
+        <Form onSubmit={form.handleSubmit} data-testid={`${resolvedFormId}.form`}>
           <DialogHeader>
             <DialogTitle>Create New Seller</DialogTitle>
           </DialogHeader>
@@ -90,6 +126,7 @@ export function SellerCreateDialog({
                 maxLength={255}
                 placeholder="Enter seller name (e.g., DigiKey, Mouser)"
                 {...form.getFieldProps('name')}
+                data-testid={`${resolvedFormId}.field.name`}
               />
             </FormField>
 
@@ -102,6 +139,7 @@ export function SellerCreateDialog({
                 type="url"
                 placeholder="https://www.example.com"
                 {...form.getFieldProps('website')}
+                data-testid={`${resolvedFormId}.field.website`}
               />
             </FormField>
           </div>
@@ -114,6 +152,7 @@ export function SellerCreateDialog({
               type="submit"
               disabled={!form.isValid || form.isSubmitting}
               loading={form.isSubmitting}
+              data-testid={`${resolvedFormId}.submit`}
             >
               Create Seller
             </Button>

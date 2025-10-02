@@ -1,8 +1,10 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { SearchableSelect } from '@/components/ui/searchable-select'
 import { SellerCreateDialog } from './seller-create-dialog'
 import { useSellers, useCreateSeller } from '@/hooks/use-sellers'
 import { ExternalLinkIcon } from '@/components/icons/ExternalLinkIcon'
+import { useToast } from '@/hooks/use-toast'
+import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
 
 interface SellerSelectorProps {
   value?: number
@@ -22,7 +24,14 @@ export function SellerSelector({
   const [searchTerm, setSearchTerm] = useState('')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
-  const { data: allSellers = [], isLoading } = useSellers()
+  const { showSuccess, showError } = useToast()
+
+  const {
+    data: allSellers = [],
+    isLoading,
+    isFetching,
+    error: loadError
+  } = useSellers()
 
   // Filter sellers based on search term
   const sellers = useMemo(() => {
@@ -55,10 +64,12 @@ export function SellerSelector({
       onChange(result.id)
       setSearchTerm(result.name)
       setCreateDialogOpen(false)
-    } catch {
-      // Error handling is automatic via React Query
+      showSuccess('Seller created successfully')
+    } catch (err) {
+      showError('Failed to create seller')
+      throw err
     }
-  }, [onChange, createMutation])
+  }, [onChange, createMutation, showError, showSuccess])
 
   // Custom option rendering to show name and website
   const renderOption = useCallback((seller: { id: number; name: string; website: string }) => (
@@ -77,8 +88,30 @@ export function SellerSelector({
     }
   }
 
+  useEffect(() => {
+    if (loadError) {
+      showError('Failed to load sellers')
+    }
+  }, [loadError, showError])
+
+  useListLoadingInstrumentation({
+    scope: 'sellers.selector',
+    isLoading,
+    isFetching,
+    error: loadError,
+    getReadyMetadata: () => ({
+      status: 'success',
+      sellers: allSellers.length
+    }),
+    getErrorMetadata: () => ({
+      status: 'error',
+      message: loadError instanceof Error ? loadError.message : String(loadError)
+    }),
+    getAbortedMetadata: () => ({ status: 'aborted' })
+  })
+
   return (
-    <div className={className}>
+    <div className={className} data-testid="sellers.selector">
       <SearchableSelect
         value={value}
         onChange={onChange}
@@ -94,14 +127,16 @@ export function SellerSelector({
         createNewLabel={(term) => `Create seller "${term}"`}
         loadingText="Searching sellers..."
         noResultsText="No sellers found"
+        data-testid="sellers.selector.input"
       />
 
       {selectedSeller && (
-        <div className="mt-2 text-sm text-muted-foreground">
+        <div className="mt-2 text-sm text-muted-foreground" data-testid="sellers.selector.selected">
           <button
             type="button"
             onClick={handleWebsiteClick}
             className="flex items-center gap-1 hover:text-foreground transition-colors"
+            data-testid="sellers.selector.selected.link"
           >
             <span>Website: {selectedSeller.website}</span>
             <ExternalLinkIcon className="w-3 h-3" />
@@ -114,6 +149,7 @@ export function SellerSelector({
         onOpenChange={setCreateDialogOpen}
         onSuccess={handleCreateSuccess}
         initialName={searchTerm}
+        formId="sellers.selector.create"
       />
     </div>
   )

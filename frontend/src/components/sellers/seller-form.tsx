@@ -1,8 +1,11 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { useRef } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, type DialogContentProps } from '@/components/ui/dialog'
 import { Form, FormField, FormLabel } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useFormState } from '@/hooks/use-form-state'
+import { useFormInstrumentation, type UseFormInstrumentationResult } from '@/hooks/use-form-instrumentation'
+import { generateFormId } from '@/lib/test/form-instrumentation'
 
 interface SellerFormData extends Record<string, string> {
   name: string
@@ -19,6 +22,7 @@ interface SellerFormProps {
   }
   title: string
   submitText: string
+  formId?: string
 }
 
 export function SellerForm({
@@ -27,8 +31,10 @@ export function SellerForm({
   onSubmit,
   initialValues,
   title,
-  submitText
+  submitText,
+  formId
 }: SellerFormProps) {
+  const instrumentationRef = useRef<UseFormInstrumentationResult<{ name: string; website: string }> | null>(null)
   const form = useFormState<SellerFormData>({
     initialValues: {
       name: initialValues?.name || '',
@@ -57,14 +63,39 @@ export function SellerForm({
       }
     },
     onSubmit: async (values) => {
-      await onSubmit({
+      const payload = {
         name: values.name.trim(),
         website: values.website.trim()
-      })
-      onOpenChange(false)
-      form.reset()
+      }
+      const instrumentationFields = {
+        name: payload.name,
+        website: values.website
+      }
+
+      try {
+        instrumentationRef.current?.trackSubmit(instrumentationFields)
+        await onSubmit(payload)
+        instrumentationRef.current?.trackSuccess(instrumentationFields)
+        onOpenChange(false)
+        form.reset()
+      } catch {
+        instrumentationRef.current?.trackError(instrumentationFields)
+      }
     }
   })
+
+  const resolvedFormId = formId ?? generateFormId('SellerForm', initialValues ? 'edit' : 'create')
+
+  const instrumentation = useFormInstrumentation({
+    formId: resolvedFormId,
+    isOpen: open,
+    snapshotFields: () => ({
+      name: form.values.name,
+      website: form.values.website
+    })
+  })
+
+  instrumentationRef.current = instrumentation
 
   const handleClose = () => {
     onOpenChange(false)
@@ -72,9 +103,13 @@ export function SellerForm({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog
+      open={open}
+      onOpenChange={handleClose}
+      contentProps={{ 'data-testid': `${resolvedFormId}.dialog` } as DialogContentProps}
+    >
       <DialogContent>
-        <Form onSubmit={form.handleSubmit}>
+        <Form onSubmit={form.handleSubmit} data-testid={`${resolvedFormId}.form`}>
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
@@ -89,6 +124,7 @@ export function SellerForm({
                 maxLength={255}
                 placeholder="Enter seller name (e.g., DigiKey, Mouser)"
                 {...form.getFieldProps('name')}
+                data-testid={`${resolvedFormId}.field.name`}
               />
             </FormField>
 
@@ -101,6 +137,7 @@ export function SellerForm({
                 type="url"
                 placeholder="https://www.example.com"
                 {...form.getFieldProps('website')}
+                data-testid={`${resolvedFormId}.field.website`}
               />
             </FormField>
           </div>
@@ -113,6 +150,7 @@ export function SellerForm({
               type="submit"
               disabled={!form.isValid || form.isSubmitting}
               loading={form.isSubmitting}
+              data-testid={`${resolvedFormId}.submit`}
             >
               {submitText}
             </Button>

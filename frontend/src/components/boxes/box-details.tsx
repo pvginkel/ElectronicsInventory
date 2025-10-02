@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/ui/dialog'
 import { useConfirm } from '@/hooks/use-confirm'
+import { useToast } from '@/hooks/use-toast'
+import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
 
 interface BoxDetailsProps {
   boxNo: number
@@ -22,18 +24,42 @@ interface BoxDetailsProps {
 export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
   const [editFormOpen, setEditFormOpen] = useState(false)
   const { confirm, confirmProps } = useConfirm()
+  const { showSuccess, showError } = useToast()
 
-  const { data: box, isLoading, error } = useGetBoxesByBoxNo({ path: { box_no: boxNo } })
+  const { data: box, isLoading, isFetching, error } = useGetBoxesByBoxNo({ path: { box_no: boxNo } })
   const { data: boxes } = useGetBoxes() // Get all boxes to find usage stats for this specific box  
   const { data: locations, isLoading: locationsLoading, error: locationsError } = useBoxLocationsWithParts(boxNo)
   const updateMutation = usePutBoxesByBoxNo()
   const deleteMutation = useDeleteBoxesByBoxNo()
 
+  useListLoadingInstrumentation({
+    scope: 'boxes.detail',
+    isLoading: isLoading || locationsLoading,
+    isFetching: isFetching || locationsLoading,
+    error: error || locationsError,
+    getReadyMetadata: () => ({
+      status: 'success',
+      boxNo,
+      locations: locations?.length ?? box?.locations?.length ?? 0
+    }),
+    getErrorMetadata: () => ({
+      status: 'error',
+      message: (error instanceof Error ? error.message : error) || (locationsError instanceof Error ? locationsError.message : locationsError) || 'Unknown error'
+    }),
+    getAbortedMetadata: () => ({ status: 'aborted', boxNo })
+  })
+
   const handleUpdateBox = async (data: { description: string; capacity: number }) => {
-    await updateMutation.mutateAsync({
-      path: { box_no: boxNo },
-      body: data
-    })
+    try {
+      await updateMutation.mutateAsync({
+        path: { box_no: boxNo },
+        body: data
+      })
+      showSuccess('Box updated successfully')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update box'
+      showError(message)
+    }
   }
 
   const handleDeleteBox = async () => {
@@ -47,20 +73,20 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
     })
 
     if (confirmed) {
-      deleteMutation.mutate(
-        { path: { box_no: boxNo } },
-        {
-          onSuccess: () => {
-            onDeleted?.()
-          }
-        }
-      )
+      try {
+        await deleteMutation.mutateAsync({ path: { box_no: boxNo } })
+        showSuccess(`Box #${box.box_no} deleted`)
+        onDeleted?.()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to delete box'
+        showError(message)
+      }
     }
   }
 
   if (isLoading || locationsLoading) {
     return (
-      <div>
+      <div data-testid="boxes.detail.loading">
         <div className="mb-6">
           <div className="h-8 w-32 bg-muted animate-pulse rounded mb-2" />
           <div className="h-6 w-48 bg-muted animate-pulse rounded" />
@@ -79,7 +105,7 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
 
   if (error || !box) {
     return (
-      <div>
+      <div data-testid="boxes.detail.error">
         <div className="text-center py-12">
           <p className="text-lg text-muted-foreground">Failed to load box details</p>
           <p className="text-sm text-muted-foreground mt-2">
@@ -111,8 +137,8 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
     : box?.capacity
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div data-testid="boxes.detail">
+      <div className="flex items-center justify-between mb-6" data-testid="boxes.detail.header">
         <div>
           <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-2">
             <Link to="/boxes" className="hover:text-foreground">Storage Boxes</Link>
@@ -133,7 +159,7 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
-          <Card>
+          <Card data-testid="boxes.detail.summary">
             <CardHeader>
               <CardTitle>Box Information</CardTitle>
             </CardHeader>
@@ -175,13 +201,13 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
         </div>
 
         <div className="lg:col-span-2">
-          <Card>
+          <Card data-testid="boxes.detail.locations">
             <CardHeader>
               <CardTitle>Locations</CardTitle>
             </CardHeader>
             <CardContent>
               {locationsError ? (
-                <div className="text-center py-8">
+                <div className="text-center py-8" data-testid="boxes.detail.locations.error">
                   <p className="text-muted-foreground mb-2">Failed to load location details</p>
                   <p className="text-xs text-muted-foreground">Falling back to basic location view</p>
                   <LocationList locations={box!.locations?.map(loc => ({
@@ -213,6 +239,7 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
         }}
         title="Edit Box"
         submitText="Update Box"
+        formId={`boxes.detail.edit.${boxNo}`}
       />
 
       <ConfirmDialog {...confirmProps} />
