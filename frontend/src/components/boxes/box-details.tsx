@@ -28,14 +28,19 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
 
   const { data: box, isLoading, isFetching, error } = useGetBoxesByBoxNo({ path: { box_no: boxNo } })
   const { data: boxes } = useGetBoxes() // Get all boxes to find usage stats for this specific box  
-  const { data: locations, isLoading: locationsLoading, error: locationsError } = useBoxLocationsWithParts(boxNo)
+  const {
+    data: locations,
+    isLoading: locationsLoading,
+    isFetching: locationsFetching,
+    error: locationsError
+  } = useBoxLocationsWithParts(boxNo)
   const updateMutation = usePutBoxesByBoxNo()
   const deleteMutation = useDeleteBoxesByBoxNo()
 
   useListLoadingInstrumentation({
     scope: 'boxes.detail',
     isLoading: isLoading || locationsLoading,
-    isFetching: isFetching || locationsLoading,
+    isFetching: isFetching || locationsFetching,
     error: error || locationsError,
     getReadyMetadata: () => ({
       status: 'success',
