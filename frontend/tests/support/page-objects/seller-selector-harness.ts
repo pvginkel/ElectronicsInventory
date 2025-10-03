@@ -30,7 +30,43 @@ export class SellerSelectorHarness {
 
   async selectOption(name: string | RegExp): Promise<void> {
     await expect(this.root).toBeVisible()
-    const option = this.page.getByRole('option', { name })
+    const listboxId = await this.input.getAttribute('aria-controls')
+    const listbox = listboxId
+      ? this.page.locator(`[id="${listboxId}"]`)
+      : this.page.locator('[role="listbox"]').filter({ has: this.page.getByRole('option', { name }) }).first()
+
+    await expect(listbox).toBeVisible()
+
+    await listbox.evaluate((node, matcher) => {
+      const options = Array.from(node.querySelectorAll('[role="option"]')) as HTMLElement[]
+      const target = options.find(option => {
+        const text = option.textContent ?? ''
+        if (matcher.regex) {
+          const regex = new RegExp(matcher.regex.source, matcher.regex.flags)
+          return regex.test(text)
+        }
+        return matcher.text ? text.includes(matcher.text) : false
+      })
+
+      if (target) {
+        target.scrollIntoView({ block: 'nearest' })
+      }
+    }, {
+      text: typeof name === 'string' ? name : undefined,
+      regex: name instanceof RegExp ? { source: name.source, flags: name.flags } : undefined,
+    })
+
+    const option = listbox.getByRole('option', { name })
+    await expect(option).toBeVisible()
+    await expect(async () => {
+      const isInView = await option.evaluate((element) => {
+        const rect = element.getBoundingClientRect()
+        const withinHorizontalBounds = rect.right > 0 && rect.left < window.innerWidth
+        const withinVerticalBounds = rect.bottom > 0 && rect.top < window.innerHeight
+        return withinHorizontalBounds && withinVerticalBounds
+      })
+      expect(isInView).toBe(true)
+    }).toPass()
     await option.click()
   }
 
