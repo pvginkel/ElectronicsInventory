@@ -7,6 +7,9 @@ from sqlalchemy import exc
 from app.extensions import db
 from app.models.box import Box
 from app.models.location import Location
+from app.models.seller import Seller
+from app.models.shopping_list import ShoppingList
+from app.models.shopping_list_seller_note import ShoppingListSellerNote
 
 
 class TestDatabaseConstraints:
@@ -298,3 +301,50 @@ class TestDatabaseConstraints:
 
             with pytest.raises(exc.IntegrityError):
                 db.session.commit()
+
+    def test_shopping_list_seller_note_unique_constraint(self, app: Flask):
+        """Ensure seller notes are unique per list and seller."""
+        with app.app_context():
+            shopping_list = ShoppingList(name="Constraint List")
+            seller = Seller(name="Constraint Seller", website="https://constraint.example")
+            db.session.add_all([shopping_list, seller])
+            db.session.flush()
+
+            first = ShoppingListSellerNote(
+                shopping_list_id=shopping_list.id,
+                seller_id=seller.id,
+                note="Original",
+            )
+            db.session.add(first)
+            db.session.commit()
+
+            duplicate = ShoppingListSellerNote(
+                shopping_list_id=shopping_list.id,
+                seller_id=seller.id,
+                note="Duplicate",
+            )
+            db.session.add(duplicate)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+
+    def test_shopping_list_seller_note_cascade_delete(self, app: Flask):
+        """Deleting a shopping list cascades to seller notes."""
+        with app.app_context():
+            shopping_list = ShoppingList(name="Cascade Notes")
+            seller = Seller(name="Cascade Seller", website="https://cascade.example")
+            db.session.add_all([shopping_list, seller])
+            db.session.flush()
+
+            note = ShoppingListSellerNote(
+                shopping_list_id=shopping_list.id,
+                seller_id=seller.id,
+                note="To be removed",
+            )
+            db.session.add(note)
+            db.session.commit()
+
+            db.session.delete(shopping_list)
+            db.session.commit()
+
+            assert db.session.query(ShoppingListSellerNote).count() == 0

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import datetime
+from typing import Any
 
-from sqlalchemy import case, delete, func, select
+from sqlalchemy import and_, case, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
@@ -13,8 +15,11 @@ from app.exceptions import (
     RecordNotFoundException,
     ResourceConflictException,
 )
+from app.models.part import Part
+from app.models.seller import Seller
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.models.shopping_list_line import ShoppingListLine, ShoppingListLineStatus
+from app.models.shopping_list_seller_note import ShoppingListSellerNote
 from app.services.base import BaseService
 
 
@@ -34,19 +39,8 @@ class ShoppingListService(BaseService):
 
     def get_list(self, list_id: int) -> ShoppingList:
         """Retrieve a shopping list with its associated lines."""
-        stmt = (
-            select(ShoppingList)
-            .options(
-                selectinload(ShoppingList.lines)
-                .selectinload(ShoppingListLine.part),
-                selectinload(ShoppingList.lines)
-                .selectinload(ShoppingListLine.seller),
-            )
-            .where(ShoppingList.id == list_id)
-        )
-        shopping_list = self.db.execute(stmt).scalar_one_or_none()
-        if not shopping_list:
-            raise RecordNotFoundException("Shopping list", list_id)
+        shopping_list = self._load_list_with_lines(list_id)
+        shopping_list = self._attach_ready_payload(shopping_list)
         return self._attach_line_counts(shopping_list)
 
     def update_list(
@@ -134,11 +128,18 @@ class ShoppingListService(BaseService):
 
         shopping_list.status = status
         self.db.flush()
-        return self._attach_line_counts(shopping_list)
+        refreshed = self._attach_ready_payload(
+            self._load_list_with_lines(shopping_list.id)
+        )
+        return self._attach_line_counts(refreshed)
 
     def list_lists(self, include_done: bool = False) -> list[ShoppingList]:
         """Return all shopping lists with aggregated line counts."""
-        stmt = select(ShoppingList)
+        stmt = select(ShoppingList).options(
+            selectinload(ShoppingList.seller_notes).selectinload(
+                ShoppingListSellerNote.seller
+            )
+        )
         if not include_done:
             stmt = stmt.where(ShoppingList.status != ShoppingListStatus.DONE)
 
@@ -146,7 +147,7 @@ class ShoppingListService(BaseService):
         shopping_lists = list(self.db.execute(stmt).scalars().all())
         counts_map = self._counts_for_lists([shopping_list.id for shopping_list in shopping_lists])
         return [
-            self._attach_line_counts(shopping_list, counts_map)
+            self._attach_line_counts(self._sort_seller_notes(shopping_list), counts_map)
             for shopping_list in shopping_lists
         ]
 
@@ -192,6 +193,97 @@ class ShoppingListService(BaseService):
             ShoppingListLineStatus.DONE: result.done_count or 0,
         }
 
+    def get_seller_order_notes(self, list_id: int) -> list[ShoppingListSellerNote]:
+        """Return seller notes for the specified list sorted by seller name."""
+        self._ensure_list_exists(list_id)
+        stmt = (
+            select(ShoppingListSellerNote)
+            .options(selectinload(ShoppingListSellerNote.seller))
+            .where(ShoppingListSellerNote.shopping_list_id == list_id)
+        )
+        notes = list(self.db.execute(stmt).scalars().all())
+        notes.sort(
+            key=lambda note: (
+                (note.seller.name.lower() if note.seller else ""),
+                note.seller_id,
+            )
+        )
+        return notes
+
+    def group_lines_by_seller(self, list_id: int) -> list[dict[str, Any]]:
+        """Return grouping structures used by the Ready view UI."""
+        shopping_list = self._attach_ready_payload(self._load_list_with_lines(list_id))
+        return shopping_list.seller_groups
+
+    def upsert_seller_note(
+        self,
+        list_id: int,
+        seller_id: int,
+        note: str,
+    ) -> ShoppingListSellerNote | None:
+        """Create, update, or delete a seller note for the given list."""
+        shopping_list = self._get_list_for_update(list_id)
+
+        seller = self.db.get(Seller, seller_id)
+        if seller is None:
+            raise RecordNotFoundException("Seller", seller_id)
+
+        # Ensure the seller is relevant to the list via override or default part seller.
+        association_exists = self.db.execute(
+            select(ShoppingListLine.id)
+            .join(Part, Part.id == ShoppingListLine.part_id)
+            .where(
+                ShoppingListLine.shopping_list_id == list_id,
+                or_(
+                    ShoppingListLine.seller_id == seller_id,
+                    and_(
+                        ShoppingListLine.seller_id.is_(None),
+                        Part.seller_id == seller_id,
+                    ),
+                ),
+            )
+            .limit(1)
+        ).scalar_one_or_none()
+        if association_exists is None:
+            raise InvalidOperationException(
+                "update seller note",
+                "seller must be associated with at least one line on the list",
+            )
+
+        note_text = note if note is not None else ""
+
+        stmt = (
+            select(ShoppingListSellerNote)
+            .where(
+                ShoppingListSellerNote.shopping_list_id == list_id,
+                ShoppingListSellerNote.seller_id == seller_id,
+            )
+        )
+        existing = self.db.execute(stmt).scalar_one_or_none()
+
+        if note_text.strip() == "":
+            if existing is not None:
+                self.db.delete(existing)
+                self._touch_list(shopping_list)
+                self.db.flush()
+            return None
+
+        if existing is None:
+            existing = ShoppingListSellerNote(
+                shopping_list_id=list_id,
+                seller_id=seller_id,
+                note=note_text,
+            )
+            self.db.add(existing)
+        else:
+            existing.note = note_text
+            existing.updated_at = datetime.utcnow()
+
+        self._touch_list(shopping_list)
+        self.db.flush()
+        self.db.refresh(existing, attribute_names=["seller"])
+        return existing
+
     def _get_list_for_update(self, list_id: int) -> ShoppingList:
         """Load a shopping list for updates without eager loading relationships."""
         stmt = select(ShoppingList).where(ShoppingList.id == list_id)
@@ -223,7 +315,14 @@ class ShoppingListService(BaseService):
                 ShoppingListLineStatus.DONE: 0,
             }
 
-        shopping_list.line_counts = {"new": counts[ShoppingListLineStatus.NEW], "ordered": counts[ShoppingListLineStatus.ORDERED], "done": counts[ShoppingListLineStatus.DONE]}
+        shopping_list.line_counts = {
+            "new": counts[ShoppingListLineStatus.NEW],
+            "ordered": counts[ShoppingListLineStatus.ORDERED],
+            "done": counts[ShoppingListLineStatus.DONE],
+        }
+        shopping_list.has_ordered_lines = counts[
+            ShoppingListLineStatus.ORDERED
+        ] > 0
         return shopping_list
 
     def _counts_for_lists(
@@ -286,3 +385,92 @@ class ShoppingListService(BaseService):
             }
 
         return counts
+
+    def _load_list_with_lines(self, list_id: int) -> ShoppingList:
+        """Load a shopping list with line and seller note relationships."""
+        stmt = (
+            select(ShoppingList)
+            .options(
+                selectinload(ShoppingList.lines).options(
+                    selectinload(ShoppingListLine.part).selectinload(Part.seller),
+                    selectinload(ShoppingListLine.seller),
+                ),
+                selectinload(ShoppingList.seller_notes).selectinload(
+                    ShoppingListSellerNote.seller
+                ),
+            )
+            .where(ShoppingList.id == list_id)
+            .execution_options(populate_existing=True)
+        )
+        shopping_list = self.db.execute(stmt).scalar_one_or_none()
+        if shopping_list is None:
+            raise RecordNotFoundException("Shopping list", list_id)
+        return shopping_list
+
+    def _attach_ready_payload(self, shopping_list: ShoppingList) -> ShoppingList:
+        """Populate grouping metadata for ready view responses."""
+        if shopping_list.lines:
+            shopping_list.lines.sort(key=lambda line: line.created_at)
+        self._sort_seller_notes(shopping_list)
+        shopping_list.seller_groups = self._build_seller_groups(shopping_list)
+        return shopping_list
+
+    def _sort_seller_notes(self, shopping_list: ShoppingList) -> ShoppingList:
+        """Sort seller notes in-place for stable API responses."""
+        if shopping_list.seller_notes:
+            shopping_list.seller_notes.sort(
+                key=lambda note: (
+                    (note.seller.name.lower() if note.seller else ""),
+                    note.seller_id,
+                )
+            )
+        return shopping_list
+
+    def _build_seller_groups(
+        self, shopping_list: ShoppingList
+    ) -> list[dict[str, Any]]:
+        """Build seller grouping payloads for Ready view."""
+        if not shopping_list.lines:
+            return []
+
+        notes_by_seller = {
+            note.seller_id: note for note in shopping_list.seller_notes or []
+        }
+
+        groups: dict[str, dict[str, Any]] = {}
+        for line in shopping_list.lines:
+            seller_id = line.effective_seller_id
+            group_key = str(seller_id) if seller_id is not None else "ungrouped"
+            group = groups.get(group_key)
+            if group is None:
+                group = {
+                    "group_key": group_key,
+                    "seller_id": seller_id,
+                    "seller": line.effective_seller if seller_id is not None else None,
+                    "lines": [],
+                    "totals": {"needed": 0, "ordered": 0, "received": 0},
+                    "order_note": notes_by_seller.get(seller_id)
+                    if seller_id is not None
+                    else None,
+                }
+                groups[group_key] = group
+
+            group["lines"].append(line)
+            group["totals"]["needed"] += line.needed
+            group["totals"]["ordered"] += line.ordered
+            group["totals"]["received"] += line.received
+
+        for group in groups.values():
+            group["lines"].sort(key=lambda line: line.created_at)
+
+        def _group_sort_key(group: dict[str, Any]) -> tuple[int, str, str]:
+            seller = group["seller"]
+            is_ungrouped = group["seller_id"] is None
+            seller_name = seller.name.lower() if seller else ""
+            return (1 if is_ungrouped else 0, seller_name, group["group_key"])
+
+        return sorted(groups.values(), key=_group_sort_key)
+
+    def _touch_list(self, shopping_list: ShoppingList) -> None:
+        """Update list timestamp to reflect related mutations."""
+        shopping_list.updated_at = datetime.utcnow()

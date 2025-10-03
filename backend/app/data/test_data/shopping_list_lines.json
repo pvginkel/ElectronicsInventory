@@ -20,7 +20,46 @@
     "part_key": "IJKL",
     "needed": 2,
     "seller_id": 5,
-    "note": "Order extra if lead time > 8 weeks.",
+    "ordered": 2,
+    "received": 0,
+    "note": "Order placed last week; expect shipment Friday.",
+    "status": "ordered"
+  },
+  {
+    "shopping_list_name": "Bench Replenishment",
+    "part_key": "QRST",
+    "needed": 5,
+    "seller_id": null,
+    "ordered": 5,
+    "received": 1,
+    "note": "One reel delivered for immediate SMT run.",
+    "status": "ordered"
+  },
+  {
+    "shopping_list_name": "Bench Replenishment",
+    "part_key": "UVWX",
+    "needed": 8,
+    "seller_id": null,
+    "ordered": 0,
+    "note": "Split packaging acceptable; standard lead time.",
+    "status": "new"
+  },
+  {
+    "shopping_list_name": "Bench Replenishment",
+    "part_key": "STUV",
+    "needed": 10,
+    "seller_id": null,
+    "ordered": 0,
+    "note": "Check local surplus cabinet before ordering.",
+    "status": "new"
+  },
+  {
+    "shopping_list_name": "Bench Replenishment",
+    "part_key": "OPST",
+    "needed": 6,
+    "seller_id": 3,
+    "ordered": 0,
+    "note": "Prefer EU warehouse for faster delivery.",
     "status": "new"
   },
   {
@@ -28,7 +67,9 @@
     "part_key": "MNOP",
     "needed": 6,
     "seller_id": 4,
-    "note": "Keep archived for reference builds.",
-    "status": "new"
+    "ordered": 6,
+    "received": 6,
+    "note": "Archive leftovers for service spares.",
+    "status": "done"
   }
 ]

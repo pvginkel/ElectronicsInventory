@@ -14,6 +14,9 @@ from app.models.location import Location
 from app.models.part import Part
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
+from app.models.seller import Seller
+from app.models.shopping_list import ShoppingList
+from app.models.shopping_list_seller_note import ShoppingListSellerNote
 from app.models.type import Type
 from app.services.container import ServiceContainer
 
@@ -175,9 +178,45 @@ class TestTestDataService:
                 assert part_abcd.seller_link == "https://example.com"
 
                 part_efgh = parts_map["EFGH"]
-                assert part_efgh.manufacturer == "Texas Instruments"
-                assert part_efgh.product_page == "https://www.ti.com/product/LM358"
-                assert part_efgh.seller_id is None
+            assert part_efgh.manufacturer == "Texas Instruments"
+            assert part_efgh.product_page == "https://www.ti.com/product/LM358"
+            assert part_efgh.seller_id is None
+
+    def test_load_shopping_list_seller_notes_success(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test loading of seller notes tied to shopping lists."""
+        with app.app_context():
+            shopping_list = ShoppingList(name="Ready Notes")
+            seller = Seller(name="Fixture Seller", website="https://fixture.example")
+            session.add_all([shopping_list, seller])
+            session.flush()
+
+            shopping_lists_map = {shopping_list.name: shopping_list}
+            sellers_map = {1: seller}
+
+            notes_data = [
+                {
+                    "shopping_list_name": shopping_list.name,
+                    "seller_id": 1,
+                    "note": "Bundle with capacitor restock."
+                }
+            ]
+
+            with tempfile.TemporaryDirectory() as temp_dir:
+                data_dir = Path(temp_dir)
+                notes_file = data_dir / "shopping_list_seller_notes.json"
+                with notes_file.open("w") as f:
+                    json.dump(notes_data, f)
+
+                container.test_data_service().load_shopping_list_seller_notes(
+                    data_dir,
+                    shopping_lists_map,
+                    sellers_map,
+                )
+
+            notes = session.query(ShoppingListSellerNote).all()
+            assert len(notes) == 1
+            assert notes[0].note == "Bundle with capacitor restock."
+            assert notes[0].seller_id == seller.id
 
     def test_load_parts_invalid_type_reference(self, app: Flask, session: Session, container: ServiceContainer):
         """Test that loading parts with invalid type references raises an error."""
@@ -457,4 +496,3 @@ class TestTestDataService:
                 assert part_location is not None
                 assert part_location.part.key == "ABCD"
                 assert part_location.qty == 10
-

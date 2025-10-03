@@ -22,11 +22,17 @@ class TestShoppingListsAPI:
         created = create_resp.get_json()
         list_id = created["id"]
         assert created["line_counts"] == {"new": 0, "ordered": 0, "done": 0, "total": 0}
+        assert created["seller_groups"] == []
+        assert created["seller_notes"] == []
+        assert created["has_ordered_lines"] is False
 
         fetch_resp = client.get(f"/api/shopping-lists/{list_id}")
         assert fetch_resp.status_code == 200
         fetched = fetch_resp.get_json()
         assert fetched["name"] == name
+        assert fetched["seller_groups"] == []
+        assert fetched["seller_notes"] == []
+        assert fetched["has_ordered_lines"] is False
 
         update_resp = client.put(
             f"/api/shopping-lists/{list_id}",
@@ -34,6 +40,7 @@ class TestShoppingListsAPI:
         )
         assert update_resp.status_code == 200
         assert update_resp.get_json()["description"] == "Updated description"
+        assert update_resp.get_json()["seller_groups"] == []
 
         delete_resp = client.delete(f"/api/shopping-lists/{list_id}")
         assert delete_resp.status_code == 204
@@ -68,11 +75,17 @@ class TestShoppingListsAPI:
         assert concept_list.name in names
         assert ready_list.name in names
         assert done_list.name not in names
+        for entry in list_resp.get_json():
+            assert "seller_notes" in entry
+            assert "has_ordered_lines" in entry
 
         list_all_resp = client.get("/api/shopping-lists?include_done=true")
         assert list_all_resp.status_code == 200
         all_names = {entry["name"] for entry in list_all_resp.get_json()}
         assert done_list.name in all_names
+        for entry in list_all_resp.get_json():
+            assert "seller_notes" in entry
+            assert "has_ordered_lines" in entry
 
     def test_status_transitions_validate_rules(self, client, session, container):
         shopping_list_service = container.shopping_list_service()
@@ -112,6 +125,7 @@ class TestShoppingListsAPI:
         )
         assert ready_resp.status_code == 200
         assert ready_resp.get_json()["status"] == ShoppingListStatus.READY.value
+        assert "seller_groups" in ready_resp.get_json()
 
         done_resp = client.put(
             f"/api/shopping-lists/{list_id}/status",
@@ -119,3 +133,47 @@ class TestShoppingListsAPI:
         )
         assert done_resp.status_code == 200
         assert done_resp.get_json()["status"] == ShoppingListStatus.DONE.value
+        assert "seller_notes" in done_resp.get_json()
+
+    def test_upsert_seller_order_note_endpoint(self, client, session, container):
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+        part_service = container.part_service()
+        seller_service = container.seller_service()
+
+        seller = seller_service.create_seller("Signal Shop", "https://signals.example")
+        part = part_service.create_part(description="Precision op-amp", seller_id=seller.id)
+
+        shopping_list = shopping_list_service.create_list("Note Flow")
+        shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=4,
+        )
+        session.commit()
+
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.READY,
+        )
+        session.commit()
+
+        create_resp = client.put(
+            f"/api/shopping-lists/{shopping_list.id}/seller-groups/{seller.id}/order-note",
+            json={"note": "Combine with enclosure order"},
+        )
+        assert create_resp.status_code == 200
+        note_payload = create_resp.get_json()
+        assert note_payload["seller_id"] == seller.id
+        assert note_payload["note"] == "Combine with enclosure order"
+        assert note_payload["seller"]["name"] == "Signal Shop"
+
+        clear_resp = client.put(
+            f"/api/shopping-lists/{shopping_list.id}/seller-groups/{seller.id}/order-note",
+            json={"note": ""},
+        )
+        assert clear_resp.status_code == 204
+
+        fetch_resp = client.get(f"/api/shopping-lists/{shopping_list.id}")
+        assert fetch_resp.status_code == 200
+        assert fetch_resp.get_json()["seller_notes"] == []

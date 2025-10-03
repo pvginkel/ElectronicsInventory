@@ -12,6 +12,10 @@ from app.schemas.shopping_list import (
     ShoppingListStatusUpdateSchema,
     ShoppingListUpdateSchema,
 )
+from app.schemas.shopping_list_seller_note import (
+    ShoppingListSellerOrderNoteSchema,
+    ShoppingListSellerOrderNoteUpdateSchema,
+)
 from app.services.container import ServiceContainer
 from app.utils.error_handling import handle_api_errors
 from app.utils.request_parsing import parse_bool_query_param
@@ -153,3 +157,40 @@ def update_shopping_list_status(
         status=data.status,
     )
     return ShoppingListResponseSchema.model_validate(shopping_list).model_dump()
+
+
+@shopping_lists_bp.route(
+    "/<int:list_id>/seller-groups/<int:seller_id>/order-note",
+    methods=["PUT"],
+)
+@api.validate(
+    json=ShoppingListSellerOrderNoteUpdateSchema,
+    resp=SpectreeResponse(
+        HTTP_200=ShoppingListSellerOrderNoteSchema,
+        HTTP_204=None,
+        HTTP_400=ErrorResponseSchema,
+        HTTP_404=ErrorResponseSchema,
+        HTTP_409=ErrorResponseSchema,
+    ),
+)
+@handle_api_errors
+@inject
+def upsert_seller_order_note(
+    list_id: int,
+    seller_id: int,
+    shopping_list_service=Provide[ServiceContainer.shopping_list_service],
+):
+    """Create, update, or delete a seller order note for a Ready view seller group."""
+    data = ShoppingListSellerOrderNoteUpdateSchema.model_validate(
+        request.get_json()
+    )
+    note = shopping_list_service.upsert_seller_note(
+        list_id=list_id,
+        seller_id=seller_id,
+        note=data.note,
+    )
+
+    if note is None:
+        return "", 204
+
+    return ShoppingListSellerOrderNoteSchema.model_validate(note).model_dump()
