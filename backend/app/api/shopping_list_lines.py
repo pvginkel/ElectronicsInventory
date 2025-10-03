@@ -14,19 +14,10 @@ from app.schemas.shopping_list_line import (
 )
 from app.services.container import ServiceContainer
 from app.utils.error_handling import handle_api_errors
+from app.utils.request_parsing import parse_bool_query_param
 from app.utils.spectree_config import api
 
 shopping_list_lines_bp = Blueprint("shopping_list_lines", __name__)
-
-
-def _parse_bool_query_param(param_name: str, default: bool = True) -> bool:
-    """Parse boolean query parameters for line endpoints."""
-    raw_value = request.args.get(param_name)
-    if raw_value is None:
-        return default
-    return raw_value.lower() in {"true", "1", "yes", "on"}
-
-
 @shopping_list_lines_bp.route("/shopping-lists/<int:list_id>/lines", methods=["POST"])
 @api.validate(
     json=ShoppingListLineCreateSchema,
@@ -118,7 +109,10 @@ def list_shopping_list_lines(
     shopping_list_line_service=Provide[ServiceContainer.shopping_list_line_service],
 ):
     """List line items for a shopping list."""
-    include_done = _parse_bool_query_param("include_done", default=True)
+    include_done = parse_bool_query_param(
+        request.args.get("include_done"),
+        default=True,
+    )
     lines = shopping_list_line_service.list_lines(
         list_id=list_id,
         include_done=include_done,

@@ -12,7 +12,6 @@ from app.models.shopping_list_line import (
     ShoppingListLineStatus,
 )
 from app.services.base import BaseService
-from app.services.part_service import PartService
 from app.services.seller_service import SellerService
 
 
@@ -22,11 +21,9 @@ class ShoppingListLineService(BaseService):
     def __init__(
         self,
         db,
-        part_service: PartService,
         seller_service: SellerService,
     ) -> None:
         super().__init__(db)
-        self.part_service = part_service
         self.seller_service = seller_service
 
     def add_line(

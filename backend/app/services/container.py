@@ -59,7 +59,6 @@ class ServiceContainer(containers.DeclarativeContainer):
     shopping_list_line_service = providers.Factory(
         ShoppingListLineService,
         db=db_session,
-        part_service=part_service,
         seller_service=seller_service,
     )
 

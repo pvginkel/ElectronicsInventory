@@ -14,19 +14,10 @@ from app.schemas.shopping_list import (
 )
 from app.services.container import ServiceContainer
 from app.utils.error_handling import handle_api_errors
+from app.utils.request_parsing import parse_bool_query_param
 from app.utils.spectree_config import api
 
 shopping_lists_bp = Blueprint("shopping_lists", __name__, url_prefix="/shopping-lists")
-
-
-def _parse_bool_query_param(param_name: str, default: bool = False) -> bool:
-    """Parse a boolean query parameter with sensible defaults."""
-    raw_value = request.args.get(param_name)
-    if raw_value is None:
-        return default
-    return raw_value.lower() in {"true", "1", "yes", "on"}
-
-
 @shopping_lists_bp.route("", methods=["POST"])
 @api.validate(
     json=ShoppingListCreateSchema,
@@ -65,7 +56,10 @@ def list_shopping_lists(
     shopping_list_service=Provide[ServiceContainer.shopping_list_service],
 ):
     """List shopping lists, optionally including completed ones."""
-    include_done = _parse_bool_query_param("include_done", default=False)
+    include_done = parse_bool_query_param(
+        request.args.get("include_done"),
+        default=False,
+    )
     shopping_lists = shopping_list_service.list_lists(include_done=include_done)
     return [
         ShoppingListListSchema.model_validate(shopping_list).model_dump()
