@@ -1,4 +1,5 @@
 import { Page, Route } from '@playwright/test';
+import { makeUnique } from '../helpers';
 import { SSEMocker } from './sse-mock';
 
 interface AiAnalysisDocumentPreview {
@@ -144,7 +145,7 @@ export async function createAiAnalysisMock(
   options: AiAnalysisMockOptions = {}
 ): Promise<AiAnalysisMockSession> {
   const analyzeMatcher = options.analyzeMatcher ?? '**/api/ai-parts/analyze';
-  const taskId = options.taskId ?? `task-${Date.now()}`;
+  const taskId = options.taskId ?? makeUnique('task');
   const streamPath = options.streamPath ?? `/tests/ai-stream/${taskId}`;
   const streamPattern = options.streamPattern ?? new RegExp(`${escapeForRegExp(streamPath)}$`);
 

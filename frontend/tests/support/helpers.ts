@@ -3,9 +3,9 @@ import { Page, expect } from '@playwright/test';
 import { getTestEventBuffer } from './helpers/test-events';
 
 /**
- * Generates a random ID with prefix-shortId pattern for test data
+ * Generates a pseudo-random identifier with prefix-shortId pattern for test data.
  */
-export function generateRandomId(prefix: string = 'test'): string {
+export function makeUnique(prefix: string = 'test'): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   let suffix = '';
   for (let i = 0; i < 6; i++) {

@@ -1,4 +1,5 @@
 import { test, expect } from '../../support/fixtures'
+import { makeUnique } from '../../support/helpers'
 import type { createTestDataBundle } from '../../api'
 
 type TestDataBundle = ReturnType<typeof createTestDataBundle>
@@ -27,7 +28,7 @@ test.describe('Boxes - List Experience', () => {
   }
 
   test('renders loading state, lists seeded boxes, and filters via search', async ({ boxes, testData, page }) => {
-    const prefix = `QA-Boxes-${Date.now()}`
+    const prefix = makeUnique('QA-Boxes')
     const alphaDescription = `${prefix}-Alpha`
     const betaDescription = `${prefix}-Beta`
     const alphaBox = await createSeedBox(testData, alphaDescription, 10)
@@ -50,7 +51,7 @@ test.describe('Boxes - List Experience', () => {
   })
 
   test('creates, edits, and deletes a box with instrumentation and toasts', async ({ boxes, testEvents, toastHelper }) => {
-    const description = `Playwright Box ${Date.now()}`
+    const description = makeUnique('Playwright Box')
 
     await boxes.gotoList()
     await testEvents.clearEvents()

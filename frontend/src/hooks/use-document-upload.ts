@@ -29,6 +29,13 @@ export function useDocumentUpload() {
   const queryClient = useQueryClient();
   const toast = useToast();
   
+  function createUploadKey(partId: string): string {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return `${partId}-${crypto.randomUUID()}`;
+    }
+    return `${partId}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+
   const uploadDocument = useCallback(async (options: DocumentUploadOptions): Promise<DocumentUploadResult> => {
     const { partId, file, url, name, onProgress } = options;
     
@@ -55,7 +62,7 @@ export function useDocumentUpload() {
     }
 
     // Set initial upload state
-    const uploadKey = `${partId}-${Date.now()}`;
+    const uploadKey = createUploadKey(partId);
     setUploadProgress(prev => ({
       ...prev,
       [uploadKey]: {

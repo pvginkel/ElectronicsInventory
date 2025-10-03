@@ -103,6 +103,8 @@ const installSSEMocking = () => {
   const connections: any[] = [];
   const configs: RegisterMockPayload[] = [];
 
+  const getEpochMs = () => new Date().getTime();
+
   function patternMatches(pattern: SerializedPattern | undefined, url: string): boolean {
     if (!pattern) {
       return true;
@@ -146,7 +148,7 @@ const installSSEMocking = () => {
         url,
         readyState: this.readyState,
         events: [] as Array<{ type: string; data: any; timestamp: number }>,
-        opened: Date.now(),
+        opened: getEpochMs(),
       };
 
       Object.defineProperty(record, 'eventSource', {
@@ -223,7 +225,7 @@ const installSSEMocking = () => {
       }
       this.readyState = MockEventSource.CLOSED;
       this.connectionRecord.readyState = this.readyState;
-      this.connectionRecord.closed = Date.now();
+      this.connectionRecord.closed = getEpochMs();
       this.dispatchEvent(new Event('close'));
     }
 
@@ -240,7 +242,7 @@ const installSSEMocking = () => {
       (this.connectionRecord.events as Array<{ type: string; data: any; timestamp: number }>).push({
         type: event.type,
         data: (event as MessageEvent).data ?? null,
-        timestamp: Date.now(),
+        timestamp: getEpochMs(),
       });
 
       const handler = (this as unknown as Record<string, unknown>)[`on${event.type}`];
@@ -341,6 +343,14 @@ export class SSEMocker {
 
   constructor(private readonly page: Page) {}
 
+  private createMockId(): string {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return `sse-mock-${crypto.randomUUID()}-${this.configCounter++}`;
+    }
+    const random = Math.random().toString(36).slice(2, 10);
+    return `sse-mock-${random}-${this.configCounter++}`;
+  }
+
   private async ensureSetup(): Promise<void> {
     if (this.isSetup) {
       await this.page.evaluate(installSSEMocking);
@@ -369,7 +379,7 @@ export class SSEMocker {
     assertAiStreamUsage(config.url, 'mockSSE');
 
     const payload: RegisterMockPayload = {
-      id: `sse-mock-${Date.now()}-${this.configCounter++}`,
+      id: this.createMockId(),
       events: config.events,
       delay: config.delay,
       connectionDelay: config.connectionDelay,

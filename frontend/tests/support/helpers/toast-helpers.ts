@@ -211,7 +211,7 @@ export class ToastHelper {
   private recordToast(toast: ToastData): void {
     this.toastHistory.push({
       ...toast,
-      timestamp: Date.now(),
+      timestamp: new Date().getTime(),
     });
   }
 

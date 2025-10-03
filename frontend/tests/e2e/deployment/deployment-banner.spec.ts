@@ -3,6 +3,7 @@
  * both the baseline snapshot and the follow-up update through the testing API.
  */
 import { test, expect } from '../../support/fixtures';
+import { makeUnique } from '../../support/helpers';
 import { extractSseData, waitForSseEvent } from '../../support/helpers/test-events';
 
 const DEPLOYMENT_STREAM_ID = 'deployment.version';
@@ -38,9 +39,8 @@ test('surfaces backend-driven deployment updates', async ({
       return;
     }
 
-    const timestamp = Date.now();
-    const baselineVersion = `baseline-${timestamp}`;
-    const versionLabel = `playwright-${timestamp + 1}`;
+    const baselineVersion = makeUnique('baseline');
+    const versionLabel = makeUnique('playwright');
 
     const baselineResponse = await page.request.post(`${backendUrl}/api/testing/deployments/version`, {
       data: {

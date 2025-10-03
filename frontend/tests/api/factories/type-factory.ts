@@ -1,5 +1,5 @@
 import { createApiClient, apiRequest } from '../client';
-import { generateRandomId } from '../../support/helpers';
+import { makeUnique } from '../../support/helpers';
 import type { components } from '../../../src/lib/api/generated/types';
 
 type TypeCreateSchema = components['schemas']['TypeCreateSchema.50492c8'];
@@ -38,9 +38,9 @@ export class TypeTestFactory {
    * Generates a unique type name with optional prefix
    * @param prefix - Optional prefix for the type name (defaults to 'Type')
    * @returns A unique type name
-   */
+  */
   randomTypeName(prefix: string = 'Type'): string {
-    return generateRandomId(prefix);
+    return makeUnique(prefix);
   }
 
   /**

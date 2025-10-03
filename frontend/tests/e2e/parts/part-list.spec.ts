@@ -1,4 +1,5 @@
 import { test, expect } from '../../support/fixtures';
+import { makeUnique } from '../../support/helpers';
 
 test.describe('Parts - List View', () => {
   // Coverage note: failure scenarios are temporarily exercised via manual QA while backend updates land.
@@ -18,7 +19,7 @@ test.describe('Parts - List View', () => {
     const seller = await testData.sellers.create();
     const { part } = await testData.parts.create({
       overrides: {
-        description: `Automation Relay ${Date.now()}`,
+        description: makeUnique('Automation Relay'),
         manufacturer_code: 'OMRON G5Q-1A4',
         type_id: type.id,
         tags: ['relay', '5v'],

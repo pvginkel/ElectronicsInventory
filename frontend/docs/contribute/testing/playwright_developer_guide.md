@@ -65,7 +65,7 @@ import { test, expect } from '../support/fixtures';
 
 Utility functions that complement fixtures:
 
-- `generateRandomId(prefix)` – Standard prefix-shortId generator.
+- `makeUnique(prefix)` – Standard prefix-shortId generator (eslint-enforced replacement for `Date.now()`).
 - `waitTestEvent(page, kind, filter?, timeout?)` – Await specific test-event payloads from the Playwright-managed buffer.
 - `waitForUiState(page, scope, phase)` – Await structured `ui_state` events for deterministic workflow checkpoints (form submissions, etc.).
 - `waitForListLoading(page, scope, phase)` – Await list loading lifecycle events (`list_loading`) emitted by test-mode instrumentation (`types.list`, `parts.list`, etc.).
@@ -99,6 +99,8 @@ All factories support random helpers; use them to avoid collisions on dirty data
 const name = testData.types.randomTypeName('Resistor');
 await testData.types.create({ name });
 ```
+
+The eslint rule forbids `Date.now()`; rely on `makeUnique` (or domain helpers that wrap it) for uniqueness. When a real timestamp is required, add a targeted disable comment with justification in the diff.
 
 ### Console Error Policy
 

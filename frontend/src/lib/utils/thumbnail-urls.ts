@@ -22,7 +22,7 @@ export function getThumbnailUrl(
 export function getCoverThumbnailUrl(
   partKey: string, 
   size: keyof ThumbnailSizes = 'medium',
-  cacheBuster?: number
+  cacheBuster?: string | number
 ): string {
   const sizeValue = THUMBNAIL_SIZES[size];
   const bust = cacheBuster ? `&__pb=${cacheBuster}` : '';
@@ -49,7 +49,7 @@ export function generateSrcSet(
     .join(', ');
 }
 
-export function generateCoverSrcSet(partKey: string, cacheBuster?: number): string {
+export function generateCoverSrcSet(partKey: string, cacheBuster?: string | number): string {
   const sizes = Object.entries(THUMBNAIL_SIZES);
   const bust = cacheBuster ? `&__pb=${cacheBuster}` : '';
   return sizes

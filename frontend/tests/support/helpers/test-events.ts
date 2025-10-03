@@ -17,9 +17,12 @@ type Waiter = {
 };
 
 function normalizeEvent(raw: any): TestEvent {
+  const fallbackMillis = typeof raw?.timestamp === 'number'
+    ? raw.timestamp
+    : new Date().getTime();
   const timestamp = typeof raw?.timestamp === 'string'
     ? raw.timestamp
-    : new Date((typeof raw?.timestamp === 'number' ? raw.timestamp : Date.now())).toISOString();
+    : new Date(fallbackMillis).toISOString();
 
   return {
     ...raw,

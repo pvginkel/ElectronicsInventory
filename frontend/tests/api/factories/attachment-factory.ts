@@ -1,6 +1,6 @@
 import { createApiClient } from '../client';
 import { getBackendUrl } from '../../support/backend-url';
-import { generateRandomId } from '../../support/helpers';
+import { makeUnique } from '../../support/helpers';
 import type { components } from '../../../src/lib/api/generated/types';
 
 type AttachmentResponse = components['schemas']['PartAttachmentResponseSchema.f950e1b'];
@@ -37,7 +37,7 @@ export class AttachmentTestFactory {
     partKey: string,
     options: CreateUrlAttachmentOptions = {}
   ): Promise<AttachmentResponse> {
-    const title = options.title ?? generateRandomId('Attachment');
+    const title = options.title ?? makeUnique('Attachment');
     const defaultUrl = this.buildDeterministicImageUrl(options.previewText ?? title);
     const response = await fetch(this.buildUrl(`/api/parts/${encodeURIComponent(partKey)}/attachments`), {
       method: 'POST',
@@ -58,7 +58,7 @@ export class AttachmentTestFactory {
     partKey: string,
     options: CreateBinaryAttachmentOptions = {}
   ): Promise<AttachmentResponse> {
-    const title = options.title ?? generateRandomId('Attachment');
+    const title = options.title ?? makeUnique('Attachment');
     const filename = options.filename ?? this.sanitizeFilename(`${title}.pdf`);
     const contentType = options.contentType ?? 'application/pdf';
     const fileContents = options.fileContents ?? await this.fetchTestingPdfBytes();

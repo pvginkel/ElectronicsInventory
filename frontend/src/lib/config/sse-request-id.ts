@@ -1,3 +1,4 @@
+import TraceParent from 'traceparent';
 import { isTestMode } from '@/lib/config/test-mode';
 
 const STORAGE_KEY = 'deploymentSseRequestId';
@@ -40,14 +41,31 @@ function removeStoredRequestId(): void {
   }
 }
 
-function createRequestId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
+function fallbackTraceId(): string {
+  if (typeof crypto !== 'undefined' && 'getRandomValues' in crypto) {
+    const buffer = new Uint8Array(16);
+    crypto.getRandomValues(buffer);
+    return Array.from(buffer, byte => byte.toString(16).padStart(2, '0')).join('');
   }
 
-  const randomSegment = Math.random().toString(16).slice(2, 10);
-  const timestampSegment = Date.now().toString(16);
-  return `${timestampSegment}-${randomSegment}`;
+  let result = '';
+  for (let i = 0; i < 32; i += 1) {
+    result += Math.floor(Math.random() * 16).toString(16);
+  }
+  return result;
+}
+
+function createRequestId(): string {
+  try {
+    const traceParent = TraceParent.startOrResume(undefined, { transactionSampleRate: 1 });
+    if (traceParent && typeof traceParent.traceId === 'string') {
+      return traceParent.traceId;
+    }
+  } catch {
+    // Fall through to fallback generator below.
+  }
+
+  return fallbackTraceId();
 }
 
 export function getDeploymentRequestId(): string {

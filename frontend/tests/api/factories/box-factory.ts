@@ -1,5 +1,5 @@
 import { createApiClient, apiRequest } from '../client';
-import { generateRandomId } from '../../support/helpers';
+import { makeUnique } from '../../support/helpers';
 import type { components } from '../../../src/lib/api/generated/types';
 
 type BoxCreateSchema = components['schemas']['BoxCreateSchema.6d5ef0b'];
@@ -100,9 +100,9 @@ export class BoxTestFactory {
    * Generates a random box description
    * @param prefix - Optional prefix for the description
    * @returns A unique box description
-   */
+  */
   randomBoxDescription(prefix: string = 'Test Box'): string {
-    return generateRandomId(prefix);
+    return makeUnique(prefix);
   }
 
   /**

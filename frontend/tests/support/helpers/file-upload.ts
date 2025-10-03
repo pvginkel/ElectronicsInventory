@@ -266,7 +266,7 @@ startxref
       data: Array<{ id: number; value: string }>;
     } = {
       test: true,
-      timestamp: Date.now(),
+      timestamp: new Date().getTime(),
       data: [],
     };
 

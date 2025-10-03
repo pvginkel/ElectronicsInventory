@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { makeUnique } from '../../support/helpers';
 import { test } from '../../support/fixtures';
 import { SellerSelectorHarness } from '../../support/page-objects/seller-selector-harness';
 import { expectConsoleError } from '../../support/helpers';
@@ -23,14 +24,16 @@ test.describe('Cross-domain workflow - type to dashboard', () => {
   }) => {
     test.setTimeout(120_000);
 
-    const timestamp = Date.now();
-    const typeName = `Cross Type ${timestamp}`;
-    const partDescription = `Cross Part ${timestamp}`;
-    const manufacturerCode = `X-${timestamp.toString().slice(-4)}`;
-    const sellerName = `Cross Seller ${timestamp}`;
-    const sellerWebsite = `https://example.com/seller-${timestamp}`;
-    const initialLocation = { boxNo: (await testData.boxes.create({ overrides: { description: `Source Box ${timestamp}` } })).box_no, locNo: 7 };
-    const targetBox = await testData.boxes.create({ overrides: { description: `Target Box ${timestamp}` } });
+    const typeName = makeUnique('Cross Type');
+    const partDescription = makeUnique('Cross Part');
+    const manufacturerCodeSuffix = makeUnique('X').split('-').pop()?.toUpperCase() ?? 'XXXXXX';
+    const manufacturerCode = `X-${manufacturerCodeSuffix.slice(0, 4)}`;
+    const sellerName = makeUnique('Cross Seller');
+    const sellerSlug = makeUnique('seller').replace(/\s+/g, '-').toLowerCase();
+    const sellerWebsite = `https://example.com/${sellerSlug}`;
+    const sourceBox = await testData.boxes.create({ overrides: { description: makeUnique('Source Box') } });
+    const initialLocation = { boxNo: sourceBox.box_no, locNo: 7 };
+    const targetBox = await testData.boxes.create({ overrides: { description: makeUnique('Target Box') } });
     const targetLocation = { boxNo: targetBox.box_no, locNo: 11 };
 
     const statsBefore = await apiClient.GET('/api/dashboard/stats', {});

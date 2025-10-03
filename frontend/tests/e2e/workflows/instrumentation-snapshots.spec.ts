@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
-import { expectConsoleError } from '../../support/helpers';
+import { expectConsoleError, makeUnique } from '../../support/helpers';
 import type { FormTestEvent, ToastTestEvent, ErrorTestEvent } from '@/types/test-events';
 
 const PART_CREATE_FORM_ID = 'part_create';
@@ -26,8 +26,9 @@ test.describe('Instrumentation snapshots', () => {
     const validationEvent = await testEvents.waitForEvent(event => event.kind === 'form' && event.formId === PART_CREATE_FORM_ID && event.phase === 'validation_error') as FormTestEvent;
     expect(validationEvent.metadata?.field).toBe('description');
 
-    const description = `Instrumentation Part ${Date.now()}`;
-    await parts.fillBasicForm({ description, manufacturerCode: `INST-${Date.now().toString().slice(-4)}` });
+    const description = makeUnique('Instrumentation Part');
+    const manufacturerCodeSuffix = makeUnique('INST').split('-').pop()?.toUpperCase() ?? '0000';
+    await parts.fillBasicForm({ description, manufacturerCode: `INST-${manufacturerCodeSuffix.slice(0, 4)}` });
     await parts.selectType(type.name);
 
     const createResponsePromise = page.waitForResponse(response => {
@@ -59,11 +60,11 @@ test.describe('Instrumentation snapshots', () => {
     testData,
   }) => {
     const { part } = await testData.parts.create({
-      overrides: { description: `Document Source ${Date.now()}` },
+      overrides: { description: makeUnique('Document Source') },
     });
 
     const attachment = await testData.attachments.createUrl(part.key, {
-      title: `Attachment ${Date.now()}`,
+      title: makeUnique('Attachment'),
     });
 
     await parts.gotoList();
@@ -118,7 +119,7 @@ test.describe('Instrumentation snapshots', () => {
     await testEvents.clearEvents();
 
     const aiSession = await aiAnalysisMock({
-      taskId: `ai-failure-${Date.now()}`,
+      taskId: makeUnique('ai-failure'),
     });
 
     await partsAI.submitPrompt('Parts instrumentation failure scenario');

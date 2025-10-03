@@ -58,7 +58,7 @@ Extend `TestFixtures` when adding new domains (e.g., `parts: PartsPage`). Keep f
 
 Provides convenience utilities used across specs:
 
-- `generateRandomId(prefix)`
+- `makeUnique(prefix)` – deterministic-length unique IDs for test data
 - `waitTestEvent(page, kind, filter?, timeout?)`
 - `waitForFormValidationError(page, formId, field?)`
 - `expectConflictError(page, correlationId?)`
@@ -73,6 +73,7 @@ Avoid duplicating helper logic in specs—centralize shared behaviors here.
 - Prefix identifiers with domain-specific tokens to aid debugging.
 - Keep randomization deterministic length-wise to avoid UI layout drift.
 - Seed fresh data per spec. Even if two tests need identical state, create separate records to avoid hidden coupling.
+- `Date.now()` is eslint-blocked—use `makeUnique` or domain helpers for uniqueness, and document any rare inline exemptions where a real timestamp is required.
 
 ## Deterministic Testing Content
 

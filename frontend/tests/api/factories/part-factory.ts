@@ -1,5 +1,5 @@
 import { createApiClient, apiRequest } from '../client';
-import { generateRandomId } from '../../support/helpers';
+import { makeUnique } from '../../support/helpers';
 import { TypeTestFactory } from './type-factory';
 import type { components } from '../../../src/lib/api/generated/types';
 
@@ -93,9 +93,9 @@ export class PartTestFactory {
    * Generates a random part description
    * @param prefix - Optional prefix for the description
    * @returns A unique part description
-   */
+  */
   randomPartDescription(prefix: string = 'Test Part'): string {
-    return generateRandomId(prefix);
+    return makeUnique(prefix);
   }
 
   /**

@@ -25,6 +25,15 @@ export default tseslint.config([
         'warn',
         { allowConstantExport: true },
       ],
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'Date',
+          property: 'now',
+          message:
+            'Date.now() is reserved for real timestamps. Use makeUnique() or other approved helpers for ID generation, or add a documented disable comment.',
+        },
+      ],
     },
   },
   {

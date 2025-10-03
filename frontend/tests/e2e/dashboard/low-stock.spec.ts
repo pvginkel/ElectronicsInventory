@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { makeUnique } from '../../support/helpers';
 import { test } from '../../support/fixtures';
 
 async function ensureData<T>(response: { data?: T }): Promise<T> {
@@ -11,7 +12,8 @@ async function ensureData<T>(response: { data?: T }): Promise<T> {
 async function createBoxWithRetry(testData: any, attempts = 5) {
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
-      return await testData.boxes.create({ overrides: { description: `Dashboard Low Stock Box ${Date.now()}-${attempt}` } });
+      const label = `${makeUnique('Dashboard Low Stock Box')}-${attempt}`;
+      return await testData.boxes.create({ overrides: { description: label } });
     } catch (error) {
       if (error instanceof Error && error.message.includes('409 CONFLICT')) {
         await new Promise((resolve) => setTimeout(resolve, 150 * (attempt + 1)));

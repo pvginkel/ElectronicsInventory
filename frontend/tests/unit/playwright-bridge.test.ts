@@ -5,13 +5,15 @@ import { TestEventBuffer } from '../support/helpers/test-events';
 let counter = 0;
 
 function createFormEvent(overrides: Partial<FormTestEvent> = {}): FormTestEvent {
-  const baseTimestamp = Date.now() + counter++;
+  const baseDate = new Date();
+  baseDate.setTime(baseDate.getTime() + counter);
+  counter += 1;
   return {
     kind: 'form',
     phase: 'submit',
     formId: `TestForm_${counter}`,
     fields: {},
-    timestamp: new Date(baseTimestamp).toISOString(),
+    timestamp: baseDate.toISOString(),
     ...overrides,
   } satisfies FormTestEvent;
 }

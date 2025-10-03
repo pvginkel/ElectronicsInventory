@@ -1,11 +1,11 @@
 import { test, expect } from '../../support/fixtures'
-import { expectConsoleError } from '../../support/helpers'
+import { expectConsoleError, makeUnique } from '../../support/helpers'
 
 test.describe('Boxes - Detail View', () => {
 test('shows usage metrics, location assignments, and supports deletion from detail', async ({ boxes, parts, partsLocations, testData, toastHelper }) => {
-    const description = `Detail Box ${Date.now()}`
+    const description = makeUnique('Detail Box')
     const box = await testData.boxes.create({ overrides: { description, capacity: 20 } })
-    const { part } = await testData.parts.create({ overrides: { description: `Box Detail Part ${Date.now()}` } })
+    const { part } = await testData.parts.create({ overrides: { description: makeUnique('Box Detail Part') } })
 
     await parts.gotoList()
     await parts.waitForCards()
