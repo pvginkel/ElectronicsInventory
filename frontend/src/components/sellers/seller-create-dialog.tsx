@@ -66,7 +66,7 @@ export function SellerCreateDialog({
         instrumentationRef.current?.trackSubmit(instrumentationFields)
         await onSuccess(payload)
         instrumentationRef.current?.trackSuccess(instrumentationFields)
-        handleClose()
+        handleDialogOpenChange(false)
       } catch {
         instrumentationRef.current?.trackError(instrumentationFields)
       }
@@ -77,10 +77,10 @@ export function SellerCreateDialog({
 
   // Update form values when dialog opens with new initialName
   useEffect(() => {
-    if (open && initialName) {
+    if (open && initialName && form.values.name !== initialName) {
       setValue('name', initialName)
     }
-  }, [open, initialName, setValue])
+  }, [form.values.name, initialName, open, setValue])
 
   const resolvedFormId = formId ?? generateFormId('SellerForm', 'inline-create')
 
@@ -95,19 +95,18 @@ export function SellerCreateDialog({
 
   instrumentationRef.current = instrumentation
 
-  const handleClose = () => {
-    if (onCancel) {
-      onCancel()
-    } else {
-      onOpenChange(false)
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    onOpenChange(nextOpen)
+    if (!nextOpen) {
+      onCancel?.()
+      form.reset()
     }
-    form.reset()
   }
 
   return (
     <Dialog
       open={open}
-      onOpenChange={handleClose}
+      onOpenChange={handleDialogOpenChange}
       contentProps={{ 'data-testid': `${resolvedFormId}.dialog` } as DialogContentProps}
     >
       <DialogContent>
@@ -145,7 +144,12 @@ export function SellerCreateDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" preventValidation onClick={handleClose}>
+            <Button
+              type="button"
+              variant="outline"
+              preventValidation
+              onClick={() => handleDialogOpenChange(false)}
+            >
               Cancel
             </Button>
             <Button
