@@ -3,7 +3,6 @@
  * both the baseline snapshot and the follow-up update through the testing API.
  */
 import { test, expect } from '../../support/fixtures';
-import { resetDeploymentRequestId } from '../../support/helpers/deployment-reset';
 import { extractSseData, waitForSseEvent } from '../../support/helpers/test-events';
 
 const DEPLOYMENT_STREAM_ID = 'deployment.version';
@@ -15,12 +14,15 @@ test('surfaces backend-driven deployment updates', async ({
   backendUrl,
   testEvents,
   appShell,
+  deploymentSse,
 }) => {
     await page.goto(frontendUrl);
 
     await testEvents.clearEvents();
-    await resetDeploymentRequestId(page);
-    await page.reload();
+
+    // Manually opt into the deployment SSE stream for deterministic coverage.
+    await deploymentSse.resetRequestId();
+    const connectionStatus = await deploymentSse.ensureConnected();
 
     const openEvent = await waitForSseEvent(page, {
       streamId: DEPLOYMENT_STREAM_ID,
@@ -30,9 +32,8 @@ test('surfaces backend-driven deployment updates', async ({
     });
 
     const connectionData = extractSseData<{ requestId?: string; correlationId?: string }>(openEvent);
-    expect(connectionData?.requestId).toBeTruthy();
-
-    const requestId = connectionData?.requestId;
+    const requestId = connectionStatus.requestId ?? connectionData?.requestId ?? null;
+    expect(requestId).toBeTruthy();
     if (!requestId) {
       return;
     }
@@ -109,6 +110,8 @@ test('surfaces backend-driven deployment updates', async ({
     const navigationPromise = page.waitForNavigation({ waitUntil: 'load' });
     await appShell.deploymentReloadButton.click();
     await navigationPromise;
+    await testEvents.clearEvents();
+    await deploymentSse.ensureConnected();
     await waitForSseEvent(page, {
       streamId: DEPLOYMENT_STREAM_ID,
       phase: 'open',
@@ -117,5 +120,7 @@ test('surfaces backend-driven deployment updates', async ({
     });
 
     await expect(page.locator('[data-testid="deployment.banner"]')).toHaveCount(0);
+
+    await deploymentSse.disconnect();
   });
 });

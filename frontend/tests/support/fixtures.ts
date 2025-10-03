@@ -19,6 +19,10 @@ import {
 } from './helpers/test-events';
 import { ToastHelper, createToastHelper } from './helpers/toast-helpers';
 import { SSEMocker, createSSEMocker } from './helpers/sse-mock';
+import {
+  DeploymentSseHelper,
+  createDeploymentSseHelper,
+} from './helpers/deployment-sse';
 import { createAiAnalysisMock } from './helpers/ai-analysis-mock';
 import type {
   AiAnalysisMockOptions,
@@ -47,6 +51,7 @@ type TestFixtures = {
   sseMocker: SSEMocker;
   fileUploadHelper: FileUploadHelper;
   aiAnalysisMock: (options?: AiAnalysisMockOptions) => Promise<AiAnalysisMockSession>;
+  deploymentSse: DeploymentSseHelper;
 };
 
 export const test = base.extend<TestFixtures>({
@@ -232,6 +237,19 @@ export const test = base.extend<TestFixtures>({
   fileUploadHelper: async ({ page }, provide) => {
     const fileUploadHelper = createFileUploadHelper(page);
     await provide(fileUploadHelper);
+  },
+
+  deploymentSse: async ({ page }, provide) => {
+    const helper = createDeploymentSseHelper(page);
+    try {
+      await provide(helper);
+    } finally {
+      try {
+        await helper.disconnect();
+      } catch {
+        // Ignore cleanup failures; the page may have navigated away.
+      }
+    }
   },
 });
 

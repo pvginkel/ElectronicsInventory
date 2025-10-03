@@ -149,10 +149,11 @@ Follow the [No-Sleep Patterns](./no_sleep_patterns.md) reference. Use `Promise.a
 
 ### Deployment Version Stream (real backend only)
 
-- The deployment banner must subscribe to `/api/utils/version/stream?request_id=<uuid>`; the frontend exposes the seeded id via `useDeploymentNotification().deploymentRequestId`.
-- Tests may reset the id by calling `resetDeploymentRequestId(page)` and then wait for the `kind: 'sse'` open event via `waitForSseEvent(page, { streamId: 'deployment.version', phase: 'open' })`.
+- Playwright runs disable the auto-connect path; use the `deploymentSse` fixture to opt into `/api/utils/version/stream` on a per-spec basis.
+- Call `await deploymentSse.resetRequestId()` after navigation, then `await deploymentSse.ensureConnected()` to open the stream with a fresh id and `deploymentSse.getStatus()` when you need the latest `{ isConnected, requestId }` state.
 - Trigger backend delivery with `POST /api/testing/deployments/version` using the streamed `requestId`. The response echoes `{ requestId, delivered, status }` so specs can assert whether the update arrived immediately or on reconnect.
 - SSE payloads always include `correlation_id` matching the `request_id`; use it to tie Playwright assertions to backend telemetry instead of stubbing deployment updates.
+- Disconnect via `await deploymentSse.disconnect()` once a spec finishes its streaming assertions so the provider stops listening before the next test.
 - Local dev servers do not expose `version.json`; seed a baseline release via the testing trigger before asserting a follow-up update so the banner logic observes a genuine version change.
 
 ### App Shell Instrumentation
