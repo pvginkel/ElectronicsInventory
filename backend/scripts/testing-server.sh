@@ -15,9 +15,17 @@ cd "$BACKEND_DIR" || {
 # Mark the process as running in testing mode
 export FLASK_ENV=testing
 
+# Ensure the test database is clean and migrated
+echo "Migrating the test database..."
+echo
+
+poetry run inventory-cli load-test-data --yes-i-am-sure
+
 # Run the Flask server
+echo
 echo "Starting Electronics Inventory backend in testing mode..."
 echo "Server will run on http://0.0.0.0:5100"
 echo "Press Ctrl+C to stop"
+echo
 
 poetry run python -m flask run --host=0.0.0.0 --port=5100
