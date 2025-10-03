@@ -1,9 +1,18 @@
 """Configuration management using Pydantic settings."""
 
+import os
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DEFAULT_ENV_FILES: tuple[Path, ...] = (BASE_DIR / ".env",)
+ENV_FILE_OVERRIDES: dict[str, tuple[Path, ...]] = {
+    "testing": (BASE_DIR / ".env.test",),
+}
 
 
 class Settings(BaseSettings):
@@ -13,6 +22,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
+        extra="ignore",
     )
 
     # Flask settings
@@ -196,4 +206,17 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
-    return Settings()
+    return Settings(_env_file=_resolve_env_files())
+
+
+def _resolve_env_files() -> tuple[str, ...]:
+    """Select environment files based on FLASK_ENV."""
+    env = os.getenv("FLASK_ENV")
+    candidate_paths: list[Path] = list(DEFAULT_ENV_FILES)
+
+    override = ENV_FILE_OVERRIDES.get(env or "")
+    if override:
+        candidate_paths.extend(override)
+
+    unique_paths = dict.fromkeys(candidate_paths)
+    return tuple(str(path) for path in unique_paths)

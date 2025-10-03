@@ -39,3 +39,34 @@ def test_get_settings_cached():
     settings2 = get_settings()
 
     assert settings1 is settings2
+
+
+def test_settings_testing_env_override(tmp_path, monkeypatch):
+    """Settings should load testing override env file when FLASK_ENV=testing."""
+    base_env = tmp_path / ".env"
+    override_env = tmp_path / ".env.test"
+
+    base_env.write_text("DATABASE_URL=postgresql://base\n")
+    override_env.write_text("DATABASE_URL=postgresql://override\n")
+
+    monkeypatch.setenv("FLASK_ENV", "testing")
+
+    import app.config as config
+
+    config.get_settings.cache_clear()
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(config, "DEFAULT_ENV_FILES", (base_env,))
+    monkeypatch.setattr(config, "ENV_FILE_OVERRIDES", {"testing": (override_env,)})
+
+    settings = config.get_settings()
+
+    assert settings.DATABASE_URL == "postgresql://override"
+
+
+def test_settings_extra_env_ignored(monkeypatch):
+    """Extra environment variables should be ignored."""
+    monkeypatch.setenv("SOME_UNRELATED_SETTING", "42")
+
+    settings = Settings()
+
+    assert not hasattr(settings, "SOME_UNRELATED_SETTING")
