@@ -95,6 +95,9 @@ def handle_upgrade_db(
             )
             sys.exit(1)
 
+        # Let operator know which database is targeted
+        print(f"🗄  Using database: {app.config['SQLALCHEMY_DATABASE_URI']}")
+
         # Safety check for recreate
         if recreate and not confirmed:
             print(
@@ -160,6 +163,9 @@ def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
                 file=sys.stderr,
             )
             sys.exit(1)
+
+        # Let operator know which database is targeted
+        print(f"🗄  Using database: {app.config['SQLALCHEMY_DATABASE_URI']}")
 
         # Safety check for confirmation
         if not confirmed:
