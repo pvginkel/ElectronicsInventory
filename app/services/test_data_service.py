@@ -15,6 +15,7 @@ from app.models.quantity_history import QuantityHistory
 from app.models.seller import Seller
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.models.shopping_list_line import ShoppingListLine, ShoppingListLineStatus
+from app.models.shopping_list_seller_note import ShoppingListSellerNote
 from app.models.type import Type
 from app.services.base import BaseService
 
@@ -33,6 +34,7 @@ class TestDataService(BaseService):
         parts = self.load_parts(data_dir, types, sellers)
         shopping_lists = self.load_shopping_lists(data_dir)
         self.load_shopping_list_lines(data_dir, shopping_lists, parts, sellers)
+        self.load_shopping_list_seller_notes(data_dir, shopping_lists, sellers)
         self.load_part_locations(data_dir, parts, boxes)
         self.load_quantity_history(data_dir, parts)
 
@@ -261,10 +263,56 @@ class TestDataService(BaseService):
                 part_id=part.id,
                 seller_id=seller_id,
                 needed=line_data["needed"],
+                ordered=line_data.get("ordered", 0),
+                received=line_data.get("received", 0),
                 note=line_data.get("note"),
                 status=status,
             )
             self.db.add(line)
+            self.db.flush()
+
+    def load_shopping_list_seller_notes(
+        self,
+        data_dir: Path,
+        shopping_lists: dict[str, ShoppingList],
+        sellers: dict[int, Seller],
+    ) -> None:
+        """Load seller order notes for ready-state shopping lists."""
+        notes_file = data_dir / "shopping_list_seller_notes.json"
+        try:
+            with notes_file.open() as f:
+                notes_data = json.load(f)
+        except FileNotFoundError:
+            return
+        except json.JSONDecodeError as e:
+            raise InvalidOperationException(
+                "load shopping list seller notes data",
+                f"failed to parse {notes_file}: {e}",
+            ) from e
+
+        for note_data in notes_data:
+            list_name = note_data["shopping_list_name"]
+            shopping_list = shopping_lists.get(list_name)
+            if shopping_list is None:
+                raise InvalidOperationException(
+                    "load shopping list seller notes data",
+                    f"unknown shopping list '{list_name}'",
+                )
+
+            seller_key = note_data.get("seller_id")
+            seller = sellers.get(seller_key)
+            if seller is None:
+                raise InvalidOperationException(
+                    "load shopping list seller notes data",
+                    f"unknown seller id '{seller_key}'",
+                )
+
+            seller_note = ShoppingListSellerNote(
+                shopping_list_id=shopping_list.id,
+                seller_id=seller.id,
+                note=note_data.get("note", ""),
+            )
+            self.db.add(seller_note)
             self.db.flush()
 
     def load_part_locations(self, data_dir: Path, parts: dict[str, Part], boxes: dict[int, Box]) -> None:

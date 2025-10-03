@@ -1,18 +1,24 @@
 """Business logic for shopping list line item management."""
 
-from sqlalchemy import select
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.part import Part
-from app.models.shopping_list import ShoppingList
+from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.models.shopping_list_line import (
     ShoppingListLine,
     ShoppingListLineStatus,
 )
 from app.services.base import BaseService
 from app.services.seller_service import SellerService
+
+if TYPE_CHECKING:
+    from app.services.metrics_service import MetricsService
 
 
 class ShoppingListLineService(BaseService):
@@ -22,9 +28,11 @@ class ShoppingListLineService(BaseService):
         self,
         db,
         seller_service: SellerService,
+        metrics_service: "MetricsService | None" = None,
     ) -> None:
         super().__init__(db)
         self.seller_service = seller_service
+        self.metrics_service = metrics_service
 
     def add_line(
         self,
@@ -79,10 +87,10 @@ class ShoppingListLineService(BaseService):
         """Update a shopping list line while keeping progress fields read-only."""
         line = self._get_line_for_update(line_id)
 
-        if line.status != ShoppingListLineStatus.NEW:
+        if line.status == ShoppingListLineStatus.DONE:
             raise InvalidOperationException(
                 "update shopping list line",
-                "only NEW lines can be edited in this phase",
+                "completed lines cannot be edited",
             )
 
         if seller_id is not None:
@@ -93,10 +101,15 @@ class ShoppingListLineService(BaseService):
                 "needed quantity must be at least 1",
             )
 
+        if needed is not None:
+            if line.status != ShoppingListLineStatus.NEW:
+                raise InvalidOperationException(
+                    "update shopping list line",
+                    "needed quantity can only change while the line is NEW",
+                )
+            line.needed = needed
         if seller_id is not None:
             line.seller_id = seller_id
-        if needed is not None:
-            line.needed = needed
         if note is not None:
             line.note = note
 
@@ -126,6 +139,7 @@ class ShoppingListLineService(BaseService):
             .options(
                 selectinload(ShoppingListLine.part),
                 selectinload(ShoppingListLine.seller),
+                selectinload(ShoppingListLine.shopping_list),
             )
             .where(ShoppingListLine.shopping_list_id == list_id)
             .order_by(ShoppingListLine.created_at.asc())
@@ -134,6 +148,155 @@ class ShoppingListLineService(BaseService):
             stmt = stmt.where(ShoppingListLine.status != ShoppingListLineStatus.DONE)
 
         return list(self.db.execute(stmt).scalars().all())
+
+    def set_line_ordered(
+        self,
+        line_id: int,
+        *,
+        ordered_qty: int | None = None,
+        comment: str | None = None,
+    ) -> ShoppingListLine:
+        """Mark a single line as ordered with quantity validation."""
+        line = self._get_line_for_update(line_id)
+        shopping_list = self._get_list_for_update(line.shopping_list_id)
+
+        if shopping_list.status != ShoppingListStatus.READY:
+            raise InvalidOperationException(
+                "mark line ordered",
+                "lines can only be ordered while the list is in Ready status",
+            )
+
+        qty = line.needed if ordered_qty is None else ordered_qty
+        if qty < 0:
+            raise InvalidOperationException(
+                "mark line ordered",
+                "ordered quantity must be zero or greater",
+            )
+        if qty < line.received:
+            raise InvalidOperationException(
+                "mark line ordered",
+                "ordered quantity cannot be less than received quantity",
+            )
+
+        line.ordered = qty
+        line.status = ShoppingListLineStatus.ORDERED
+        if comment is not None:
+            line.note = comment
+
+        self._touch_list(shopping_list)
+        self.db.flush()
+        self._record_lines_ordered(1, "single")
+        return self._get_line(line.id)
+
+    def set_line_new(self, line_id: int) -> ShoppingListLine:
+        """Revert an ordered line back to NEW status when allowed."""
+        line = self._get_line_for_update(line_id)
+        shopping_list = self._get_list_for_update(line.shopping_list_id)
+
+        if shopping_list.status != ShoppingListStatus.READY:
+            raise InvalidOperationException(
+                "revert line to new",
+                "lines can only be reverted while the list is in Ready status",
+            )
+
+        if line.status != ShoppingListLineStatus.ORDERED:
+            raise InvalidOperationException(
+                "revert line to new",
+                "only ordered lines can be reverted to new",
+            )
+
+        if line.received > 0:
+            raise InvalidOperationException(
+                "revert line to new",
+                "lines with received quantity cannot be reverted; use stock update",
+            )
+
+        line.status = ShoppingListLineStatus.NEW
+        line.ordered = 0
+
+        self._touch_list(shopping_list)
+        self.db.flush()
+        return self._get_line(line.id)
+
+    def set_group_ordered(
+        self,
+        list_id: int,
+        seller_id: int | None,
+        ordered_map: dict[int, int | None],
+    ) -> list[ShoppingListLine]:
+        """Mark every line in a seller grouping as ordered."""
+        shopping_list = self._get_list_for_update(list_id)
+        if shopping_list.status != ShoppingListStatus.READY:
+            raise InvalidOperationException(
+                "mark seller group ordered",
+                "list must be Ready to mark a seller group as ordered",
+            )
+
+        stmt = (
+            select(ShoppingListLine)
+            .join(Part, Part.id == ShoppingListLine.part_id)
+            .where(ShoppingListLine.shopping_list_id == list_id)
+        )
+
+        if seller_id is None:
+            stmt = stmt.where(
+                ShoppingListLine.seller_id.is_(None),
+                Part.seller_id.is_(None),
+            )
+        else:
+            stmt = stmt.where(
+                or_(
+                    ShoppingListLine.seller_id == seller_id,
+                    and_(
+                        ShoppingListLine.seller_id.is_(None),
+                        Part.seller_id == seller_id,
+                    ),
+                )
+            )
+
+        group_lines = list(
+            self.db.execute(
+                stmt.options(
+                    selectinload(ShoppingListLine.part).selectinload(Part.seller),
+                    selectinload(ShoppingListLine.seller),
+                )
+            ).scalars().all()
+        )
+
+        if not group_lines:
+            raise InvalidOperationException(
+                "mark seller group ordered",
+                "specified seller grouping has no lines",
+            )
+
+        group_line_ids = {line.id for line in group_lines}
+        invalid_ids = set(ordered_map.keys()) - group_line_ids
+        if invalid_ids:
+            raise InvalidOperationException(
+                "mark seller group ordered",
+                "one or more lines do not belong to the requested seller group",
+            )
+
+        for line in group_lines:
+            requested = ordered_map.get(line.id)
+            qty = line.needed if requested is None else requested
+            if qty < 0:
+                raise InvalidOperationException(
+                    "mark seller group ordered",
+                    "ordered quantity must be zero or greater",
+                )
+            if qty < line.received:
+                raise InvalidOperationException(
+                    "mark seller group ordered",
+                    "ordered quantity cannot be less than received quantity",
+                )
+            line.ordered = qty
+            line.status = ShoppingListLineStatus.ORDERED
+
+        self._touch_list(shopping_list)
+        self.db.flush()
+        self._record_lines_ordered(len(group_lines), "group")
+        return [self._get_line(line.id) for line in group_lines]
 
     def check_duplicate(self, list_id: int, part_id: int) -> bool:
         """Return whether the given part already exists on the shopping list."""
@@ -154,6 +317,7 @@ class ShoppingListLineService(BaseService):
             .options(
                 selectinload(ShoppingListLine.part),
                 selectinload(ShoppingListLine.seller),
+                selectinload(ShoppingListLine.shopping_list),
             )
             .where(ShoppingListLine.id == line_id)
         )
@@ -190,3 +354,15 @@ class ShoppingListLineService(BaseService):
         stmt = select(Part.id).where(Part.id == part_id)
         if self.db.execute(stmt).scalar_one_or_none() is None:
             raise RecordNotFoundException("Part", part_id)
+
+    def _touch_list(self, shopping_list: ShoppingList) -> None:
+        """Update parent shopping list timestamp when related lines change."""
+        shopping_list.updated_at = datetime.utcnow()
+
+    def _record_lines_ordered(self, count: int, mode: str) -> None:
+        """Record metrics for lines marked ordered when metrics service available."""
+        if self.metrics_service is not None and count > 0:
+            self.metrics_service.record_shopping_list_lines_ordered(
+                count=count,
+                mode=mode,
+            )

@@ -191,6 +191,13 @@ class MetricsService(MetricsServiceProtocol):
             ['type_name']
         )
 
+        # Shopping list metrics
+        self.shopping_list_lines_marked_ordered_total = Counter(
+            'shopping_list_lines_marked_ordered_total',
+            'Total shopping list lines marked as ordered',
+            ['mode'],
+        )
+
         # AI Analysis Metrics
         self.ai_analysis_requests_total = Counter(
             'ai_analysis_requests_total',
@@ -355,6 +362,15 @@ class MetricsService(MetricsServiceProtocol):
         # Note: Task metrics would need additional metric definitions
         # This is a placeholder for task service integration
         pass
+
+    def record_shopping_list_lines_ordered(self, count: int, mode: str) -> None:
+        """Record how many shopping list lines were marked as ordered."""
+        if count <= 0:
+            return
+        try:
+            self.shopping_list_lines_marked_ordered_total.labels(mode=mode).inc(count)
+        except Exception as exc:
+            logger.error("Error recording shopping list ordered lines metric: %s", exc)
 
     def record_ai_analysis(
         self,

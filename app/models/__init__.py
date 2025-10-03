@@ -12,6 +12,7 @@ from app.models.shopping_list_line import (
     ShoppingListLine,
     ShoppingListLineStatus,
 )
+from app.models.shopping_list_seller_note import ShoppingListSellerNote
 from app.models.type import Type
 
 __all__: list[str] = [
@@ -24,6 +25,7 @@ __all__: list[str] = [
     "QuantityHistory",
     "ShoppingList",
     "ShoppingListLine",
+    "ShoppingListSellerNote",
     "ShoppingListLineStatus",
     "ShoppingListStatus",
     "Type"

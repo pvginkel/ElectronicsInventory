@@ -5,9 +5,13 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.models.shopping_list import ShoppingListStatus
+from app.schemas.seller import SellerListSchema
 from app.schemas.shopping_list_line import (
     ShoppingListLineListSchema,
     ShoppingListLineResponseSchema,
+)
+from app.schemas.shopping_list_seller_note import (
+    ShoppingListSellerOrderNoteSchema,
 )
 
 
@@ -90,11 +94,63 @@ class ShoppingListListSchema(BaseModel):
     line_counts: ShoppingListLineCountsSchema = Field(
         description="Line counts grouped by status"
     )
+    seller_notes: list[ShoppingListSellerOrderNoteSchema] = Field(
+        default_factory=list,
+        description="Seller-specific notes associated with the list",
+    )
 
     @computed_field
     def last_updated(self) -> datetime:
         """Expose a semantic alias for UI bindings expecting last_updated."""
         return self.updated_at
+
+    @computed_field
+    def has_ordered_lines(self) -> bool:
+        """Expose whether any lines are marked as ordered."""
+        return self.line_counts.ordered > 0
+
+
+class ShoppingListSellerGroupTotalsSchema(BaseModel):
+    """Aggregated totals for a seller grouping."""
+
+    needed: int = Field(
+        description="Total needed quantity for the group",
+        json_schema_extra={"example": 12},
+    )
+    ordered: int = Field(
+        description="Total ordered quantity for the group",
+        json_schema_extra={"example": 8},
+    )
+    received: int = Field(
+        description="Total received quantity for the group",
+        json_schema_extra={"example": 0},
+    )
+
+
+class ShoppingListSellerGroupSchema(BaseModel):
+    """Schema representing seller-based grouping in Ready view."""
+
+    group_key: str = Field(
+        description="Identifier for the seller grouping (seller id or 'ungrouped')",
+        json_schema_extra={"example": "seller-4"},
+    )
+    seller_id: int | None = Field(
+        description="Seller identifier if group is seller-backed",
+        json_schema_extra={"example": 4},
+    )
+    seller: SellerListSchema | None = Field(
+        description="Seller metadata for the group when available",
+    )
+    lines: list[ShoppingListLineResponseSchema] = Field(
+        description="Lines that belong to this grouping",
+    )
+    totals: ShoppingListSellerGroupTotalsSchema = Field(
+        description="Aggregated quantities for the group",
+    )
+    order_note: ShoppingListSellerOrderNoteSchema | None = Field(
+        description="Seller note if the group is associated with a seller",
+        default=None,
+    )
 
 
 class ShoppingListResponseSchema(BaseModel):
@@ -123,6 +179,19 @@ class ShoppingListResponseSchema(BaseModel):
     lines: list[ShoppingListLineResponseSchema] = Field(
         description="Line items associated with this list"
     )
+    seller_notes: list[ShoppingListSellerOrderNoteSchema] = Field(
+        default_factory=list,
+        description="Seller-specific notes for Ready view",
+    )
+    seller_groups: list[ShoppingListSellerGroupSchema] = Field(
+        default_factory=list,
+        description="Grouping of lines by seller for Ready planning",
+    )
+
+    @computed_field
+    def has_ordered_lines(self) -> bool:
+        """Expose whether Ordered lines exist on the list."""
+        return self.line_counts.ordered > 0
 
 
 class ShoppingListLinesResponseSchema(BaseModel):

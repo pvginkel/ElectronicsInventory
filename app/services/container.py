@@ -56,11 +56,6 @@ class ServiceContainer(containers.DeclarativeContainer):
         ShoppingListService,
         db=db_session,
     )
-    shopping_list_line_service = providers.Factory(
-        ShoppingListLineService,
-        db=db_session,
-        seller_service=seller_service,
-    )
 
     # Shutdown coordinator - Singleton for managing graceful shutdown
     shutdown_coordinator = providers.Singleton(
@@ -102,6 +97,13 @@ class ServiceContainer(containers.DeclarativeContainer):
         MetricsService,
         container=providers.Self(),
         shutdown_coordinator=shutdown_coordinator,
+    )
+
+    shopping_list_line_service = providers.Factory(
+        ShoppingListLineService,
+        db=db_session,
+        seller_service=seller_service,
+        metrics_service=metrics_service,
     )
 
     # URL interceptor registry with LCSC interceptor

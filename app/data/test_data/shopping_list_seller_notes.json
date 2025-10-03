@@ -1,0 +1,17 @@
+[
+  {
+    "shopping_list_name": "Bench Replenishment",
+    "seller_id": 5,
+    "note": "Consolidate op-amp order with adhesive restock."
+  },
+  {
+    "shopping_list_name": "Bench Replenishment",
+    "seller_id": 4,
+    "note": "Request moisture barrier packaging for reels."
+  },
+  {
+    "shopping_list_name": "Bench Replenishment",
+    "seller_id": 3,
+    "note": "Bundle shipping with upcoming sensor calibration kit."
+  }
+]

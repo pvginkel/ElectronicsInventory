@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 _TRUE_VALUES = {"true", "1", "yes", "on"}
 
 

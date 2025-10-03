@@ -14,6 +14,7 @@ from app.extensions import db
 
 if TYPE_CHECKING:
     from app.models.shopping_list_line import ShoppingListLine
+    from app.models.shopping_list_seller_note import ShoppingListSellerNote
 
 
 class ShoppingListStatus(str, Enum):
@@ -50,8 +51,14 @@ class ShoppingList(db.Model):  # type: ignore[name-defined]
         nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
-    lines: Mapped[list["ShoppingListLine"]] = relationship(
+    lines: Mapped[list[ShoppingListLine]] = relationship(
         "ShoppingListLine",
+        back_populates="shopping_list",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    seller_notes: Mapped[list[ShoppingListSellerNote]] = relationship(
+        "ShoppingListSellerNote",
         back_populates="shopping_list",
         cascade="all, delete-orphan",
         lazy="selectin",
