@@ -19,11 +19,37 @@ test.describe('Smoke Tests', () => {
 
   test('should verify backend health endpoint', async ({ page, backendUrl }) => {
     // Check backend health directly
-    const response = await page.goto(`${backendUrl}/api/health/readyz`);
+    const response = await page.request.get(`${backendUrl}/api/health/readyz`);
+    const status = response.status();
+    const responseText = await response.text();
 
-    expect(response?.status()).toBe(200);
+    let payload: unknown;
+    try {
+      payload = responseText ? JSON.parse(responseText) : undefined;
+    } catch {
+      payload = undefined;
+    }
 
-    const responseText = await response?.text();
+    type HealthPayload = {
+      status?: string;
+      migrations?: {
+        pending?: number;
+      };
+    };
+
+    const healthPayload: HealthPayload | undefined =
+      payload && typeof payload === 'object' ? (payload as HealthPayload) : undefined;
+
+    const pendingMigrations = typeof healthPayload?.migrations?.pending === 'number'
+      ? healthPayload.migrations.pending
+      : 0;
+    const statusLabel = healthPayload?.status;
+
+    const failureMessage = pendingMigrations > 0
+      ? `Backend health check failed: ${pendingMigrations} pending migration(s) reported.`
+      : `Backend health check failed: status=${status}${typeof statusLabel === 'string' ? ` (${statusLabel})` : ''}.`;
+
+    expect(status, failureMessage).toBe(200);
     expect(responseText).toBeTruthy();
 
     console.log('✅ Backend health check passed');
