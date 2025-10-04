@@ -56,6 +56,11 @@ class MetricsServiceProtocol(ABC):
         pass
 
     @abstractmethod
+    def record_shopping_list_line_receipt(self, lines: int, total_qty: int) -> None:
+        """Record shopping list line stock receipt events."""
+        pass
+
+    @abstractmethod
     def record_ai_analysis(
         self,
         status: str,
@@ -196,6 +201,14 @@ class MetricsService(MetricsServiceProtocol):
             'shopping_list_lines_marked_ordered_total',
             'Total shopping list lines marked as ordered',
             ['mode'],
+        )
+        self.shopping_list_lines_received_total = Counter(
+            'shopping_list_lines_received_total',
+            'Total shopping list lines that have received stock'
+        )
+        self.shopping_list_receive_quantity_total = Counter(
+            'shopping_list_receive_quantity_total',
+            'Total quantity received via shopping list stock updates'
         )
 
         # AI Analysis Metrics
@@ -371,6 +384,19 @@ class MetricsService(MetricsServiceProtocol):
             self.shopping_list_lines_marked_ordered_total.labels(mode=mode).inc(count)
         except Exception as exc:
             logger.error("Error recording shopping list ordered lines metric: %s", exc)
+
+    def record_shopping_list_line_receipt(self, lines: int, total_qty: int) -> None:
+        """Record metrics for shopping list line stock receipts."""
+        if lines <= 0 or total_qty <= 0:
+            return
+        try:
+            self.shopping_list_lines_received_total.inc(lines)
+            self.shopping_list_receive_quantity_total.inc(total_qty)
+        except Exception as exc:
+            logger.error(
+                "Error recording shopping list line receipt metrics: %s",
+                exc,
+            )
 
     def record_ai_analysis(
         self,

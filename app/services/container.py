@@ -99,10 +99,19 @@ class ServiceContainer(containers.DeclarativeContainer):
         shutdown_coordinator=shutdown_coordinator,
     )
 
+    # InventoryService depends on PartService and MetricsService
+    inventory_service = providers.Factory(
+        InventoryService,
+        db=db_session,
+        part_service=part_service,
+        metrics_service=metrics_service
+    )
+
     shopping_list_line_service = providers.Factory(
         ShoppingListLineService,
         db=db_session,
         seller_service=seller_service,
+        inventory_service=inventory_service,
         metrics_service=metrics_service,
     )
 
@@ -121,14 +130,6 @@ class ServiceContainer(containers.DeclarativeContainer):
         download_cache_service=download_cache_service,
         settings=config,
         url_interceptor_registry=url_interceptor_registry
-    )
-
-    # InventoryService depends on PartService and MetricsService
-    inventory_service = providers.Factory(
-        InventoryService,
-        db=db_session,
-        part_service=part_service,
-        metrics_service=metrics_service
     )
 
     # TaskService - Singleton for in-memory task management with configurable settings

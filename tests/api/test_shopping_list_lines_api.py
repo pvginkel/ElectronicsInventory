@@ -341,3 +341,171 @@ class TestShoppingListLinesAPI:
             json=payload,
         )
         assert resp.status_code == 409
+
+    def test_receive_line_stock_endpoint_success(self, client, session, container):
+        shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
+        box = container.box_service().create_box("API Receive Box", 5)
+        session.commit()
+
+        create_resp = client.post(
+            f"/api/shopping-lists/{shopping_list_id}/lines",
+            json={"part_id": part_id, "needed": 4},
+        )
+        assert create_resp.status_code == 201
+        line_id = create_resp.get_json()["id"]
+
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_service.set_list_status(
+            shopping_list_id,
+            ShoppingListStatus.READY,
+        )
+        session.commit()
+
+        order_resp = client.post(
+            f"/api/shopping-list-lines/{line_id}/order",
+            json={"ordered_qty": 4},
+        )
+        assert order_resp.status_code == 200
+
+        receive_payload = {
+            "receive_qty": 3,
+            "allocations": [
+                {"box_no": box.box_no, "loc_no": 1, "qty": 2},
+                {"box_no": box.box_no, "loc_no": 2, "qty": 1},
+            ],
+        }
+        receive_resp = client.post(
+            f"/api/shopping-list-lines/{line_id}/receive",
+            json=receive_payload,
+        )
+        assert receive_resp.status_code == 200
+        received = receive_resp.get_json()
+        assert received["received"] == 3
+        assert received["can_receive"] is True
+        locations = {
+            (loc["box_no"], loc["loc_no"]): loc["qty"]
+            for loc in received["part_locations"]
+        }
+        assert locations[(box.box_no, 1)] == 2
+        assert locations[(box.box_no, 2)] == 1
+
+    def test_receive_line_stock_endpoint_requires_ordered(self, client, session, container):
+        shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
+        box = container.box_service().create_box("API Pending Box", 3)
+        session.commit()
+
+        create_resp = client.post(
+            f"/api/shopping-lists/{shopping_list_id}/lines",
+            json={"part_id": part_id, "needed": 2},
+        )
+        assert create_resp.status_code == 201
+        line_id = create_resp.get_json()["id"]
+
+        receive_resp = client.post(
+            f"/api/shopping-list-lines/{line_id}/receive",
+            json={
+                "receive_qty": 1,
+                "allocations": [
+                    {"box_no": box.box_no, "loc_no": 1, "qty": 1},
+                ],
+            },
+        )
+        assert receive_resp.status_code == 409
+
+    def test_complete_line_endpoint_requires_mismatch_reason(self, client, session, container):
+        shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
+        box = container.box_service().create_box("API Mismatch Box", 2)
+        session.commit()
+
+        create_resp = client.post(
+            f"/api/shopping-lists/{shopping_list_id}/lines",
+            json={"part_id": part_id, "needed": 3},
+        )
+        line_id = create_resp.get_json()["id"]
+
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_service.set_list_status(
+            shopping_list_id,
+            ShoppingListStatus.READY,
+        )
+        session.commit()
+
+        order_resp = client.post(
+            f"/api/shopping-list-lines/{line_id}/order",
+            json={"ordered_qty": 3},
+        )
+        assert order_resp.status_code == 200
+
+        receive_resp = client.post(
+            f"/api/shopping-list-lines/{line_id}/receive",
+            json={
+                "receive_qty": 1,
+                "allocations": [
+                    {"box_no": box.box_no, "loc_no": 1, "qty": 1},
+                ],
+            },
+        )
+        assert receive_resp.status_code == 200
+
+        complete_resp = client.post(
+            f"/api/shopping-list-lines/{line_id}/complete",
+            json={},
+        )
+        assert complete_resp.status_code == 409
+
+        with_reason = client.post(
+            f"/api/shopping-list-lines/{line_id}/complete",
+            json={"mismatch_reason": "Vendor short shipped"},
+        )
+        assert with_reason.status_code == 200
+        payload = with_reason.get_json()
+        assert payload["status"] == ShoppingListLineStatus.DONE.value
+        assert payload["completion_mismatch"] is True
+        assert payload["completion_note"] == "Vendor short shipped"
+        assert payload["can_receive"] is False
+
+    def test_complete_line_endpoint_success_when_totals_match(self, client, session, container):
+        shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
+        box = container.box_service().create_box("API Completion Box", 3)
+        session.commit()
+
+        create_resp = client.post(
+            f"/api/shopping-lists/{shopping_list_id}/lines",
+            json={"part_id": part_id, "needed": 4},
+        )
+        line_id = create_resp.get_json()["id"]
+
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_service.set_list_status(
+            shopping_list_id,
+            ShoppingListStatus.READY,
+        )
+        session.commit()
+
+        order_resp = client.post(
+            f"/api/shopping-list-lines/{line_id}/order",
+            json={"ordered_qty": 4},
+        )
+        assert order_resp.status_code == 200
+
+        receive_resp = client.post(
+            f"/api/shopping-list-lines/{line_id}/receive",
+            json={
+                "receive_qty": 4,
+                "allocations": [
+                    {"box_no": box.box_no, "loc_no": 1, "qty": 4},
+                ],
+            },
+        )
+        assert receive_resp.status_code == 200
+
+        complete_resp = client.post(
+            f"/api/shopping-list-lines/{line_id}/complete",
+            json={},
+        )
+        assert complete_resp.status_code == 200
+        payload = complete_resp.get_json()
+        assert payload["status"] == ShoppingListLineStatus.DONE.value
+        assert payload["completion_mismatch"] is False
+        assert payload["completion_note"] is None
+        assert payload["can_receive"] is False

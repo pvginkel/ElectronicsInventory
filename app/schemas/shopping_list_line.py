@@ -91,6 +91,48 @@ class ShoppingListLineListSchema(BaseModel):
         description="Seller identifier used for grouping (override or part seller)",
         json_schema_extra={"example": 4},
     )
+    can_receive: bool = Field(
+        description="True when the line can accept stock receipt actions",
+        json_schema_extra={"example": True},
+    )
+    completion_mismatch: bool = Field(
+        description="Flag indicating completion with quantity mismatch",
+        json_schema_extra={"example": False},
+    )
+    completion_note: str | None = Field(
+        description="Optional note explaining completion mismatch",
+        json_schema_extra={"example": "Vendor short-shipped two units"},
+    )
+    completed_at: datetime | None = Field(
+        description="Timestamp when the line was completed",
+    )
+    has_quantity_mismatch: bool = Field(
+        description="True when ordered and received totals differ",
+        json_schema_extra={"example": False},
+    )
+
+
+class PartLocationInlineSchema(BaseModel):
+    """Inline schema for part location quantities."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int = Field(
+        description="Unique identifier for the part location row",
+        json_schema_extra={"example": 501},
+    )
+    box_no: int = Field(
+        description="Box number where stock is stored",
+        json_schema_extra={"example": 7},
+    )
+    loc_no: int = Field(
+        description="Location number within the box",
+        json_schema_extra={"example": 3},
+    )
+    qty: int = Field(
+        description="Quantity stored at this location",
+        json_schema_extra={"example": 10},
+    )
 
 
 class ShoppingListLineResponseSchema(ShoppingListLineListSchema):
@@ -116,11 +158,64 @@ class ShoppingListLineResponseSchema(ShoppingListLineListSchema):
         description="True when the line can revert from ordered back to new",
         json_schema_extra={"example": False},
     )
+    part_locations: list[PartLocationInlineSchema] = Field(
+        default_factory=list,
+        description="Locations currently holding stock for the part",
+    )
 
     @computed_field
     def is_editable(self) -> bool:
         """Expose whether the line can be modified in Phase 1 (status must remain NEW)."""
         return self.status == ShoppingListLineStatus.NEW
+
+
+class ShoppingListLineReceiveAllocationSchema(BaseModel):
+    """Schema describing a single location allocation for received stock."""
+
+    box_no: int = Field(
+        ...,
+        ge=1,
+        description="Box number where quantity should be stored",
+        json_schema_extra={"example": 5},
+    )
+    loc_no: int = Field(
+        ...,
+        ge=1,
+        description="Location number within the box",
+        json_schema_extra={"example": 2},
+    )
+    qty: int = Field(
+        ...,
+        ge=1,
+        description="Quantity to allocate to the location",
+        json_schema_extra={"example": 4},
+    )
+
+
+class ShoppingListLineReceiveSchema(BaseModel):
+    """Request schema for receiving stock against an ordered line."""
+
+    receive_qty: int = Field(
+        ...,
+        ge=1,
+        description="Total quantity to receive in this operation",
+        json_schema_extra={"example": 6},
+    )
+    allocations: list[ShoppingListLineReceiveAllocationSchema] = Field(
+        ...,
+        min_length=1,
+        description="Breakdown of where received stock should be stored",
+    )
+
+
+class ShoppingListLineCompleteSchema(BaseModel):
+    """Request schema for marking a line as completed without receiving more stock."""
+
+    mismatch_reason: str | None = Field(
+        None,
+        description="Explanation required when received quantity differs from ordered",
+        json_schema_extra={"example": "Supplier discontinued remaining units"},
+    )
 
 
 class ShoppingListLineOrderSchema(BaseModel):

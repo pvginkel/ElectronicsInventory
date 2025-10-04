@@ -7,19 +7,23 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     ForeignKey,
+    Index,
     Integer,
     Text,
     UniqueConstraint,
     func,
+    select,
 )
 from sqlalchemy import (
     Enum as SQLEnum,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, object_session, relationship
 
 from app.extensions import db
+from app.models.part_location import PartLocation
 
 if TYPE_CHECKING:
     from app.models.part import Part
@@ -71,6 +75,14 @@ class ShoppingListLine(db.Model):  # type: ignore[name-defined]
     updated_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.now(), onupdate=func.now()
     )
+    completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    completion_mismatch: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+    )
+    completion_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     shopping_list: Mapped[ShoppingList] = relationship(
         "ShoppingList", back_populates="lines", lazy="selectin"
@@ -89,6 +101,8 @@ class ShoppingListLine(db.Model):  # type: ignore[name-defined]
             "ordered >= 0 AND received >= 0",
             name="ck_shopping_list_lines_non_negative_progress",
         ),
+        Index("ix_shopping_list_lines_list_status", "shopping_list_id", "status"),
+        Index("ix_shopping_list_lines_list_received", "shopping_list_id", "received"),
     )
 
     def __repr__(self) -> str:
@@ -143,3 +157,33 @@ class ShoppingListLine(db.Model):  # type: ignore[name-defined]
             self.status == ShoppingListLineStatus.ORDERED
             and self.received == 0
         )
+
+    @property
+    def can_receive(self) -> bool:
+        """Return True when stock intake actions are allowed for this line."""
+
+        return self.status == ShoppingListLineStatus.ORDERED
+
+    @property
+    def has_quantity_mismatch(self) -> bool:
+        """Indicate whether ordered and received quantities differ."""
+
+        return self.ordered != self.received
+
+    @property
+    def part_locations(self) -> list["PartLocation"]:
+        """Expose part location rows for inline response payloads."""
+
+        session = object_session(self)
+        if session is None:
+            if self.part is None:
+                return []
+            locations = getattr(self.part, "part_locations", None)
+            return list(locations or [])
+
+        results = session.execute(
+            select(PartLocation)
+            .where(PartLocation.part_id == self.part_id)
+            .order_by(PartLocation.box_no.asc(), PartLocation.loc_no.asc())
+        ).scalars().all()
+        return list(results)
