@@ -1,13 +1,11 @@
 import { test, expect } from '../../support/fixtures'
-import { makeUnique } from '../../support/helpers'
+import { makeUnique, makeUniqueToken } from '../../support/helpers'
 
 test.describe('Sellers - List Experience', () => {
   test('renders sellers and filters via search', async ({ sellers, testData }) => {
     const prefix = makeUnique('QA-Sellers')
-    const primarySuffix = makeUnique('primary').split('-').pop() ?? 'primary'
-    const secondarySuffix = makeUnique('secondary').split('-').pop() ?? 'secondary'
-    const primary = await testData.sellers.create({ overrides: { name: `${prefix} Primary`, website: `https://primary-${primarySuffix}.example.com` } })
-    const secondary = await testData.sellers.create({ overrides: { name: `${prefix} Secondary`, website: `https://secondary-${secondarySuffix}.example.com` } })
+    const primary = await testData.sellers.create({ overrides: { name: `${prefix} Primary`, website: `https://primary-${makeUniqueToken(8)}.example.com` } })
+    const secondary = await testData.sellers.create({ overrides: { name: `${prefix} Secondary`, website: `https://secondary-${makeUniqueToken(8)}.example.com` } })
 
     await sellers.goto('/sellers')
     await expect(sellers.listTable).toBeVisible({ timeout: 15000 })
@@ -25,8 +23,7 @@ test.describe('Sellers - List Experience', () => {
 
   test('creates, edits, and deletes a seller with instrumentation and toasts', async ({ sellers, testEvents, toastHelper }) => {
     const name = makeUnique('Playwright Seller')
-    const websiteSuffix = makeUnique('seller').split('-').pop() ?? 'seller'
-    const website = `https://seller-${websiteSuffix}.example.com`
+    const website = `https://seller-${makeUniqueToken(8)}.example.com`
 
     await sellers.gotoList()
     await sellers.openCreateForm()
@@ -53,8 +50,7 @@ test.describe('Sellers - List Experience', () => {
     expect(Number.isFinite(createdSellerId)).toBeTruthy()
 
     const updatedName = `${name} Updated`
-    const updatedWebsiteSuffix = makeUnique('seller-updated').split('-').pop() ?? 'updated'
-    const updatedWebsite = `https://seller-updated-${updatedWebsiteSuffix}.example.com`
+    const updatedWebsite = `https://seller-updated-${makeUniqueToken(8)}.example.com`
     await sellers.openEditForm(createdSellerId)
     await sellers.fillSellerForm(`sellers.edit.${createdSellerId}`, { name: updatedName, website: updatedWebsite })
     await testEvents.clearEvents()
@@ -81,8 +77,7 @@ test.describe('Sellers - List Experience', () => {
 
   test('opens seller website in a new tab', async ({ sellers, testData }) => {
     const sellerName = makeUnique('Link Seller')
-    const sellerWebsiteSuffix = makeUnique('link').split('-').pop() ?? 'link'
-    const seller = await testData.sellers.create({ overrides: { name: sellerName, website: `https://link-${sellerWebsiteSuffix}.example.com` } })
+    const seller = await testData.sellers.create({ overrides: { name: sellerName, website: `https://link-${makeUniqueToken(8)}.example.com` } })
 
     await sellers.gotoList()
     await expect(sellers.listTable).toBeVisible({ timeout: 15000 })

@@ -1,13 +1,12 @@
 import { test, expect } from '../../support/fixtures'
-import { makeUnique } from '../../support/helpers'
+import { makeUnique, makeUniqueToken } from '../../support/helpers'
 import { SellerSelectorHarness } from '../../support/page-objects/seller-selector-harness'
 
 test.describe('Seller Selector Integration', () => {
   test('selects an existing seller and persists after part creation', async ({ parts, testData }) => {
     const type = await testData.types.create({ name: makeUnique('Selector Type') })
     const sellerName = makeUnique('Existing Seller')
-    const sellerSuffix = makeUnique('existing').split('-').pop() ?? 'seller'
-    const seller = await testData.sellers.create({ overrides: { name: sellerName, website: `https://existing-${sellerSuffix}.example.com` } })
+    const seller = await testData.sellers.create({ overrides: { name: sellerName, website: `https://existing-${makeUniqueToken(8)}.example.com` } })
 
     await parts.gotoList()
     await parts.openNewPartForm()
@@ -19,8 +18,7 @@ test.describe('Seller Selector Integration', () => {
     await selector.expectSelected(seller.name)
 
     await parts.formDescription.fill(makeUnique('Part with Seller'))
-    const manufacturerSuffix = makeUnique('ps').split('-').pop()?.toUpperCase() ?? '0000'
-    await parts.formManufacturerCode.fill(`PS-${manufacturerSuffix}`)
+    await parts.formManufacturerCode.fill(`PS-${makeUniqueToken(4).toUpperCase()}`)
     await parts.selectType(type.name)
 
     await parts.formSubmit.click()
@@ -38,8 +36,7 @@ test('creates a seller inline and preserves selection through part lifecycle', a
     await selector.waitForReady()
 
     const inlineSellerName = makeUnique('Inline Seller')
-    const inlineSellerSuffix = makeUnique('inline').split('-').pop() ?? 'seller'
-    const inlineWebsite = `https://inline-${inlineSellerSuffix}.example.com`
+    const inlineWebsite = `https://inline-${makeUniqueToken(8)}.example.com`
 
     await selector.triggerInlineCreate(inlineSellerName)
     await selector.fillInlineCreate({ name: inlineSellerName, website: inlineWebsite })
@@ -48,8 +45,7 @@ test('creates a seller inline and preserves selection through part lifecycle', a
     await selector.expectSelected(inlineSellerName)
 
     await parts.formDescription.fill(makeUnique('Inline Part'))
-    const inlineManufacturerSuffix = makeUnique('ip').split('-').pop()?.toUpperCase() ?? '0000'
-    await parts.formManufacturerCode.fill(`IP-${inlineManufacturerSuffix}`)
+    await parts.formManufacturerCode.fill(`IP-${makeUniqueToken(4).toUpperCase()}`)
     await parts.selectType(type.name)
 
     await parts.formSubmit.click()

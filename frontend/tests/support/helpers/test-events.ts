@@ -19,7 +19,8 @@ type Waiter = {
 function normalizeEvent(raw: any): TestEvent {
   const fallbackMillis = typeof raw?.timestamp === 'number'
     ? raw.timestamp
-    : new Date().getTime();
+    // eslint-disable-next-line no-restricted-properties -- Normalize missing timestamps to epoch ms for instrumentation parity.
+    : Date.now();
   const timestamp = typeof raw?.timestamp === 'string'
     ? raw.timestamp
     : new Date(fallbackMillis).toISOString();

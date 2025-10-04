@@ -266,7 +266,8 @@ startxref
       data: Array<{ id: number; value: string }>;
     } = {
       test: true,
-      timestamp: new Date().getTime(),
+      // eslint-disable-next-line no-restricted-properties -- JSON payload emulates real upload metadata with epoch timestamps.
+      timestamp: Date.now(),
       data: [],
     };
 

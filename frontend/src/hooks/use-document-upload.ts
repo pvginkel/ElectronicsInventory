@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { validateFile } from '@/lib/utils/file-validation';
 import { useToast } from '@/hooks/use-toast';
 import { parseApiError } from '@/lib/utils/error-parsing';
+import { makeUniqueToken } from '@/lib/utils/random';
 
 export interface UploadProgress {
   partId: string;
@@ -30,10 +31,7 @@ export function useDocumentUpload() {
   const toast = useToast();
   
   function createUploadKey(partId: string): string {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      return `${partId}-${crypto.randomUUID()}`;
-    }
-    return `${partId}-${Math.random().toString(36).slice(2, 10)}`;
+    return `${partId}-${makeUniqueToken(12)}`;
   }
 
   const uploadDocument = useCallback(async (options: DocumentUploadOptions): Promise<DocumentUploadResult> => {

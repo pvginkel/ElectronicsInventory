@@ -1,15 +1,19 @@
 import type { TestEvent, UiStateTestEvent, ListLoadingTestEvent } from '@/types/test-events';
+import { makeUniqueToken as baseMakeUniqueToken } from '@/lib/utils/random';
 import { Page, expect } from '@playwright/test';
 import { getTestEventBuffer } from './helpers/test-events';
+
+export function makeUniqueToken(length: number = 6): string {
+  return baseMakeUniqueToken(length);
+}
 
 /**
  * Generates a pseudo-random identifier with prefix-shortId pattern for test data.
  */
-export function makeUnique(prefix: string = 'test'): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let suffix = '';
-  for (let i = 0; i < 6; i++) {
-    suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+export function makeUnique(prefix: string = 'test', length: number = 6): string {
+  const suffix = makeUniqueToken(length);
+  if (!prefix) {
+    return suffix;
   }
   return `${prefix}-${suffix}`;
 }

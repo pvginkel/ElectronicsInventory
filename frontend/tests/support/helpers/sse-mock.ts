@@ -1,5 +1,6 @@
 /// <reference lib="dom" />
 import { Page } from '@playwright/test';
+import { makeUniqueToken } from '../helpers';
 
 /**
  * SSE event structure for mocking
@@ -103,7 +104,10 @@ const installSSEMocking = () => {
   const connections: any[] = [];
   const configs: RegisterMockPayload[] = [];
 
-  const getEpochMs = () => new Date().getTime();
+  const getEpochMs = () => {
+    // eslint-disable-next-line no-restricted-properties -- capture epoch ms for SSE debugging logs.
+    return Date.now();
+  };
 
   function patternMatches(pattern: SerializedPattern | undefined, url: string): boolean {
     if (!pattern) {
@@ -344,11 +348,7 @@ export class SSEMocker {
   constructor(private readonly page: Page) {}
 
   private createMockId(): string {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      return `sse-mock-${crypto.randomUUID()}-${this.configCounter++}`;
-    }
-    const random = Math.random().toString(36).slice(2, 10);
-    return `sse-mock-${random}-${this.configCounter++}`;
+    return `sse-mock-${makeUniqueToken(12)}-${this.configCounter++}`;
   }
 
   private async ensureSetup(): Promise<void> {

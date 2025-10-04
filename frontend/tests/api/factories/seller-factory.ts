@@ -1,5 +1,5 @@
 import { createApiClient, apiRequest } from '../client';
-import { makeUnique } from '../../support/helpers';
+import { makeUnique, makeUniqueToken } from '../../support/helpers';
 import type { components } from '../../../src/lib/api/generated/types';
 
 type SellerCreateSchema = components['schemas']['SellerCreateSchema.ceefe26'];
@@ -72,7 +72,7 @@ export class SellerTestFactory {
     }
 
     // Add a unique suffix to avoid conflicts in tests
-    const uniqueSuffix = makeUnique('').substring(0, 6);
+    const uniqueSuffix = makeUniqueToken();
     return this.create({
       overrides: {
         name: `${vendor.name} Test-${uniqueSuffix}`,
@@ -136,7 +136,7 @@ export class SellerTestFactory {
    * @returns A unique seller URL
    */
   randomSellerUrl(): string {
-    const id = makeUnique('').substring(0, 8).toLowerCase();
+    const id = makeUniqueToken(8);
     return `https://test-seller-${id}.example.com`;
   }
 

@@ -5,15 +5,14 @@ import { TestEventBuffer } from '../support/helpers/test-events';
 let counter = 0;
 
 function createFormEvent(overrides: Partial<FormTestEvent> = {}): FormTestEvent {
-  const baseDate = new Date();
-  baseDate.setTime(baseDate.getTime() + counter);
-  counter += 1;
+  // eslint-disable-next-line no-restricted-properties -- unit test requires stable epoch-based ordering for timestamps.
+  const baseTimestamp = Date.now() + counter++;
   return {
     kind: 'form',
     phase: 'submit',
     formId: `TestForm_${counter}`,
     fields: {},
-    timestamp: baseDate.toISOString(),
+    timestamp: new Date(baseTimestamp).toISOString(),
     ...overrides,
   } satisfies FormTestEvent;
 }

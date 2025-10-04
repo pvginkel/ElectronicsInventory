@@ -211,7 +211,8 @@ export class ToastHelper {
   private recordToast(toast: ToastData): void {
     this.toastHistory.push({
       ...toast,
-      timestamp: new Date().getTime(),
+      // eslint-disable-next-line no-restricted-properties -- Retain epoch timestamp for toast history debugging.
+      timestamp: Date.now(),
     });
   }
 

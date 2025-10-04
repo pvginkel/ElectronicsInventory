@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
-import { expectConsoleError, makeUnique } from '../../support/helpers';
+import { expectConsoleError, makeUnique, makeUniqueToken } from '../../support/helpers';
 import type { FormTestEvent, ToastTestEvent, ErrorTestEvent } from '@/types/test-events';
 
 const PART_CREATE_FORM_ID = 'part_create';
@@ -27,8 +27,7 @@ test.describe('Instrumentation snapshots', () => {
     expect(validationEvent.metadata?.field).toBe('description');
 
     const description = makeUnique('Instrumentation Part');
-    const manufacturerCodeSuffix = makeUnique('INST').split('-').pop()?.toUpperCase() ?? '0000';
-    await parts.fillBasicForm({ description, manufacturerCode: `INST-${manufacturerCodeSuffix.slice(0, 4)}` });
+    await parts.fillBasicForm({ description, manufacturerCode: `INST-${makeUniqueToken(4).toUpperCase()}` });
     await parts.selectType(type.name);
 
     const createResponsePromise = page.waitForResponse(response => {

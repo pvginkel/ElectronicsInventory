@@ -3,6 +3,7 @@ import { useCoverAttachment } from '@/hooks/use-cover-image';
 import { getCoverThumbnailUrl, generateCoverSrcSet, getSizesAttribute } from '@/lib/utils/thumbnail-urls';
 import pdfIconSvg from '@/assets/pdf-icon.svg';
 import { ImagePlaceholderIcon } from '@/components/icons/ImagePlaceholderIcon';
+import { makeUniqueToken } from '@/lib/utils/random';
 
 interface CoverImageDisplayProps {
   partId: string;
@@ -27,10 +28,7 @@ export function CoverImageDisplay({
     if (typeof dataUpdatedAt === 'number') {
       return dataUpdatedAt.toString();
     }
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      return crypto.randomUUID();
-    }
-    return Math.random().toString(36).slice(2, 10);
+    return makeUniqueToken(16);
   }, [dataUpdatedAt]);
 
   // Reset image error when cache buster changes (new image to load)
