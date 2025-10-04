@@ -172,7 +172,7 @@ class ShoppingListLine(db.Model):  # type: ignore[name-defined]
         return self.ordered != self.received
 
     @property
-    def part_locations(self) -> list["PartLocation"]:
+    def part_locations(self) -> list[PartLocation]:
         """Expose part location rows for inline response payloads."""
 
         try:

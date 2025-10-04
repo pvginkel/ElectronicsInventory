@@ -4,8 +4,8 @@ import argparse
 import sys
 from typing import NoReturn
 
-from flask import Flask
 import sqlalchemy as sa
+from flask import Flask
 
 from app import create_app
 from app.database import (

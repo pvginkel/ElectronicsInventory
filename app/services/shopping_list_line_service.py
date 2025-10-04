@@ -19,8 +19,8 @@ from app.services.base import BaseService
 from app.services.seller_service import SellerService
 
 if TYPE_CHECKING:
-    from app.services.metrics_service import MetricsService
     from app.services.inventory_service import InventoryService
+    from app.services.metrics_service import MetricsService
 
 
 class ShoppingListLineService(BaseService):
