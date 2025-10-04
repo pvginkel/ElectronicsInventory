@@ -1,5 +1,7 @@
 """Tests for box service functionality."""
 
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 from flask import Flask
 from sqlalchemy.orm import Session
@@ -7,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.exceptions import InvalidOperationException
 from app.models.box import Box
 from app.models.location import Location
+from app.services.box_service import BoxService
 from app.services.container import ServiceContainer
 
 
@@ -102,6 +105,40 @@ class TestBoxService:
             # Verify descriptions
             descriptions = [box.description for box in result]
             assert descriptions == ["Box A", "Box B", "Box C"]
+
+    def test_create_box_concurrent_sessions_unique_sequence(
+        self, app: Flask, session: Session, container: ServiceContainer
+    ) -> None:
+        """Ensure concurrent box creation assigns unique numbers when sequences are available."""
+        with app.app_context():
+            bind = session.get_bind()
+            if bind is None or not bind.dialect.name.startswith("postgres"):
+                pytest.skip("Sequence-backed concurrency test requires PostgreSQL")
+
+            # Ensure a clean slate to make box numbers predictable
+            session.query(Box).delete()
+            session.commit()
+
+            session_factory = container.session_maker()
+
+            def create_box(description: str) -> int:
+                local_session = session_factory()
+                try:
+                    service = BoxService(local_session)
+                    box = service.create_box(description, 1)
+                    local_session.commit()
+                    return box.box_no
+                finally:
+                    local_session.close()
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                futures = [
+                    executor.submit(create_box, f"Concurrent {index}")
+                    for index in range(2)
+                ]
+
+            box_numbers = sorted(future.result() for future in futures)
+            assert box_numbers == [1, 2]
 
     def test_update_box_capacity_increase(self, app: Flask, session: Session, container: ServiceContainer):
         """Test increasing box capacity creates new locations."""

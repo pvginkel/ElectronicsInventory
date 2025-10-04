@@ -39,15 +39,20 @@ class BoxService(BaseService):
 
     def create_box(self, description: str, capacity: int) -> Box:
         """Create box and generate all locations (1 to capacity)."""
-        # Get next available box_no
-        max_box_no = self.db.execute(select(func.coalesce(func.max(Box.box_no), 0))).scalar()
-        next_box_no = (max_box_no or 0) + 1
-
-        # Create the box
-        box = Box(box_no=next_box_no, description=description, capacity=capacity)
+        # Create the box and let the database sequence assign box_no
+        box = Box(description=description, capacity=capacity)
         self.db.add(box)
 
-        # Force flush to get the ID - autoflush doesn't trigger on attribute access for new objects
+        bind = self.db.bind
+        if bind is not None and bind.dialect.name == "sqlite":
+            # SQLite lacks sequences, so fall back to deterministic numbering for tests
+            with self.db.no_autoflush:
+                max_box_no = self.db.execute(
+                    select(func.coalesce(func.max(Box.box_no), 0))
+                ).scalar()
+            box.box_no = (max_box_no or 0) + 1
+
+        # Force flush so the database populates id and box_no before locations are created
         self.db.flush()
 
         # Generate all locations

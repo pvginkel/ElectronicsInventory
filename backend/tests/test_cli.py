@@ -29,6 +29,12 @@ class _DummySession:
     def query(self, model):  # pragma: no cover - trivial
         return _DummyQuery(0)
 
+    def get_bind(self):  # pragma: no cover - trivial
+        return SimpleNamespace(dialect=SimpleNamespace(name="sqlite"))
+
+    def execute(self, *args, **kwargs):  # pragma: no cover - trivial
+        return None
+
 
 class _DummyTestDataService:
     """Stubbed test data loader that tracks invocation."""

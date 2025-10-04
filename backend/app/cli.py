@@ -5,6 +5,7 @@ import sys
 from typing import NoReturn
 
 from flask import Flask
+import sqlalchemy as sa
 
 from app import create_app
 from app.database import (
@@ -203,6 +204,18 @@ def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
             with db.session() as session:
                 test_data_service = TestDataService(session)
                 test_data_service.load_full_dataset()
+
+                # Keep the box number sequence aligned with loaded fixtures when supported
+                bind = session.get_bind() if hasattr(session, "get_bind") else None
+                if bind is None:
+                    bind = getattr(session, "bind", None)
+
+                if bind is not None and bind.dialect.name.startswith("postgres"):
+                    session.execute(
+                        sa.text(
+                            "SELECT setval('boxes_box_no_seq', COALESCE(MAX(box_no), 0)) FROM boxes"
+                        )
+                    )
                 print("✅ Test data loaded successfully")
 
                 # Show summary of loaded data
