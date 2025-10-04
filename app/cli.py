@@ -213,7 +213,7 @@ def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
                 if bind is not None and bind.dialect.name.startswith("postgres"):
                     session.execute(
                         sa.text(
-                            "SELECT setval('boxes_box_no_seq', COALESCE(MAX(box_no), 0)) FROM boxes"
+                            "SELECT setval('boxes_box_no_seq', COALESCE(MAX(box_no), 1), CASE WHEN MAX(box_no) IS NULL THEN false ELSE true END) FROM boxes"
                         )
                     )
                 print("✅ Test data loaded successfully")
