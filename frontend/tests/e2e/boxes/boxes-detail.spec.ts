@@ -1,10 +1,25 @@
 import { test, expect } from '../../support/fixtures'
 import { expectConsoleError, makeUnique } from '../../support/helpers'
 
+async function createBoxWithRetry(testData: any, overrides: Record<string, unknown>, attempts = 5) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await testData.boxes.create({ overrides });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('409')) {
+        await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1)));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error('Failed to create box after multiple retries');
+}
+
 test.describe('Boxes - Detail View', () => {
 test('shows usage metrics, location assignments, and supports deletion from detail', async ({ boxes, parts, partsLocations, testData, toastHelper }) => {
     const description = makeUnique('Detail Box')
-    const box = await testData.boxes.create({ overrides: { description, capacity: 20 } })
+    const box = await createBoxWithRetry(testData, { description, capacity: 20 })
     const { part } = await testData.parts.create({ overrides: { description: makeUnique('Box Detail Part') } })
 
     await parts.gotoList()
