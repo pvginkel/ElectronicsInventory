@@ -48,6 +48,82 @@ class TestShoppingListLineService:
                 needed=2,
             )
 
+    def test_add_part_to_concept_list_success(self, session, container):
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+        part_service = container.part_service()
+        seller_service = container.seller_service()
+
+        shopping_list = shopping_list_service.create_list("Concept Only")
+        session.refresh(shopping_list)
+        initial_updated_at = shopping_list.updated_at
+
+        part = part_service.create_part(description="Op-amp set")
+        seller = seller_service.create_seller(
+            "Concept Seller",
+            "https://concept.example.com",
+        )
+
+        line = shopping_list_line_service.add_part_to_concept_list(
+            shopping_list.id,
+            part_id=part.id,
+            needed=5,
+            seller_id=seller.id,
+            note="Prototype run",
+        )
+
+        session.refresh(shopping_list)
+
+        assert line.shopping_list_id == shopping_list.id
+        assert line.part_id == part.id
+        assert line.note == "Prototype run"
+        assert line.seller is not None and line.seller.id == seller.id
+        assert shopping_list.updated_at >= initial_updated_at
+        assert shopping_list.updated_at != initial_updated_at
+
+    def test_add_part_to_concept_list_rejects_non_concept(self, session, container):
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+        part_service = container.part_service()
+
+        shopping_list = shopping_list_service.create_list("Ready Only")
+        part = part_service.create_part(description="Comparator")
+        other_part = part_service.create_part(description="Support component")
+
+        shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=other_part.id,
+            needed=1,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.READY,
+        )
+
+        with pytest.raises(InvalidOperationException):
+            shopping_list_line_service.add_part_to_concept_list(
+                shopping_list.id,
+                part_id=part.id,
+                needed=1,
+            )
+
+    def test_add_part_to_concept_list_duplicate_raises(self, session, container):
+        shopping_list, part = self._create_list_with_part(container)
+        shopping_list_line_service = container.shopping_list_line_service()
+
+        shopping_list_line_service.add_part_to_concept_list(
+            shopping_list.id,
+            part_id=part.id,
+            needed=2,
+        )
+
+        with pytest.raises(InvalidOperationException):
+            shopping_list_line_service.add_part_to_concept_list(
+                shopping_list.id,
+                part_id=part.id,
+                needed=1,
+            )
+
     def test_update_line_changes_fields(self, session, container):
         shopping_list, part = self._create_list_with_part(container)
         shopping_list_line_service = container.shopping_list_line_service()

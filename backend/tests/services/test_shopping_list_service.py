@@ -1,5 +1,7 @@
 """Tests for ShoppingListService."""
 
+from datetime import datetime, timedelta
+
 import pytest
 
 from app.exceptions import (
@@ -227,6 +229,69 @@ class TestShoppingListService:
 
         ordered_notes = shopping_list_service.get_seller_order_notes(shopping_list.id)
         assert [note.seller_id for note in ordered_notes] == [seller_alpha.id, seller_beta.id]
+
+    def test_list_part_memberships_filters_and_orders(self, session, container):
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+        part_service = container.part_service()
+        seller_service = container.seller_service()
+
+        target_part = part_service.create_part(description="Precision reference")
+        other_part = part_service.create_part(description="Spare jumper wires")
+
+        concept_list = shopping_list_service.create_list("Concept stage")
+        ready_list = shopping_list_service.create_list("Ready stage")
+        done_list = shopping_list_service.create_list("Completed stage")
+
+        seller = seller_service.create_seller(
+            "Parts Direct",
+            "https://parts-direct.example.com",
+        )
+
+        concept_line = shopping_list_line_service.add_line(
+            concept_list.id,
+            part_id=target_part.id,
+            needed=6,
+            seller_id=seller.id,
+            note="Grab a couple of extras",
+        )
+        ready_line = shopping_list_line_service.add_line(
+            ready_list.id,
+            part_id=target_part.id,
+            needed=2,
+        )
+        shopping_list_line_service.add_line(
+            concept_list.id,
+            part_id=other_part.id,
+            needed=1,
+        )
+        done_line = shopping_list_line_service.add_line(
+            done_list.id,
+            part_id=target_part.id,
+            needed=4,
+        )
+
+        shopping_list_service.set_list_status(ready_list.id, ShoppingListStatus.READY)
+        shopping_list_service.set_list_status(done_list.id, ShoppingListStatus.READY)
+        shopping_list_service.set_list_status(done_list.id, ShoppingListStatus.DONE)
+
+        stored_done_line = session.get(ShoppingListLine, done_line.id)
+        assert stored_done_line is not None
+        stored_done_line.status = ShoppingListLineStatus.DONE
+
+        now = datetime.utcnow()
+        session.get(ShoppingListLine, ready_line.id).updated_at = now
+        session.get(ShoppingListLine, concept_line.id).updated_at = now - timedelta(minutes=10)
+        session.flush()
+
+        memberships = shopping_list_service.list_part_memberships(target_part.id)
+
+        assert [line.id for line in memberships] == [ready_line.id, concept_line.id]
+        concept_membership = memberships[1]
+        assert concept_membership.note == "Grab a couple of extras"
+        assert concept_membership.seller is not None
+        assert concept_membership.seller.id == seller.id
+        assert all(line.part_id == target_part.id for line in memberships)
 
     def test_upsert_seller_note_validation_and_delete(self, session, container):
         shopping_list_service = container.shopping_list_service()

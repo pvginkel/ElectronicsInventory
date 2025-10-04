@@ -1,12 +1,15 @@
 """Tests for parts API endpoints."""
 
 import json
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
+from app.models.shopping_list import ShoppingListStatus
+from app.models.shopping_list_line import ShoppingListLine, ShoppingListLineStatus
 from app.services.container import ServiceContainer
 
 
@@ -1107,3 +1110,136 @@ class TestPartsAPI:
                 item["key"] == part.key and item["has_cover_attachment"] is True
                 for item in list_with_locations
             )
+
+    def test_get_part_shopping_list_memberships(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Shopping list membership endpoint returns active memberships for a part."""
+        with app.app_context():
+            part_service = container.part_service()
+            shopping_list_service = container.shopping_list_service()
+            shopping_list_line_service = container.shopping_list_line_service()
+            seller_service = container.seller_service()
+
+            part = part_service.create_part("Mixer IC")
+            other_part = part_service.create_part("Bypass capacitors")
+            concept_list = shopping_list_service.create_list("Concept build")
+            ready_list = shopping_list_service.create_list("Ready build")
+            done_list = shopping_list_service.create_list("Finished build")
+            seller = seller_service.create_seller(
+                "Component Hub",
+                "https://component.example.com",
+            )
+
+            concept_line = shopping_list_line_service.add_line(
+                concept_list.id,
+                part_id=part.id,
+                needed=3,
+                seller_id=seller.id,
+                note="Try alternate vendor if stock is low",
+            )
+            ready_line = shopping_list_line_service.add_line(
+                ready_list.id,
+                part_id=part.id,
+                needed=1,
+            )
+            shopping_list_line_service.add_line(
+                concept_list.id,
+                part_id=other_part.id,
+                needed=5,
+            )
+            done_line = shopping_list_line_service.add_line(
+                done_list.id,
+                part_id=part.id,
+                needed=2,
+            )
+
+            shopping_list_service.set_list_status(ready_list.id, ShoppingListStatus.READY)
+            shopping_list_service.set_list_status(done_list.id, ShoppingListStatus.READY)
+            shopping_list_service.set_list_status(done_list.id, ShoppingListStatus.DONE)
+
+            stored_done_line = session.get(ShoppingListLine, done_line.id)
+            assert stored_done_line is not None
+            stored_done_line.status = ShoppingListLineStatus.DONE
+
+            now = datetime.utcnow()
+            session.get(ShoppingListLine, ready_line.id).updated_at = now
+            session.get(ShoppingListLine, concept_line.id).updated_at = now - timedelta(minutes=15)
+            session.flush()
+            session.commit()
+
+            response = client.get(f"/api/parts/{part.key}/shopping-list-memberships")
+
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            assert [entry["line_id"] for entry in data] == [ready_line.id, concept_line.id]
+            assert data[0]["shopping_list_status"] == ShoppingListStatus.READY.value
+            assert data[1]["note"] == "Try alternate vendor if stock is low"
+            assert data[1]["seller"]["id"] == seller.id
+
+    def test_post_part_shopping_list_memberships_success(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Posting to memberships endpoint adds a line and returns its summary."""
+        with app.app_context():
+            part_service = container.part_service()
+            shopping_list_service = container.shopping_list_service()
+            seller_service = container.seller_service()
+            part = part_service.create_part("Quad comparator")
+            concept_list = shopping_list_service.create_list("Comparator concept")
+            seller = seller_service.create_seller("DC Parts", "https://dcparts.example.com")
+
+            payload = {
+                "shopping_list_id": concept_list.id,
+                "needed": 4,
+                "seller_id": seller.id,
+                "note": "Reserve for control board prototypes",
+            }
+
+            response = client.post(
+                f"/api/parts/{part.key}/shopping-list-memberships",
+                json=payload,
+            )
+
+            assert response.status_code == 201
+            data = json.loads(response.data)
+            assert data["shopping_list_id"] == concept_list.id
+            assert data["needed"] == 4
+            assert data["ordered"] == 0
+            assert data["seller"]["id"] == seller.id
+            assert data["note"] == "Reserve for control board prototypes"
+
+            memberships = shopping_list_service.list_part_memberships(part.id)
+            assert any(line.id == data["line_id"] for line in memberships)
+
+    def test_post_part_shopping_list_memberships_requires_concept_list(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Non-concept lists should be rejected by the memberships endpoint."""
+        with app.app_context():
+            part_service = container.part_service()
+            shopping_list_service = container.shopping_list_service()
+            shopping_list_line_service = container.shopping_list_line_service()
+            part = part_service.create_part("Microcontroller")
+            ready_list = shopping_list_service.create_list("MCU ready list")
+            filler_part = part_service.create_part("Support resistor")
+            shopping_list_line_service.add_line(
+                ready_list.id,
+                part_id=filler_part.id,
+                needed=1,
+            )
+            shopping_list_service.set_list_status(ready_list.id, ShoppingListStatus.READY)
+
+            payload = {"shopping_list_id": ready_list.id, "needed": 3}
+
+            response = client.post(
+                f"/api/parts/{part.key}/shopping-list-memberships",
+                json=payload,
+            )
+
+            assert response.status_code == 409
+
+    def test_part_shopping_list_memberships_part_not_found(self, client: FlaskClient):
+        """Membership endpoints return 404 when the part key does not exist."""
+        get_response = client.get("/api/parts/ZZZZ/shopping-list-memberships")
+        assert get_response.status_code == 404
+
+        post_response = client.post(
+            "/api/parts/ZZZZ/shopping-list-memberships",
+            json={"shopping_list_id": 1, "needed": 1},
+        )
+        assert post_response.status_code == 404

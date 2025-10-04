@@ -76,6 +76,35 @@ class ShoppingListLineService(BaseService):
 
         return self._get_line(line.id)
 
+    def add_part_to_concept_list(
+        self,
+        list_id: int,
+        part_id: int,
+        needed: int,
+        *,
+        seller_id: int | None = None,
+        note: str | None = None,
+    ) -> ShoppingListLine:
+        """Add a part to a Concept shopping list enforcing workflow rules."""
+        shopping_list = self._get_list_for_update(list_id)
+        if shopping_list.status != ShoppingListStatus.CONCEPT:
+            raise InvalidOperationException(
+                "add part to concept list",
+                "parts can only be added via this workflow while the list is in Concept status",
+            )
+
+        line = self.add_line(
+            list_id,
+            part_id,
+            needed,
+            seller_id=seller_id,
+            note=note,
+        )
+
+        self._touch_list(shopping_list)
+        self.db.flush()
+        return self._get_line(line.id)
+
     def update_line(
         self,
         line_id: int,

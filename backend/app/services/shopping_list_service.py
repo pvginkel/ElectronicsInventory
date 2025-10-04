@@ -215,6 +215,29 @@ class ShoppingListService(BaseService):
         shopping_list = self._attach_ready_payload(self._load_list_with_lines(list_id))
         return shopping_list.seller_groups
 
+    def list_part_memberships(self, part_id: int) -> list[ShoppingListLine]:
+        """Return active shopping list lines that reference the provided part."""
+        stmt = (
+            select(ShoppingListLine)
+            .join(ShoppingList, ShoppingListLine.shopping_list_id == ShoppingList.id)
+            .options(
+                selectinload(ShoppingListLine.shopping_list),
+                selectinload(ShoppingListLine.part).selectinload(Part.seller),
+                selectinload(ShoppingListLine.seller),
+            )
+            .where(
+                ShoppingListLine.part_id == part_id,
+                ShoppingListLine.status != ShoppingListLineStatus.DONE,
+                ShoppingList.status != ShoppingListStatus.DONE,
+            )
+            .order_by(
+                ShoppingListLine.updated_at.desc(),
+                ShoppingList.updated_at.desc(),
+                ShoppingListLine.created_at.asc(),
+            )
+        )
+        return list(self.db.execute(stmt).scalars().all())
+
     def upsert_seller_note(
         self,
         list_id: int,
