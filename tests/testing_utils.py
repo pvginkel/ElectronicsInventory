@@ -125,6 +125,14 @@ class StubMetricsService(MetricsServiceProtocol):
         """No-op task execution recording."""
         pass
 
+    def record_shopping_list_lines_ordered(self, count: int, mode: str) -> None:
+        """No-op ordered-line metric recording."""
+        pass
+
+    def record_shopping_list_line_receipt(self, lines: int, total_qty: int) -> None:
+        """No-op receipt metric recording."""
+        pass
+
     def record_ai_analysis(
         self,
         status: str,
