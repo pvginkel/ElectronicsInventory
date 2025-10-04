@@ -76,6 +76,7 @@ def update_shopping_list_line(
     line = shopping_list_line_service.update_line(
         line_id=line_id,
         seller_id=updates.get("seller_id"),
+        seller_id_provided="seller_id" in updates,
         needed=updates.get("needed"),
         note=updates.get("note"),
     )

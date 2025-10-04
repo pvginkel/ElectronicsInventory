@@ -81,6 +81,7 @@ class ShoppingListLineService(BaseService):
         line_id: int,
         *,
         seller_id: int | None = None,
+        seller_id_provided: bool = False,
         needed: int | None = None,
         note: str | None = None,
     ) -> ShoppingListLine:
@@ -93,7 +94,7 @@ class ShoppingListLineService(BaseService):
                 "completed lines cannot be edited",
             )
 
-        if seller_id is not None:
+        if seller_id_provided and seller_id is not None:
             self.seller_service.get_seller(seller_id)
         if needed is not None and needed < 1:
             raise InvalidOperationException(
@@ -108,7 +109,7 @@ class ShoppingListLineService(BaseService):
                     "needed quantity can only change while the line is NEW",
                 )
             line.needed = needed
-        if seller_id is not None:
+        if seller_id_provided:
             line.seller_id = seller_id
         if note is not None:
             line.note = note
@@ -164,6 +165,12 @@ class ShoppingListLineService(BaseService):
             raise InvalidOperationException(
                 "mark line ordered",
                 "lines can only be ordered while the list is in Ready status",
+            )
+
+        if line.status == ShoppingListLineStatus.DONE:
+            raise InvalidOperationException(
+                "mark line ordered",
+                "completed lines cannot be reordered",
             )
 
         qty = line.needed if ordered_qty is None else ordered_qty
@@ -277,9 +284,16 @@ class ShoppingListLineService(BaseService):
                 "one or more lines do not belong to the requested seller group",
             )
 
+        pending_updates: list[tuple[ShoppingListLine, int]] = []
         for line in group_lines:
             requested = ordered_map.get(line.id)
             qty = line.needed if requested is None else requested
+
+            if line.status == ShoppingListLineStatus.DONE:
+                raise InvalidOperationException(
+                    "mark seller group ordered",
+                    "completed lines cannot be reordered",
+                )
             if qty < 0:
                 raise InvalidOperationException(
                     "mark seller group ordered",
@@ -290,6 +304,9 @@ class ShoppingListLineService(BaseService):
                     "mark seller group ordered",
                     "ordered quantity cannot be less than received quantity",
                 )
+            pending_updates.append((line, qty))
+
+        for line, qty in pending_updates:
             line.ordered = qty
             line.status = ShoppingListLineStatus.ORDERED
 
