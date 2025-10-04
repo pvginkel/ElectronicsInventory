@@ -7,7 +7,6 @@ from pathlib import Path
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_ENV_FILES: tuple[Path, ...] = (BASE_DIR / ".env",)
 ENV_FILE_OVERRIDES: dict[str, tuple[Path, ...]] = {
