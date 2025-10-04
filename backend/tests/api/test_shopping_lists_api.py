@@ -71,21 +71,31 @@ class TestShoppingListsAPI:
 
         list_resp = client.get("/api/shopping-lists")
         assert list_resp.status_code == 200
-        names = {entry["name"] for entry in list_resp.get_json()}
+        overview_payload = list_resp.get_json()
+        names = {entry["name"] for entry in overview_payload}
         assert concept_list.name in names
         assert ready_list.name in names
         assert done_list.name not in names
-        for entry in list_resp.get_json():
+        for entry in overview_payload:
+            counts = entry["line_counts"]
+            assert counts["total"] == counts["new"] + counts["ordered"] + counts["done"]
             assert "seller_notes" in entry
             assert "has_ordered_lines" in entry
+            assert "last_updated" in entry
+            assert entry["last_updated"] == entry["updated_at"]
 
         list_all_resp = client.get("/api/shopping-lists?include_done=true")
         assert list_all_resp.status_code == 200
-        all_names = {entry["name"] for entry in list_all_resp.get_json()}
+        list_all_payload = list_all_resp.get_json()
+        all_names = {entry["name"] for entry in list_all_payload}
         assert done_list.name in all_names
-        for entry in list_all_resp.get_json():
+        for entry in list_all_payload:
+            counts = entry["line_counts"]
+            assert counts["total"] == counts["new"] + counts["ordered"] + counts["done"]
             assert "seller_notes" in entry
             assert "has_ordered_lines" in entry
+            assert "last_updated" in entry
+            assert entry["last_updated"] == entry["updated_at"]
 
     def test_status_transitions_validate_rules(self, client, session, container):
         shopping_list_service = container.shopping_list_service()
@@ -135,6 +145,16 @@ class TestShoppingListsAPI:
         assert done_resp.get_json()["status"] == ShoppingListStatus.DONE.value
         assert "seller_notes" in done_resp.get_json()
 
+        reopen_resp = client.put(
+            f"/api/shopping-lists/{list_id}/status",
+            json={"status": ShoppingListStatus.READY.value},
+        )
+        assert reopen_resp.status_code == 409
+        assert (
+            reopen_resp.get_json()["error"]
+            == "Cannot change shopping list status because lists marked as done cannot change status"
+        )
+
     def test_upsert_seller_order_note_endpoint(self, client, session, container):
         shopping_list_service = container.shopping_list_service()
         shopping_list_line_service = container.shopping_list_line_service()
@@ -177,3 +197,51 @@ class TestShoppingListsAPI:
         fetch_resp = client.get(f"/api/shopping-lists/{shopping_list.id}")
         assert fetch_resp.status_code == 200
         assert fetch_resp.get_json()["seller_notes"] == []
+
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.DONE,
+        )
+        session.commit()
+
+        locked_resp = client.put(
+            f"/api/shopping-lists/{shopping_list.id}/seller-groups/{seller.id}/order-note",
+            json={"note": "Should be rejected"},
+        )
+        assert locked_resp.status_code == 409
+        assert (
+            locked_resp.get_json()["error"]
+            == "Cannot update seller note because lists marked as done cannot be modified"
+        )
+
+    def test_update_endpoint_rejects_done_lists(self, client, session, container):
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+        part_service = container.part_service()
+
+        shopping_list = shopping_list_service.create_list(f"Metadata-{uuid.uuid4()}")
+        part = part_service.create_part(description="Metadata resistor")
+        shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=1,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.READY,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.DONE,
+        )
+        session.commit()
+
+        update_resp = client.put(
+            f"/api/shopping-lists/{shopping_list.id}",
+            json={"description": "Should fail"},
+        )
+        assert update_resp.status_code == 409
+        assert (
+            update_resp.get_json()["error"]
+            == "Cannot update shopping list because lists marked as done cannot be modified"
+        )

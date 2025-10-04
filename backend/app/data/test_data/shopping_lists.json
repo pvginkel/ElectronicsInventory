@@ -13,5 +13,10 @@
     "name": "Audio Mixer Beta",
     "description": "Archived BOM from the audio mixer beta run.",
     "status": "done"
+  },
+  {
+    "name": "Control Surface Archive",
+    "description": "Completed list cataloging the legacy control surface refresh.",
+    "status": "done"
   }
 ]
