@@ -64,12 +64,36 @@ class TestShoppingListLineService:
             line.id,
             needed=7,
             seller_id=seller.id,
+            seller_id_provided=True,
             note="Request ROHS variant",
         )
 
         assert updated.needed == 7
         assert updated.seller_id == seller.id
         assert updated.note == "Request ROHS variant"
+
+    def test_update_line_allows_clearing_seller_override(self, session, container):
+        shopping_list, part = self._create_list_with_part(container)
+        shopping_list_line_service = container.shopping_list_line_service()
+        seller = container.seller_service().create_seller(
+            "Override Seller",
+            "https://override.example.com",
+        )
+
+        line = shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=5,
+            seller_id=seller.id,
+        )
+
+        cleared = shopping_list_line_service.update_line(
+            line.id,
+            seller_id=None,
+            seller_id_provided=True,
+        )
+
+        assert cleared.seller_id is None
 
     def test_update_line_rejects_invalid_needed(self, session, container):
         shopping_list, part = self._create_list_with_part(container)
@@ -165,6 +189,29 @@ class TestShoppingListLineService:
         assert ordered_line.ordered == 3
         assert ordered_line.note == "Ordered for weekend build"
         assert ordered_line.is_revertible is True
+
+    def test_set_line_ordered_rejects_done_lines(self, session, container):
+        shopping_list, part = self._create_list_with_part(container)
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+
+        line = shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=2,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.READY,
+        )
+
+        stored_line = session.get(ShoppingListLine, line.id)
+        assert stored_line is not None
+        stored_line.status = ShoppingListLineStatus.DONE
+        session.flush()
+
+        with pytest.raises(InvalidOperationException):
+            shopping_list_line_service.set_line_ordered(line.id, ordered_qty=2)
 
     def test_set_line_new_resets_state(self, session, container):
         shopping_list, part = self._create_list_with_part(container)
@@ -319,3 +366,40 @@ class TestShoppingListLineService:
         second_line = next(line for line in updated_lines if line.id == line_two.id)
         assert first_line.ordered == line_one.needed
         assert second_line.ordered == 5
+
+    def test_set_group_ordered_rejects_done_lines(self, session, container):
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+        part_service = container.part_service()
+        seller_service = container.seller_service()
+
+        seller = seller_service.create_seller("Done Seller", "https://done.example")
+        part_default = part_service.create_part(
+            description="Comparator",
+            seller_id=seller.id,
+        )
+
+        shopping_list = shopping_list_service.create_list("Group Done")
+        line = shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part_default.id,
+            needed=3,
+        )
+        session.commit()
+
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.READY,
+        )
+
+        stored_line = session.get(ShoppingListLine, line.id)
+        assert stored_line is not None
+        stored_line.status = ShoppingListLineStatus.DONE
+        session.flush()
+
+        with pytest.raises(InvalidOperationException):
+            shopping_list_line_service.set_group_ordered(
+                shopping_list.id,
+                seller.id,
+                {line.id: 3},
+            )
