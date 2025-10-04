@@ -16,6 +16,7 @@ from app.exceptions import (
     ResourceConflictException,
 )
 from app.models.part import Part
+from app.models.part_location import PartLocation
 from app.models.seller import Seller
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.models.shopping_list_line import ShoppingListLine, ShoppingListLineStatus
@@ -415,7 +416,12 @@ class ShoppingListService(BaseService):
             select(ShoppingList)
             .options(
                 selectinload(ShoppingList.lines).options(
-                    selectinload(ShoppingListLine.part).selectinload(Part.seller),
+                    selectinload(ShoppingListLine.part).options(
+                        selectinload(Part.seller),
+                        selectinload(Part.part_locations).selectinload(
+                            PartLocation.location
+                        ),
+                    ),
                     selectinload(ShoppingListLine.seller),
                 ),
                 selectinload(ShoppingList.seller_notes).selectinload(

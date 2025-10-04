@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.part import Part
+from app.models.part_location import PartLocation
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.models.shopping_list_line import (
     ShoppingListLine,
@@ -19,6 +20,7 @@ from app.services.seller_service import SellerService
 
 if TYPE_CHECKING:
     from app.services.metrics_service import MetricsService
+    from app.services.inventory_service import InventoryService
 
 
 class ShoppingListLineService(BaseService):
@@ -28,10 +30,12 @@ class ShoppingListLineService(BaseService):
         self,
         db,
         seller_service: SellerService,
+        inventory_service: "InventoryService",
         metrics_service: "MetricsService | None" = None,
     ) -> None:
         super().__init__(db)
         self.seller_service = seller_service
+        self.inventory_service = inventory_service
         self.metrics_service = metrics_service
 
     def add_line(
@@ -254,6 +258,135 @@ class ShoppingListLineService(BaseService):
         self.db.flush()
         return self._get_line(line.id)
 
+    def receive_line_stock(
+        self,
+        line_id: int,
+        receive_qty: int,
+        allocations: list[dict[str, int]],
+    ) -> ShoppingListLine:
+        """Apply received stock to an ordered shopping list line."""
+
+        if receive_qty < 1:
+            raise InvalidOperationException(
+                "receive shopping list line stock",
+                "receive quantity must be at least 1",
+            )
+        if not allocations:
+            raise InvalidOperationException(
+                "receive shopping list line stock",
+                "at least one location allocation is required",
+            )
+
+        seen_locations: set[tuple[int, int]] = set()
+        allocation_map: dict[tuple[int, int], int] = {}
+        allocation_total = 0
+        for entry in allocations:
+            box_no = entry.get("box_no")
+            loc_no = entry.get("loc_no")
+            qty = entry.get("qty")
+
+            if box_no is None or loc_no is None or qty is None:
+                raise InvalidOperationException(
+                    "receive shopping list line stock",
+                    "allocations must include box_no, loc_no, and qty",
+                )
+            if qty < 1:
+                raise InvalidOperationException(
+                    "receive shopping list line stock",
+                    "allocation quantities must be at least 1",
+                )
+
+            location_key = (box_no, loc_no)
+            if location_key in seen_locations:
+                raise InvalidOperationException(
+                    "receive shopping list line stock",
+                    "each location may only appear once per receipt",
+                )
+            seen_locations.add(location_key)
+            allocation_map[location_key] = qty
+            allocation_total += qty
+
+        if allocation_total != receive_qty:
+            raise InvalidOperationException(
+                "receive shopping list line stock",
+                "allocation quantities must sum to the receive quantity",
+            )
+
+        line = self._get_line_for_update(line_id)
+        shopping_list = self._get_list_for_update(line.shopping_list_id)
+
+        if shopping_list.status == ShoppingListStatus.DONE:
+            raise InvalidOperationException(
+                "receive shopping list line stock",
+                "cannot receive stock for lines on a completed list",
+            )
+        if line.status != ShoppingListLineStatus.ORDERED:
+            raise InvalidOperationException(
+                "receive shopping list line stock",
+                "stock updates are only allowed when the line is ordered",
+            )
+
+        part = self.db.execute(
+            select(Part).where(Part.id == line.part_id)
+        ).scalar_one_or_none()
+        if part is None:
+            raise RecordNotFoundException("Part", line.part_id)
+
+        for (box_no, loc_no), qty in allocation_map.items():
+            self.inventory_service.add_stock(part.key, box_no, loc_no, qty)
+
+        line.received += receive_qty
+        self._touch_list(shopping_list)
+        self.db.flush()
+
+        if self.metrics_service is not None:
+            self.metrics_service.record_shopping_list_line_receipt(
+                lines=1,
+                total_qty=receive_qty,
+            )
+
+        return self._get_line(line.id)
+
+    def complete_line(
+        self,
+        line_id: int,
+        *,
+        mismatch_reason: str | None = None,
+    ) -> ShoppingListLine:
+        """Mark an ordered line as completed, optionally recording a mismatch note."""
+
+        line = self._get_line_for_update(line_id)
+        shopping_list = self._get_list_for_update(line.shopping_list_id)
+
+        if shopping_list.status == ShoppingListStatus.DONE:
+            raise InvalidOperationException(
+                "complete shopping list line",
+                "cannot modify lines on a completed list",
+            )
+        if line.status != ShoppingListLineStatus.ORDERED:
+            raise InvalidOperationException(
+                "complete shopping list line",
+                "only ordered lines can be marked as done",
+            )
+
+        mismatch_required = line.received != line.ordered
+        note_value = (mismatch_reason or "").strip()
+        if mismatch_required and not note_value:
+            raise InvalidOperationException(
+                "complete shopping list line",
+                "mismatch reason is required when quantities differ",
+            )
+
+        line.status = ShoppingListLineStatus.DONE
+        line.completed_at = datetime.utcnow()
+        line.completion_mismatch = mismatch_required
+        line.completion_note = note_value if note_value else None
+
+        self._touch_list(shopping_list)
+        self.db.flush()
+
+        return self._get_line(line.id)
+
     def set_group_ordered(
         self,
         list_id: int,
@@ -361,7 +494,9 @@ class ShoppingListLineService(BaseService):
         stmt = (
             select(ShoppingListLine)
             .options(
-                selectinload(ShoppingListLine.part),
+                selectinload(ShoppingListLine.part)
+                .selectinload(Part.part_locations)
+                .selectinload(PartLocation.location),
                 selectinload(ShoppingListLine.seller),
                 selectinload(ShoppingListLine.shopping_list),
             )
@@ -370,7 +505,7 @@ class ShoppingListLineService(BaseService):
         line = self.db.execute(stmt).scalar_one_or_none()
         if not line:
             raise RecordNotFoundException("Shopping list line", line_id)
-        self.db.refresh(line, attribute_names=["seller", "part"])
+        self.db.refresh(line, attribute_names=["seller"])
         return line
 
     def _get_line_for_update(self, line_id: int) -> ShoppingListLine:

@@ -1,8 +1,11 @@
 """Tests for ShoppingListLineService."""
 
 import pytest
+from sqlalchemy import select
 
 from app.exceptions import InvalidOperationException, RecordNotFoundException
+from app.models.part_location import PartLocation
+from app.models.quantity_history import QuantityHistory
 from app.models.shopping_list import ShoppingListStatus
 from app.models.shopping_list_line import ShoppingListLine, ShoppingListLineStatus
 
@@ -479,3 +482,162 @@ class TestShoppingListLineService:
                 seller.id,
                 {line.id: 3},
             )
+
+    def test_receive_line_stock_success(self, session, container):
+        shopping_list, part = self._create_list_with_part(container)
+        box = container.box_service().create_box("Receiving Bin", 5)
+        session.flush()
+
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+
+        line = shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=5,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.READY,
+        )
+        session.flush()
+
+        shopping_list_line_service.set_line_ordered(
+            line.id,
+            ordered_qty=5,
+        )
+        session.refresh(shopping_list)
+        previous_updated_at = shopping_list.updated_at
+
+        received_line = shopping_list_line_service.receive_line_stock(
+            line.id,
+            receive_qty=3,
+            allocations=[
+                {"box_no": box.box_no, "loc_no": 1, "qty": 2},
+                {"box_no": box.box_no, "loc_no": 2, "qty": 1},
+            ],
+        )
+
+        assert received_line.received == 3
+        assert received_line.can_receive is True
+        assert received_line.completed_at is None
+
+        db_locations = session.execute(
+            select(PartLocation).where(PartLocation.part_id == part.id)
+        ).scalars().all()
+        assert len(db_locations) == 2
+
+        location_summary = {
+            (loc.box_no, loc.loc_no): loc.qty for loc in received_line.part_locations
+        }
+        assert (box.box_no, 1) in location_summary, location_summary
+        assert (box.box_no, 2) in location_summary, location_summary
+        assert location_summary[(box.box_no, 1)] == 2
+        assert location_summary[(box.box_no, 2)] == 1
+
+        history_entries = session.execute(
+            select(QuantityHistory).where(QuantityHistory.part_id == part.id)
+        ).scalars().all()
+        assert {entry.delta_qty for entry in history_entries} == {2, 1}
+
+        session.refresh(shopping_list)
+        assert shopping_list.updated_at >= previous_updated_at
+
+    def test_receive_line_stock_rejects_non_ordered(self, session, container):
+        shopping_list, part = self._create_list_with_part(container)
+        box = container.box_service().create_box("Pending Bin", 3)
+        session.flush()
+
+        shopping_list_line_service = container.shopping_list_line_service()
+
+        line = shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=2,
+        )
+
+        with pytest.raises(InvalidOperationException):
+            shopping_list_line_service.receive_line_stock(
+                line.id,
+                receive_qty=1,
+                allocations=[
+                    {"box_no": box.box_no, "loc_no": 1, "qty": 1},
+                ],
+            )
+
+    def test_complete_line_success_without_mismatch(self, session, container):
+        shopping_list, part = self._create_list_with_part(container)
+        box = container.box_service().create_box("Completion Bin", 4)
+        session.flush()
+
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+
+        line = shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=4,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.READY,
+        )
+        session.flush()
+        shopping_list_line_service.set_line_ordered(line.id, ordered_qty=4)
+
+        shopping_list_line_service.receive_line_stock(
+            line.id,
+            receive_qty=4,
+            allocations=[
+                {"box_no": box.box_no, "loc_no": 1, "qty": 4},
+            ],
+        )
+
+        completed_line = shopping_list_line_service.complete_line(line.id)
+
+        assert completed_line.status == ShoppingListLineStatus.DONE
+        assert completed_line.can_receive is False
+        assert completed_line.completion_mismatch is False
+        assert completed_line.completion_note is None
+        assert completed_line.completed_at is not None
+        assert completed_line.has_quantity_mismatch is False
+
+    def test_complete_line_requires_mismatch_reason(self, session, container):
+        shopping_list, part = self._create_list_with_part(container)
+        box = container.box_service().create_box("Mismatch Bin", 2)
+        session.flush()
+
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+
+        line = shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=3,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.READY,
+        )
+        session.flush()
+        shopping_list_line_service.set_line_ordered(line.id, ordered_qty=3)
+
+        shopping_list_line_service.receive_line_stock(
+            line.id,
+            receive_qty=1,
+            allocations=[
+                {"box_no": box.box_no, "loc_no": 1, "qty": 1},
+            ],
+        )
+
+        with pytest.raises(InvalidOperationException):
+            shopping_list_line_service.complete_line(line.id)
+
+        completed_line = shopping_list_line_service.complete_line(
+            line.id,
+            mismatch_reason="Supplier short shipped",
+        )
+
+        assert completed_line.completion_mismatch is True
+        assert completed_line.completion_note == "Supplier short shipped"
+        assert completed_line.status == ShoppingListLineStatus.DONE

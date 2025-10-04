@@ -11,8 +11,10 @@ from app.schemas.shopping_list import ShoppingListLinesResponseSchema
 from app.schemas.shopping_list_line import (
     ShoppingListGroupOrderSchema,
     ShoppingListLineCreateSchema,
+    ShoppingListLineCompleteSchema,
     ShoppingListLineListSchema,
     ShoppingListLineOrderSchema,
+    ShoppingListLineReceiveSchema,
     ShoppingListLineResponseSchema,
     ShoppingListLineStatusUpdateSchema,
     ShoppingListLineUpdateSchema,
@@ -233,3 +235,61 @@ def mark_group_ordered(
         ShoppingListLineResponseSchema.model_validate(line).model_dump()
         for line in updated_lines
     ]
+
+
+@shopping_list_lines_bp.route(
+    "/shopping-list-lines/<int:line_id>/receive",
+    methods=["POST"],
+)
+@api.validate(
+    json=ShoppingListLineReceiveSchema,
+    resp=SpectreeResponse(
+        HTTP_200=ShoppingListLineResponseSchema,
+        HTTP_400=ErrorResponseSchema,
+        HTTP_404=ErrorResponseSchema,
+        HTTP_409=ErrorResponseSchema,
+    ),
+)
+@handle_api_errors
+@inject
+def receive_shopping_list_line_stock(
+    line_id: int,
+    shopping_list_line_service=Provide[ServiceContainer.shopping_list_line_service],
+):
+    """Receive stock for an ordered shopping list line."""
+    payload = ShoppingListLineReceiveSchema.model_validate(request.get_json())
+    allocations = [allocation.model_dump() for allocation in payload.allocations]
+    line = shopping_list_line_service.receive_line_stock(
+        line_id=line_id,
+        receive_qty=payload.receive_qty,
+        allocations=allocations,
+    )
+    return ShoppingListLineResponseSchema.model_validate(line).model_dump()
+
+
+@shopping_list_lines_bp.route(
+    "/shopping-list-lines/<int:line_id>/complete",
+    methods=["POST"],
+)
+@api.validate(
+    json=ShoppingListLineCompleteSchema,
+    resp=SpectreeResponse(
+        HTTP_200=ShoppingListLineResponseSchema,
+        HTTP_400=ErrorResponseSchema,
+        HTTP_404=ErrorResponseSchema,
+        HTTP_409=ErrorResponseSchema,
+    ),
+)
+@handle_api_errors
+@inject
+def complete_shopping_list_line(
+    line_id: int,
+    shopping_list_line_service=Provide[ServiceContainer.shopping_list_line_service],
+):
+    """Mark an ordered shopping list line as completed."""
+    payload = ShoppingListLineCompleteSchema.model_validate(request.get_json() or {})
+    line = shopping_list_line_service.complete_line(
+        line_id=line_id,
+        mismatch_reason=payload.mismatch_reason,
+    )
+    return ShoppingListLineResponseSchema.model_validate(line).model_dump()
