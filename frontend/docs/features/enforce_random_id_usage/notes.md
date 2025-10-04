@@ -1,7 +1,0 @@
-- For cache busters and other short-lived unique IDs (e.g. `src/components/documents/cover-image-display.tsx`, `src/hooks/use-document-upload.ts`, `tests/support/helpers/sse-mock.ts`), reuse the shared randomness helper once it exists; don't rely on `crypto.randomUUID()` being present in every browser context.
-- Same approach for correlation IDs: if `traceparent` can't provide a trace ID, fall back to the shared randomness helper with a longer token (>=14 chars).
-- Add a new `makeUniqueToken(length?: number)` that backs `makeUnique` and can be reused anywhere we currently slice the suffix or call `split('-').pop()`.
-- Replace the manual `substring`/`split` patterns with `makeUniqueToken(...)` and use straight `makeUnique` in the simpler cases.
-- `tests/support/helpers/sse-mock.ts`: keep the epoch-based timestamps unless we truly want relative values; the helper should continue to expose real-time data for logging.
-- `tests/e2e/workflows/end-to-end.spec.ts`: the token helper already yields lowercase, hyphenated segments—no extra slug normalisation needed.
-- When `Date.now()` is legitimately required (e.g. `tests/support/helpers/test-events.ts`, `tests/unit/playwright-bridge.test.ts`, `tests/support/helpers/toast-helpers.ts`), add documented lint suppressions rather than working around the rule.
