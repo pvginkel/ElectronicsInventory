@@ -412,6 +412,85 @@ class TestShoppingListLinesAPI:
         )
         assert receive_resp.status_code == 409
 
+    def test_line_mutations_reject_done_list(self, client, session, container):
+        shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
+        part_service = container.part_service()
+        shopping_list_service = container.shopping_list_service()
+
+        create_resp = client.post(
+            f"/api/shopping-lists/{shopping_list_id}/lines",
+            json={"part_id": part_id, "needed": 2},
+        )
+        assert create_resp.status_code == 201
+        line_id = create_resp.get_json()["id"]
+
+        shopping_list_service.set_list_status(
+            shopping_list_id,
+            ShoppingListStatus.READY,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list_id,
+            ShoppingListStatus.DONE,
+        )
+        session.commit()
+
+        extra_part = part_service.create_part(description="Post completion component")
+        session.commit()
+
+        add_resp = client.post(
+            f"/api/shopping-lists/{shopping_list_id}/lines",
+            json={"part_id": extra_part.id, "needed": 1},
+        )
+        assert add_resp.status_code == 409
+        assert (
+            add_resp.get_json()["error"]
+            == "Cannot add part to shopping list because lines cannot be modified on a list that is marked done"
+        )
+
+        update_resp = client.put(
+            f"/api/shopping-list-lines/{line_id}",
+            json={"note": "Attempt update"},
+        )
+        assert update_resp.status_code == 409
+        assert (
+            update_resp.get_json()["error"]
+            == "Cannot update shopping list line because lines cannot be modified on a list that is marked done"
+        )
+
+        order_resp = client.post(
+            f"/api/shopping-list-lines/{line_id}/order",
+            json={"ordered_qty": 2},
+        )
+        assert order_resp.status_code == 409
+        assert (
+            order_resp.get_json()["error"]
+            == "Cannot mark line ordered because lines cannot be modified on a list that is marked done"
+        )
+
+        revert_resp = client.post(
+            f"/api/shopping-list-lines/{line_id}/revert",
+            json={"status": ShoppingListLineStatus.NEW.value},
+        )
+        assert revert_resp.status_code == 409
+        assert (
+            revert_resp.get_json()["error"]
+            == "Cannot revert line to new because lines cannot be modified on a list that is marked done"
+        )
+
+        delete_resp = client.delete(f"/api/shopping-list-lines/{line_id}")
+        assert delete_resp.status_code == 409
+        assert (
+            delete_resp.get_json()["error"]
+            == "Cannot delete shopping list line because lines cannot be modified on a list that is marked done"
+        )
+
+        fetch_resp = client.get(f"/api/shopping-lists/{shopping_list_id}/lines")
+        assert fetch_resp.status_code == 200
+        lines = fetch_resp.get_json()["lines"]
+        assert len(lines) == 1
+        assert lines[0]["id"] == line_id
+        assert lines[0]["status"] == ShoppingListLineStatus.NEW.value
+
     def test_complete_line_endpoint_requires_mismatch_reason(self, client, session, container):
         shopping_list_id, part_id, _ = self._setup_list_and_part(container, session)
         box = container.box_service().create_box("API Mismatch Box", 2)

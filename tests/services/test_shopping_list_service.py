@@ -8,7 +8,7 @@ from app.exceptions import (
     InvalidOperationException,
     ResourceConflictException,
 )
-from app.models.shopping_list import ShoppingListStatus
+from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.models.shopping_list_line import ShoppingListLine, ShoppingListLineStatus
 from app.models.shopping_list_seller_note import ShoppingListSellerNote
 
@@ -89,6 +89,39 @@ class TestShoppingListService:
                 ShoppingListStatus.CONCEPT,
             )
 
+    def test_set_list_status_rejects_reopening_done(self, session, container):
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+        part_service = container.part_service()
+
+        shopping_list = shopping_list_service.create_list("Finalized BOM")
+        part = part_service.create_part(description="Legacy DAC")
+        shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=1,
+        )
+
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.READY,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.DONE,
+        )
+
+        with pytest.raises(InvalidOperationException) as exc:
+            shopping_list_service.set_list_status(
+                shopping_list.id,
+                ShoppingListStatus.READY,
+            )
+
+        assert (
+            exc.value.message
+            == "Cannot change shopping list status because lists marked as done cannot change status"
+        )
+
     def test_list_lists_filters_done_by_default(self, session, container):
         shopping_list_service = container.shopping_list_service()
         shopping_list_line_service = container.shopping_list_line_service()
@@ -117,6 +150,35 @@ class TestShoppingListService:
         all_names = {shopping_list.name for shopping_list in all_lists}
         assert done_list.name in all_names
 
+    def test_list_lists_orders_by_updated_at(self, session, container):
+        shopping_list_service = container.shopping_list_service()
+
+        early_list = shopping_list_service.create_list("Early Workbench")
+        mid_list = shopping_list_service.create_list("Mid Workbench")
+        recent_list = shopping_list_service.create_list("Recent Workbench")
+
+        now = datetime.utcnow()
+        session.get(ShoppingList, early_list.id).updated_at = now - timedelta(hours=2)
+        session.get(ShoppingList, mid_list.id).updated_at = now - timedelta(hours=1)
+        session.get(ShoppingList, recent_list.id).updated_at = now
+        session.flush()
+
+        ordered = shopping_list_service.list_lists()
+        relevant = [
+            shopping_list
+            for shopping_list in ordered
+            if shopping_list.name
+            in {"Early Workbench", "Mid Workbench", "Recent Workbench"}
+        ]
+
+        assert [shopping_list.name for shopping_list in relevant] == [
+            "Recent Workbench",
+            "Mid Workbench",
+            "Early Workbench",
+        ]
+        timestamps = [shopping_list.updated_at for shopping_list in relevant]
+        assert timestamps == sorted(timestamps, reverse=True)
+
     def test_delete_list_cascades_lines(self, session, container):
         shopping_list_service = container.shopping_list_service()
         shopping_list_line_service = container.shopping_list_line_service()
@@ -135,6 +197,38 @@ class TestShoppingListService:
 
         deleted_line = session.get(ShoppingListLine, line.id)
         assert deleted_line is None
+
+    def test_update_list_rejects_done_lists(self, session, container):
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+        part_service = container.part_service()
+
+        shopping_list = shopping_list_service.create_list("Locked Metadata")
+        part = part_service.create_part(description="Legacy encoder")
+        shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=1,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.READY,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.DONE,
+        )
+
+        with pytest.raises(InvalidOperationException) as exc:
+            shopping_list_service.update_list(
+                shopping_list.id,
+                name="Updated Name",
+            )
+
+        assert (
+            exc.value.message
+            == "Cannot update shopping list because lists marked as done cannot be modified"
+        )
 
     def test_get_list_includes_seller_groups_and_notes(self, session, container):
         shopping_list_service = container.shopping_list_service()
@@ -343,3 +437,20 @@ class TestShoppingListService:
                 seller_unused.id,
                 "Should fail",
             )
+
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.DONE,
+        )
+
+        with pytest.raises(InvalidOperationException) as exc:
+            shopping_list_service.upsert_seller_note(
+                shopping_list.id,
+                seller_primary.id,
+                "Attempt after completion",
+            )
+
+        assert (
+            exc.value.message
+            == "Cannot update seller note because lists marked as done cannot be modified"
+        )

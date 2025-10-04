@@ -71,5 +71,25 @@
     "received": 6,
     "note": "Archive leftovers for service spares.",
     "status": "done"
+  },
+  {
+    "shopping_list_name": "Control Surface Archive",
+    "part_key": "NORS",
+    "needed": 3,
+    "seller_id": 2,
+    "ordered": 3,
+    "received": 3,
+    "note": "Final procurement for control surface faders.",
+    "status": "done"
+  },
+  {
+    "shopping_list_name": "Control Surface Archive",
+    "part_key": "WXAB",
+    "needed": 12,
+    "seller_id": null,
+    "ordered": 12,
+    "received": 12,
+    "note": "Completed with surplus stored in lab bins.",
+    "status": "done"
   }
 ]

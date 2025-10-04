@@ -34,6 +34,22 @@ class TestShoppingListLineService:
         assert line.part_id == part.id
         assert line.status == ShoppingListLineStatus.NEW
 
+    def test_add_line_updates_parent_timestamp(self, session, container):
+        shopping_list, part = self._create_list_with_part(container)
+        shopping_list_line_service = container.shopping_list_line_service()
+
+        session.refresh(shopping_list)
+        previous_updated_at = shopping_list.updated_at
+
+        shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=2,
+        )
+
+        session.refresh(shopping_list)
+        assert shopping_list.updated_at > previous_updated_at
+
     def test_add_line_duplicate_prevented(self, session, container):
         shopping_list, part = self._create_list_with_part(container)
         shopping_list_line_service = container.shopping_list_line_service()
@@ -127,6 +143,41 @@ class TestShoppingListLineService:
                 needed=1,
             )
 
+    def test_add_line_rejects_done_list(self, session, container):
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+        part_service = container.part_service()
+
+        shopping_list = shopping_list_service.create_list("Immutable After Done")
+        part_initial = part_service.create_part(description="Initial component")
+        part_followup = part_service.create_part(description="Follow-up component")
+
+        shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part_initial.id,
+            needed=1,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.READY,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.DONE,
+        )
+
+        with pytest.raises(InvalidOperationException) as exc:
+            shopping_list_line_service.add_line(
+                shopping_list.id,
+                part_id=part_followup.id,
+                needed=2,
+            )
+
+        assert (
+            exc.value.message
+            == "Cannot add part to shopping list because lines cannot be modified on a list that is marked done"
+        )
+
     def test_update_line_changes_fields(self, session, container):
         shopping_list, part = self._create_list_with_part(container)
         shopping_list_line_service = container.shopping_list_line_service()
@@ -150,6 +201,59 @@ class TestShoppingListLineService:
         assert updated.needed == 7
         assert updated.seller_id == seller.id
         assert updated.note == "Request ROHS variant"
+
+    def test_update_line_updates_parent_timestamp(self, session, container):
+        shopping_list, part = self._create_list_with_part(container)
+        shopping_list_line_service = container.shopping_list_line_service()
+
+        line = shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=5,
+        )
+        session.refresh(shopping_list)
+        after_add = shopping_list.updated_at
+
+        shopping_list_line_service.update_line(
+            line.id,
+            note="Updated note",
+        )
+
+        session.refresh(shopping_list)
+        assert shopping_list.updated_at > after_add
+
+    def test_update_line_rejects_done_list(self, session, container):
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+        part_service = container.part_service()
+
+        shopping_list = shopping_list_service.create_list("No Edits After Done")
+        part = part_service.create_part(description="Config jumper")
+
+        line = shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=2,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.READY,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.DONE,
+        )
+
+        with pytest.raises(InvalidOperationException) as exc:
+            shopping_list_line_service.update_line(
+                line.id,
+                note="Attempt edit",
+            )
+
+        assert (
+            exc.value.message
+            == "Cannot update shopping list line because lines cannot be modified on a list that is marked done"
+        )
 
     def test_update_line_allows_clearing_seller_override(self, session, container):
         shopping_list, part = self._create_list_with_part(container)
@@ -208,6 +312,53 @@ class TestShoppingListLineService:
                 line.id,
                 needed=5,
             )
+
+    def test_delete_line_updates_parent_timestamp(self, session, container):
+        shopping_list, part = self._create_list_with_part(container)
+        shopping_list_line_service = container.shopping_list_line_service()
+
+        line = shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=3,
+        )
+        session.refresh(shopping_list)
+        after_add = shopping_list.updated_at
+
+        shopping_list_line_service.delete_line(line.id)
+        session.refresh(shopping_list)
+
+        assert shopping_list.updated_at > after_add
+
+    def test_delete_line_rejects_done_list(self, session, container):
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+        part_service = container.part_service()
+
+        shopping_list = shopping_list_service.create_list("No Deletes After Done")
+        part = part_service.create_part(description="Spacer kit")
+
+        line = shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=1,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.READY,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.DONE,
+        )
+
+        with pytest.raises(InvalidOperationException) as exc:
+            shopping_list_line_service.delete_line(line.id)
+
+        assert (
+            exc.value.message
+            == "Cannot delete shopping list line because lines cannot be modified on a list that is marked done"
+        )
 
     def test_list_lines_filters_done(self, session, container):
         shopping_list, part = self._create_list_with_part(container)
@@ -292,6 +443,33 @@ class TestShoppingListLineService:
         with pytest.raises(InvalidOperationException):
             shopping_list_line_service.set_line_ordered(line.id, ordered_qty=2)
 
+    def test_set_line_ordered_rejects_done_list_status(self, session, container):
+        shopping_list, part = self._create_list_with_part(container)
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+
+        line = shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=2,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.READY,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.DONE,
+        )
+
+        with pytest.raises(InvalidOperationException) as exc:
+            shopping_list_line_service.set_line_ordered(line.id, ordered_qty=2)
+
+        assert (
+            exc.value.message
+            == "Cannot mark line ordered because lines cannot be modified on a list that is marked done"
+        )
+
     def test_set_line_new_resets_state(self, session, container):
         shopping_list, part = self._create_list_with_part(container)
         shopping_list_service = container.shopping_list_service()
@@ -339,6 +517,34 @@ class TestShoppingListLineService:
 
         with pytest.raises(InvalidOperationException):
             shopping_list_line_service.set_line_new(line.id)
+
+    def test_set_line_new_rejects_done_list_status(self, session, container):
+        shopping_list, part = self._create_list_with_part(container)
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+
+        line = shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part.id,
+            needed=3,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.READY,
+        )
+        shopping_list_line_service.set_line_ordered(line.id, ordered_qty=3)
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.DONE,
+        )
+
+        with pytest.raises(InvalidOperationException) as exc:
+            shopping_list_line_service.set_line_new(line.id)
+
+        assert (
+            exc.value.message
+            == "Cannot revert line to new because lines cannot be modified on a list that is marked done"
+        )
 
     def test_set_group_ordered_updates_multiple_lines(self, session, container):
         shopping_list_service = container.shopping_list_service()
@@ -482,6 +688,47 @@ class TestShoppingListLineService:
                 seller.id,
                 {line.id: 3},
             )
+
+    def test_set_group_ordered_rejects_done_list_status(self, session, container):
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+        part_service = container.part_service()
+        seller_service = container.seller_service()
+
+        seller = seller_service.create_seller("Done Guard Seller", "https://guard.example")
+        part_default = part_service.create_part(
+            description="Status latch",
+            seller_id=seller.id,
+        )
+
+        shopping_list = shopping_list_service.create_list("Group Guard")
+        line = shopping_list_line_service.add_line(
+            shopping_list.id,
+            part_id=part_default.id,
+            needed=2,
+        )
+        session.commit()
+
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.READY,
+        )
+        shopping_list_service.set_list_status(
+            shopping_list.id,
+            ShoppingListStatus.DONE,
+        )
+
+        with pytest.raises(InvalidOperationException) as exc:
+            shopping_list_line_service.set_group_ordered(
+                shopping_list.id,
+                seller.id,
+                {line.id: 2},
+            )
+
+        assert (
+            exc.value.message
+            == "Cannot mark seller group ordered because lines cannot be modified on a list that is marked done"
+        )
 
     def test_receive_line_stock_success(self, session, container):
         shopping_list, part = self._create_list_with_part(container)

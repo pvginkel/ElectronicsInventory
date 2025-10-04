@@ -54,10 +54,19 @@ class ShoppingListService(BaseService):
         """Update shopping list metadata."""
         shopping_list = self._get_list_for_update(list_id)
 
+        if shopping_list.status == ShoppingListStatus.DONE:
+            raise InvalidOperationException(
+                "update shopping list",
+                "lists marked as done cannot be modified",
+            )
+
         if name is not None:
             shopping_list.name = name
         if description is not None:
             shopping_list.description = description
+
+        if name is not None or description is not None:
+            self._touch_list(shopping_list)
 
         try:
             self.db.flush()
@@ -87,7 +96,7 @@ class ShoppingListService(BaseService):
         if shopping_list.status == ShoppingListStatus.DONE:
             raise InvalidOperationException(
                 "change shopping list status",
-                "completed lists cannot be reopened",
+                "lists marked as done cannot change status",
             )
 
         if status == ShoppingListStatus.DONE and shopping_list.status == ShoppingListStatus.CONCEPT:
@@ -128,6 +137,7 @@ class ShoppingListService(BaseService):
             )
 
         shopping_list.status = status
+        self._touch_list(shopping_list)
         self.db.flush()
         refreshed = self._attach_ready_payload(
             self._load_list_with_lines(shopping_list.id)
@@ -144,7 +154,7 @@ class ShoppingListService(BaseService):
         if not include_done:
             stmt = stmt.where(ShoppingList.status != ShoppingListStatus.DONE)
 
-        stmt = stmt.order_by(ShoppingList.created_at.desc())
+        stmt = stmt.order_by(ShoppingList.updated_at.desc(), ShoppingList.id.desc())
         shopping_lists = list(self.db.execute(stmt).scalars().all())
         counts_map = self._counts_for_lists([shopping_list.id for shopping_list in shopping_lists])
         return [
@@ -248,6 +258,12 @@ class ShoppingListService(BaseService):
         """Create, update, or delete a seller note for the given list."""
         shopping_list = self._get_list_for_update(list_id)
 
+        if shopping_list.status == ShoppingListStatus.DONE:
+            raise InvalidOperationException(
+                "update seller note",
+                "lists marked as done cannot be modified",
+            )
+
         seller = self.db.get(Seller, seller_id)
         if seller is None:
             raise RecordNotFoundException("Seller", seller_id)
@@ -328,7 +344,11 @@ class ShoppingListService(BaseService):
         shopping_list: ShoppingList,
         counts_map: dict[int, dict[ShoppingListLineStatus, int]] | None = None,
     ) -> ShoppingList:
-        """Attach computed line counts to the shopping list instance."""
+        """Attach computed line counts to the shopping list instance.
+
+        This helper is the single place that populates the derived counters so
+        both detail and overview payloads stay perfectly aligned.
+        """
         if counts_map is None:
             counts_map = self._counts_for_lists([shopping_list.id])
         counts = counts_map.get(shopping_list.id)

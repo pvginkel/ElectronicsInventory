@@ -90,9 +90,15 @@ class ShoppingListListSchema(BaseModel):
         description="Workflow status",
         json_schema_extra={"example": ShoppingListStatus.CONCEPT.value}
     )
-    updated_at: datetime = Field(description="Timestamp when the list was last updated")
+    updated_at: datetime = Field(
+        description="Timestamp when the list was last updated",
+        json_schema_extra={"example": "2024-04-10T15:30:00Z"},
+    )
     line_counts: ShoppingListLineCountsSchema = Field(
-        description="Line counts grouped by status"
+        description="Line counts grouped by status for overview counters",
+        json_schema_extra={
+            "example": {"new": 3, "ordered": 1, "done": 2},
+        },
     )
     seller_notes: list[ShoppingListSellerOrderNoteSchema] = Field(
         default_factory=list,
@@ -108,6 +114,16 @@ class ShoppingListListSchema(BaseModel):
     def has_ordered_lines(self) -> bool:
         """Expose whether any lines are marked as ordered."""
         return self.line_counts.ordered > 0
+
+
+class ShoppingListListQuerySchema(BaseModel):
+    """Query parameters supported by the shopping list overview endpoint."""
+
+    include_done: bool = Field(
+        default=False,
+        description="Include lists whose status is DONE when true",
+        json_schema_extra={"example": False},
+    )
 
 
 class ShoppingListSellerGroupTotalsSchema(BaseModel):

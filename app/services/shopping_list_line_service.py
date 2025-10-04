@@ -51,6 +51,12 @@ class ShoppingListLineService(BaseService):
         shopping_list = self._get_list_for_update(list_id)
         self._ensure_part_exists(part_id)
 
+        if shopping_list.status == ShoppingListStatus.DONE:
+            raise InvalidOperationException(
+                "add part to shopping list",
+                "lines cannot be modified on a list that is marked done",
+            )
+
         if seller_id is not None:
             self.seller_service.get_seller(seller_id)
 
@@ -68,6 +74,8 @@ class ShoppingListLineService(BaseService):
             note=note,
         )
         self.db.add(line)
+
+        self._touch_list(shopping_list)
 
         try:
             self.db.flush()
@@ -120,6 +128,13 @@ class ShoppingListLineService(BaseService):
     ) -> ShoppingListLine:
         """Update a shopping list line while keeping progress fields read-only."""
         line = self._get_line_for_update(line_id)
+        shopping_list = self._get_list_for_update(line.shopping_list_id)
+
+        if shopping_list.status == ShoppingListStatus.DONE:
+            raise InvalidOperationException(
+                "update shopping list line",
+                "lines cannot be modified on a list that is marked done",
+            )
 
         if line.status == ShoppingListLineStatus.DONE:
             raise InvalidOperationException(
@@ -135,17 +150,27 @@ class ShoppingListLineService(BaseService):
                 "needed quantity must be at least 1",
             )
 
+        changed = False
         if needed is not None:
             if line.status != ShoppingListLineStatus.NEW:
                 raise InvalidOperationException(
                     "update shopping list line",
                     "needed quantity can only change while the line is NEW",
                 )
+            if line.needed != needed:
+                changed = True
             line.needed = needed
         if seller_id_provided:
+            if line.seller_id != seller_id:
+                changed = True
             line.seller_id = seller_id
         if note is not None:
+            if line.note != note:
+                changed = True
             line.note = note
+
+        if changed:
+            self._touch_list(shopping_list)
 
         try:
             self.db.flush()
@@ -161,7 +186,16 @@ class ShoppingListLineService(BaseService):
     def delete_line(self, line_id: int) -> None:
         """Remove a shopping list line from its list."""
         line = self._get_line_for_update(line_id)
+        shopping_list = self._get_list_for_update(line.shopping_list_id)
+
+        if shopping_list.status == ShoppingListStatus.DONE:
+            raise InvalidOperationException(
+                "delete shopping list line",
+                "lines cannot be modified on a list that is marked done",
+            )
+
         self.db.delete(line)
+        self._touch_list(shopping_list)
         self.db.flush()
 
     def list_lines(self, list_id: int, include_done: bool = True) -> list[ShoppingListLine]:
@@ -193,6 +227,12 @@ class ShoppingListLineService(BaseService):
         """Mark a single line as ordered with quantity validation."""
         line = self._get_line_for_update(line_id)
         shopping_list = self._get_list_for_update(line.shopping_list_id)
+
+        if shopping_list.status == ShoppingListStatus.DONE:
+            raise InvalidOperationException(
+                "mark line ordered",
+                "lines cannot be modified on a list that is marked done",
+            )
 
         if shopping_list.status != ShoppingListStatus.READY:
             raise InvalidOperationException(
@@ -232,6 +272,12 @@ class ShoppingListLineService(BaseService):
         """Revert an ordered line back to NEW status when allowed."""
         line = self._get_line_for_update(line_id)
         shopping_list = self._get_list_for_update(line.shopping_list_id)
+
+        if shopping_list.status == ShoppingListStatus.DONE:
+            raise InvalidOperationException(
+                "revert line to new",
+                "lines cannot be modified on a list that is marked done",
+            )
 
         if shopping_list.status != ShoppingListStatus.READY:
             raise InvalidOperationException(
@@ -395,6 +441,11 @@ class ShoppingListLineService(BaseService):
     ) -> list[ShoppingListLine]:
         """Mark every line in a seller grouping as ordered."""
         shopping_list = self._get_list_for_update(list_id)
+        if shopping_list.status == ShoppingListStatus.DONE:
+            raise InvalidOperationException(
+                "mark seller group ordered",
+                "lines cannot be modified on a list that is marked done",
+            )
         if shopping_list.status != ShoppingListStatus.READY:
             raise InvalidOperationException(
                 "mark seller group ordered",

@@ -7,6 +7,7 @@ from spectree import Response as SpectreeResponse
 from app.schemas.common import ErrorResponseSchema
 from app.schemas.shopping_list import (
     ShoppingListCreateSchema,
+    ShoppingListListQuerySchema,
     ShoppingListListSchema,
     ShoppingListResponseSchema,
     ShoppingListStatusUpdateSchema,
@@ -50,6 +51,7 @@ def create_shopping_list(
 
 @shopping_lists_bp.route("", methods=["GET"])
 @api.validate(
+    query=ShoppingListListQuerySchema,
     resp=SpectreeResponse(
         HTTP_200=list[ShoppingListListSchema],
     ),
