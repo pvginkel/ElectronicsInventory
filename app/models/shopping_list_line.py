@@ -21,6 +21,7 @@ from sqlalchemy import (
     Enum as SQLEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column, object_session, relationship
+from sqlalchemy.orm.exc import DetachedInstanceError
 
 from app.extensions import db
 from app.models.part_location import PartLocation
@@ -174,12 +175,25 @@ class ShoppingListLine(db.Model):  # type: ignore[name-defined]
     def part_locations(self) -> list["PartLocation"]:
         """Expose part location rows for inline response payloads."""
 
+        try:
+            part = self.part
+        except DetachedInstanceError:
+            part = None
+
+        if part is not None:
+            try:
+                locations = list(part.part_locations or [])
+            except DetachedInstanceError:
+                locations = None
+            else:
+                return sorted(
+                    locations,
+                    key=lambda loc: (loc.box_no, loc.loc_no),
+                )
+
         session = object_session(self)
         if session is None:
-            if self.part is None:
-                return []
-            locations = getattr(self.part, "part_locations", None)
-            return list(locations or [])
+            return []
 
         results = session.execute(
             select(PartLocation)

@@ -48,14 +48,12 @@ class InventoryService(BaseService):
         if not location:
             raise RecordNotFoundException("Location", f"{box_no}-{loc_no}")
 
+        part = self.part_service.get_part(part_key)
+
         # Check if part already exists at this location
-        # Need to join with Part table to find part by key
-        from app.models.part import Part
-        stmt = select(PartLocation).join(
-            Part, PartLocation.part_id == Part.id
-        ).where(
+        stmt = select(PartLocation).where(
             and_(
-                Part.key == part_key,
+                PartLocation.part_id == part.id,
                 PartLocation.box_no == box_no,
                 PartLocation.loc_no == loc_no,
             )
@@ -63,24 +61,25 @@ class InventoryService(BaseService):
         existing_location = self.db.execute(stmt).scalar_one_or_none()
 
         if existing_location:
-            # Add to existing quantity
+            # Add to existing quantity and refresh relationship collection when already loaded
             existing_location.qty += qty
             part_location = existing_location
+            if "part_locations" in part.__dict__ and existing_location not in part.part_locations:
+                part.part_locations.append(existing_location)
         else:
-            # Create new location assignment
-            # First get the part to get its ID
-            part = self.part_service.get_part(part_key)
+            # Create new location assignment and attach to the part relationship
             part_location = PartLocation(
-                part_id=part.id,
+                part=part,
                 box_no=box_no,
                 loc_no=loc_no,
                 location_id=location.id,
                 qty=qty,
             )
             self.db.add(part_location)
+            if "part_locations" in part.__dict__:
+                part.part_locations.append(part_location)
 
         # Add quantity history record
-        part = self.part_service.get_part(part_key)
         history = QuantityHistory(
             part_id=part.id,
             delta_qty=qty,
