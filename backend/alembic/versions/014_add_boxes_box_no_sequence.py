@@ -39,9 +39,12 @@ def upgrade() -> None:
 
     op.execute(
         sa.text(
-            "SELECT setval(:seq_name, COALESCE(MAX(box_no), 0)) FROM boxes"
-        ),
-        {"seq_name": SEQUENCE_NAME},
+            "SELECT setval("  # noqa: S608 - sequence name is controlled constant
+            "   :seq_name,"
+            "   COALESCE(MAX(box_no), 1),"
+            "   CASE WHEN MAX(box_no) IS NULL THEN false ELSE true END"
+            ") FROM boxes"
+        ).bindparams(seq_name=SEQUENCE_NAME)
     )
 
 
