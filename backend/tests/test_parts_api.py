@@ -1208,6 +1208,46 @@ class TestPartsAPI:
             memberships = shopping_list_service.list_part_memberships(part.id)
             assert any(line.id == data["line_id"] for line in memberships)
 
+    def test_post_part_shopping_list_memberships_duplicate(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Posting the same payload twice should surface the duplicate guard."""
+        with app.app_context():
+            part_service = container.part_service()
+            shopping_list_service = container.shopping_list_service()
+            seller_service = container.seller_service()
+
+            part = part_service.create_part("Duplicate guard component")
+            concept_list = shopping_list_service.create_list("Duplicate guard list")
+            seller = seller_service.create_seller(
+                "Guard Seller",
+                "https://guard.example.com",
+            )
+
+            payload = {
+                "shopping_list_id": concept_list.id,
+                "needed": 2,
+                "seller_id": seller.id,
+                "note": "Initial request",
+            }
+
+            first_response = client.post(
+                f"/api/parts/{part.key}/shopping-list-memberships",
+                json=payload,
+            )
+            assert first_response.status_code == 201
+
+            duplicate_response = client.post(
+                f"/api/parts/{part.key}/shopping-list-memberships",
+                json=payload,
+            )
+
+            assert duplicate_response.status_code == 409
+            duplicate_data = json.loads(duplicate_response.data)
+            assert duplicate_data["error"] == (
+                "Cannot add part to shopping list because this part is already on the list; "
+                "edit the existing line instead"
+            )
+            assert duplicate_data["details"]["message"] == "The requested operation cannot be performed"
+
     def test_post_part_shopping_list_memberships_requires_concept_list(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Non-concept lists should be rejected by the memberships endpoint."""
         with app.app_context():
