@@ -14,6 +14,10 @@ from app.schemas.part import (
     PartWithTotalAndLocationsSchema,
     PartWithTotalSchema,
 )
+from app.schemas.part_shopping_list import (
+    PartShoppingListMembershipCreateSchema,
+    PartShoppingListMembershipSchema,
+)
 from app.schemas.quantity_history import QuantityHistoryResponseSchema
 from app.services.container import ServiceContainer
 from app.utils.error_handling import handle_api_errors
@@ -183,6 +187,60 @@ def delete_part(part_key: str, part_service=Provide[ServiceContainer.part_servic
     """Delete part if total quantity is zero."""
     part_service.delete_part(part_key)
     return "", 204
+
+
+@parts_bp.route("/<string:part_key>/shopping-list-memberships", methods=["GET"])
+@api.validate(
+    resp=SpectreeResponse(
+        HTTP_200=list[PartShoppingListMembershipSchema],
+        HTTP_404=ErrorResponseSchema,
+    )
+)
+@handle_api_errors
+@inject
+def list_part_shopping_list_memberships(
+    part_key: str,
+    part_service=Provide[ServiceContainer.part_service],
+    shopping_list_service=Provide[ServiceContainer.shopping_list_service],
+):
+    """List active shopping list memberships for a part."""
+    part = part_service.get_part(part_key)
+    memberships = shopping_list_service.list_part_memberships(part.id)
+
+    return [
+        PartShoppingListMembershipSchema.from_line(line).model_dump()
+        for line in memberships
+    ]
+
+
+@parts_bp.route("/<string:part_key>/shopping-list-memberships", methods=["POST"])
+@api.validate(
+    json=PartShoppingListMembershipCreateSchema,
+    resp=SpectreeResponse(
+        HTTP_201=PartShoppingListMembershipSchema,
+        HTTP_400=ErrorResponseSchema,
+        HTTP_404=ErrorResponseSchema,
+    ),
+)
+@handle_api_errors
+@inject
+def add_part_shopping_list_membership(
+    part_key: str,
+    part_service=Provide[ServiceContainer.part_service],
+    shopping_list_line_service=Provide[ServiceContainer.shopping_list_line_service],
+):
+    """Add a part to a Concept shopping list and return the new membership."""
+    payload = PartShoppingListMembershipCreateSchema.model_validate(request.get_json())
+    part = part_service.get_part(part_key)
+    line = shopping_list_line_service.add_part_to_concept_list(
+        list_id=payload.shopping_list_id,
+        part_id=part.id,
+        needed=payload.needed,
+        seller_id=payload.seller_id,
+        note=payload.note,
+    )
+
+    return PartShoppingListMembershipSchema.from_line(line).model_dump(), 201
 
 
 @parts_bp.route("/<string:part_key>/locations", methods=["GET"])
