@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
@@ -18,7 +18,11 @@ class Box(db.Model):  # type: ignore[name-defined]
     __tablename__ = "boxes"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    box_no: Mapped[int] = mapped_column(unique=True, nullable=False)
+    box_no: Mapped[int] = mapped_column(
+        unique=True,
+        nullable=False,
+        server_default=text("nextval('boxes_box_no_seq')"),
+    )
     description: Mapped[str] = mapped_column(nullable=False)
     capacity: Mapped[int] = mapped_column(nullable=False)
     created_at: Mapped[datetime] = mapped_column(
