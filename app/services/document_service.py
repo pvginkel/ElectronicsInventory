@@ -375,7 +375,8 @@ class DocumentService(BaseService):
         """
         attachment = self.get_attachment(attachment_id)
 
-        attachment.title = title
+        if title is not None:
+            attachment.title = title
 
         self.db.flush()
         return attachment
@@ -447,7 +448,9 @@ class DocumentService(BaseService):
         if attachment.s3_key:
             # Download content from S3
             file_data = self.s3_service.download_file(attachment.s3_key)
-            return file_data, attachment.content_type, attachment.filename
+            content_type = attachment.content_type or "application/octet-stream"
+            filename = attachment.filename or attachment.title
+            return file_data, content_type, filename
         else:
             # No S3 content available
             return None

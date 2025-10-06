@@ -3,7 +3,6 @@
 import logging
 import time
 from queue import Empty, Queue
-from threading import Event
 
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, current_app, jsonify, request
@@ -109,8 +108,7 @@ def stream_logs():
 
         # Set up event queue for receiving log events
         event_queue: Queue = Queue()
-        stop_event = Event()
-
+        
         # Custom client class that works with queue
         class QueueLogClient:
             def __init__(self, queue: Queue):
@@ -126,6 +124,8 @@ def stream_logs():
         log_handler = LogCaptureHandler.get_instance()
         log_handler.register_client(client)
 
+        shutdown_requested = False
+
         try:
             # Send connection_open event
             yield format_sse_event("connection_open", {"status": "connected"}, correlation_id)
@@ -133,10 +133,11 @@ def stream_logs():
             last_heartbeat = time.perf_counter()
             heartbeat_interval = 30.0  # 30 seconds
 
-            while not stop_event.is_set():
+            while True:
                 try:
+                    timeout = 0.25 if shutdown_requested else 1.0
                     # Check for log events with timeout
-                    event_type, event_data = event_queue.get(timeout=1.0)
+                    event_type, event_data = event_queue.get(timeout=timeout)
 
                     # Add correlation ID to event if available
                     if correlation_id and "correlation_id" not in event_data:
@@ -144,7 +145,16 @@ def stream_logs():
 
                     yield format_sse_event(event_type, event_data)
 
+                    if event_type == "connection_close":
+                        shutdown_requested = True
+                        # Allow loop to drain any buffered close events before exiting
+                        continue
+
                 except Empty:
+                    if shutdown_requested:
+                        # All close events processed; exit generator cleanly
+                        break
+
                     # No log events, check if we need to send heartbeat
                     current_time = time.perf_counter()
                     if current_time - last_heartbeat >= heartbeat_interval:
@@ -152,18 +162,12 @@ def stream_logs():
                         last_heartbeat = current_time
 
         except GeneratorExit:
-            # Client disconnected
+            # Client disconnected; mark shutdown so loop doesn't wait for more events
+            shutdown_requested = True
             logger.info("Log stream client disconnected", extra={"correlation_id": correlation_id})
         finally:
             # Cleanup
             log_handler.unregister_client(client)
-
-            # Send connection_close event if possible
-            try:
-                yield format_sse_event("connection_close", {"reason": "client_disconnect"}, correlation_id)
-            except Exception:
-                # Ignore errors during cleanup
-                pass
 
     return create_sse_response(log_stream())
 
@@ -262,7 +266,7 @@ def trigger_version_deployment(
 
     status = "delivered" if delivered else "queued"
     response_body = DeploymentTriggerResponseSchema(
-        request_id=payload.request_id,
+        requestId=payload.request_id,
         delivered=delivered,
         status=status,
     )

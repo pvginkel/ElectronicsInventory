@@ -37,12 +37,13 @@ def create_app(settings: "Settings | None" = None) -> App:
     # Initialize SessionLocal for per-request sessions
     # This needs to be done in app context since db.engine requires it
     with app.app_context():
-        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.orm import Session, sessionmaker
 
-        import app.extensions as ext
-
-        SessionLocal = sessionmaker(  # noqa: F811  # type: ignore[assignment]
-            bind=db.engine, autoflush=True, expire_on_commit=False
+        SessionLocal: sessionmaker[Session] = sessionmaker(
+            class_=Session,
+            bind=db.engine,
+            autoflush=True,
+            expire_on_commit=False,
         )
 
     # Initialize SpecTree for OpenAPI docs

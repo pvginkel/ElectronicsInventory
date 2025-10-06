@@ -1,6 +1,6 @@
 """Business logic for shopping list line item management."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import and_, or_, select
@@ -424,7 +424,7 @@ class ShoppingListLineService(BaseService):
             )
 
         line.status = ShoppingListLineStatus.DONE
-        line.completed_at = datetime.utcnow()
+        line.completed_at = datetime.now(UTC)
         line.completion_mismatch = mismatch_required
         line.completion_note = note_value if note_value else None
 
@@ -589,7 +589,7 @@ class ShoppingListLineService(BaseService):
 
     def _touch_list(self, shopping_list: ShoppingList) -> None:
         """Update parent shopping list timestamp when related lines change."""
-        shopping_list.updated_at = datetime.utcnow()
+        shopping_list.updated_at = datetime.now(UTC)
 
     def _record_lines_ordered(self, count: int, mode: str) -> None:
         """Record metrics for lines marked ordered when metrics service available."""

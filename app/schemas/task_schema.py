@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -28,11 +28,16 @@ class TaskProgressUpdate(BaseModel):
     value: float = Field(..., ge=0.0, le=1.0, description="Progress value from 0.0 to 1.0")
 
 
+def _now_utc() -> datetime:
+    """Return the current UTC timestamp with timezone awareness."""
+    return datetime.now(UTC)
+
+
 class TaskEvent(BaseModel):
     """Task event sent via SSE stream."""
     event_type: TaskEventType = Field(description="Type of task event")
     task_id: str = Field(description="Unique task identifier")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Event timestamp")
+    timestamp: datetime = Field(default_factory=_now_utc, description="Event timestamp")
     data: dict[str, Any] | None = Field(None, description="Event-specific data")
 
 

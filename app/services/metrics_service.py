@@ -128,7 +128,7 @@ class MetricsService(MetricsServiceProtocol):
 
         # Background update control
         self._stop_event = threading.Event()
-        self._updater_thread = None
+        self._updater_thread: threading.Thread | None = None
 
         # Register shutdown notification
         self.shutdown_coordinator.register_lifetime_notification(self._on_lifetime_event)

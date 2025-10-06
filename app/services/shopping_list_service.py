@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import and_, case, delete, func, or_, select
@@ -317,7 +317,7 @@ class ShoppingListService(BaseService):
             self.db.add(existing)
         else:
             existing.note = note_text
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(UTC)
 
         self._touch_list(shopping_list)
         self.db.flush()
@@ -522,4 +522,4 @@ class ShoppingListService(BaseService):
 
     def _touch_list(self, shopping_list: ShoppingList) -> None:
         """Update list timestamp to reflect related mutations."""
-        shopping_list.updated_at = datetime.utcnow()
+        shopping_list.updated_at = datetime.now(UTC)

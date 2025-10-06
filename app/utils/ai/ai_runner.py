@@ -93,7 +93,7 @@ class AIRunner:
 
     def run(self, request: AIRequest, function_tools: list[AIFunction], progress_handle: ProgressHandle, streaming: bool) -> AIResponse:
         # Build input and instructions for Responses API
-        input_content = self._build_responses_api_input(request)
+        input_content: list[Any] = self._build_responses_api_input(request)
 
         start = time.perf_counter()
 
@@ -125,11 +125,12 @@ class AIRunner:
         logger.info(f"OpenAI response status: {response.status}, duration {elapsed_time}, incomplete details: {response.incomplete_details}")
         logger.info(f"Output text: {response.output_text}")
 
-        if not response.output_parsed or not response.output_text:
+        parsed_response = response.output_parsed
+        if parsed_response is None or not response.output_text:
             raise Exception(f"Empty response from OpenAI status {response.status}, incomplete details: {response.incomplete_details}")
 
         return AIResponse(
-            response=response.output_parsed, # type: ignore
+            response=parsed_response,
             elapsed_time=elapsed_time,
             output_text=response.output_text,
             input_tokens=input_tokens,
@@ -139,7 +140,13 @@ class AIRunner:
             cost=self._calculate_cost(request.model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
         )
 
-    def _handle_function_call(self, response: ParsedResponse, function_tools: list[AIFunction], input_content: Any, progress_handle: ProgressHandle) -> bool:
+    def _handle_function_call(
+        self,
+        response: ParsedResponse,
+        function_tools: list[AIFunction],
+        input_content: list[Any],
+        progress_handle: ProgressHandle,
+    ) -> bool:
         for item in response.output:
             if item.type == "function_call":
                 for function in function_tools:
@@ -167,7 +174,14 @@ class AIRunner:
 
         return False
 
-    def _call_openai_api(self, streaming: bool, request: AIRequest, function_tools: list[AIFunction], input_content: Any, progress_handle: ProgressHandle) -> ParsedResponse:
+    def _call_openai_api(
+        self,
+        streaming: bool,
+        request: AIRequest,
+        function_tools: list[AIFunction],
+        input_content: list[Any],
+        progress_handle: ProgressHandle,
+    ) -> ParsedResponse:
         attempt = 1
 
         while True:
@@ -225,23 +239,41 @@ class AIRunner:
                 logger.warning(f"OpenAI API error on attempt {attempt}, retrying: {e}")
                 time.sleep(2 ** attempt)
 
-    def _call_openai_api_non_streamed(self, request: AIRequest, function_tools: list[AIFunction], input_content: Any, progress_handle: ProgressHandle) -> ParsedResponse:
+    def _call_openai_api_non_streamed(
+        self,
+        request: AIRequest,
+        function_tools: list[AIFunction],
+        input_content: list[Any],
+        progress_handle: ProgressHandle,
+    ) -> ParsedResponse:
         # Call OpenAI Responses API with structured output
-        return self.client.responses.parse(
-            model=request.model,
-            input=input_content, # type: ignore
-            text_format=request.response_model,
-            text={ "verbosity": request.verbosity }, # type: ignore
-            tools=[
-                { "type": "web_search" },
-                *[ft.get_function_tool() for ft in function_tools]
-            ],
-            reasoning = {
-                "effort": request.reasoning_effort # type: ignore
-            },
-        )
+        reasoning_payload: dict[str, str] | None = None
+        if request.reasoning_effort is not None:
+            reasoning_payload = {"effort": request.reasoning_effort}
 
-    def _call_openai_api_streamed(self, request: AIRequest, function_tools: list[AIFunction], input_content: Any, progress_handle: ProgressHandle) -> ParsedResponse:
+        parse_kwargs: dict[str, Any] = {
+            "model": request.model,
+            "input": input_content,
+            "text_format": request.response_model,
+            "text": {"verbosity": request.verbosity},
+            "tools": [
+                {"type": "web_search"},
+                *[ft.get_function_tool() for ft in function_tools],
+            ],
+        }
+
+        if reasoning_payload is not None:
+            parse_kwargs["reasoning"] = reasoning_payload
+
+        return self.client.responses.parse(**parse_kwargs)
+
+    def _call_openai_api_streamed(
+        self,
+        request: AIRequest,
+        function_tools: list[AIFunction],
+        input_content: list[Any],
+        progress_handle: ProgressHandle,
+    ) -> ParsedResponse:
         """Call OpenAI Responses API and handle streaming response.
 
         Args:
@@ -257,21 +289,29 @@ class AIRunner:
         """
 
         # Call OpenAI Responses API with structured output
-        with self.client.responses.stream(
-            model=request.model,
-            input=input_content,
-            text_format=request.response_model,
-            text={ "verbosity": request.verbosity }, # type: ignore
-            tools=[
-                { "type": "web_search" },
-                *[ft.get_function_tool() for ft in function_tools]
+        reasoning_payload_stream: dict[str, str] | None = None
+        if request.reasoning_effort is not None or request.reasoning_summary is not None:
+            reasoning_payload_stream = {}
+            if request.reasoning_effort is not None:
+                reasoning_payload_stream["effort"] = request.reasoning_effort
+            if request.reasoning_summary is not None:
+                reasoning_payload_stream["summary"] = request.reasoning_summary
+
+        stream_kwargs: dict[str, Any] = {
+            "model": request.model,
+            "input": input_content,
+            "text_format": request.response_model,
+            "text": {"verbosity": request.verbosity},
+            "tools": [
+                {"type": "web_search"},
+                *[ft.get_function_tool() for ft in function_tools],
             ],
-            # tool_choice="required",
-            reasoning = {
-                "effort": request.reasoning_effort, # type: ignore
-                "summary": request.reasoning_summary
-            },
-        ) as stream:
+        }
+
+        if reasoning_payload_stream is not None:
+            stream_kwargs["reasoning"] = reasoning_payload_stream
+
+        with self.client.responses.stream(**stream_kwargs) as stream:
             logger.info("Streaming events")
 
             for event in stream:
@@ -296,7 +336,7 @@ class AIRunner:
 
         raise Exception("Did not get ResponseCompletedEvent")
 
-    def _build_responses_api_input(self, request: AIRequest) -> Any:
+    def _build_responses_api_input(self, request: AIRequest) -> list[Any]:
         """Build instructions and input for OpenAI Responses API."""
 
         return [
@@ -316,6 +356,10 @@ class AIRunner:
         ]
 
     def _calculate_cost(self, model: str, input_tokens: int, cached_input_tokens: int, output_tokens: int, reasoning_tokens: int) -> float | None:
+        input_tokens_pm: float
+        cached_input_pm: float
+        output_pm: float
+
         match model:
             case "gpt-5":
                 input_tokens_pm = 1.25
@@ -350,6 +394,6 @@ class AIRunner:
         """Count the number of web searches performed during AI analysis."""
         search_count = 0
         for item in response.output:
-            if item.type == "web_search":
+            if isinstance(item, ResponseFunctionWebSearch):
                 search_count += 1
         return search_count

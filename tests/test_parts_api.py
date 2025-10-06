@@ -1,7 +1,7 @@
 """Tests for parts API endpoints."""
 
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from flask import Flask
@@ -1160,7 +1160,7 @@ class TestPartsAPI:
             assert stored_done_line is not None
             stored_done_line.status = ShoppingListLineStatus.DONE
 
-            now = datetime.utcnow()
+            now = datetime.now(UTC)
             session.get(ShoppingListLine, ready_line.id).updated_at = now
             session.get(ShoppingListLine, concept_line.id).updated_at = now - timedelta(minutes=15)
             session.flush()
