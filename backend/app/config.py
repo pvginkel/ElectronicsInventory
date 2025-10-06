@@ -205,7 +205,7 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
-    return Settings(_env_file=_resolve_env_files())
+    return Settings(_env_file=_resolve_env_files())  # type: ignore[call-arg]
 
 
 def _resolve_env_files() -> tuple[str, ...]:

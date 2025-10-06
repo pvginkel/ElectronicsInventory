@@ -75,6 +75,7 @@ ignore = [
 
 [tool.mypy]
 python_version = "3.12"
+plugins = ["sqlalchemy.ext.mypy.plugin"]
 check_untyped_defs = true
 disallow_any_generics = false
 disallow_incomplete_defs = false
@@ -89,6 +90,11 @@ exclude = ["tools/"]
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "flask_log_request_id.*"
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "alembic.*"

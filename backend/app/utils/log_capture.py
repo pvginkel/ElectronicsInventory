@@ -84,7 +84,7 @@ class LogCaptureHandler(logging.Handler):
             if key not in skip_attrs and not key.startswith('_'):
                 extra[key] = value
 
-        log_data = {
+        log_data: dict[str, Any] = {
             "timestamp": timestamp,
             "level": record.levelname,
             "logger": record.name,

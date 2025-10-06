@@ -8,6 +8,9 @@ import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 from sqlalchemy.orm import Session
 
+from mypy_boto3_s3.client import S3Client
+from mypy_boto3_s3.type_defs import CopySourceTypeDef
+
 from app.config import Settings
 from app.exceptions import InvalidOperationException
 from app.services.base import BaseService
@@ -23,11 +26,11 @@ class S3Service(BaseService):
             db: SQLAlchemy database session
         """
         super().__init__(db)
-        self._s3_client = None
+        self._s3_client: S3Client | None = None
         self.settings = settings
 
     @property
-    def s3_client(self):
+    def s3_client(self) -> S3Client:
         """Get or create S3 client with lazy initialization."""
         if self._s3_client is None:
             try:
@@ -73,16 +76,16 @@ class S3Service(BaseService):
             InvalidOperationException: If upload fails
         """
         try:
-            upload_args = {
-                'Fileobj': file_obj,
-                'Bucket': self.settings.S3_BUCKET_NAME,
-                'Key': s3_key
-            }
-
+            extra_args: dict[str, str] | None = None
             if content_type:
-                upload_args['ExtraArgs'] = {'ContentType': content_type}
+                extra_args = {'ContentType': content_type}
 
-            self.s3_client.upload_fileobj(**upload_args)
+            self.s3_client.upload_fileobj(
+                Fileobj=file_obj,
+                Bucket=self.settings.S3_BUCKET_NAME,
+                Key=s3_key,
+                ExtraArgs=extra_args,
+            )
             return True
 
         except ClientError as e:
@@ -129,7 +132,7 @@ class S3Service(BaseService):
             InvalidOperationException: If copy fails
         """
         try:
-            copy_source = {
+            copy_source: CopySourceTypeDef = {
                 'Bucket': self.settings.S3_BUCKET_NAME,
                 'Key': source_s3_key
             }

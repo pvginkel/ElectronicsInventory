@@ -3,6 +3,7 @@
 import io
 import logging
 from io import BytesIO
+from typing import BinaryIO, cast
 from urllib.parse import quote
 
 from dependency_injector.wiring import Provide, inject
@@ -134,7 +135,7 @@ def create_attachment(part_key: str, document_service : DocumentService = Provid
         attachment = document_service.create_file_attachment(
             part_key=part_key,
             title=title,
-            file_data=file.stream,
+            file_data=cast(BinaryIO, file.stream),
             filename=file.filename
         )
 
@@ -180,16 +181,20 @@ def get_attachment(part_key: str, attachment_id: int, document_service : Documen
 @inject
 def download_attachment(part_key: str, attachment_id: int, document_service : DocumentService = Provide[ServiceContainer.document_service]):
     """Download or stream attachment file."""
-    file_data, content_type, filename = document_service.get_attachment_file_data(attachment_id)
+    file_payload = document_service.get_attachment_file_data(attachment_id)
+    if file_payload is None:
+        return jsonify({'error': 'Attachment file content not available'}), 404
+
+    file_data, content_type, filename = file_payload
 
     # Check for inline query parameter to set Content-Disposition to inline
     inline = request.args.get('inline') is not None
 
-    return send_file(
+    return send_file(  # type: ignore[call-arg]
         file_data,
         mimetype=content_type,
         as_attachment=not inline,
-        download_name=filename or f"attachment_{attachment_id}"  # type: ignore[call-arg]
+        download_name=filename
     )
 
 

@@ -1,7 +1,7 @@
 """Dashboard service for aggregating dashboard statistics and data."""
 
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import func, select
 
@@ -200,7 +200,7 @@ class DashboardService(BaseService):
         type_service = TypeService(self.db)
         types_with_counts = type_service.get_all_types_with_part_counts()
 
-        distribution = []
+        distribution: list[dict[str, int | str]] = []
         for type_with_count in types_with_counts:
             distribution.append({
                 'type_name': type_with_count.type.name,
@@ -208,7 +208,7 @@ class DashboardService(BaseService):
             })
 
         # Sort by part count descending
-        distribution.sort(key=lambda x: x['part_count'], reverse=True)
+        distribution.sort(key=lambda x: cast(int, x['part_count']), reverse=True)
         return distribution
 
     def get_parts_without_documents(self) -> dict:

@@ -6,6 +6,7 @@ from urllib.parse import urljoin, urlparse
 
 import magic
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 from PIL import Image
 
 from app.config import Settings
@@ -64,10 +65,11 @@ class HtmlDocumentHandler:
             Page title or None if not found
         """
         title_tag = soup.find('title')
-        if title_tag:
+        if isinstance(title_tag, Tag):
             # Try the simple case first (well-formed HTML)
-            if title_tag.string:
-                title = title_tag.string.strip()
+            title_string = title_tag.string
+            if isinstance(title_string, str):
+                title = title_string.strip()
                 if title:
                     return title
 
@@ -105,31 +107,37 @@ class HtmlDocumentHandler:
         """
         # Try og:image first
         og_image = soup.find('meta', property='og:image')
-        if og_image and og_image.get('content'):
-            image_url = self._resolve_url(og_image['content'], url)
-            result = self._download_and_validate_image(image_url, download_cache)
-            if result:
-                return result
+        if isinstance(og_image, Tag):
+            og_content = og_image.get('content')
+            if isinstance(og_content, str):
+                image_url = self._resolve_url(og_content, url)
+                result = self._download_and_validate_image(image_url, download_cache)
+                if result:
+                    return result
 
         # Try twitter:image
         twitter_image = soup.find('meta', attrs={'name': 'twitter:image'})
         if not twitter_image:
             twitter_image = soup.find('meta', attrs={'name': 'twitter:image:src'})
-        if twitter_image and twitter_image.get('content'):
-            image_url = self._resolve_url(twitter_image['content'], url)
-            result = self._download_and_validate_image(image_url, download_cache)
-            if result:
-                return result
+        if isinstance(twitter_image, Tag):
+            twitter_content = twitter_image.get('content')
+            if isinstance(twitter_content, str):
+                image_url = self._resolve_url(twitter_content, url)
+                result = self._download_and_validate_image(image_url, download_cache)
+                if result:
+                    return result
 
         # Try favicon
         favicon = soup.find('link', rel='icon')
-        if not favicon:
+        if favicon is None:
             favicon = soup.find('link', rel='shortcut icon')
-        if favicon and favicon.get('href'):
-            image_url = self._resolve_url(favicon['href'], url)
-            result = self._download_and_validate_image(image_url, download_cache)
-            if result:
-                return result
+        if isinstance(favicon, Tag):
+            favicon_href = favicon.get('href')
+            if isinstance(favicon_href, str):
+                image_url = self._resolve_url(favicon_href, url)
+                result = self._download_and_validate_image(image_url, download_cache)
+                if result:
+                    return result
 
         # Google favicon API as last resort
         domain = urlparse(url).netloc

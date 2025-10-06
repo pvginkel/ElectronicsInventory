@@ -132,7 +132,10 @@ class TaskService:
             task_info = TaskInfo(
                 task_id=task_id,
                 status=TaskStatus.PENDING,
-                start_time=datetime.now(UTC)
+                start_time=datetime.now(UTC),
+                end_time=None,
+                result=None,
+                error=None,
             )
 
             # Store task metadata
@@ -263,7 +266,8 @@ class TaskService:
             # Send task started event
             start_event = TaskEvent(
                 event_type=TaskEventType.TASK_STARTED,
-                task_id=task_id
+                task_id=task_id,
+                data=None,
             )
             event_queue.put_nowait(start_event)
 

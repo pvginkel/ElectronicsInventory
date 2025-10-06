@@ -182,12 +182,12 @@ class ShoppingListLine(db.Model):  # type: ignore[name-defined]
 
         if part is not None:
             try:
-                locations = list(part.part_locations or [])
+                extracted_locations = list(part.part_locations or [])
             except DetachedInstanceError:
-                locations = None
+                pass
             else:
                 return sorted(
-                    locations,
+                    extracted_locations,
                     key=lambda loc: (loc.box_no, loc.loc_no),
                 )
 
@@ -199,5 +199,5 @@ class ShoppingListLine(db.Model):  # type: ignore[name-defined]
             select(PartLocation)
             .where(PartLocation.part_id == self.part_id)
             .order_by(PartLocation.box_no.asc(), PartLocation.loc_no.asc())
-        ).scalars().all()
-        return list(results)
+        )
+        return list(results.scalars().all())

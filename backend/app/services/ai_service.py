@@ -254,6 +254,10 @@ class AIService(BaseService):
         return filename or "document.pdf"
 
     def _calculate_cost(self, input_tokens: int, cached_input_tokens: int, output_tokens: int, reasoning_tokens: int) -> float | None:
+        input_tokens_pm: float
+        cached_input_pm: float
+        output_pm: float
+
         match self.config.OPENAI_MODEL:
             case "gpt-5":
                 input_tokens_pm = 1.25

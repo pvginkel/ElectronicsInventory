@@ -287,7 +287,7 @@ class PartResponseSchema(BaseModel):
         default=None
     )
 
-    @computed_field(  # type: ignore[prop-decorator]
+    @computed_field(
         return_type=bool,
         description="True when the part has a cover attachment defined.",
         json_schema_extra={"example": True}

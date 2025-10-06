@@ -1,6 +1,6 @@
 """Tests for ShoppingListService."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -157,7 +157,7 @@ class TestShoppingListService:
         mid_list = shopping_list_service.create_list("Mid Workbench")
         recent_list = shopping_list_service.create_list("Recent Workbench")
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         session.get(ShoppingList, early_list.id).updated_at = now - timedelta(hours=2)
         session.get(ShoppingList, mid_list.id).updated_at = now - timedelta(hours=1)
         session.get(ShoppingList, recent_list.id).updated_at = now
@@ -373,7 +373,7 @@ class TestShoppingListService:
         assert stored_done_line is not None
         stored_done_line.status = ShoppingListLineStatus.DONE
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         session.get(ShoppingListLine, ready_line.id).updated_at = now
         session.get(ShoppingListLine, concept_line.id).updated_at = now - timedelta(minutes=10)
         session.flush()
