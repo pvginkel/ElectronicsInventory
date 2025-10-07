@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app import create_app
 from app.config import Settings
+from app.database import upgrade_database
 from app.extensions import db
 from app.services.container import ServiceContainer
 
@@ -66,7 +67,7 @@ def app(test_settings: Settings) -> Flask:
         # For constraint tests that use db.session directly, manual flush() is needed
         # before accessing auto-generated IDs
 
-        db.create_all()
+        upgrade_database(recreate=True)
 
     return app
 
@@ -122,8 +123,6 @@ def container(app: Flask):
         # Note: Flask-SQLAlchemy doesn't easily support configuring autoflush
         # For constraint tests that use db.session directly, manual flush() is needed
         # before accessing auto-generated IDs
-
-        db.create_all()
 
     container.session_maker.override(SessionLocal)
 
