@@ -32,9 +32,13 @@ Welcome! This section is the canonical reference for engineers, QA, and technica
 - [CI & Execution](./testing/ci_and_execution.md)
 - [Troubleshooting](./testing/troubleshooting.md)
 
+## UI Guidelines
+
+- [UI Guidelines Overview](./ui/index.md) – entry point into the Type Catalog and Part Management patterns plus shared form/data-display conventions.
+
 ## Architecture Notes
 
-- [Test Instrumentation](./architecture/test_instrumentation.md) – Test-event taxonomy and emitters.
+- [Test Instrumentation](./architecture/test_instrumentation.md) – test-event taxonomy and emitters.
 - [Application Overview](./architecture/application_overview.md) – high-level frontend architecture in context of the inventory domain.
 
 All docs assume familiarity with TypeScript, React 19, TanStack Router/Query, and Playwright. When in doubt, align with the patterns documented here and cross-link new material back to this hub.

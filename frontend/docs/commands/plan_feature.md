@@ -10,6 +10,7 @@ Follow these steps:
 4. Avoid writing any code in the plan.
 5. Include specific and verbatim details from the user's prompt to ensure the plan is accurate.
 6. Call out the Playwright coverage that will exercise every new piece of functionality. Enumerate the end-to-end scenarios, reference required instrumentation, and note any backend coordination needed. Every new behavior must ship with deterministic Playwright tests—no functionality is considered complete without it.
+7. When the feature touches existing UI surfaces, cite the relevant guidance in `docs/contribute/ui/` and describe only the deltas from those patterns.
 
 The result is strictly a technical requirements document that contains the following information:
 
