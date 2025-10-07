@@ -25,6 +25,7 @@ const testData = createTestDataBundle(apiClient);
 
 All factories follow the same shape: accept overrides, return structured DTOs, and expose random helpers for collision-free runs.
 - If a factory is missing behavior you need, add it here and extend the backend as required. Do **not** replace the gap with Playwright `page.route` stubs.
+- Before writing a spec, land the factory/helper first so the test seeds state via `testData` instead of ad hoc API calls.
 
 ## Test Fixtures (`tests/support/fixtures.ts`)
 

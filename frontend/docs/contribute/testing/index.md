@@ -2,6 +2,8 @@
 
 The Electronics Inventory frontend ships with a Playwright-based end-to-end suite that runs against the real backend. This overview introduces the architecture, philosophy, and folder layout before you dive into the detailed guides.
 
+> **Mandatory coupling:** Every UI slice ships with matching instrumentation and Playwright coverage. If the UI changes, the tests change—no feature is complete until its specs exercise the new events against the real backend.
+
 ## Guiding Principles
 
 1. **API-first data setup** – Tests create prerequisite data through API factories; the UI is only used for the behavior under test.

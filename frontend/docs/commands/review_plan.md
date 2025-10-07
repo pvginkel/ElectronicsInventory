@@ -14,6 +14,7 @@ Next you have to look at these aspects:
 - Are there any ambiguities
 - Does the plan say what we're attempting to do
 - Does the plan cover all aspects of what it sets out to do
+- Does the plan enumerate deterministic Playwright coverage for every new behavior (scenarios, instrumentation, backend hooks) in line with the contributor testing guides
 
 DO NOT review minor implementation details like:
 - Missing import statements

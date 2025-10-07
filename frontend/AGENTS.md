@@ -37,6 +37,14 @@ Designers drafting plans and developers implementing Playwright work must re-rea
 2. Use the generated API hooks and centralized error handling — avoid ad hoc `fetch` or manual toast logic.
 3. Keep instrumentation behind `isTestMode()` and follow the documented test-event taxonomy when enhancing visibility.
 4. When in doubt, defer to `docs/contribute/` rather than copying guidance back into this file.
+5. Treat instrumentation as part of the UI contract. Add or update `useListLoadingInstrumentation` and `trackForm*` hooks alongside any new loading or mutation flow.
+
+## UI & Playwright Coupling
+
+- Ship instrumentation changes and matching Playwright coverage in the same slice; a UI feature is incomplete without automated verification.
+- Extend or add specs before calling the work done. Tests must wait on emitted `ListLoading`/`Form` events and assert real backend state via the documented helpers.
+- Update instrumentation first when adding flows so the tests can consume the events without ad hoc waits.
+
 
 ## Development Workflow (Quick Links)
 
@@ -56,7 +64,7 @@ Designers drafting plans and developers implementing Playwright work must re-rea
 - TypeScript strict mode passes; no `any` without justification.
 - Generated API types, TanStack Query, and automatic error handling are used consistently.
 - UI state reflects camelCase domain models produced by custom hooks.
-- Playwright coverage or updates follow the how-to guide and instrumentation expectations (no `page.route`/`mockSSE`; the `testing/no-route-mocks` lint rule must stay green).
+- Playwright specs are created or updated in the same change, rely on the documented instrumentation events (no `page.route`/`mockSSE`), and keep `testing/no-route-mocks` green.
 
 ## Command Templates
 

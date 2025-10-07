@@ -15,6 +15,12 @@ Welcome! This section is the canonical reference for engineers, QA, and technica
 - [Testing Overview](./testing/) – how the Playwright suite is structured and how we keep reruns stable.
 - [Add an E2E Test](./howto/add_e2e_test.md) – step-by-step workflow when expanding coverage for a feature.
 
+## Feature Workflow Expectations
+
+1. Instrument first: add or update the query/form emitters your UI change needs before checking in components.
+2. Build the UI against those events so loading/error states and toasts are observable via `ListLoading`/`Form` test events.
+3. Extend the Playwright specs in the same change. Coverage must seed data with `testData` helpers, wait on the emitted events, and assert backend-driven state before work is marked complete.
+
 ## Testing Deep Dives
 
 - [Playwright Developer Guide](./testing/playwright_developer_guide.md)

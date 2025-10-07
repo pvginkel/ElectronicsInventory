@@ -7,6 +7,7 @@ The Playwright suite drives the production frontend against the real backend in 
 1. Complete the [Getting Started](../getting_started.md) setup and ensure `pnpm playwright test` passes locally.
 2. Understand the [Environment Reference](../environment.md) to configure URLs and test mode.
 3. Review the [Test Instrumentation](../architecture/test_instrumentation.md) taxonomy—tests frequently assert on emitted test-event payloads.
+4. Confirm the UI flow you are touching emits the required instrumentation; add or adjust it *before* writing a spec so tests can rely on deterministic events.
 
 ## Core Principles
 
@@ -113,7 +114,7 @@ await types.attemptDelete(blockedType.name);
 
 ### Test-Event Assertions
 
-Prefer UI assertions first, but when behavior is exposed via instrumentation (forms, toasts, SSE), use helpers for precision.
+Never start writing the spec until the UI emits the events you need—instrumentation drives every deterministic wait. Prefer UI assertions first, but when behavior is exposed via instrumentation (forms, toasts, SSE), use helpers for precision.
 
 ```typescript
 await waitTestEvent(page, 'form', evt =>
