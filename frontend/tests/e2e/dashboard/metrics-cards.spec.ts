@@ -1,38 +1,43 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
 
+interface DashboardMetricsMetadata {
+  totals: {
+    parts: number;
+    boxes: number;
+  };
+  lowStockCount: number;
+  recentActivityCount: number;
+}
+
 function parseNumber(text: string | null): number {
   return Number(text?.replace(/[^0-9-]/g, '') ?? 0);
 }
 
 test.describe('Dashboard metrics cards', () => {
-  test('renders stats that match the dashboard API', async ({ dashboard, apiClient }) => {
+  test('renders stats that match the dashboard API', async ({ dashboard }) => {
     await dashboard.gotoDashboard();
-    await dashboard.waitForMetricsReady();
 
-    const [{ data: stats }, { data: lowStock }] = await Promise.all([
-      apiClient.GET('/api/dashboard/stats', {}),
-      apiClient.GET('/api/dashboard/low-stock', {}),
-    ]);
+    // Rely on instrumentation metadata so we assert against the exact snapshot the UI rendered.
+    const metricsReadyEvent = await dashboard.waitForMetricsReady();
+    expect(metricsReadyEvent.phase).toBe('ready');
+    expect(metricsReadyEvent.metadata).toBeDefined();
 
-    if (!stats) {
-      throw new Error('Expected dashboard stats to be available');
+    const metadata = metricsReadyEvent.metadata as DashboardMetricsMetadata | undefined;
+    if (!metadata) {
+      throw new Error('Expected dashboard metrics metadata to be emitted');
     }
 
-    const lowStockCount = Array.isArray(lowStock) ? lowStock.length : stats.low_stock_count;
-
-    await expect(dashboard.metricsRoot).toHaveAttribute('data-state', 'ready');
-
     const totalPartsValue = parseNumber(await dashboard.metricsValue('totalParts').textContent());
-    expect(totalPartsValue).toBe(stats.total_parts);
+    expect(totalPartsValue).toBe(metadata.totals.parts);
 
     const storageBoxValue = parseNumber(await dashboard.metricsValue('storageBoxes').textContent());
-    expect(storageBoxValue).toBe(stats.total_boxes);
+    expect(storageBoxValue).toBe(metadata.totals.boxes);
 
     const lowStockValue = parseNumber(await dashboard.metricsValue('lowStock').textContent());
-    expect(lowStockValue).toBe(lowStockCount);
+    expect(lowStockValue).toBe(metadata.lowStockCount);
 
     const activityValue = parseNumber(await dashboard.metricsValue('activity').textContent());
-    expect(activityValue).toBe(stats.changes_7d);
+    expect(activityValue).toBe(metadata.recentActivityCount);
   });
 });

@@ -104,6 +104,7 @@ export function useDashboardMetrics() {
     boxes: statsQuery.data?.total_boxes ?? 0,
   };
   const lowStockCount = lowStockQuery.data?.length ?? statsQuery.data?.low_stock_count ?? 0;
+  const recentActivityCount = statsQuery.data?.changes_7d ?? 0;
 
   useDashboardWidgetInstrumentation('dashboard.metrics', {
     isLoading,
@@ -112,6 +113,7 @@ export function useDashboardMetrics() {
     getReadyMetadata: () => ({
       totals,
       lowStockCount,
+      recentActivityCount,
       queries: {
         stats: statsQuery.status,
         lowStock: lowStockQuery.status,

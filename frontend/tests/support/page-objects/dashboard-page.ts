@@ -1,5 +1,6 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { waitForListLoading, waitForUiState } from '../helpers';
+import type { ListLoadingTestEvent } from '@/types/test-events';
 import { BasePage } from './base-page';
 
 export class DashboardPage extends BasePage {
@@ -29,10 +30,14 @@ export class DashboardPage extends BasePage {
     await expect(this.root).toBeVisible();
   }
 
-  async waitForMetricsReady(): Promise<void> {
-    await waitForListLoading(this.page, 'dashboard.metrics', 'ready');
-    await waitForUiState(this.page, 'dashboard.metrics', 'ready');
+  async waitForMetricsReady(): Promise<ListLoadingTestEvent> {
+    const [readyEvent] = await Promise.all([
+      waitForListLoading(this.page, 'dashboard.metrics', 'ready'),
+      waitForUiState(this.page, 'dashboard.metrics', 'ready'),
+    ]);
+
     await expect(this.metricsRoot).toHaveAttribute('data-state', 'ready');
+    return readyEvent;
   }
 
   metricsCard(metricKey: string): Locator {
