@@ -34,9 +34,10 @@ This document describes the development phases for the Shopping List feature des
 
   * Add row: Part picker (existing parts only), Needed, optional Seller override, Note.
   * **Prevent duplicates**: if user tries to add same Part again, show error directing them to edit the existing line.
-  * Sorting (Part description, Part/MPN, Category, Date added).
-  * Delete line (confirm).
+* Sorting (Part description, Part/MPN, Date added).
+* Delete line (confirm).
 * Footer action: **Mark “Ready”** (enabled when the list has ≥1 line).
+* Frontend implementation plan: `docs/features/shopping_list_foundations/plan.md`.
 
 ---
 
