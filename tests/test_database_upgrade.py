@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 
 def test_upgrade_database_recreate_sqlite_uses_sqlalchemy_metadata(app, monkeypatch):
     """When recreating a SQLite database, migrations should fall back to metadata rebuild."""
@@ -27,6 +29,7 @@ def test_upgrade_database_recreate_sqlite_uses_sqlalchemy_metadata(app, monkeypa
         return metadata
 
     create_called = {"value": False}
+    stamp_calls: list[tuple[SimpleNamespace, str]] = []
 
     with app.app_context():
         # Guard to ensure the test environment matches expectations.
@@ -40,6 +43,16 @@ def test_upgrade_database_recreate_sqlite_uses_sqlalchemy_metadata(app, monkeypa
 
         monkeypatch.setattr(database_module.db, "create_all", tracking_create_all)
         monkeypatch.setattr(database_module, "MetaData", metadata_factory)
+        monkeypatch.setattr(
+            database_module,
+            "_get_alembic_config",
+            lambda: SimpleNamespace(attributes={}),
+        )
+
+        def fake_stamp(config: SimpleNamespace, revision: str) -> None:
+            stamp_calls.append((config, revision))
+
+        monkeypatch.setattr(database_module.command, "stamp", fake_stamp)
 
         result = database_module.upgrade_database(recreate=True)
 
@@ -48,4 +61,7 @@ def test_upgrade_database_recreate_sqlite_uses_sqlalchemy_metadata(app, monkeypa
     assert metadata.reflect_called
     assert metadata.drop_called
     assert create_called["value"]
+    assert stamp_calls and stamp_calls[0][1] == "head"
+    stamped_config = stamp_calls[0][0]
+    assert stamped_config.attributes["connection"] is not None
     assert result == []

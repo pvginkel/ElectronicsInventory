@@ -218,6 +218,11 @@ def upgrade_database(recreate: bool = False) -> list[tuple[str, str]]:
 
         # Ensure models are registered before create_all (create_app imports them already).
         db.create_all()
+        config = _get_alembic_config()
+        with engine.connect() as connection:
+            config.attributes["connection"] = connection
+            command.stamp(config, "head")
+        print("✅ Alembic version stamped to head")
         print("✅ Database schema created with SQLAlchemy metadata")
         return []
 
