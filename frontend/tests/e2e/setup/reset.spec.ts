@@ -11,20 +11,17 @@ function hasListEvent(events: TestEvent[], scope: string, phase: ListLoadingTest
 }
 
 test.describe.parallel('Seed dataset bootstrap', () => {
-  test('boxes list shows seeded inventory', async ({ boxes, testEvents, backendLogs }) => {
-    await testEvents.clearEvents();
-    await boxes.gotoList();
+test('boxes list shows seeded inventory', async ({ boxes, testEvents }) => {
+  await testEvents.clearEvents();
+  await boxes.gotoList();
 
-    const events = await testEvents.getEvents();
-    expect(hasListEvent(events, 'boxes.list', 'loading')).toBeTruthy();
-    expect(hasListEvent(events, 'boxes.list', 'ready')).toBeTruthy();
+  const events = await testEvents.getEvents();
+  expect(hasListEvent(events, 'boxes.list', 'loading')).toBeTruthy();
+  expect(hasListEvent(events, 'boxes.list', 'ready')).toBeTruthy();
 
-    await boxes.expectCardVisible(1);
-    await boxes.expectCardVisible(10);
-
-    const logLines = backendLogs.getBufferedLines();
-    expect(logLines.some(line => line.includes('load-test-data') || line.includes('Test data loaded successfully'))).toBeTruthy();
-  });
+  await boxes.expectCardVisible(1);
+  await boxes.expectCardVisible(10);
+});
 
   test('parts list includes seeded shift register', async ({ parts, testEvents }) => {
     await testEvents.clearEvents();

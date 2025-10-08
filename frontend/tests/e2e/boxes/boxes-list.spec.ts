@@ -27,15 +27,17 @@ test.describe('Boxes - List Experience', () => {
     throw new Error('Unable to create unique box after multiple attempts')
   }
 
-  test('renders loading state, lists seeded boxes, and filters via search', async ({ boxes, testData, page }) => {
+  test('renders loading state, lists seeded boxes, and filters via search', async ({ boxes, testData, testEvents }) => {
     const prefix = makeUnique('QA-Boxes')
     const alphaDescription = `${prefix}-Alpha`
     const betaDescription = `${prefix}-Beta`
     const alphaBox = await createSeedBox(testData, alphaDescription, 10)
     const betaBox = await createSeedBox(testData, betaDescription, 12)
 
+    await testEvents.clearEvents()
     await boxes.goto('/boxes')
-    await expect(page.getByTestId('boxes.list.loading')).toBeVisible()
+    await boxes.waitForListState('loading')
+    await boxes.waitForListState('ready')
     await expect(boxes.listTable).toBeVisible({ timeout: 15000 })
     await boxes.expectCardVisible(alphaBox.box_no)
     await boxes.expectCardVisible(betaBox.box_no)

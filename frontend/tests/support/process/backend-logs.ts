@@ -21,8 +21,8 @@ export interface ServiceLogCollector {
   dispose(): void;
 }
 
-export interface BackendLogCollector extends ServiceLogCollector {}
-export interface FrontendLogCollector extends ServiceLogCollector {}
+export type BackendLogCollector = ServiceLogCollector;
+export type FrontendLogCollector = ServiceLogCollector;
 
 export function createBackendLogCollector(options: {
   workerIndex: number;

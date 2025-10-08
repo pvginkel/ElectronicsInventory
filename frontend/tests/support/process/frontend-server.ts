@@ -20,10 +20,14 @@ export async function startFrontend(options: {
   backendUrl: string;
   excludePorts?: number[];
   streamLogs?: boolean;
+  port?: number;
 }): Promise<FrontendServerHandle> {
-  const port = await getPort({
-    exclude: options.excludePorts ?? [],
-  });
+  const port =
+    typeof options.port === 'number'
+      ? options.port
+      : await getPort({
+          exclude: options.excludePorts ?? [],
+        });
 
   const hostname = '127.0.0.1';
   const url = `http://${hostname}:${port}`;
@@ -202,7 +206,7 @@ function streamProcessOutput(
     };
 
     lineStream.on('data', handleLine);
-    lineStream.on('error', error => {
+    lineStream.on('error', (error: unknown) => {
       process.stdout.write(
         `${prefix} <<stream error>> ${error instanceof Error ? error.message : String(error)}\n`
       );

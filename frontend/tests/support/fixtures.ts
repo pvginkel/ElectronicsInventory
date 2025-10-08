@@ -4,6 +4,7 @@ import type { WorkerInfo } from '@playwright/test';
 import { copyFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import getPort from 'get-port';
 import { createApiClient, createTestDataBundle } from '../api';
 import { TypesPage } from '../e2e/types/TypesPage';
 import { PartsPage } from './page-objects/parts-page';
@@ -423,9 +424,14 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
           throw error;
         }
 
+        const backendPort = await getPort();
+        const frontendPort = await getPort({ exclude: [backendPort] });
+
         const backendPromise = startBackend(workerInfo.workerIndex, {
           sqliteDbPath: workerDbPath,
           streamLogs: backendStreamLogs,
+          port: backendPort,
+          frontendVersionUrl: `http://127.0.0.1:${frontendPort}/version.json`,
         });
         const backendReadyPromise = backendPromise.then(backendHandle => {
           backendLogs.attachStream(backendHandle.process.stdout, 'stdout');
@@ -441,6 +447,7 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
               workerIndex: workerInfo.workerIndex,
               backendUrl: backendHandle.url,
               excludePorts: [backendHandle.port],
+              port: frontendPort,
               streamLogs: frontendStreamLogs,
             });
             frontendLogs.attachStream(frontendHandle.process.stdout, 'stdout');

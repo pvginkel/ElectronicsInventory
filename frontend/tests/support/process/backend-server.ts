@@ -25,6 +25,9 @@ export async function startBackend(
   options: {
     sqliteDbPath: string;
     streamLogs?: boolean;
+    port?: number;
+    excludePorts?: number[];
+    frontendVersionUrl?: string;
   }
 ): Promise<BackendServerHandle> {
   if (!options?.sqliteDbPath) {
@@ -33,7 +36,12 @@ export async function startBackend(
     );
   }
 
-  const port = await getPort();
+  const port =
+    typeof options.port === 'number'
+      ? options.port
+      : await getPort({
+          exclude: options.excludePorts ?? [],
+        });
   const hostname = '127.0.0.1';
   const url = `http://${hostname}:${port}`;
 
@@ -54,11 +62,16 @@ export async function startBackend(
     );
   }
 
+  const childEnv = {
+    ...process.env,
+    ...(options.frontendVersionUrl
+      ? { FRONTEND_VERSION_URL: options.frontendVersionUrl }
+      : {}),
+  };
+
   const child = spawn(scriptPath, args, {
     cwd: getRepoRoot(),
-    env: {
-      ...process.env,
-    },
+    env: childEnv,
     stdio: ['pipe', 'pipe', 'pipe'],
   }) as ChildProcessWithoutNullStreams;
 
@@ -186,7 +199,7 @@ function streamProcessOutput(
     };
 
     lineStream.on('data', handleLine);
-    lineStream.on('error', error => {
+    lineStream.on('error', (error: unknown) => {
       process.stdout.write(
         `${prefix} <<stream error>> ${error instanceof Error ? error.message : String(error)}\n`
       );
