@@ -18,11 +18,17 @@ export { SellerTestFactory };
  * @param client - Optional API client instance to share between factories
  * @returns Bundle of factory instances organized by domain
  */
-export function createTestDataBundle(client?: ReturnType<typeof createApiClient>) {
+export function createTestDataBundle(
+  client?: ReturnType<typeof createApiClient>,
+  options: { backendUrl?: string } = {}
+) {
   const apiClient = client || createApiClient();
   const typeFactory = new TypeTestFactory(apiClient);
   const partFactory = new PartTestFactory(apiClient);
-  const attachmentFactory = new AttachmentTestFactory(apiClient);
+  const attachmentFactory = new AttachmentTestFactory(
+    apiClient,
+    options.backendUrl
+  );
   const boxFactory = new BoxTestFactory(apiClient);
   const sellerFactory = new SellerTestFactory(apiClient);
 

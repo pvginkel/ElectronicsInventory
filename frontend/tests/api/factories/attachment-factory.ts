@@ -24,9 +24,18 @@ export class AttachmentTestFactory {
   private readonly client: ReturnType<typeof createApiClient>;
   private readonly backendUrl: string;
 
-  constructor(client?: ReturnType<typeof createApiClient>) {
-    this.client = client || createApiClient();
-    this.backendUrl = getBackendUrl();
+  constructor(
+    client?: ReturnType<typeof createApiClient>,
+    backendUrl?: string
+  ) {
+    if (client) {
+      this.client = client;
+    } else {
+      this.client = createApiClient(
+        backendUrl ? { baseUrl: backendUrl } : undefined
+      );
+    }
+    this.backendUrl = backendUrl ?? getBackendUrl();
   }
 
   /**

@@ -22,12 +22,12 @@ The Playwright suite drives the production frontend against the real backend in 
 
 ### API Client (`tests/api/client.ts`)
 
-A Node-compatible OpenAPI client backed by `openapi-fetch`. It reads `BACKEND_URL` (default `http://localhost:5100`) and exposes `apiRequest` helpers that throw on non-2xx responses.
+A Node-compatible OpenAPI client backed by `openapi-fetch`. The helper accepts an optional `{ baseUrl }` override so worker fixtures can point each Playwright worker at its dedicated backend.
 
 ```typescript
 import { createApiClient, apiRequest } from '../api/client';
 
-const client = createApiClient();
+const client = createApiClient({ baseUrl: backendUrlFromFixture });
 const { data } = await apiRequest(() => client.GET('/api/types'));
 ```
 
@@ -43,13 +43,16 @@ const other = await factory.create({ name: factory.randomTypeName('Capacitor') }
 
 Attachments are available via `testData.attachments` so specs can seed documents, covers, and previews against the real `/api/parts/:id/attachments/**` endpoints without inline stubs.
 
+`createTestDataBundle(apiClient, { backendUrl })` accepts the worker backend URL so attachment helpers can build deterministic media URLs without reading global environment variables.
+
 See [Factories & Fixtures](./factories_and_fixtures.md) for a catalog of available methods.
 
 ### Fixtures (`tests/support/fixtures.ts`)
 
 Custom fixtures extend Playwright's base test:
 
-- `frontendUrl` / `backendUrl` – Read from environment variables (`FRONTEND_URL`, `BACKEND_URL`).
+- `frontendUrl` / `backendUrl` – Provided by the worker-scoped service manager. In managed mode every worker boots its own backend + Vite proxy; when `PLAYWRIGHT_MANAGED_SERVICES=false` they fall back to the externally supplied URLs.
+- `backendLogs` – Captures per-worker backend stdout/stderr and publishes them as `backend.log` attachments for each spec (enable live streaming with `PLAYWRIGHT_BACKEND_LOG_STREAM=true`).
 - `testData` – Bundled factories for `types`, `parts`, etc.
 - `types` – Page object for the Types feature (`tests/e2e/types/TypesPage.ts`).
 - `page` override – Registers the Playwright test-event bridge, enforces console error policy (unexpected errors fail the test), and disables animations for determinism.
@@ -61,6 +64,16 @@ Import fixtures via:
 ```typescript
 import { test, expect } from '../support/fixtures';
 ```
+
+### Service Lifecycle
+
+`PLAYWRIGHT_MANAGED_SERVICES` defaults to `"true"`, which instructs the `tests/support/process/*` helpers to launch an isolated backend + frontend pipeline for each Playwright worker:
+
+- **Backend** – `tests/support/process/backend-server.ts` shells into `../backend/scripts/testing-server.sh --temp-sqlite-db`, waits for `/api/health/readyz`, and exposes the per-worker origin.
+- **Frontend** – `tests/support/process/frontend-server.ts` runs `pnpm exec vite --host 127.0.0.1 --port <random>` with `BACKEND_URL=<worker-backend> VITE_TEST_MODE=true` so UI calls automatically target the worker backend.
+- **Logging** – `backendLogs` pipes stdout/stderr through `split2`, tags every line with the worker index, and writes a `backend.log` attachment for each spec. Set `PLAYWRIGHT_BACKEND_LOG_STREAM=true` locally to tee the log stream to your terminal.
+
+Set `PLAYWRIGHT_MANAGED_SERVICES=false` when you need to point the suite at pre-managed infrastructure (for example, shared staging). In that mode the worker fixtures skip process orchestration and reuse the `FRONTEND_URL`/`BACKEND_URL` you provide; optional `webServer` commands in `playwright.config.ts` remain available if you prefer the legacy global servers.
 
 ### Helpers (`tests/support/helpers.ts`)
 

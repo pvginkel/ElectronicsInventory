@@ -17,7 +17,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Allow Playwright to manage worker count; per-worker services isolate test state.
   reporter: [
     ['list'],
     ['html', {
@@ -26,20 +26,22 @@ export default defineConfig({
     }]
   ],
 
-  webServer: playwrightManagedServices ? [
-    {
-      command: '../backend/scripts/testing-server.sh',
-      port: 5100,
-      timeout: 60 * 1000,
-      reuseExistingServer: !process.env.CI,
-    },
-    {
-      command: './scripts/testing-server.sh',
-      port: 3100,
-      timeout: 60 * 1000,
-      reuseExistingServer: !process.env.CI,
-    }
-  ] : undefined,
+  webServer: playwrightManagedServices
+    ? undefined
+    : [
+        {
+          command: '../backend/scripts/testing-server.sh',
+          port: 5100,
+          timeout: 60 * 1000,
+          reuseExistingServer: !process.env.CI,
+        },
+        {
+          command: './scripts/testing-server.sh',
+          port: 3100,
+          timeout: 60 * 1000,
+          reuseExistingServer: !process.env.CI,
+        },
+      ],
 
   use: {
     baseURL: frontendUrl,

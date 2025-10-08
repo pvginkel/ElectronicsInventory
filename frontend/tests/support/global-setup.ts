@@ -9,11 +9,13 @@ async function globalSetup() {
   console.log('🔧 Setting up Playwright tests...');
   console.log(`Frontend URL: ${frontendUrl}`);
   console.log(`Backend URL: ${backendUrl}`);
-  console.log(`Service management: ${playwrightManagedServices ? 'Playwright managed' : 'External'}`);
+  console.log(
+    `Service management: ${playwrightManagedServices ? 'Per-worker (Playwright managed)' : 'External'}`
+  );
 
-  // Skip health checks if Playwright manages services (webServer handles this)
+  // Skip health checks when worker fixtures handle process orchestration.
   if (playwrightManagedServices) {
-    console.log('⏭️ Skipping health checks - Playwright manages services');
+    console.log('⏭️ Skipping health checks - worker fixtures boot services on demand');
     return;
   }
 

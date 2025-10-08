@@ -9,8 +9,8 @@ Factories and fixtures power the API-first testing strategy. They create determi
 ```typescript
 import { createApiClient, createTestDataBundle } from '../api';
 
-const apiClient = createApiClient();
-const testData = createTestDataBundle(apiClient);
+const apiClient = createApiClient({ baseUrl: backendUrlFromFixture });
+const testData = createTestDataBundle(apiClient, { backendUrl: backendUrlFromFixture });
 ```
 
 ### Factories
@@ -33,8 +33,9 @@ Custom fixtures extend Playwright’s base test:
 
 | Fixture | Type | Description |
 | --- | --- | --- |
-| `frontendUrl` | `string` | Derived from `FRONTEND_URL` (defaults to `http://localhost:3100`). |
-| `backendUrl` | `string` | Derived from `BACKEND_URL` (defaults to `http://localhost:5100`). |
+| `frontendUrl` | `string` | Worker-scoped frontend origin. Defaults to the Vite proxy launched for the worker; falls back to `FRONTEND_URL` when managed services are disabled. |
+| `backendUrl` | `string` | Worker-scoped backend origin. Defaults to the in-memory backend launched for the worker; falls back to `BACKEND_URL` when managed services are disabled. |
+| `backendLogs` | `BackendLogCollector` | Streams worker backend stdout/stderr and attaches `backend.log` to each spec. |
 | `sseTimeout` | `number` | 35s timeout for SSE heavy flows. |
 | `apiClient` | Return of `createApiClient()` | Raw OpenAPI client for advanced usage. |
 | `testData` | Return of `createTestDataBundle()` | Aggregated factories. |
@@ -52,8 +53,8 @@ Extend `TestFixtures` when adding new domains (e.g., `parts: PartsPage`). Keep f
 ## Global Setup (`tests/support/global-setup.ts`)
 
 - Loads `.env.test` via `dotenv`.
-- Ensures `FRONTEND_URL` and `BACKEND_URL` defaults are set for tests.
-- Can be extended to prime databases or seed feature flags.
+- Skips readiness checks when `PLAYWRIGHT_MANAGED_SERVICES` is truthy so worker fixtures can launch per-worker services.
+- Falls back to the legacy health probes when `PLAYWRIGHT_MANAGED_SERVICES=false`.
 
 ## Helpers (`tests/support/helpers.ts`)
 

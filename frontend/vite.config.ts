@@ -107,7 +107,12 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       }
-    }
+    },
+    watch: process.env.VITE_TEST_MODE === 'true'
+      ? {
+          ignored: ['**']
+        }
+      : undefined
   },
   preview: {
     proxy: {

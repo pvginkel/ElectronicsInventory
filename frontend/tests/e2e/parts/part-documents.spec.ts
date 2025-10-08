@@ -1,18 +1,22 @@
 import { test, expect } from '../../support/fixtures';
 import { expectConsoleError } from '../../support/helpers';
-import { getBackendUrl } from '../../support/backend-url';
 
-const backendBaseUrl = new URL(getBackendUrl());
-
-function deterministicImageUrl(text: string): string {
-  const url = new URL('/api/testing/content/image', backendBaseUrl);
+function deterministicImageUrl(baseUrl: string, text: string): string {
+  const url = new URL('/api/testing/content/image', baseUrl);
   url.hostname = '127.0.0.1';
   url.searchParams.set('text', text);
   return url.toString();
 }
 
 test.describe('Parts - Document management', () => {
-test('adds, marks cover, and removes documents with the real backend', async ({ page, parts, partsDocuments, toastHelper, testData }) => {
+test('adds, marks cover, and removes documents with the real backend', async ({
+  page,
+  parts,
+  partsDocuments,
+  toastHelper,
+  testData,
+  backendUrl,
+}) => {
   test.setTimeout(90_000);
 
   await expectConsoleError(page, /ERR_INCOMPLETE_CHUNKED_ENCODING/);
@@ -32,7 +36,7 @@ test('adds, marks cover, and removes documents with the real backend', async ({ 
     await parts.detailAddDocumentButton.click();
     await partsDocuments.openModal();
 
-    const documentUrl = deterministicImageUrl('Datasheet');
+    const documentUrl = deterministicImageUrl(backendUrl, 'Datasheet');
 
     await partsDocuments.createLinkDocument(documentUrl, 'Datasheet', { partKey: part.key });
 

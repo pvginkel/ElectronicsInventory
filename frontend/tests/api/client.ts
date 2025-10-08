@@ -35,8 +35,12 @@ export async function apiRequest<T>(
  * Creates a typed API client for use in tests.
  * Uses the generated paths type from the OpenAPI spec for full type safety.
  */
-export function createApiClient() {
-  const backendUrl = getBackendUrl();
+export interface CreateApiClientOptions {
+  baseUrl?: string;
+}
+
+export function createApiClient(options: CreateApiClientOptions = {}) {
+  const backendUrl = options.baseUrl ?? getBackendUrl();
   const client = createClient<paths>({
     baseUrl: backendUrl,
     // Use globalThis.fetch which is available in Node 18+
