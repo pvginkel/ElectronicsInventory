@@ -1,6 +1,9 @@
 /* eslint-disable react-hooks/rules-of-hooks, no-empty-pattern */
 import { test as base, expect } from '@playwright/test';
 import type { WorkerInfo } from '@playwright/test';
+import { copyFile, mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createApiClient, createTestDataBundle } from '../api';
 import { TypesPage } from '../e2e/types/TypesPage';
 import { PartsPage } from './page-objects/parts-page';
@@ -34,13 +37,17 @@ import { startBackend } from './process/backend-server';
 import { startFrontend } from './process/frontend-server';
 import {
   createBackendLogCollector,
+  createFrontendLogCollector,
   type BackendLogCollector,
+  type FrontendLogCollector,
 } from './process/backend-logs';
 
 type ServiceManager = {
   backendUrl: string;
   frontendUrl: string;
   backendLogs: BackendLogCollector;
+  frontendLogs: FrontendLogCollector;
+  sqliteDbPath?: string;
   disposeServices(): Promise<void>;
 };
 
@@ -48,6 +55,7 @@ type TestFixtures = {
   frontendUrl: string;
   backendUrl: string;
   backendLogs: BackendLogCollector;
+  frontendLogs: FrontendLogCollector;
   sseTimeout: number;
   apiClient: ReturnType<typeof createApiClient>;
   testData: ReturnType<typeof createTestDataBundle>;
@@ -84,14 +92,29 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
       await use(_serviceManager.backendUrl);
     },
 
-    backendLogs: async ({ _serviceManager }, use, testInfo) => {
-      const attachment = await _serviceManager.backendLogs.attachToTest(testInfo);
-      try {
-        await use(_serviceManager.backendLogs);
-      } finally {
-        await attachment.stop();
-      }
-    },
+    backendLogs: [
+      async ({ _serviceManager }, use, testInfo) => {
+        const attachment = await _serviceManager.backendLogs.attachToTest(testInfo);
+        try {
+          await use(_serviceManager.backendLogs);
+        } finally {
+          await attachment.stop();
+        }
+      },
+      { auto: true },
+    ],
+
+    frontendLogs: [
+      async ({ _serviceManager }, use, testInfo) => {
+        const attachment = await _serviceManager.frontendLogs.attachToTest(testInfo);
+        try {
+          await use(_serviceManager.frontendLogs);
+        } finally {
+          await attachment.stop();
+        }
+      },
+      { auto: true },
+    ],
 
     baseURL: async ({ frontendUrl }, use) => {
       await use(frontendUrl);
@@ -300,15 +323,41 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
       async ({}, use: (value: ServiceManager) => Promise<void>, workerInfo: WorkerInfo) => {
         const managedServices =
           process.env.PLAYWRIGHT_MANAGED_SERVICES !== 'false';
-        const streamLogs =
+        const backendStreamLogs =
           process.env.PLAYWRIGHT_BACKEND_LOG_STREAM === 'true';
+        const frontendStreamLogs =
+          process.env.PLAYWRIGHT_FRONTEND_LOG_STREAM === 'true';
         const backendLogs = createBackendLogCollector({
           workerIndex: workerInfo.workerIndex,
-          streamToConsole: streamLogs,
+          streamToConsole: backendStreamLogs,
+        });
+        const frontendLogs = createFrontendLogCollector({
+          workerIndex: workerInfo.workerIndex,
+          streamToConsole: frontendStreamLogs,
         });
 
         const previousBackend = process.env.BACKEND_URL;
         const previousFrontend = process.env.FRONTEND_URL;
+
+        let workerDbDir: string | undefined;
+        let workerDbPath: string | undefined;
+
+        const cleanupWorkerDb = async () => {
+          if (!workerDbDir) {
+            return;
+          }
+          try {
+            await rm(workerDbDir, { recursive: true, force: true });
+          } catch (error) {
+            console.warn(
+              `[worker-${workerInfo.workerIndex}] Failed to remove temp SQLite data at ${workerDbDir}:`,
+              error
+            );
+          } finally {
+            workerDbDir = undefined;
+            workerDbPath = undefined;
+          }
+        };
 
         if (!managedServices) {
           const backendUrl =
@@ -316,9 +365,11 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
           const frontendUrl =
             process.env.FRONTEND_URL || 'http://localhost:3100';
 
-          backendLogs.log(
-            'PLAYWRIGHT_MANAGED_SERVICES=false; using externally managed services.'
-          );
+          const message =
+            'PLAYWRIGHT_MANAGED_SERVICES=false; using externally managed services.';
+
+          backendLogs.log(message);
+          frontendLogs.log(message);
 
           process.env.BACKEND_URL = backendUrl;
           process.env.FRONTEND_URL = frontendUrl;
@@ -332,6 +383,8 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
             backendUrl,
             frontendUrl,
             backendLogs,
+            frontendLogs,
+            sqliteDbPath: undefined,
             disposeServices: async () => {},
           };
 
@@ -341,11 +394,39 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
             process.env.BACKEND_URL = previousBackend;
             process.env.FRONTEND_URL = previousFrontend;
             backendLogs.dispose();
+            frontendLogs.dispose();
           }
           return;
         }
 
-        const backendPromise = startBackend(workerInfo.workerIndex);
+        const seedDbPath = process.env.PLAYWRIGHT_SEEDED_SQLITE_DB;
+        if (!seedDbPath) {
+          backendLogs.dispose();
+          frontendLogs.dispose();
+          await cleanupWorkerDb();
+          throw new Error(
+            'PLAYWRIGHT_SEEDED_SQLITE_DB is not set. Ensure global setup initialized the test database.'
+          );
+        }
+
+        try {
+          workerDbDir = await mkdtemp(
+            join(tmpdir(), `electronics-inventory-worker-${workerInfo.workerIndex}-`)
+          );
+          workerDbPath = join(workerDbDir, 'database.sqlite');
+          await copyFile(seedDbPath, workerDbPath);
+          backendLogs.log(`Using SQLite database copy at ${workerDbPath}`);
+        } catch (error) {
+          backendLogs.dispose();
+          frontendLogs.dispose();
+          await cleanupWorkerDb();
+          throw error;
+        }
+
+        const backendPromise = startBackend(workerInfo.workerIndex, {
+          sqliteDbPath: workerDbPath,
+          streamLogs: backendStreamLogs,
+        });
         const backendReadyPromise = backendPromise.then(backendHandle => {
           backendLogs.attachStream(backendHandle.process.stdout, 'stdout');
           backendLogs.attachStream(backendHandle.process.stderr, 'stderr');
@@ -354,14 +435,23 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
         });
 
         const frontendPromise = backendReadyPromise.then(async backendHandle => {
+          frontendLogs.log(`Starting frontend against backend ${backendHandle.url}`);
           try {
-            return await startFrontend({
+            const frontendHandle = await startFrontend({
               workerIndex: workerInfo.workerIndex,
               backendUrl: backendHandle.url,
               excludePorts: [backendHandle.port],
+              streamLogs: frontendStreamLogs,
             });
+            frontendLogs.attachStream(frontendHandle.process.stdout, 'stdout');
+            frontendLogs.attachStream(frontendHandle.process.stderr, 'stderr');
+            frontendLogs.log(`Frontend listening on ${frontendHandle.url}`);
+            return frontendHandle;
           } catch (error) {
             await backendHandle.dispose();
+            frontendLogs.log(
+              `Frontend failed to start: ${(error as Error)?.message ?? String(error)}`
+            );
             throw error;
           }
         });
@@ -380,11 +470,15 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
           ]);
         } catch (error) {
           backendLogs.dispose();
+          frontendLogs.dispose();
+          await cleanupWorkerDb();
           throw error;
         }
 
         if (!backend || !frontend) {
           backendLogs.dispose();
+          frontendLogs.dispose();
+          await cleanupWorkerDb();
           throw new Error(
             `[worker-${workerInfo.workerIndex}] Failed to start managed services`
           );
@@ -416,13 +510,16 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
             }
           }
           await backend.dispose();
+          await cleanupWorkerDb();
         };
 
         const serviceManager: ServiceManager = {
           backendUrl: backend.url,
           frontendUrl: frontend.url,
           backendLogs,
+          frontendLogs,
           disposeServices,
+          sqliteDbPath: workerDbPath,
         };
 
         try {
@@ -432,6 +529,7 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
           process.env.BACKEND_URL = previousBackend;
           process.env.FRONTEND_URL = previousFrontend;
           backendLogs.dispose();
+          frontendLogs.dispose();
         }
       },
       { scope: 'worker', timeout: 120_000 },

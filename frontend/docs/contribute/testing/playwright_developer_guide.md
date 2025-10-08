@@ -69,7 +69,7 @@ import { test, expect } from '../support/fixtures';
 
 `PLAYWRIGHT_MANAGED_SERVICES` defaults to `"true"`, which instructs the `tests/support/process/*` helpers to launch an isolated backend + frontend pipeline for each Playwright worker:
 
-- **Backend** – `tests/support/process/backend-server.ts` shells into `../backend/scripts/testing-server.sh --temp-sqlite-db`, waits for `/api/health/readyz`, and exposes the per-worker origin.
+- **Backend** – Global setup seeds a SQLite database via `../backend/scripts/initialize-sqlite-database.sh --db <seed> --load-test-data`, and each worker copies that file before `tests/support/process/backend-server.ts` shells into `../backend/scripts/testing-server.sh --sqlite-db=<worker-db>`, waits for `/api/health/readyz`, and exposes the per-worker origin.
 - **Frontend** – `tests/support/process/frontend-server.ts` runs `pnpm exec vite --host 127.0.0.1 --port <random>` with `BACKEND_URL=<worker-backend> VITE_TEST_MODE=true` so UI calls automatically target the worker backend.
 - **Logging** – `backendLogs` pipes stdout/stderr through `split2`, tags every line with the worker index, and writes a `backend.log` attachment for each spec. Set `PLAYWRIGHT_BACKEND_LOG_STREAM=true` locally to tee the log stream to your terminal.
 

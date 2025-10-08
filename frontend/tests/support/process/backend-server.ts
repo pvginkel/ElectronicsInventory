@@ -20,17 +20,39 @@ export type BackendServerHandle = {
  * Launches the backend testing server for a given worker.
  * Returns the backend URL along with a dispose hook that terminates the process.
  */
-export async function startBackend(workerIndex: number): Promise<BackendServerHandle> {
+export async function startBackend(
+  workerIndex: number,
+  options: {
+    sqliteDbPath: string;
+    streamLogs?: boolean;
+  }
+): Promise<BackendServerHandle> {
+  if (!options?.sqliteDbPath) {
+    throw new Error(
+      `${formatPrefix(workerIndex, 'backend')} Missing sqliteDbPath for backend startup`
+    );
+  }
+
   const port = await getPort();
   const hostname = '127.0.0.1';
   const url = `http://${hostname}:${port}`;
 
   const scriptPath = resolve(getRepoRoot(), '../backend/scripts/testing-server.sh');
-  const args = ['--host', hostname, '--port', String(port), '--temp-sqlite-db'];
+  const args = [
+    '--host',
+    hostname,
+    '--port',
+    String(port),
+    '--sqlite-db',
+    options.sqliteDbPath,
+  ];
 
-  console.log(
-    `${formatPrefix(workerIndex, 'backend')} Starting backend: ${scriptPath} ${args.join(' ')}`
-  );
+  const logLifecycle = options.streamLogs === true;
+  if (logLifecycle) {
+    console.log(
+      `${formatPrefix(workerIndex, 'backend')} Starting backend: ${scriptPath} ${args.join(' ')}`
+    );
+  }
 
   const child = spawn(scriptPath, args, {
     cwd: getRepoRoot(),
@@ -41,7 +63,11 @@ export async function startBackend(workerIndex: number): Promise<BackendServerHa
   }) as ChildProcessWithoutNullStreams;
 
   registerForCleanup(child);
-  streamProcessOutput(child, workerIndex, 'backend');
+
+  const shouldStreamLogs = options.streamLogs === true;
+  if (shouldStreamLogs) {
+    streamProcessOutput(child, workerIndex, 'backend');
+  }
 
   const readinessUrl = `${url}${READY_PATH}`;
 
@@ -52,7 +78,9 @@ export async function startBackend(workerIndex: number): Promise<BackendServerHa
     serviceLabel: 'backend',
   });
 
-  console.log(`${formatPrefix(workerIndex, 'backend')} Backend ready at ${url}`);
+  if (logLifecycle) {
+    console.log(`${formatPrefix(workerIndex, 'backend')} Backend ready at ${url}`);
+  }
 
   return {
     url,
@@ -126,7 +154,10 @@ async function terminateProcess(
     return;
   }
 
-  console.log(`${formatPrefix(workerIndex, serviceLabel)} Stopping process (pid=${child.pid})`);
+  const logLifecycle = serviceShouldLogLifecycle(serviceLabel);
+  if (logLifecycle) {
+    console.log(`${formatPrefix(workerIndex, serviceLabel)} Stopping process (pid=${child.pid})`);
+  }
 
   child.kill('SIGTERM');
 
@@ -176,6 +207,16 @@ function streamProcessOutput(
 
 function formatPrefix(workerIndex: number, serviceLabel: string): string {
   return `[worker-${workerIndex} ${serviceLabel}]`;
+}
+
+function serviceShouldLogLifecycle(serviceLabel: string): boolean {
+  if (serviceLabel === 'backend') {
+    return process.env.PLAYWRIGHT_BACKEND_LOG_STREAM === 'true';
+  }
+  if (serviceLabel === 'frontend') {
+    return process.env.PLAYWRIGHT_FRONTEND_LOG_STREAM === 'true';
+  }
+  return false;
 }
 
 async function waitForExit(

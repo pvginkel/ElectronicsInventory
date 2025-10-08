@@ -19,6 +19,7 @@ export async function startFrontend(options: {
   workerIndex: number;
   backendUrl: string;
   excludePorts?: number[];
+  streamLogs?: boolean;
 }): Promise<FrontendServerHandle> {
   const port = await getPort({
     exclude: options.excludePorts ?? [],
@@ -30,9 +31,12 @@ export async function startFrontend(options: {
   const scriptPath = resolve(getRepoRoot(), './scripts/testing-server.sh');
   const args = ['--host', hostname, '--port', String(port)];
 
-  console.log(
-    `${formatPrefix(options.workerIndex, 'frontend')} Starting frontend: ${scriptPath} ${args.join(' ')}`
-  );
+  const logLifecycle = options.streamLogs === true;
+  if (logLifecycle) {
+    console.log(
+      `${formatPrefix(options.workerIndex, 'frontend')} Starting frontend: ${scriptPath} ${args.join(' ')}`
+    );
+  }
 
   const child = spawn(scriptPath, args, {
     cwd: getRepoRoot(),
@@ -45,7 +49,11 @@ export async function startFrontend(options: {
   }) as ChildProcessWithoutNullStreams;
 
   registerForCleanup(child);
-  streamProcessOutput(child, options.workerIndex, 'frontend');
+
+  const shouldStreamLogs = options.streamLogs === true;
+  if (shouldStreamLogs) {
+    streamProcessOutput(child, options.workerIndex, 'frontend');
+  }
 
   await waitForStartup({
     workerIndex: options.workerIndex,
@@ -54,7 +62,9 @@ export async function startFrontend(options: {
     serviceLabel: 'frontend',
   });
 
-  console.log(`${formatPrefix(options.workerIndex, 'frontend')} Frontend ready at ${url}`);
+  if (logLifecycle) {
+    console.log(`${formatPrefix(options.workerIndex, 'frontend')} Frontend ready at ${url}`);
+  }
 
   return {
     url,
@@ -128,7 +138,10 @@ async function terminateProcess(
     return;
   }
 
-  console.log(`${formatPrefix(workerIndex, serviceLabel)} Stopping process (pid=${child.pid})`);
+  const logLifecycle = serviceShouldLogLifecycle(serviceLabel);
+  if (logLifecycle) {
+    console.log(`${formatPrefix(workerIndex, serviceLabel)} Stopping process (pid=${child.pid})`);
+  }
 
   child.kill('SIGTERM');
   const exited = await waitForExit(child, 5_000);
@@ -210,6 +223,16 @@ function streamProcessOutput(
 
 function formatPrefix(workerIndex: number, serviceLabel: string): string {
   return `[worker-${workerIndex} ${serviceLabel}]`;
+}
+
+function serviceShouldLogLifecycle(serviceLabel: string): boolean {
+  if (serviceLabel === 'backend') {
+    return process.env.PLAYWRIGHT_BACKEND_LOG_STREAM === 'true';
+  }
+  if (serviceLabel === 'frontend') {
+    return process.env.PLAYWRIGHT_FRONTEND_LOG_STREAM === 'true';
+  }
+  return false;
 }
 
 const activeChildren = new Set<ChildProcessWithoutNullStreams>();

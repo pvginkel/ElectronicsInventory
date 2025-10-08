@@ -5,36 +5,73 @@ import type { Readable } from 'node:stream';
 import type { TestInfo } from '@playwright/test';
 import split2 from 'split2';
 
-const LOG_ATTACHMENT_NAME = 'backend.log';
+type LogSource = 'stdout' | 'stderr' | 'meta';
+type LogListener = (formatted: string, index: number) => void;
 
-export interface BackendLogAttachment {
+export interface ServiceLogAttachment {
   readonly filePath: string;
   stop(): Promise<void>;
 }
 
-export interface BackendLogCollector {
+export interface ServiceLogCollector {
   attachStream(stream: Readable, source: 'stdout' | 'stderr'): void;
   log(message: string): void;
-  attachToTest(testInfo: TestInfo): Promise<BackendLogAttachment>;
+  attachToTest(testInfo: TestInfo): Promise<ServiceLogAttachment>;
   getBufferedLines(): string[];
   dispose(): void;
 }
+
+export interface BackendLogCollector extends ServiceLogCollector {}
+export interface FrontendLogCollector extends ServiceLogCollector {}
 
 export function createBackendLogCollector(options: {
   workerIndex: number;
   streamToConsole: boolean;
 }): BackendLogCollector {
-  return new Collector(options.workerIndex, options.streamToConsole);
+  return createServiceLogCollector({
+    workerIndex: options.workerIndex,
+    streamToConsole: options.streamToConsole,
+    attachmentName: 'backend.log',
+    serviceLabel: 'backend',
+  });
 }
 
-class Collector implements BackendLogCollector {
-  private readonly listeners = new Set<(line: string) => void>();
+export function createFrontendLogCollector(options: {
+  workerIndex: number;
+  streamToConsole: boolean;
+}): FrontendLogCollector {
+  return createServiceLogCollector({
+    workerIndex: options.workerIndex,
+    streamToConsole: options.streamToConsole,
+    attachmentName: 'frontend.log',
+    serviceLabel: 'frontend',
+  });
+}
+
+export function createServiceLogCollector(options: {
+  workerIndex: number;
+  streamToConsole: boolean;
+  attachmentName: string;
+  serviceLabel: string;
+}): ServiceLogCollector {
+  return new Collector(
+    options.workerIndex,
+    options.streamToConsole,
+    options.attachmentName,
+    options.serviceLabel
+  );
+}
+
+class Collector implements ServiceLogCollector {
+  private readonly listeners = new Set<LogListener>();
   private readonly disposers: Array<() => void> = [];
   private readonly buffer: string[] = [];
 
   constructor(
     private readonly workerIndex: number,
-    private readonly streamToConsole: boolean
+    private readonly streamToConsole: boolean,
+    private readonly attachmentName: string,
+    private readonly serviceLabel: string
   ) {}
 
   attachStream(stream: Readable, source: 'stdout' | 'stderr') {
@@ -61,8 +98,8 @@ class Collector implements BackendLogCollector {
     this.pushLine('meta', message);
   }
 
-  async attachToTest(testInfo: TestInfo): Promise<BackendLogAttachment> {
-    const filePath = testInfo.outputPath(LOG_ATTACHMENT_NAME);
+  async attachToTest(testInfo: TestInfo): Promise<ServiceLogAttachment> {
+    const filePath = testInfo.outputPath(this.attachmentName);
     await mkdir(dirname(filePath), { recursive: true });
 
     const stream = createWriteStream(filePath, {
@@ -70,21 +107,30 @@ class Collector implements BackendLogCollector {
       encoding: 'utf8',
     });
 
-    const write = (line: string) => {
-      stream.write(`${line}\n`);
+    const startIndex = this.buffer.length;
+    const captured: string[] = [];
+
+    const replayLine = (formatted: string) => {
+      captured.push(formatted);
+      stream.write(`${formatted}\n`);
     };
 
-    // Replay existing buffer so the attachment includes startup logs.
-    for (const line of this.buffer) {
-      write(line);
+    for (let index = startIndex; index < this.buffer.length; index += 1) {
+      replayLine(this.buffer[index]);
     }
 
-    this.listeners.add(write);
+    const listener: LogListener = (formatted, index) => {
+      if (index >= startIndex) {
+        replayLine(formatted);
+      }
+    };
+
+    this.listeners.add(listener);
 
     return {
       filePath,
       stop: async () => {
-        this.listeners.delete(write);
+        this.listeners.delete(listener);
 
         await new Promise<void>((resolve, reject) => {
           stream.end((err: Error | null | undefined) => {
@@ -96,10 +142,13 @@ class Collector implements BackendLogCollector {
           });
         });
 
-        await testInfo.attach(LOG_ATTACHMENT_NAME, {
-          path: filePath,
-          contentType: 'text/plain',
-        });
+        if (captured.length > 0) {
+          const text = captured.join('\n');
+          await testInfo.attach(this.attachmentName, {
+            body: Buffer.from(text ? `${text}\n` : ''),
+            contentType: 'text/plain',
+          });
+        }
       },
     };
   }
@@ -115,16 +164,16 @@ class Collector implements BackendLogCollector {
     return [...this.buffer];
   }
 
-  private pushLine(source: string, line: string) {
-    const formatted = `[worker-${this.workerIndex}][${source}] ${line}`;
-    this.buffer.push(formatted);
+  private pushLine(source: LogSource, line: string) {
+    const formatted = `[worker-${this.workerIndex} ${this.serviceLabel}][${source}] ${line}`;
+    const index = this.buffer.push(formatted) - 1;
 
     if (this.streamToConsole) {
       process.stdout.write(`${formatted}\n`);
     }
 
     for (const listener of this.listeners) {
-      listener(formatted);
+      listener(formatted, index);
     }
   }
 }

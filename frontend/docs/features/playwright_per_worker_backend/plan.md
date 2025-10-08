@@ -8,7 +8,7 @@ Configure the Playwright suite so every worker boots its own Electronics Invento
 - `tests/support/fixtures.ts` — replace the current `backendUrl` fixture with a worker-scoped `playwrightBackend` fixture that starts/stops services and publishes the per-worker URLs; add a matching `playwrightFrontend` fixture that launches Vite, threads the worker backend URL via env, and exposes the per-worker frontend origin (while overriding `baseURL` for relative navigation).
 - `tests/support/backend-url.ts` — update helpers so they defer to the worker fixture instead of the global `BACKEND_URL`.
 - `tests/support/global-setup.ts` — only run health checks when `PLAYWRIGHT_MANAGED_SERVICES=false`; otherwise defer readiness to the worker fixtures.
-- `tests/support/process/backend-server.ts` (new) — Node helper that shells out to `../backend/scripts/testing-server.sh --port=<port> --temp-sqlite-db`, waits on `/api/health/readyz`, and exposes teardown hooks.
+- `tests/support/process/backend-server.ts` (new) — Node helper that shells out to `../backend/scripts/testing-server.sh --port=<port> --sqlite-db=<worker-db-path>`, waits on `/api/health/readyz`, and exposes teardown hooks. Each worker copies a pre-seeded SQLite database prepared during global setup.
 - `tests/support/process/frontend-server.ts` (new) — helper that launches `pnpm dev --port=<frontendPort>` with `BACKEND_URL=<worker-backend-url>` and `VITE_TEST_MODE=true`, then waits for `/` to become ready before publishing teardown hooks.
 - `tests/support/process/backend-logs.ts` (new) — utility that subscribes to backend `stdout`/`stderr`, tags each line with `workerIndex`, and exposes hooks so test-scoped fixtures can attach logs to `testInfo`.
 - `package.json` — add the streaming dependency (`split2`) used by the backend log helper and include `get-port` to supply random port allocation.
@@ -17,8 +17,8 @@ Configure the Playwright suite so every worker boots its own Electronics Invento
 
 ## Plan
 ### Phase 1 – Worker Backend Orchestration
-1. Build `tests/support/process/backend-server.ts` that acquires a random available TCP port (via `get-port` or equivalent) per worker, exports `startBackend(workerIndex)` returning `{ url, dispose, stdout, stderr }`, and spawns `../backend/scripts/testing-server.sh --port=<port> --temp-sqlite-db`.
-2. After the script reports ready, confirm `/api/health/readyz` responds 200 using the assigned port; the script already seeds test data via `inventory-cli load-test-data`.
+1. Build `tests/support/process/backend-server.ts` that acquires a random available TCP port (via `get-port` or equivalent) per worker, exports `startBackend(workerIndex, { sqliteDbPath })` returning `{ url, dispose, stdout, stderr }`, and spawns `../backend/scripts/testing-server.sh --port=<port> --sqlite-db=<worker-db-path>`.
+2. Arrange for global setup to call `../backend/scripts/initialize-sqlite-database.sh --db <seed> --load-test-data` once per run, then copy the resulting file for each worker before launching the backend. After the script reports ready, confirm `/api/health/readyz` responds 200 using the assigned port.
 3. Emit structured logs (including the exact script invocation, worker index, and port) to ease debugging, following `docs/contribute/testing/playwright_developer_guide.md` guidance on deterministic setup.
 
 ### Phase 2 – Worker Frontend Proxy
@@ -37,7 +37,7 @@ Configure the Playwright suite so every worker boots its own Electronics Invento
 2. Verify that existing `tests/support/api` factories read `process.env.BACKEND_URL` or accept the injected `backendUrl`; adjust signatures if they assume a global.
 
 ## Step-by-Step Guidance / Algorithms
-- **Worker backend startup:** (a) acquire `backendPort = await getPort()` (seeded with a preferred range if desired), (b) spawn `../backend/scripts/testing-server.sh --port ${backendPort} --temp-sqlite-db`, (c) pipe `stdout`/`stderr` through the logging helper, (d) poll `/api/health/readyz` until it responds 200, (e) resolve the fixture with `http://127.0.0.1:${backendPort}` and register teardown that kills the process.
+- **Worker backend startup:** (a) acquire `backendPort = await getPort()` (seeded with a preferred range if desired), (b) copy the seeded SQLite file to a worker-specific temp path, (c) spawn `../backend/scripts/testing-server.sh --port ${backendPort} --sqlite-db ${workerDbPath}`, (d) pipe `stdout`/`stderr` through the logging helper, (e) poll `/api/health/readyz` until it responds 200, (f) resolve the fixture with `http://127.0.0.1:${backendPort}` and register teardown that kills the process and removes the temp DB.
 - **Worker frontend startup:** (a) acquire `frontendPort = await getPort({ exclude: [backendPort] })`, (b) spawn `pnpm dev --port ${frontendPort}` with env `BACKEND_URL=<backendUrl>` and `VITE_TEST_MODE=true`, (c) wait for `GET /` to return 200, (d) expose `http://127.0.0.1:${frontendPort}` as `frontendUrl` and feed it into `test.use({ baseURL })`.
 - **Logging capture:** (a) wire `spawnedProcess.stdout`/`stderr` through `split2`, (b) tag lines with `[worker-${workerIndex}]`, (c) append them to a worker buffer and to an optional live stream, (d) in the test-scoped fixture, open `fs.createWriteStream(testInfo.outputPath('backend.log'))`, subscribe to worker events when the test starts, (e) close the stream and call `testInfo.attach` during teardown.
 - **Cleanup:** On worker teardown, first close the frontend (to avoid new proxy traffic) and then terminate the backend. Confirm both processes exit to prevent orphaned servers between retries.
