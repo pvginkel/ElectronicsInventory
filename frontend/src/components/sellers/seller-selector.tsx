@@ -44,7 +44,9 @@ export function SellerSelector({
   const createMutation = useCreateSeller()
 
   // Find selected seller for displaying website below
-  const selectedSeller = value ? allSellers.find(s => s.id === value) : null
+  const hasSelectedValue = value !== undefined
+  // Guard keeps falsy IDs (e.g. 0) working if API ever introduces them.
+  const selectedSeller = hasSelectedValue ? allSellers.find(s => s.id === value) : null
 
   // Handle search term change
   const handleSearchChange = useCallback((term: string) => {

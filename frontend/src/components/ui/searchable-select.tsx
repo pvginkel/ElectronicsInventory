@@ -4,8 +4,8 @@ import * as Popover from '@radix-ui/react-popover';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-interface SearchableSelectOption {
-  id: number;
+interface SearchableSelectOption<IdType extends string | number = number> {
+  id: IdType;
   name: string;
   [key: string]: unknown; // Allow additional properties
 }
@@ -36,15 +36,18 @@ type NativeInputProps = React.ComponentPropsWithoutRef<"input">;
  * />
  * ```
  */
-interface SearchableSelectProps<T extends SearchableSelectOption> extends Omit<NativeInputProps, "value" | "onChange" | "role" | "aria-expanded" | "aria-haspopup" | "aria-autocomplete"> {
+interface SearchableSelectProps<
+  IdType extends string | number = number,
+  Option extends SearchableSelectOption<IdType> = SearchableSelectOption<IdType>
+> extends Omit<NativeInputProps, "value" | "onChange" | "role" | "aria-expanded" | "aria-haspopup" | "aria-autocomplete"> {
   /** The currently selected option's ID */
-  value?: number;
+  value?: IdType;
   /** Callback when selection changes */
-  onChange: (value: number | undefined) => void;
+  onChange: (value: IdType | undefined) => void;
 
   // Data fetching
   /** Array of options to display */
-  options: T[];
+  options: Option[];
   /** Whether options are being loaded */
   isLoading: boolean;
   /** Current search term value */
@@ -54,7 +57,7 @@ interface SearchableSelectProps<T extends SearchableSelectOption> extends Omit<N
 
   // Custom rendering
   /** Custom function to render each option */
-  renderOption?: (option: T) => ReactNode;
+  renderOption?: (option: Option) => ReactNode;
 
   // Inline creation
   /** Enable creating new options inline */
@@ -75,12 +78,15 @@ interface SearchableSelectProps<T extends SearchableSelectOption> extends Omit<N
   error?: string;
 }
 
-function SearchableSelectComponent<T extends SearchableSelectOption>({
+function SearchableSelectComponent<
+  IdType extends string | number = number,
+  Option extends SearchableSelectOption<IdType> = SearchableSelectOption<IdType>
+>({
   value,
   onChange,
   placeholder = "Search or select...",
   className,
-  options = [],
+  options = [] as Option[],
   isLoading,
   searchTerm,
   onSearchChange,
@@ -93,7 +99,7 @@ function SearchableSelectComponent<T extends SearchableSelectOption>({
   error,
   onFocus,
   ...props
-}: SearchableSelectProps<T>, ref: React.Ref<HTMLInputElement>) {
+}: SearchableSelectProps<IdType, Option>, ref: React.Ref<HTMLInputElement>) {
   const [open, setOpen] = useState(false);
   const [isUserEditing, setIsUserEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -102,7 +108,9 @@ function SearchableSelectComponent<T extends SearchableSelectOption>({
   React.useImperativeHandle(ref, () => inputRef.current!);
 
   // Find the selected option
-  const selectedOption = value ? options.find(option => option.id === value) : null;
+  const hasSelectedValue = value !== undefined && value !== null;
+  // Guard allows falsy identifiers like 0 to be treated as valid selections.
+  const selectedOption = hasSelectedValue ? options.find(option => option.id === value) : null;
 
   // Handle input focus
   const handleInputFocus: React.FocusEventHandler<HTMLInputElement> = (e) => {
@@ -130,7 +138,7 @@ function SearchableSelectComponent<T extends SearchableSelectOption>({
   };
 
   // Handle option selection
-  const handleSelectOption = (option: T) => {
+  const handleSelectOption = (option: Option) => {
     onChange(option.id);
     onSearchChange(option.name);
     setIsUserEditing(false);
@@ -265,14 +273,14 @@ function SearchableSelectComponent<T extends SearchableSelectOption>({
             ) : (
               <>
                 {options.map((option) => (
-                  <SearchableSelectOption
-                    key={option.id}
+                  <SearchableSelectOptionButton
+                    key={String(option.id)}
                     option={option}
                     onClick={() => handleSelectOption(option)}
                     isSelected={value === option.id}
                   >
                     {renderOption ? renderOption(option) : option.name}
-                  </SearchableSelectOption>
+                  </SearchableSelectOptionButton>
                 ))}
 
                 {showCreateOption && (
@@ -294,25 +302,32 @@ function SearchableSelectComponent<T extends SearchableSelectOption>({
   );
 }
 
-export const SearchableSelect = React.forwardRef(SearchableSelectComponent) as <T extends SearchableSelectOption>(
-  props: SearchableSelectProps<T> & { ref?: React.Ref<HTMLInputElement> }
+export const SearchableSelect = React.forwardRef(SearchableSelectComponent) as <
+  IdType extends string | number = number,
+  Option extends SearchableSelectOption<IdType> = SearchableSelectOption<IdType>
+>(
+  props: SearchableSelectProps<IdType, Option> & { ref?: React.Ref<HTMLInputElement> }
 ) => React.ReactElement;
 
 (SearchableSelect as { displayName?: string }).displayName = "SearchableSelect";
 
-interface SearchableSelectOptionProps<T extends SearchableSelectOption> {
-  option: T;
+interface SearchableSelectOptionButtonProps<
+  Option extends SearchableSelectOption<string | number>
+> {
+  option: Option;
   onClick: () => void;
   isSelected: boolean;
   children: ReactNode;
 }
 
-function SearchableSelectOption<T extends SearchableSelectOption>({
+function SearchableSelectOptionButton<
+  Option extends SearchableSelectOption<string | number>
+>({
   option,
   onClick,
   isSelected,
   children
-}: SearchableSelectOptionProps<T>) {
+}: SearchableSelectOptionButtonProps<Option>) {
   return (
     <button
       type="button"
@@ -327,7 +342,7 @@ function SearchableSelectOption<T extends SearchableSelectOption>({
         // Prevent the input from losing focus when clicking an option
         e.preventDefault();
       }}
-      data-value={option.id}
+      data-value={String(option.id)}
     >
       {children}
     </button>

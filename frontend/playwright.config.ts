@@ -48,7 +48,7 @@ export default defineConfig({
     headless: true,
     viewport: { width: 1280, height: 720 },
     ignoreHTTPSErrors: true,
-    video: 'retain-on-failure',
+    video: process.env.PLAYWRIGHT_RETAIN_VIDEO ? 'on' : 'retain-on-failure',
     screenshot: 'only-on-failure',
     trace: 'on-first-retry',
   },

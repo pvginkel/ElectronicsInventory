@@ -70,6 +70,17 @@ export const selectors = {
       link: (path: string) => testId(`parts.nav.${path}`),
       breadcrumb: testId('parts.breadcrumb'),
     },
+    selector: {
+      root: testId('parts.selector'),
+      input: testId('parts.selector.input'),
+      selected: testId('parts.selector.selected'),
+      harness: {
+        page: testId('parts.selector.harness'),
+        submission: testId('parts.selector.harness.submission'),
+        form: testId('partselectorharness_submit.form'),
+        submit: testId('partselectorharness_submit.submit'),
+      },
+    },
   },
 
   // Types page selectors
