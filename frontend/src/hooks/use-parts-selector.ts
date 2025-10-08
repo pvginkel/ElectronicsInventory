@@ -7,6 +7,7 @@ import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
 export interface PartSelectorOption extends Record<string, unknown> {
   id: string;
   name: string;
+  partId: number | null;
   displayId: string;
   displayDescription: string;
   displayManufacturerCode?: string;
@@ -16,6 +17,7 @@ export interface PartSelectorOption extends Record<string, unknown> {
 
 export interface PartSelectorSummary {
   id: string;
+  partId: number | null;
   displayId: string;
   displayDescription: string;
   displayManufacturerCode?: string;
@@ -89,9 +91,12 @@ export function usePartsSelector(): UsePartsSelectorResult {
       } = formatPartForDisplay(part);
       const typeName = part.type_id ? typeMap.get(part.type_id) : undefined;
 
+      const partId = (part as { id?: number | null }).id ?? null;
+
       const option: PartSelectorOption = {
         id: part.key,
         name: `${displayId} — ${displayDescription}`,
+        partId,
         displayId,
         displayDescription,
         displayManufacturerCode,
@@ -101,6 +106,7 @@ export function usePartsSelector(): UsePartsSelectorResult {
 
       const summary: PartSelectorSummary = {
         id: part.key,
+        partId,
         displayId,
         displayDescription,
         displayManufacturerCode,

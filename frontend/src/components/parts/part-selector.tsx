@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { usePartsSelector, type PartSelectorOption } from '@/hooks/use-parts-selector';
+import { usePartsSelector, type PartSelectorOption, type PartSelectorSummary } from '@/hooks/use-parts-selector';
 import { cn } from '@/lib/utils';
 
 interface PartSelectorProps {
@@ -9,6 +9,7 @@ interface PartSelectorProps {
   placeholder?: string;
   error?: string;
   className?: string;
+  onSelectSummary?: (summary: PartSelectorSummary | undefined) => void;
 }
 
 export function PartSelector({
@@ -16,7 +17,8 @@ export function PartSelector({
   onChange,
   placeholder = 'Search or select part...',
   error,
-  className
+  className,
+  onSelectSummary
 }: PartSelectorProps) {
   const {
     options,
@@ -31,6 +33,10 @@ export function PartSelector({
   const selectedPart = getSelectedSummary(value);
   const showLoading = isLoading || isFetching;
   const hasLoadError = Boolean(loadError);
+
+  useEffect(() => {
+    onSelectSummary?.(selectedPart);
+  }, [onSelectSummary, selectedPart]);
 
   const renderOption = useCallback((option: PartSelectorOption) => {
     const metaItems = [

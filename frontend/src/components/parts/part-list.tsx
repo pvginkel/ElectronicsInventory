@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,7 @@ interface PartListProps {
 
 export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreateWithAI }: PartListProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const {
     data: parts = [],
     isLoading: partsLoading,
@@ -35,18 +37,23 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
     error: typesError,
   } = useGetTypes();
 
-  const [showLoading, setShowLoading] = useState(partsLoading);
+  const [showLoading, setShowLoading] = useState(
+    partsLoading || partsFetching || typesLoading || typesFetching
+  );
 
   useEffect(() => {
-    if (partsLoading) {
+    queryClient.invalidateQueries({ queryKey: ['getPartsWithLocations'] });
+    queryClient.invalidateQueries({ queryKey: ['getTypes'] });
+  }, [queryClient]);
+
+  useEffect(() => {
+    if (partsLoading || typesLoading || partsFetching || typesFetching) {
       setShowLoading(true);
       return;
     }
 
-    if (!partsFetching) {
-      setShowLoading(false);
-    }
-  }, [partsFetching, partsLoading]);
+    setShowLoading(false);
+  }, [partsFetching, partsLoading, typesFetching, typesLoading]);
 
   const combinedError = partsError ?? typesError;
 

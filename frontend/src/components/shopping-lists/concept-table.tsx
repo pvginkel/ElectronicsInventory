@@ -1,0 +1,176 @@
+import { useEffect, useMemo, useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ConceptLineRow } from './concept-line-row';
+import { SHOPPING_LIST_LINE_SORT_OPTIONS } from '@/hooks/use-shopping-lists';
+import type { ShoppingListConceptLine, ShoppingListLineSortKey } from '@/types/shopping-lists';
+
+interface DuplicateNotice {
+  lineId: number;
+  partKey: string;
+}
+
+interface ConceptTableProps {
+  lines: ShoppingListConceptLine[];
+  sortKey: ShoppingListLineSortKey;
+  onSortChange: (sortKey: ShoppingListLineSortKey) => void;
+  onEditLine: (line: ShoppingListConceptLine) => void;
+  onDeleteLine: (line: ShoppingListConceptLine) => void;
+  onCreateLine: () => void;
+  isMutating: boolean;
+  duplicateNotice: DuplicateNotice | null;
+  onDismissDuplicateNotice: () => void;
+  highlightedLineId: number | null;
+}
+
+export function ConceptTable({
+  lines,
+  sortKey,
+  onSortChange,
+  onEditLine,
+  onDeleteLine,
+  onCreateLine,
+  isMutating,
+  duplicateNotice,
+  onDismissDuplicateNotice,
+  highlightedLineId,
+}: ConceptTableProps) {
+  const rowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
+
+  useEffect(() => {
+    if (highlightedLineId == null) {
+      return;
+    }
+    const row = rowRefs.current.get(highlightedLineId);
+    if (row) {
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlightedLineId]);
+
+  const noLines = lines.length === 0;
+
+  const sortLabel = useMemo(() => {
+    const option = SHOPPING_LIST_LINE_SORT_OPTIONS.find(item => item.key === sortKey);
+    return option?.label ?? 'Part description';
+  }, [sortKey]);
+
+  return (
+    <div className="rounded-lg border bg-card" data-testid="shopping-lists.concept.table">
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Concept lines</h2>
+          <p className="text-xs text-muted-foreground">Manage needed quantities and seller overrides.</p>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" data-testid="shopping-lists.concept.sort.button">
+              Sort: {sortLabel}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {SHOPPING_LIST_LINE_SORT_OPTIONS.map(option => (
+              <DropdownMenuItem
+                key={option.key}
+                onClick={() => onSortChange(option.key)}
+                data-testid={`shopping-lists.concept.sort.${option.key}`}
+              >
+                {option.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {duplicateNotice && !isMutating && (
+        <div
+          className="relative z-[60] flex items-center justify-between gap-4 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 pointer-events-auto"
+          data-testid="shopping-lists.concept.duplicate-banner"
+        >
+          <span>
+            Part with key <strong>{duplicateNotice.partKey}</strong> already exists on this Concept list.
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const row = rowRefs.current.get(duplicateNotice.lineId);
+                if (row) {
+                  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+              }}
+              data-testid="shopping-lists.concept.duplicate-banner.focus"
+            >
+              View existing line
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDismissDuplicateNotice}
+              data-testid="shopping-lists.concept.duplicate-banner.dismiss"
+            >
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full table-fixed border-collapse">
+          <thead>
+            <tr className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
+              <th className="w-[28%] px-4 py-2 text-left">Part</th>
+              <th className="w-[18%] px-4 py-2 text-left">Seller</th>
+              <th className="w-[8%] px-4 py-2 text-right">Needed</th>
+              <th className="w-[8%] px-4 py-2 text-right">Ordered</th>
+              <th className="w-[8%] px-4 py-2 text-right">Received</th>
+              <th className="w-[24%] px-4 py-2 text-left">Note</th>
+              <th className="w-[6%] px-4 py-2 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {noLines ? (
+              <tr>
+                <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground" data-testid="shopping-lists.concept.table.empty">
+                  No lines yet—use “Add row” to populate this Concept list.
+                </td>
+              </tr>
+            ) : (
+              lines.map((line) => (
+                <ConceptLineRow
+                  key={line.id}
+                  ref={(node) => {
+                    if (node) {
+                      rowRefs.current.set(line.id, node);
+                    } else {
+                      rowRefs.current.delete(line.id);
+                    }
+                  }}
+                  line={line}
+                  onEdit={onEditLine}
+                  onDelete={onDeleteLine}
+                  highlighted={highlightedLineId === line.id}
+                />
+              ))
+            )}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colSpan={7} className="px-4 py-3 text-right">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={onCreateLine}
+                  disabled={isMutating}
+                  data-testid="shopping-lists.concept.table.add"
+                >
+                  Add row
+                </Button>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+}

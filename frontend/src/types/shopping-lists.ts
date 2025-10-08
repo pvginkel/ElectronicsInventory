@@ -1,0 +1,122 @@
+/**
+ * Shopping list domain types shared across overview and concept views.
+ * These map generated API payloads into camelCase models we can reason about.
+ */
+
+export type ShoppingListStatus = 'concept' | 'ready' | 'done';
+export type ShoppingListLineStatus = 'new' | 'ordered' | 'done';
+
+export interface ShoppingListLineCounts {
+  /** `new` + `ordered` + `done` used for card rollups; counts stay non-negative. */
+  new: number;
+  ordered: number;
+  done: number;
+}
+
+export interface ShoppingListOverviewSummary extends Record<string, unknown> {
+  id: number;
+  name: string;
+  description: string | null;
+  status: ShoppingListStatus;
+  updatedAt: string;
+  lineCounts: ShoppingListLineCounts;
+  /** Derived helper so cards can show empty states without recalculating. */
+  totalLines: number;
+  hasLines: boolean;
+  /** Provides quick attribution for overview cards and instrumentation metadata. */
+  primarySellerName: string | null;
+}
+
+export interface ShoppingListDetail extends ShoppingListOverviewSummary {
+  createdAt: string;
+  lines: ShoppingListConceptLine[];
+}
+
+export interface ShoppingListPartSummary {
+  /** Numeric primary key for mutations that require part_id. */
+  id: number;
+  key: string;
+  description: string;
+  manufacturerCode: string | null;
+}
+
+export interface ShoppingListSellerSummary {
+  id: number;
+  name: string;
+  website: string | null;
+}
+
+export interface ShoppingListConceptLine extends Record<string, unknown> {
+  id: number;
+  shoppingListId: number;
+  needed: number; // >= 1
+  ordered: number;
+  received: number;
+  note: string | null;
+  status: ShoppingListLineStatus;
+  createdAt: string;
+  updatedAt: string;
+  // Inline flags expose backend prohibitions (receive/order toggles) to the UI.
+  canReceive: boolean;
+  isOrderable: boolean;
+  isRevertible: boolean;
+  hasQuantityMismatch: boolean;
+  completionMismatch: boolean;
+  completionNote: string | null;
+  part: ShoppingListPartSummary;
+  seller: ShoppingListSellerSummary | null;
+  effectiveSeller: ShoppingListSellerSummary | null;
+}
+
+export type ShoppingListLineSortKey = 'description' | 'mpn' | 'createdAt';
+
+export interface ShoppingListLineSortOption {
+  key: ShoppingListLineSortKey;
+  label: string;
+}
+
+/** Input for creating lists; callers trim strings before passing. */
+export interface ShoppingListCreateInput {
+  name: string;
+  description: string | null;
+}
+
+/** Input for updating list metadata; mirrors create rules. */
+export interface ShoppingListUpdateInput {
+  name: string;
+  description: string | null;
+}
+
+/** Shared fields emitted via instrumentation snapshots. */
+export interface ShoppingListLineSnapshot extends Record<string, unknown> {
+  listId: number;
+  partKey: string;
+  needed: number;
+}
+
+export interface ShoppingListLineCreateInput extends Record<string, unknown> {
+  listId: number;
+  partId: number | null;
+  partKey: string;
+  needed: number; // >= 1
+  sellerId: number | null;
+  note: string | null;
+}
+
+export interface ShoppingListLineUpdateInput extends Record<string, unknown> {
+  listId: number;
+  lineId: number;
+  partId: number;
+  partKey: string;
+  needed: number; // >= 1
+  sellerId: number | null;
+  note: string | null;
+}
+
+export interface ShoppingListMarkReadyInput extends Record<string, unknown> {
+  listId: number;
+}
+
+export interface ShoppingListDuplicateCheck extends Record<string, unknown> {
+  byPartKey: Map<string, ShoppingListConceptLine>;
+}

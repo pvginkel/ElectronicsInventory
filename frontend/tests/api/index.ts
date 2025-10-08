@@ -4,6 +4,7 @@ import { PartTestFactory } from './factories/part-factory';
 import { AttachmentTestFactory } from './factories/attachment-factory';
 import { BoxTestFactory } from './factories/box-factory';
 import { SellerTestFactory } from './factories/seller-factory';
+import { ShoppingListTestFactory } from './factories/shopping-list-factory';
 
 // Re-export the main functions and factories
 export { createApiClient, apiRequest };
@@ -12,6 +13,7 @@ export { PartTestFactory };
 export { AttachmentTestFactory };
 export { BoxTestFactory };
 export { SellerTestFactory };
+export { ShoppingListTestFactory };
 
 /**
  * Creates a testData bundle with all factories for use in fixtures
@@ -31,6 +33,7 @@ export function createTestDataBundle(
   );
   const boxFactory = new BoxTestFactory(apiClient);
   const sellerFactory = new SellerTestFactory(apiClient);
+  const shoppingListFactory = new ShoppingListTestFactory(apiClient);
 
   const attachments = {
     createUrl: attachmentFactory.createUrl.bind(attachmentFactory),
@@ -77,6 +80,13 @@ export function createTestDataBundle(
       createWithPartLinks: sellerFactory.createWithPartLinks.bind(sellerFactory),
       randomSellerName: sellerFactory.randomSellerName.bind(sellerFactory),
       randomSellerUrl: sellerFactory.randomSellerUrl.bind(sellerFactory),
+    },
+    shoppingLists: {
+      create: shoppingListFactory.createList.bind(shoppingListFactory),
+      createWithLines: shoppingListFactory.createListWithLines.bind(shoppingListFactory),
+      createLine: shoppingListFactory.createLine.bind(shoppingListFactory),
+      getDetail: shoppingListFactory.getListDetail.bind(shoppingListFactory),
+      randomName: shoppingListFactory.randomListName.bind(shoppingListFactory),
     },
   };
 }

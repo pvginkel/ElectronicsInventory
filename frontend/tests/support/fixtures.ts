@@ -16,6 +16,7 @@ import { DocumentGridPage } from './page-objects/document-grid-page';
 import { DashboardPage } from './page-objects/dashboard-page';
 import { AppShellPage } from './page-objects/app-shell-page';
 import { AboutPage } from './page-objects/about-page';
+import { ShoppingListsPage } from './page-objects/shopping-lists-page';
 import {
   TestEventCapture,
   createTestEventCapture,
@@ -70,6 +71,7 @@ type TestFixtures = {
   partsDocuments: DocumentGridPage;
   dashboard: DashboardPage;
   about: AboutPage;
+  shoppingLists: ShoppingListsPage;
   testEvents: TestEventCapture;
   toastHelper: ToastHelper;
   sseMocker: SSEMocker;
@@ -244,6 +246,10 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
 
     about: async ({ page }, use) => {
       await use(new AboutPage(page));
+    },
+
+    shoppingLists: async ({ page }, use) => {
+      await use(new ShoppingListsPage(page));
     },
 
     testEvents: async ({ page, _serviceManager }, use) => {

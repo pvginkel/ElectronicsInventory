@@ -1,0 +1,177 @@
+import { expect, Locator, Page } from '@playwright/test';
+import { BasePage } from './base-page';
+import { waitForListLoading } from '../helpers';
+import { SellerSelectorHarness } from './seller-selector-harness';
+
+export class ShoppingListsPage extends BasePage {
+  readonly overviewRoot: Locator;
+  readonly overviewSearch: Locator;
+  readonly overviewCreateButton: Locator;
+  readonly conceptRoot: Locator;
+  readonly conceptTable: Locator;
+
+  constructor(page: Page) {
+    super(page);
+    this.overviewRoot = page.getByTestId('shopping-lists.overview');
+    this.overviewSearch = page.getByTestId('shopping-lists.overview.search');
+    this.overviewCreateButton = page.getByTestId('shopping-lists.overview.create');
+    this.conceptRoot = page.getByTestId('shopping-lists.concept.page');
+    this.conceptTable = page.getByTestId('shopping-lists.concept.table');
+  }
+
+  async gotoOverview(): Promise<void> {
+    await this.goto('/shopping-lists');
+    await expect(this.overviewRoot).toBeVisible();
+    await this.waitForOverviewReady();
+  }
+
+  async waitForOverviewReady(): Promise<void> {
+    await waitForListLoading(this.page, 'shoppingLists.overview', 'ready');
+  }
+
+  overviewCardByName(name: string | RegExp): Locator {
+    return this.page
+      .locator('[data-testid^="shopping-lists.overview.card."]')
+      .filter({ hasText: name })
+      .first();
+  }
+
+  async createConceptList(options: { name: string; description?: string }): Promise<void> {
+    await this.overviewCreateButton.click();
+    const dialog = this.page.getByRole('dialog', { name: /create shopping list/i });
+    await expect(dialog).toBeVisible();
+
+    await dialog.getByTestId('ShoppingListCreate:concept.field.name').fill(options.name);
+    if (options.description !== undefined) {
+      await dialog.getByTestId('ShoppingListCreate:concept.field.description').fill(options.description);
+    }
+
+    await dialog.getByTestId('ShoppingListCreate:concept.submit').click();
+  }
+
+  async deleteConceptListByName(name: string): Promise<void> {
+    const card = this.overviewCardByName(name);
+    await expect(card).toBeVisible();
+    await card.getByRole('button', { name: /delete/i }).click();
+
+    const confirmDialog = this.page.getByTestId('shopping-lists.overview.delete-dialog');
+    await expect(confirmDialog).toBeVisible();
+    await confirmDialog.getByRole('button', { name: /delete/i }).click();
+    await this.waitForOverviewReady();
+  }
+
+  async openConceptListByName(name: string): Promise<void> {
+    const card = this.overviewCardByName(name);
+    await expect(card).toBeVisible();
+    await card.getByRole('button', { name: /open list/i }).click();
+    await this.waitForConceptReady();
+  }
+
+  async gotoConcept(listId: number): Promise<void> {
+    await this.goto(`/shopping-lists/${listId}`);
+    await this.waitForConceptReady();
+  }
+
+  async waitForConceptReady(): Promise<void> {
+    await waitForListLoading(this.page, 'shoppingLists.list', 'ready');
+    await expect(this.conceptRoot).toBeVisible();
+  }
+
+  conceptRowByPart(part: string | RegExp): Locator {
+    return this.page
+      .locator('[data-testid^="shopping-lists.concept.row."]')
+      .filter({ hasText: part })
+      .first();
+  }
+
+  async addConceptLine(options: {
+    partSearch: string;
+    needed?: number;
+    sellerName?: string;
+    note?: string;
+  }): Promise<void> {
+    await this.page.getByTestId('shopping-lists.concept.table.add').click();
+    const dialog = this.page.getByTestId('ShoppingListLineForm:add.dialog');
+    await expect(dialog).toBeVisible();
+
+    await waitForListLoading(this.page, 'parts.selector', 'ready');
+    const partInput = dialog.getByTestId('parts.selector.input');
+    await partInput.fill(options.partSearch);
+    await this.page.getByRole('option', { name: new RegExp(options.partSearch, 'i') }).first().click();
+
+    if (options.needed !== undefined) {
+      await dialog.getByTestId('ShoppingListLineForm:add.field.needed').fill(String(options.needed));
+    }
+
+    if (options.sellerName) {
+      const sellerHarness = new SellerSelectorHarness(this.page, dialog.getByTestId('ShoppingListLineForm:add.field.seller'));
+      await sellerHarness.waitForReady();
+      await sellerHarness.search(options.sellerName);
+      await sellerHarness.selectOption(options.sellerName);
+    }
+
+    if (options.note !== undefined) {
+      await dialog.getByTestId('ShoppingListLineForm:add.field.note').fill(options.note);
+    }
+
+    await dialog.getByTestId('ShoppingListLineForm:add.submit').click();
+    await this.waitForConceptReady();
+  }
+
+  async editConceptLine(part: string | RegExp, updates: { needed?: number; sellerName?: string | null; note?: string }): Promise<void> {
+    const row = this.conceptRowByPart(part);
+    await expect(row).toBeVisible();
+    await row.getByTestId(/actions$/).click();
+    await this.page.getByRole('menuitem', { name: /edit line/i }).click();
+
+    const dialog = this.page.getByRole('dialog', { name: /edit line/i });
+    await expect(dialog).toBeVisible();
+
+    if (updates.needed !== undefined) {
+      await dialog.locator('input[type="number"]').fill(String(updates.needed));
+    }
+
+    if (updates.sellerName !== undefined) {
+      const harness = new SellerSelectorHarness(this.page, dialog.locator('[data-testid$="field.seller"]'));
+      await harness.waitForReady();
+      if (updates.sellerName) {
+        await harness.search(updates.sellerName);
+        await harness.selectOption(updates.sellerName);
+      } else {
+        await harness.search('');
+        // Clear selection by selecting the empty option if available
+        await harness.input.fill('');
+        await this.page.keyboard.press('Escape');
+      }
+    }
+
+    if (updates.note !== undefined) {
+      await dialog.locator('textarea').fill(updates.note);
+    }
+
+    await dialog.getByRole('button', { name: /save/i }).click();
+    await this.waitForConceptReady();
+  }
+
+  async deleteConceptLine(part: string | RegExp): Promise<void> {
+    const row = this.conceptRowByPart(part);
+    await expect(row).toBeVisible();
+    await row.getByTestId(/actions$/).click();
+    await this.page.getByRole('menuitem', { name: /delete line/i }).click();
+
+    const dialog = this.page.getByRole('dialog', { name: /delete line/i });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: /delete line/i }).click();
+    await this.waitForConceptReady();
+  }
+
+  async markReady(): Promise<void> {
+    const button = this.page.getByTestId('shopping-lists.concept.mark-ready.button');
+    await button.click();
+    await this.waitForConceptReady();
+  }
+
+  async expectStatus(label: string | RegExp): Promise<void> {
+    await expect(this.page.getByTestId('shopping-lists.concept.header.status')).toHaveText(label);
+  }
+}
