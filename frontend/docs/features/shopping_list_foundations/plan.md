@@ -10,7 +10,7 @@ Implement the frontend responsibilities for **Phase 1 — Shopping List foundati
 - `src/components/layout/sidebar.tsx`: extend `navigationItems` with the Shopping Lists entry so users can reach the feature from the shell.
 - `src/components/shopping-lists/overview-list.tsx`, `overview-card.tsx`, `list-create-dialog.tsx`, `list-delete-confirm.tsx`: new domain components that implement the overview grid, creation form, and deletion confirmation while reusing shared UI primitives.
 - `src/components/shopping-lists/concept-table.tsx`, `concept-line-form.tsx`, `concept-line-row.tsx`, `concept-header.tsx`, `mark-ready-footer.tsx`: new components that compose the Concept view grid, inline dialogs, and footer CTA following the table/editing practices in `docs/contribute/ui/data_display.md`.
-- `src/components/shopping-lists/part-selector.tsx`: helper that wraps `SearchableSelect` with the existing parts query for the “Part picker (existing parts only)” requirement.
+- `src/components/parts/part-selector.tsx`, `src/hooks/use-parts-selector.ts`: reuse the shared selector (string key support, instrumentation) for the “Part picker (existing parts only)” requirement.
 - `src/hooks/use-shopping-lists.ts`: new hook module that wraps generated shopping list queries/mutations (`useGetShoppingLists`, `useGetShoppingListsByListId`, `usePostShoppingLists`, `usePutShoppingListsByListId`, `useDeleteShoppingListsByListId`, `useGetShoppingListsLinesByListId`, `usePostShoppingListsLinesByListId`, `usePutShoppingListLinesByLineId`, `useDeleteShoppingListLinesByLineId`, `usePutShoppingListsStatusByListId`) and maps snake_case payloads into camelCase domain models.
 - `src/types/shopping-lists.ts`: domain model definitions for overview cards, concept lines, and supporting enums used by the new hooks/components.
 - `src/lib/api/generated/hooks.ts`: no direct edits, but the plan relies on the newly generated shopping list hooks already present.
@@ -41,7 +41,7 @@ Implement the frontend responsibilities for **Phase 1 — Shopping List foundati
 
 ### Phase 3 – Concept View Grid
 1. Implement `concept-header.tsx` to show breadcrumb, list name, description (editable via inline field or modal using `usePutShoppingListsByListId`), and surface counts. Follow the “detail surface” practices in `docs/contribute/ui/data_display.md`.
-2. Build `part-selector.tsx` reusing `SearchableSelect`. Query `useGetParts()` and present `description`, `key`, and `manufacturer_code` in the option template so users can find parts quickly, relying on the component’s built-in filtering for search-as-you-type.
+2. Integrate the shared `PartSelector` from `@/components/parts/part-selector`, keeping the selected `partKey` in component state/form context. The selector already emits `parts.selector` instrumentation through `usePartsSelector`; surface validation errors via its `error` prop and clear the value when the dialog closes.
 3. Create `concept-line-form.tsx` to handle both “Add row” and “Edit line” flows:
    - Fields: part (searchable select), needed (numeric input ≥ 1), seller override (optional `SellerSelector`), note (textarea / multiline input).
    - Use `useFormState` for validation (positive integer for needed, prohibit empty part, allow note ≤ backend limit). Invoke `useFormInstrumentation` with IDs like `ShoppingListLineForm:add` and `ShoppingListLineForm:edit`.
@@ -71,8 +71,8 @@ Implement the frontend responsibilities for **Phase 1 — Shopping List foundati
 
 ## Algorithms & State Flow
 1. **Duplicate prevention flow**
-   - Maintain a `Map<number, ConceptLine>` keyed by `partId` derived from the current query data.
-   - On “Add row” submit, check the map; if the part already exists, block submission, emit `trackValidationError('partId', 'Part already on this list')`, surface inline guidance referencing the existing row, and skip the mutation.
+   - Maintain a `Map<string, ConceptLine>` keyed by `partKey` derived from the current query data.
+   - On “Add row” submit, check the map; if the part already exists, block submission, emit `trackValidationError('partKey', 'Part already on this list')`, surface inline guidance referencing the existing row, and skip the mutation.
    - Still handle backend 409 conflicts (if a concurrent insert occurs) by catching `ApiError` and presenting the same guidance.
 2. **Line sorting**
    - Keep `sortKey` in router search (`description`, `mpn`, `createdAt`).
@@ -92,7 +92,7 @@ Implement the frontend responsibilities for **Phase 1 — Shopping List foundati
 5. **Instrumentation metadata**
    - Overview `getReadyMetadata`: `{ total: allLists.length, filtered: visibleLists.length }`.
    - Concept `getReadyMetadata`: include `{ lineCount: lines.length, sortKey, status: list.status }`.
-   - Form instrumentation snapshots should include `{ listId, partId, needed }` to aid deterministic Playwright waits.
+   - Form instrumentation snapshots should include `{ listId, partKey, needed }` to aid deterministic Playwright waits.
 
 ## Playwright Coverage
 1. **Overview CRUD**: Start from seeded backend data, navigate via sidebar, wait for `shoppingLists.overview` ready event, create a Concept list, assert toast and navigation, and verify list deletion confirmation uses real backend state. No `page.route`; rely on instrumentation events plus `tests` factories to seed lists.
