@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/ui/dialog';
@@ -78,6 +79,11 @@ export function ConceptHeader({ list, onUpdateMetadata, isUpdating }: ConceptHea
   if (!list) {
     return (
       <div className="space-y-4" data-testid="shopping-lists.concept.header.loading">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Link to="/shopping-lists" search={{ search: '' }} className="hover:text-foreground">Shopping Lists</Link>
+          <span>/</span>
+          <span>Loading…</span>
+        </div>
         <div className="h-8 w-64 rounded bg-muted animate-pulse" />
         <div className="h-4 w-80 rounded bg-muted animate-pulse" />
       </div>
@@ -92,6 +98,12 @@ export function ConceptHeader({ list, onUpdateMetadata, isUpdating }: ConceptHea
 
   return (
     <div className="space-y-4" data-testid="shopping-lists.concept.header">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="shopping-lists.concept.header.breadcrumb">
+        <Link to="/shopping-lists" search={{ search: '' }} className="hover:text-foreground">Shopping Lists</Link>
+        <span>/</span>
+        <span className="text-foreground">{list.name}</span>
+      </div>
+
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">

@@ -463,6 +463,7 @@ export function useCreateShoppingListLineMutation() {
       const resolved = variables as ShoppingListMembershipVariables | undefined;
       const listId = resolved?.body?.shopping_list_id;
       if (typeof listId === 'number') {
+        queryClient.invalidateQueries({ queryKey: SHOPPING_LISTS_KEY });
         queryClient.invalidateQueries({ queryKey: detailKey(listId) });
         queryClient.invalidateQueries({ queryKey: linesKey(listId) });
       }
@@ -515,6 +516,7 @@ export function useUpdateShoppingListLineMutation() {
   const { mutate: baseMutate, mutateAsync: baseMutateAsync, ...rest } = usePutShoppingListLinesByLineId();
 
   const handleInvalidate = useCallback((listId: number) => {
+    queryClient.invalidateQueries({ queryKey: SHOPPING_LISTS_KEY });
     queryClient.invalidateQueries({ queryKey: detailKey(listId) });
     queryClient.invalidateQueries({ queryKey: linesKey(listId) });
   }, [queryClient]);
@@ -569,6 +571,7 @@ export function useDeleteShoppingListLineMutation() {
   const { mutate: baseMutate, mutateAsync: baseMutateAsync, ...rest } = useDeleteShoppingListLinesByLineId();
 
   const handleInvalidate = useCallback((listId: number) => {
+    queryClient.invalidateQueries({ queryKey: SHOPPING_LISTS_KEY });
     queryClient.invalidateQueries({ queryKey: detailKey(listId) });
     queryClient.invalidateQueries({ queryKey: linesKey(listId) });
   }, [queryClient]);

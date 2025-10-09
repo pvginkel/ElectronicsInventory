@@ -125,7 +125,7 @@ test.describe('Shopping Lists', () => {
     await expect(receivedCells).toHaveText(['0', '0']);
   });
 
-  test('marks a concept list ready and disables the CTA', async ({ shoppingLists, testData, toastHelper }) => {
+  test('marks a concept list ready and removes the CTA', async ({ shoppingLists, testData, toastHelper }) => {
     const { part } = await testData.parts.create({ overrides: { description: 'Ready test part' } });
     const list = await testData.shoppingLists.createWithLines({
       listOverrides: { name: testData.shoppingLists.randomName('Ready Concept') },
@@ -138,6 +138,6 @@ test.describe('Shopping Lists', () => {
     await shoppingLists.markReady();
     await toastHelper.expectSuccessToast(/marked ready/i);
     await shoppingLists.expectStatus(/ready/i);
-    await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.mark-ready.button')).toBeDisabled();
+    await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.mark-ready.button')).toHaveCount(0);
   });
 });

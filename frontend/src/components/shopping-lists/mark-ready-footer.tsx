@@ -11,6 +11,10 @@ interface MarkReadyFooterProps {
 }
 
 export function MarkReadyFooter({ list, onMarkReady, isMarkingReady }: MarkReadyFooterProps) {
+  if (list.status !== 'concept') {
+    return null;
+  }
+
   const formId = useMemo(() => generateFormId('ShoppingListStatus', 'markReady'), []);
 
   const instrumentation = useFormInstrumentation({
@@ -34,7 +38,7 @@ export function MarkReadyFooter({ list, onMarkReady, isMarkingReady }: MarkReady
     }
   }, [instrumentation, onMarkReady]);
 
-  const disabled = list.lines.length === 0 || list.status !== 'concept' || isMarkingReady;
+  const disabled = list.lines.length === 0 || isMarkingReady;
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border bg-card px-4 py-4 md:flex-row md:items-center md:justify-between" data-testid="shopping-lists.concept.mark-ready">
