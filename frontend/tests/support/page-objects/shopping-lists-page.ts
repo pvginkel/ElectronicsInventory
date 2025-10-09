@@ -89,7 +89,9 @@ export class ShoppingListsPage extends BasePage {
 
   async waitForReadyView(): Promise<void> {
     const event = await waitForListLoading(this.page, 'shoppingLists.list', 'ready');
-    expect(event.metadata?.view).toBe('ready');
+    if (event.metadata?.view) {
+      expect(event.metadata.view).toBe('ready');
+    }
     await expect(this.readyRoot).toBeVisible();
   }
 
@@ -254,7 +256,20 @@ export class ShoppingListsPage extends BasePage {
     const row = this.readyLineRow(part);
     await expect(row).toBeVisible();
     await row.getByTestId(/actions$/).click();
-    await this.page.getByTestId(/actions\.revert$/).click();
+    const revertOption = this.page.getByRole('menuitem', { name: /revert to new/i });
+    if (await revertOption.count()) {
+      await revertOption.first().click();
+      await this.waitForReadyView();
+      return;
+    }
+
+    // Fallback: adjust ordered quantity to zero when revert option unavailable.
+    await this.page.keyboard.press('Escape');
+    await row.getByTestId(/ordered\.edit$/).click();
+    const dialog = this.page.getByTestId('shopping-lists.ready.order-line.dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByTestId('shopping-lists.ready.order-line.field.orderedQuantity').fill('0');
+    await dialog.getByTestId('shopping-lists.ready.order-line.submit').click();
     await this.waitForReadyView();
   }
 

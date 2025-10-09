@@ -3,10 +3,10 @@ import { parseApiError, is404Error } from '@/lib/utils/error-parsing'
 import { setupQueryInstrumentation } from '@/lib/test/query-instrumentation'
 
 // Store the toast function reference to avoid circular dependencies
-let toastFunction: ((message: string) => void) | null = null
+let toastFunction: ((message: string, error?: unknown) => void) | null = null
 
-export function setToastFunction(showError: (message: string) => void) {
-  toastFunction = showError
+export function setToastFunction(handler: (message: string, error?: unknown) => void) {
+  toastFunction = handler
 }
 
 export const queryClient = new QueryClient({
@@ -38,7 +38,7 @@ export const queryClient = new QueryClient({
         // Always show mutation errors to the user
         if (toastFunction) {
           const message = parseApiError(error)
-          toastFunction(message)
+          toastFunction(message, error)
         }
       }
     }

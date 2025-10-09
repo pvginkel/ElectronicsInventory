@@ -24,7 +24,7 @@ export function DocumentTile({
 }: DocumentTileProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const { confirm, confirmProps } = useConfirm();
-  const { showError } = useToast();
+  const { showError, showException } = useToast();
 
   const handleTileClick = () => {
     onTileClick(document);
@@ -53,8 +53,8 @@ export function DocumentTile({
       if (!success) {
         showError('Failed to delete document');
       }
-    } catch {
-      showError('Failed to delete document');
+    } catch (error) {
+      showException('Failed to delete document', error);
     } finally {
       setIsDeleting(false);
     }

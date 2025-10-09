@@ -25,7 +25,7 @@ const NAME_LIMIT = 120;
 const DESCRIPTION_LIMIT = 280;
 
 export function ListCreateDialog({ open, onOpenChange, onCreated }: ListCreateDialogProps) {
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showException } = useToast();
   const createMutation = useCreateShoppingListMutation();
   const instrumentationRef = useRef<UseFormInstrumentationResult<FormValues> | null>(null);
 
@@ -68,7 +68,7 @@ export function ListCreateDialog({ open, onOpenChange, onCreated }: ListCreateDi
       } catch (error) {
         instrumentationRef.current?.trackError(snapshot);
         const message = error instanceof Error ? error.message : 'Failed to create shopping list';
-        showError(message);
+        showException(message, error);
         throw error;
       }
     },

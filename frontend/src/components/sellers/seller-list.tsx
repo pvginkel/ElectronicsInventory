@@ -22,7 +22,7 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
   const [editingSeller, setEditingSeller] = useState<{ id: number; name: string; website: string; created_at?: string; updated_at?: string } | null>(null)
 
   const { confirm, confirmProps } = useConfirm()
-  const { showSuccess, showError } = useToast()
+  const { showSuccess, showException } = useToast()
 
   const {
     data: sellers = [],
@@ -84,7 +84,7 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
       showSuccess('Seller created successfully')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create seller'
-      showError(message)
+      showException(message, err)
       throw err
     }
   }
@@ -106,7 +106,7 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
       setEditingSeller(null)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update seller'
-      showError(message)
+      showException(message, err)
       throw err
     }
   }
@@ -127,7 +127,7 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
         showSuccess(`Seller "${seller.name}" deleted`)
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to delete seller'
-        showError(message)
+        showException(message, err)
         throw err
       }
     }

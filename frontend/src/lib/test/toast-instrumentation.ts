@@ -31,28 +31,63 @@ function extractErrorCode(error: unknown): string | undefined {
   return undefined;
 }
 
+interface ToastInstrumentationOptions<T extends any[]> {
+  originalFunction: (...args: T) => void;
+  level: ToastType;
+  messageArgIndex?: number;
+  exceptionArgIndex?: number;
+}
+
+function normalizeException(error: unknown) {
+  if (!error) {
+    return undefined;
+  }
+
+  if (error instanceof Error) {
+    const { name, message, stack } = error;
+    return { name, message, stack };
+  }
+
+  if (typeof error === 'object') {
+    const coalesced = error as Record<string, unknown>;
+    const name = typeof coalesced.name === 'string' ? coalesced.name : undefined;
+    const message = typeof coalesced.message === 'string' ? coalesced.message : JSON.stringify(error);
+    const stack = typeof coalesced.stack === 'string' ? coalesced.stack : undefined;
+    return { name, message, stack };
+  }
+
+  if (typeof error === 'string') {
+    return { message: error };
+  }
+
+  return { message: String(error) };
+}
+
 /**
  * Instrument a toast function to emit test events
  */
-export function instrumentToast<T extends any[]>(
-  originalFunction: (...args: T) => void,
-  level: ToastType,
-  messageArgIndex: number = 0
-): (...args: T) => void {
+export function instrumentToast<T extends any[]>({
+  originalFunction,
+  level,
+  messageArgIndex = 0,
+  exceptionArgIndex,
+}: ToastInstrumentationOptions<T>): (...args: T) => void {
   return (...args: T) => {
     // Call the original function first
     originalFunction(...args);
 
-    // Extract message and potential error code
     const message = args[messageArgIndex] as string;
-    const code = extractErrorCode(args[messageArgIndex]);
+    const exceptionValue = exceptionArgIndex != null ? args[exceptionArgIndex] : undefined;
+    const exception = normalizeException(exceptionValue);
+    const codeSource = exception ?? args[messageArgIndex];
+    const code = extractErrorCode(codeSource);
 
-    // Emit toast test event
     const toastEvent: Omit<ToastTestEvent, 'timestamp'> = {
       kind: TestEventKind.TOAST,
       level,
       message,
       ...(code && { code }),
+      ...(exception && { exception }),
     };
 
     emitTestEvent(toastEvent);
@@ -68,14 +103,21 @@ export function createInstrumentedToastWrapper(originalToastValue: {
   showSuccess: (message: string, duration?: number) => void;
   showWarning: (message: string, duration?: number) => void;
   showInfo: (message: string, duration?: number) => void;
+  showException: (message: string, error: unknown, duration?: number) => void;
   removeToast: (id: string) => void;
 }) {
   return {
     ...originalToastValue,
-    showToast: instrumentToast(originalToastValue.showToast, 'info', 0),
-    showError: instrumentToast(originalToastValue.showError, 'error', 0),
-    showSuccess: instrumentToast(originalToastValue.showSuccess, 'success', 0),
-    showWarning: instrumentToast(originalToastValue.showWarning, 'warning', 0),
-    showInfo: instrumentToast(originalToastValue.showInfo, 'info', 0),
+    showToast: instrumentToast({ originalFunction: originalToastValue.showToast, level: 'info', messageArgIndex: 0 }),
+    showError: instrumentToast({ originalFunction: originalToastValue.showError, level: 'error', messageArgIndex: 0 }),
+    showSuccess: instrumentToast({ originalFunction: originalToastValue.showSuccess, level: 'success', messageArgIndex: 0 }),
+    showWarning: instrumentToast({ originalFunction: originalToastValue.showWarning, level: 'warning', messageArgIndex: 0 }),
+    showInfo: instrumentToast({ originalFunction: originalToastValue.showInfo, level: 'info', messageArgIndex: 0 }),
+    showException: instrumentToast({
+      originalFunction: originalToastValue.showException,
+      level: 'error',
+      messageArgIndex: 0,
+      exceptionArgIndex: 1,
+    }),
   };
 }

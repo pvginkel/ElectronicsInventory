@@ -37,7 +37,7 @@ export function SellerGroupCard({
   pendingLineIds,
   highlightedLineId,
 }: SellerGroupCardProps) {
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showException } = useToast();
   const updateNoteMutation = useUpdateSellerOrderNoteMutation();
 
   const canEditNote = group.sellerId != null;
@@ -93,7 +93,7 @@ export function SellerGroupCard({
           noteLength: trimmed.length,
         });
         const message = error instanceof Error ? error.message : 'Failed to update order note';
-        showError(message);
+        showException(message, error);
       }
     },
   });
@@ -101,7 +101,8 @@ export function SellerGroupCard({
   useEffect(() => {
     form.setValue('note', initialNote);
     form.setFieldTouched('note', false);
-  }, [form, initialNote]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialNote]);
 
   const instrumentation = useFormInstrumentation({
     formId: canEditNote ? `ShoppingListSellerOrderNote:${group.sellerId}` : `ShoppingListSellerOrderNote:${group.groupKey}`,

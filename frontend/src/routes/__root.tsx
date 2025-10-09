@@ -13,11 +13,17 @@ export const Route = createRootRoute({
 })
 
 function QuerySetup({ children }: { children: React.ReactNode }) {
-  const { showError } = useToast()
+  const { showError, showException } = useToast()
 
   useEffect(() => {
-    setToastFunction(showError)
-  }, [showError])
+    setToastFunction((message, error) => {
+      if (error !== undefined) {
+        showException(message, error)
+        return
+      }
+      showError(message)
+    })
+  }, [showError, showException])
 
   return <>{children}</>
 }

@@ -24,7 +24,7 @@ export function SellerSelector({
   const [searchTerm, setSearchTerm] = useState('')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
-  const { showSuccess, showError } = useToast()
+  const { showSuccess, showException } = useToast()
 
   const {
     data: allSellers = [],
@@ -68,10 +68,10 @@ export function SellerSelector({
       setCreateDialogOpen(false)
       showSuccess('Seller created successfully')
     } catch (err) {
-      showError('Failed to create seller')
+      showException('Failed to create seller', err)
       throw err
     }
-  }, [onChange, createMutation, showError, showSuccess])
+  }, [onChange, createMutation, showException, showSuccess])
 
   // Custom option rendering to show name and website
   const renderOption = useCallback((seller: { id: number; name: string; website: string }) => (
@@ -92,9 +92,9 @@ export function SellerSelector({
 
   useEffect(() => {
     if (loadError) {
-      showError('Failed to load sellers')
+      showException('Failed to load sellers', loadError)
     }
-  }, [loadError, showError])
+  }, [loadError, showException])
 
   useListLoadingInstrumentation({
     scope: 'sellers.selector',

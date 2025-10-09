@@ -85,8 +85,9 @@ export class TestEventBuffer {
     matcher: (event: TestEvent) => boolean,
     timeout: number
   ): Promise<TestEvent> {
+    const effectiveTimeout = timeout > 0 ? timeout : 60_000;
     const { record: immediateRecord, observedMatchFound } = this.findMatchingEvent(matcher);
-    if (immediateRecord) {
+    if (immediateRecord && !observedMatchFound) {
       this.markObserved(immediateRecord);
       return immediateRecord.event;
     }
@@ -104,16 +105,14 @@ export class TestEventBuffer {
         },
       };
 
-      if (timeout > 0) {
-        waiter.timeoutId = setTimeout(() => {
-          this.removeWaiter(waiter);
-          const baseMessage = `Timeout waiting for event matching criteria after ${timeout}ms`;
-          const message = waiter.observedMatchSeen
-            ? `${baseMessage}. A matching event was already observed earlier in this test run.`
-            : baseMessage;
-          reject(new Error(message));
-        }, timeout);
-      }
+      waiter.timeoutId = setTimeout(() => {
+        this.removeWaiter(waiter);
+        const baseMessage = `Timeout waiting for event matching criteria after ${effectiveTimeout}ms`;
+        const message = waiter.observedMatchSeen
+          ? `${baseMessage}. A matching event was already observed earlier in this test run.`
+          : baseMessage;
+        reject(new Error(message));
+      }, effectiveTimeout);
 
       this.waiters.push(waiter);
     });
@@ -192,7 +191,7 @@ export class TestEventBuffer {
         continue;
       }
 
-      return { record, observedMatchFound };
+      return { record, observedMatchFound: false };
     }
 
     return { record: null, observedMatchFound };

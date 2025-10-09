@@ -105,7 +105,8 @@ export function OrderLineDialog({
       form.setValue('orderedQuantity', '0');
       form.setFieldTouched('orderedQuantity', false);
     }
-  }, [open, line, form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, line]);
 
   useEffect(() => {
     if (open) {

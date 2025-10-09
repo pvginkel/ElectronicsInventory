@@ -25,7 +25,7 @@ export function PartDocumentGrid({
   const { coverAttachment } = useCoverAttachment(partId, hasCoverAttachment);
   const setCoverMutation = useSetCoverAttachment();
   const deleteDocumentMutation = useDeleteDocument();
-  const { showError } = useToast();
+  const { showException } = useToast();
 
   // Transform API documents to DocumentItem format
   const documents: DocumentItem[] = useMemo(() => {
@@ -50,8 +50,8 @@ export function PartDocumentGrid({
         body: { attachment_id: parseInt(documentId) }
       });
       onDocumentChange?.();
-    } catch {
-      showError('Failed to set cover');
+    } catch (error) {
+      showException('Failed to set cover', error);
     }
   };
 
@@ -65,8 +65,8 @@ export function PartDocumentGrid({
       });
       onDocumentChange?.();
       return true;
-    } catch {
-      showError('Failed to delete document');
+    } catch (error) {
+      showException('Failed to delete document', error);
       return false;
     }
   };

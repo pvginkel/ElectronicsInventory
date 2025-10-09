@@ -121,4 +121,20 @@ export class ShoppingListTestFactory {
     }
     return line;
   }
+
+  async revertLine(listId: number, lineId: number): Promise<ShoppingListLineResponseSchema> {
+    await apiRequest(() =>
+      this.client.POST('/api/shopping-list-lines/{line_id}/revert', {
+        params: { path: { line_id: lineId } },
+        body: { status: 'new' },
+      })
+    );
+
+    const detail = await this.getListDetail(listId);
+    const line = detail.lines.find(existing => existing.id === lineId);
+    if (!line) {
+      throw new Error(`Failed to revert shopping list line ${lineId}`);
+    }
+    return line;
+  }
 }

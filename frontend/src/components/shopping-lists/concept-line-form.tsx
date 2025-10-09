@@ -51,7 +51,7 @@ export function ConceptLineForm({
   onDismissDuplicateNotice,
 }: ConceptLineFormProps) {
   const queryClient = useQueryClient();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showException } = useToast();
   const createMutation = useCreateShoppingListLineMutation();
   const updateMutation = useUpdateShoppingListLineMutation();
   const instrumentationRef = useRef<UseFormInstrumentationResult<{ listId: number; partKey: string; needed: number }> | null>(null);
@@ -169,7 +169,7 @@ export function ConceptLineForm({
           }
         }
         const message = error instanceof Error ? error.message : 'Failed to save line';
-        showError(message);
+        showException(message, error);
       }
     },
   });

@@ -24,7 +24,7 @@ interface BoxDetailsProps {
 export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
   const [editFormOpen, setEditFormOpen] = useState(false)
   const { confirm, confirmProps } = useConfirm()
-  const { showSuccess, showError } = useToast()
+  const { showSuccess, showException } = useToast()
 
   const { data: box, isLoading, isFetching, error } = useGetBoxesByBoxNo({ path: { box_no: boxNo } })
   const { data: boxes } = useGetBoxes() // Get all boxes to find usage stats for this specific box  
@@ -63,7 +63,7 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
       showSuccess('Box updated successfully')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update box'
-      showError(message)
+      showException(message, err)
     }
   }
 
@@ -84,7 +84,7 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
         onDeleted?.()
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to delete box'
-        showError(message)
+        showException(message, err)
       }
     }
   }

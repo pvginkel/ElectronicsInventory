@@ -73,6 +73,11 @@ export interface ToastTestEvent extends BaseTestEvent {
   level: 'success' | 'error' | 'warning' | 'info';
   code?: string;
   message: string;
+  exception?: {
+    name?: string;
+    message?: string;
+    stack?: string;
+  };
 }
 
 /**

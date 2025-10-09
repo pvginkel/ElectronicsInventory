@@ -20,7 +20,7 @@ export function useListDeleteConfirm(options: UseListDeleteConfirmOptions = {}):
   const { onDeleted } = options;
   const { confirm, confirmProps } = useConfirm();
   const deleteMutation = useDeleteShoppingListMutation();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showException } = useToast();
 
   const confirmDelete = useCallback(async (list: ShoppingListOverviewSummary) => {
     const confirmed = await confirm({
@@ -41,10 +41,10 @@ export function useListDeleteConfirm(options: UseListDeleteConfirmOptions = {}):
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete shopping list';
-      showError(message);
+      showException(message, error);
       return false;
     }
-  }, [confirm, deleteMutation, onDeleted, showError, showSuccess]);
+  }, [confirm, deleteMutation, onDeleted, showException, showSuccess]);
 
   const dialog = (
     <ConfirmDialog

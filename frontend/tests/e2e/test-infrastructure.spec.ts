@@ -1,7 +1,7 @@
 import type { RouteTestEvent, ToastTestEvent } from '@/types/test-events';
 import { test, expect } from '../support/fixtures';
 import { emitTestEvent } from '../support/helpers/test-events';
-import { waitTestEvent } from '../support/helpers';
+import { expectConsoleError, waitTestEvent } from '../support/helpers';
 
 const ROUTE_EVENT_KIND = 'route';
 
@@ -51,5 +51,28 @@ test.describe('Playwright bridge instrumentation', () => {
 
     const typedToastEvent = toastEvent as ToastTestEvent;
     expect(typedToastEvent.message).toBe('bridge-synthetic-event');
+  });
+
+  test('showException instrumentation exposes exception details to Playwright', async ({ page, frontendUrl, testEvents }) => {
+    await page.goto(frontendUrl);
+
+    await expectConsoleError(page, /Toast exception/);
+
+    await page.evaluate(() => {
+      const error = new Error('toast exception wiring');
+      window.dispatchEvent(
+        new CustomEvent('app:testing:show-exception', {
+          detail: { message: 'toast exception integration', error },
+        })
+      );
+    });
+
+    const toastEvent = await testEvents.waitForEvent(event => {
+      return event.kind === 'toast' && event.message === 'toast exception integration';
+    });
+
+    const typedToastEvent = toastEvent as ToastTestEvent;
+    expect(typedToastEvent.exception?.message).toContain('toast exception wiring');
+    expect(typedToastEvent.exception?.stack).toContain('toast exception wiring');
   });
 });

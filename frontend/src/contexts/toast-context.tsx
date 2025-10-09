@@ -1,4 +1,4 @@
-import { createContext, useState } from 'react'
+import { createContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Toast, ToastType } from '@/components/ui/toast'
 import { ToastContainer } from '@/components/ui/toast'
@@ -11,6 +11,7 @@ interface ToastContextValue {
   showSuccess: (message: string, duration?: number) => void
   showWarning: (message: string, duration?: number) => void
   showInfo: (message: string, duration?: number) => void
+  showException: (message: string, error: unknown, duration?: number) => void
   removeToast: (id: string) => void
 }
 
@@ -50,12 +51,20 @@ export function ToastProvider({ children }: ToastProviderProps) {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
+  const showException = (message: string, error: unknown, duration?: number) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Toast exception', error)
+    }
+    showToast(message, 'error', duration)
+  }
+
   const baseContextValue: ToastContextValue = {
     showToast,
     showError,
     showSuccess,
     showWarning,
     showInfo,
+    showException,
     removeToast
   }
 
@@ -63,6 +72,29 @@ export function ToastProvider({ children }: ToastProviderProps) {
   const contextValue = isTestMode()
     ? createInstrumentedToastWrapper(baseContextValue)
     : baseContextValue
+
+  const showExceptionFn = contextValue.showException
+
+  useEffect(() => {
+    if (!isTestMode() || typeof window === 'undefined') {
+      return
+    }
+
+    const handler = (event: Event) => {
+      const customEvent = event as CustomEvent<{ message: string; error: unknown; duration?: number }>
+      const detail = customEvent.detail
+      if (!detail || typeof detail.message !== 'string') {
+        return
+      }
+      showExceptionFn(detail.message, detail.error, detail.duration)
+    }
+
+    window.addEventListener('app:testing:show-exception', handler)
+
+    return () => {
+      window.removeEventListener('app:testing:show-exception', handler)
+    }
+  }, [showExceptionFn])
 
   return (
     <ToastContext.Provider value={contextValue}>

@@ -28,7 +28,7 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
   const [editingBox, setEditingBox] = useState<BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema | null>(null)
 
   const { confirm, confirmProps } = useConfirm()
-  const { showSuccess, showError } = useToast()
+  const { showSuccess, showException } = useToast()
 
   const {
     data: boxes = [],
@@ -91,7 +91,7 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
       showSuccess('Box created successfully')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create box'
-      showError(message)
+      showException(message, err)
       throw err
     }
   }
@@ -113,7 +113,7 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
       setEditingBox(null)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update box'
-      showError(message)
+      showException(message, err)
       throw err
     }
   }
@@ -134,7 +134,7 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
         showSuccess(`Box #${box.box_no} deleted`)
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to delete box'
-        showError(message)
+        showException(message, err)
         throw err
       }
     }

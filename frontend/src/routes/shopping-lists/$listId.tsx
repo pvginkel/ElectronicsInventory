@@ -15,6 +15,7 @@ import {
   useMarkShoppingListReadyMutation,
   useDeleteShoppingListLineMutation,
   useOrderShoppingListLineMutation,
+  useRevertShoppingListLineMutation,
   useOrderShoppingListGroupMutation,
   useUpdateShoppingListStatusMutation,
 } from '@/hooks/use-shopping-lists';
@@ -57,7 +58,7 @@ function ShoppingListDetailRoute() {
   const params = Route.useParams();
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showException } = useToast();
   const { confirm, confirmProps } = useConfirm();
 
   const listId = Number(params.listId);
@@ -91,6 +92,7 @@ function ShoppingListDetailRoute() {
   const markReadyMutation = useMarkShoppingListReadyMutation();
   const deleteLineMutation = useDeleteShoppingListLineMutation();
   const orderLineMutation = useOrderShoppingListLineMutation();
+  const revertLineMutation = useRevertShoppingListLineMutation();
   const orderGroupMutation = useOrderShoppingListGroupMutation();
   const updateStatusMutation = useUpdateShoppingListStatusMutation();
 
@@ -128,7 +130,7 @@ function ShoppingListDetailRoute() {
   const handleSortChange = useCallback((nextSort: ShoppingListLineSortKey) => {
     if (nextSort === sortKey) return;
     navigate({
-      to: '/shopping-lists/$listId',
+      to: Route.fullPath,
       params: { listId: params.listId },
       search: { sort: nextSort },
       replace: true,
@@ -165,9 +167,9 @@ function ShoppingListDetailRoute() {
       showSuccess('Removed part from Concept list');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete line';
-      showError(message);
+      showException(message, err);
     }
-  }, [confirm, deleteLineMutation, showError, showSuccess]);
+  }, [confirm, deleteLineMutation, showException, showSuccess]);
 
   const handleDuplicateDetected = useCallback((existingLine: ShoppingListConceptLine, partKey: string) => {
     setDuplicateNotice({ lineId: existingLine.id, partKey });
@@ -185,10 +187,10 @@ function ShoppingListDetailRoute() {
       showSuccess('List details updated');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update list details';
-      showError(message);
+      showException(message, err);
       throw err;
     }
-  }, [showError, showSuccess, updateMetadataMutation]);
+  }, [showException, showSuccess, updateMetadataMutation]);
 
   const handleMarkReady = useCallback(async () => {
     try {
@@ -196,10 +198,10 @@ function ShoppingListDetailRoute() {
       showSuccess('List marked Ready. Seller planning view is now available.');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to mark list Ready';
-      showError(message);
+      showException(message, err);
       throw err;
     }
-  }, [markReadyMutation, normalizedListId, showError, showSuccess]);
+  }, [markReadyMutation, normalizedListId, showException, showSuccess]);
 
   // Track line-level mutations so Ready rows can disable actions while in flight.
   const updatePendingLine = useCallback((lineId: number, isPending: boolean) => {
@@ -238,30 +240,29 @@ function ShoppingListDetailRoute() {
       setHighlightedLineId(target.id);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update ordered quantity';
-      showError(message);
+      showException(message, err);
       throw err;
     } finally {
       updatePendingLine(target.id, false);
     }
-  }, [orderLineMutation, orderLineState.line, showError, showSuccess, updatePendingLine]);
+  }, [orderLineMutation, orderLineState.line, showException, showSuccess, updatePendingLine]);
 
   const handleRevertLine = useCallback(async (line: ShoppingListConceptLine) => {
     updatePendingLine(line.id, true);
     try {
-      await orderLineMutation.mutateAsync({
+      await revertLineMutation.mutateAsync({
         listId: line.shoppingListId,
         lineId: line.id,
-        orderedQuantity: null,
       });
       showSuccess(`Reverted ${line.part.description} to New`);
       setHighlightedLineId(line.id);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to revert line';
-      showError(message);
+      showException(message, err);
     } finally {
       updatePendingLine(line.id, false);
     }
-  }, [orderLineMutation, showError, showSuccess, updatePendingLine]);
+  }, [revertLineMutation, showException, showSuccess, updatePendingLine]);
 
   const handleOpenOrderGroupDialog = useCallback((group: ShoppingListSellerGroup, trigger?: HTMLElement | null) => {
     setOrderGroupState({ open: true, group, trigger: trigger ?? null });
@@ -293,12 +294,12 @@ function ShoppingListDetailRoute() {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to order group';
-      showError(message);
+      showException(message, err);
       throw err;
     } finally {
       pendingIds.forEach(id => updatePendingLine(id, false));
     }
-  }, [normalizedListId, orderGroupMutation, orderGroupState.group, showError, showSuccess, updatePendingLine]);
+  }, [normalizedListId, orderGroupMutation, orderGroupState.group, showException, showSuccess, updatePendingLine]);
 
   const handleBackToConcept = useCallback(async () => {
     if (!shoppingList) {
@@ -309,10 +310,10 @@ function ShoppingListDetailRoute() {
       showSuccess('Returned list to Concept');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to return list to Concept';
-      showError(message);
+      showException(message, err);
       throw err;
     }
-  }, [shoppingList, showError, showSuccess, updateStatusMutation]);
+  }, [shoppingList, showException, showSuccess, updateStatusMutation]);
 
   const handleUpdateStock = useCallback((line: ShoppingListConceptLine) => {
     const message = `Update Stock flow for "${line.part.description}" is not yet implemented.`;

@@ -26,7 +26,7 @@ const NAME_LIMIT = 120;
 const DESCRIPTION_LIMIT = 280;
 
 export function ConceptHeader({ list, onUpdateMetadata, isUpdating }: ConceptHeaderProps) {
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showException } = useToast();
   const [editOpen, setEditOpen] = useState(false);
 
   const initialValues = useMemo<MetadataFormValues>(() => ({
@@ -63,7 +63,7 @@ export function ConceptHeader({ list, onUpdateMetadata, isUpdating }: ConceptHea
         setEditOpen(false);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to update list';
-        showError(message);
+        showException(message, error);
         throw error;
       }
     },
