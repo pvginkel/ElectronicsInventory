@@ -1,0 +1,2 @@
+- [ ] The whole card needs to be clickable.
+- [ ] Edit and delete actions on lines must become icons on the line itself.

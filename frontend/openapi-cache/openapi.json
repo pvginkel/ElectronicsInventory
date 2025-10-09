@@ -1068,7 +1068,9 @@
         "properties": {
           "title": {
             "description": "Title to embed in the rendered HTML fixture",
-            "example": "Playwright Fixture Page",
+            "examples": [
+              "Playwright Fixture Page"
+            ],
             "title": "Title",
             "type": "string"
           }
@@ -1084,7 +1086,9 @@
         "properties": {
           "text": {
             "description": "Text to render on the generated PNG image",
-            "example": "Playwright Test Image",
+            "examples": [
+              "Playwright Test Image"
+            ],
             "title": "Text",
             "type": "string"
           }
@@ -1524,18 +1528,24 @@
             ],
             "default": null,
             "description": "Optional banner text accompanying the deployment notification",
-            "example": "New filters, improved performance, and bug fixes.",
+            "examples": [
+              "New filters, improved performance, and bug fixes."
+            ],
             "title": "Changelog"
           },
           "request_id": {
             "description": "Correlation identifier associated with an SSE subscriber",
-            "example": "playwright-run-1234",
+            "examples": [
+              "playwright-run-1234"
+            ],
             "title": "Request Id",
             "type": "string"
           },
           "version": {
             "description": "Frontend version string to broadcast",
-            "example": "2024.03.15+abc123",
+            "examples": [
+              "2024.03.15+abc123"
+            ],
             "title": "Version",
             "type": "string"
           }
@@ -1552,7 +1562,9 @@
         "properties": {
           "delivered": {
             "description": "Whether the event was delivered immediately to an active subscriber",
-            "example": true,
+            "examples": [
+              true
+            ],
             "title": "Delivered",
             "type": "boolean"
           },
@@ -1563,7 +1575,9 @@
           },
           "status": {
             "description": "Delivery status message",
-            "example": "delivered",
+            "examples": [
+              "delivered"
+            ],
             "title": "Status",
             "type": "string"
           }
@@ -6842,13 +6856,17 @@
         "properties": {
           "error": {
             "description": "Error message",
-            "example": "Database reset already in progress",
+            "examples": [
+              "Database reset already in progress"
+            ],
             "title": "Error",
             "type": "string"
           },
           "status": {
             "description": "Operation status",
-            "example": "busy",
+            "examples": [
+              "busy"
+            ],
             "title": "Status",
             "type": "string"
           }
@@ -6865,25 +6883,33 @@
         "properties": {
           "migrations_applied": {
             "description": "Number of database migrations applied",
-            "example": 5,
+            "examples": [
+              5
+            ],
             "title": "Migrations Applied",
             "type": "integer"
           },
           "mode": {
             "description": "Environment mode",
-            "example": "testing",
+            "examples": [
+              "testing"
+            ],
             "title": "Mode",
             "type": "string"
           },
           "seeded": {
             "description": "Whether test data was loaded",
-            "example": true,
+            "examples": [
+              true
+            ],
             "title": "Seeded",
             "type": "boolean"
           },
           "status": {
             "description": "Reset operation status",
-            "example": "complete",
+            "examples": [
+              "complete"
+            ],
             "title": "Status",
             "type": "string"
           }
@@ -10753,7 +10779,9 @@
             "required": true,
             "schema": {
               "description": "Title to embed in the rendered HTML fixture",
-              "example": "Playwright Fixture Page",
+              "examples": [
+                "Playwright Fixture Page"
+              ],
               "title": "Title",
               "type": "string"
             }
@@ -10776,7 +10804,9 @@
             "required": true,
             "schema": {
               "description": "Title to embed in the rendered HTML fixture",
-              "example": "Playwright Fixture Page",
+              "examples": [
+                "Playwright Fixture Page"
+              ],
               "title": "Title",
               "type": "string"
             }
@@ -10799,7 +10829,9 @@
             "required": true,
             "schema": {
               "description": "Text to render on the generated PNG image",
-              "example": "Playwright Test Image",
+              "examples": [
+                "Playwright Test Image"
+              ],
               "title": "Text",
               "type": "string"
             }
