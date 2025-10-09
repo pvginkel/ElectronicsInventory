@@ -11,15 +11,12 @@ interface MarkReadyFooterProps {
 }
 
 export function MarkReadyFooter({ list, onMarkReady, isMarkingReady }: MarkReadyFooterProps) {
-  if (list.status !== 'concept') {
-    return null;
-  }
-
+  const isConcept = list.status === 'concept';
   const formId = useMemo(() => generateFormId('ShoppingListStatus', 'markReady'), []);
 
   const instrumentation = useFormInstrumentation({
     formId,
-    isOpen: true,
+    isOpen: isConcept,
     snapshotFields: () => ({
       listId: list.id,
       status: list.status,
@@ -28,6 +25,9 @@ export function MarkReadyFooter({ list, onMarkReady, isMarkingReady }: MarkReady
   });
 
   const handleMarkReady = useCallback(async () => {
+    if (!isConcept) {
+      return;
+    }
     instrumentation.trackSubmit();
     try {
       await onMarkReady();
@@ -36,7 +36,11 @@ export function MarkReadyFooter({ list, onMarkReady, isMarkingReady }: MarkReady
       instrumentation.trackError();
       throw error;
     }
-  }, [instrumentation, onMarkReady]);
+  }, [instrumentation, isConcept, onMarkReady]);
+
+  if (!isConcept) {
+    return null;
+  }
 
   const disabled = list.lines.length === 0 || isMarkingReady;
 
@@ -47,7 +51,7 @@ export function MarkReadyFooter({ list, onMarkReady, isMarkingReady }: MarkReady
           <span className="font-medium text-foreground">{list.lines.length}</span> line{list.lines.length === 1 ? '' : 's'} in Concept
         </div>
         <div>
-          Ready and Done views unlock once this Concept list has the required parts.
+          Ready view groups lines by seller so you can plan orders as soon as this Concept list is complete.
         </div>
       </div>
       <Button

@@ -137,7 +137,142 @@ test.describe('Shopping Lists', () => {
     await shoppingLists.gotoConcept(list.id);
     await shoppingLists.markReady();
     await toastHelper.expectSuccessToast(/marked ready/i);
+    await shoppingLists.waitForReadyView();
     await shoppingLists.expectStatus(/ready/i);
     await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.mark-ready.button')).toHaveCount(0);
+  });
+
+  test('renders ready view groups and persists seller notes', async ({ shoppingLists, testData, toastHelper }) => {
+    const sellerA = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
+    const sellerB = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
+    const { part: partA } = await testData.parts.create({ overrides: { description: 'Ready view part A' } });
+    const { part: partB } = await testData.parts.create({ overrides: { description: 'Ready view part B' } });
+
+    const list = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: testData.shoppingLists.randomName('Ready View') },
+      lines: [
+        { partKey: partA.key, needed: 3, sellerId: sellerA.id },
+        { partKey: partB.key, needed: 2, sellerId: sellerB.id },
+      ],
+    });
+
+    await shoppingLists.gotoConcept(list.id);
+    await shoppingLists.markReady();
+    await toastHelper.expectSuccessToast(/ready/i);
+    await shoppingLists.waitForReadyView();
+
+    await expect(shoppingLists.readyGroupBySeller(sellerA.name)).toBeVisible();
+    await expect(shoppingLists.readyGroupBySeller(sellerB.name)).toBeVisible();
+    await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.ready.toolbar.back-to-concept')).toBeVisible();
+
+    const sellerCard = shoppingLists.readyGroupBySeller(sellerA.name);
+    const noteInput = sellerCard.getByLabel('Order Note');
+    await noteInput.fill('Bundle with enclosure order');
+    await sellerCard.getByTestId(/order-note\.save$/).click();
+
+    await waitTestEvent<FormTestEvent>(shoppingLists.playwrightPage, 'form', event => event.formId === `ShoppingListSellerOrderNote:${sellerA.id}` && event.phase === 'success');
+    await toastHelper.expectSuccessToast(/saved order note/i);
+
+    await shoppingLists.gotoReady(list.id);
+    const refreshedCard = shoppingLists.readyGroupBySeller(sellerA.name);
+    await expect(refreshedCard.getByLabel('Order Note')).toHaveValue('Bundle with enclosure order');
+  });
+
+  test('marks individual lines ordered and enforces back to concept guard', async ({ shoppingLists, testData, toastHelper }) => {
+    const seller = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
+    const { part } = await testData.parts.create({ overrides: { description: 'Ordering flow part' } });
+
+    const list = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: testData.shoppingLists.randomName('Ready Ordering') },
+      lines: [
+        { partKey: part.key, needed: 4, sellerId: seller.id },
+      ],
+    });
+
+    const line = list.lines.find(item => item.part.key === part.key);
+    if (!line) {
+      throw new Error('Failed to resolve shopping list line for ordering test');
+    }
+
+    await shoppingLists.gotoConcept(list.id);
+    await shoppingLists.markReady();
+    await toastHelper.expectSuccessToast(/ready/i);
+    await shoppingLists.waitForReadyView();
+
+    await shoppingLists.markLineOrdered(part.description, 5);
+    await waitTestEvent<FormTestEvent>(shoppingLists.playwrightPage, 'form', event => event.formId === `ShoppingListLineOrder:line:${line.id}` && event.phase === 'success');
+    await toastHelper.expectSuccessToast(/marked .* ordered/i);
+
+    const row = shoppingLists.readyLineRow(part.description);
+    await expect(row.getByTestId(/status$/)).toContainText(/ordered/i);
+    await expect(row.getByTestId(/ordered$/)).toContainText('5');
+    await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.ready.toolbar.back-to-concept')).toHaveCount(0);
+
+    await shoppingLists.revertLine(part.description);
+    await toastHelper.expectSuccessToast(/reverted/i);
+    await shoppingLists.waitForReadyView();
+    await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.ready.toolbar.back-to-concept')).toBeVisible();
+  });
+
+  test('orders seller groups, reassigns lines, and returns to concept', async ({ shoppingLists, testData, toastHelper }) => {
+    const sellerPrimary = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
+    const sellerSecondary = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
+    const { part: partOne } = await testData.parts.create({ overrides: { description: 'Group order part 1' } });
+    const { part: partTwo } = await testData.parts.create({ overrides: { description: 'Group order part 2' } });
+    const { part: partThree } = await testData.parts.create({ overrides: { description: 'Group order part 3' } });
+
+    const list = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: testData.shoppingLists.randomName('Ready Grouping') },
+      lines: [
+        { partKey: partOne.key, needed: 3, sellerId: sellerPrimary.id },
+        { partKey: partTwo.key, needed: 2, sellerId: sellerPrimary.id },
+        { partKey: partThree.key, needed: 1, sellerId: sellerSecondary.id },
+      ],
+    });
+
+    const primaryLines = list.lines.filter(line => line.seller_id === sellerPrimary.id);
+    const groupOverrides: Record<string, number> = {};
+    for (const lineItem of primaryLines) {
+      groupOverrides[lineItem.id] = lineItem.needed + 1;
+    }
+
+    await shoppingLists.gotoConcept(list.id);
+    await shoppingLists.markReady();
+    await toastHelper.expectSuccessToast(/ready/i);
+    await shoppingLists.waitForReadyView();
+
+    const primaryCard = shoppingLists.readyGroupBySeller(sellerPrimary.name);
+    const primaryTestId = await primaryCard.getAttribute('data-testid');
+    const groupKey = primaryTestId?.split('.').pop();
+    await shoppingLists.markGroupOrdered(sellerPrimary.name, groupOverrides);
+    if (!groupKey) {
+      throw new Error('Missing seller group key for instrumentation assertion');
+    }
+    await waitTestEvent<FormTestEvent>(shoppingLists.playwrightPage, 'form', event => event.formId === `ShoppingListGroupOrder:group:${groupKey}` && event.phase === 'success');
+    await toastHelper.expectSuccessToast(/marked \d+ lines ordered/i);
+
+    for (const lineItem of primaryLines) {
+      const row = shoppingLists.readyLineRow(lineItem.part.description);
+      await expect(row.getByTestId(/status$/)).toContainText(/ordered/i);
+    }
+
+    // Reassign partTwo to the secondary seller and ensure regrouping occurs
+    await shoppingLists.editReadyLine(partTwo.description, { sellerName: sellerSecondary.name });
+    await toastHelper.expectSuccessToast(/updated line/i);
+    await expect(shoppingLists.readyGroupBySeller(sellerSecondary.name)).toBeVisible();
+    await expect(shoppingLists.readyLineRow(partTwo.description)).toBeVisible();
+
+    // Revert ordered lines to enable back to concept, then transition back
+    await shoppingLists.revertLine(partOne.description);
+    await toastHelper.expectSuccessToast(new RegExp(`Reverted ${partOne.description}`, 'i'));
+    await shoppingLists.revertLine(partTwo.description);
+    await toastHelper.expectSuccessToast(new RegExp(`Reverted ${partTwo.description}`, 'i'));
+    await shoppingLists.waitForReadyView();
+    await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.ready.toolbar.back-to-concept')).toBeVisible();
+
+    await shoppingLists.backToConcept();
+    await toastHelper.expectSuccessToast(/returned list to concept/i);
+    await expect(shoppingLists.conceptRoot).toBeVisible();
+    await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.mark-ready.button')).toBeVisible();
   });
 });

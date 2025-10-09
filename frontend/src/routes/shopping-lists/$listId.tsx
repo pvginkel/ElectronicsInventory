@@ -1,11 +1,28 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ConceptHeader } from '@/components/shopping-lists/concept-header';
 import { ConceptTable } from '@/components/shopping-lists/concept-table';
 import { ConceptLineForm } from '@/components/shopping-lists/concept-line-form';
 import { MarkReadyFooter } from '@/components/shopping-lists/mark-ready-footer';
-import { useShoppingListDetail, useSortedShoppingListLines, useUpdateShoppingListMutation, useMarkShoppingListReadyMutation, useDeleteShoppingListLineMutation } from '@/hooks/use-shopping-lists';
-import type { ShoppingListConceptLine, ShoppingListLineSortKey } from '@/types/shopping-lists';
+import { SellerGroupList } from '@/components/shopping-lists/ready/seller-group-list';
+import { OrderLineDialog } from '@/components/shopping-lists/ready/order-line-dialog';
+import { OrderGroupDialog } from '@/components/shopping-lists/ready/order-group-dialog';
+import { ReadyToolbar } from '@/components/shopping-lists/ready/ready-toolbar';
+import {
+  useShoppingListDetail,
+  useSortedShoppingListLines,
+  useUpdateShoppingListMutation,
+  useMarkShoppingListReadyMutation,
+  useDeleteShoppingListLineMutation,
+  useOrderShoppingListLineMutation,
+  useOrderShoppingListGroupMutation,
+  useUpdateShoppingListStatusMutation,
+} from '@/hooks/use-shopping-lists';
+import type {
+  ShoppingListConceptLine,
+  ShoppingListLineSortKey,
+  ShoppingListSellerGroup,
+} from '@/types/shopping-lists';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { useConfirm } from '@/hooks/use-confirm';
@@ -21,10 +38,22 @@ export const Route = createFileRoute('/shopping-lists/$listId')({
       : 'description';
     return { sort };
   },
-  component: ShoppingListConceptRoute,
+  component: ShoppingListDetailRoute,
 });
 
-function ShoppingListConceptRoute() {
+interface OrderLineState {
+  open: boolean;
+  line: ShoppingListConceptLine | null;
+  trigger: HTMLElement | null;
+}
+
+interface OrderGroupState {
+  open: boolean;
+  group: ShoppingListSellerGroup | null;
+  trigger: HTMLElement | null;
+}
+
+function ShoppingListDetailRoute() {
   const params = Route.useParams();
   const navigate = useNavigate();
   const search = Route.useSearch();
@@ -39,6 +68,7 @@ function ShoppingListConceptRoute() {
   const {
     shoppingList,
     lines,
+    sellerGroups,
     duplicateCheck,
     isLoading,
     isFetching,
@@ -53,10 +83,16 @@ function ShoppingListConceptRoute() {
   const [selectedLine, setSelectedLine] = useState<ShoppingListConceptLine | undefined>(undefined);
   const [duplicateNotice, setDuplicateNotice] = useState<{ lineId: number; partKey: string } | null>(null);
   const [highlightedLineId, setHighlightedLineId] = useState<number | null>(null);
+  const [orderLineState, setOrderLineState] = useState<OrderLineState>({ open: false, line: null, trigger: null });
+  const [orderGroupState, setOrderGroupState] = useState<OrderGroupState>({ open: false, group: null, trigger: null });
+  const [pendingLineIds, setPendingLineIds] = useState<Set<number>>(new Set());
 
   const updateMetadataMutation = useUpdateShoppingListMutation(normalizedListId);
   const markReadyMutation = useMarkShoppingListReadyMutation();
   const deleteLineMutation = useDeleteShoppingListLineMutation();
+  const orderLineMutation = useOrderShoppingListLineMutation();
+  const orderGroupMutation = useOrderShoppingListGroupMutation();
+  const updateStatusMutation = useUpdateShoppingListStatusMutation();
 
   useEffect(() => {
     if (highlightedLineId == null) {
@@ -65,6 +101,17 @@ function ShoppingListConceptRoute() {
     const timer = setTimeout(() => setHighlightedLineId(null), 4000);
     return () => clearTimeout(timer);
   }, [highlightedLineId]);
+
+  useEffect(() => {
+    if (!duplicateNotice) {
+      return;
+    }
+    const stillExists = lines.some(line => line.id === duplicateNotice.lineId);
+    if (!stillExists) {
+      setDuplicateNotice(null);
+      setHighlightedLineId(null);
+    }
+  }, [duplicateNotice, lines]);
 
   useListLoadingInstrumentation({
     scope: 'shoppingLists.list',
@@ -78,7 +125,7 @@ function ShoppingListConceptRoute() {
     getErrorMetadata,
   });
 
-  const handleSortChange = (nextSort: ShoppingListLineSortKey) => {
+  const handleSortChange = useCallback((nextSort: ShoppingListLineSortKey) => {
     if (nextSort === sortKey) return;
     navigate({
       to: '/shopping-lists/$listId',
@@ -86,23 +133,23 @@ function ShoppingListConceptRoute() {
       search: { sort: nextSort },
       replace: true,
     });
-  };
+  }, [navigate, params.listId, sortKey]);
 
-  const handleOpenCreateLine = () => {
+  const handleOpenCreateLine = useCallback(() => {
     setLineFormMode('add');
     setSelectedLine(undefined);
     setDuplicateNotice(null);
     setHighlightedLineId(null);
     setLineFormOpen(true);
-  };
+  }, []);
 
-  const handleEditLine = (line: ShoppingListConceptLine) => {
+  const handleEditLine = useCallback((line: ShoppingListConceptLine) => {
     setLineFormMode('edit');
     setSelectedLine(line);
     setLineFormOpen(true);
-  };
+  }, []);
 
-  const handleDeleteLine = async (line: ShoppingListConceptLine) => {
+  const handleDeleteLine = useCallback(async (line: ShoppingListConceptLine) => {
     const confirmed = await confirm({
       title: 'Delete line',
       description: `Remove "${line.part.description}" from this Concept list?`,
@@ -120,53 +167,161 @@ function ShoppingListConceptRoute() {
       const message = err instanceof Error ? err.message : 'Failed to delete line';
       showError(message);
     }
-  };
+  }, [confirm, deleteLineMutation, showError, showSuccess]);
 
-  const handleDuplicateDetected = (existingLine: ShoppingListConceptLine, partKey: string) => {
+  const handleDuplicateDetected = useCallback((existingLine: ShoppingListConceptLine, partKey: string) => {
     setDuplicateNotice({ lineId: existingLine.id, partKey });
     setHighlightedLineId(existingLine.id);
-  };
+  }, []);
 
-  const handleDismissDuplicate = () => {
+  const handleDismissDuplicate = useCallback(() => {
     setDuplicateNotice(null);
     setHighlightedLineId(null);
-  };
+  }, []);
 
-  useEffect(() => {
-    if (!duplicateNotice) {
-      return;
-    }
-    const stillExists = lines.some(line => line.id === duplicateNotice.lineId);
-    if (!stillExists) {
-      setDuplicateNotice(null);
-      setHighlightedLineId(null);
-    }
-  }, [duplicateNotice, lines]);
-
-  const handleUpdateMetadata = async (data: { name: string; description: string | null }) => {
+  const handleUpdateMetadata = useCallback(async (data: { name: string; description: string | null }) => {
     try {
       await updateMetadataMutation.mutateAsync(data);
+      showSuccess('List details updated');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update list details';
       showError(message);
       throw err;
     }
-  };
+  }, [showError, showSuccess, updateMetadataMutation]);
 
-  const handleMarkReady = async () => {
+  const handleMarkReady = useCallback(async () => {
     try {
       await markReadyMutation.mutateAsync({ listId: normalizedListId });
-      showSuccess('Concept list marked Ready. Ready view will appear in Phase 2.');
+      showSuccess('List marked Ready. Seller planning view is now available.');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to mark list Ready';
       showError(message);
       throw err;
     }
-  };
+  }, [markReadyMutation, normalizedListId, showError, showSuccess]);
+
+  // Track line-level mutations so Ready rows can disable actions while in flight.
+  const updatePendingLine = useCallback((lineId: number, isPending: boolean) => {
+    setPendingLineIds(prev => {
+      const next = new Set(prev);
+      if (isPending) {
+        next.add(lineId);
+      } else {
+        next.delete(lineId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleOpenOrderLineDialog = useCallback((line: ShoppingListConceptLine, trigger?: HTMLElement | null) => {
+    setOrderLineState({ open: true, line, trigger: trigger ?? null });
+  }, []);
+
+  const handleCloseOrderLineDialog = useCallback(() => {
+    setOrderLineState(prev => ({ open: false, line: null, trigger: prev.trigger }));
+  }, []);
+
+  const handleConfirmLineOrder = useCallback(async (quantity: number) => {
+    const target = orderLineState.line;
+    if (!target) {
+      return;
+    }
+    updatePendingLine(target.id, true);
+    try {
+      await orderLineMutation.mutateAsync({
+        listId: target.shoppingListId,
+        lineId: target.id,
+        orderedQuantity: quantity,
+      });
+      showSuccess(`Marked ${target.part.description} Ordered`);
+      setHighlightedLineId(target.id);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update ordered quantity';
+      showError(message);
+      throw err;
+    } finally {
+      updatePendingLine(target.id, false);
+    }
+  }, [orderLineMutation, orderLineState.line, showError, showSuccess, updatePendingLine]);
+
+  const handleRevertLine = useCallback(async (line: ShoppingListConceptLine) => {
+    updatePendingLine(line.id, true);
+    try {
+      await orderLineMutation.mutateAsync({
+        listId: line.shoppingListId,
+        lineId: line.id,
+        orderedQuantity: null,
+      });
+      showSuccess(`Reverted ${line.part.description} to New`);
+      setHighlightedLineId(line.id);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to revert line';
+      showError(message);
+    } finally {
+      updatePendingLine(line.id, false);
+    }
+  }, [orderLineMutation, showError, showSuccess, updatePendingLine]);
+
+  const handleOpenOrderGroupDialog = useCallback((group: ShoppingListSellerGroup, trigger?: HTMLElement | null) => {
+    setOrderGroupState({ open: true, group, trigger: trigger ?? null });
+  }, []);
+
+  const handleCloseOrderGroupDialog = useCallback(() => {
+    setOrderGroupState(prev => ({ open: false, group: null, trigger: prev.trigger }));
+  }, []);
+
+  const handleConfirmGroupOrder = useCallback(async (orderedLines: Array<{ lineId: number; orderedQuantity: number }>) => {
+    const targetGroup = orderGroupState.group;
+    if (!targetGroup) {
+      return;
+    }
+    const pendingIds = orderedLines.map(item => item.lineId);
+    pendingIds.forEach(id => updatePendingLine(id, true));
+    try {
+      await orderGroupMutation.mutateAsync({
+        listId: normalizedListId,
+        groupKey: targetGroup.groupKey,
+        lines: orderedLines.map(item => ({
+          lineId: item.lineId,
+          orderedQuantity: item.orderedQuantity,
+        })),
+      });
+      showSuccess(`Marked ${orderedLines.length} lines Ordered for ${targetGroup.sellerName}`);
+      if (orderedLines.length > 0) {
+        setHighlightedLineId(orderedLines[0].lineId);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to order group';
+      showError(message);
+      throw err;
+    } finally {
+      pendingIds.forEach(id => updatePendingLine(id, false));
+    }
+  }, [normalizedListId, orderGroupMutation, orderGroupState.group, showError, showSuccess, updatePendingLine]);
+
+  const handleBackToConcept = useCallback(async () => {
+    if (!shoppingList) {
+      return;
+    }
+    try {
+      await updateStatusMutation.mutateAsync({ listId: shoppingList.id, status: 'concept' });
+      showSuccess('Returned list to Concept');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to return list to Concept';
+      showError(message);
+      throw err;
+    }
+  }, [shoppingList, showError, showSuccess, updateStatusMutation]);
+
+  const handleUpdateStock = useCallback((line: ShoppingListConceptLine) => {
+    const message = `Update Stock flow for "${line.part.description}" is not yet implemented.`;
+    showError(message);
+  }, [showError]);
 
   const listLoaded = shoppingList != null;
-
-  const duplicateCheckForForm = useMemo(() => duplicateCheck, [duplicateCheck]);
+  const status = shoppingList?.status ?? 'concept';
+  const isReadyView = status === 'ready';
 
   if (!hasValidListId) {
     return (
@@ -177,7 +332,7 @@ function ShoppingListConceptRoute() {
     );
   }
 
-  return (
+  const conceptView = (
     <div className="space-y-6" data-testid="shopping-lists.concept.page">
       <ConceptHeader
         list={shoppingList}
@@ -205,24 +360,75 @@ function ShoppingListConceptRoute() {
           isMarkingReady={markReadyMutation.isPending}
         />
       )}
+    </div>
+  );
+
+  const readyView = (
+    <div className="space-y-6" data-testid="shopping-lists.ready.page">
+      <ConceptHeader
+        list={shoppingList}
+        onUpdateMetadata={handleUpdateMetadata}
+        isUpdating={updateMetadataMutation.isPending}
+      />
+      <ReadyToolbar
+        canReturnToConcept={Boolean(shoppingList?.canReturnToConcept)}
+        onBackToConcept={handleBackToConcept}
+        isUpdating={updateStatusMutation.isPending}
+      />
+      <SellerGroupList
+        listId={shoppingList?.id ?? normalizedListId}
+        groups={sellerGroups}
+        onOpenOrderLine={handleOpenOrderLineDialog}
+        onOpenOrderGroup={handleOpenOrderGroupDialog}
+        onRevertLine={handleRevertLine}
+        onEditLine={handleEditLine}
+        onUpdateStock={handleUpdateStock}
+        pendingLineIds={pendingLineIds}
+        highlightedLineId={highlightedLineId}
+      />
+    </div>
+  );
+
+  return (
+    <>
+      {isReadyView ? readyView : conceptView}
 
       <ConceptLineForm
-      open={lineFormOpen}
-      mode={lineFormMode}
-      listId={listId}
-      line={lineFormMode === 'edit' ? selectedLine : undefined}
-      onClose={() => {
-        setLineFormOpen(false);
-        setSelectedLine(undefined);
-        setLineFormMode('add');
-      }}
-      duplicateCheck={duplicateCheckForForm}
-      duplicateNotice={duplicateNotice}
-      onDuplicateDetected={handleDuplicateDetected}
-      onDismissDuplicateNotice={handleDismissDuplicate}
-    />
+        open={lineFormOpen}
+        mode={lineFormMode}
+        listId={normalizedListId}
+        line={lineFormMode === 'edit' ? selectedLine : undefined}
+        onClose={() => {
+          setLineFormOpen(false);
+          setSelectedLine(undefined);
+          setLineFormMode('add');
+        }}
+        duplicateCheck={duplicateCheck}
+        duplicateNotice={duplicateNotice}
+        onDuplicateDetected={handleDuplicateDetected}
+        onDismissDuplicateNotice={handleDismissDuplicate}
+      />
+
+      <OrderLineDialog
+        open={orderLineState.open}
+        line={orderLineState.line}
+        onClose={handleCloseOrderLineDialog}
+        onSubmit={handleConfirmLineOrder}
+        isSubmitting={orderLineMutation.isPending}
+        restoreFocusElement={orderLineState.trigger ?? undefined}
+      />
+
+      <OrderGroupDialog
+        open={orderGroupState.open}
+        listId={shoppingList?.id ?? normalizedListId}
+        group={orderGroupState.group}
+        onClose={handleCloseOrderGroupDialog}
+        onSubmit={handleConfirmGroupOrder}
+        isSubmitting={orderGroupMutation.isPending}
+        restoreFocusElement={orderGroupState.trigger ?? undefined}
+      />
 
       <ConfirmDialog {...confirmProps} />
-    </div>
+    </>
   );
 }

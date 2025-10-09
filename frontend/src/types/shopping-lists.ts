@@ -27,9 +27,40 @@ export interface ShoppingListOverviewSummary extends Record<string, unknown> {
   primarySellerName: string | null;
 }
 
+export interface ShoppingListSellerOrderNote {
+  sellerId: number;
+  sellerName: string;
+  sellerWebsite: string | null;
+  note: string | null;
+  updatedAt: string;
+}
+
+export interface ShoppingListSellerGroupTotals {
+  needed: number;
+  ordered: number;
+  received: number;
+}
+
+export interface ShoppingListSellerGroup extends Record<string, unknown> {
+  groupKey: string;
+  sellerId: number | null;
+  sellerName: string | null;
+  sellerWebsite: string | null;
+  orderNote: string | null;
+  totals: ShoppingListSellerGroupTotals;
+  lines: ShoppingListConceptLine[];
+  hasOrderedLines: boolean;
+  hasNewLines: boolean;
+  hasDoneLines: boolean;
+}
+
 export interface ShoppingListDetail extends ShoppingListOverviewSummary {
   createdAt: string;
   lines: ShoppingListConceptLine[];
+  sellerGroups: ShoppingListSellerGroup[];
+  sellerOrderNotes: ShoppingListSellerOrderNote[];
+  hasOrderedLines: boolean;
+  canReturnToConcept: boolean;
 }
 
 export interface ShoppingListPartSummary {
@@ -119,4 +150,33 @@ export interface ShoppingListMarkReadyInput extends Record<string, unknown> {
 
 export interface ShoppingListDuplicateCheck extends Record<string, unknown> {
   byPartKey: Map<string, ShoppingListConceptLine>;
+}
+
+export interface ShoppingListLineOrderInput extends Record<string, unknown> {
+  listId: number;
+  lineId: number;
+  orderedQuantity: number | null;
+  comment?: string | null;
+}
+
+export interface ShoppingListGroupOrderLineInput extends Record<string, unknown> {
+  lineId: number;
+  orderedQuantity: number | null;
+}
+
+export interface ShoppingListGroupOrderInput extends Record<string, unknown> {
+  listId: number;
+  groupKey: string;
+  lines: ShoppingListGroupOrderLineInput[];
+}
+
+export interface ShoppingListSellerOrderNoteInput extends Record<string, unknown> {
+  listId: number;
+  sellerId: number;
+  note: string;
+}
+
+export interface ShoppingListStatusUpdateInput extends Record<string, unknown> {
+  listId: number;
+  status: ShoppingListStatus;
 }

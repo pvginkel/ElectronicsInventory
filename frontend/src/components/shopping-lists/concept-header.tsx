@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { useFormState } from '@/hooks/use-form-state';
 import type { ShoppingListDetail } from '@/types/shopping-lists';
 import { useToast } from '@/hooks/use-toast';
+import { Route as ShoppingListsRoute } from '@/routes/shopping-lists/';
 
 interface ConceptHeaderProps {
   list?: ShoppingListDetail;
@@ -80,7 +81,7 @@ export function ConceptHeader({ list, onUpdateMetadata, isUpdating }: ConceptHea
     return (
       <div className="space-y-4" data-testid="shopping-lists.concept.header.loading">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Link to="/shopping-lists" search={{ search: '' }} className="hover:text-foreground">Shopping Lists</Link>
+          <Link to={ShoppingListsRoute.fullPath} search={{ search: '' }} className="hover:text-foreground">Shopping Lists</Link>
           <span>/</span>
           <span>Loading…</span>
         </div>
@@ -99,7 +100,7 @@ export function ConceptHeader({ list, onUpdateMetadata, isUpdating }: ConceptHea
   return (
     <div className="space-y-4" data-testid="shopping-lists.concept.header">
       <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="shopping-lists.concept.header.breadcrumb">
-        <Link to="/shopping-lists" search={{ search: '' }} className="hover:text-foreground">Shopping Lists</Link>
+        <Link to={ShoppingListsRoute.fullPath} search={{ search: '' }} className="hover:text-foreground">Shopping Lists</Link>
         <span>/</span>
         <span className="text-foreground">{list.name}</span>
       </div>

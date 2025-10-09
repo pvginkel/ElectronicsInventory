@@ -98,4 +98,27 @@ export class ShoppingListTestFactory {
 
     return await this.getListDetail(list.id);
   }
+
+  async orderLine(
+    listId: number,
+    lineId: number,
+    orderedQty: number | null = null
+  ): Promise<ShoppingListLineResponseSchema> {
+    await apiRequest(() =>
+      this.client.POST('/api/shopping-list-lines/{line_id}/order', {
+        params: { path: { line_id: lineId } },
+        body: {
+          ordered_qty: orderedQty,
+          comment: null,
+        },
+      })
+    );
+
+    const detail = await this.getListDetail(listId);
+    const line = detail.lines.find(existing => existing.id === lineId);
+    if (!line) {
+      throw new Error(`Failed to refresh ordered line ${lineId}`);
+    }
+    return line;
+  }
 }
