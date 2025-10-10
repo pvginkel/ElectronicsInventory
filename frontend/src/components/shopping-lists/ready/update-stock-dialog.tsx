@@ -333,13 +333,6 @@ export function UpdateStockDialog({
     }),
   });
 
-  useEffect(() => {
-    if (open && line) {
-      formInstrumentation.trackOpen();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, line?.id]);
-
   useListLoadingInstrumentation({
     scope: 'shoppingLists.receive.locations',
     isLoading: boxesQuery.isLoading,
