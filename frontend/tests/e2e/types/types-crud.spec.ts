@@ -1,4 +1,5 @@
 import { test, expect } from '../../support/fixtures';
+import { expectConsoleError } from '../../support/helpers';
 
 test.describe('Types - CRUD Operations', () => {
   test('edits an existing type', async ({ testData, types }) => {
@@ -48,6 +49,7 @@ test.describe('Types - CRUD Operations', () => {
     await expect(confirmDialog).toBeVisible();
 
     // Click the Delete button in the confirm dialog
+    await expectConsoleError(types.page, /Cannot delete type/i);
     await confirmDialog.getByRole('button', { name: 'Delete' }).click();
 
     // Wait for the toast error to appear (the API returns a 409 error)

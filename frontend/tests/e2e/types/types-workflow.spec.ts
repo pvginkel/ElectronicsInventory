@@ -1,4 +1,5 @@
 import { test, expect } from '../../support/fixtures';
+import { expectConsoleError } from '../../support/helpers';
 
 test.describe('Types - Complete Workflow', () => {
   test.describe.configure({ timeout: 120_000 });
@@ -33,6 +34,7 @@ test.describe('Types - Complete Workflow', () => {
     await expect(confirmDialog).toBeVisible();
 
     // Attempt deletion
+    await expectConsoleError(types.page, /Cannot delete type/i);
     await confirmDialog.getByRole('button', { name: 'Delete' }).click();
 
     // Wait for the toast error to appear

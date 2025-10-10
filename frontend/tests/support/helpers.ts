@@ -128,10 +128,21 @@ export async function expectConflictError(
  * @param pattern Regular expression pattern to match against console errors
  */
 export async function expectConsoleError(page: Page, pattern: RegExp): Promise<void> {
-  // Use the exposed function to register the expected error pattern
-  await page.evaluate((patternSource) => {
-    // @ts-expect-error - This function is exposed by our fixture
-    window.__registerExpectedError(patternSource);
-  }, pattern.source);
+  const source = pattern.source;
+  const flags = pattern.flags;
+  const includeToastPrefix = !/toast exception/i.test(source);
+
+  await page.evaluate(
+    ({ source, flags, includeToastPrefix }) => {
+      // @ts-expect-error - This function is exposed by our fixture
+      window.__registerExpectedError(source, flags);
+      if (includeToastPrefix) {
+        const combined = `Toast exception[\\s\\S]*${source}`;
+        // @ts-expect-error - This function is exposed by our fixture
+        window.__registerExpectedError(combined, flags);
+      }
+    },
+    { source, flags, includeToastPrefix }
+  );
 }
 

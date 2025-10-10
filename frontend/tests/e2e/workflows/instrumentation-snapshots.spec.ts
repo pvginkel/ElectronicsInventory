@@ -77,6 +77,7 @@ test.describe('Instrumentation snapshots', () => {
 
     await expectConsoleError(page, /Failed to copy document/i);
     await expectConsoleError(page, /404/);
+    await expectConsoleError(page, /Attachment .* was not found/i);
     await testData.attachments.delete(part.key, attachment.id);
 
     const duplicateResponsePromise = page.waitForResponse(response => {

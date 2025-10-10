@@ -1,5 +1,6 @@
 import type { EventEmitter } from 'node:events';
 import { test, expect } from '../../support/fixtures';
+import { expectConsoleError } from '../../support/helpers';
 
 test.describe('Parts - Deletion', () => {
   test('deletes part with zero quantity', async ({ page, parts, testData, apiClient }) => {
@@ -74,6 +75,7 @@ test.describe('Parts - Deletion', () => {
     await parts.openCardByKey(part.key);
 
     await parts.openDeleteDialog();
+    await expectConsoleError(page, /Cannot delete part/i);
     await parts.confirmDelete(part.key, { expectNavigation: false });
 
     await expect(parts.deleteDialog).toBeHidden();

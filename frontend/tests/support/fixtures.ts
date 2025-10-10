@@ -152,8 +152,8 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
         timestamp: new Date().toISOString(),
       });
 
-      await page.exposeFunction('__registerExpectedError', (pattern: string) => {
-        expectedErrors.push(new RegExp(pattern));
+      await page.exposeFunction('__registerExpectedError', (pattern: string, flags?: string) => {
+        expectedErrors.push(new RegExp(pattern, flags));
       });
 
       page.on('console', msg => {
