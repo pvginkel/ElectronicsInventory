@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.shopping_list import ShoppingListStatus
 from app.models.shopping_list_line import ShoppingListLine, ShoppingListLineStatus
@@ -82,7 +82,7 @@ class PartShoppingListMembershipSchema(BaseModel):
             received=line.received,
             seller=seller_schema,
             note=line.note,
-        )
+    )
 
 
 class PartShoppingListMembershipCreateSchema(BaseModel):
@@ -108,4 +108,68 @@ class PartShoppingListMembershipCreateSchema(BaseModel):
         None,
         description="Optional note explaining the request",
         json_schema_extra={"example": "Use green LEDs if available"},
+    )
+
+
+class PartShoppingListMembershipQueryRequestSchema(BaseModel):
+    """Schema for querying shopping list memberships for multiple parts."""
+
+    part_keys: list[str] = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="Ordered collection of part keys to resolve",
+        json_schema_extra={"example": ["ABCD", "EFGH"]},
+    )
+    include_done: bool | None = Field(
+        default=False,
+        description="Include DONE list and line statuses when true",
+    )
+
+    @field_validator("part_keys")
+    @classmethod
+    def _validate_part_keys(cls, part_keys: list[str]) -> list[str]:
+        """Normalise whitespace and enforce uniqueness."""
+        normalised: list[str] = []
+        seen: set[str] = set()
+
+        for raw_key in part_keys:
+            if not isinstance(raw_key, str):
+                raise TypeError("part_keys must contain only strings")
+
+            key = raw_key.strip()
+            if not key:
+                raise ValueError("part_keys must not contain blank values")
+
+            if key in seen:
+                raise ValueError("part_keys must not contain duplicate values")
+            seen.add(key)
+            normalised.append(key)
+
+        return normalised
+
+
+class PartShoppingListMembershipQueryItemSchema(BaseModel):
+    """Schema encapsulating memberships for a single part within a bulk response."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    part_key: str = Field(
+        description="Requested part key",
+        json_schema_extra={"example": "ABCD"},
+    )
+    memberships: list[PartShoppingListMembershipSchema] = Field(
+        description="Memberships associated with the part key",
+        default_factory=list,
+    )
+
+
+class PartShoppingListMembershipQueryResponseSchema(BaseModel):
+    """Bulk response schema for shopping list membership lookups."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    memberships: list[PartShoppingListMembershipQueryItemSchema] = Field(
+        default_factory=list,
+        description="Memberships grouped by requested part key order",
     )

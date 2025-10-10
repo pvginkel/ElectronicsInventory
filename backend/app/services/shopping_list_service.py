@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
@@ -226,8 +226,15 @@ class ShoppingListService(BaseService):
         shopping_list = self._attach_ready_payload(self._load_list_with_lines(list_id))
         return shopping_list.seller_groups
 
-    def list_part_memberships(self, part_id: int) -> list[ShoppingListLine]:
-        """Return active shopping list lines that reference the provided part."""
+    def list_part_memberships_bulk(
+        self,
+        part_ids: Sequence[int],
+        include_done: bool = False,
+    ) -> dict[int, list[ShoppingListLine]]:
+        """Return shopping list lines grouped by part ID according to input order."""
+        if not part_ids:
+            return {}
+
         stmt = (
             select(ShoppingListLine)
             .join(ShoppingList, ShoppingListLine.shopping_list_id == ShoppingList.id)
@@ -236,18 +243,38 @@ class ShoppingListService(BaseService):
                 selectinload(ShoppingListLine.part).selectinload(Part.seller),
                 selectinload(ShoppingListLine.seller),
             )
-            .where(
-                ShoppingListLine.part_id == part_id,
+            .where(ShoppingListLine.part_id.in_(part_ids))
+        )
+
+        if not include_done:
+            stmt = stmt.where(
                 ShoppingListLine.status != ShoppingListLineStatus.DONE,
                 ShoppingList.status != ShoppingListStatus.DONE,
             )
-            .order_by(
-                ShoppingListLine.updated_at.desc(),
-                ShoppingList.updated_at.desc(),
-                ShoppingListLine.created_at.asc(),
-            )
+
+        stmt = stmt.order_by(
+            ShoppingListLine.updated_at.desc(),
+            ShoppingList.updated_at.desc(),
+            ShoppingListLine.created_at.asc(),
         )
-        return list(self.db.execute(stmt).scalars().all())
+
+        memberships_by_part_id: dict[int, list[ShoppingListLine]] = {
+            part_id: [] for part_id in part_ids
+        }
+
+        for line in self.db.execute(stmt).scalars():
+            memberships_by_part_id.setdefault(line.part_id, []).append(line)
+
+        # Ensure every requested part ID is present, even if no memberships were found
+        for part_id in part_ids:
+            memberships_by_part_id.setdefault(part_id, [])
+
+        return memberships_by_part_id
+
+    def list_part_memberships(self, part_id: int, include_done: bool = False) -> list[ShoppingListLine]:
+        """Return active shopping list lines that reference the provided part."""
+        memberships = self.list_part_memberships_bulk([part_id], include_done=include_done)
+        return memberships.get(part_id, [])
 
     def upsert_seller_note(
         self,

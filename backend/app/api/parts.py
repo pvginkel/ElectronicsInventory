@@ -16,6 +16,9 @@ from app.schemas.part import (
 )
 from app.schemas.part_shopping_list import (
     PartShoppingListMembershipCreateSchema,
+    PartShoppingListMembershipQueryItemSchema,
+    PartShoppingListMembershipQueryRequestSchema,
+    PartShoppingListMembershipQueryResponseSchema,
     PartShoppingListMembershipSchema,
 )
 from app.schemas.quantity_history import QuantityHistoryResponseSchema
@@ -187,6 +190,53 @@ def delete_part(part_key: str, part_service=Provide[ServiceContainer.part_servic
     """Delete part if total quantity is zero."""
     part_service.delete_part(part_key)
     return "", 204
+
+
+@parts_bp.route("/shopping-list-memberships/query", methods=["POST"])
+@api.validate(
+    json=PartShoppingListMembershipQueryRequestSchema,
+    resp=SpectreeResponse(
+        HTTP_200=PartShoppingListMembershipQueryResponseSchema,
+        HTTP_400=ErrorResponseSchema,
+        HTTP_404=ErrorResponseSchema,
+    ),
+)
+@handle_api_errors
+@inject
+def query_part_shopping_list_memberships(
+    part_service=Provide[ServiceContainer.part_service],
+    shopping_list_service=Provide[ServiceContainer.shopping_list_service],
+):
+    """Bulk lookup of shopping list memberships for multiple parts."""
+    payload = PartShoppingListMembershipQueryRequestSchema.model_validate(request.get_json())
+
+    include_done = bool(payload.include_done)
+    key_id_pairs = part_service.get_part_ids_by_keys(payload.part_keys)
+    part_ids = [part_id for _, part_id in key_id_pairs]
+
+    memberships_by_part = shopping_list_service.list_part_memberships_bulk(
+        part_ids,
+        include_done=include_done,
+    )
+
+    response_items: list[PartShoppingListMembershipQueryItemSchema] = []
+    for part_key, part_id in key_id_pairs:
+        line_memberships = memberships_by_part.get(part_id, [])
+        membership_schemas = [
+            PartShoppingListMembershipSchema.from_line(line)
+            for line in line_memberships
+        ]
+        response_items.append(
+            PartShoppingListMembershipQueryItemSchema(
+                part_key=part_key,
+                memberships=membership_schemas,
+            )
+        )
+
+    response = PartShoppingListMembershipQueryResponseSchema(
+        memberships=response_items,
+    )
+    return response.model_dump()
 
 
 @parts_bp.route("/<string:part_key>/shopping-list-memberships", methods=["GET"])

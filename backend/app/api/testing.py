@@ -108,7 +108,6 @@ def stream_logs():
 
         # Set up event queue for receiving log events
         event_queue: Queue = Queue()
-        
         # Custom client class that works with queue
         class QueueLogClient:
             def __init__(self, queue: Queue):

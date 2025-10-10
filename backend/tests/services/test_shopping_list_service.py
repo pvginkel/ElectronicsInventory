@@ -387,6 +387,71 @@ class TestShoppingListService:
         assert concept_membership.seller.id == seller.id
         assert all(line.part_id == target_part.id for line in memberships)
 
+    def test_list_part_memberships_bulk_groups_and_filters(self, session, container):
+        shopping_list_service = container.shopping_list_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+        part_service = container.part_service()
+
+        primary_part = part_service.create_part(description="Oscillator IC")
+        secondary_part = part_service.create_part(description="Filter capacitor")
+
+        concept_list = shopping_list_service.create_list("Concept list")
+        ready_list = shopping_list_service.create_list("Ready list")
+        done_list = shopping_list_service.create_list("Done list")
+
+        concept_line = shopping_list_line_service.add_line(
+            concept_list.id,
+            part_id=primary_part.id,
+            needed=3,
+        )
+        ready_line = shopping_list_line_service.add_line(
+            ready_list.id,
+            part_id=primary_part.id,
+            needed=1,
+        )
+        done_line = shopping_list_line_service.add_line(
+            done_list.id,
+            part_id=primary_part.id,
+            needed=5,
+        )
+
+        shopping_list_service.set_list_status(ready_list.id, ShoppingListStatus.READY)
+        shopping_list_service.set_list_status(done_list.id, ShoppingListStatus.READY)
+        shopping_list_service.set_list_status(done_list.id, ShoppingListStatus.DONE)
+
+        stored_done_line = session.get(ShoppingListLine, done_line.id)
+        assert stored_done_line is not None
+        stored_done_line.status = ShoppingListLineStatus.DONE
+
+        now = datetime.now(UTC)
+        session.get(ShoppingListLine, ready_line.id).updated_at = now
+        session.get(ShoppingListLine, concept_line.id).updated_at = now - timedelta(minutes=20)
+        session.get(ShoppingListLine, done_line.id).updated_at = now - timedelta(minutes=40)
+        session.flush()
+
+        missing_id = max(primary_part.id, secondary_part.id) + 100
+        memberships = shopping_list_service.list_part_memberships_bulk(
+            [primary_part.id, secondary_part.id, missing_id]
+        )
+
+        assert list(memberships.keys()) == [primary_part.id, secondary_part.id, missing_id]
+        assert [line.id for line in memberships[primary_part.id]] == [ready_line.id, concept_line.id]
+        assert memberships[secondary_part.id] == []
+        assert memberships[missing_id] == []
+
+        with_done = shopping_list_service.list_part_memberships_bulk(
+            [primary_part.id],
+            include_done=True,
+        )
+        assert [line.id for line in with_done[primary_part.id]] == [
+            ready_line.id,
+            concept_line.id,
+            done_line.id,
+        ]
+
+        single_path = shopping_list_service.list_part_memberships(primary_part.id)
+        assert [line.id for line in single_path] == [line.id for line in memberships[primary_part.id]]
+
     def test_upsert_seller_note_validation_and_delete(self, session, container):
         shopping_list_service = container.shopping_list_service()
         shopping_list_line_service = container.shopping_list_line_service()

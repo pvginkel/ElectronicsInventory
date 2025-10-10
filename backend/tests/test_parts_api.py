@@ -1175,6 +1175,158 @@ class TestPartsAPI:
             assert data[1]["note"] == "Try alternate vendor if stock is low"
             assert data[1]["seller"]["id"] == seller.id
 
+    def test_bulk_part_membership_query_success(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Bulk membership query returns data ordered by requested keys."""
+        with app.app_context():
+            part_service = container.part_service()
+            shopping_list_service = container.shopping_list_service()
+            shopping_list_line_service = container.shopping_list_line_service()
+            seller_service = container.seller_service()
+
+            primary_part = part_service.create_part("Primary lookup")
+            empty_part = part_service.create_part("No memberships")
+
+            concept_list = shopping_list_service.create_list("Concept lookup")
+            ready_list = shopping_list_service.create_list("Ready lookup")
+            seller = seller_service.create_seller("Lookup Seller", "https://lookup.example.com")
+
+            concept_line = shopping_list_line_service.add_line(
+                concept_list.id,
+                part_id=primary_part.id,
+                needed=2,
+                seller_id=seller.id,
+                note="Confirm stock levels",
+            )
+            ready_line = shopping_list_line_service.add_line(
+                ready_list.id,
+                part_id=primary_part.id,
+                needed=4,
+            )
+
+            shopping_list_service.set_list_status(ready_list.id, ShoppingListStatus.READY)
+
+            now = datetime.now(UTC)
+            session.get(ShoppingListLine, ready_line.id).updated_at = now
+            session.get(ShoppingListLine, concept_line.id).updated_at = now - timedelta(minutes=15)
+            session.flush()
+            session.commit()
+
+            response = client.post(
+                "/api/parts/shopping-list-memberships/query",
+                json={"part_keys": [primary_part.key, empty_part.key]},
+            )
+
+            assert response.status_code == 200
+            data = json.loads(response.data)
+
+            assert data["memberships"][0]["part_key"] == primary_part.key
+            assert [
+                entry["line_id"] for entry in data["memberships"][0]["memberships"]
+            ] == [ready_line.id, concept_line.id]
+            assert data["memberships"][0]["memberships"][1]["seller"]["id"] == seller.id
+
+            assert data["memberships"][1]["part_key"] == empty_part.key
+            assert data["memberships"][1]["memberships"] == []
+
+    def test_bulk_part_membership_query_include_done(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Done memberships can be included on demand in bulk responses."""
+        with app.app_context():
+            part_service = container.part_service()
+            shopping_list_service = container.shopping_list_service()
+            shopping_list_line_service = container.shopping_list_line_service()
+
+            tracked_part = part_service.create_part("Include done")
+            concept_list = shopping_list_service.create_list("Concept stage")
+            ready_list = shopping_list_service.create_list("Ready stage")
+            done_list = shopping_list_service.create_list("Done stage")
+
+            concept_line = shopping_list_line_service.add_line(
+                concept_list.id,
+                part_id=tracked_part.id,
+                needed=3,
+            )
+            ready_line = shopping_list_line_service.add_line(
+                ready_list.id,
+                part_id=tracked_part.id,
+                needed=2,
+            )
+            done_line = shopping_list_line_service.add_line(
+                done_list.id,
+                part_id=tracked_part.id,
+                needed=5,
+            )
+
+            shopping_list_service.set_list_status(ready_list.id, ShoppingListStatus.READY)
+            shopping_list_service.set_list_status(done_list.id, ShoppingListStatus.READY)
+            shopping_list_service.set_list_status(done_list.id, ShoppingListStatus.DONE)
+
+            stored_done_line = session.get(ShoppingListLine, done_line.id)
+            assert stored_done_line is not None
+            stored_done_line.status = ShoppingListLineStatus.DONE
+
+            now = datetime.now(UTC)
+            session.get(ShoppingListLine, ready_line.id).updated_at = now
+            session.get(ShoppingListLine, concept_line.id).updated_at = now - timedelta(minutes=5)
+            session.get(ShoppingListLine, done_line.id).updated_at = now - timedelta(minutes=10)
+            session.flush()
+            session.commit()
+
+            response = client.post(
+                "/api/parts/shopping-list-memberships/query",
+                json={
+                    "part_keys": [tracked_part.key],
+                    "include_done": True,
+                },
+            )
+
+            assert response.status_code == 200
+            data = json.loads(response.data)
+            memberships = data["memberships"][0]["memberships"]
+            assert [entry["line_id"] for entry in memberships] == [
+                ready_line.id,
+                concept_line.id,
+                done_line.id,
+            ]
+            assert memberships[2]["line_status"] == ShoppingListLineStatus.DONE.value
+
+    def test_bulk_part_membership_query_validation_errors(self, app: Flask, client: FlaskClient):
+        """Bulk query should enforce payload validation rules."""
+        empty_response = client.post(
+            "/api/parts/shopping-list-memberships/query",
+            json={"part_keys": []},
+        )
+        assert empty_response.status_code == 400
+
+        duplicate_response = client.post(
+            "/api/parts/shopping-list-memberships/query",
+            json={"part_keys": ["ABCD", "ABCD"]},
+        )
+        assert duplicate_response.status_code == 400
+
+        oversized_payload = client.post(
+            "/api/parts/shopping-list-memberships/query",
+            json={"part_keys": [f"K{i:03}" for i in range(101)]},
+        )
+        assert oversized_payload.status_code == 400
+
+    def test_bulk_part_membership_query_unknown_key(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Bulk query should surface 404 when any requested key is unknown."""
+        with app.app_context():
+            part_service = container.part_service()
+            part = part_service.create_part("Known")
+            session.commit()
+
+            unknown_key = "ZZZZ"
+            if part.key == unknown_key:
+                unknown_key = "YYYY"
+
+            response = client.post(
+                "/api/parts/shopping-list-memberships/query",
+                json={"part_keys": [part.key, unknown_key]},
+            )
+
+            assert response.status_code == 404
+
     def test_post_part_shopping_list_memberships_success(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Posting to memberships endpoint adds a line and returns its summary."""
         with app.app_context():
