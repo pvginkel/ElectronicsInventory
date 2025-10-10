@@ -96,7 +96,7 @@ function mapMembership(raw: MembershipSchema): ShoppingListMembership {
     needed: raw.needed,
     ordered: raw.ordered,
     received: raw.received,
-    note: note.length > 0 ? raw.note ?? null : null,
+    note: note.length > 0 ? note : null,
     seller: mapSeller(raw.seller ?? null),
   };
 }

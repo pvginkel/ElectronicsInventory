@@ -56,7 +56,7 @@ const FORM_ID = 'ShoppingListMembership:addFromPart';
 
 export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1 }: AddToShoppingListDialogProps) {
   const queryClient = useQueryClient();
-  const { showSuccess, showException } = useToast();
+  const { showSuccess, showException, showWarning } = useToast();
   const instrumentationRef = useRef<UseFormInstrumentationResult<MembershipFormSnapshot> | null>(null);
   const [createNewList, setCreateNewList] = useState(false);
   const [conflictError, setConflictError] = useState<string | null>(null);
@@ -175,6 +175,7 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
         if (error instanceof ApiError && error.status === 409) {
           const message = error.message || 'Part already exists on the selected list.';
           setConflictError(message);
+          showWarning(message);
           instrumentationRef.current?.trackValidationError(
             'listId',
             'Part already on selected list (backend)',
