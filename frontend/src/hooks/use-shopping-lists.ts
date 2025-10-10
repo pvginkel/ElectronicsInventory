@@ -11,6 +11,8 @@ import {
   useDeleteShoppingListLinesByLineId,
   usePutShoppingListsStatusByListId,
   usePostShoppingListLinesOrderByLineId,
+  usePostShoppingListLinesReceiveByLineId,
+  usePostShoppingListLinesCompleteByLineId,
   usePostShoppingListLinesRevertByLineId,
   usePostShoppingListsSellerGroupsOrderByListIdAndGroupRef,
   usePutShoppingListsSellerGroupsOrderNoteByListIdAndSellerId,
@@ -29,17 +31,26 @@ import {
   type ShoppingListLineUpdateSchema_d9ccce0,
   type ShoppingListLineResponseSchema_d9ccce0,
   type ShoppingListLineStatusUpdateSchema_d9ccce0,
+  type ShoppingListLineReceiveSchema_d9ccce0,
+  type ShoppingListLineReceiveSchema_d9ccce0_ShoppingListLineReceiveAllocationSchema,
+  type ShoppingListLineCompleteSchema_d9ccce0,
   type ShoppingListStatusUpdateSchema_46f0cf6,
   type PartShoppingListMembershipCreateSchema_d085feb,
   type PostPartsShoppingListMembershipsByPartKeyParameters,
   type PutShoppingListsSellerGroupsOrderNoteByListIdAndSellerIdParameters,
   type PostShoppingListsSellerGroupsOrderByListIdAndGroupRefParameters,
   type PostShoppingListLinesOrderByLineIdParameters,
+  type PostShoppingListLinesReceiveByLineIdParameters,
+  type PostShoppingListLinesCompleteByLineIdParameters,
   type PostShoppingListLinesRevertByLineIdParameters,
   type ShoppingListSellerOrderNoteSchema_ceb40c1,
 } from '@/lib/api/generated/hooks';
 import {
   type ShoppingListConceptLine,
+  type ShoppingListLineCompleteInput,
+  type ShoppingListLinePartLocation,
+  type ShoppingListLineReceiveAllocationInput,
+  type ShoppingListLineReceiveInput,
   type ShoppingListCreateInput,
   type ShoppingListDetail,
   type ShoppingListDuplicateCheck,
@@ -87,6 +98,24 @@ function invalidateShoppingListQueries(queryClient: ReturnType<typeof useQueryCl
   queryClient.invalidateQueries({ queryKey: linesKey(listId) });
 }
 
+function invalidateInventoryQueries(queryClient: ReturnType<typeof useQueryClient>, partKey: string) {
+  invalidatePartMemberships(queryClient, partKey);
+  queryClient.invalidateQueries({ queryKey: ['getPartsByPartKey'] });
+  queryClient.invalidateQueries({ queryKey: ['getPartsLocationsByPartKey'] });
+  queryClient.invalidateQueries({ queryKey: ['getPartsWithLocations'] });
+  queryClient.invalidateQueries({ queryKey: ['getPartsHistoryByPartKey'] });
+  queryClient.invalidateQueries({ queryKey: ['getDashboardStats'] });
+  queryClient.invalidateQueries({ queryKey: ['getDashboardStorageSummary'] });
+  queryClient.invalidateQueries({ queryKey: ['getDashboardRecentActivity'] });
+  queryClient.invalidateQueries({ queryKey: ['getDashboardCategoryDistribution'] });
+  queryClient.invalidateQueries({ queryKey: ['getDashboardLowStock'] });
+  queryClient.invalidateQueries({ queryKey: ['getDashboardPartsWithoutDocuments'] });
+  queryClient.invalidateQueries({ queryKey: ['getBoxes'] });
+  queryClient.invalidateQueries({ queryKey: ['getBoxesByBoxNo'] });
+  queryClient.invalidateQueries({ queryKey: ['getBoxesLocationsByBoxNo'] });
+  queryClient.invalidateQueries({ queryKey: ['getBoxesUsageByBoxNo'] });
+}
+
 function mapLineCounts(
   counts?: ShoppingListListSchemaList_a9993e3_ShoppingListLineCountsSchema | ShoppingListResponseSchema_46f0cf6_ShoppingListLineCountsSchema | null
 ): ShoppingListLineCounts {
@@ -127,6 +156,24 @@ function mapSeller(seller: ShoppingListResponseSchema_46f0cf6_SellerListSchema |
   };
 }
 
+type AnyPartLocationResponse =
+  | ShoppingListResponseSchema_46f0cf6_ShoppingListLineResponseSchema['part_locations']
+  | ShoppingListLineResponseSchema_d9ccce0['part_locations']
+  | undefined
+  | null;
+
+function mapPartLocations(locations: AnyPartLocationResponse): ShoppingListLinePartLocation[] {
+  if (!locations?.length) {
+    return [];
+  }
+  return locations.map((location) => ({
+    id: location.id,
+    boxNo: location.box_no,
+    locNo: location.loc_no,
+    quantity: location.qty,
+  }));
+}
+
 type AnyShoppingListLineResponse = ShoppingListResponseSchema_46f0cf6_ShoppingListLineResponseSchema | ShoppingListLineResponseSchema_d9ccce0;
 
 function mapConceptLine(line: AnyShoppingListLineResponse): ShoppingListConceptLine {
@@ -149,6 +196,7 @@ function mapConceptLine(line: AnyShoppingListLineResponse): ShoppingListConceptL
     hasQuantityMismatch: line.has_quantity_mismatch,
     completionMismatch: line.completion_mismatch,
     completionNote: line.completion_note,
+    partLocations: mapPartLocations(line.part_locations),
     part: {
       id: line.part_id,
       key: line.part.key,
@@ -249,6 +297,42 @@ function computeLineCountsFromLines(lines: ShoppingListConceptLine[]): ShoppingL
     }
     return acc;
   }, { new: 0, ordered: 0, done: 0 });
+}
+
+function mergeUpdatedLineIntoDetail(
+  queryClient: ReturnType<typeof useQueryClient>,
+  listId: number,
+  updatedLine: ShoppingListConceptLine
+) {
+  queryClient.setQueryData<ShoppingListDetail | undefined>(detailKey(listId), (current) => {
+    if (!current) {
+      return current;
+    }
+
+    const lines = current.lines.some(line => line.id === updatedLine.id)
+      ? current.lines.map(line => (line.id === updatedLine.id ? updatedLine : line))
+      : [...current.lines, updatedLine];
+    const lineCounts = computeLineCountsFromLines(lines);
+    const sellerGroups = updateSellerGroupsWithLine(current.sellerGroups, updatedLine);
+
+    if (import.meta.env.DEV) {
+      console.debug('mergeUpdatedLineIntoDetail', {
+        lineId: updatedLine.id,
+        status: updatedLine.status,
+        ordered: updatedLine.ordered,
+        received: updatedLine.received,
+      });
+    }
+
+    return {
+      ...current,
+      lines,
+      lineCounts,
+      hasOrderedLines: lineCounts.ordered > 0,
+      canReturnToConcept: current.status === 'ready' && lineCounts.ordered === 0,
+      sellerGroups,
+    };
+  });
 }
 
 function updateSellerGroupsWithLine(
@@ -405,6 +489,60 @@ export function useSortedShoppingListLines(
   return useMemo(() => sortShoppingListLines(lines, sortKey), [lines, sortKey]);
 }
 
+export function sortSellerGroupsForReadyView(
+  groups: ShoppingListSellerGroup[]
+): ShoppingListSellerGroup[] {
+  return [...groups].sort((a, b) => {
+    const aUngrouped = a.sellerId == null;
+    const bUngrouped = b.sellerId == null;
+
+    if (aUngrouped && bUngrouped) {
+      return a.groupKey.localeCompare(b.groupKey);
+    }
+    if (aUngrouped) {
+      return 1;
+    }
+    if (bUngrouped) {
+      return -1;
+    }
+
+    return (a.sellerName ?? '').localeCompare(b.sellerName ?? '');
+  });
+}
+
+export function flattenReceivableLines(
+  groups: ShoppingListSellerGroup[]
+): ShoppingListConceptLine[] {
+  const orderedGroups = sortSellerGroupsForReadyView(groups);
+  const orderedLines: ShoppingListConceptLine[] = [];
+  for (const group of orderedGroups) {
+    for (const line of group.lines) {
+      if (line.status === 'ordered') {
+        orderedLines.push(line);
+      }
+    }
+  }
+  return orderedLines;
+}
+
+export function findNextReceivableLine(
+  currentLineId: number,
+  groups: ShoppingListSellerGroup[]
+): ShoppingListConceptLine | undefined {
+  const orderedLines = flattenReceivableLines(groups);
+  const currentIndex = orderedLines.findIndex(line => line.id === currentLineId);
+  if (currentIndex < 0) {
+    return undefined;
+  }
+  for (let index = currentIndex + 1; index < orderedLines.length; index += 1) {
+    const candidate = orderedLines[index];
+    if (candidate.canReceive) {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
 const selectOverviewLists = (data?: ShoppingListListSchemaList_a9993e3_ShoppingListListSchema[]): ShoppingListOverviewSummary[] => {
   if (!data) {
     return [];
@@ -524,6 +662,29 @@ function toGroupOrderPayload(input: ShoppingListGroupOrderInput) {
       line_id: line.lineId,
       ordered_qty: line.orderedQuantity ?? null,
     })),
+  };
+}
+
+function toLineReceiveAllocationPayload(
+  allocation: ShoppingListLineReceiveAllocationInput
+): ShoppingListLineReceiveSchema_d9ccce0_ShoppingListLineReceiveAllocationSchema {
+  return {
+    box_no: allocation.boxNo,
+    loc_no: allocation.locNo,
+    qty: allocation.quantity,
+  };
+}
+
+function toLineReceivePayload(input: ShoppingListLineReceiveInput): ShoppingListLineReceiveSchema_d9ccce0 {
+  return {
+    receive_qty: input.receiveQuantity,
+    allocations: input.allocations.map(toLineReceiveAllocationPayload),
+  };
+}
+
+function toLineCompletePayload(input: ShoppingListLineCompleteInput): ShoppingListLineCompleteSchema_d9ccce0 {
+  return {
+    mismatch_reason: input.mismatchReason ?? null,
   };
 }
 
@@ -812,6 +973,144 @@ export function useDeleteShoppingListLineMutation() {
       }
     );
   }, [baseMutateAsync, handleInvalidate, queryClient]);
+
+  return {
+    ...rest,
+    mutate,
+    mutateAsync,
+  };
+}
+
+export function useReceiveShoppingListLineMutation() {
+  const queryClient = useQueryClient();
+  const { mutate: baseMutate, mutateAsync: baseMutateAsync, ...rest } = usePostShoppingListLinesReceiveByLineId();
+
+  const mutate = useCallback<
+    (input: ShoppingListLineReceiveInput, options?: Parameters<typeof baseMutate>[1]) => void
+  >((input, options) => {
+    baseMutate(
+      {
+        path: { line_id: input.lineId } satisfies PostShoppingListLinesReceiveByLineIdParameters['path'],
+        body: toLineReceivePayload(input),
+      },
+      {
+        ...options,
+        onSuccess: (data, variables, context) => {
+          const response = data as ShoppingListLineResponseSchema_d9ccce0 | undefined;
+          const resolvedListId = response?.shopping_list_id ?? input.listId;
+
+          if (typeof resolvedListId === 'number' && response) {
+            const updatedLine = mapConceptLine(response);
+            mergeUpdatedLineIntoDetail(queryClient, resolvedListId, updatedLine);
+            invalidateShoppingListQueries(queryClient, resolvedListId);
+          } else if (typeof resolvedListId === 'number') {
+            invalidateShoppingListQueries(queryClient, resolvedListId);
+          }
+
+          invalidateInventoryQueries(queryClient, input.partKey);
+          options?.onSuccess?.(data, variables, context);
+        },
+      }
+    );
+  }, [baseMutate, queryClient]);
+
+  const mutateAsync = useCallback<
+    (input: ShoppingListLineReceiveInput, options?: Parameters<typeof baseMutateAsync>[1]) => ReturnType<typeof baseMutateAsync>
+  >((input, options) => {
+    return baseMutateAsync(
+      {
+        path: { line_id: input.lineId } satisfies PostShoppingListLinesReceiveByLineIdParameters['path'],
+        body: toLineReceivePayload(input),
+      },
+      {
+        ...options,
+        onSuccess: (data, variables, context) => {
+          const response = data as ShoppingListLineResponseSchema_d9ccce0 | undefined;
+          const resolvedListId = response?.shopping_list_id ?? input.listId;
+
+          if (typeof resolvedListId === 'number' && response) {
+            const updatedLine = mapConceptLine(response);
+            mergeUpdatedLineIntoDetail(queryClient, resolvedListId, updatedLine);
+            invalidateShoppingListQueries(queryClient, resolvedListId);
+          } else if (typeof resolvedListId === 'number') {
+            invalidateShoppingListQueries(queryClient, resolvedListId);
+          }
+
+          invalidateInventoryQueries(queryClient, input.partKey);
+          options?.onSuccess?.(data, variables, context);
+        },
+      }
+    );
+  }, [baseMutateAsync, queryClient]);
+
+  return {
+    ...rest,
+    mutate,
+    mutateAsync,
+  };
+}
+
+export function useCompleteShoppingListLineMutation() {
+  const queryClient = useQueryClient();
+  const { mutate: baseMutate, mutateAsync: baseMutateAsync, ...rest } = usePostShoppingListLinesCompleteByLineId();
+
+  const mutate = useCallback<
+    (input: ShoppingListLineCompleteInput, options?: Parameters<typeof baseMutate>[1]) => void
+  >((input, options) => {
+    baseMutate(
+      {
+        path: { line_id: input.lineId } satisfies PostShoppingListLinesCompleteByLineIdParameters['path'],
+        body: toLineCompletePayload(input),
+      },
+      {
+        ...options,
+        onSuccess: (data, variables, context) => {
+          const response = data as ShoppingListLineResponseSchema_d9ccce0 | undefined;
+          const resolvedListId = response?.shopping_list_id ?? input.listId;
+
+          if (typeof resolvedListId === 'number' && response) {
+            const updatedLine = mapConceptLine(response);
+            mergeUpdatedLineIntoDetail(queryClient, resolvedListId, updatedLine);
+            invalidateShoppingListQueries(queryClient, resolvedListId);
+          } else if (typeof resolvedListId === 'number') {
+            invalidateShoppingListQueries(queryClient, resolvedListId);
+          }
+
+          invalidateInventoryQueries(queryClient, input.partKey);
+          options?.onSuccess?.(data, variables, context);
+        },
+      }
+    );
+  }, [baseMutate, queryClient]);
+
+  const mutateAsync = useCallback<
+    (input: ShoppingListLineCompleteInput, options?: Parameters<typeof baseMutateAsync>[1]) => ReturnType<typeof baseMutateAsync>
+  >((input, options) => {
+    return baseMutateAsync(
+      {
+        path: { line_id: input.lineId } satisfies PostShoppingListLinesCompleteByLineIdParameters['path'],
+        body: toLineCompletePayload(input),
+      },
+      {
+        ...options,
+        onSuccess: (data, variables, context) => {
+          const response = data as ShoppingListLineResponseSchema_d9ccce0 | undefined;
+          const resolvedListId = response?.shopping_list_id ?? input.listId;
+
+          if (typeof resolvedListId === 'number' && response) {
+            const updatedLine = mapConceptLine(response);
+            mergeUpdatedLineIntoDetail(queryClient, resolvedListId, updatedLine);
+            invalidateShoppingListQueries(queryClient, resolvedListId);
+          } else if (typeof resolvedListId === 'number') {
+            invalidateShoppingListQueries(queryClient, resolvedListId);
+          }
+
+          invalidateInventoryQueries(queryClient, input.partKey);
+          options?.onSuccess?.(data, variables, context);
+        },
+      }
+    );
+  }, [baseMutateAsync, queryClient]);
 
   return {
     ...rest,

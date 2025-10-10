@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { ShoppingListConceptLine, ShoppingListSellerGroup } from '@/types/shopping-lists';
+import { sortSellerGroupsForReadyView } from '@/hooks/use-shopping-lists';
 import { SellerGroupCard } from './seller-group-card';
 
 interface SellerGroupListProps {
@@ -14,19 +15,6 @@ interface SellerGroupListProps {
   highlightedLineId?: number | null;
 }
 
-function sortSellerGroups(groups: ShoppingListSellerGroup[]): ShoppingListSellerGroup[] {
-  return [...groups].sort((a, b) => {
-    const aUngrouped = a.sellerId == null;
-    const bUngrouped = b.sellerId == null;
-
-    if (aUngrouped && bUngrouped) return a.groupKey.localeCompare(b.groupKey);
-    if (aUngrouped) return 1;
-    if (bUngrouped) return -1;
-
-    return (a.sellerName ?? '').localeCompare(b.sellerName ?? '');
-  });
-}
-
 export function SellerGroupList({
   listId,
   groups,
@@ -38,7 +26,7 @@ export function SellerGroupList({
   pendingLineIds,
   highlightedLineId,
 }: SellerGroupListProps) {
-  const sortedGroups = useMemo(() => sortSellerGroups(groups), [groups]);
+  const sortedGroups = useMemo(() => sortSellerGroupsForReadyView(groups), [groups]);
 
   return (
     <div className="space-y-6" data-testid="shopping-lists.ready.groups">

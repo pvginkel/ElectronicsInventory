@@ -5,7 +5,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { MoreVerticalIcon } from '@/components/icons/MoreVerticalIcon';
 import { cn } from '@/lib/utils';
 import type { ShoppingListConceptLine } from '@/types/shopping-lists';
-import { Pencil } from 'lucide-react';
+import { Info, Pencil } from 'lucide-react';
 
 type ReadyLineRowActionHandler = (line: ShoppingListConceptLine, trigger?: HTMLElement | null) => void;
 
@@ -14,7 +14,7 @@ interface ReadyLineRowProps {
   onOpenOrderDialog: ReadyLineRowActionHandler;
   onRevertLine: (line: ShoppingListConceptLine) => void;
   onEditLine: (line: ShoppingListConceptLine) => void;
-  onUpdateStock: (line: ShoppingListConceptLine) => void;
+  onUpdateStock: ReadyLineRowActionHandler;
   highlight?: boolean;
   disabled?: boolean;
 }
@@ -83,8 +83,22 @@ export const ReadyLineRow = forwardRef<HTMLTableRowElement, ReadyLineRowProps>(f
           </Button>
         </div>
       </td>
-      <td className="align-middle px-4 py-3 text-right text-sm text-muted-foreground" data-testid={`shopping-lists.ready.line.${line.id}.received`}>
-        {line.received}
+      <td className="align-middle px-4 py-3 text-right text-sm" data-testid={`shopping-lists.ready.line.${line.id}.received`}>
+        <div className="flex items-center justify-end gap-2">
+          <span className={cn('font-medium', line.hasQuantityMismatch ? 'text-amber-600' : 'text-muted-foreground')}>
+            {line.received}
+          </span>
+          {line.completionNote && (
+            <span
+              className="text-muted-foreground"
+              title={line.completionNote}
+              aria-label="Completion note"
+              data-testid={`shopping-lists.ready.line.${line.id}.completion-note`}
+            >
+              <Info className="h-4 w-4" />
+            </span>
+          )}
+        </div>
       </td>
       <td className="align-top px-4 py-3 text-sm text-muted-foreground" data-testid={`shopping-lists.ready.line.${line.id}.note`}>
         {line.note?.trim() ? line.note : '—'}
@@ -101,7 +115,7 @@ export const ReadyLineRow = forwardRef<HTMLTableRowElement, ReadyLineRowProps>(f
               variant="secondary"
               size="sm"
               disabled={disabled}
-              onClick={() => onUpdateStock(line)}
+              onClick={(event) => onUpdateStock(line, event.currentTarget as HTMLElement)}
               data-testid={`shopping-lists.ready.line.${line.id}.update-stock`}
             >
               Update Stock

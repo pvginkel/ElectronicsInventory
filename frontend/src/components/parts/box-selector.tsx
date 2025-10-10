@@ -6,6 +6,7 @@ interface BoxSelectorProps {
   error?: string;
   placeholder?: string;
   testId?: string;
+  disabled?: boolean;
 }
 
 export function BoxSelector({ 
@@ -13,7 +14,8 @@ export function BoxSelector({
   onChange, 
   error, 
   placeholder = "Select box...",
-  testId
+  testId,
+  disabled = false,
 }: BoxSelectorProps) {
   const { data: boxes = [], isLoading } = useGetBoxes();
 
@@ -22,7 +24,7 @@ export function BoxSelector({
       <select
         value={value?.toString() || ''}
         onChange={(e) => onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
-        disabled={isLoading}
+        disabled={isLoading || disabled}
         data-testid={testId}
         aria-label="Box selector"
         className={`

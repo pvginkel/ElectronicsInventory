@@ -6,6 +6,8 @@ type ShoppingListCreateSchema = components['schemas']['ShoppingListCreateSchema.
 type ShoppingListResponseSchema = components['schemas']['ShoppingListResponseSchema.46f0cf6'];
 type ShoppingListLineResponseSchema = components['schemas']['ShoppingListLineResponseSchema.d9ccce0'];
 type PartShoppingListMembershipSchema = components['schemas']['PartShoppingListMembershipSchema.d085feb'];
+type ShoppingListLineReceiveSchema = components['schemas']['ShoppingListLineReceiveSchema.d9ccce0'];
+type ShoppingListLineCompleteSchema = components['schemas']['ShoppingListLineCompleteSchema.d9ccce0'];
 
 interface CreateListWithLinesOptions {
   listOverrides?: Partial<ShoppingListCreateSchema>;
@@ -136,5 +138,55 @@ export class ShoppingListTestFactory {
       throw new Error(`Failed to revert shopping list line ${lineId}`);
     }
     return line;
+  }
+
+  async markReady(listId: number): Promise<ShoppingListResponseSchema> {
+    await apiRequest(() =>
+      this.client.PUT('/api/shopping-lists/{list_id}/status', {
+        params: { path: { list_id: listId } },
+        body: { status: 'ready' },
+      })
+    );
+
+    return await this.getListDetail(listId);
+  }
+
+  async receiveLine(
+    _listId: number,
+    lineId: number,
+    input: { receiveQuantity: number; allocations: Array<{ boxNo: number; locNo: number; quantity: number }> }
+  ): Promise<ShoppingListLineResponseSchema> {
+    const body: ShoppingListLineReceiveSchema = {
+      receive_qty: input.receiveQuantity,
+      allocations: input.allocations.map(allocation => ({
+        box_no: allocation.boxNo,
+        loc_no: allocation.locNo,
+        qty: allocation.quantity,
+      })),
+    };
+
+    return await apiRequest(() =>
+      this.client.POST('/api/shopping-list-lines/{line_id}/receive', {
+        params: { path: { line_id: lineId } },
+        body,
+      })
+    );
+  }
+
+  async completeLine(
+    _listId: number,
+    lineId: number,
+    mismatchReason: string | null = null
+  ): Promise<ShoppingListLineResponseSchema> {
+    const body: ShoppingListLineCompleteSchema = {
+      mismatch_reason: mismatchReason,
+    };
+
+    return await apiRequest(() =>
+      this.client.POST('/api/shopping-list-lines/{line_id}/complete', {
+        params: { path: { line_id: lineId } },
+        body,
+      })
+    );
   }
 }

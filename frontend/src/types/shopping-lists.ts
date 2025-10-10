@@ -77,6 +77,34 @@ export interface ShoppingListSellerSummary {
   website: string | null;
 }
 
+export interface ShoppingListLinePartLocation extends Record<string, unknown> {
+  id: number;
+  boxNo: number;
+  locNo: number;
+  quantity: number;
+}
+
+export interface ShoppingListLineReceiveAllocationInput extends Record<string, unknown> {
+  boxNo: number;
+  locNo: number;
+  quantity: number;
+}
+
+export interface ShoppingListLineReceiveInput extends Record<string, unknown> {
+  listId: number;
+  lineId: number;
+  partKey: string;
+  receiveQuantity: number;
+  allocations: ShoppingListLineReceiveAllocationInput[];
+}
+
+export interface ShoppingListLineCompleteInput extends Record<string, unknown> {
+  listId: number;
+  lineId: number;
+  partKey: string;
+  mismatchReason: string | null;
+}
+
 export interface ShoppingListMembership extends Record<string, unknown> {
   listId: number;
   listName: string;
@@ -119,6 +147,7 @@ export interface ShoppingListConceptLine extends Record<string, unknown> {
   hasQuantityMismatch: boolean;
   completionMismatch: boolean;
   completionNote: string | null;
+  partLocations: ShoppingListLinePartLocation[];
   part: ShoppingListPartSummary;
   seller: ShoppingListSellerSummary | null;
   effectiveSeller: ShoppingListSellerSummary | null;

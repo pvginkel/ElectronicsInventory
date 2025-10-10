@@ -10,6 +10,8 @@ export class ShoppingListsPage extends BasePage {
   readonly conceptRoot: Locator;
   readonly conceptTable: Locator;
   readonly readyRoot: Locator;
+  readonly updateStockDialog: Locator;
+  readonly updateStockForm: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -19,6 +21,8 @@ export class ShoppingListsPage extends BasePage {
     this.conceptRoot = page.getByTestId('shopping-lists.concept.page');
     this.conceptTable = page.getByTestId('shopping-lists.concept.table');
     this.readyRoot = page.getByTestId('shopping-lists.ready.page');
+    this.updateStockDialog = page.getByTestId('shopping-lists.ready.update-stock.dialog');
+    this.updateStockForm = page.getByTestId('shopping-lists.ready.update-stock.form');
   }
 
   async gotoOverview(): Promise<void> {
@@ -114,6 +118,14 @@ export class ShoppingListsPage extends BasePage {
       .locator('[data-testid^="shopping-lists.ready.line."]')
       .filter({ hasText: part })
       .first();
+  }
+
+  readyLineReceivedCell(part: string | RegExp): Locator {
+    return this.readyLineRow(part).getByTestId(/\.received$/);
+  }
+
+  readyLineStatusCell(part: string | RegExp): Locator {
+    return this.readyLineRow(part).getByTestId(/\.status$/);
   }
 
   async addConceptLine(options: {
@@ -234,6 +246,64 @@ export class ShoppingListsPage extends BasePage {
   async markReady(): Promise<void> {
     const button = this.page.getByTestId('shopping-lists.concept.mark-ready.button');
     await button.click();
+  }
+
+  async openUpdateStock(part: string | RegExp): Promise<void> {
+    const row = this.readyLineRow(part);
+    await expect(row).toBeVisible();
+    await row.getByTestId(/update-stock$/).click();
+    await expect(this.updateStockDialog).toBeVisible();
+  }
+
+  async setReceiveQuantity(quantity: number): Promise<void> {
+    await this.updateStockDialog.getByTestId('shopping-lists.ready.update-stock.field.receive').fill(String(quantity));
+  }
+
+  private allocationRow(index: number): Locator {
+    return this.updateStockDialog.getByTestId(`shopping-lists.ready.update-stock.allocation.${index}`);
+  }
+
+  async addAllocationRow(): Promise<void> {
+    await this.updateStockDialog.getByTestId('shopping-lists.ready.update-stock.add-allocation').click();
+  }
+
+  async setAllocationRow(index: number, values: { box?: number; location?: number; quantity?: number }): Promise<void> {
+    const row = this.allocationRow(index);
+    if (values.box !== undefined) {
+      await row.getByTestId(/\.box$/).selectOption(String(values.box));
+    }
+    if (values.location !== undefined) {
+      await row.getByTestId(/\.location$/).fill(String(values.location));
+    }
+    if (values.quantity !== undefined) {
+      await row.getByTestId(/\.quantity$/).fill(String(values.quantity));
+    }
+  }
+
+  async removeAllocationRow(index: number): Promise<void> {
+    await this.allocationRow(index).getByTestId(/\.remove$/).click();
+  }
+
+  async submitReceiveForm(mode: 'save' | 'saveAndNext'): Promise<void> {
+    const buttonTestId = mode === 'save'
+      ? 'shopping-lists.ready.update-stock.submit'
+      : 'shopping-lists.ready.update-stock.submit-next';
+    await this.updateStockDialog.getByTestId(buttonTestId).click();
+  }
+
+  async markUpdateStockDone(): Promise<void> {
+    await this.updateStockDialog.getByTestId('shopping-lists.ready.update-stock.mark-done').click();
+  }
+
+  async confirmMismatch(reason: string): Promise<void> {
+    const dialog = this.page.getByTestId('shopping-lists.ready.update-stock.mismatch-dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByTestId('shopping-lists.ready.update-stock.mismatch-reason').fill(reason);
+    await dialog.getByTestId('shopping-lists.ready.update-stock.mismatch-confirm').click();
+  }
+
+  async cancelUpdateStock(): Promise<void> {
+    await this.updateStockDialog.getByRole('button', { name: /cancel/i }).click();
   }
 
   async expectStatus(label: string | RegExp): Promise<void> {

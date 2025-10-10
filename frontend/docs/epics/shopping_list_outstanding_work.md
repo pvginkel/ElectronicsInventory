@@ -1,2 +1,4 @@
 - [ ] The whole card needs to be clickable.
 - [ ] Edit and delete actions on lines must become icons on the line itself.
+- [ ] Update Stock button is too small. The text wraps into two lines.
+- [ ] I don't like the highlight color an edited line gets.

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ConceptHeader } from '@/components/shopping-lists/concept-header';
 import { ConceptTable } from '@/components/shopping-lists/concept-table';
@@ -7,6 +7,7 @@ import { MarkReadyFooter } from '@/components/shopping-lists/mark-ready-footer';
 import { SellerGroupList } from '@/components/shopping-lists/ready/seller-group-list';
 import { OrderLineDialog } from '@/components/shopping-lists/ready/order-line-dialog';
 import { OrderGroupDialog } from '@/components/shopping-lists/ready/order-group-dialog';
+import { UpdateStockDialog } from '@/components/shopping-lists/ready/update-stock-dialog';
 import { ReadyToolbar } from '@/components/shopping-lists/ready/ready-toolbar';
 import {
   useShoppingListDetail,
@@ -18,11 +19,16 @@ import {
   useRevertShoppingListLineMutation,
   useOrderShoppingListGroupMutation,
   useUpdateShoppingListStatusMutation,
+  useReceiveShoppingListLineMutation,
+  useCompleteShoppingListLineMutation,
+  flattenReceivableLines,
+  findNextReceivableLine,
 } from '@/hooks/use-shopping-lists';
 import type {
   ShoppingListConceptLine,
   ShoppingListLineSortKey,
   ShoppingListSellerGroup,
+  ShoppingListLineReceiveAllocationInput,
 } from '@/types/shopping-lists';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
@@ -54,11 +60,17 @@ interface OrderGroupState {
   trigger: HTMLElement | null;
 }
 
+interface UpdateStockState {
+  open: boolean;
+  line: ShoppingListConceptLine | null;
+  trigger: HTMLElement | null;
+}
+
 function ShoppingListDetailRoute() {
   const params = Route.useParams();
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const { showSuccess, showError, showException } = useToast();
+  const { showSuccess, showException } = useToast();
   const { confirm, confirmProps } = useConfirm();
 
   const listId = Number(params.listId);
@@ -86,6 +98,7 @@ function ShoppingListDetailRoute() {
   const [highlightedLineId, setHighlightedLineId] = useState<number | null>(null);
   const [orderLineState, setOrderLineState] = useState<OrderLineState>({ open: false, line: null, trigger: null });
   const [orderGroupState, setOrderGroupState] = useState<OrderGroupState>({ open: false, group: null, trigger: null });
+  const [updateStockState, setUpdateStockState] = useState<UpdateStockState>({ open: false, line: null, trigger: null });
   const [pendingLineIds, setPendingLineIds] = useState<Set<number>>(new Set());
 
   const updateMetadataMutation = useUpdateShoppingListMutation(normalizedListId);
@@ -95,6 +108,8 @@ function ShoppingListDetailRoute() {
   const revertLineMutation = useRevertShoppingListLineMutation();
   const orderGroupMutation = useOrderShoppingListGroupMutation();
   const updateStatusMutation = useUpdateShoppingListStatusMutation();
+  const receiveLineMutation = useReceiveShoppingListLineMutation();
+  const completeLineMutation = useCompleteShoppingListLineMutation();
 
   useEffect(() => {
     if (highlightedLineId == null) {
@@ -309,6 +324,106 @@ function ShoppingListDetailRoute() {
     }
   }, [normalizedListId, orderGroupMutation, orderGroupState.group, showException, showSuccess, updatePendingLine]);
 
+  const handleCloseUpdateStock = useCallback(() => {
+    setUpdateStockState(prev => ({ open: false, line: null, trigger: prev.trigger }));
+  }, []);
+
+  const handleReceiveSubmit = useCallback(async (payload: {
+    mode: 'save' | 'saveAndNext';
+    receiveQuantity: number;
+    allocations: ShoppingListLineReceiveAllocationInput[];
+  }) => {
+    const target = updateStockState.line;
+    if (!target) {
+      return;
+    }
+
+    updatePendingLine(target.id, true);
+
+    const sequence = payload.mode === 'saveAndNext' ? flattenReceivableLines(sellerGroups) : undefined;
+    const nextInSequence = sequence ? (() => {
+      const currentIndex = sequence.findIndex(line => line.id === target.id);
+      if (currentIndex >= 0) {
+        return sequence[currentIndex + 1];
+      }
+      return undefined;
+    })() : undefined;
+
+    try {
+      await receiveLineMutation.mutateAsync({
+        listId: target.shoppingListId,
+        lineId: target.id,
+        partKey: target.part.key,
+        receiveQuantity: payload.receiveQuantity,
+        allocations: payload.allocations,
+      });
+      showSuccess(`Received ${payload.receiveQuantity} for ${target.part.description}`);
+      setHighlightedLineId(target.id);
+
+      if (payload.mode === 'saveAndNext') {
+        let nextLine: ShoppingListConceptLine | undefined;
+        if (nextInSequence) {
+          const refreshedCandidate = lines.find(line => line.id === nextInSequence.id);
+          if (refreshedCandidate && refreshedCandidate.status === 'ordered' && refreshedCandidate.canReceive) {
+            nextLine = refreshedCandidate;
+          }
+        }
+
+        if (!nextLine) {
+          const refreshedSequence = flattenReceivableLines(sellerGroups);
+          const currentIndex = refreshedSequence.findIndex(line => line.id === target.id);
+          if (currentIndex >= 0) {
+            nextLine = refreshedSequence.slice(currentIndex + 1).find(line => line.canReceive);
+          } else {
+            nextLine = refreshedSequence.find(line => line.canReceive && line.id !== target.id);
+          }
+        }
+
+        if (nextLine) {
+          setUpdateStockState(prev => ({ open: true, line: nextLine, trigger: prev.trigger }));
+          setHighlightedLineId(nextLine.id);
+          return;
+        }
+      }
+
+      setUpdateStockState(prev => ({ open: false, line: null, trigger: prev.trigger }));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to receive stock';
+      showException(message, err);
+      throw err;
+    } finally {
+      updatePendingLine(target.id, false);
+    }
+  }, [lines, receiveLineMutation, sellerGroups, showException, showSuccess, updatePendingLine, updateStockState.line]);
+
+  const handleMarkLineDone = useCallback(async (payload: { mismatchReason: string | null }) => {
+    const target = updateStockState.line;
+    if (!target) {
+      return;
+    }
+
+    updatePendingLine(target.id, true);
+
+    try {
+      await completeLineMutation.mutateAsync({
+        listId: target.shoppingListId,
+        lineId: target.id,
+        partKey: target.part.key,
+        mismatchReason: payload.mismatchReason,
+      });
+      const hasReason = Boolean(payload.mismatchReason?.trim());
+      showSuccess(hasReason ? `Marked ${target.part.description} done with mismatch noted` : `Marked ${target.part.description} done`);
+      setHighlightedLineId(target.id);
+      setUpdateStockState(prev => ({ open: false, line: null, trigger: prev.trigger }));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to complete line';
+      showException(message, err);
+      throw err;
+    } finally {
+      updatePendingLine(target.id, false);
+    }
+  }, [completeLineMutation, showException, showSuccess, updatePendingLine, updateStockState.line]);
+
   const handleBackToConcept = useCallback(async () => {
     if (!shoppingList) {
       return;
@@ -323,14 +438,21 @@ function ShoppingListDetailRoute() {
     }
   }, [shoppingList, showException, showSuccess, updateStatusMutation]);
 
-  const handleUpdateStock = useCallback((line: ShoppingListConceptLine) => {
-    const message = `Update Stock flow for "${line.part.description}" is not yet implemented.`;
-    showError(message);
-  }, [showError]);
+  const handleOpenUpdateStock = useCallback((line: ShoppingListConceptLine, trigger?: HTMLElement | null) => {
+    setUpdateStockState({ open: true, line, trigger: trigger ?? null });
+    setHighlightedLineId(line.id);
+  }, []);
 
   const listLoaded = shoppingList != null;
   const status = shoppingList?.status ?? 'concept';
   const isReadyView = status === 'ready';
+
+  const nextReceivableLine = useMemo(() => {
+    if (!updateStockState.line) {
+      return undefined;
+    }
+    return findNextReceivableLine(updateStockState.line.id, sellerGroups);
+  }, [sellerGroups, updateStockState.line]);
 
   if (!hasValidListId) {
     return (
@@ -391,7 +513,7 @@ function ShoppingListDetailRoute() {
         onOpenOrderGroup={handleOpenOrderGroupDialog}
         onRevertLine={handleRevertLine}
         onEditLine={handleEditLine}
-        onUpdateStock={handleUpdateStock}
+        onUpdateStock={handleOpenUpdateStock}
         pendingLineIds={pendingLineIds}
         highlightedLineId={highlightedLineId}
       />
@@ -435,6 +557,18 @@ function ShoppingListDetailRoute() {
         onSubmit={handleConfirmGroupOrder}
         isSubmitting={orderGroupMutation.isPending}
         restoreFocusElement={orderGroupState.trigger ?? undefined}
+      />
+
+      <UpdateStockDialog
+        open={updateStockState.open}
+        line={updateStockState.line}
+        hasNextLine={Boolean(nextReceivableLine)}
+        onClose={handleCloseUpdateStock}
+        onSubmit={handleReceiveSubmit}
+        onMarkDone={handleMarkLineDone}
+        isReceiving={receiveLineMutation.isPending}
+        isCompleting={completeLineMutation.isPending}
+        restoreFocusElement={updateStockState.trigger ?? undefined}
       />
 
       <ConfirmDialog {...confirmProps} />

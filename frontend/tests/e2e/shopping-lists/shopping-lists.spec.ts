@@ -365,4 +365,245 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     await expect(shoppingLists.conceptRoot).toBeVisible();
     await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.mark-ready.button')).toBeVisible();
   });
+
+  test('receives partial quantity with location allocations', async ({ shoppingLists, testData, testEvents, toastHelper }) => {
+    const seller = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
+    const { part } = await testData.parts.create({ overrides: { description: 'Receive flow part' } });
+    const list = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: testData.shoppingLists.randomName('Receive Flow') },
+      lines: [{ partKey: part.key, needed: 5, sellerId: seller.id }],
+    });
+    const lineId = list.lines[0].id;
+
+    const existingBox = await testData.boxes.create({ overrides: { description: 'Existing allocation box' } });
+    const newBox = await testData.boxes.create({ overrides: { description: 'New allocation box' } });
+
+    await shoppingLists.gotoConcept(list.id);
+    await expectConsoleError(shoppingLists.playwrightPage, /Outdated Optimize Dep/);
+    await shoppingLists.markReady();
+    await toastHelper.expectSuccessToast(/marked ready/i);
+    await shoppingLists.waitForReadyView();
+
+    await shoppingLists.markLineOrdered(part.description, 5);
+
+    await shoppingLists.openUpdateStock(part.description);
+    await shoppingLists.setReceiveQuantity(3);
+    await shoppingLists.setAllocationRow(0, { box: existingBox.box_no, location: 1, quantity: 1 });
+    await shoppingLists.addAllocationRow();
+    await shoppingLists.setAllocationRow(1, { box: newBox.box_no, location: 2, quantity: 2 });
+
+    await testEvents.clearEvents();
+    const receiveSubmit = testEvents.waitForEvent(event =>
+      event.kind === 'form' &&
+      (event as FormTestEvent).formId === `ShoppingListLineReceive:line:${lineId}` &&
+      (event as FormTestEvent).phase === 'submit'
+    );
+    const receiveSuccess = testEvents.waitForEvent(event =>
+      event.kind === 'form' &&
+      (event as FormTestEvent).formId === `ShoppingListLineReceive:line:${lineId}` &&
+      (event as FormTestEvent).phase === 'success'
+    );
+
+    await shoppingLists.submitReceiveForm('save');
+    await Promise.all([receiveSubmit, receiveSuccess]).catch(async (error) => {
+      const formEvents = await testEvents.getEventsByKind('form');
+      console.error('Captured form events:', JSON.stringify(formEvents, null, 2));
+      throw error;
+    });
+
+    await toastHelper.expectSuccessToast(new RegExp(`Received 3 for ${part.description}`, 'i'));
+    await toastHelper.waitForToastsToDisappear();
+    await expect(shoppingLists.updateStockDialog).toBeHidden();
+
+    await expect(shoppingLists.readyLineReceivedCell(part.description)).toContainText('3');
+
+    const refreshedDetail = await testData.shoppingLists.getDetail(list.id);
+    const updatedLine = refreshedDetail.lines.find(line => line.id === lineId);
+    expect(updatedLine?.received).toBe(3);
+    expect(updatedLine?.status).toBe('ordered');
+  });
+
+  test('processes Save & next flow across ordered lines', async ({ shoppingLists, testData, testEvents, toastHelper }) => {
+    const seller = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
+    const { part: firstPart } = await testData.parts.create({ overrides: { description: 'Save Next Part A' } });
+    const { part: secondPart } = await testData.parts.create({ overrides: { description: 'Save Next Part B' } });
+    const list = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: testData.shoppingLists.randomName('Save Next Flow') },
+      lines: [
+        { partKey: firstPart.key, needed: 4, sellerId: seller.id },
+        { partKey: secondPart.key, needed: 2, sellerId: seller.id },
+      ],
+    });
+    const firstLineId = list.lines[0].id;
+    const secondLineId = list.lines[1].id;
+
+    const boxA = await testData.boxes.create({ overrides: { description: 'Save next box A' } });
+    const boxB = await testData.boxes.create({ overrides: { description: 'Save next box B' } });
+
+    await shoppingLists.gotoConcept(list.id);
+    await expectConsoleError(shoppingLists.playwrightPage, /Outdated Optimize Dep/);
+    await shoppingLists.markReady();
+    await toastHelper.expectSuccessToast(/marked ready/i);
+    await shoppingLists.waitForReadyView();
+
+    await shoppingLists.markLineOrdered(firstPart.description, 4);
+    await shoppingLists.markLineOrdered(secondPart.description, 2);
+
+    await testEvents.clearEvents();
+    await shoppingLists.openUpdateStock(firstPart.description);
+    await testEvents.waitForEvent(event =>
+      event.kind === 'form' &&
+      (event as FormTestEvent).formId === `ShoppingListLineReceive:line:${firstLineId}` &&
+      (event as FormTestEvent).phase === 'open'
+    );
+
+    await shoppingLists.setReceiveQuantity(2);
+    await shoppingLists.setAllocationRow(0, { box: boxA.box_no, location: 3, quantity: 1 });
+    await shoppingLists.addAllocationRow();
+    await shoppingLists.setAllocationRow(1, { box: boxB.box_no, location: 4, quantity: 1 });
+
+    await testEvents.clearEvents();
+    const firstSubmit = testEvents.waitForEvent(event =>
+      event.kind === 'form' &&
+      (event as FormTestEvent).formId === `ShoppingListLineReceive:line:${firstLineId}` &&
+      (event as FormTestEvent).phase === 'submit'
+    );
+    const firstSuccess = testEvents.waitForEvent(event =>
+      event.kind === 'form' &&
+      (event as FormTestEvent).formId === `ShoppingListLineReceive:line:${firstLineId}` &&
+      (event as FormTestEvent).phase === 'success'
+    );
+
+    await shoppingLists.submitReceiveForm('saveAndNext');
+    await Promise.all([firstSubmit, firstSuccess]).catch(async (error) => {
+      const formEvents = await testEvents.getEventsByKind('form');
+      console.error('Captured form events:', JSON.stringify(formEvents, null, 2));
+      throw error;
+    });
+
+    await toastHelper.expectSuccessToast(new RegExp(`Received 2 for ${firstPart.description}`, 'i'));
+    await toastHelper.waitForToastsToDisappear();
+
+    await testEvents.waitForEvent(event =>
+      event.kind === 'form' &&
+      (event as FormTestEvent).formId === `ShoppingListLineReceive:line:${secondLineId}` &&
+      (event as FormTestEvent).phase === 'open'
+    );
+
+    await shoppingLists.setReceiveQuantity(2);
+    await shoppingLists.setAllocationRow(0, { box: boxA.box_no, location: 5, quantity: 2 });
+
+    await testEvents.clearEvents();
+    const secondSubmit = testEvents.waitForEvent(event =>
+      event.kind === 'form' &&
+      (event as FormTestEvent).formId === `ShoppingListLineReceive:line:${secondLineId}` &&
+      (event as FormTestEvent).phase === 'submit'
+    );
+    const secondSuccess = testEvents.waitForEvent(event =>
+      event.kind === 'form' &&
+      (event as FormTestEvent).formId === `ShoppingListLineReceive:line:${secondLineId}` &&
+      (event as FormTestEvent).phase === 'success'
+    );
+
+    await shoppingLists.submitReceiveForm('save');
+    await Promise.all([secondSubmit, secondSuccess]).catch(async (error) => {
+      const formEvents = await testEvents.getEventsByKind('form');
+      console.error('Captured form events:', JSON.stringify(formEvents, null, 2));
+      throw error;
+    });
+
+    await toastHelper.expectSuccessToast(new RegExp(`Received 2 for ${secondPart.description}`, 'i'));
+    await toastHelper.waitForToastsToDisappear();
+    await expect(shoppingLists.updateStockDialog).toBeHidden();
+
+    await expect(shoppingLists.readyLineReceivedCell(firstPart.description)).toContainText('2');
+    await expect(shoppingLists.readyLineReceivedCell(secondPart.description)).toContainText('2');
+
+    const finalDetail = await testData.shoppingLists.getDetail(list.id);
+    const firstLine = finalDetail.lines.find(line => line.id === firstLineId);
+    const secondLine = finalDetail.lines.find(line => line.id === secondLineId);
+    expect(firstLine?.received).toBe(2);
+    expect(secondLine?.received).toBe(2);
+  });
+
+  test('marks ordered line done with mismatch confirmation', async ({ shoppingLists, testData, testEvents, toastHelper }) => {
+    const seller = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
+    const { part } = await testData.parts.create({ overrides: { description: 'Mismatch flow part' } });
+    const list = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: testData.shoppingLists.randomName('Mismatch Flow') },
+      lines: [{ partKey: part.key, needed: 3, sellerId: seller.id }],
+    });
+    const lineId = list.lines[0].id;
+
+    const box = await testData.boxes.create({ overrides: { description: 'Mismatch box' } });
+
+    await shoppingLists.gotoConcept(list.id);
+    await expectConsoleError(shoppingLists.playwrightPage, /Outdated Optimize Dep/);
+    await shoppingLists.markReady();
+    await toastHelper.expectSuccessToast(/marked ready/i);
+    await shoppingLists.waitForReadyView();
+
+    await shoppingLists.markLineOrdered(part.description, 3);
+
+    await shoppingLists.openUpdateStock(part.description);
+    await shoppingLists.setReceiveQuantity(1);
+    await shoppingLists.setAllocationRow(0, { box: box.box_no, location: 6, quantity: 1 });
+
+    await testEvents.clearEvents();
+    const receiveSubmit = testEvents.waitForEvent(event =>
+      event.kind === 'form' &&
+      (event as FormTestEvent).formId === `ShoppingListLineReceive:line:${lineId}` &&
+      (event as FormTestEvent).phase === 'submit'
+    );
+    const receiveSuccess = testEvents.waitForEvent(event =>
+      event.kind === 'form' &&
+      (event as FormTestEvent).formId === `ShoppingListLineReceive:line:${lineId}` &&
+      (event as FormTestEvent).phase === 'success'
+    );
+    await shoppingLists.submitReceiveForm('save');
+    await Promise.all([receiveSubmit, receiveSuccess]).catch(async (error) => {
+      const formEvents = await testEvents.getEventsByKind('form');
+      console.error('Captured form events:', JSON.stringify(formEvents, null, 2));
+      throw error;
+    });
+    await toastHelper.expectSuccessToast(new RegExp(`Received 1 for ${part.description}`, 'i'));
+    await toastHelper.waitForToastsToDisappear();
+
+    await shoppingLists.openUpdateStock(part.description);
+
+    await testEvents.clearEvents();
+    const completeSubmit = testEvents.waitForEvent(event =>
+      event.kind === 'form' &&
+      (event as FormTestEvent).formId === `ShoppingListLineComplete:line:${lineId}` &&
+      (event as FormTestEvent).phase === 'submit'
+    );
+    const completeSuccess = testEvents.waitForEvent(event =>
+      event.kind === 'form' &&
+      (event as FormTestEvent).formId === `ShoppingListLineComplete:line:${lineId}` &&
+      (event as FormTestEvent).phase === 'success'
+    );
+
+    await shoppingLists.markUpdateStockDone();
+    await shoppingLists.confirmMismatch('Supplier short shipped remaining quantity');
+
+    await Promise.all([completeSubmit, completeSuccess]).catch(async (error) => {
+      const formEvents = await testEvents.getEventsByKind('form');
+      console.error('Captured form events:', JSON.stringify(formEvents, null, 2));
+      throw error;
+    });
+
+    await toastHelper.expectSuccessToast(new RegExp(`Marked ${part.description} done`, 'i'));
+    await toastHelper.waitForToastsToDisappear();
+    await expect(shoppingLists.updateStockDialog).toBeHidden();
+
+    await expect(shoppingLists.readyLineStatusCell(part.description)).toContainText(/received/i);
+    await expect(shoppingLists.readyLineRow(part.description).getByTestId(/update-stock$/)).toHaveCount(0);
+    await expect(shoppingLists.readyLineRow(part.description).getByTestId(/completion-note$/)).toBeVisible();
+
+    const detail = await testData.shoppingLists.getDetail(list.id);
+    const completedLine = detail.lines.find(line => line.id === lineId);
+    expect(completedLine?.status).toBe('done');
+    expect(completedLine?.completion_mismatch).toBe(true);
+    expect(completedLine?.completion_note).toContain('Supplier short shipped');
+  });
 });

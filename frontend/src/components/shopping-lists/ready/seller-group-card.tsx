@@ -15,7 +15,7 @@ interface SellerGroupCardProps {
   onOpenOrderGroup: (group: ShoppingListSellerGroup, trigger?: HTMLElement | null) => void;
   onRevertLine: (line: ShoppingListConceptLine) => void;
   onEditLine: (line: ShoppingListConceptLine) => void;
-  onUpdateStock: (line: ShoppingListConceptLine) => void;
+  onUpdateStock: (line: ShoppingListConceptLine, trigger?: HTMLElement | null) => void;
   pendingLineIds: Set<number>;
   highlightedLineId?: number | null;
 }

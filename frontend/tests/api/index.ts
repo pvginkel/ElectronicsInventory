@@ -88,6 +88,9 @@ export function createTestDataBundle(
       getDetail: shoppingListFactory.getListDetail.bind(shoppingListFactory),
       orderLine: shoppingListFactory.orderLine.bind(shoppingListFactory),
       revertLine: shoppingListFactory.revertLine.bind(shoppingListFactory),
+      markReady: shoppingListFactory.markReady.bind(shoppingListFactory),
+      receiveLine: shoppingListFactory.receiveLine.bind(shoppingListFactory),
+      completeLine: shoppingListFactory.completeLine.bind(shoppingListFactory),
       randomName: shoppingListFactory.randomListName.bind(shoppingListFactory),
     },
   };
