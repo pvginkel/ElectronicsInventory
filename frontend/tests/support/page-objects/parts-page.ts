@@ -1,6 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { waitForListLoading } from '../helpers';
 import { BasePage } from './base-page';
+import { SellerSelectorHarness } from './seller-selector-harness';
 
 export class PartsPage extends BasePage {
   readonly root: Locator;
@@ -114,6 +115,54 @@ export class PartsPage extends BasePage {
     return this.page.getByTestId('parts.detail.documents.add');
   }
 
+  get addToShoppingListButton(): Locator {
+    return this.page.getByTestId('parts.detail.add-to-shopping-list');
+  }
+
+  get shoppingListBadgeContainer(): Locator {
+    return this.page.getByTestId('parts.detail.shopping-list.badges');
+  }
+
+  shoppingListBadgeByName(name: string | RegExp): Locator {
+    return this.shoppingListBadgeContainer.getByRole('link', { name });
+  }
+
+  get addToShoppingListDialog(): Locator {
+    return this.page.getByTestId('ShoppingListMembership:addFromPart.dialog');
+  }
+
+  get addToShoppingListForm(): Locator {
+    return this.page.getByTestId('parts.shopping-list.add.form');
+  }
+
+  get addToShoppingListToggle(): Locator {
+    return this.page.getByTestId('parts.shopping-list.add.toggle.create');
+  }
+
+  get addToShoppingListConflictAlert(): Locator {
+    return this.page.getByTestId('parts.shopping-list.add.conflict');
+  }
+
+  addToShoppingListField(field: 'list' | 'new-name' | 'new-description' | 'needed' | 'seller' | 'note'): Locator {
+    return this.page.getByTestId(`parts.shopping-list.add.field.${field}`);
+  }
+
+  get addToShoppingListSubmit(): Locator {
+    return this.page.getByTestId('parts.shopping-list.add.submit');
+  }
+
+  shoppingListIndicator(partKey: string): Locator {
+    return this.cardByKey(partKey).getByTestId('parts.list.card.shopping-list-indicator');
+  }
+
+  shoppingListIndicatorLoading(partKey: string): Locator {
+    return this.cardByKey(partKey).getByTestId('parts.list.card.shopping-list-indicator.loading');
+  }
+
+  shoppingListIndicatorTooltip(partKey: string): Locator {
+    return this.cardByKey(partKey).getByTestId('parts.list.card.shopping-list-indicator.tooltip');
+  }
+
   get editPartButton(): Locator {
     return this.page.getByRole('button', { name: /edit part/i });
   }
@@ -171,6 +220,65 @@ export class PartsPage extends BasePage {
     await expect(this.page.getByRole('heading', { level: 1, name: text })).toBeVisible();
   }
 
+  async openAddToShoppingListDialog(): Promise<void> {
+    await this.addToShoppingListButton.click();
+    await expect(this.addToShoppingListDialog).toBeVisible();
+  }
+
+  async closeAddToShoppingListDialog(): Promise<void> {
+    await this.addToShoppingListDialog.getByRole('button', { name: /cancel/i }).click();
+    await expect(this.addToShoppingListDialog).toBeHidden();
+  }
+
+  createSellerSelectorHarness(): SellerSelectorHarness {
+    return new SellerSelectorHarness(this.page, this.addToShoppingListField('seller'));
+  }
+
+
+  async setCreateNewConceptList(value: boolean): Promise<void> {
+    const toggle = this.addToShoppingListToggle;
+    if ((await toggle.count()) === 0) {
+      return;
+    }
+    const current = await toggle.isChecked();
+    if (current !== value) {
+      await toggle.click();
+    }
+  }
+
+  async selectConceptListById(listId: number): Promise<void> {
+    await this.addToShoppingListField('list').selectOption(String(listId));
+  }
+
+  async fillNewConceptList(details: { name: string; description?: string }): Promise<void> {
+    await this.addToShoppingListField('new-name').fill(details.name);
+    if (details.description !== undefined) {
+      await this.addToShoppingListField('new-description').fill(details.description);
+    }
+  }
+
+  async setNeededQuantity(quantity: number): Promise<void> {
+    await this.addToShoppingListField('needed').fill(String(quantity));
+  }
+
+  async setMembershipNote(note: string): Promise<void> {
+    await this.addToShoppingListField('note').fill(note);
+  }
+
+  async selectSellerInDialog(name: string): Promise<void> {
+    const harness = this.createSellerSelectorHarness();
+    await harness.waitForReady();
+    await harness.search(name);
+    await harness.selectOption(name);
+  }
+
+  async submitAddToShoppingList(): Promise<void> {
+    await this.addToShoppingListSubmit.click();
+  }
+
+  get detailShoppingListBadges(): Locator {
+    return this.shoppingListBadgeContainer.getByTestId('parts.detail.shopping-list.badge');
+  }
   // Form helpers (create/edit)
   get formRoot(): Locator {
     return this.page.locator('form').filter({ has: this.formDescription });

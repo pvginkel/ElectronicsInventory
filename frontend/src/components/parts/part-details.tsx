@@ -1,9 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 import { PartLocationGrid } from './part-location-grid';
 import { PartForm } from './part-form';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
@@ -14,6 +16,8 @@ import { useGetPartsByPartKey, useDeletePartsByPartKey } from '@/lib/api/generat
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { useConfirm } from '@/hooks/use-confirm';
 import { useClipboardPaste } from '@/hooks/use-clipboard-paste';
+import { usePartShoppingListMemberships, invalidatePartMemberships } from '@/hooks/use-part-shopping-list-memberships';
+import { AddToShoppingListDialog } from '@/components/shopping-lists/part/add-to-shopping-list-dialog';
 
 interface PartDetailsProps {
   partId: string;
@@ -22,11 +26,14 @@ interface PartDetailsProps {
 export function PartDetails({ partId }: PartDetailsProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showAddDocument, setShowAddDocument] = useState(false);
+  const [showAddToListDialog, setShowAddToListDialog] = useState(false);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { confirm, confirmProps } = useConfirm();
   const documentGridRef = useRef<HTMLDivElement>(null);
   const [latestUploadedDocumentId, setLatestUploadedDocumentId] = useState<number | null>(null);
   
+  const membershipQuery = usePartShoppingListMemberships(partId);
   const { data: part, isLoading, error, refetch } = useGetPartsByPartKey(
     { path: { part_key: partId } },
     { enabled: !!partId }
@@ -80,6 +87,36 @@ export function PartDetails({ partId }: PartDetailsProps) {
 
     return () => clearTimeout(scrollTimeout);
   }, [latestUploadedDocumentId]);
+
+  const partSummary = useMemo(() => {
+    if (!part) {
+      return null;
+    }
+    const numericId = (part as { id?: number | null }).id ?? null;
+    return {
+      id: numericId,
+      key: part.key,
+      description: part.description,
+      defaultSellerId: part.seller?.id ?? null,
+    };
+  }, [part]);
+
+  const activeMemberships = useMemo(() => {
+    const seen = new Set<number>();
+    const unique = [] as typeof membershipQuery.summary.memberships;
+    for (const membership of membershipQuery.summary.memberships) {
+      if (!seen.has(membership.listId)) {
+        seen.add(membership.listId);
+        unique.push(membership);
+      }
+    }
+    return unique;
+  }, [membershipQuery.summary.memberships]);
+
+  const isMembershipPending = membershipQuery.status === 'pending';
+  const isMembershipFetching = membershipQuery.fetchStatus === 'fetching';
+  const membershipError = membershipQuery.error;
+  const showMembershipSkeleton = isMembershipPending || (isMembershipFetching && membershipQuery.status === 'success');
 
   const handleDeletePart = async () => {
     if (!part) return;
@@ -152,33 +189,103 @@ export function PartDetails({ partId }: PartDetailsProps) {
 
   return (
     <div data-testid="parts.detail">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">{displayDescription}</h1>
+      {partSummary && (
+        <AddToShoppingListDialog
+          open={showAddToListDialog}
+          onClose={() => setShowAddToListDialog(false)}
+          part={partSummary}
+          defaultNeeded={1}
+        />
+      )}
+
+      <div className="mb-6 flex flex-col gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">{displayDescription}</h1>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              onClick={() => setShowAddToListDialog(true)}
+              data-testid="parts.detail.add-to-shopping-list"
+            >
+              Add to shopping list
+            </Button>
+            <Button variant="outline" onClick={() => setIsEditing(true)}>
+              Edit Part
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleDeletePart}
+              disabled={deletePartMutation.isPending}
+            >
+              Delete Part
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <MoreVerticalIcon className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleDuplicatePart}>
+                  Duplicate Part
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-        <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => setIsEditing(true)}>
-            Edit Part
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={handleDeletePart}
-            disabled={deletePartMutation.isPending}
-          >
-            Delete Part
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                <MoreVerticalIcon className="h-4 w-4" />
+
+        <div
+          id="parts.detail.shopping-list.badges"
+          data-testid="parts.detail.shopping-list.badges"
+          className="min-h-[32px]"
+        >
+          {showMembershipSkeleton ? (
+            <div className="flex flex-wrap gap-2" data-testid="parts.detail.shopping-list.badges.loading">
+              <div className="h-6 w-32 animate-pulse rounded-full bg-muted" />
+              <div className="h-6 w-24 animate-pulse rounded-full bg-muted" />
+            </div>
+          ) : membershipError ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" data-testid="parts.detail.shopping-list.badges.error">
+              <span>Failed to load shopping list memberships.</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  invalidatePartMemberships(queryClient, partId);
+                  void membershipQuery.refetch();
+                }}
+              >
+                Retry
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleDuplicatePart}>
-                Duplicate Part
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </div>
+          ) : membershipQuery.summary.hasActiveMembership ? (
+            <div className="flex flex-wrap gap-2" data-testid="parts.detail.shopping-list.badge-list">
+              {activeMemberships.map((membership) => (
+                <Link
+                  key={membership.listId}
+                  to="/shopping-lists/$listId"
+                  params={{ listId: String(membership.listId) }}
+                  search={{ sort: 'description' }}
+                  className="group inline-flex items-center gap-2 rounded-full border border-input bg-muted/40 px-3 py-1 text-sm transition hover:border-primary hover:text-primary"
+                  data-testid="parts.detail.shopping-list.badge"
+                >
+                  <span>{membership.listName}</span>
+                  <Badge
+                    variant={membership.listStatus === 'ready' ? 'default' : 'secondary'}
+                    className="capitalize"
+                  >
+                    {membership.listStatus}
+                  </Badge>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground" data-testid="parts.detail.shopping-list.badges.empty">
+              This part is not on any Concept or Ready shopping lists.
+            </p>
+          )}
         </div>
       </div>
 

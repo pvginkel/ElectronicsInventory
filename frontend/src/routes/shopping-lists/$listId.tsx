@@ -167,7 +167,7 @@ function ShoppingListDetailRoute() {
     }
 
     try {
-      await deleteLineMutation.mutateAsync({ lineId: line.id, listId: line.shoppingListId });
+      await deleteLineMutation.mutateAsync({ lineId: line.id, listId: line.shoppingListId, partKey: line.part.key });
       showSuccess('Removed part from Concept list');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete line';

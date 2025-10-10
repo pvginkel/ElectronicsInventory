@@ -61,6 +61,7 @@ import {
   type ShoppingListStatusUpdateInput,
   type ShoppingListUpdateInput,
 } from '@/types/shopping-lists';
+import { invalidatePartMemberships } from '@/hooks/use-part-shopping-list-memberships';
 
 const SHOPPING_LISTS_KEY = ['getShoppingLists'] as const;
 type ShoppingListMembershipVariables = {
@@ -658,6 +659,10 @@ export function useCreateShoppingListLineMutation() {
     onSuccess: (_data, variables) => {
       const resolved = variables as ShoppingListMembershipVariables | undefined;
       const listId = resolved?.body?.shopping_list_id;
+      const partKey = resolved?.path?.part_key;
+      if (partKey) {
+        invalidatePartMemberships(queryClient, partKey);
+      }
       if (typeof listId === 'number') {
         queryClient.invalidateQueries({ queryKey: SHOPPING_LISTS_KEY });
         queryClient.invalidateQueries({ queryKey: detailKey(listId) });
@@ -730,11 +735,12 @@ export function useUpdateShoppingListLineMutation() {
           if (typeof resolvedListId === 'number') {
             handleInvalidate(resolvedListId);
           }
+          invalidatePartMemberships(queryClient, input.partKey);
           options?.onSuccess?.(data, variables, context);
         },
       }
     );
-  }, [baseMutate, handleInvalidate]);
+  }, [baseMutate, handleInvalidate, queryClient]);
 
   const mutateAsync = useCallback<
     (input: ShoppingListLineUpdateInput, options?: Parameters<typeof baseMutateAsync>[1]) => ReturnType<typeof baseMutateAsync>
@@ -749,11 +755,12 @@ export function useUpdateShoppingListLineMutation() {
           if (typeof resolvedListId === 'number') {
             handleInvalidate(resolvedListId);
           }
+          invalidatePartMemberships(queryClient, input.partKey);
           options?.onSuccess?.(data, variables, context);
         },
       }
     );
-  }, [baseMutateAsync, handleInvalidate]);
+  }, [baseMutateAsync, handleInvalidate, queryClient]);
 
   return {
     ...rest,
@@ -771,7 +778,7 @@ export function useDeleteShoppingListLineMutation() {
   }, [queryClient]);
 
   const mutate = useCallback<
-    (input: { lineId: number; listId: number }, options?: Parameters<typeof baseMutate>[1]) => void
+    (input: { lineId: number; listId: number; partKey?: string }, options?: Parameters<typeof baseMutate>[1]) => void
   >((input, options) => {
     baseMutate(
       { path: { line_id: input.lineId } },
@@ -779,14 +786,17 @@ export function useDeleteShoppingListLineMutation() {
         ...options,
         onSuccess: (data, variables, context) => {
           handleInvalidate(input.listId);
+          if (input.partKey) {
+            invalidatePartMemberships(queryClient, input.partKey);
+          }
           options?.onSuccess?.(data, variables, context);
         },
       }
     );
-  }, [baseMutate, handleInvalidate]);
+  }, [baseMutate, handleInvalidate, queryClient]);
 
   const mutateAsync = useCallback<
-    (input: { lineId: number; listId: number }, options?: Parameters<typeof baseMutateAsync>[1]) => ReturnType<typeof baseMutateAsync>
+    (input: { lineId: number; listId: number; partKey?: string }, options?: Parameters<typeof baseMutateAsync>[1]) => ReturnType<typeof baseMutateAsync>
   >((input, options) => {
     return baseMutateAsync(
       { path: { line_id: input.lineId } },
@@ -794,11 +804,14 @@ export function useDeleteShoppingListLineMutation() {
         ...options,
         onSuccess: (data, variables, context) => {
           handleInvalidate(input.listId);
+          if (input.partKey) {
+            invalidatePartMemberships(queryClient, input.partKey);
+          }
           options?.onSuccess?.(data, variables, context);
         },
       }
     );
-  }, [baseMutateAsync, handleInvalidate]);
+  }, [baseMutateAsync, handleInvalidate, queryClient]);
 
   return {
     ...rest,

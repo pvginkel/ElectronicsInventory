@@ -77,6 +77,31 @@ export interface ShoppingListSellerSummary {
   website: string | null;
 }
 
+export interface ShoppingListMembership extends Record<string, unknown> {
+  listId: number;
+  listName: string;
+  listStatus: ShoppingListStatus;
+  lineId: number;
+  lineStatus: ShoppingListLineStatus;
+  needed: number;
+  ordered: number;
+  received: number;
+  note: string | null;
+  seller: ShoppingListSellerSummary | null;
+}
+
+export interface ShoppingListMembershipSummary extends Record<string, unknown> {
+  partKey: string;
+  memberships: ShoppingListMembership[];
+  hasActiveMembership: boolean;
+  listNames: string[];
+  conceptListIds: number[];
+  activeCount: number;
+  conceptCount: number;
+  readyCount: number;
+  doneCount: number;
+}
+
 export interface ShoppingListConceptLine extends Record<string, unknown> {
   id: number;
   shoppingListId: number;

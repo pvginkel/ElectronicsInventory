@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -13,6 +13,10 @@ import { LocationSummary } from './location-summary';
 import { VendorInfo } from './vendor-info';
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
+import { Loader2, ShoppingCart, AlertTriangle } from 'lucide-react';
+import { useShoppingListMembershipIndicators } from '@/hooks/use-part-shopping-list-memberships';
+import type { ShoppingListMembershipSummary } from '@/types/shopping-lists';
+import { Badge } from '@/components/ui/badge';
 
 interface PartListProps {
   searchTerm?: string;
@@ -143,6 +147,10 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
     });
   }, [parts, searchTerm, typeMap]);
 
+  const partKeys = useMemo(() => filteredParts.map((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => part.key), [filteredParts]);
+  const membershipIndicators = useShoppingListMembershipIndicators(partKeys);
+  const indicatorMap = membershipIndicators.summaryByPartKey;
+
   if (partsError) {
     return (
       <Card className="p-6" data-testid="parts.list.error">
@@ -254,6 +262,10 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
                 part={part}
                 typeMap={typeMap}
                 onClick={() => onSelectPart?.(part.key)}
+                indicatorSummary={indicatorMap.get(part.key)}
+                indicatorStatus={membershipIndicators.status}
+                indicatorFetchStatus={membershipIndicators.fetchStatus}
+                indicatorError={membershipIndicators.error}
               />
             ))}
           </div>
@@ -267,9 +279,21 @@ interface PartListItemProps {
   part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema;
   typeMap: Map<number, string>;
   onClick?: () => void;
+  indicatorSummary?: ShoppingListMembershipSummary;
+  indicatorStatus: 'pending' | 'error' | 'success';
+  indicatorFetchStatus: 'idle' | 'fetching' | 'paused';
+  indicatorError: unknown;
 }
 
-function PartListItem({ part, typeMap, onClick }: PartListItemProps) {
+function PartListItem({
+  part,
+  typeMap,
+  onClick,
+  indicatorSummary,
+  indicatorStatus,
+  indicatorFetchStatus,
+  indicatorError,
+}: PartListItemProps) {
   const { displayId, displayDescription, displayManufacturerCode } = formatPartForDisplay(part);
 
   return (
@@ -308,9 +332,15 @@ function PartListItem({ part, typeMap, onClick }: PartListItemProps) {
           )}
         </div>
         
-        {/* Quantity Badge */}
-        <div className="flex-shrink-0">
+        {/* Quantity & Indicator */}
+        <div className="flex flex-col items-end gap-2">
           <QuantityBadge quantity={part.total_quantity} />
+          <ShoppingListIndicator
+            summary={indicatorSummary}
+            status={indicatorStatus}
+            fetchStatus={indicatorFetchStatus}
+            error={indicatorError}
+          />
         </div>
       </div>
 
@@ -364,5 +394,95 @@ function PartListItem({ part, typeMap, onClick }: PartListItemProps) {
         />
       </div>
     </Card>
+  );
+}
+
+interface ShoppingListIndicatorProps {
+  summary?: ShoppingListMembershipSummary;
+  status: 'pending' | 'error' | 'success';
+  fetchStatus: 'idle' | 'fetching' | 'paused';
+  error: unknown;
+}
+
+function ShoppingListIndicator({ summary, status, fetchStatus, error }: ShoppingListIndicatorProps) {
+  const isPending = status === 'pending';
+  const isRefetching = fetchStatus === 'fetching';
+
+  if (isPending) {
+    return (
+      <div className="flex h-8 w-8 items-center justify-center" data-testid="parts.list.card.shopping-list-indicator.loading">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div
+        className="group relative flex h-8 w-8 items-center justify-center"
+        data-testid="parts.list.card.shopping-list-indicator.error"
+        onClick={(event) => event.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <AlertTriangle className="h-4 w-4 text-destructive" />
+        <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden w-52 rounded-md border border-destructive/50 bg-background p-2 text-xs text-destructive shadow-lg group-hover:block">
+          Failed to load shopping list data.
+        </div>
+      </div>
+    );
+  }
+
+  if (!summary || !summary.hasActiveMembership) {
+    if (isRefetching) {
+      return (
+        <div className="flex h-8 w-8 items-center justify-center" data-testid="parts.list.card.shopping-list-indicator.loading">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        </div>
+      );
+    }
+    return null;
+  }
+
+  return (
+    <div
+      className="group relative flex h-8 w-8 items-center justify-center"
+      data-testid="parts.list.card.shopping-list-indicator"
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      tabIndex={0}
+      role="button"
+      aria-label={`Part appears on ${summary.activeCount} shopping ${summary.activeCount === 1 ? 'list' : 'lists'}`}
+    >
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary transition group-hover:bg-primary/20">
+        <ShoppingCart className="h-4 w-4" />
+      </div>
+      <div
+        className="pointer-events-auto absolute right-0 top-full z-50 mt-2 hidden w-64 rounded-md border border-input bg-background p-3 text-sm shadow-lg group-hover:block group-focus-within:block"
+        data-testid="parts.list.card.shopping-list-indicator.tooltip"
+      >
+        <p className="mb-2 text-xs font-medium text-muted-foreground">On shopping lists</p>
+        <ul className="space-y-1">
+          {summary.memberships.map((membership) => (
+            <li key={membership.listId}>
+              <Link
+                to="/shopping-lists/$listId"
+                params={{ listId: String(membership.listId) }}
+                search={{ sort: 'description' }}
+                className="flex items-center justify-between gap-2 truncate text-sm hover:text-primary"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <span className="truncate">{membership.listName}</span>
+                <Badge
+                  variant={membership.listStatus === 'ready' ? 'default' : 'secondary'}
+                  className="shrink-0 capitalize"
+                >
+                  {membership.listStatus}
+                </Badge>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }

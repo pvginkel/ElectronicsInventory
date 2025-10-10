@@ -3146,6 +3146,221 @@
         "title": "PartShoppingListMembershipCreateSchema",
         "type": "object"
       },
+      "PartShoppingListMembershipQueryRequestSchema.d085feb": {
+        "description": "Schema for querying shopping list memberships for multiple parts.",
+        "properties": {
+          "include_done": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "Include DONE list and line statuses when true",
+            "title": "Include Done"
+          },
+          "part_keys": {
+            "description": "Ordered collection of part keys to resolve",
+            "example": [
+              "ABCD",
+              "EFGH"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Part Keys",
+            "type": "array"
+          }
+        },
+        "required": [
+          "part_keys"
+        ],
+        "title": "PartShoppingListMembershipQueryRequestSchema",
+        "type": "object"
+      },
+      "PartShoppingListMembershipQueryResponseSchema.d085feb": {
+        "description": "Bulk response schema for shopping list membership lookups.",
+        "properties": {
+          "memberships": {
+            "description": "Memberships grouped by requested part key order",
+            "items": {
+              "$ref": "#/components/schemas/PartShoppingListMembershipQueryResponseSchema.d085feb.PartShoppingListMembershipQueryItemSchema"
+            },
+            "title": "Memberships",
+            "type": "array"
+          }
+        },
+        "title": "PartShoppingListMembershipQueryResponseSchema",
+        "type": "object"
+      },
+      "PartShoppingListMembershipQueryResponseSchema.d085feb.PartShoppingListMembershipQueryItemSchema": {
+        "description": "Schema encapsulating memberships for a single part within a bulk response.",
+        "properties": {
+          "memberships": {
+            "description": "Memberships associated with the part key",
+            "items": {
+              "$ref": "#/components/schemas/PartShoppingListMembershipQueryResponseSchema.d085feb.PartShoppingListMembershipSchema"
+            },
+            "title": "Memberships",
+            "type": "array"
+          },
+          "part_key": {
+            "description": "Requested part key",
+            "example": "ABCD",
+            "title": "Part Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "part_key"
+        ],
+        "title": "PartShoppingListMembershipQueryItemSchema",
+        "type": "object"
+      },
+      "PartShoppingListMembershipQueryResponseSchema.d085feb.PartShoppingListMembershipSchema": {
+        "description": "Schema describing an active shopping list membership for a part.",
+        "properties": {
+          "line_id": {
+            "description": "Identifier of the shopping list line",
+            "example": 17,
+            "title": "Line Id",
+            "type": "integer"
+          },
+          "line_status": {
+            "$ref": "#/components/schemas/PartShoppingListMembershipQueryResponseSchema.d085feb.ShoppingListLineStatus",
+            "description": "Workflow status of the shopping list line",
+            "example": "new"
+          },
+          "needed": {
+            "description": "Quantity required on the shopping list",
+            "example": 5,
+            "title": "Needed",
+            "type": "integer"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional note attached to the shopping list line",
+            "example": "Grab extras if on sale",
+            "title": "Note"
+          },
+          "ordered": {
+            "description": "Quantity that has been ordered",
+            "example": 0,
+            "title": "Ordered",
+            "type": "integer"
+          },
+          "received": {
+            "description": "Quantity received so far",
+            "example": 0,
+            "title": "Received",
+            "type": "integer"
+          },
+          "seller": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PartShoppingListMembershipQueryResponseSchema.d085feb.SellerListSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Seller override or default seller context for the line"
+          },
+          "shopping_list_id": {
+            "description": "Identifier of the shopping list containing the part",
+            "example": 3,
+            "title": "Shopping List Id",
+            "type": "integer"
+          },
+          "shopping_list_name": {
+            "description": "Name of the shopping list",
+            "example": "Workbench Restock",
+            "title": "Shopping List Name",
+            "type": "string"
+          },
+          "shopping_list_status": {
+            "$ref": "#/components/schemas/PartShoppingListMembershipQueryResponseSchema.d085feb.ShoppingListStatus",
+            "description": "Workflow status of the parent shopping list",
+            "example": "concept"
+          }
+        },
+        "required": [
+          "shopping_list_id",
+          "shopping_list_name",
+          "shopping_list_status",
+          "line_id",
+          "line_status",
+          "needed",
+          "ordered",
+          "received"
+        ],
+        "title": "PartShoppingListMembershipSchema",
+        "type": "object"
+      },
+      "PartShoppingListMembershipQueryResponseSchema.d085feb.SellerListSchema": {
+        "description": "Lightweight schema for seller dropdowns and listings.",
+        "properties": {
+          "id": {
+            "description": "Unique seller ID",
+            "example": 1,
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Seller name",
+            "example": "DigiKey",
+            "title": "Name",
+            "type": "string"
+          },
+          "website": {
+            "description": "Seller website URL",
+            "example": "https://www.digikey.com",
+            "title": "Website",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "website"
+        ],
+        "title": "SellerListSchema",
+        "type": "object"
+      },
+      "PartShoppingListMembershipQueryResponseSchema.d085feb.ShoppingListLineStatus": {
+        "description": "Lifecycle states for an individual shopping list line.",
+        "enum": [
+          "new",
+          "ordered",
+          "done"
+        ],
+        "title": "ShoppingListLineStatus",
+        "type": "string"
+      },
+      "PartShoppingListMembershipQueryResponseSchema.d085feb.ShoppingListStatus": {
+        "description": "Possible lifecycle states for a shopping list.",
+        "enum": [
+          "concept",
+          "ready",
+          "done"
+        ],
+        "title": "ShoppingListStatus",
+        "type": "string"
+      },
       "PartShoppingListMembershipSchema.d085feb": {
         "description": "Schema describing an active shopping list membership for a part.",
         "properties": {
@@ -8512,6 +8727,57 @@
           }
         },
         "summary": "Copy an individual attachment from one part to another.",
+        "tags": []
+      }
+    },
+    "/api/parts/shopping-list-memberships/query": {
+      "post": {
+        "description": "",
+        "operationId": "post__api_parts_shopping-list-memberships_query",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartShoppingListMembershipQueryRequestSchema.d085feb"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartShoppingListMembershipQueryResponseSchema.d085feb"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Bulk lookup of shopping list memberships for multiple parts.",
         "tags": []
       }
     },
