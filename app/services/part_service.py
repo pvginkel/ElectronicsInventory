@@ -2,6 +2,7 @@
 
 import random
 import string
+from collections.abc import Sequence
 
 from sqlalchemy import func, select
 
@@ -83,6 +84,21 @@ class PartService(BaseService):
         if not part:
             raise RecordNotFoundException("Part", part_key)
         return part
+
+    def get_part_ids_by_keys(self, part_keys: Sequence[str]) -> list[tuple[str, int]]:
+        """Resolve part keys to IDs while preserving the provided order."""
+        if not part_keys:
+            return []
+
+        stmt = select(Part.key, Part.id).where(Part.key.in_(part_keys))
+        rows = list(self.db.execute(stmt).tuples().all())
+        key_to_id: dict[str, int] = dict(rows)
+
+        for requested_key in part_keys:
+            if requested_key not in key_to_id:
+                raise RecordNotFoundException("Part", requested_key)
+
+        return [(requested_key, key_to_id[requested_key]) for requested_key in part_keys]
 
     def get_parts_list(self, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list[Part]:
         """List parts with pagination, ordered by creation date."""

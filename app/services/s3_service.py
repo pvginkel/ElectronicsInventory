@@ -6,10 +6,9 @@ from typing import BinaryIO
 
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
-from sqlalchemy.orm import Session
-
 from mypy_boto3_s3.client import S3Client
 from mypy_boto3_s3.type_defs import CopySourceTypeDef
+from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.exceptions import InvalidOperationException

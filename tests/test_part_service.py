@@ -470,3 +470,33 @@ class TestPartService:
             assert "SOIC-16" in repr_str2
             assert "3.3V" in repr_str2
             assert "16-pin" in repr_str2
+
+    def test_get_part_ids_by_keys_preserves_order(self, app: Flask, session: Session, container: ServiceContainer):
+        """Part key resolution should preserve caller ordering."""
+        with app.app_context():
+            part_service = container.part_service()
+            first_part = part_service.create_part("First part")
+            second_part = part_service.create_part("Second part")
+            session.commit()
+
+            keys = [second_part.key, first_part.key]
+            resolved = part_service.get_part_ids_by_keys(keys)
+
+            assert resolved == [
+                (second_part.key, second_part.id),
+                (first_part.key, first_part.id),
+            ]
+
+    def test_get_part_ids_by_keys_missing_key(self, app: Flask, session: Session, container: ServiceContainer):
+        """Resolve should raise when any requested key is unknown."""
+        with app.app_context():
+            part_service = container.part_service()
+            part = part_service.create_part("Existing part")
+            session.commit()
+
+            unknown_key = "ZZZZ"
+            if part.key == unknown_key:
+                unknown_key = "YYYY"
+
+            with pytest.raises(RecordNotFoundException, match=f"Part {unknown_key} was not found"):
+                part_service.get_part_ids_by_keys([part.key, unknown_key])

@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 from app import create_app
 from app.config import Settings
 from app.database import upgrade_database
-from app.extensions import db
 from app.services.container import ServiceContainer
 
 
