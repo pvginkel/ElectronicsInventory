@@ -125,6 +125,10 @@ function ShoppingListDetailRoute() {
       duplicate: duplicateNotice ? 'present' : 'none',
     }),
     getErrorMetadata,
+    getAbortedMetadata: () => ({
+      ...getReadyMetadata(sortKey),
+      duplicate: duplicateNotice ? 'present' : 'none',
+    }),
   });
 
   const handleSortChange = useCallback((nextSort: ShoppingListLineSortKey) => {
@@ -236,7 +240,11 @@ function ShoppingListDetailRoute() {
         lineId: target.id,
         orderedQuantity: quantity,
       });
-      showSuccess(`Marked ${target.part.description} Ordered`);
+      if (quantity > 0) {
+        showSuccess(`Marked ${target.part.description} Ordered`);
+      } else {
+        showSuccess(`Cleared ordered quantity for ${target.part.description}`);
+      }
       setHighlightedLineId(target.id);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update ordered quantity';

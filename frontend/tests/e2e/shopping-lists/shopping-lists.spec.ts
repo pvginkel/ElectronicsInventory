@@ -33,7 +33,6 @@ test.describe('Shopping Lists', () => {
     const list = await testData.shoppingLists.create({ name: testData.shoppingLists.randomName('Concept Line EU') });
 
     await shoppingLists.gotoConcept(list.id);
-
     await shoppingLists.addConceptLine({
       partSearch: part.key,
       needed: 3,
@@ -102,7 +101,6 @@ test.describe('Shopping Lists', () => {
         { partKey: partA.key, needed: 2, note: 'First entry' },
       ],
     });
-
     await shoppingLists.gotoConcept(list.id);
 
     const firstRow = () => shoppingLists.conceptTable.locator('tbody tr').first();
@@ -162,6 +160,7 @@ test('renders ready view groups and persists seller notes', async ({ shoppingLis
     await expectConsoleError(shoppingLists.playwrightPage, /Outdated Optimize Dep/);
     await shoppingLists.markReady();
     await toastHelper.expectSuccessToast(/ready/i);
+    await toastHelper.waitForToastsToDisappear();
     await shoppingLists.waitForReadyView();
 
     await expect(shoppingLists.readyGroupBySeller(sellerA.name)).toBeVisible();
@@ -193,6 +192,13 @@ test('renders ready view groups and persists seller notes', async ({ shoppingLis
       console.error('Captured form events:', JSON.stringify(formEvents, null, 2));
       throw error;
     });
+    await testEvents.waitForEvent(event =>
+      event.kind === 'toast' &&
+      'message' in event &&
+      typeof event.message === 'string' &&
+      event.message.includes('order note'),
+      { timeout: 15000 }
+    );
     await toastHelper.expectSuccessToast(/saved order note/i);
 
     await shoppingLists.gotoReady(list.id);
@@ -220,6 +226,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     await expectConsoleError(shoppingLists.playwrightPage, /Outdated Optimize Dep/);
     await shoppingLists.markReady();
     await toastHelper.expectSuccessToast(/ready/i);
+    await toastHelper.waitForToastsToDisappear();
     await shoppingLists.waitForReadyView();
 
     const lineSubmit = testEvents.waitForEvent(event =>
@@ -242,6 +249,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
       throw error;
     });
     await toastHelper.expectSuccessToast(/marked .* ordered/i);
+    await toastHelper.waitForToastsToDisappear();
 
     const row = shoppingLists.readyLineRow(part.description);
     await expect(row.getByTestId(/status$/)).toContainText(/ordered/i);
@@ -267,7 +275,15 @@ test('marks individual lines ordered and enforces back to concept guard', async 
       console.error('Captured form events during revert:', JSON.stringify(formEvents, null, 2));
       throw error;
     });
-    await toastHelper.expectSuccessToast(/marked .* ordered/i);
+    await testEvents.waitForEvent(event =>
+      event.kind === 'toast' &&
+      'message' in event &&
+      typeof event.message === 'string' &&
+      event.message.includes('ordered quantity'),
+      { timeout: 15000 }
+    );
+    await toastHelper.expectSuccessToast(/cleared ordered quantity/i);
+    await toastHelper.waitForToastsToDisappear();
 
     await expect(shoppingLists.readyRoot).toBeVisible();
     await shoppingLists.gotoReady(list.id);
@@ -301,6 +317,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     // Reassign partTwo to the secondary seller while lines are still new
     await shoppingLists.editReadyLine(partTwo.description, { sellerName: sellerSecondary.name });
     await toastHelper.expectSuccessToast(/updated line/i);
+    await toastHelper.waitForToastsToDisappear();
     await expect(shoppingLists.readyGroupBySeller(sellerSecondary.name)).toBeVisible();
     await expect(shoppingLists.readyLineRow(partTwo.description)).toBeVisible();
 
@@ -322,6 +339,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     await groupSubmit;
     await groupSuccess;
     await toastHelper.expectSuccessToast(/marked \d+ lines ordered/i);
+    await toastHelper.waitForToastsToDisappear();
 
     for (const lineItem of primaryLines) {
       const row = shoppingLists.readyLineRow(lineItem.part.description);

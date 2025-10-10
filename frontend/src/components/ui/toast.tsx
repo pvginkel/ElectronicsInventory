@@ -43,6 +43,9 @@ const ToastComponent = React.forwardRef<
       ref={ref}
       {...props}
       duration={toast.duration || 5000}
+      role="status"
+      aria-live="polite"
+      data-toast-type={toast.type}
       onOpenChange={(open) => {
         if (!open) {
           onRemove(toast.id)

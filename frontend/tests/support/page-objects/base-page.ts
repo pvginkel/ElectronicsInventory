@@ -161,7 +161,7 @@ export class BasePage {
    * @returns The toast element
    */
   async waitForToast(options?: { timeout?: number }): Promise<Locator> {
-    const toast = this.page.getByRole('status');
+    const toast = this.page.getByTestId('app-shell.toast.item').first();
     await toast.waitFor({ state: 'visible', ...options });
     return toast;
   }
@@ -180,7 +180,7 @@ export class BasePage {
    * Dismisses a toast notification
    */
   async dismissToast(): Promise<void> {
-    const closeButton = this.page.locator('[role="status"] button[aria-label="Close"]');
+    const closeButton = this.page.locator('[data-testid="app-shell.toast.item"] button[aria-label="Close"]');
     if (await closeButton.isVisible()) {
       await closeButton.click();
     }

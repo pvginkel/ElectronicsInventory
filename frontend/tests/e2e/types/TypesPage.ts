@@ -89,7 +89,7 @@ export class TypesPage {
   }
 
   toast(text?: string | RegExp): Locator {
-    const toast = this.page.getByRole('status');
+    const toast = this.page.getByTestId('app-shell.toast.item').first();
     return text ? toast.filter({ hasText: text }) : toast;
   }
 

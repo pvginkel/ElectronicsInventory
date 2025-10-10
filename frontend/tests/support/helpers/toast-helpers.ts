@@ -29,10 +29,7 @@ export class ToastHelper {
    * @returns Locator for the toast container
    */
   private getToastContainer(): Locator {
-    return this.page
-      .locator('[role="status"]')
-      .filter({ hasText: /\S/ })
-      .first();
+    return this.page.locator('[data-testid="app-shell.toast.item"]').first();
   }
 
   /**
@@ -40,7 +37,7 @@ export class ToastHelper {
    * @returns Locator for all toasts
    */
   private getAllToasts(): Locator {
-    return this.page.locator('[role="status"]');
+    return this.page.locator('[data-testid="app-shell.toast.item"]');
   }
 
   /**
@@ -64,9 +61,14 @@ export class ToastHelper {
     text: string | RegExp,
     options?: { timeout?: number }
   ): Promise<Locator> {
-    const toast = await this.waitForToast(options);
-    await expect(toast).toContainText(text, options);
-    return toast;
+    const matchingToast = this.page
+      .locator('[data-testid="app-shell.toast.item"]')
+      .filter({ hasText: text });
+
+    const target = matchingToast.first();
+    await target.waitFor({ state: 'visible', ...(options ?? {}) });
+    await expect(target).toContainText(text, options);
+    return target;
   }
 
   /**
@@ -110,13 +112,13 @@ export class ToastHelper {
       const count = await toasts.count();
 
       for (let i = 0; i < count; i++) {
-        const closeButton = toasts.nth(i).locator('button[aria-label="Close"]');
+      const closeButton = toasts.nth(i).locator('button[aria-label="Close"]');
         if (await closeButton.isVisible()) {
           await closeButton.click();
         }
       }
     } else {
-      const closeButton = this.page.locator('[role="status"] button[aria-label="Close"]').first();
+      const closeButton = this.page.locator('[data-testid="app-shell.toast.item"] button[aria-label="Close"]').first();
       if (await closeButton.isVisible()) {
         await closeButton.click();
       }
@@ -272,7 +274,7 @@ export class ToastHelper {
    * @returns True if visible, false otherwise
    */
   async isToastVisible(text: string | RegExp): Promise<boolean> {
-    const toast = this.page.locator('[role="status"]').filter({ hasText: text });
+    const toast = this.page.locator('[data-testid="app-shell.toast.item"]').filter({ hasText: text });
     return toast.isVisible();
   }
 
