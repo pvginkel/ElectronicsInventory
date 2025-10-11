@@ -1,3 +1,5 @@
+Incomplete. Do not yet pick up.
+
 - [ ] The whole card needs to be clickable. The delete button can move into the detail view, next to Edit Details.
 - [ ] Edit and delete actions on lines must become icons on the line itself.
 - [ ] Update Stock button is too small. The text wraps into two lines.
