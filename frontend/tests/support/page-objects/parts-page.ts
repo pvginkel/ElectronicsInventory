@@ -176,11 +176,7 @@ export class PartsPage extends BasePage {
   }
 
   get overflowMenuButton(): Locator {
-    return this.page
-      .getByTestId('parts.detail')
-      .locator('div.flex.space-x-2')
-      .locator('button')
-      .last();
+    return this.page.getByTestId('parts.detail.actions.menu');
   }
 
   async duplicateCurrentPart(): Promise<void> {

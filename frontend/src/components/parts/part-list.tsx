@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
@@ -44,6 +44,7 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
   const [showLoading, setShowLoading] = useState(
     partsLoading || partsFetching || typesLoading || typesFetching
   );
+  const hideLoadingTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     queryClient.invalidateQueries({ queryKey: ['getPartsWithLocations'] });
@@ -52,11 +53,25 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
 
   useEffect(() => {
     if (partsLoading || typesLoading || partsFetching || typesFetching) {
+      if (hideLoadingTimeoutRef.current) {
+        window.clearTimeout(hideLoadingTimeoutRef.current);
+        hideLoadingTimeoutRef.current = null;
+      }
       setShowLoading(true);
       return;
     }
 
-    setShowLoading(false);
+    hideLoadingTimeoutRef.current = window.setTimeout(() => {
+      setShowLoading(false);
+      hideLoadingTimeoutRef.current = null;
+    }, 200);
+
+    return () => {
+      if (hideLoadingTimeoutRef.current) {
+        window.clearTimeout(hideLoadingTimeoutRef.current);
+        hideLoadingTimeoutRef.current = null;
+      }
+    };
   }, [partsFetching, partsLoading, typesFetching, typesLoading]);
 
   const combinedError = partsError ?? typesError;

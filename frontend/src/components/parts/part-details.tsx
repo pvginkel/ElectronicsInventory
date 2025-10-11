@@ -222,7 +222,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline">
+                <Button variant="outline" data-testid="parts.detail.actions.menu">
                   <MoreVerticalIcon className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
