@@ -101,17 +101,19 @@ export function PartDetails({ partId }: PartDetailsProps) {
     };
   }, [part]);
 
+  const memberships = membershipQuery.summary.memberships;
+
   const activeMemberships = useMemo(() => {
     const seen = new Set<number>();
-    const unique = [] as typeof membershipQuery.summary.memberships;
-    for (const membership of membershipQuery.summary.memberships) {
+    const unique = [] as typeof memberships;
+    for (const membership of memberships) {
       if (!seen.has(membership.listId)) {
         seen.add(membership.listId);
         unique.push(membership);
       }
     }
     return unique;
-  }, [membershipQuery.summary.memberships]);
+  }, [memberships]);
 
   const isMembershipPending = membershipQuery.status === 'pending';
   const isMembershipFetching = membershipQuery.fetchStatus === 'fetching';

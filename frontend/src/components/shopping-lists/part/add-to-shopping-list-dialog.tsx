@@ -205,31 +205,49 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
 
   instrumentationRef.current = instrumentation;
 
+  const conceptListCount = conceptLists.length;
+  const firstConceptListId = conceptLists[0]?.id ?? null;
+  const defaultSellerId = part.defaultSellerId ?? null;
+
   const isMutating = form.isSubmitting || createListMutation.isPending || createLineMutation.isPending;
 
-  const initializationRef = useRef<{ conceptCount: number; defaultNeeded: number; sellerId: number | null } | null>(null);
+  const initializationRef = useRef<{
+    conceptCount: number;
+    defaultNeeded: number;
+    sellerId: number | null;
+    firstConceptId: number | null;
+  } | null>(null);
+
+  const formApiRef = useRef(form);
+  useEffect(() => {
+    formApiRef.current = form;
+  }, [form]);
 
   useEffect(() => {
+    const formApi = formApiRef.current;
+
     if (!open) {
       initializationRef.current = null;
-      form.reset();
-      setCreateNewList(conceptLists.length === 0);
+      formApi.reset();
+      setCreateNewList(conceptListCount === 0);
       setConflictError(null);
       return;
     }
 
     const previous = initializationRef.current;
     const currentSignature = {
-      conceptCount: conceptLists.length,
+      conceptCount: conceptListCount,
       defaultNeeded,
-      sellerId: part.defaultSellerId ?? null,
+      sellerId: defaultSellerId,
+      firstConceptId: firstConceptListId,
     };
 
     if (
       previous &&
       previous.conceptCount === currentSignature.conceptCount &&
       previous.defaultNeeded === currentSignature.defaultNeeded &&
-      previous.sellerId === currentSignature.sellerId
+      previous.sellerId === currentSignature.sellerId &&
+      previous.firstConceptId === currentSignature.firstConceptId
     ) {
       return;
     }
@@ -237,17 +255,17 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
     initializationRef.current = currentSignature;
     setConflictError(null);
 
-    if (conceptLists.length === 0) {
+    if (conceptListCount === 0) {
       setCreateNewList(true);
-      form.setValue('listId', '');
+      formApi.setValue('listId', '');
     } else {
       setCreateNewList(false);
-      form.setValue('listId', String(conceptLists[0].id));
+      formApi.setValue('listId', firstConceptListId !== null ? String(firstConceptListId) : '');
     }
 
-    form.setValue('needed', String(defaultNeeded));
-    form.setValue('sellerId', part.defaultSellerId ?? undefined);
-  }, [open, conceptLists.length, defaultNeeded, part.defaultSellerId]);
+    formApi.setValue('needed', String(defaultNeeded));
+    formApi.setValue('sellerId', defaultSellerId ?? undefined);
+  }, [conceptListCount, defaultSellerId, defaultNeeded, firstConceptListId, open]);
 
   const handleToggleCreateNew = (next: boolean) => {
     setCreateNewList(next);

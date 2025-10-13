@@ -1,16 +1,10 @@
-import { createContext, useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { getDeploymentRequestId } from '@/lib/config/sse-request-id'
 import { isTestMode } from '@/lib/config/test-mode'
 import { useVersionSSE } from '../hooks/use-version-sse'
-
-export interface DeploymentContextValue {
-  isNewVersionAvailable: boolean
-  currentVersion: string | null
-  deploymentRequestId: string
-  checkForUpdates: () => void
-  reloadApp: () => void
-}
+import { DeploymentContext } from './deployment-context-base'
+import type { DeploymentContextValue } from './deployment-context-base'
 
 type DeploymentBridge = {
   connect: (requestId?: string) => void
@@ -18,8 +12,6 @@ type DeploymentBridge = {
   getStatus: () => { isConnected: boolean; requestId: string | null }
   getRequestId: () => string | null
 }
-
-export const DeploymentContext = createContext<DeploymentContextValue | undefined>(undefined)
 
 interface DeploymentProviderProps {
   children: ReactNode

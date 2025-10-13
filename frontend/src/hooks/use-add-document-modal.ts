@@ -28,14 +28,14 @@ export function useAddDocumentModal(partId: string) {
     clearDocument();
     setUploadProgress(0);
     clearPreview();
-  }, [clearPreview]);
+  }, [clearDocument, clearPreview]);
 
   const closeModal = useCallback(() => {
     setIsOpen(false);
     clearDocument();
     setUploadProgress(0);
     clearPreview();
-  }, [clearPreview]);
+  }, [clearDocument, clearPreview]);
 
   const handleUrlChange = useCallback(async (url: string) => {
     const trimmedUrl = url.trim();

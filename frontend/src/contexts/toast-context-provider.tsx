@@ -1,21 +1,11 @@
-import { createContext, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Toast, ToastType } from '@/components/ui/toast'
 import { ToastContainer } from '@/components/ui/toast'
 import { isTestMode } from '@/lib/config/test-mode'
 import { createInstrumentedToastWrapper } from '@/lib/test/toast-instrumentation'
-
-interface ToastContextValue {
-  showToast: (message: string, type: ToastType, duration?: number) => void
-  showError: (message: string, duration?: number) => void
-  showSuccess: (message: string, duration?: number) => void
-  showWarning: (message: string, duration?: number) => void
-  showInfo: (message: string, duration?: number) => void
-  showException: (message: string, error: unknown, duration?: number) => void
-  removeToast: (id: string) => void
-}
-
-export const ToastContext = createContext<ToastContextValue | undefined>(undefined)
+import { ToastContext } from './toast-context-base'
+import type { ToastContextValue } from './toast-context-base'
 
 interface ToastProviderProps {
   children: ReactNode
