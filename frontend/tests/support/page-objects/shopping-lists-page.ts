@@ -1,15 +1,17 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { BasePage } from './base-page';
-import { waitForListLoading } from '../helpers';
+import { waitForListLoading, waitForUiState } from '../helpers';
 import { SellerSelectorHarness } from './seller-selector-harness';
 
 export class ShoppingListsPage extends BasePage {
   readonly overviewRoot: Locator;
   readonly overviewSearch: Locator;
   readonly overviewCreateButton: Locator;
+  readonly overviewDoneToggle: Locator;
   readonly conceptRoot: Locator;
   readonly conceptTable: Locator;
   readonly readyRoot: Locator;
+  readonly readyToolbar: Locator;
   readonly updateStockDialog: Locator;
   readonly updateStockForm: Locator;
 
@@ -18,9 +20,11 @@ export class ShoppingListsPage extends BasePage {
     this.overviewRoot = page.getByTestId('shopping-lists.overview');
     this.overviewSearch = page.getByTestId('shopping-lists.overview.search');
     this.overviewCreateButton = page.getByTestId('shopping-lists.overview.create');
+    this.overviewDoneToggle = page.getByTestId('shopping-lists.overview.done.toggle');
     this.conceptRoot = page.getByTestId('shopping-lists.concept.page');
     this.conceptTable = page.getByTestId('shopping-lists.concept.table');
     this.readyRoot = page.getByTestId('shopping-lists.ready.page');
+    this.readyToolbar = page.getByTestId('shopping-lists.ready.toolbar');
     this.updateStockDialog = page.getByTestId('shopping-lists.ready.update-stock.dialog');
     this.updateStockForm = page.getByTestId('shopping-lists.ready.update-stock.form');
   }
@@ -33,6 +37,10 @@ export class ShoppingListsPage extends BasePage {
 
   async waitForOverviewReady(): Promise<void> {
     await waitForListLoading(this.page, 'shoppingLists.overview', 'ready');
+  }
+
+  async waitForOverviewFiltersReady() {
+    return waitForUiState(this.page, 'shoppingLists.overview.filters', 'ready');
   }
 
   overviewCardByName(name: string | RegExp): Locator {
@@ -71,6 +79,18 @@ export class ShoppingListsPage extends BasePage {
     await expect(card).toBeVisible();
     await card.getByRole('button', { name: /open list/i }).click();
     await this.waitForConceptReady();
+  }
+
+  async markListDoneFromOverview(name: string | RegExp): Promise<void> {
+    const card = this.overviewCardByName(name);
+    await expect(card).toBeVisible();
+    const markDoneButton = card.getByTestId(/mark-done$/);
+    await expect(markDoneButton).toBeVisible();
+    await markDoneButton.click();
+
+    const confirmDialog = this.page.getByTestId('shopping-lists.overview.archive-dialog');
+    await expect(confirmDialog).toBeVisible();
+    await confirmDialog.getByRole('button', { name: /mark done/i }).click();
   }
 
   async gotoConcept(listId: number): Promise<void> {
@@ -126,6 +146,34 @@ export class ShoppingListsPage extends BasePage {
 
   readyLineStatusCell(part: string | RegExp): Locator {
     return this.readyLineRow(part).getByTestId(/\.status$/);
+  }
+
+  readyGroupTotals(seller: string | RegExp): { needed: Locator; ordered: Locator; received: Locator } {
+    const card = this.readyGroupBySeller(seller);
+    return {
+      needed: card.getByTestId(/totals\.needed$/),
+      ordered: card.getByTestId(/totals\.ordered$/),
+      received: card.getByTestId(/totals\.received$/),
+    };
+  }
+
+  readyGroupFilterNote(seller: string | RegExp): Locator {
+    const card = this.readyGroupBySeller(seller);
+    return card.getByTestId('shopping-lists.ready.group.filter-note');
+  }
+
+  get readyMarkDoneButton(): Locator {
+    return this.page.getByTestId('shopping-lists.ready.toolbar.mark-done');
+  }
+
+  async markListDoneFromReady(): Promise<void> {
+    const markDoneButton = this.readyMarkDoneButton;
+    await expect(markDoneButton).toBeVisible();
+    await markDoneButton.click();
+
+    const confirmDialog = this.page.getByTestId('shopping-lists.ready.archive-dialog');
+    await expect(confirmDialog).toBeVisible();
+    await confirmDialog.getByRole('button', { name: /mark done/i }).click();
   }
 
   async addConceptLine(options: {

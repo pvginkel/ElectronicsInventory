@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { useFormState } from '@/hooks/use-form-state';
 import { useFormInstrumentation } from '@/hooks/use-form-instrumentation';
-import { useUpdateSellerOrderNoteMutation } from '@/hooks/use-shopping-lists';
+import { summarizeSellerGroupVisibility, useUpdateSellerOrderNoteMutation } from '@/hooks/use-shopping-lists';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { ShoppingListConceptLine, ShoppingListSellerGroup } from '@/types/shopping-lists';
@@ -39,6 +39,9 @@ export function SellerGroupCard({
 }: SellerGroupCardProps) {
   const { showSuccess, showException } = useToast();
   const updateNoteMutation = useUpdateSellerOrderNoteMutation();
+  const visibility = useMemo(() => summarizeSellerGroupVisibility(group), [group]);
+  const { visibleTotals, filteredDiff } = visibility;
+  const showFilterNote = filteredDiff > 0;
 
   const canEditNote = group.sellerId != null;
   const initialNote = useMemo(() => group.orderNote ?? '', [group.orderNote]);
@@ -148,15 +151,21 @@ export function SellerGroupCard({
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           <div className="flex flex-col text-right">
             <span className="text-xs uppercase tracking-wide">Needed</span>
-            <span className="font-semibold text-foreground">{group.totals.needed}</span>
+            <span className="font-semibold text-foreground" data-testid={`shopping-lists.ready.group.${group.groupKey}.totals.needed`}>
+              {visibleTotals.needed}
+            </span>
           </div>
           <div className="flex flex-col text-right">
             <span className="text-xs uppercase tracking-wide">Ordered</span>
-            <span className="font-semibold text-foreground">{group.totals.ordered}</span>
+            <span className="font-semibold text-foreground" data-testid={`shopping-lists.ready.group.${group.groupKey}.totals.ordered`}>
+              {visibleTotals.ordered}
+            </span>
           </div>
           <div className="flex flex-col text-right">
             <span className="text-xs uppercase tracking-wide">Received</span>
-            <span className="font-semibold text-foreground">{group.totals.received}</span>
+            <span className="font-semibold text-foreground" data-testid={`shopping-lists.ready.group.${group.groupKey}.totals.received`}>
+              {visibleTotals.received}
+            </span>
           </div>
           <Button
             variant="secondary"
@@ -168,6 +177,14 @@ export function SellerGroupCard({
             Mark group as Ordered
           </Button>
         </div>
+        {showFilterNote && (
+          <div
+            className="w-full text-right text-xs text-muted-foreground"
+            data-testid="shopping-lists.ready.group.filter-note"
+          >
+            Showing filtered totals; original: {filteredDiff} more
+          </div>
+        )}
       </div>
 
       {canEditNote && (

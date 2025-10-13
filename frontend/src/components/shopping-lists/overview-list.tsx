@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,10 +7,11 @@ import { useShoppingListsOverview } from '@/hooks/use-shopping-lists';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { ShoppingListOverviewCard } from './overview-card';
 import { ListCreateDialog } from './list-create-dialog';
-import { useListDeleteConfirm } from './list-delete-confirm';
+import { useListArchiveConfirm, useListDeleteConfirm } from './list-delete-confirm';
 import type { ShoppingListOverviewSummary } from '@/types/shopping-lists';
 import { Route as ShoppingListsRoute } from '@/routes/shopping-lists/index';
 import { Route as ShoppingListDetailRoute } from '@/routes/shopping-lists/$listId';
+import { beginUiState, endUiState } from '@/lib/test/ui-state';
 
 interface ShoppingListsOverviewProps {
   searchTerm: string;
@@ -29,8 +30,12 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
   } = overviewData;
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [showLoading, setShowLoading] = useState(isLoading);
+  const [showDoneSection, setShowDoneSection] = useState(false);
+  const filterUiPendingRef = useRef(false);
+  const hasEmittedInitialFiltersRef = useRef(false);
 
   const { confirmDelete, dialog: deleteDialog, isDeleting } = useListDeleteConfirm();
+  const { confirmArchive, dialog: archiveDialog, isArchiving } = useListArchiveConfirm();
 
   useEffect(() => {
     if (isLoading) {
@@ -56,6 +61,14 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
     });
   }, [lists, searchTerm]);
 
+  const activeLists = useMemo(() => filteredLists.filter((list) => list.status !== 'done'), [filteredLists]);
+  const doneLists = useMemo(() => filteredLists.filter((list) => list.status === 'done'), [filteredLists]);
+  const filtersMetadata = useMemo(() => ({
+    activeCount: activeLists.length,
+    doneCount: doneLists.length,
+    showDoneState: showDoneSection ? 'expanded' : 'collapsed',
+  }), [activeLists.length, doneLists.length, showDoneSection]);
+
   useListLoadingInstrumentation({
     scope: 'shoppingLists.overview',
     isLoading: showLoading,
@@ -65,12 +78,34 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
       ...getReadyMetadata(),
       filtered: filteredLists.length,
       search: searchTerm ? 'active' : 'none',
+      ...filtersMetadata,
     }),
     getErrorMetadata,
     getAbortedMetadata: () => ({
       reason: 'component-unmount',
+      ...getReadyMetadata(),
+      filtered: filteredLists.length,
+      search: searchTerm ? 'active' : 'none',
+      ...filtersMetadata,
     }),
   });
+
+  useEffect(() => {
+    if (showLoading || isFetching) {
+      return;
+    }
+
+    if (!hasEmittedInitialFiltersRef.current) {
+      hasEmittedInitialFiltersRef.current = true;
+      filterUiPendingRef.current = true;
+      beginUiState('shoppingLists.overview.filters');
+    }
+
+    if (filterUiPendingRef.current) {
+      filterUiPendingRef.current = false;
+      endUiState('shoppingLists.overview.filters', filtersMetadata);
+    }
+  }, [filtersMetadata, isFetching, showLoading]);
 
   const handleSearchChange = (value: string) => {
     navigate({
@@ -102,6 +137,22 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
 
   const handleDeleteList = async (list: Parameters<typeof confirmDelete>[0]) => {
     await confirmDelete(list);
+  };
+
+  const handleArchiveList = async (list: ShoppingListOverviewSummary) => {
+    filterUiPendingRef.current = true;
+    beginUiState('shoppingLists.overview.filters');
+    const archived = await confirmArchive(list);
+    if (!archived) {
+      filterUiPendingRef.current = false;
+      endUiState('shoppingLists.overview.filters', filtersMetadata);
+    }
+  };
+
+  const handleToggleDoneSection = () => {
+    filterUiPendingRef.current = true;
+    beginUiState('shoppingLists.overview.filters');
+    setShowDoneSection((previous) => !previous);
   };
 
   if (showLoading) {
@@ -162,6 +213,8 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
   const isFiltered = searchTerm.trim().length > 0;
   const hasLists = lists.length > 0;
   const noMatches = isFiltered && filteredLists.length === 0;
+  const hasActiveLists = activeLists.length > 0;
+  const hasDoneLists = doneLists.length > 0;
 
   return (
     <div className="space-y-6" data-testid="shopping-lists.overview">
@@ -203,14 +256,12 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
       )}
 
       {hasLists && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <div className="flex flex-col gap-2 rounded-md border border-muted/40 bg-muted/20 px-4 py-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
           <span data-testid="shopping-lists.overview.summary">
-            {isFiltered
-              ? `${filteredLists.length} of ${lists.length} concept list${lists.length === 1 ? '' : 's'}`
-              : `${lists.length} concept list${lists.length === 1 ? '' : 's'}`}
+            Active lists ({activeLists.length}) • Done lists ({doneLists.length}){isFiltered ? ` — showing ${filteredLists.length} match${filteredLists.length === 1 ? '' : 'es'}` : ''}
           </span>
           <span data-testid="shopping-lists.overview.status-note">
-            Lists stay in Concept until they are marked Ready.
+            Done lists stay hidden until expanded so the Active section reflects work in flight.
           </span>
         </div>
       )}
@@ -233,16 +284,67 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" data-testid="shopping-lists.overview.grid">
-          {filteredLists.map((list) => (
-            <ShoppingListOverviewCard
-              key={list.id}
-              list={list}
-              onOpen={() => handleOpenList(list.id)}
-              onDelete={() => handleDeleteList(list)}
-              disableActions={isDeleting}
-            />
-          ))}
+        <div className="space-y-8">
+          <section data-testid="shopping-lists.overview.active-section">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-foreground">
+                Active lists ({activeLists.length})
+              </h2>
+            </div>
+            {hasActiveLists ? (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" data-testid="shopping-lists.overview.active-grid">
+                {activeLists.map((list) => (
+                  <ShoppingListOverviewCard
+                    key={list.id}
+                    list={list}
+                    onOpen={() => handleOpenList(list.id)}
+                    onDelete={() => handleDeleteList(list)}
+                    onMarkDone={() => handleArchiveList(list)}
+                    disableActions={isDeleting || isArchiving}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-md border border-dashed border-muted px-4 py-6 text-sm text-muted-foreground" data-testid="shopping-lists.overview.active-empty">
+                No active lists match the current filters.
+              </div>
+            )}
+          </section>
+
+          {hasDoneLists && (
+            <section data-testid="shopping-lists.overview.done-section">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-foreground">
+                  Done lists ({doneLists.length})
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleToggleDoneSection}
+                  data-testid="shopping-lists.overview.done.toggle"
+                >
+                  {showDoneSection ? 'Hide Done lists' : 'Show Done lists'}
+                </Button>
+              </div>
+              {showDoneSection ? (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" data-testid="shopping-lists.overview.done-grid">
+                  {doneLists.map((list) => (
+                    <ShoppingListOverviewCard
+                      key={list.id}
+                      list={list}
+                      onOpen={() => handleOpenList(list.id)}
+                      onDelete={() => handleDeleteList(list)}
+                      disableActions={isDeleting || isArchiving}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-md border border-dashed border-muted px-4 py-6 text-sm text-muted-foreground" data-testid="shopping-lists.overview.done-collapsed">
+                  Done lists are hidden by default. Expand to review archived work.
+                </div>
+              )}
+            </section>
+          )}
         </div>
       )}
 
@@ -253,6 +355,7 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
       />
 
       {deleteDialog}
+      {archiveDialog}
     </div>
   );
 }

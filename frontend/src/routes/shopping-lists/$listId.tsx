@@ -9,6 +9,7 @@ import { OrderLineDialog } from '@/components/shopping-lists/ready/order-line-di
 import { OrderGroupDialog } from '@/components/shopping-lists/ready/order-group-dialog';
 import { UpdateStockDialog } from '@/components/shopping-lists/ready/update-stock-dialog';
 import { ReadyToolbar } from '@/components/shopping-lists/ready/ready-toolbar';
+import { useListArchiveConfirm } from '@/components/shopping-lists/list-delete-confirm';
 import {
   useShoppingListDetail,
   useSortedShoppingListLines,
@@ -100,6 +101,11 @@ function ShoppingListDetailRoute() {
   const [orderGroupState, setOrderGroupState] = useState<OrderGroupState>({ open: false, group: null, trigger: null });
   const [updateStockState, setUpdateStockState] = useState<UpdateStockState>({ open: false, line: null, trigger: null });
   const [pendingLineIds, setPendingLineIds] = useState<Set<number>>(new Set());
+  const {
+    confirmArchive: confirmReadyArchive,
+    dialog: markDoneDialog,
+    isArchiving: isMarkingDone,
+  } = useListArchiveConfirm({ dialogTestId: 'shopping-lists.ready.archive-dialog' });
 
   const updateMetadataMutation = useUpdateShoppingListMutation(normalizedListId);
   const markReadyMutation = useMarkShoppingListReadyMutation();
@@ -438,6 +444,13 @@ function ShoppingListDetailRoute() {
     }
   }, [shoppingList, showException, showSuccess, updateStatusMutation]);
 
+  const handleMarkListDone = useCallback(async () => {
+    if (!shoppingList) {
+      return;
+    }
+    await confirmReadyArchive(shoppingList);
+  }, [confirmReadyArchive, shoppingList]);
+
   const handleOpenUpdateStock = useCallback((line: ShoppingListConceptLine, trigger?: HTMLElement | null) => {
     setUpdateStockState({ open: true, line, trigger: trigger ?? null });
     setHighlightedLineId(line.id);
@@ -445,7 +458,9 @@ function ShoppingListDetailRoute() {
 
   const listLoaded = shoppingList != null;
   const status = shoppingList?.status ?? 'concept';
-  const isReadyView = status === 'ready';
+  const isReadyView = status === 'ready' || status === 'done';
+  const canReturnToConcept = Boolean(shoppingList?.canReturnToConcept);
+  const canMarkListDone = Boolean(shoppingList && shoppingList.status !== 'done' && status !== 'concept');
 
   const nextReceivableLine = useMemo(() => {
     if (!updateStockState.line) {
@@ -502,9 +517,12 @@ function ShoppingListDetailRoute() {
         isUpdating={updateMetadataMutation.isPending}
       />
       <ReadyToolbar
-        canReturnToConcept={Boolean(shoppingList?.canReturnToConcept)}
+        canReturnToConcept={canReturnToConcept}
         onBackToConcept={handleBackToConcept}
-        isUpdating={updateStatusMutation.isPending}
+        isUpdatingBackToConcept={updateStatusMutation.isPending}
+        canMarkDone={canMarkListDone}
+        onMarkDone={handleMarkListDone}
+        isMarkingDone={isMarkingDone}
       />
       <SellerGroupList
         listId={shoppingList?.id ?? normalizedListId}
@@ -564,13 +582,14 @@ function ShoppingListDetailRoute() {
         line={updateStockState.line}
         hasNextLine={Boolean(nextReceivableLine)}
         onClose={handleCloseUpdateStock}
-        onSubmit={handleReceiveSubmit}
-        onMarkDone={handleMarkLineDone}
-        isReceiving={receiveLineMutation.isPending}
-        isCompleting={completeLineMutation.isPending}
-        restoreFocusElement={updateStockState.trigger ?? undefined}
-      />
+      onSubmit={handleReceiveSubmit}
+      onMarkDone={handleMarkLineDone}
+      isReceiving={receiveLineMutation.isPending}
+      isCompleting={completeLineMutation.isPending}
+      restoreFocusElement={updateStockState.trigger ?? undefined}
+    />
 
+      {markDoneDialog}
       <ConfirmDialog {...confirmProps} />
     </>
   );

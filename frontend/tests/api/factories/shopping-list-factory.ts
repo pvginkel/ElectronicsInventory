@@ -151,6 +151,17 @@ export class ShoppingListTestFactory {
     return await this.getListDetail(listId);
   }
 
+  async markDone(listId: number): Promise<ShoppingListResponseSchema> {
+    await apiRequest(() =>
+      this.client.PUT('/api/shopping-lists/{list_id}/status', {
+        params: { path: { list_id: listId } },
+        body: { status: 'done' },
+      })
+    );
+
+    return await this.getListDetail(listId);
+  }
+
   async receiveLine(
     _listId: number,
     lineId: number,

@@ -27,6 +27,13 @@ export interface ShoppingListOverviewSummary extends Record<string, unknown> {
   primarySellerName: string | null;
 }
 
+export interface ShoppingListOverviewCounters extends Record<string, unknown> {
+  total: number;
+  withLines: number;
+  activeCount: number;
+  doneCount: number;
+}
+
 export interface ShoppingListSellerOrderNote {
   sellerId: number;
   sellerName: string;
@@ -52,6 +59,18 @@ export interface ShoppingListSellerGroup extends Record<string, unknown> {
   hasOrderedLines: boolean;
   hasNewLines: boolean;
   hasDoneLines: boolean;
+}
+
+export interface ShoppingListSellerGroupVisibility extends Record<string, unknown> {
+  visibleTotals: ShoppingListSellerGroupTotals;
+  filteredDiff: number;
+}
+
+export interface ShoppingListSellerGroupInstrumentation extends Record<string, unknown> {
+  groupKey: string;
+  totals: ShoppingListSellerGroupTotals;
+  visibleTotals: ShoppingListSellerGroupTotals;
+  filteredDiff: number;
 }
 
 export interface ShoppingListDetail extends ShoppingListOverviewSummary {

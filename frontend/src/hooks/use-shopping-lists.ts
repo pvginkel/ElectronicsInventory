@@ -65,7 +65,11 @@ import {
   type ShoppingListGroupOrderLineInput,
   type ShoppingListMarkReadyInput,
   type ShoppingListOverviewSummary,
+  type ShoppingListOverviewCounters,
   type ShoppingListSellerGroup,
+  type ShoppingListSellerGroupTotals,
+  type ShoppingListSellerGroupVisibility,
+  type ShoppingListSellerGroupInstrumentation,
   type ShoppingListSellerOrderNote,
   type ShoppingListSellerOrderNoteInput,
   type ShoppingListStatus,
@@ -510,6 +514,40 @@ export function sortSellerGroupsForReadyView(
   });
 }
 
+export function summarizeSellerGroupVisibility(group: ShoppingListSellerGroup): ShoppingListSellerGroupVisibility {
+  const visibleTotals = group.lines.reduce<ShoppingListSellerGroupTotals>((accumulator, line) => {
+    return {
+      needed: accumulator.needed + line.needed,
+      ordered: accumulator.ordered + line.ordered,
+      received: accumulator.received + line.received,
+    };
+  }, { needed: 0, ordered: 0, received: 0 });
+
+  const backendTotals = group.totals;
+  const backendSum = backendTotals.needed + backendTotals.ordered + backendTotals.received;
+  const visibleSum = visibleTotals.needed + visibleTotals.ordered + visibleTotals.received;
+  const filteredDiff = Math.max(backendSum - visibleSum, 0);
+
+  return {
+    visibleTotals,
+    filteredDiff,
+  };
+}
+
+export function buildSellerGroupInstrumentation(
+  groups: ShoppingListSellerGroup[]
+): ShoppingListSellerGroupInstrumentation[] {
+  return groups.map((group) => {
+    const visibility = summarizeSellerGroupVisibility(group);
+    return {
+      groupKey: group.groupKey,
+      totals: group.totals,
+      visibleTotals: visibility.visibleTotals,
+      filteredDiff: visibility.filteredDiff,
+    };
+  });
+}
+
 export function flattenReceivableLines(
   groups: ShoppingListSellerGroup[]
 ): ShoppingListConceptLine[] {
@@ -557,11 +595,33 @@ const selectShoppingListDetail = (data?: ShoppingListResponseSchema_46f0cf6): Sh
 export function useShoppingListsOverview() {
   const query = useGetShoppingLists();
   const lists = useMemo<ShoppingListOverviewSummary[]>(() => selectOverviewLists(query.data), [query.data]);
+  const counters = useMemo<ShoppingListOverviewCounters>(() => {
+    let activeCount = 0;
+    let doneCount = 0;
+    let withLines = 0;
+
+    for (const list of lists) {
+      if (list.status === 'done') {
+        doneCount += 1;
+      } else {
+        activeCount += 1;
+      }
+      if (list.hasLines) {
+        withLines += 1;
+      }
+    }
+
+    return {
+      total: lists.length,
+      withLines,
+      activeCount,
+      doneCount,
+    };
+  }, [lists]);
 
   const getReadyMetadata = useCallback(() => ({
-    total: lists.length,
-    withLines: lists.filter(list => list.hasLines).length,
-  }), [lists]);
+    ...counters,
+  }), [counters]);
 
   const getErrorMetadata = useCallback((error: unknown) => ({
     message: error instanceof Error ? error.message : String(error),
@@ -570,6 +630,7 @@ export function useShoppingListsOverview() {
   return {
     ...query,
     lists,
+    overviewCounters: counters,
     getReadyMetadata,
     getErrorMetadata,
   };
@@ -597,15 +658,32 @@ export function useShoppingListDetail(listId: number | string | undefined) {
     return new Map(entries);
   }, [sellerGroups]);
   const duplicateCheck = useMemo(() => buildDuplicateCheck(lines), [lines]);
+  const sellerGroupInstrumentation = useMemo(() => buildSellerGroupInstrumentation(sellerGroups), [sellerGroups]);
+  const aggregatedFilteredDiff = useMemo(() => {
+    return sellerGroupInstrumentation.reduce((total, group) => total + group.filteredDiff, 0);
+  }, [sellerGroupInstrumentation]);
 
-  const getReadyMetadata = useCallback((sortKey: ShoppingListLineSortKey) => ({
-    status: shoppingList?.status ?? 'concept',
-    view: shoppingList?.status ?? 'concept',
-    lineCount: lines.length,
-    groupCount: sellerGroups.length,
-    ordered: shoppingList?.lineCounts.ordered ?? 0,
-    sortKey,
-  }), [lines.length, sellerGroups.length, shoppingList?.lineCounts.ordered, shoppingList?.status]);
+  const getReadyMetadata = useCallback((sortKey: ShoppingListLineSortKey) => {
+    const status = shoppingList?.status ?? 'concept';
+    const view = status === 'ready' || status === 'done' ? 'ready' : status;
+    return {
+      status,
+      view,
+      lineCount: lines.length,
+      groupCount: sellerGroups.length,
+      ordered: shoppingList?.lineCounts.ordered ?? 0,
+      sortKey,
+      groupTotals: sellerGroupInstrumentation,
+      filteredDiff: aggregatedFilteredDiff,
+    };
+  }, [
+    aggregatedFilteredDiff,
+    lines.length,
+    sellerGroupInstrumentation,
+    sellerGroups.length,
+    shoppingList?.lineCounts.ordered,
+    shoppingList?.status,
+  ]);
 
   const getErrorMetadata = useCallback((error: unknown) => ({
     message: error instanceof Error ? error.message : String(error),

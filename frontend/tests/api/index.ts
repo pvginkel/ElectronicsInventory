@@ -89,6 +89,7 @@ export function createTestDataBundle(
       orderLine: shoppingListFactory.orderLine.bind(shoppingListFactory),
       revertLine: shoppingListFactory.revertLine.bind(shoppingListFactory),
       markReady: shoppingListFactory.markReady.bind(shoppingListFactory),
+      markDone: shoppingListFactory.markDone.bind(shoppingListFactory),
       receiveLine: shoppingListFactory.receiveLine.bind(shoppingListFactory),
       completeLine: shoppingListFactory.completeLine.bind(shoppingListFactory),
       randomName: shoppingListFactory.randomListName.bind(shoppingListFactory),

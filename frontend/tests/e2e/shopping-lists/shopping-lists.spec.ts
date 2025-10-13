@@ -27,6 +27,197 @@ test.describe('Shopping Lists', () => {
     await expect(shoppingLists.overviewCardByName(listName)).toHaveCount(0);
   });
 
+  test('marks a ready list without ordered lines as done from the detail view', async ({ shoppingLists, testData, toastHelper }) => {
+    const seller = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
+    const { part } = await testData.parts.create({ overrides: { description: 'Ready mark-done part' } });
+    const listDetail = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: testData.shoppingLists.randomName('Ready Done Flow') },
+      lines: [{ partKey: part.key, needed: 4, sellerId: seller.id }],
+    });
+
+    await testData.shoppingLists.markReady(listDetail.id);
+
+    await shoppingLists.gotoReady(listDetail.id);
+
+    const markDoneSubmit = waitTestEvent<FormTestEvent>(
+      shoppingLists.playwrightPage,
+      'form',
+      event => event.formId === 'ShoppingListStatus:markDone' && event.phase === 'submit',
+    );
+    const markDoneSuccess = waitTestEvent<FormTestEvent>(
+      shoppingLists.playwrightPage,
+      'form',
+      event => event.formId === 'ShoppingListStatus:markDone' && event.phase === 'success',
+    );
+    const listReadyAfterMark = waitForListLoading(
+      shoppingLists.playwrightPage,
+      'shoppingLists.list',
+      'ready',
+    );
+
+    await shoppingLists.markListDoneFromReady();
+
+    const [submitEvent, successEvent, readyEvent] = await Promise.all([
+      markDoneSubmit,
+      markDoneSuccess,
+      listReadyAfterMark,
+    ]);
+
+    expect(submitEvent.metadata).toMatchObject({ status: 'done' });
+    expect(successEvent.metadata).toMatchObject({ status: 'done' });
+    expect(readyEvent.metadata).toMatchObject({ status: 'done', view: 'ready', filteredDiff: 0 });
+    if (!Array.isArray(readyEvent.metadata?.groupTotals)) {
+      throw new Error('Expected groupTotals metadata after marking list done');
+    }
+    for (const group of readyEvent.metadata.groupTotals) {
+      expect(group.visibleTotals).toEqual(group.totals);
+    }
+
+    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listDetail.name}" as Done`, 'i'));
+    await toastHelper.waitForToastsToDisappear();
+    await expect(shoppingLists.readyRoot).toBeVisible();
+    await expect(shoppingLists.readyMarkDoneButton).toHaveCount(0);
+    await shoppingLists.expectStatus(/Done/i);
+
+    await shoppingLists.gotoOverview();
+    const overviewFilters = await shoppingLists.waitForOverviewFiltersReady();
+    const doneCount = Number(overviewFilters.metadata?.doneCount ?? 0);
+    expect(doneCount).toBeGreaterThan(0);
+  });
+
+  test('marks a ready list with ordered lines as done and keeps rows visible', async ({ shoppingLists, testData, toastHelper }) => {
+    const sellerPrimary = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
+    const sellerSecondary = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
+    const { part: orderedPart } = await testData.parts.create({ overrides: { description: 'Ordered retention part' } });
+    const { part: freshPart } = await testData.parts.create({ overrides: { description: 'Fresh concept part' } });
+
+    const listDetail = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: testData.shoppingLists.randomName('Ready Ordered Flow') },
+      lines: [
+        { partKey: orderedPart.key, needed: 3, sellerId: sellerPrimary.id },
+        { partKey: freshPart.key, needed: 2, sellerId: sellerSecondary.id },
+      ],
+    });
+
+    const orderedLine = listDetail.lines.find(line => line.part.key === orderedPart.key);
+    if (!orderedLine) {
+      throw new Error('Failed to resolve ordered line for mark-done test');
+    }
+
+    await testData.shoppingLists.markReady(listDetail.id);
+    await testData.shoppingLists.orderLine(listDetail.id, orderedLine.id, 2);
+
+    await shoppingLists.gotoReady(listDetail.id);
+    await expect(shoppingLists.readyMarkDoneButton).toBeVisible();
+    const primaryTotals = shoppingLists.readyGroupTotals(sellerPrimary.name);
+    await expect(primaryTotals.needed).toHaveText('3');
+    await expect(primaryTotals.ordered).toHaveText('2');
+    await expect(primaryTotals.received).toHaveText('0');
+    const secondaryTotals = shoppingLists.readyGroupTotals(sellerSecondary.name);
+    await expect(secondaryTotals.needed).toHaveText('2');
+    await expect(secondaryTotals.ordered).toHaveText('0');
+    await expect(secondaryTotals.received).toHaveText('0');
+    await expect(shoppingLists.readyGroupFilterNote(sellerPrimary.name)).toHaveCount(0);
+    await expect(shoppingLists.readyGroupFilterNote(sellerSecondary.name)).toHaveCount(0);
+
+    const markDoneSubmit = waitTestEvent<FormTestEvent>(
+      shoppingLists.playwrightPage,
+      'form',
+      event => event.formId === 'ShoppingListStatus:markDone' && event.phase === 'submit',
+    );
+    const markDoneSuccess = waitTestEvent<FormTestEvent>(
+      shoppingLists.playwrightPage,
+      'form',
+      event => event.formId === 'ShoppingListStatus:markDone' && event.phase === 'success',
+    );
+    const listReadyAfterMark = waitForListLoading(
+      shoppingLists.playwrightPage,
+      'shoppingLists.list',
+      'ready',
+    );
+
+    await shoppingLists.markListDoneFromReady();
+
+    const [submitEvent, successEvent, readyEvent] = await Promise.all([
+      markDoneSubmit,
+      markDoneSuccess,
+      listReadyAfterMark,
+    ]);
+
+    expect(submitEvent.metadata).toMatchObject({ status: 'done' });
+    expect(successEvent.metadata).toMatchObject({ status: 'done' });
+    expect(readyEvent.metadata).toMatchObject({ status: 'done', view: 'ready', filteredDiff: 0 });
+    if (!Array.isArray(readyEvent.metadata?.groupTotals)) {
+      throw new Error('Expected groupTotals metadata after marking list done with ordered lines');
+    }
+    for (const group of readyEvent.metadata.groupTotals) {
+      expect(group.visibleTotals).toEqual(group.totals);
+    }
+
+    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listDetail.name}" as Done`, 'i'));
+    await toastHelper.waitForToastsToDisappear();
+
+    await expect(shoppingLists.readyRoot).toBeVisible();
+    await expect(shoppingLists.readyMarkDoneButton).toHaveCount(0);
+    await expect(shoppingLists.readyLineRow(orderedPart.description)).toBeVisible();
+    await expect(shoppingLists.readyLineStatusCell(orderedPart.description)).toContainText(/ordered/i);
+    await expect(shoppingLists.readyLineRow(freshPart.description)).toBeVisible();
+    await expect(shoppingLists.readyGroupFilterNote(sellerPrimary.name)).toHaveCount(0);
+    await expect(shoppingLists.readyGroupFilterNote(sellerSecondary.name)).toHaveCount(0);
+  });
+
+  test('archives a shopping list from the overview', async ({ shoppingLists, testData, toastHelper }) => {
+    const list = await testData.shoppingLists.create({
+      name: testData.shoppingLists.randomName('Overview Archive'),
+    });
+
+    await shoppingLists.gotoOverview();
+    const initialFilters = await shoppingLists.waitForOverviewFiltersReady();
+    expect(initialFilters.metadata).toMatchObject({
+      activeCount: 1,
+      doneCount: 0,
+      showDoneState: 'collapsed',
+    });
+
+    const markDoneSubmit = waitTestEvent<FormTestEvent>(
+      shoppingLists.playwrightPage,
+      'form',
+      event => event.formId === 'ShoppingListStatus:markDone' && event.phase === 'submit',
+    );
+    const markDoneSuccess = waitTestEvent<FormTestEvent>(
+      shoppingLists.playwrightPage,
+      'form',
+      event => event.formId === 'ShoppingListStatus:markDone' && event.phase === 'success',
+    );
+
+    await shoppingLists.markListDoneFromOverview(list.name);
+    await Promise.all([markDoneSubmit, markDoneSuccess]);
+    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${list.name}" as Done`, 'i'));
+    await toastHelper.waitForToastsToDisappear();
+
+    const collapsedFilters = await shoppingLists.waitForOverviewFiltersReady();
+    expect(collapsedFilters.metadata).toMatchObject({
+      activeCount: 0,
+      doneCount: 1,
+      showDoneState: 'collapsed',
+    });
+    await expect(shoppingLists.overviewCardByName(list.name)).toHaveCount(0);
+
+    const urlBeforeToggle = shoppingLists.playwrightPage.url();
+    await shoppingLists.overviewDoneToggle.click();
+    const expandedFilters = await shoppingLists.waitForOverviewFiltersReady();
+    expect(expandedFilters.metadata).toMatchObject({
+      activeCount: 0,
+      doneCount: 1,
+      showDoneState: 'expanded',
+    });
+    expect(shoppingLists.playwrightPage.url()).toBe(urlBeforeToggle);
+
+    const doneCard = shoppingLists.overviewCardByName(list.name);
+    await expect(doneCard).toBeVisible();
+    await expect(doneCard.getByRole('button', { name: /delete/i })).toBeVisible();
+  });
+
   test('manages concept lines end-to-end', async ({ shoppingLists, testData, toastHelper }) => {
     const { part } = await testData.parts.create({ overrides: { description: 'Line management part' } });
     const seller = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName(), website: 'https://example.com' } });
