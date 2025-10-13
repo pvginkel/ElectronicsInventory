@@ -593,7 +593,8 @@ const selectShoppingListDetail = (data?: ShoppingListResponseSchema_46f0cf6): Sh
 };
 
 export function useShoppingListsOverview() {
-  const query = useGetShoppingLists();
+  const overviewQueryParams = useMemo(() => ({ query: { include_done: true as const } }), []);
+  const query = useGetShoppingLists(overviewQueryParams);
   const lists = useMemo<ShoppingListOverviewSummary[]>(() => selectOverviewLists(query.data), [query.data]);
   const counters = useMemo<ShoppingListOverviewCounters>(() => {
     let activeCount = 0;

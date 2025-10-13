@@ -6,7 +6,6 @@ import { useDeleteShoppingListMutation, useUpdateShoppingListStatusMutation } fr
 import { useToast } from '@/hooks/use-toast';
 import type { ShoppingListOverviewSummary } from '@/types/shopping-lists';
 import { useFormInstrumentation } from '@/hooks/use-form-instrumentation';
-import { generateFormId } from '@/lib/test/form-instrumentation';
 
 interface UseListDeleteConfirmOptions {
   onDeleted?: (list: ShoppingListOverviewSummary) => void;
@@ -79,7 +78,7 @@ export function useListArchiveConfirm(options: UseListArchiveConfirmOptions = {}
   const archiveMutation = useUpdateShoppingListStatusMutation();
   const { showSuccess, showException } = useToast();
   const pendingListRef = useRef<ShoppingListOverviewSummary | null>(null);
-  const formId = useMemo(() => generateFormId('ShoppingListStatus', 'markDone'), []);
+  const formId = useMemo(() => 'ShoppingListStatus:markDone', []);
   const { open, ...confirmDialogProps } = confirmProps;
 
   const instrumentation = useFormInstrumentation({

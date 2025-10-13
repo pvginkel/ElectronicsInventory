@@ -167,15 +167,24 @@ test.describe('Shopping Lists', () => {
   });
 
   test('archives a shopping list from the overview', async ({ shoppingLists, testData, toastHelper }) => {
-    const list = await testData.shoppingLists.create({
-      name: testData.shoppingLists.randomName('Overview Archive'),
+    await shoppingLists.gotoOverview();
+    const baselineFilters = await shoppingLists.waitForOverviewFiltersReady();
+    const baselineActiveCount = Number(baselineFilters.metadata?.activeCount ?? 0);
+    const baselineDoneCount = Number(baselineFilters.metadata?.doneCount ?? 0);
+
+    const { part } = await testData.parts.create({ overrides: { description: 'Overview Archive Part' } });
+    const listName = testData.shoppingLists.randomName('Overview Archive');
+    const listDetail = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: listName },
+      lines: [{ partKey: part.key, needed: 1 }],
     });
+    await testData.shoppingLists.markReady(listDetail.id);
 
     await shoppingLists.gotoOverview();
     const initialFilters = await shoppingLists.waitForOverviewFiltersReady();
     expect(initialFilters.metadata).toMatchObject({
-      activeCount: 1,
-      doneCount: 0,
+      activeCount: baselineActiveCount + 1,
+      doneCount: baselineDoneCount,
       showDoneState: 'collapsed',
     });
 
@@ -190,30 +199,30 @@ test.describe('Shopping Lists', () => {
       event => event.formId === 'ShoppingListStatus:markDone' && event.phase === 'success',
     );
 
-    await shoppingLists.markListDoneFromOverview(list.name);
+    await shoppingLists.markListDoneFromOverview(listName);
     await Promise.all([markDoneSubmit, markDoneSuccess]);
-    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${list.name}" as Done`, 'i'));
+    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listName}" as Done`, 'i'));
     await toastHelper.waitForToastsToDisappear();
 
     const collapsedFilters = await shoppingLists.waitForOverviewFiltersReady();
     expect(collapsedFilters.metadata).toMatchObject({
-      activeCount: 0,
-      doneCount: 1,
+      activeCount: baselineActiveCount,
+      doneCount: baselineDoneCount + 1,
       showDoneState: 'collapsed',
     });
-    await expect(shoppingLists.overviewCardByName(list.name)).toHaveCount(0);
+    await expect(shoppingLists.overviewCardByName(listName)).toHaveCount(0);
 
     const urlBeforeToggle = shoppingLists.playwrightPage.url();
     await shoppingLists.overviewDoneToggle.click();
     const expandedFilters = await shoppingLists.waitForOverviewFiltersReady();
     expect(expandedFilters.metadata).toMatchObject({
-      activeCount: 0,
-      doneCount: 1,
+      activeCount: baselineActiveCount,
+      doneCount: baselineDoneCount + 1,
       showDoneState: 'expanded',
     });
     expect(shoppingLists.playwrightPage.url()).toBe(urlBeforeToggle);
 
-    const doneCard = shoppingLists.overviewCardByName(list.name);
+    const doneCard = shoppingLists.overviewCardByName(listName);
     await expect(doneCard).toBeVisible();
     await expect(doneCard.getByRole('button', { name: /delete/i })).toBeVisible();
   });

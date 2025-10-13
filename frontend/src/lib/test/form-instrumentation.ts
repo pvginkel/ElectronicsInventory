@@ -38,11 +38,12 @@ export function trackFormOpen(formId: string, fields?: Record<string, unknown>):
 export function trackFormSubmit(formId: string, fields?: Record<string, unknown>): void {
   if (!isTestMode()) return;
 
+  const snapshot = fields ? { ...fields } : undefined;
   const formEvent: Omit<FormTestEvent, 'timestamp'> = {
     kind: TestEventKind.FORM,
     phase: 'submit',
     formId,
-    ...(fields && { fields }),
+    ...(snapshot && { fields: snapshot, metadata: snapshot }),
   };
 
   emitTestEvent(formEvent);
@@ -54,11 +55,12 @@ export function trackFormSubmit(formId: string, fields?: Record<string, unknown>
 export function trackFormSuccess(formId: string, fields?: Record<string, unknown>): void {
   if (!isTestMode()) return;
 
+  const snapshot = fields ? { ...fields } : undefined;
   const formEvent: Omit<FormTestEvent, 'timestamp'> = {
     kind: TestEventKind.FORM,
     phase: 'success',
     formId,
-    ...(fields && { fields }),
+    ...(snapshot && { fields: snapshot, metadata: snapshot }),
   };
 
   emitTestEvent(formEvent);
@@ -70,11 +72,12 @@ export function trackFormSuccess(formId: string, fields?: Record<string, unknown
 export function trackFormError(formId: string, fields?: Record<string, unknown>): void {
   if (!isTestMode()) return;
 
+  const snapshot = fields ? { ...fields } : undefined;
   const formEvent: Omit<FormTestEvent, 'timestamp'> = {
     kind: TestEventKind.FORM,
     phase: 'error',
     formId,
-    ...(fields && { fields }),
+    ...(snapshot && { fields: snapshot, metadata: snapshot }),
   };
 
   emitTestEvent(formEvent);
