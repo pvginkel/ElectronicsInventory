@@ -1,4 +1,7 @@
-**Purpose.** Review `plan.md` once and write a thorough `plan_review.md` that surfaces real risks without relying on follow-up prompts.
+# Plan Review — Guidance for LLM (single-pass, adversarial)
+
+**Purpose.** Perform a one-shot, thorough plan review that surfaces real risks without relying on follow-up prompts. Write the results to:
+`docs/features/<FEATURE>/plan_review.md`.
 
 **References (normative).**
 
