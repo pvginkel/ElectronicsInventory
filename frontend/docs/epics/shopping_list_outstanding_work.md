@@ -1,5 +1,9 @@
 # Outstanding work for the shopping list
 
+All remaining tasks roll into three plans. Treat this as a scope outline and lean on the docs listed in `docs/epics/README.md` for implementation detail, instrumentation, and testing policy.
+
+# Phase 1 — List experience and other polish
+
 ## General items
 
 - Toasts need to be closed automatically after 15 seconds.
@@ -12,6 +16,19 @@
 - Ensure visual consistency of the view with the other list views, e.g. storage. I see some padding differences and the subtitle must be removed.
 - The card needs to be clickable, replacing the "Open list" button. The "Delete" and "Mark Done" buttons needs to be moved into the detail view.
 - The "? line" chip can be removed.
+
+## Part detail view
+
+- The "Add to shopping list" button can be moved into the menu.
+- The shopping list chips need to get a shopping cart icon (the one you use in the parts list view).
+
+## Storage list
+
+- The whole card must be clickable replacing the "View" button. The "Edit" and "Delete" buttons can be removed. They're on the detail view already.
+
+# Phase 2 — Shopping list detail workflow
+
+This pass covers the detail screen across Concept, Ready, and Completed states, including visual styling, action surfacing, and state-specific permissions.
 
 ## Shopping list detail view
 
@@ -60,7 +77,11 @@
   - The "Ready actions" bar needs to be hidden.
   - Any others you can find. The whole screen needs to become read-only.
 
-### Update stock dialog
+# Phase 3 — Update stock dialog redesign
+
+Consolidate the dialog into a single table that drives the receive flow and eliminates the redundant sections.
+
+## Update stock dialog
 
 I want to rework this screen. Right now there's an "Existing locations", "Receive now" and "Allocate to locations" section. I want these merged into one.
 
@@ -74,12 +95,3 @@ I want a list of locations with four columns:
 Quantity is the current quantity. Receive is the quantity we're going to receive into the location. At the bottom must be an "Add location" button with functionality similar to the current "Add location" button. Quantity must be empty (not zero). The "Receive now" element needs to be removed completely and inferred from the sum of what we enter into the "Receive" fields.
 
 For existing locations "Box", "Location" and "Quantity" are labels and "Receive" is an edit box. For new locations all fields are editable.
-
-## Part detail view
-
-- The "Add to shopping list" button can be moved into the menu.
-- The shopping list chips need to get a shopping cart icon (the one you use in the parts list view).
-
-## Storage list
-
-- The whole card must be clickable replacing the "View" button. The "Edit" and "Delete" buttons can be removed. They're on the detail view already.
