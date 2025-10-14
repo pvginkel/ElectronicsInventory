@@ -5,21 +5,23 @@ import getPort from 'get-port';
 import type { Readable } from 'node:stream';
 import split2 from 'split2';
 
-const READY_PATH = '/api/health/readyz';
-const STARTUP_TIMEOUT_MS = 30_000;
-const POLL_INTERVAL_MS = 500;
+const BACKEND_READY_PATH = '/api/health/readyz';
+const FRONTEND_READY_PATH = '/';
+const BACKEND_STARTUP_TIMEOUT_MS = 30_000;
+const FRONTEND_STARTUP_TIMEOUT_MS = 90_000;
+const POLL_INTERVAL_MS = 200;
+const HOSTNAME = '127.0.0.1';
 
-export type BackendServerHandle = {
+type ServerHandle = {
   readonly url: string;
   readonly port: number;
   readonly process: ChildProcessWithoutNullStreams;
   dispose(): Promise<void>;
 };
 
-/**
- * Launches the backend testing server for a given worker.
- * Returns the backend URL along with a dispose hook that terminates the process.
- */
+export type BackendServerHandle = ServerHandle;
+export type FrontendServerHandle = ServerHandle;
+
 export async function startBackend(
   workerIndex: number,
   options: {
@@ -42,65 +44,134 @@ export async function startBackend(
       : await getPort({
           exclude: options.excludePorts ?? [],
         });
-  const hostname = '127.0.0.1';
-  const url = `http://${hostname}:${port}`;
 
-  const scriptPath = resolve(getRepoRoot(), '../backend/scripts/testing-server.sh');
+  const scriptPath = resolve(getBackendRepoRoot(), './scripts/testing-server.sh');
   const args = [
     '--host',
-    hostname,
+    HOSTNAME,
     '--port',
     String(port),
     '--sqlite-db',
     options.sqliteDbPath,
   ];
 
-  const logLifecycle = options.streamLogs === true;
+  return startService({
+    workerIndex,
+    port,
+    serviceLabel: 'backend',
+    scriptPath,
+    args,
+    readinessPath: BACKEND_READY_PATH,
+    startupTimeoutMs: BACKEND_STARTUP_TIMEOUT_MS,
+    streamLogs: options.streamLogs === true,
+    env: {
+      ...process.env,
+      ...(options.frontendVersionUrl
+        ? { FRONTEND_VERSION_URL: options.frontendVersionUrl }
+        : {}),
+    },
+  });
+}
+
+export async function startFrontend(options: {
+  workerIndex: number;
+  backendUrl: string;
+  excludePorts?: number[];
+  streamLogs?: boolean;
+  port?: number;
+}): Promise<FrontendServerHandle> {
+  const port =
+    typeof options.port === 'number'
+      ? options.port
+      : await getPort({
+          exclude: options.excludePorts ?? [],
+        });
+
+  const scriptPath = resolve(getFrontendRepoRoot(), './scripts/testing-server.sh');
+  const args = ['--host', HOSTNAME, '--port', String(port)];
+
+  return startService({
+    workerIndex: options.workerIndex,
+    port,
+    serviceLabel: 'frontend',
+    scriptPath,
+    args,
+    readinessPath: FRONTEND_READY_PATH,
+    startupTimeoutMs: FRONTEND_STARTUP_TIMEOUT_MS,
+    streamLogs: options.streamLogs === true,
+    env: {
+      ...process.env,
+      BACKEND_URL: options.backendUrl,
+      VITE_TEST_MODE: 'true',
+    },
+  });
+}
+
+type ServiceLabel = 'backend' | 'frontend';
+
+type StartServiceOptions = {
+  workerIndex: number;
+  port: number;
+  serviceLabel: ServiceLabel;
+  scriptPath: string;
+  args: string[];
+  env: NodeJS.ProcessEnv;
+  readinessPath: string;
+  startupTimeoutMs: number;
+  streamLogs: boolean;
+};
+
+async function startService(options: StartServiceOptions): Promise<ServerHandle> {
+  const url = `http://${HOSTNAME}:${options.port}`;
+  const readinessUrl = buildReadinessUrl(url, options.readinessPath);
+
+  const logLifecycle = options.streamLogs;
   if (logLifecycle) {
     console.log(
-      `${formatPrefix(workerIndex, 'backend')} Starting backend: ${scriptPath} ${args.join(' ')}`
+      `${formatPrefix(options.workerIndex, options.serviceLabel)} Starting ${options.serviceLabel}: ${options.scriptPath} ${options.args.join(' ')}`
     );
   }
 
-  const childEnv = {
-    ...process.env,
-    ...(options.frontendVersionUrl
-      ? { FRONTEND_VERSION_URL: options.frontendVersionUrl }
-      : {}),
-  };
-
-  const child = spawn(scriptPath, args, {
-    cwd: getRepoRoot(),
-    env: childEnv,
+  const child = spawn(options.scriptPath, options.args, {
+    cwd: getFrontendRepoRoot(),
+    env: options.env,
     stdio: ['pipe', 'pipe', 'pipe'],
   }) as ChildProcessWithoutNullStreams;
 
   registerForCleanup(child);
 
-  const shouldStreamLogs = options.streamLogs === true;
-  if (shouldStreamLogs) {
-    streamProcessOutput(child, workerIndex, 'backend');
+  if (options.streamLogs) {
+    streamProcessOutput(child, options.workerIndex, options.serviceLabel);
   }
 
-  const readinessUrl = `${url}${READY_PATH}`;
-
   await waitForStartup({
-    workerIndex,
+    workerIndex: options.workerIndex,
     process: child,
     readinessUrl,
-    serviceLabel: 'backend',
+    serviceLabel: options.serviceLabel,
+    startupTimeoutMs: options.startupTimeoutMs,
   });
 
   if (logLifecycle) {
-    console.log(`${formatPrefix(workerIndex, 'backend')} Backend ready at ${url}`);
+    console.log(
+      `${formatPrefix(options.workerIndex, options.serviceLabel)} ${capitalize(options.serviceLabel)} ready at ${url}`
+    );
   }
 
   return {
     url,
-    port,
+    port: options.port,
     process: child,
-    dispose: () => terminateProcess(child, workerIndex, 'backend'),
+    dispose: () => terminateProcess(child, options.workerIndex, options.serviceLabel),
   };
+}
+
+function buildReadinessUrl(baseUrl: string, path: string): string {
+  return new URL(path, ensureTrailingSlash(baseUrl)).toString();
+}
+
+function ensureTrailingSlash(url: string): string {
+  return url.endsWith('/') ? url : `${url}/`;
 }
 
 async function waitForStartup({
@@ -108,11 +179,13 @@ async function waitForStartup({
   process,
   readinessUrl,
   serviceLabel,
+  startupTimeoutMs,
 }: {
   workerIndex: number;
   process: ChildProcessWithoutNullStreams;
   readinessUrl: string;
-  serviceLabel: string;
+  serviceLabel: ServiceLabel;
+  startupTimeoutMs: number;
 }) {
   const start = performance.now();
 
@@ -127,14 +200,14 @@ async function waitForStartup({
     process.once('error', error => {
       reject(
         new Error(
-          `${formatPrefix(workerIndex, serviceLabel)} process failed to start: ${error.message}`
+          `${formatPrefix(workerIndex, serviceLabel)} process failed to start: ${error instanceof Error ? error.message : String(error)}`
         )
       );
     });
   });
 
   const poll = async () => {
-    while (performance.now() - start < STARTUP_TIMEOUT_MS) {
+    while (performance.now() - start < startupTimeoutMs) {
       try {
         const response = await fetch(readinessUrl, {
           method: 'GET',
@@ -161,7 +234,7 @@ async function waitForStartup({
 async function terminateProcess(
   child: ChildProcessWithoutNullStreams,
   workerIndex: number,
-  serviceLabel: string
+  serviceLabel: ServiceLabel
 ) {
   if (child.exitCode !== null || child.signalCode) {
     return;
@@ -188,7 +261,7 @@ async function terminateProcess(
 function streamProcessOutput(
   child: ChildProcessWithoutNullStreams,
   workerIndex: number,
-  serviceLabel: string
+  serviceLabel: ServiceLabel
 ): void {
   const attach = (stream: Readable, source: 'stdout' | 'stderr') => {
     const lineStream = stream.pipe(split2());
@@ -218,11 +291,15 @@ function streamProcessOutput(
   attach(child.stderr, 'stderr');
 }
 
-function formatPrefix(workerIndex: number, serviceLabel: string): string {
+function formatPrefix(workerIndex: number, serviceLabel: ServiceLabel): string {
   return `[worker-${workerIndex} ${serviceLabel}]`;
 }
 
-function serviceShouldLogLifecycle(serviceLabel: string): boolean {
+function capitalize(value: string): string {
+  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+}
+
+function serviceShouldLogLifecycle(serviceLabel: ServiceLabel): boolean {
   if (serviceLabel === 'backend') {
     return process.env.PLAYWRIGHT_BACKEND_LOG_STREAM === 'true';
   }
@@ -255,14 +332,22 @@ async function waitForExit(
   });
 }
 
-let repoRootCache: string | undefined;
+let frontendRepoRootCache: string | undefined;
+let backendRepoRootCache: string | undefined;
 
-function getRepoRoot(): string {
-  if (!repoRootCache) {
+function getFrontendRepoRoot(): string {
+  if (!frontendRepoRootCache) {
     const currentDir = dirname(fileURLToPath(import.meta.url));
-    repoRootCache = resolve(currentDir, '../../..');
+    frontendRepoRootCache = resolve(currentDir, '../../..');
   }
-  return repoRootCache;
+  return frontendRepoRootCache;
+}
+
+function getBackendRepoRoot(): string {
+  if (!backendRepoRootCache) {
+    backendRepoRootCache = resolve(getFrontendRepoRoot(), '../backend');
+  }
+  return backendRepoRootCache;
 }
 
 const activeChildren = new Set<ChildProcessWithoutNullStreams>();

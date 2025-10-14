@@ -35,8 +35,7 @@ import type {
   AiAnalysisMockSession,
 } from './helpers/ai-analysis-mock';
 import { FileUploadHelper, createFileUploadHelper } from './helpers/file-upload';
-import { startBackend } from './process/backend-server';
-import { startFrontend } from './process/frontend-server';
+import { startBackend, startFrontend } from './process/servers';
 import {
   createBackendLogCollector,
   createFrontendLogCollector,
