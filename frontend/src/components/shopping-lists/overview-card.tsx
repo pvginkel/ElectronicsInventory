@@ -17,6 +17,12 @@ const STATUS_LABELS: Record<ShoppingListOverviewSummary['status'], string> = {
   done: 'Done',
 };
 
+const STATUS_BADGE_VARIANT: Record<ShoppingListOverviewSummary['status'], 'default' | 'secondary' | 'outline'> = {
+  concept: 'default',
+  ready: 'secondary',
+  done: 'outline',
+};
+
 function formatRelativeUpdated(updatedAt: string): string {
   const parsed = new Date(updatedAt);
   if (Number.isNaN(parsed.getTime())) {
@@ -66,6 +72,7 @@ export function ShoppingListOverviewCard({
   disableActions = false,
 }: ShoppingListOverviewCardProps) {
   const statusLabel = STATUS_LABELS[list.status] ?? list.status;
+  const statusVariant = STATUS_BADGE_VARIANT[list.status] ?? 'secondary';
   const relativeUpdated = formatRelativeUpdated(list.updatedAt);
   const updatedTooltip = new Date(list.updatedAt).toLocaleString();
 
@@ -92,7 +99,11 @@ export function ShoppingListOverviewCard({
               </p>
             )}
           </div>
-          <Badge variant="secondary" data-testid={`shopping-lists.overview.card.${list.id}.status`}>
+          <Badge
+            variant={statusVariant}
+            title={`List status: ${statusLabel}`}
+            data-testid={`shopping-lists.overview.card.${list.id}.status`}
+          >
             {statusLabel}
           </Badge>
         </div>

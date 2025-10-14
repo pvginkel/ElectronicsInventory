@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { ShoppingListConceptLine, ShoppingListSellerGroup } from '@/types/shopping-lists';
 import { ReadyLineRow } from './ready-line-row';
+import { LINE_TABLE_WIDTHS } from '../table-layout';
 
 interface SellerGroupCardProps {
   listId: number;
@@ -172,6 +173,7 @@ export function SellerGroupCard({
             size="sm"
             disabled={!hasOrderableLines}
             onClick={(event) => onOpenOrderGroup(group, event.currentTarget as HTMLElement)}
+            title="Set ordered quantities for every line in this group"
             data-testid={`shopping-lists.ready.group.${group.groupKey}.order-group`}
           >
             Mark group as Ordered
@@ -254,13 +256,13 @@ export function SellerGroupCard({
         <table className="w-full table-fixed border-collapse" data-testid={`shopping-lists.ready.group.${group.groupKey}.lines`}>
           <thead>
             <tr className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="w-[28%] px-4 py-2 text-left">Part</th>
-              <th className="w-[8%] px-4 py-2 text-right">Needed</th>
-              <th className="w-[12%] px-4 py-2 text-right">Ordered</th>
-              <th className="w-[10%] px-4 py-2 text-right">Received</th>
-              <th className="w-[24%] px-4 py-2 text-left">Note</th>
-              <th className="w-[8%] px-4 py-2 text-right">Status</th>
-              <th className="w-[10%] px-4 py-2 text-right">Actions</th>
+              <th className={`${LINE_TABLE_WIDTHS.part} px-4 py-2 text-left`}>Part</th>
+              <th className={`${LINE_TABLE_WIDTHS.needed} px-4 py-2 text-right`}>Needed</th>
+              <th className={`${LINE_TABLE_WIDTHS.ordered} px-4 py-2 text-right`}>Ordered</th>
+              <th className={`${LINE_TABLE_WIDTHS.received} px-4 py-2 text-right`}>Received</th>
+              <th className={`${LINE_TABLE_WIDTHS.note} px-4 py-2 text-left`}>Note</th>
+              <th className={`${LINE_TABLE_WIDTHS.status} px-4 py-2 text-right`}>Status</th>
+              <th className={`${LINE_TABLE_WIDTHS.actions} px-4 py-2 text-right`}>Actions</th>
             </tr>
           </thead>
           <tbody>

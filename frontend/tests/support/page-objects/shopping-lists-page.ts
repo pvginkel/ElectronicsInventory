@@ -2,6 +2,7 @@ import { expect, Locator, Page } from '@playwright/test';
 import { BasePage } from './base-page';
 import { waitForListLoading, waitForUiState } from '../helpers';
 import { SellerSelectorHarness } from './seller-selector-harness';
+import type { ListLoadingTestEvent } from '@/types/test-events';
 
 export class ShoppingListsPage extends BasePage {
   readonly overviewRoot: Locator;
@@ -93,30 +94,32 @@ export class ShoppingListsPage extends BasePage {
     await confirmDialog.getByRole('button', { name: /mark done/i }).click();
   }
 
-  async gotoConcept(listId: number): Promise<void> {
+  async gotoConcept(listId: number): Promise<ListLoadingTestEvent> {
     await this.goto(`/shopping-lists/${listId}`);
-    await this.waitForConceptReady();
+    return this.waitForConceptReady();
   }
 
-  async gotoReady(listId: number): Promise<void> {
+  async gotoReady(listId: number): Promise<ListLoadingTestEvent> {
     await this.goto(`/shopping-lists/${listId}`);
-    await this.waitForReadyView();
+    return this.waitForReadyView();
   }
 
-  async waitForConceptReady(): Promise<void> {
+  async waitForConceptReady(): Promise<ListLoadingTestEvent> {
     const event = await waitForListLoading(this.page, 'shoppingLists.list', 'ready');
     if (event.metadata?.view) {
       expect(event.metadata.view).toBe('concept');
     }
     await expect(this.conceptRoot).toBeVisible();
+    return event;
   }
 
-  async waitForReadyView(): Promise<void> {
+  async waitForReadyView(): Promise<ListLoadingTestEvent> {
     const event = await waitForListLoading(this.page, 'shoppingLists.list', 'ready');
     if (event.metadata?.view) {
       expect(event.metadata.view).toBe('ready');
     }
     await expect(this.readyRoot).toBeVisible();
+    return event;
   }
 
   conceptRowByPart(part: string | RegExp): Locator {
@@ -148,6 +151,18 @@ export class ShoppingListsPage extends BasePage {
     return this.readyLineRow(part).getByTestId(/\.status$/);
   }
 
+  readyLineStatusBadge(part: string | RegExp): Locator {
+    return this.readyLineRow(part).getByTestId(/\.status\.badge$/);
+  }
+
+  conceptStatusBadge(part: string | RegExp): Locator {
+    return this.conceptRowByPart(part).getByTestId(/\.status\.badge$/);
+  }
+
+  conceptSellerBadge(part: string | RegExp): Locator {
+    return this.conceptRowByPart(part).getByTestId(/\.seller\.badge$/);
+  }
+
   readyGroupTotals(seller: string | RegExp): { needed: Locator; ordered: Locator; received: Locator } {
     const card = this.readyGroupBySeller(seller);
     return {
@@ -155,6 +170,25 @@ export class ShoppingListsPage extends BasePage {
       ordered: card.getByTestId(/totals\.ordered$/),
       received: card.getByTestId(/totals\.received$/),
     };
+  }
+
+  readyGroupCardAt(index: number): Locator {
+    return this.page.locator('[data-testid^="shopping-lists.ready.group.card."]').nth(index);
+  }
+
+  async readyGroupKeys(): Promise<string[]> {
+    const cards = this.page.locator('[data-testid^="shopping-lists.ready.group.card."]');
+    const count = await cards.count();
+    const keys: string[] = [];
+    for (let index = 0; index < count; index += 1) {
+      const testId = await cards.nth(index).getAttribute('data-testid');
+      if (testId) {
+        const prefix = 'shopping-lists.ready.group.card.';
+        const groupKey = testId.startsWith(prefix) ? testId.slice(prefix.length) : testId;
+        keys.push(groupKey);
+      }
+    }
+    return keys;
   }
 
   readyGroupFilterNote(seller: string | RegExp): Locator {
@@ -294,6 +328,11 @@ export class ShoppingListsPage extends BasePage {
   async markReady(): Promise<void> {
     const button = this.page.getByTestId('shopping-lists.concept.mark-ready.button');
     await button.click();
+  }
+
+  async readyReceivedTooltip(part: string | RegExp): Promise<string | null> {
+    const cell = this.readyLineReceivedCell(part);
+    return cell.locator('span').first().getAttribute('title');
   }
 
   async openUpdateStock(part: string | RegExp): Promise<void> {

@@ -25,6 +25,12 @@ interface MetadataFormValues extends Record<string, unknown> {
 const NAME_LIMIT = 120;
 const DESCRIPTION_LIMIT = 280;
 
+const STATUS_BADGE_VARIANT: Record<ShoppingListDetail['status'], 'default' | 'secondary' | 'outline'> = {
+  concept: 'default',
+  ready: 'secondary',
+  done: 'outline',
+};
+
 export function ConceptHeader({ list, onUpdateMetadata, isUpdating }: ConceptHeaderProps) {
   const { showSuccess, showException } = useToast();
   const [editOpen, setEditOpen] = useState(false);
@@ -92,6 +98,7 @@ export function ConceptHeader({ list, onUpdateMetadata, isUpdating }: ConceptHea
   }
 
   const statusLabel = list.status.charAt(0).toUpperCase() + list.status.slice(1);
+  const statusVariant = STATUS_BADGE_VARIANT[list.status] ?? 'secondary';
 
   const newCount = list.lineCounts.new;
   const orderedCount = list.lineCounts.ordered;
@@ -111,7 +118,11 @@ export function ConceptHeader({ list, onUpdateMetadata, isUpdating }: ConceptHea
             <h1 className="text-3xl font-semibold text-foreground" data-testid="shopping-lists.concept.header.name">
               {list.name}
             </h1>
-            <Badge variant="secondary" data-testid="shopping-lists.concept.header.status">
+            <Badge
+              variant={statusVariant}
+              title={`List status: ${statusLabel}`}
+              data-testid="shopping-lists.concept.header.status"
+            >
               {statusLabel}
             </Badge>
           </div>
@@ -131,16 +142,16 @@ export function ConceptHeader({ list, onUpdateMetadata, isUpdating }: ConceptHea
       </div>
 
       <div className="flex flex-wrap gap-6 text-sm text-muted-foreground" data-testid="shopping-lists.concept.header.counts">
-        <div>
+        <div title="Total lines across all statuses">
           <span className="font-medium text-foreground">{list.totalLines}</span> total lines
         </div>
-        <div>
+        <div title="Lines waiting to be ordered">
           <span className="font-medium text-foreground">{newCount}</span> new
         </div>
-        <div>
+        <div title="Lines in progress with suppliers">
           <span className="font-medium text-foreground">{orderedCount}</span> ordered
         </div>
-        <div>
+        <div title="Lines already received">
           <span className="font-medium text-foreground">{doneCount}</span> received
         </div>
       </div>

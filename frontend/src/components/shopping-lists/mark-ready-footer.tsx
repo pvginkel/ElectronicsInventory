@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { useFormInstrumentation } from '@/hooks/use-form-instrumentation';
-import { generateFormId } from '@/lib/test/form-instrumentation';
 import type { ShoppingListDetail } from '@/types/shopping-lists';
 
 interface MarkReadyFooterProps {
@@ -12,7 +11,8 @@ interface MarkReadyFooterProps {
 
 export function MarkReadyFooter({ list, onMarkReady, isMarkingReady }: MarkReadyFooterProps) {
   const isConcept = list.status === 'concept';
-  const formId = useMemo(() => generateFormId('ShoppingListStatus', 'markReady'), []);
+  // Guidepost: align with mark-done instrumentation so Playwright can key off consistent IDs.
+  const formId = useMemo(() => 'ShoppingListStatus:markReady', []);
 
   const instrumentation = useFormInstrumentation({
     formId,

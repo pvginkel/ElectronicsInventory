@@ -42,6 +42,7 @@ export function ReadyToolbar({
               loading={isMarkingDone}
               disabled={isMarkingDone || isUpdatingBackToConcept}
               onClick={() => { void onMarkDone(); }}
+              title="Archive this Ready list once all lines are complete"
               data-testid="shopping-lists.ready.toolbar.mark-done"
             >
               Mark Done
@@ -54,6 +55,7 @@ export function ReadyToolbar({
               loading={isUpdatingBackToConcept}
               disabled={isUpdatingBackToConcept || isMarkingDone}
               onClick={() => { void onBackToConcept(); }}
+              title="Return lines to Concept planning without marking the list done"
               data-testid="shopping-lists.ready.toolbar.back-to-concept"
             >
               Back to Concept

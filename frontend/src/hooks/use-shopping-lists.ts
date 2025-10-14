@@ -448,14 +448,25 @@ export const SHOPPING_LIST_LINE_SORT_OPTIONS: ShoppingListLineSortOption[] = [
   { key: 'createdAt', label: 'Date added' },
 ];
 
+// Guidepost: shared collators keep alphabetical ordering deterministic across browsers and locales.
+const listCollator = new Intl.Collator('en', { sensitivity: 'base', numeric: true });
+
 function compareByDescription(a: ShoppingListConceptLine, b: ShoppingListConceptLine): number {
-  return a.part.description.toLowerCase().localeCompare(b.part.description.toLowerCase());
+  const comparison = listCollator.compare(a.part.description, b.part.description);
+  if (comparison !== 0) {
+    return comparison;
+  }
+  return a.id - b.id;
 }
 
 function compareByMpn(a: ShoppingListConceptLine, b: ShoppingListConceptLine): number {
-  const left = a.part.manufacturerCode?.toLowerCase() ?? a.part.key.toLowerCase();
-  const right = b.part.manufacturerCode?.toLowerCase() ?? b.part.key.toLowerCase();
-  return left.localeCompare(right);
+  const left = a.part.manufacturerCode ?? a.part.key;
+  const right = b.part.manufacturerCode ?? b.part.key;
+  const comparison = listCollator.compare(left, right);
+  if (comparison !== 0) {
+    return comparison;
+  }
+  return a.id - b.id;
 }
 
 function compareByCreatedAt(a: ShoppingListConceptLine, b: ShoppingListConceptLine): number {
@@ -496,12 +507,12 @@ export function useSortedShoppingListLines(
 export function sortSellerGroupsForReadyView(
   groups: ShoppingListSellerGroup[]
 ): ShoppingListSellerGroup[] {
-  return [...groups].sort((a, b) => {
+  const compareGroups = (a: ShoppingListSellerGroup, b: ShoppingListSellerGroup) => {
     const aUngrouped = a.sellerId == null;
     const bUngrouped = b.sellerId == null;
 
     if (aUngrouped && bUngrouped) {
-      return a.groupKey.localeCompare(b.groupKey);
+      return listCollator.compare(a.groupKey, b.groupKey);
     }
     if (aUngrouped) {
       return 1;
@@ -510,8 +521,24 @@ export function sortSellerGroupsForReadyView(
       return -1;
     }
 
-    return (a.sellerName ?? '').localeCompare(b.sellerName ?? '');
-  });
+    const nameComparison = listCollator.compare(a.sellerName ?? '', b.sellerName ?? '');
+    if (nameComparison !== 0) {
+      return nameComparison;
+    }
+
+    return listCollator.compare(a.groupKey, b.groupKey);
+  };
+
+  const sortLinesByDescription = (lines: ShoppingListConceptLine[]) => {
+    return [...lines].sort((a, b) => compareByDescription(a, b));
+  };
+
+  return [...groups]
+    .sort(compareGroups)
+    .map((group) => ({
+      ...group,
+      lines: sortLinesByDescription(group.lines),
+    }));
 }
 
 export function summarizeSellerGroupVisibility(group: ShoppingListSellerGroup): ShoppingListSellerGroupVisibility {

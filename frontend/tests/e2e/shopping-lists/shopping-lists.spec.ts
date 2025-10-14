@@ -318,10 +318,75 @@ test.describe('Shopping Lists', () => {
     await shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.sort.createdAt').click();
     await expect(firstRow()).toContainText('Beta resistor');
 
-    const orderedCells = shoppingLists.conceptTable.locator('tbody tr td:nth-child(4)');
-    const receivedCells = shoppingLists.conceptTable.locator('tbody tr td:nth-child(5)');
+    const orderedCells = shoppingLists.conceptTable.locator('[data-testid$=".ordered"]');
+    const receivedCells = shoppingLists.conceptTable.locator('[data-testid$=".received"]');
     await expect(orderedCells).toHaveText(['0', '0']);
     await expect(receivedCells).toHaveText(['0', '0']);
+  });
+
+  test('keeps sorting deterministic across casing and surfaces chip affordances', async ({ shoppingLists, testData }) => {
+    const sellerA = await testData.sellers.create({ overrides: { name: 'Duplicate Seller A' } });
+    const sellerB = await testData.sellers.create({ overrides: { name: 'Duplicate Seller B' } });
+    const { part: alphaPart } = await testData.parts.create({ overrides: { description: 'Alpha Sort Component' } });
+    const { part: bravoUpper } = await testData.parts.create({ overrides: { description: 'Bravo Module' } });
+    const { part: bravoLower } = await testData.parts.create({ overrides: { description: 'bravo module' } });
+
+    const listDetail = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: testData.shoppingLists.randomName('Sorting Polish') },
+      lines: [
+        { partKey: alphaPart.key, needed: 1, sellerId: sellerA.id },
+        { partKey: bravoUpper.key, needed: 2, sellerId: sellerB.id },
+        { partKey: bravoLower.key, needed: 3 },
+      ],
+    });
+
+    const alphaLine = listDetail.lines.find(line => line.part.key === alphaPart.key);
+    const bravoUpperLine = listDetail.lines.find(line => line.part.key === bravoUpper.key);
+    if (!alphaLine || !bravoUpperLine) {
+      throw new Error('Failed to resolve line ids for sorting polish test');
+    }
+
+    const conceptEvent = await shoppingLists.gotoConcept(listDetail.id);
+    expect(conceptEvent.metadata?.sortKey).toBe('description');
+
+    const conceptRows = shoppingLists.conceptTable.locator('tbody tr');
+    await expect(conceptRows.nth(0).getByTestId(/\.part$/)).toHaveText(alphaPart.description);
+    await expect(conceptRows.nth(1).getByTestId(/\.part$/)).toHaveText(bravoUpper.description);
+    await expect(conceptRows.nth(2).getByTestId(/\.part$/)).toHaveText(bravoLower.description);
+
+    await expect(shoppingLists.conceptSellerBadge(alphaPart.description)).toHaveText('Duplicate Seller A');
+    await expect(shoppingLists.conceptStatusBadge(alphaPart.description)).toHaveText(/New/i);
+
+    await shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.sort.button').click();
+    await shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.sort.mpn').click();
+    await shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.sort.button').click();
+    await shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.sort.description').click();
+
+    await expect(conceptRows.nth(0).getByTestId(/\.part$/)).toHaveText(alphaPart.description);
+    await expect(conceptRows.nth(1).getByTestId(/\.part$/)).toHaveText(bravoUpper.description);
+    await expect(conceptRows.nth(2).getByTestId(/\.part$/)).toHaveText(bravoLower.description);
+
+    await testData.shoppingLists.markReady(listDetail.id);
+    await testData.shoppingLists.orderLine(listDetail.id, alphaLine.id, 1);
+    await testData.shoppingLists.orderLine(listDetail.id, bravoUpperLine.id, 1);
+    await testData.shoppingLists.completeLine(listDetail.id, bravoUpperLine.id, 'Quantity mismatch for regression coverage');
+
+    const readyEvent = await shoppingLists.gotoReady(listDetail.id);
+    expect(readyEvent.metadata?.sortKey).toBe('description');
+
+    const groupTotals = Array.isArray(readyEvent.metadata?.groupTotals) ? readyEvent.metadata?.groupTotals : [];
+    const eventGroupKeys = groupTotals.map(group => group.groupKey);
+    const uiGroupKeys = await shoppingLists.readyGroupKeys();
+    expect(uiGroupKeys).toEqual(eventGroupKeys);
+    expect(eventGroupKeys).toEqual([...eventGroupKeys].sort((a, b) => a.localeCompare(b)));
+
+    await expect(shoppingLists.readyGroupBySeller(sellerA.name)).toBeVisible();
+    await expect(shoppingLists.readyGroupBySeller(sellerB.name)).toBeVisible();
+    await expect(shoppingLists.readyLineStatusBadge(alphaPart.description)).toHaveText(/Ordered/i);
+    await expect(shoppingLists.readyLineStatusBadge(bravoUpper.description)).toHaveText(/Received/i);
+
+    const mismatchTooltip = await shoppingLists.readyReceivedTooltip(bravoUpper.description);
+    expect(mismatchTooltip).toMatch(/ordered/i);
   });
 
   test('marks a concept list ready and removes the CTA', async ({ shoppingLists, testData, toastHelper }) => {
@@ -335,7 +400,20 @@ test.describe('Shopping Lists', () => {
 
     await shoppingLists.gotoConcept(list.id);
     await expectConsoleError(shoppingLists.playwrightPage, /Outdated Optimize Dep/);
+    const markReadySubmit = waitTestEvent<FormTestEvent>(
+      shoppingLists.playwrightPage,
+      'form',
+      event => event.formId === 'ShoppingListStatus:markReady' && event.phase === 'submit',
+    );
+    const markReadySuccess = waitTestEvent<FormTestEvent>(
+      shoppingLists.playwrightPage,
+      'form',
+      event => event.formId === 'ShoppingListStatus:markReady' && event.phase === 'success',
+    );
     await shoppingLists.markReady();
+    const [submitEvent, successEvent] = await Promise.all([markReadySubmit, markReadySuccess]);
+    expect(submitEvent.metadata).toMatchObject({ status: 'concept', lineCount: 1 });
+    expect(successEvent.metadata).toMatchObject({ status: 'concept', lineCount: 1 });
     await toastHelper.expectSuccessToast(/marked ready/i);
     await shoppingLists.waitForReadyView();
     await shoppingLists.expectStatus(/ready/i);

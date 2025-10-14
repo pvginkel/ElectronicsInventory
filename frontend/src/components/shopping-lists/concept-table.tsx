@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { ConceptLineRow } from './concept-line-row';
 import { SHOPPING_LIST_LINE_SORT_OPTIONS } from '@/hooks/use-shopping-lists';
 import type { ShoppingListConceptLine, ShoppingListLineSortKey } from '@/types/shopping-lists';
+import { ConceptLineRow } from './concept-line-row';
+import { LINE_TABLE_WIDTHS } from './table-layout';
 
 interface DuplicateNotice {
   lineId: number;
@@ -119,19 +120,20 @@ export function ConceptTable({
         <table className="w-full table-fixed border-collapse">
           <thead>
             <tr className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="w-[28%] px-4 py-2 text-left">Part</th>
-              <th className="w-[18%] px-4 py-2 text-left">Seller</th>
-              <th className="w-[8%] px-4 py-2 text-right">Needed</th>
-              <th className="w-[8%] px-4 py-2 text-right">Ordered</th>
-              <th className="w-[8%] px-4 py-2 text-right">Received</th>
-              <th className="w-[24%] px-4 py-2 text-left">Note</th>
-              <th className="w-[6%] px-4 py-2 text-right">Actions</th>
+              <th className={`${LINE_TABLE_WIDTHS.part} px-4 py-2 text-left`}>Part</th>
+              <th className={`${LINE_TABLE_WIDTHS.seller} px-4 py-2 text-left`}>Seller</th>
+              <th className={`${LINE_TABLE_WIDTHS.status} px-4 py-2 text-left`}>Status</th>
+              <th className={`${LINE_TABLE_WIDTHS.needed} px-4 py-2 text-right`}>Needed</th>
+              <th className={`${LINE_TABLE_WIDTHS.ordered} px-4 py-2 text-right`}>Ordered</th>
+              <th className={`${LINE_TABLE_WIDTHS.received} px-4 py-2 text-right`}>Received</th>
+              <th className={`${LINE_TABLE_WIDTHS.note} px-4 py-2 text-left`}>Note</th>
+              <th className={`${LINE_TABLE_WIDTHS.actions} px-4 py-2 text-right`}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {noLines ? (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground" data-testid="shopping-lists.concept.table.empty">
+                <td colSpan={8} className="px-4 py-6 text-center text-sm text-muted-foreground" data-testid="shopping-lists.concept.table.empty">
                   No lines yet—use “Add row” to populate this Concept list.
                 </td>
               </tr>
@@ -156,7 +158,7 @@ export function ConceptTable({
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={7} className="px-4 py-3 text-right">
+              <td colSpan={8} className="px-4 py-3 text-right">
                 <Button
                   variant="secondary"
                   size="sm"
