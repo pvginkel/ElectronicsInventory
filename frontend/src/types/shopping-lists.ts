@@ -31,7 +31,7 @@ export interface ShoppingListOverviewCounters extends Record<string, unknown> {
   total: number;
   withLines: number;
   activeCount: number;
-  doneCount: number;
+  completedCount: number;
 }
 
 export interface ShoppingListSellerOrderNote {
@@ -146,7 +146,7 @@ export interface ShoppingListMembershipSummary extends Record<string, unknown> {
   activeCount: number;
   conceptCount: number;
   readyCount: number;
-  doneCount: number;
+  completedCount: number;
 }
 
 export interface ShoppingListConceptLine extends Record<string, unknown> {

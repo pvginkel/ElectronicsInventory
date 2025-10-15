@@ -3,16 +3,12 @@ import { useNavigate } from '@tanstack/react-router'
 import { 
   useGetBoxes, 
   usePostBoxes, 
-  usePutBoxesByBoxNo, 
-  useDeleteBoxesByBoxNo,
   type BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema
 } from '@/lib/api/generated/hooks'
 import { BoxCard } from './box-card'
 import { BoxForm } from './box-form'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ConfirmDialog } from '@/components/ui/dialog'
-import { useConfirm } from '@/hooks/use-confirm'
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon'
 import { useToast } from '@/hooks/use-toast'
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
@@ -24,10 +20,6 @@ interface BoxListProps {
 export function BoxList({ searchTerm = '' }: BoxListProps) {
   const navigate = useNavigate()
   const [createFormOpen, setCreateFormOpen] = useState(false)
-  const [editFormOpen, setEditFormOpen] = useState(false)
-  const [editingBox, setEditingBox] = useState<BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema | null>(null)
-
-  const { confirm, confirmProps } = useConfirm()
   const { showSuccess, showException } = useToast()
 
   const {
@@ -37,8 +29,6 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
     error
   } = useGetBoxes()
   const createMutation = usePostBoxes()
-  const updateMutation = usePutBoxesByBoxNo()
-  const deleteMutation = useDeleteBoxesByBoxNo()
 
   const [showLoading, setShowLoading] = useState(isLoading)
 
@@ -93,50 +83,6 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
       const message = err instanceof Error ? err.message : 'Failed to create box'
       showException(message, err)
       throw err
-    }
-  }
-
-  const handleEditBox = (box: BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema) => {
-    setEditingBox(box)
-    setEditFormOpen(true)
-  }
-
-  const handleUpdateBox = async (data: { description: string; capacity: number }) => {
-    if (!editingBox) return
-
-    try {
-      await updateMutation.mutateAsync({
-        path: { box_no: editingBox.box_no },
-        body: data
-      })
-      showSuccess('Box updated successfully')
-      setEditingBox(null)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to update box'
-      showException(message, err)
-      throw err
-    }
-  }
-
-  const handleDeleteBox = async (box: BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema) => {
-    const confirmed = await confirm({
-      title: 'Delete Box',
-      description: `Are you sure you want to delete Box ${box.box_no} (${box.description})? This action cannot be undone.`,
-      confirmText: 'Delete',
-      destructive: true
-    })
-
-    if (confirmed) {
-      try {
-        await deleteMutation.mutateAsync({
-          path: { box_no: box.box_no }
-        })
-        showSuccess(`Box #${box.box_no} deleted`)
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to delete box'
-        showException(message, err)
-        throw err
-      }
     }
   }
 
@@ -312,9 +258,7 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
             <BoxCard
               key={box.box_no}
               box={box}
-              onView={() => handleViewBox(box.box_no)}
-              onEdit={() => handleEditBox(box)}
-              onDelete={() => handleDeleteBox(box)}
+              onOpen={() => handleViewBox(box.box_no)}
             />
           ))}
         </div>
@@ -329,22 +273,6 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
         formId="boxes.create"
       />
 
-      {editingBox && (
-        <BoxForm
-          open={editFormOpen}
-          onOpenChange={(open) => {
-            setEditFormOpen(open)
-            if (!open) setEditingBox(null)
-          }}
-          onSubmit={handleUpdateBox}
-          initialValues={editingBox}
-          title="Edit Box"
-          submitText="Update Box"
-          formId={`boxes.edit.${editingBox.box_no}`}
-        />
-      )}
-
-      <ConfirmDialog {...confirmProps} />
     </div>
   )
 }

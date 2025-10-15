@@ -1,5 +1,5 @@
+import type { KeyboardEvent } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 
 interface BoxCardProps {
   box: {
@@ -11,18 +11,37 @@ interface BoxCardProps {
     available_locations?: number
     usage_percentage?: number
   }
-  onView: () => void
-  onEdit: () => void
-  onDelete: () => void
+  onOpen: () => void
+  disabled?: boolean
 }
 
-export function BoxCard({ box, onView, onEdit, onDelete }: BoxCardProps) {
+export function BoxCard({ box, onOpen, disabled = false }: BoxCardProps) {
+  const handleSelect = () => {
+    if (disabled) {
+      return
+    }
+    onOpen()
+  }
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      handleSelect()
+    }
+  }
+
   return (
     <Card
       variant="content"
-      className="hover:shadow-md transition-shadow"
+      className={`group transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${disabled ? 'pointer-events-none opacity-60' : 'cursor-pointer'}`}
       data-testid={`boxes.list.item.${box.box_no}`}
       data-box-no={box.box_no}
+      tabIndex={disabled ? -1 : 0}
+      role="button"
+      aria-disabled={disabled}
+      aria-label={`Open box ${box.box_no}`}
+      onClick={handleSelect}
+      onKeyDown={handleKeyDown}
     >
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
@@ -40,18 +59,6 @@ export function BoxCard({ box, onView, onEdit, onDelete }: BoxCardProps) {
         <div className="flex justify-between items-center">
           <div className="text-sm text-muted-foreground">
             Usage: {box.occupied_locations ?? 0}/{box.total_locations ?? box.capacity} ({Math.round(box.usage_percentage ?? 0)}%)
-          </div>
-          
-          <div className="flex space-x-2">
-            <Button variant="ghost" size="sm" onClick={onView}>
-              View
-            </Button>
-            <Button variant="ghost" size="sm" onClick={onEdit}>
-              Edit
-            </Button>
-            <Button variant="ghost" size="sm" onClick={onDelete}>
-              Delete
-            </Button>
           </div>
         </div>
         

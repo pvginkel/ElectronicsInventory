@@ -1,20 +1,18 @@
+import type { KeyboardEvent } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ShoppingListOverviewSummary } from '@/types/shopping-lists';
 
 interface ShoppingListOverviewCardProps {
   list: ShoppingListOverviewSummary;
   onOpen: () => void;
-  onDelete: () => void;
-  onMarkDone?: () => void;
-  disableActions?: boolean;
+  disabled?: boolean;
 }
 
 const STATUS_LABELS: Record<ShoppingListOverviewSummary['status'], string> = {
   concept: 'Concept',
   ready: 'Ready',
-  done: 'Done',
+  done: 'Completed',
 };
 
 const STATUS_BADGE_VARIANT: Record<ShoppingListOverviewSummary['status'], 'default' | 'secondary' | 'outline'> = {
@@ -67,20 +65,41 @@ function formatRelativeUpdated(updatedAt: string): string {
 export function ShoppingListOverviewCard({
   list,
   onOpen,
-  onDelete,
-  onMarkDone,
-  disableActions = false,
+  disabled = false,
 }: ShoppingListOverviewCardProps) {
   const statusLabel = STATUS_LABELS[list.status] ?? list.status;
   const statusVariant = STATUS_BADGE_VARIANT[list.status] ?? 'secondary';
   const relativeUpdated = formatRelativeUpdated(list.updatedAt);
   const updatedTooltip = new Date(list.updatedAt).toLocaleString();
+  const interactiveClasses = disabled ? 'pointer-events-none opacity-60' : 'cursor-pointer';
+  const tabIndex = disabled ? -1 : 0;
+
+  const handleSelect = () => {
+    if (disabled) {
+      return;
+    }
+
+    onOpen();
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleSelect();
+    }
+  };
 
   return (
     <Card
       variant="content"
-      className="hover:shadow-md transition-shadow"
+      className={`group transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${interactiveClasses}`}
       data-testid={`shopping-lists.overview.card.${list.id}`}
+      tabIndex={tabIndex}
+      role="button"
+      aria-disabled={disabled}
+      aria-label={`Open shopping list ${list.name}`}
+      onClick={handleSelect}
+      onKeyDown={handleKeyDown}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
@@ -113,13 +132,6 @@ export function ShoppingListOverviewCard({
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <Badge
             variant="outline"
-            title="Total lines tracked on the list"
-            data-testid={`shopping-lists.overview.card.${list.id}.lines-total`}
-          >
-            {list.totalLines} line{list.totalLines === 1 ? '' : 's'}
-          </Badge>
-          <Badge
-            variant="outline"
             className="bg-slate-100 text-slate-700"
             title="New lines still in planning"
             data-testid={`shopping-lists.overview.card.${list.id}.lines-new`}
@@ -150,7 +162,7 @@ export function ShoppingListOverviewCard({
         )}
       </CardContent>
 
-      <CardFooter className="justify-between">
+      <CardFooter className="pt-3">
         <span
           className="text-xs text-muted-foreground"
           title={updatedTooltip}
@@ -158,31 +170,6 @@ export function ShoppingListOverviewCard({
         >
           Updated {relativeUpdated}
         </span>
-        <div className="flex gap-2">
-          {list.status !== 'done' && onMarkDone && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={onMarkDone}
-              disabled={disableActions}
-              data-testid={`shopping-lists.overview.card.${list.id}.mark-done`}
-            >
-              Mark Done
-            </Button>
-          )}
-          <Button size="sm" onClick={onOpen} data-testid={`shopping-lists.overview.card.${list.id}.open`}>
-            Open list
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onDelete}
-            disabled={disableActions}
-            data-testid={`shopping-lists.overview.card.${list.id}.delete`}
-          >
-            Delete
-          </Button>
-        </div>
       </CardFooter>
     </Card>
   );

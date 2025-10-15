@@ -625,12 +625,12 @@ export function useShoppingListsOverview() {
   const lists = useMemo<ShoppingListOverviewSummary[]>(() => selectOverviewLists(query.data), [query.data]);
   const counters = useMemo<ShoppingListOverviewCounters>(() => {
     let activeCount = 0;
-    let doneCount = 0;
+    let completedCount = 0;
     let withLines = 0;
 
     for (const list of lists) {
       if (list.status === 'done') {
-        doneCount += 1;
+        completedCount += 1;
       } else {
         activeCount += 1;
       }
@@ -643,7 +643,7 @@ export function useShoppingListsOverview() {
       total: lists.length,
       withLines,
       activeCount,
-      doneCount,
+      completedCount,
     };
   }, [lists]);
 

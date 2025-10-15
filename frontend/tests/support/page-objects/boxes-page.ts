@@ -68,18 +68,9 @@ export class BoxesPage extends BasePage {
   async openDetail(boxNo: number): Promise<void> {
     const card = this.boxCard(boxNo)
     await expect(card).toBeVisible()
-    await card.getByRole('button', { name: /view/i }).click()
-    await expect(this.detailRoot).toBeVisible()
+    await card.click()
     await waitForListLoading(this.page, 'boxes.detail', 'ready')
-  }
-
-  async deleteFromList(boxNo: number): Promise<void> {
-    const card = this.boxCard(boxNo)
-    await expect(card).toBeVisible()
-    await card.getByRole('button', { name: /delete/i }).click()
-    const dialog = this.page.getByRole('dialog', { name: /delete box/i })
-    await expect(dialog).toBeVisible()
-    await dialog.getByRole('button', { name: /delete/i }).click()
+    await expect(this.detailRoot).toBeVisible()
   }
 
   async fillBoxForm(formId: string, values: { description?: string; capacity?: number }): Promise<void> {
@@ -112,6 +103,23 @@ export class BoxesPage extends BasePage {
 
   get detailLocations(): Locator {
     return this.page.getByTestId('boxes.detail.locations')
+  }
+
+  get detailEditButton(): Locator {
+    return this.detailRoot.getByRole('button', { name: /edit box/i })
+  }
+
+  get detailDeleteButton(): Locator {
+    return this.detailRoot.getByRole('button', { name: /delete box/i })
+  }
+
+  get detailBreadcrumb(): Locator {
+    return this.page.getByTestId('boxes.detail.header').getByRole('link', { name: /storage boxes/i })
+  }
+
+  async returnToListFromDetail(): Promise<void> {
+    await this.detailBreadcrumb.click()
+    await expect(this.root).toBeVisible()
   }
 
   locationItem(boxNo: number, locNo: number): Locator {

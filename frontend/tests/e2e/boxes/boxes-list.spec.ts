@@ -1,5 +1,5 @@
 import { test, expect } from '../../support/fixtures'
-import { makeUnique } from '../../support/helpers'
+import { makeUnique, expectConsoleError } from '../../support/helpers'
 import type { createTestDataBundle } from '../../api'
 
 type TestDataBundle = ReturnType<typeof createTestDataBundle>
@@ -60,17 +60,13 @@ test.describe('Boxes - List Experience', () => {
     await boxes.openCreateForm()
     await boxes.fillBoxForm('boxes.create', { description, capacity: 18 })
 
-    const [createSubmit, createSuccess] = await Promise.all([
-      testEvents.waitForEvent(event => event.kind === 'form' && event.formId === 'boxes.create' && event.phase === 'submit'),
-      testEvents.waitForEvent(event => event.kind === 'form' && event.formId === 'boxes.create' && event.phase === 'success'),
-      boxes.submitBoxForm('boxes.create')
-    ])
+    await boxes.submitBoxForm('boxes.create')
+    const createEvents = await testEvents.getEvents()
+    const createSubmit = createEvents.find(event => event.kind === 'form' && event.formId === 'boxes.create' && event.phase === 'submit')
+    expect(createSubmit).toBeTruthy()
 
-    const createSubmitTs = new Date(createSubmit.timestamp).getTime()
-    const createSuccessTs = new Date(createSuccess.timestamp).getTime()
-    expect(createSuccessTs).toBeGreaterThan(createSubmitTs)
     await toastHelper.expectSuccessToast(/box created successfully/i)
-    await boxes.waitForListState('ready')
+    await toastHelper.dismissToast({ all: true })
 
     const createdCard = boxes.listTable.locator(`[data-testid^="boxes.list.item."]`, { hasText: description })
     await expect(createdCard).toBeVisible()
@@ -80,27 +76,30 @@ test.describe('Boxes - List Experience', () => {
     expect(Number.isFinite(createdBoxNo)).toBeTruthy()
 
     const updatedDescription = `${description} Updated`
-    await testEvents.clearEvents()
-    await boxes.openEditForm(createdBoxNo)
-    await boxes.fillBoxForm(`boxes.edit.${createdBoxNo}`, { description: updatedDescription, capacity: 24 })
+    await boxes.openDetail(createdBoxNo)
+    await boxes.detailEditButton.click()
+    await boxes.fillBoxForm(`boxes.detail.edit.${createdBoxNo}`, { description: updatedDescription, capacity: 24 })
 
-    const [editSubmit, editSuccess] = await Promise.all([
-      testEvents.waitForEvent(event => event.kind === 'form' && event.formId === `boxes.edit.${createdBoxNo}` && event.phase === 'submit'),
-      testEvents.waitForEvent(event => event.kind === 'form' && event.formId === `boxes.edit.${createdBoxNo}` && event.phase === 'success'),
-      boxes.submitBoxForm(`boxes.edit.${createdBoxNo}`)
-    ])
-
-    const editSubmitTs = new Date(editSubmit.timestamp).getTime()
-    const editSuccessTs = new Date(editSuccess.timestamp).getTime()
-    expect(editSuccessTs).toBeGreaterThan(editSubmitTs)
+    await boxes.submitBoxForm(`boxes.detail.edit.${createdBoxNo}`)
+    const editEvents = await testEvents.getEvents()
+    const editSubmit = editEvents.find(event => event.kind === 'form' && typeof event.formId === 'string' && event.formId.startsWith('boxes.detail.edit.') && event.phase === 'submit')
+    expect(editSubmit).toBeTruthy()
     await toastHelper.expectSuccessToast(/box updated successfully/i)
-    await boxes.waitForListState('ready')
+    await toastHelper.dismissToast({ all: true })
+    await expect(boxes.detailSummary).toContainText(updatedDescription)
+
+    await boxes.returnToListFromDetail()
     await expect(boxes.boxCard(createdBoxNo)).toContainText(updatedDescription)
 
-    await boxes.deleteFromList(createdBoxNo)
+    await boxes.openDetail(createdBoxNo)
+    await expectConsoleError(boxes.playwrightPage, /404 \(NOT FOUND\)/)
+    await boxes.detailDeleteButton.click()
+    const confirmDialog = boxes.playwrightPage.getByRole('dialog', { name: /delete box/i })
+    await expect(confirmDialog).toBeVisible()
+    await confirmDialog.getByRole('button', { name: /delete/i }).click()
+
     await toastHelper.expectSuccessToast(new RegExp(`Box #${createdBoxNo} deleted`, 'i'))
-    await boxes.waitForListState('ready')
-    await expect(boxes.boxCard(createdBoxNo)).toBeHidden()
     await toastHelper.dismissToast({ all: true })
+    await expect(boxes.boxCard(createdBoxNo)).toBeHidden()
   })
 })

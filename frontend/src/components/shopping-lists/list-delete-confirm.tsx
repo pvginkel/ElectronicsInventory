@@ -9,6 +9,7 @@ import { useFormInstrumentation } from '@/hooks/use-form-instrumentation';
 
 interface UseListDeleteConfirmOptions {
   onDeleted?: (list: ShoppingListOverviewSummary) => void;
+  dialogTestId?: string;
 }
 
 interface UseListDeleteConfirmResult {
@@ -18,7 +19,7 @@ interface UseListDeleteConfirmResult {
 }
 
 export function useListDeleteConfirm(options: UseListDeleteConfirmOptions = {}): UseListDeleteConfirmResult {
-  const { onDeleted } = options;
+  const { onDeleted, dialogTestId = 'shopping-lists.overview.delete-dialog' } = options;
   const { confirm, confirmProps } = useConfirm();
   const deleteMutation = useDeleteShoppingListMutation();
   const { showSuccess, showException } = useToast();
@@ -50,7 +51,7 @@ export function useListDeleteConfirm(options: UseListDeleteConfirmOptions = {}):
   const dialog = (
     <ConfirmDialog
       {...confirmProps}
-      contentProps={{ 'data-testid': 'shopping-lists.overview.delete-dialog' } as DialogContentProps}
+      contentProps={{ 'data-testid': dialogTestId } as DialogContentProps}
     />
   );
 

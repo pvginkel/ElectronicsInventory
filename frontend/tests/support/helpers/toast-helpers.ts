@@ -112,7 +112,7 @@ export class ToastHelper {
       const count = await toasts.count();
 
       for (let i = 0; i < count; i++) {
-      const closeButton = toasts.nth(i).locator('button[aria-label="Close"]');
+        const closeButton = toasts.nth(i).locator('button[aria-label="Close"]');
         if (await closeButton.isVisible()) {
           await closeButton.click();
         }
@@ -130,6 +130,7 @@ export class ToastHelper {
    * @param options - Wait options
    */
   async waitForToastsToDisappear(options?: { timeout?: number }): Promise<void> {
+    await this.dismissToast({ all: true });
     const toast = this.getToastContainer();
     await toast.waitFor({ state: 'hidden', ...options });
   }
@@ -159,6 +160,7 @@ export class ToastHelper {
     }
 
     this.recordToast({ text: text.toString(), type: 'success' });
+    await this.dismissToast();
   }
 
   /**
@@ -186,6 +188,7 @@ export class ToastHelper {
     }
 
     this.recordToast({ text: text.toString(), type: 'error' });
+    await this.dismissToast();
   }
 
   /**
@@ -196,6 +199,7 @@ export class ToastHelper {
   async expectInfoToast(text: string | RegExp, options?: { timeout?: number }): Promise<void> {
     await this.waitForToastWithText(text, options);
     this.recordToast({ text: text.toString(), type: 'info' });
+    await this.dismissToast();
   }
 
   /**

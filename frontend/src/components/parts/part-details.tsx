@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
+import { ShoppingCart } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/dialog';
@@ -206,12 +207,6 @@ export function PartDetails({ partId }: PartDetailsProps) {
             <h1 className="text-3xl font-bold">{displayDescription}</h1>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
-            <Button
-              onClick={() => setShowAddToListDialog(true)}
-              data-testid="parts.detail.add-to-shopping-list"
-            >
-              Add to shopping list
-            </Button>
             <Button variant="outline" onClick={() => setIsEditing(true)}>
               Edit Part
             </Button>
@@ -229,6 +224,12 @@ export function PartDetails({ partId }: PartDetailsProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => setShowAddToListDialog(true)}
+                  data-testid="parts.detail.actions.add-to-shopping-list"
+                >
+                  Add to shopping list
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleDuplicatePart}>
                   Duplicate Part
                 </DropdownMenuItem>
@@ -273,6 +274,10 @@ export function PartDetails({ partId }: PartDetailsProps) {
                   className="group inline-flex items-center gap-2 rounded-full border border-input bg-muted/40 px-3 py-1 text-sm transition hover:border-primary hover:text-primary"
                   data-testid="parts.detail.shopping-list.badge"
                 >
+                  <ShoppingCart
+                    className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary"
+                    aria-hidden="true"
+                  />
                   <span>{membership.listName}</span>
                   <Badge
                     variant={membership.listStatus === 'ready' ? 'default' : 'secondary'}

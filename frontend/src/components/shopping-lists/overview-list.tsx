@@ -7,7 +7,6 @@ import { useShoppingListsOverview } from '@/hooks/use-shopping-lists';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { ShoppingListOverviewCard } from './overview-card';
 import { ListCreateDialog } from './list-create-dialog';
-import { useListArchiveConfirm, useListDeleteConfirm } from './list-delete-confirm';
 import type { ShoppingListOverviewSummary } from '@/types/shopping-lists';
 import { Route as ShoppingListsRoute } from '@/routes/shopping-lists/index';
 import { Route as ShoppingListDetailRoute } from '@/routes/shopping-lists/$listId';
@@ -16,6 +15,10 @@ import { beginUiState, endUiState } from '@/lib/test/ui-state';
 interface ShoppingListsOverviewProps {
   searchTerm: string;
 }
+
+type OverviewTab = 'active' | 'completed';
+
+const OVERVIEW_TAB_STORAGE_KEY = 'shoppingLists.overview.tab';
 
 export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps) {
   const navigate = useNavigate();
@@ -30,12 +33,24 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
   } = overviewData;
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [showLoading, setShowLoading] = useState(isLoading);
-  const [showDoneSection, setShowDoneSection] = useState(false);
+  const [activeTab, setActiveTab] = useState<OverviewTab>(() => {
+    if (typeof window === 'undefined') {
+      return 'active';
+    }
+
+    const stored = window.localStorage.getItem(OVERVIEW_TAB_STORAGE_KEY);
+    return stored === 'completed' ? 'completed' : 'active';
+  });
   const filterUiPendingRef = useRef(false);
   const hasEmittedInitialFiltersRef = useRef(false);
 
-  const { confirmDelete, dialog: deleteDialog, isDeleting } = useListDeleteConfirm();
-  const { confirmArchive, dialog: archiveDialog, isArchiving } = useListArchiveConfirm();
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(OVERVIEW_TAB_STORAGE_KEY, activeTab);
+  }, [activeTab]);
 
   useEffect(() => {
     if (isLoading) {
@@ -62,12 +77,20 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
   }, [lists, searchTerm]);
 
   const activeLists = useMemo(() => filteredLists.filter((list) => list.status !== 'done'), [filteredLists]);
-  const doneLists = useMemo(() => filteredLists.filter((list) => list.status === 'done'), [filteredLists]);
+  const completedLists = useMemo(() => filteredLists.filter((list) => list.status === 'done'), [filteredLists]);
+  const totalActiveCount = useMemo(
+    () => lists.filter((list) => list.status !== 'done').length,
+    [lists]
+  );
+  const totalCompletedCount = useMemo(
+    () => lists.filter((list) => list.status === 'done').length,
+    [lists]
+  );
   const filtersMetadata = useMemo(() => ({
+    activeTab,
     activeCount: activeLists.length,
-    doneCount: doneLists.length,
-    showDoneState: showDoneSection ? 'expanded' : 'collapsed',
-  }), [activeLists.length, doneLists.length, showDoneSection]);
+    completedCount: completedLists.length,
+  }), [activeLists.length, activeTab, completedLists.length]);
 
   useListLoadingInstrumentation({
     scope: 'shoppingLists.overview',
@@ -135,40 +158,27 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
     });
   };
 
-  const handleDeleteList = async (list: Parameters<typeof confirmDelete>[0]) => {
-    await confirmDelete(list);
-  };
-
-  const handleArchiveList = async (list: ShoppingListOverviewSummary) => {
-    filterUiPendingRef.current = true;
-    beginUiState('shoppingLists.overview.filters');
-    const archived = await confirmArchive(list);
-    if (!archived) {
-      filterUiPendingRef.current = false;
-      endUiState('shoppingLists.overview.filters', filtersMetadata);
+  const handleSelectTab = (tab: OverviewTab) => {
+    if (tab === activeTab) {
+      return;
     }
-  };
 
-  const handleToggleDoneSection = () => {
     filterUiPendingRef.current = true;
     beginUiState('shoppingLists.overview.filters');
-    setShowDoneSection((previous) => !previous);
+    setActiveTab(tab);
   };
 
   if (showLoading) {
     return (
-      <div className="space-y-6" data-testid="shopping-lists.overview.loading">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Shopping Lists</h1>
-            <p className="text-sm text-muted-foreground">Concept lists backed by the real API</p>
-          </div>
+      <div data-testid="shopping-lists.overview.loading">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold">Shopping Lists</h1>
           <Button disabled>Create Concept List</Button>
         </div>
 
-        <div className="relative">
+        <div className="relative mb-6">
           <Input
-            placeholder="Search by name, description, or seller…"
+            placeholder="Search..."
             value={searchTerm}
             onChange={(event) => handleSearchChange(event.target.value)}
             className="pr-8"
@@ -213,57 +223,83 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
   const isFiltered = searchTerm.trim().length > 0;
   const hasLists = lists.length > 0;
   const noMatches = isFiltered && filteredLists.length === 0;
-  const hasActiveLists = activeLists.length > 0;
-  const hasDoneLists = doneLists.length > 0;
+  const visibleLists = activeTab === 'active' ? activeLists : completedLists;
+  const totalInActiveTab = activeTab === 'active' ? totalActiveCount : totalCompletedCount;
+  const hasVisibleLists = visibleLists.length > 0;
+  const summaryCategory = activeTab === 'active' ? 'Active' : 'Completed';
+  const summaryListNoun = totalInActiveTab === 1 ? 'list' : 'lists';
+  const summaryText = isFiltered
+    ? `${visibleLists.length} of ${totalInActiveTab} ${summaryCategory} shopping ${summaryListNoun}`
+    : `${totalInActiveTab} ${summaryCategory} shopping ${summaryListNoun}`;
 
   return (
-    <div className="space-y-6" data-testid="shopping-lists.overview">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold" data-testid="shopping-lists.overview.heading">
-            Shopping Lists
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Create concept lists, add parts, and track readiness.
-          </p>
-        </div>
+    <div data-testid="shopping-lists.overview">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold" data-testid="shopping-lists.overview.heading">
+          Shopping Lists
+        </h1>
         <Button onClick={() => setCreateDialogOpen(true)} data-testid="shopping-lists.overview.create">
           Create Concept List
         </Button>
       </div>
 
       {hasLists && (
-        <div className="relative" data-testid="shopping-lists.overview.search-container">
-          <Input
-            placeholder="Search by name, description, or seller…"
-            value={searchTerm}
-            onChange={(event) => handleSearchChange(event.target.value)}
-            className="pr-8"
-            data-testid="shopping-lists.overview.search"
-          />
-          {searchTerm && (
-            <button
-              type="button"
-              onClick={handleClearSearch}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 hover:bg-muted transition-colors"
-              aria-label="Clear search"
-              data-testid="shopping-lists.overview.search.clear"
-            >
-              <ClearButtonIcon />
-            </button>
-          )}
-        </div>
-      )}
+        <>
+          <div className="relative mb-4 md:mb-6" data-testid="shopping-lists.overview.search-container">
+            <Input
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(event) => handleSearchChange(event.target.value)}
+              className="pr-8"
+              data-testid="shopping-lists.overview.search"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 hover:bg-muted transition-colors"
+                aria-label="Clear search"
+                data-testid="shopping-lists.overview.search.clear"
+              >
+                <ClearButtonIcon />
+              </button>
+            )}
+          </div>
 
-      {hasLists && (
-        <div className="flex flex-col gap-2 rounded-md border border-muted/40 bg-muted/20 px-4 py-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-          <span data-testid="shopping-lists.overview.summary">
-            Active lists ({activeLists.length}) • Done lists ({doneLists.length}){isFiltered ? ` — showing ${filteredLists.length} match${filteredLists.length === 1 ? '' : 'es'}` : ''}
-          </span>
-          <span data-testid="shopping-lists.overview.status-note">
-            Done lists stay hidden until expanded so the Active section reflects work in flight.
-          </span>
-        </div>
+          <div
+            className="flex flex-wrap items-center gap-2 mb-4"
+            role="tablist"
+            aria-label="Shopping list status"
+            data-testid="shopping-lists.overview.tabs"
+          >
+            <Button
+              type="button"
+              size="sm"
+              variant={activeTab === 'active' ? 'default' : 'outline'}
+              aria-selected={activeTab === 'active'}
+              role="tab"
+              data-testid="shopping-lists.overview.tabs.active"
+              onClick={() => handleSelectTab('active')}
+            >
+              Active
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={activeTab === 'completed' ? 'default' : 'outline'}
+              aria-selected={activeTab === 'completed'}
+              role="tab"
+              data-testid="shopping-lists.overview.tabs.completed"
+              onClick={() => handleSelectTab('completed')}
+            >
+              Completed
+            </Button>
+          </div>
+
+          <div className="flex justify-between items-center text-sm text-muted-foreground mb-6" data-testid="shopping-lists.overview.summary">
+            <span>{summaryText}</span>
+          </div>
+        </>
       )}
 
       {!hasLists ? (
@@ -283,68 +319,24 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
             Adjust the search or create a new Concept list tailored to your build.
           </p>
         </div>
+      ) : hasVisibleLists ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" data-testid={`shopping-lists.overview.grid.${activeTab}`}>
+          {visibleLists.map((list) => (
+            <ShoppingListOverviewCard
+              key={list.id}
+              list={list}
+              onOpen={() => handleOpenList(list.id)}
+            />
+          ))}
+        </div>
       ) : (
-        <div className="space-y-8">
-          <section data-testid="shopping-lists.overview.active-section">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground">
-                Active lists ({activeLists.length})
-              </h2>
-            </div>
-            {hasActiveLists ? (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" data-testid="shopping-lists.overview.active-grid">
-                {activeLists.map((list) => (
-                  <ShoppingListOverviewCard
-                    key={list.id}
-                    list={list}
-                    onOpen={() => handleOpenList(list.id)}
-                    onDelete={() => handleDeleteList(list)}
-                    onMarkDone={() => handleArchiveList(list)}
-                    disableActions={isDeleting || isArchiving}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-md border border-dashed border-muted px-4 py-6 text-sm text-muted-foreground" data-testid="shopping-lists.overview.active-empty">
-                No active lists match the current filters.
-              </div>
-            )}
-          </section>
-
-          {hasDoneLists && (
-            <section data-testid="shopping-lists.overview.done-section">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-foreground">
-                  Done lists ({doneLists.length})
-                </h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleToggleDoneSection}
-                  data-testid="shopping-lists.overview.done.toggle"
-                >
-                  {showDoneSection ? 'Hide Done lists' : 'Show Done lists'}
-                </Button>
-              </div>
-              {showDoneSection ? (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" data-testid="shopping-lists.overview.done-grid">
-                  {doneLists.map((list) => (
-                    <ShoppingListOverviewCard
-                      key={list.id}
-                      list={list}
-                      onOpen={() => handleOpenList(list.id)}
-                      onDelete={() => handleDeleteList(list)}
-                      disableActions={isDeleting || isArchiving}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-md border border-dashed border-muted px-4 py-6 text-sm text-muted-foreground" data-testid="shopping-lists.overview.done-collapsed">
-                  Done lists are hidden by default. Expand to review archived work.
-                </div>
-              )}
-            </section>
-          )}
+        <div
+          className="rounded-md border border-dashed border-muted px-4 py-6 text-sm text-muted-foreground"
+          data-testid={`shopping-lists.overview.${activeTab}.empty`}
+        >
+          {isFiltered
+            ? `No ${summaryCategory.toLowerCase()} lists match the current filters.`
+            : `No ${summaryCategory.toLowerCase()} lists yet.`}
         </div>
       )}
 
@@ -353,9 +345,6 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
         onOpenChange={setCreateDialogOpen}
         onCreated={handleListCreated}
       />
-
-      {deleteDialog}
-      {archiveDialog}
     </div>
   );
 }

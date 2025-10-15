@@ -118,7 +118,7 @@ function createSummary(partKey: string, memberships: ShoppingListMembership[]): 
     activeCount: activeMemberships.length,
     conceptCount: conceptMemberships.length,
     readyCount: readyMemberships.length,
-    doneCount: memberships.length - activeMemberships.length,
+    completedCount: memberships.length - activeMemberships.length,
   };
 }
 
@@ -132,7 +132,7 @@ function createEmptySummary(partKey: string): ShoppingListMembershipSummary {
     activeCount: 0,
     conceptCount: 0,
     readyCount: 0,
-    doneCount: 0,
+    completedCount: 0,
   };
 }
 
@@ -270,7 +270,7 @@ export function usePartShoppingListMemberships(
     activeCount: summary.activeCount,
     conceptCount: summary.conceptCount,
     readyCount: summary.readyCount,
-    doneCount: summary.doneCount,
+    completedCount: summary.completedCount,
     partKeys,
     summaryByPartKey,
   };

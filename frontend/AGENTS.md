@@ -53,6 +53,10 @@ Designers drafting plans and developers implementing Playwright work must re-rea
 - Commands reference: `pnpm dev`, `pnpm check`, `pnpm generate:api`, `pnpm build`, `pnpm preview`
 - Playwright execution: `pnpm playwright test`, `pnpm playwright test --debug` (headless by default). Detailed policies live in `docs/contribute/testing/ci_and_execution.md`.
 
+## Verification Before Handoff
+
+- Follow `docs/contribute/testing/ci_and_execution.md#local-run-expectations` before delivering a plan or code slice: `pnpm check` must pass, every touched Playwright spec must be re-run and green, and your final message should call out the commands you executed.
+
 ## Readability Comments
 
 - Add short “guidepost” comments in non-trivial functions to outline the flow or highlight invariants.

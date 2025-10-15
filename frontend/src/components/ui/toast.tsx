@@ -20,6 +20,8 @@ interface ToastProps extends Omit<NativeToastRootProps, 'duration' | 'onOpenChan
   onRemove: (id: string) => void
 }
 
+const DEFAULT_TOAST_DURATION_MS = 15000
+
 const ToastComponent = React.forwardRef<
   React.ElementRef<typeof ToastPrimitive.Root>,
   ToastProps
@@ -42,7 +44,7 @@ const ToastComponent = React.forwardRef<
     <ToastPrimitive.Root
       ref={ref}
       {...props}
-      duration={toast.duration || 5000}
+      duration={toast.duration ?? DEFAULT_TOAST_DURATION_MS}
       role="status"
       aria-live="polite"
       data-toast-type={toast.type}

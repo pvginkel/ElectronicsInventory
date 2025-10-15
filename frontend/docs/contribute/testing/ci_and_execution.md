@@ -23,6 +23,15 @@ pnpm playwright test --debug
 
 Linting and type-checking are part of the default build now—run `pnpm check` locally to execute `eslint` (including the `testing/no-route-mocks` rule) and `tsc --noEmit` before pushing changes.
 
+## Local Run Expectations
+
+Before handing off work (plans or implementation), make sure the tooling that catches regressions has already passed locally:
+
+1. Run `pnpm check` and resolve any lint or type failures.
+2. Re-run every Playwright spec file you edited (`pnpm playwright test tests/...`) plus any suites that exercise shared flows you touched.
+3. Fix flakes or failures immediately—do not defer them to reviewers or CI.
+4. Note the exact commands and pass/fail status in your final summary so handoffs stay auditable.
+
 Playwright is configured in `playwright.config.ts` with `headless: true` by default. Debug mode is the only supported headed execution.
 
 ## Managed Services

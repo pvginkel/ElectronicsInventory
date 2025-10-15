@@ -1,14 +1,17 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { BasePage } from './base-page';
-import { waitForListLoading, waitForUiState } from '../helpers';
+import { waitForListLoading, waitForUiState, expectConsoleError } from '../helpers';
 import { SellerSelectorHarness } from './seller-selector-harness';
-import type { ListLoadingTestEvent } from '@/types/test-events';
+import type { ListLoadingTestEvent, UiStateTestEvent } from '@/types/test-events';
 
 export class ShoppingListsPage extends BasePage {
   readonly overviewRoot: Locator;
   readonly overviewSearch: Locator;
   readonly overviewCreateButton: Locator;
-  readonly overviewDoneToggle: Locator;
+  readonly overviewTabs: Locator;
+  readonly overviewActiveTab: Locator;
+  readonly overviewCompletedTab: Locator;
+  readonly overviewSummary: Locator;
   readonly conceptRoot: Locator;
   readonly conceptTable: Locator;
   readonly readyRoot: Locator;
@@ -21,7 +24,10 @@ export class ShoppingListsPage extends BasePage {
     this.overviewRoot = page.getByTestId('shopping-lists.overview');
     this.overviewSearch = page.getByTestId('shopping-lists.overview.search');
     this.overviewCreateButton = page.getByTestId('shopping-lists.overview.create');
-    this.overviewDoneToggle = page.getByTestId('shopping-lists.overview.done.toggle');
+    this.overviewTabs = page.getByTestId('shopping-lists.overview.tabs');
+    this.overviewActiveTab = page.getByTestId('shopping-lists.overview.tabs.active');
+    this.overviewCompletedTab = page.getByTestId('shopping-lists.overview.tabs.completed');
+    this.overviewSummary = page.getByTestId('shopping-lists.overview.summary');
     this.conceptRoot = page.getByTestId('shopping-lists.concept.page');
     this.conceptTable = page.getByTestId('shopping-lists.concept.table');
     this.readyRoot = page.getByTestId('shopping-lists.ready.page');
@@ -44,8 +50,25 @@ export class ShoppingListsPage extends BasePage {
     return waitForUiState(this.page, 'shoppingLists.overview.filters', 'ready');
   }
 
-  overviewCardByName(name: string | RegExp): Locator {
-    return this.page
+  async selectOverviewTab(tab: 'active' | 'completed'): Promise<UiStateTestEvent> {
+    const target = tab === 'active' ? this.overviewActiveTab : this.overviewCompletedTab;
+    await target.click();
+    const event = await this.waitForOverviewFiltersReady();
+    await expect(target).toHaveAttribute('aria-selected', 'true');
+    return event;
+  }
+
+  async expectOverviewTab(tab: 'active' | 'completed'): Promise<void> {
+    const target = tab === 'active' ? this.overviewActiveTab : this.overviewCompletedTab;
+    await expect(target).toHaveAttribute('aria-selected', 'true');
+  }
+
+  overviewGrid(tab: 'active' | 'completed' = 'active'): Locator {
+    return this.page.getByTestId(`shopping-lists.overview.grid.${tab}`);
+  }
+
+  overviewCardByName(name: string | RegExp, tab: 'active' | 'completed' = 'active'): Locator {
+    return this.overviewGrid(tab)
       .locator('[data-testid^="shopping-lists.overview.card."]')
       .filter({ hasText: name })
       .first();
@@ -65,33 +88,23 @@ export class ShoppingListsPage extends BasePage {
   }
 
   async deleteConceptListByName(name: string): Promise<void> {
-    const card = this.overviewCardByName(name);
-    await expect(card).toBeVisible();
-    await card.getByRole('button', { name: /delete/i }).click();
+    await this.openConceptListByName(name);
+    const deleteButton = this.page.getByTestId('shopping-lists.concept.header.delete');
+    await expect(deleteButton).toBeVisible();
+    await deleteButton.click();
 
-    const confirmDialog = this.page.getByTestId('shopping-lists.overview.delete-dialog');
+    const confirmDialog = this.page.getByTestId('shopping-lists.detail.delete-dialog');
     await expect(confirmDialog).toBeVisible();
+    await expectConsoleError(this.page, /404 \(NOT FOUND\)/);
     await confirmDialog.getByRole('button', { name: /delete/i }).click();
     await this.waitForOverviewReady();
   }
 
-  async openConceptListByName(name: string): Promise<void> {
-    const card = this.overviewCardByName(name);
+  async openConceptListByName(name: string, tab: 'active' | 'completed' = 'active'): Promise<void> {
+    const card = this.overviewCardByName(name, tab);
     await expect(card).toBeVisible();
-    await card.getByRole('button', { name: /open list/i }).click();
+    await card.click();
     await this.waitForConceptReady();
-  }
-
-  async markListDoneFromOverview(name: string | RegExp): Promise<void> {
-    const card = this.overviewCardByName(name);
-    await expect(card).toBeVisible();
-    const markDoneButton = card.getByTestId(/mark-done$/);
-    await expect(markDoneButton).toBeVisible();
-    await markDoneButton.click();
-
-    const confirmDialog = this.page.getByTestId('shopping-lists.overview.archive-dialog');
-    await expect(confirmDialog).toBeVisible();
-    await confirmDialog.getByRole('button', { name: /mark done/i }).click();
   }
 
   async gotoConcept(listId: number): Promise<ListLoadingTestEvent> {

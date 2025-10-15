@@ -3,6 +3,10 @@ import { test } from '../../support/fixtures';
 import { expectConsoleError, waitTestEvent, waitForListLoading } from '../../support/helpers';
 import type { FormTestEvent } from '@/types/test-events';
 
+const overviewSummaryText = (count: number, category: 'Active' | 'Completed') => {
+  const noun = count === 1 ? 'list' : 'lists';
+  return `${count} ${category} shopping ${noun}`;
+};
 test.describe('Shopping Lists', () => {
   test('creates, opens, and deletes a concept list from the overview', async ({ shoppingLists, testData, toastHelper }) => {
     await shoppingLists.gotoOverview();
@@ -24,6 +28,7 @@ test.describe('Shopping Lists', () => {
 
     await shoppingLists.deleteConceptListByName(listName);
     await toastHelper.expectSuccessToast(new RegExp(`Deleted shopping list "${listName}"`, 'i'));
+    await toastHelper.dismissToast({ all: true });
     await expect(shoppingLists.overviewCardByName(listName)).toHaveCount(0);
   });
 
@@ -74,15 +79,15 @@ test.describe('Shopping Lists', () => {
     }
 
     await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listDetail.name}" as Done`, 'i'));
-    await toastHelper.waitForToastsToDisappear();
+    await toastHelper.dismissToast({ all: true });
     await expect(shoppingLists.readyRoot).toBeVisible();
     await expect(shoppingLists.readyMarkDoneButton).toHaveCount(0);
-    await shoppingLists.expectStatus(/Done/i);
+    await shoppingLists.expectStatus(/Completed/i);
 
     await shoppingLists.gotoOverview();
     const overviewFilters = await shoppingLists.waitForOverviewFiltersReady();
-    const doneCount = Number(overviewFilters.metadata?.doneCount ?? 0);
-    expect(doneCount).toBeGreaterThan(0);
+    const completedCount = Number(overviewFilters.metadata?.completedCount ?? 0);
+    expect(completedCount).toBeGreaterThan(0);
   });
 
   test('marks a ready list with ordered lines as done and keeps rows visible', async ({ shoppingLists, testData, toastHelper }) => {
@@ -155,7 +160,7 @@ test.describe('Shopping Lists', () => {
     }
 
     await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listDetail.name}" as Done`, 'i'));
-    await toastHelper.waitForToastsToDisappear();
+    await toastHelper.dismissToast({ all: true });
 
     await expect(shoppingLists.readyRoot).toBeVisible();
     await expect(shoppingLists.readyMarkDoneButton).toHaveCount(0);
@@ -166,11 +171,11 @@ test.describe('Shopping Lists', () => {
     await expect(shoppingLists.readyGroupFilterNote(sellerSecondary.name)).toHaveCount(0);
   });
 
-  test('archives a shopping list from the overview', async ({ shoppingLists, testData, toastHelper }) => {
+  test('completes a ready list via detail and exposes it on the completed tab', async ({ shoppingLists, testData, toastHelper }) => {
     await shoppingLists.gotoOverview();
     const baselineFilters = await shoppingLists.waitForOverviewFiltersReady();
     const baselineActiveCount = Number(baselineFilters.metadata?.activeCount ?? 0);
-    const baselineDoneCount = Number(baselineFilters.metadata?.doneCount ?? 0);
+    const baselineCompletedCount = Number(baselineFilters.metadata?.completedCount ?? 0);
 
     const { part } = await testData.parts.create({ overrides: { description: 'Overview Archive Part' } });
     const listName = testData.shoppingLists.randomName('Overview Archive');
@@ -184,9 +189,13 @@ test.describe('Shopping Lists', () => {
     const initialFilters = await shoppingLists.waitForOverviewFiltersReady();
     expect(initialFilters.metadata).toMatchObject({
       activeCount: baselineActiveCount + 1,
-      doneCount: baselineDoneCount,
-      showDoneState: 'collapsed',
+      completedCount: baselineCompletedCount,
+      activeTab: 'active',
     });
+    await expect(shoppingLists.overviewSummary).toHaveText(overviewSummaryText(baselineActiveCount + 1, 'Active'));
+
+    await shoppingLists.overviewCardByName(listName).click();
+    await shoppingLists.waitForReadyView();
 
     const markDoneSubmit = waitTestEvent<FormTestEvent>(
       shoppingLists.playwrightPage,
@@ -198,33 +207,79 @@ test.describe('Shopping Lists', () => {
       'form',
       event => event.formId === 'ShoppingListStatus:markDone' && event.phase === 'success',
     );
+    const listReadyAfterMark = waitForListLoading(
+      shoppingLists.playwrightPage,
+      'shoppingLists.list',
+      'ready',
+    );
 
-    await shoppingLists.markListDoneFromOverview(listName);
-    await Promise.all([markDoneSubmit, markDoneSuccess]);
+    await shoppingLists.markListDoneFromReady();
+    const [submitEvent, successEvent, readyEvent] = await Promise.all([
+      markDoneSubmit,
+      markDoneSuccess,
+      listReadyAfterMark,
+    ]);
+
+    expect(submitEvent.metadata).toMatchObject({ status: 'done' });
+    expect(successEvent.metadata).toMatchObject({ status: 'done' });
+    expect(readyEvent.metadata).toMatchObject({ status: 'done', view: 'ready' });
+
     await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listName}" as Done`, 'i'));
-    await toastHelper.waitForToastsToDisappear();
+    await toastHelper.dismissToast({ all: true });
 
-    const collapsedFilters = await shoppingLists.waitForOverviewFiltersReady();
-    expect(collapsedFilters.metadata).toMatchObject({
+    await shoppingLists.gotoOverview();
+    const afterCompletionFilters = await shoppingLists.waitForOverviewFiltersReady();
+    expect(afterCompletionFilters.metadata).toMatchObject({
       activeCount: baselineActiveCount,
-      doneCount: baselineDoneCount + 1,
-      showDoneState: 'collapsed',
+      completedCount: baselineCompletedCount + 1,
+      activeTab: 'active',
     });
-    await expect(shoppingLists.overviewCardByName(listName)).toHaveCount(0);
 
-    const urlBeforeToggle = shoppingLists.playwrightPage.url();
-    await shoppingLists.overviewDoneToggle.click();
-    const expandedFilters = await shoppingLists.waitForOverviewFiltersReady();
-    expect(expandedFilters.metadata).toMatchObject({
+    const completedTabEvent = await shoppingLists.selectOverviewTab('completed');
+    expect(completedTabEvent.metadata).toMatchObject({
       activeCount: baselineActiveCount,
-      doneCount: baselineDoneCount + 1,
-      showDoneState: 'expanded',
+      completedCount: baselineCompletedCount + 1,
+      activeTab: 'completed',
     });
-    expect(shoppingLists.playwrightPage.url()).toBe(urlBeforeToggle);
+    await expect(shoppingLists.overviewSummary).toHaveText(overviewSummaryText(baselineCompletedCount + 1, 'Completed'));
 
-    const doneCard = shoppingLists.overviewCardByName(listName);
-    await expect(doneCard).toBeVisible();
-    await expect(doneCard.getByRole('button', { name: /delete/i })).toBeVisible();
+    const completedCard = shoppingLists.overviewCardByName(listName, 'completed');
+    await expect(completedCard).toBeVisible();
+  });
+
+
+  test('keeps the completed tab active after breadcrumb navigation', async ({ shoppingLists, testData }) => {
+    const { part } = await testData.parts.create({ overrides: { description: 'Completed breadcrumb part' } });
+    const listName = testData.shoppingLists.randomName('Completed Breadcrumb');
+    const listDetail = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: listName },
+      lines: [{ partKey: part.key, needed: 2 }],
+    });
+    await testData.shoppingLists.markReady(listDetail.id);
+    await testData.shoppingLists.markDone(listDetail.id);
+
+    await shoppingLists.gotoOverview();
+    const initialFilters = await shoppingLists.waitForOverviewFiltersReady();
+    expect(Number(initialFilters.metadata?.completedCount ?? 0)).toBeGreaterThan(0);
+
+    await shoppingLists.selectOverviewTab('completed');
+    const completedCard = shoppingLists.overviewCardByName(listName, 'completed');
+    await expect(completedCard).toBeVisible();
+
+    await completedCard.click();
+    await shoppingLists.waitForReadyView();
+    await shoppingLists.expectStatus(/Completed/i);
+
+    const breadcrumbLink = shoppingLists.playwrightPage
+      .getByTestId('shopping-lists.concept.header.breadcrumb')
+      .getByRole('link', { name: /shopping lists/i });
+    await breadcrumbLink.click();
+
+    const filtersAfterReturn = await shoppingLists.waitForOverviewFiltersReady();
+    expect(filtersAfterReturn.metadata).toMatchObject({ activeTab: 'completed' });
+    await shoppingLists.expectOverviewTab('completed');
+    await expect(shoppingLists.overviewSummary).toHaveText(overviewSummaryText(Number(filtersAfterReturn.metadata?.completedCount ?? 0), 'Completed'));
+    await expect(shoppingLists.overviewCardByName(listName, 'completed')).toBeVisible();
   });
 
   test('manages concept lines end-to-end', async ({ shoppingLists, testData, toastHelper }) => {
@@ -254,6 +309,7 @@ test.describe('Shopping Lists', () => {
 
     await shoppingLists.deleteConceptLine(part.description);
     await toastHelper.expectSuccessToast(/removed part from concept list/i);
+    await toastHelper.dismissToast({ all: true });
     await expect(lineRow).toHaveCount(0);
   });
 
@@ -415,6 +471,7 @@ test.describe('Shopping Lists', () => {
     expect(submitEvent.metadata).toMatchObject({ status: 'concept', lineCount: 1 });
     expect(successEvent.metadata).toMatchObject({ status: 'concept', lineCount: 1 });
     await toastHelper.expectSuccessToast(/marked ready/i);
+    await toastHelper.dismissToast({ all: true });
     await shoppingLists.waitForReadyView();
     await shoppingLists.expectStatus(/ready/i);
     await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.mark-ready.button')).toHaveCount(0);
@@ -438,7 +495,7 @@ test('renders ready view groups and persists seller notes', async ({ shoppingLis
     await expectConsoleError(shoppingLists.playwrightPage, /Outdated Optimize Dep/);
     await shoppingLists.markReady();
     await toastHelper.expectSuccessToast(/ready/i);
-    await toastHelper.waitForToastsToDisappear();
+    await toastHelper.dismissToast({ all: true });
     await shoppingLists.waitForReadyView();
 
     await expect(shoppingLists.readyGroupBySeller(sellerA.name)).toBeVisible();
@@ -478,6 +535,7 @@ test('renders ready view groups and persists seller notes', async ({ shoppingLis
       { timeout: 15000 }
     );
     await toastHelper.expectSuccessToast(/saved order note/i);
+    await toastHelper.dismissToast({ all: true });
 
     await shoppingLists.gotoReady(list.id);
     const refreshedCard = shoppingLists.readyGroupBySeller(sellerA.name);
@@ -504,7 +562,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     await expectConsoleError(shoppingLists.playwrightPage, /Outdated Optimize Dep/);
     await shoppingLists.markReady();
     await toastHelper.expectSuccessToast(/ready/i);
-    await toastHelper.waitForToastsToDisappear();
+    await toastHelper.dismissToast({ all: true });
     await shoppingLists.waitForReadyView();
 
     const lineSubmit = testEvents.waitForEvent(event =>
@@ -527,7 +585,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
       throw error;
     });
     await toastHelper.expectSuccessToast(/marked .* ordered/i);
-    await toastHelper.waitForToastsToDisappear();
+    await toastHelper.dismissToast({ all: true });
 
     const row = shoppingLists.readyLineRow(part.description);
     await expect(row.getByTestId(/status$/)).toContainText(/ordered/i);
@@ -561,7 +619,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
       { timeout: 15000 }
     );
     await toastHelper.expectSuccessToast(/cleared ordered quantity/i);
-    await toastHelper.waitForToastsToDisappear();
+    await toastHelper.dismissToast({ all: true });
 
     await expect(shoppingLists.readyRoot).toBeVisible();
     await shoppingLists.gotoReady(list.id);
@@ -590,12 +648,13 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     await expectConsoleError(shoppingLists.playwrightPage, /Outdated Optimize Dep/);
     await shoppingLists.markReady();
     await toastHelper.expectSuccessToast(/ready/i);
+    await toastHelper.dismissToast({ all: true });
     await shoppingLists.waitForReadyView();
 
     // Reassign partTwo to the secondary seller while lines are still new
     await shoppingLists.editReadyLine(partTwo.description, { sellerName: sellerSecondary.name });
     await toastHelper.expectSuccessToast(/updated line/i);
-    await toastHelper.waitForToastsToDisappear();
+    await toastHelper.dismissToast({ all: true });
     await expect(shoppingLists.readyGroupBySeller(sellerSecondary.name)).toBeVisible();
     await expect(shoppingLists.readyLineRow(partTwo.description)).toBeVisible();
 
@@ -617,7 +676,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     await groupSubmit;
     await groupSuccess;
     await toastHelper.expectSuccessToast(/marked \d+ lines ordered/i);
-    await toastHelper.waitForToastsToDisappear();
+    await toastHelper.dismissToast({ all: true });
 
     for (const lineItem of primaryLines) {
       const row = shoppingLists.readyLineRow(lineItem.part.description);
@@ -640,6 +699,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
 
     await shoppingLists.backToConcept();
     await toastHelper.expectSuccessToast(/returned list to concept/i);
+    await toastHelper.dismissToast({ all: true });
     await expect(shoppingLists.conceptRoot).toBeVisible();
     await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.mark-ready.button')).toBeVisible();
   });
@@ -660,6 +720,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     await expectConsoleError(shoppingLists.playwrightPage, /Outdated Optimize Dep/);
     await shoppingLists.markReady();
     await toastHelper.expectSuccessToast(/marked ready/i);
+    await toastHelper.dismissToast({ all: true });
     await shoppingLists.waitForReadyView();
 
     await shoppingLists.markLineOrdered(part.description, 5);
@@ -690,7 +751,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     });
 
     await toastHelper.expectSuccessToast(new RegExp(`Received 3 for ${part.description}`, 'i'));
-    await toastHelper.waitForToastsToDisappear();
+    await toastHelper.dismissToast({ all: true });
     await expect(shoppingLists.updateStockDialog).toBeHidden();
 
     await expect(shoppingLists.readyLineReceivedCell(part.description)).toContainText('3');
@@ -722,6 +783,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     await expectConsoleError(shoppingLists.playwrightPage, /Outdated Optimize Dep/);
     await shoppingLists.markReady();
     await toastHelper.expectSuccessToast(/marked ready/i);
+    await toastHelper.dismissToast({ all: true });
     await shoppingLists.waitForReadyView();
 
     await shoppingLists.markLineOrdered(firstPart.description, 4);
@@ -760,7 +822,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     });
 
     await toastHelper.expectSuccessToast(new RegExp(`Received 2 for ${firstPart.description}`, 'i'));
-    await toastHelper.waitForToastsToDisappear();
+    await toastHelper.dismissToast({ all: true });
 
     await testEvents.waitForEvent(event =>
       event.kind === 'form' &&
@@ -791,7 +853,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     });
 
     await toastHelper.expectSuccessToast(new RegExp(`Received 2 for ${secondPart.description}`, 'i'));
-    await toastHelper.waitForToastsToDisappear();
+    await toastHelper.dismissToast({ all: true });
     await expect(shoppingLists.updateStockDialog).toBeHidden();
 
     await expect(shoppingLists.readyLineReceivedCell(firstPart.description)).toContainText('2');
@@ -819,6 +881,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     await expectConsoleError(shoppingLists.playwrightPage, /Outdated Optimize Dep/);
     await shoppingLists.markReady();
     await toastHelper.expectSuccessToast(/marked ready/i);
+    await toastHelper.dismissToast({ all: true });
     await shoppingLists.waitForReadyView();
 
     await shoppingLists.markLineOrdered(part.description, 3);
@@ -845,7 +908,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
       throw error;
     });
     await toastHelper.expectSuccessToast(new RegExp(`Received 1 for ${part.description}`, 'i'));
-    await toastHelper.waitForToastsToDisappear();
+    await toastHelper.dismissToast({ all: true });
 
     await shoppingLists.openUpdateStock(part.description);
 
@@ -871,7 +934,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     });
 
     await toastHelper.expectSuccessToast(new RegExp(`Marked ${part.description} done`, 'i'));
-    await toastHelper.waitForToastsToDisappear();
+    await toastHelper.dismissToast({ all: true });
     await expect(shoppingLists.updateStockDialog).toBeHidden();
 
     await expect(shoppingLists.readyLineStatusCell(part.description)).toContainText(/received/i);

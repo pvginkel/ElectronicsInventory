@@ -115,8 +115,12 @@ export class PartsPage extends BasePage {
     return this.page.getByTestId('parts.detail.documents.add');
   }
 
-  get addToShoppingListButton(): Locator {
-    return this.page.getByTestId('parts.detail.add-to-shopping-list');
+  get detailActionsMenuTrigger(): Locator {
+    return this.page.getByTestId('parts.detail.actions.menu');
+  }
+
+  get addToShoppingListMenuItem(): Locator {
+    return this.page.getByTestId('parts.detail.actions.add-to-shopping-list');
   }
 
   get shoppingListBadgeContainer(): Locator {
@@ -217,7 +221,9 @@ export class PartsPage extends BasePage {
   }
 
   async openAddToShoppingListDialog(): Promise<void> {
-    await this.addToShoppingListButton.click();
+    await this.detailActionsMenuTrigger.click();
+    await expect(this.addToShoppingListMenuItem).toBeVisible();
+    await this.addToShoppingListMenuItem.click();
     await expect(this.addToShoppingListDialog).toBeVisible();
   }
 

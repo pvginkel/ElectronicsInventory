@@ -9,7 +9,7 @@ import { OrderLineDialog } from '@/components/shopping-lists/ready/order-line-di
 import { OrderGroupDialog } from '@/components/shopping-lists/ready/order-group-dialog';
 import { UpdateStockDialog } from '@/components/shopping-lists/ready/update-stock-dialog';
 import { ReadyToolbar } from '@/components/shopping-lists/ready/ready-toolbar';
-import { useListArchiveConfirm } from '@/components/shopping-lists/list-delete-confirm';
+import { useListArchiveConfirm, useListDeleteConfirm } from '@/components/shopping-lists/list-delete-confirm';
 import {
   useShoppingListDetail,
   useSortedShoppingListLines,
@@ -30,11 +30,13 @@ import type {
   ShoppingListLineSortKey,
   ShoppingListSellerGroup,
   ShoppingListLineReceiveAllocationInput,
+  ShoppingListOverviewSummary,
 } from '@/types/shopping-lists';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { useConfirm } from '@/hooks/use-confirm';
 import { ConfirmDialog } from '@/components/ui/dialog';
+import { Route as ShoppingListsRoute } from '@/routes/shopping-lists/index';
 
 const SORT_KEYS: ShoppingListLineSortKey[] = ['description', 'mpn', 'createdAt'];
 
@@ -78,6 +80,14 @@ function ShoppingListDetailRoute() {
   const hasValidListId = Number.isFinite(listId);
   const normalizedListId = hasValidListId ? listId : 0;
   const sortKey = (search.sort as ShoppingListLineSortKey | undefined) ?? 'description';
+  const handleListDeleted = useCallback((list: ShoppingListOverviewSummary) => {
+    void list;
+    void navigate({
+      to: ShoppingListsRoute.fullPath,
+      search: { search: '' },
+      replace: true,
+    });
+  }, [navigate]);
 
   const {
     shoppingList,
@@ -106,6 +116,14 @@ function ShoppingListDetailRoute() {
     dialog: markDoneDialog,
     isArchiving: isMarkingDone,
   } = useListArchiveConfirm({ dialogTestId: 'shopping-lists.ready.archive-dialog' });
+  const {
+    confirmDelete: confirmListDelete,
+    dialog: deleteListDialog,
+    isDeleting: isDeletingList,
+  } = useListDeleteConfirm({
+    dialogTestId: 'shopping-lists.detail.delete-dialog',
+    onDeleted: handleListDeleted,
+  });
 
   const updateMetadataMutation = useUpdateShoppingListMutation(normalizedListId);
   const markReadyMutation = useMarkShoppingListReadyMutation();
@@ -227,6 +245,14 @@ function ShoppingListDetailRoute() {
       throw err;
     }
   }, [markReadyMutation, normalizedListId, showException, showSuccess]);
+
+  const handleDeleteList = useCallback(() => {
+    if (!shoppingList) {
+      return;
+    }
+
+    void confirmListDelete(shoppingList);
+  }, [confirmListDelete, shoppingList]);
 
   // Track line-level mutations so Ready rows can disable actions while in flight.
   const updatePendingLine = useCallback((lineId: number, isPending: boolean) => {
@@ -484,6 +510,8 @@ function ShoppingListDetailRoute() {
         list={shoppingList}
         onUpdateMetadata={handleUpdateMetadata}
         isUpdating={updateMetadataMutation.isPending}
+        onDeleteList={handleDeleteList}
+        isDeletingList={isDeletingList}
       />
 
       <ConceptTable
@@ -515,6 +543,8 @@ function ShoppingListDetailRoute() {
         list={shoppingList}
         onUpdateMetadata={handleUpdateMetadata}
         isUpdating={updateMetadataMutation.isPending}
+        onDeleteList={handleDeleteList}
+        isDeletingList={isDeletingList}
       />
       <ReadyToolbar
         canReturnToConcept={canReturnToConcept}
@@ -589,6 +619,7 @@ function ShoppingListDetailRoute() {
       restoreFocusElement={updateStockState.trigger ?? undefined}
     />
 
+      {deleteListDialog}
       {markDoneDialog}
       <ConfirmDialog {...confirmProps} />
     </>

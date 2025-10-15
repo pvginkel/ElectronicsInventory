@@ -15,6 +15,8 @@ interface ConceptHeaderProps {
   list?: ShoppingListDetail;
   onUpdateMetadata: (update: { name: string; description: string | null }) => Promise<void>;
   isUpdating: boolean;
+  onDeleteList?: () => void;
+  isDeletingList?: boolean;
 }
 
 interface MetadataFormValues extends Record<string, unknown> {
@@ -31,7 +33,13 @@ const STATUS_BADGE_VARIANT: Record<ShoppingListDetail['status'], 'default' | 'se
   done: 'outline',
 };
 
-export function ConceptHeader({ list, onUpdateMetadata, isUpdating }: ConceptHeaderProps) {
+const STATUS_LABELS: Record<ShoppingListDetail['status'], string> = {
+  concept: 'Concept',
+  ready: 'Ready',
+  done: 'Completed',
+};
+
+export function ConceptHeader({ list, onUpdateMetadata, isUpdating, onDeleteList, isDeletingList }: ConceptHeaderProps) {
   const { showSuccess, showException } = useToast();
   const [editOpen, setEditOpen] = useState(false);
 
@@ -97,8 +105,9 @@ export function ConceptHeader({ list, onUpdateMetadata, isUpdating }: ConceptHea
     );
   }
 
-  const statusLabel = list.status.charAt(0).toUpperCase() + list.status.slice(1);
+  const statusLabel = STATUS_LABELS[list.status] ?? list.status;
   const statusVariant = STATUS_BADGE_VARIANT[list.status] ?? 'secondary';
+  const isCompleted = list.status === 'done';
 
   const newCount = list.lineCounts.new;
   const orderedCount = list.lineCounts.ordered;
@@ -136,9 +145,29 @@ export function ConceptHeader({ list, onUpdateMetadata, isUpdating }: ConceptHea
             </p>
           )}
         </div>
-        <Button variant="outline" onClick={() => setEditOpen(true)} data-testid="shopping-lists.concept.header.edit">
-          Edit details
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setEditOpen(true)}
+            disabled={isUpdating || isCompleted}
+            data-testid="shopping-lists.concept.header.edit"
+            title={isCompleted ? 'Completed lists are read-only' : undefined}
+          >
+            Edit details
+          </Button>
+          {onDeleteList && (
+            <Button
+              variant="outline"
+              className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={onDeleteList}
+              loading={isDeletingList}
+              disabled={isDeletingList}
+              data-testid="shopping-lists.concept.header.delete"
+            >
+              Delete list
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-6 text-sm text-muted-foreground" data-testid="shopping-lists.concept.header.counts">
