@@ -37,6 +37,7 @@ export class ShoppingListsPage extends BasePage {
   }
 
   async gotoOverview(): Promise<void> {
+    await expectConsoleError(this.page, /Outdated Optimize Dep/);
     await this.goto('/shopping-lists');
     await expect(this.overviewRoot).toBeVisible();
     await this.waitForOverviewReady();
@@ -51,7 +52,7 @@ export class ShoppingListsPage extends BasePage {
   }
 
   async selectOverviewTab(tab: 'active' | 'completed'): Promise<UiStateTestEvent> {
-    const target = tab === 'active' ? this.overviewActiveTab : this.overviewCompletedTab;
+    const target = this.overviewTab(tab);
     await target.click();
     const event = await this.waitForOverviewFiltersReady();
     await expect(target).toHaveAttribute('aria-selected', 'true');
@@ -59,8 +60,33 @@ export class ShoppingListsPage extends BasePage {
   }
 
   async expectOverviewTab(tab: 'active' | 'completed'): Promise<void> {
-    const target = tab === 'active' ? this.overviewActiveTab : this.overviewCompletedTab;
+    const target = this.overviewTab(tab);
     await expect(target).toHaveAttribute('aria-selected', 'true');
+  }
+
+  overviewTab(tab: 'active' | 'completed'): Locator {
+    const label = tab === 'active' ? 'Active' : 'Completed';
+    return this.overviewTabs.getByRole('tab', { name: new RegExp(label, 'i') });
+  }
+
+  async overviewTabCount(tab: 'active' | 'completed'): Promise<number> {
+    const tabLocator = this.overviewTab(tab);
+    const countLocator = tabLocator.locator('span').nth(1);
+    const countText = (await countLocator.innerText()).trim();
+    const match = countText.match(/[\d,]+/);
+    if (!match) {
+      throw new Error(`Failed to parse ${tab} tab count from "${countText}"`);
+    }
+    return Number(match[0].replace(/,/g, ''));
+  }
+
+  async expectOverviewTabCounts(counts: { active: number; completed: number }): Promise<void> {
+    await expect(this.overviewTab('active')).toContainText(new RegExp(`${counts.active.toLocaleString()}`));
+    await expect(this.overviewTab('completed')).toContainText(new RegExp(`${counts.completed.toLocaleString()}`));
+  }
+
+  async expectOverviewSummary(text: string): Promise<void> {
+    await expect(this.overviewSummary).toHaveText(text);
   }
 
   overviewGrid(tab: 'active' | 'completed' = 'active'): Locator {

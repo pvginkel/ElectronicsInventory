@@ -19,7 +19,7 @@ async function globalSetup() {
     const seededDbPath = await initializeSeedDatabase();
     process.env.PLAYWRIGHT_SEEDED_SQLITE_DB = seededDbPath;
     console.log(`🗃️  Seeded Playwright SQLite database: ${seededDbPath}`);
-    console.log('⏭️ Skipping health checks - worker fixtures boot services on demand');
+    console.log('⏭️  Skipping health checks - worker fixtures boot services on demand');
     return;
   }
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 import { useShoppingListsOverview } from '@/hooks/use-shopping-lists';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
@@ -76,8 +77,18 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
     });
   }, [lists, searchTerm]);
 
-  const activeLists = useMemo(() => filteredLists.filter((list) => list.status !== 'done'), [filteredLists]);
-  const completedLists = useMemo(() => filteredLists.filter((list) => list.status === 'done'), [filteredLists]);
+  const activeLists = useMemo(
+    () => filteredLists.filter((list) => list.status !== 'done'),
+    [filteredLists],
+  );
+  const completedLists = useMemo(
+    () => filteredLists.filter((list) => list.status === 'done'),
+    [filteredLists],
+  );
+  const visibleLists = useMemo(
+    () => (activeTab === 'active' ? activeLists : completedLists),
+    [activeLists, activeTab, completedLists],
+  );
   const totalActiveCount = useMemo(
     () => lists.filter((list) => list.status !== 'done').length,
     [lists]
@@ -86,11 +97,13 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
     () => lists.filter((list) => list.status === 'done').length,
     [lists]
   );
+  // Instrumentation metadata mirrors the Playwright expectations for filter + tab counts.
   const filtersMetadata = useMemo(() => ({
     activeTab,
     activeCount: activeLists.length,
     completedCount: completedLists.length,
-  }), [activeLists.length, activeTab, completedLists.length]);
+    visibleCount: visibleLists.length,
+  }), [activeLists.length, activeTab, completedLists.length, visibleLists.length]);
 
   useListLoadingInstrumentation({
     scope: 'shoppingLists.overview',
@@ -131,6 +144,8 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
   }, [filtersMetadata, isFetching, showLoading]);
 
   const handleSearchChange = (value: string) => {
+    filterUiPendingRef.current = true;
+    beginUiState('shoppingLists.overview.filters');
     navigate({
       to: ShoppingListsRoute.fullPath,
       search: { search: value },
@@ -174,6 +189,12 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
     filterUiPendingRef.current = true;
     beginUiState('shoppingLists.overview.filters');
     setActiveTab(tab);
+  };
+
+  const handleSegmentedTabChange = (tab: string) => {
+    if (tab === 'active' || tab === 'completed') {
+      handleSelectTab(tab);
+    }
   };
 
   if (showLoading) {
@@ -231,13 +252,30 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
   const isFiltered = searchTerm.trim().length > 0;
   const hasLists = lists.length > 0;
   const noMatches = isFiltered && filteredLists.length === 0;
-  const visibleLists = activeTab === 'active' ? activeLists : completedLists;
   const totalInActiveTab = activeTab === 'active' ? totalActiveCount : totalCompletedCount;
   const hasVisibleLists = visibleLists.length > 0;
+  const summaryCategory = activeTab === 'active' ? 'Active' : 'Completed';
   const summaryListNoun = totalInActiveTab === 1 ? 'list' : 'lists';
+  const summaryCategoryLower = summaryCategory.toLowerCase();
   const summaryText = isFiltered
-    ? `${visibleLists.length} of ${totalInActiveTab} shopping ${summaryListNoun}`
-    : `${totalInActiveTab} shopping ${summaryListNoun}`;
+    ? `${visibleLists.length} of ${totalInActiveTab} ${summaryCategoryLower} ${summaryListNoun} showing`
+    : `${totalInActiveTab} ${summaryCategoryLower} ${summaryListNoun}`;
+  const tabItems = [
+    {
+      id: 'active',
+      label: 'Active',
+      count: totalActiveCount,
+      countLabel: 'total active lists',
+      testId: 'shopping-lists.overview.tabs.active',
+    },
+    {
+      id: 'completed',
+      label: 'Completed',
+      count: totalCompletedCount,
+      countLabel: 'total completed lists',
+      testId: 'shopping-lists.overview.tabs.completed',
+    },
+  ];
 
   return (
     <div data-testid="shopping-lists.overview">
@@ -252,19 +290,22 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
 
       {hasLists && (
         <>
-          <div className="relative mb-4 md:mb-6" data-testid="shopping-lists.overview.search-container">
+          <div
+            className="w-full mb-6 relative"
+            data-testid="shopping-lists.overview.search-container"
+          >
             <Input
               placeholder="Search..."
               value={searchTerm}
               onChange={(event) => handleSearchChange(event.target.value)}
-              className="pr-8"
+              className="w-full pr-8"
               data-testid="shopping-lists.overview.search"
             />
             {searchTerm && (
               <button
                 type="button"
                 onClick={handleClearSearch}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 hover:bg-muted transition-colors"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors hover:bg-muted"
                 aria-label="Clear search"
                 data-testid="shopping-lists.overview.search.clear"
               >
@@ -273,38 +314,25 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
             )}
           </div>
 
-          <div
-            className="flex flex-wrap items-center gap-2 mb-4"
-            role="tablist"
-            aria-label="Shopping list status"
+          <SegmentedTabs
+            value={activeTab}
+            onValueChange={handleSegmentedTabChange}
+            items={tabItems}
+            ariaLabel="Shopping list status"
             data-testid="shopping-lists.overview.tabs"
-          >
-            <Button
-              type="button"
-              size="sm"
-              variant={activeTab === 'active' ? 'default' : 'outline'}
-              aria-selected={activeTab === 'active'}
-              role="tab"
-              data-testid="shopping-lists.overview.tabs.active"
-              onClick={() => handleSelectTab('active')}
-            >
-              Active
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={activeTab === 'completed' ? 'default' : 'outline'}
-              aria-selected={activeTab === 'completed'}
-              role="tab"
-              data-testid="shopping-lists.overview.tabs.completed"
-              onClick={() => handleSelectTab('completed')}
-            >
-              Completed
-            </Button>
-          </div>
+            className="mb-4"
+          />
 
-          <div className="flex justify-between items-center text-sm text-muted-foreground mb-6" data-testid="shopping-lists.overview.summary">
+          <div
+            className="flex justify-between items-center text-sm text-muted-foreground mb-6"
+            data-testid="shopping-lists.overview.summary"
+          >
             <span>{summaryText}</span>
+            {isFiltered && (
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground/80">
+                {filteredLists.length} filtered
+              </span>
+            )}
           </div>
         </>
       )}

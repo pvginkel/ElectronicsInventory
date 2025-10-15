@@ -8,6 +8,7 @@ These guidelines cover list, grid, and detail presentations that sit on top of t
 - Searching and filtering should update the router search params via `useNavigate` so browser history and deep links work across sessions.
 - Always provide a summary element (`data-testid="*.list.summary"`) that reports the result counts and reflects filtered vs. total totals.
 - Use responsive grids (`grid-cols-1 md:grid-cols-2 lg:grid-cols-3`, etc.) and keep interactive cards (`PartListItem`) clickable as a whole surface for mobile friendliness.
+- High-level filter toggles (status, lifecycle, etc.) should rely on the shared `SegmentedTabs` primitive (`src/components/ui/segmented-tabs.tsx`) so keyboard navigation, badges, and instrumentation stay consistent across lists.
 
 ## Detail Surfaces
 - Detail panels such as `PartDetails` combine read-only cards, document grids, and action menus. Keep them columnar on desktop (`grid-cols-1 lg:grid-cols-2`) and collapse gracefully on small screens.

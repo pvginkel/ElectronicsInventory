@@ -3,9 +3,23 @@ import { test } from '../../support/fixtures';
 import { expectConsoleError, waitTestEvent, waitForListLoading } from '../../support/helpers';
 import type { FormTestEvent } from '@/types/test-events';
 
-const overviewSummaryText = (count: number) => {
-  const noun = count === 1 ? 'list' : 'lists';
-  return `${count} shopping ${noun}`;
+const overviewSummaryText = ({
+  visible,
+  total,
+  tab,
+  filtered = false,
+}: {
+  visible: number;
+  total: number;
+  tab: 'active' | 'completed';
+  filtered?: boolean;
+}) => {
+  const noun = total === 1 ? 'list' : 'lists';
+  const category = tab === 'active' ? 'active' : 'completed';
+  if (filtered) {
+    return `${visible} of ${total} ${category} ${noun} showing`;
+  }
+  return `${total} ${category} ${noun}`;
 };
 test.describe('Shopping Lists', () => {
   test('creates, opens, and deletes a concept list from the overview', async ({ shoppingLists, testData, toastHelper }) => {
@@ -192,7 +206,18 @@ test.describe('Shopping Lists', () => {
       completedCount: baselineCompletedCount,
       activeTab: 'active',
     });
-    await expect(shoppingLists.overviewSummary).toHaveText(overviewSummaryText(baselineActiveCount + 1));
+    expect(initialFilters.metadata?.visibleCount).toBe(baselineActiveCount + 1);
+    await shoppingLists.expectOverviewSummary(
+      overviewSummaryText({
+        visible: baselineActiveCount + 1,
+        total: baselineActiveCount + 1,
+        tab: 'active',
+      }),
+    );
+    await shoppingLists.expectOverviewTabCounts({
+      active: baselineActiveCount + 1,
+      completed: baselineCompletedCount,
+    });
 
     await shoppingLists.overviewCardByName(listName).click();
     await shoppingLists.waitForReadyView();
@@ -234,6 +259,11 @@ test.describe('Shopping Lists', () => {
       completedCount: baselineCompletedCount + 1,
       activeTab: 'active',
     });
+    expect(afterCompletionFilters.metadata?.visibleCount).toBe(baselineActiveCount);
+    await shoppingLists.expectOverviewTabCounts({
+      active: baselineActiveCount,
+      completed: baselineCompletedCount + 1,
+    });
 
     const completedTabEvent = await shoppingLists.selectOverviewTab('completed');
     expect(completedTabEvent.metadata).toMatchObject({
@@ -241,7 +271,14 @@ test.describe('Shopping Lists', () => {
       completedCount: baselineCompletedCount + 1,
       activeTab: 'completed',
     });
-    await expect(shoppingLists.overviewSummary).toHaveText(overviewSummaryText(baselineCompletedCount + 1));
+    expect(completedTabEvent.metadata?.visibleCount).toBe(baselineCompletedCount + 1);
+    await shoppingLists.expectOverviewSummary(
+      overviewSummaryText({
+        visible: baselineCompletedCount + 1,
+        total: baselineCompletedCount + 1,
+        tab: 'completed',
+      }),
+    );
 
     const completedCard = shoppingLists.overviewCardByName(listName, 'completed');
     await expect(completedCard).toBeVisible();
@@ -277,9 +314,144 @@ test.describe('Shopping Lists', () => {
 
     const filtersAfterReturn = await shoppingLists.waitForOverviewFiltersReady();
     expect(filtersAfterReturn.metadata).toMatchObject({ activeTab: 'completed' });
+    expect(filtersAfterReturn.metadata?.visibleCount).toBeGreaterThan(0);
     await shoppingLists.expectOverviewTab('completed');
-    await expect(shoppingLists.overviewSummary).toHaveText(overviewSummaryText(Number(filtersAfterReturn.metadata?.completedCount ?? 0)));
+    const completedVisible = Number(filtersAfterReturn.metadata?.visibleCount ?? 0);
+    const completedTotal = await shoppingLists.overviewTabCount('completed');
+    await shoppingLists.expectOverviewSummary(
+      overviewSummaryText({
+        visible: completedVisible,
+        total: completedTotal,
+        tab: 'completed',
+      }),
+    );
     await expect(shoppingLists.overviewCardByName(listName, 'completed')).toBeVisible();
+  });
+
+  test('filters segmented tabs by search without losing totals', async ({ shoppingLists, testData }) => {
+    const searchTerm = 'Segmented Search';
+    const activeName = testData.shoppingLists.randomName(`${searchTerm} Active`);
+    const completedName = testData.shoppingLists.randomName(`${searchTerm} Completed`);
+    const backgroundActive = testData.shoppingLists.randomName('Segmented Background Active');
+    const backgroundCompleted = testData.shoppingLists.randomName('Segmented Background Completed');
+
+    await testData.shoppingLists.create({ name: backgroundActive });
+    const { part: backgroundPart } = await testData.parts.create({ overrides: { description: 'Segmented background part' } });
+    const backgroundCompletedList = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: backgroundCompleted },
+      lines: [{ partKey: backgroundPart.key, needed: 1 }],
+    });
+    await testData.shoppingLists.markReady(backgroundCompletedList.id);
+    await testData.shoppingLists.markDone(backgroundCompletedList.id);
+
+    await testData.shoppingLists.create({ name: activeName });
+    const { part: searchPart } = await testData.parts.create({ overrides: { description: 'Segmented search part' } });
+    const completedDetail = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: completedName },
+      lines: [{ partKey: searchPart.key, needed: 2 }],
+    });
+    await testData.shoppingLists.markReady(completedDetail.id);
+    await testData.shoppingLists.markDone(completedDetail.id);
+
+    await shoppingLists.gotoOverview();
+    await shoppingLists.waitForOverviewFiltersReady();
+    const totalActive = await shoppingLists.overviewTabCount('active');
+    const totalCompleted = await shoppingLists.overviewTabCount('completed');
+
+    const filteredEventPromise = shoppingLists.waitForOverviewFiltersReady();
+    await shoppingLists.overviewSearch.fill(searchTerm);
+    const filteredEvent = await filteredEventPromise;
+    expect(filteredEvent.metadata).toMatchObject({ activeTab: 'active' });
+    expect(filteredEvent.metadata?.visibleCount).toBe(1);
+    await expect(shoppingLists.overviewSummary).toContainText(
+      overviewSummaryText({
+        visible: 1,
+        total: totalActive,
+        tab: 'active',
+        filtered: true,
+      }),
+    );
+    const filteredTotal =
+      Number(filteredEvent.metadata?.activeCount ?? 0) +
+      Number(filteredEvent.metadata?.completedCount ?? 0);
+    await expect(shoppingLists.overviewSummary).toContainText(`${filteredTotal} filtered`);
+    await expect(shoppingLists.overviewCardByName(activeName)).toBeVisible();
+    await shoppingLists.expectOverviewTabCounts({ active: totalActive, completed: totalCompleted });
+
+    const completedEvent = await shoppingLists.selectOverviewTab('completed');
+    expect(completedEvent.metadata).toMatchObject({ activeTab: 'completed' });
+    expect(completedEvent.metadata?.visibleCount).toBe(1);
+    await expect(shoppingLists.overviewCardByName(completedName, 'completed')).toBeVisible();
+    await expect(shoppingLists.overviewSummary).toContainText(
+      overviewSummaryText({
+        visible: 1,
+        total: totalCompleted,
+        tab: 'completed',
+        filtered: true,
+      }),
+    );
+    await expect(shoppingLists.overviewSummary).toContainText(`${filteredTotal} filtered`);
+    await expect(shoppingLists.overviewSearch).toHaveValue(searchTerm);
+    await shoppingLists.expectOverviewTabCounts({ active: totalActive, completed: totalCompleted });
+  });
+
+  test('supports keyboard navigation on segmented tabs', async ({ shoppingLists, testData }) => {
+    const activeName = testData.shoppingLists.randomName('Keyboard Active');
+    const completedName = testData.shoppingLists.randomName('Keyboard Completed');
+    await testData.shoppingLists.create({ name: activeName });
+
+    const { part } = await testData.parts.create({ overrides: { description: 'Keyboard Completed Part' } });
+    const completedDetail = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: completedName },
+      lines: [{ partKey: part.key, needed: 1 }],
+    });
+    await testData.shoppingLists.markReady(completedDetail.id);
+    await testData.shoppingLists.markDone(completedDetail.id);
+
+    await shoppingLists.gotoOverview();
+    await shoppingLists.waitForOverviewFiltersReady();
+
+    await shoppingLists.overviewTab('active').focus();
+    await expect(shoppingLists.overviewTab('active')).toBeFocused();
+    await expect(shoppingLists.overviewTab('active')).toHaveAttribute('aria-selected', 'true');
+
+    await shoppingLists.playwrightPage.keyboard.press('ArrowRight');
+    await expect(shoppingLists.overviewTab('completed')).toBeFocused();
+    await expect(shoppingLists.overviewTab('completed')).toHaveAttribute('aria-selected', 'false');
+
+    const completedEventPromise = shoppingLists.waitForOverviewFiltersReady();
+    await shoppingLists.playwrightPage.keyboard.press('Space');
+    const completedEvent = await completedEventPromise;
+    expect(completedEvent.metadata).toMatchObject({ activeTab: 'completed' });
+    expect(completedEvent.metadata?.visibleCount).toBeGreaterThan(0);
+    await expect(shoppingLists.overviewTab('completed')).toHaveAttribute('aria-selected', 'true');
+    const completedTotal = await shoppingLists.overviewTabCount('completed');
+    await shoppingLists.expectOverviewSummary(
+      overviewSummaryText({
+        visible: Number(completedEvent.metadata?.visibleCount ?? 0),
+        total: completedTotal,
+        tab: 'completed',
+      }),
+    );
+
+    await shoppingLists.playwrightPage.keyboard.press('ArrowLeft');
+    await expect(shoppingLists.overviewTab('active')).toBeFocused();
+    await expect(shoppingLists.overviewTab('active')).toHaveAttribute('aria-selected', 'false');
+
+    const activeEventPromise = shoppingLists.waitForOverviewFiltersReady();
+    await shoppingLists.playwrightPage.keyboard.press('Enter');
+    const activeEvent = await activeEventPromise;
+    expect(activeEvent.metadata).toMatchObject({ activeTab: 'active' });
+    expect(activeEvent.metadata?.visibleCount).toBeGreaterThan(0);
+    await expect(shoppingLists.overviewTab('active')).toHaveAttribute('aria-selected', 'true');
+    const activeTotal = await shoppingLists.overviewTabCount('active');
+    await shoppingLists.expectOverviewSummary(
+      overviewSummaryText({
+        visible: Number(activeEvent.metadata?.visibleCount ?? 0),
+        total: activeTotal,
+        tab: 'active',
+      }),
+    );
   });
 
   test('manages concept lines end-to-end', async ({ shoppingLists, testData, toastHelper }) => {
