@@ -143,18 +143,26 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
   };
 
   const handleOpenList = (listId: number) => {
+    const originSearch = searchTerm.length > 0 ? searchTerm : undefined;
     navigate({
       to: ShoppingListDetailRoute.fullPath,
       params: { listId: String(listId) },
-      search: { sort: 'description' },
+      search: {
+        sort: 'description',
+        originSearch,
+      },
     });
   };
 
   const handleListCreated = ({ id }: { id: number; name: string }) => {
+    const originSearch = searchTerm.length > 0 ? searchTerm : undefined;
     navigate({
       to: ShoppingListDetailRoute.fullPath,
       params: { listId: String(id) },
-      search: { sort: 'description' },
+      search: {
+        sort: 'description',
+        originSearch,
+      },
     });
   };
 
@@ -226,11 +234,10 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
   const visibleLists = activeTab === 'active' ? activeLists : completedLists;
   const totalInActiveTab = activeTab === 'active' ? totalActiveCount : totalCompletedCount;
   const hasVisibleLists = visibleLists.length > 0;
-  const summaryCategory = activeTab === 'active' ? 'Active' : 'Completed';
   const summaryListNoun = totalInActiveTab === 1 ? 'list' : 'lists';
   const summaryText = isFiltered
-    ? `${visibleLists.length} of ${totalInActiveTab} ${summaryCategory} shopping ${summaryListNoun}`
-    : `${totalInActiveTab} ${summaryCategory} shopping ${summaryListNoun}`;
+    ? `${visibleLists.length} of ${totalInActiveTab} shopping ${summaryListNoun}`
+    : `${totalInActiveTab} shopping ${summaryListNoun}`;
 
   return (
     <div data-testid="shopping-lists.overview">

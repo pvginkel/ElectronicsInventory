@@ -46,7 +46,8 @@ export const Route = createFileRoute('/shopping-lists/$listId')({
     const sort = SORT_KEYS.includes(value as ShoppingListLineSortKey)
       ? (value as ShoppingListLineSortKey)
       : 'description';
-    return { sort };
+    const originSearch = typeof search.originSearch === 'string' ? search.originSearch : undefined;
+    return { sort, originSearch };
   },
   component: ShoppingListDetailRoute,
 });
@@ -84,10 +85,10 @@ function ShoppingListDetailRoute() {
     void list;
     void navigate({
       to: ShoppingListsRoute.fullPath,
-      search: { search: '' },
+      search: { search: search.originSearch ?? '' },
       replace: true,
     });
-  }, [navigate]);
+  }, [navigate, search.originSearch]);
 
   const {
     shoppingList,
@@ -175,10 +176,10 @@ function ShoppingListDetailRoute() {
     navigate({
       to: Route.fullPath,
       params: { listId: params.listId },
-      search: { sort: nextSort },
+      search: { sort: nextSort, originSearch: search.originSearch ?? undefined },
       replace: true,
     });
-  }, [navigate, params.listId, sortKey]);
+  }, [navigate, params.listId, search.originSearch, sortKey]);
 
   const handleOpenCreateLine = useCallback(() => {
     setLineFormMode('add');
@@ -512,6 +513,7 @@ function ShoppingListDetailRoute() {
         isUpdating={updateMetadataMutation.isPending}
         onDeleteList={handleDeleteList}
         isDeletingList={isDeletingList}
+        overviewSearchTerm={search.originSearch ?? ''}
       />
 
       <ConceptTable
@@ -545,6 +547,7 @@ function ShoppingListDetailRoute() {
         isUpdating={updateMetadataMutation.isPending}
         onDeleteList={handleDeleteList}
         isDeletingList={isDeletingList}
+        overviewSearchTerm={search.originSearch ?? ''}
       />
       <ReadyToolbar
         canReturnToConcept={canReturnToConcept}

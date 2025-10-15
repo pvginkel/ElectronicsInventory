@@ -482,7 +482,7 @@ function ShoppingListIndicator({ summary, status, fetchStatus, error }: Shopping
               <Link
                 to="/shopping-lists/$listId"
                 params={{ listId: String(membership.listId) }}
-                search={{ sort: 'description' }}
+                search={{ sort: 'description', originSearch: undefined }}
                 className="flex items-center justify-between gap-2 truncate text-sm hover:text-primary"
                 onClick={(event) => event.stopPropagation()}
               >

@@ -17,6 +17,7 @@ interface ConceptHeaderProps {
   isUpdating: boolean;
   onDeleteList?: () => void;
   isDeletingList?: boolean;
+  overviewSearchTerm?: string;
 }
 
 interface MetadataFormValues extends Record<string, unknown> {
@@ -39,7 +40,14 @@ const STATUS_LABELS: Record<ShoppingListDetail['status'], string> = {
   done: 'Completed',
 };
 
-export function ConceptHeader({ list, onUpdateMetadata, isUpdating, onDeleteList, isDeletingList }: ConceptHeaderProps) {
+export function ConceptHeader({
+  list,
+  onUpdateMetadata,
+  isUpdating,
+  onDeleteList,
+  isDeletingList,
+  overviewSearchTerm = '',
+}: ConceptHeaderProps) {
   const { showSuccess, showException } = useToast();
   const [editOpen, setEditOpen] = useState(false);
 
@@ -95,7 +103,7 @@ export function ConceptHeader({ list, onUpdateMetadata, isUpdating, onDeleteList
     return (
       <div className="space-y-4" data-testid="shopping-lists.concept.header.loading">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Link to={ShoppingListsRoute.fullPath} search={{ search: '' }} className="hover:text-foreground">Shopping Lists</Link>
+          <Link to={ShoppingListsRoute.fullPath} search={{ search: overviewSearchTerm }} className="hover:text-foreground">Shopping Lists</Link>
           <span>/</span>
           <span>Loading…</span>
         </div>
@@ -116,7 +124,7 @@ export function ConceptHeader({ list, onUpdateMetadata, isUpdating, onDeleteList
   return (
     <div className="space-y-4" data-testid="shopping-lists.concept.header">
       <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="shopping-lists.concept.header.breadcrumb">
-        <Link to={ShoppingListsRoute.fullPath} search={{ search: '' }} className="hover:text-foreground">Shopping Lists</Link>
+        <Link to={ShoppingListsRoute.fullPath} search={{ search: overviewSearchTerm }} className="hover:text-foreground">Shopping Lists</Link>
         <span>/</span>
         <span className="text-foreground">{list.name}</span>
       </div>

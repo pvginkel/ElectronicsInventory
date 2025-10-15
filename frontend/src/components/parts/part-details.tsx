@@ -270,13 +270,14 @@ export function PartDetails({ partId }: PartDetailsProps) {
                   key={membership.listId}
                   to="/shopping-lists/$listId"
                   params={{ listId: String(membership.listId) }}
-                  search={{ sort: 'description' }}
+                  search={{ sort: 'description', originSearch: undefined }}
                   className="group inline-flex items-center gap-2 rounded-full border border-input bg-muted/40 px-3 py-1 text-sm transition hover:border-primary hover:text-primary"
                   data-testid="parts.detail.shopping-list.badge"
                 >
                   <ShoppingCart
                     className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary"
                     aria-hidden="true"
+                    data-testid="parts.detail.shopping-list.badge.icon"
                   />
                   <span>{membership.listName}</span>
                   <Badge

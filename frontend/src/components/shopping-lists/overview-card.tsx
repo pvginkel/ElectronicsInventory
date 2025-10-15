@@ -149,10 +149,10 @@ export function ShoppingListOverviewCard({
           <Badge
             variant="outline"
             className="bg-emerald-100 text-emerald-800"
-            title="Done lines already received"
+            title="Completed lines already received"
             data-testid={`shopping-lists.overview.card.${list.id}.lines-done`}
           >
-            Done {list.lineCounts.done}
+            Completed {list.lineCounts.done}
           </Badge>
         </div>
         {list.totalLines === 0 && (

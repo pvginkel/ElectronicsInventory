@@ -3,9 +3,9 @@ import { test } from '../../support/fixtures';
 import { expectConsoleError, waitTestEvent, waitForListLoading } from '../../support/helpers';
 import type { FormTestEvent } from '@/types/test-events';
 
-const overviewSummaryText = (count: number, category: 'Active' | 'Completed') => {
+const overviewSummaryText = (count: number) => {
   const noun = count === 1 ? 'list' : 'lists';
-  return `${count} ${category} shopping ${noun}`;
+  return `${count} shopping ${noun}`;
 };
 test.describe('Shopping Lists', () => {
   test('creates, opens, and deletes a concept list from the overview', async ({ shoppingLists, testData, toastHelper }) => {
@@ -192,7 +192,7 @@ test.describe('Shopping Lists', () => {
       completedCount: baselineCompletedCount,
       activeTab: 'active',
     });
-    await expect(shoppingLists.overviewSummary).toHaveText(overviewSummaryText(baselineActiveCount + 1, 'Active'));
+    await expect(shoppingLists.overviewSummary).toHaveText(overviewSummaryText(baselineActiveCount + 1));
 
     await shoppingLists.overviewCardByName(listName).click();
     await shoppingLists.waitForReadyView();
@@ -241,7 +241,7 @@ test.describe('Shopping Lists', () => {
       completedCount: baselineCompletedCount + 1,
       activeTab: 'completed',
     });
-    await expect(shoppingLists.overviewSummary).toHaveText(overviewSummaryText(baselineCompletedCount + 1, 'Completed'));
+    await expect(shoppingLists.overviewSummary).toHaveText(overviewSummaryText(baselineCompletedCount + 1));
 
     const completedCard = shoppingLists.overviewCardByName(listName, 'completed');
     await expect(completedCard).toBeVisible();
@@ -278,7 +278,7 @@ test.describe('Shopping Lists', () => {
     const filtersAfterReturn = await shoppingLists.waitForOverviewFiltersReady();
     expect(filtersAfterReturn.metadata).toMatchObject({ activeTab: 'completed' });
     await shoppingLists.expectOverviewTab('completed');
-    await expect(shoppingLists.overviewSummary).toHaveText(overviewSummaryText(Number(filtersAfterReturn.metadata?.completedCount ?? 0), 'Completed'));
+    await expect(shoppingLists.overviewSummary).toHaveText(overviewSummaryText(Number(filtersAfterReturn.metadata?.completedCount ?? 0)));
     await expect(shoppingLists.overviewCardByName(listName, 'completed')).toBeVisible();
   });
 

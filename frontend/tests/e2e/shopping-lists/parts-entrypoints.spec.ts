@@ -41,6 +41,7 @@ test.describe('Shopping List Phase 3 entry points', () => {
 
     const badge = parts.shoppingListBadgeByName(listName);
     await expect(badge).toBeVisible();
+    await expect(badge.getByTestId('parts.detail.shopping-list.badge.icon')).toBeVisible();
     const badgeHref = await badge.getAttribute('href');
     expect(badgeHref).toBeTruthy();
     const listIdMatch = badgeHref?.match(/shopping-lists\/(\d+)/);
