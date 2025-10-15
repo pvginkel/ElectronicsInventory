@@ -454,6 +454,37 @@ test.describe('Shopping Lists', () => {
     );
   });
 
+  test('keeps overflowed segmented tabs visible during keyboard navigation', async ({ shoppingLists, testData }) => {
+    const activeName = testData.shoppingLists.randomName('Overflow Active');
+    const completedName = testData.shoppingLists.randomName('Overflow Completed');
+    await testData.shoppingLists.create({ name: activeName });
+
+    const { part } = await testData.parts.create({ overrides: { description: 'Overflow Completed Part' } });
+    const completedDetail = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: completedName },
+      lines: [{ partKey: part.key, needed: 1 }],
+    });
+    await testData.shoppingLists.markReady(completedDetail.id);
+    await testData.shoppingLists.markDone(completedDetail.id);
+
+    await shoppingLists.gotoOverview();
+    await shoppingLists.waitForOverviewFiltersReady();
+
+    await shoppingLists.setOverviewTabsWidth(160);
+    await shoppingLists.resetOverviewTabsScroll();
+
+    await shoppingLists.overviewTab('active').focus();
+    await expect(shoppingLists.overviewTab('active')).toBeFocused();
+    const initialScroll = await shoppingLists.getOverviewTabsScroll();
+
+    await shoppingLists.playwrightPage.keyboard.press('ArrowRight');
+    await expect(shoppingLists.overviewTab('completed')).toBeFocused();
+
+    await expect
+      .poll(async () => shoppingLists.getOverviewTabsScroll())
+      .toBeGreaterThan(initialScroll);
+  });
+
   test('manages concept lines end-to-end', async ({ shoppingLists, testData, toastHelper }) => {
     const { part } = await testData.parts.create({ overrides: { description: 'Line management part' } });
     const seller = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName(), website: 'https://example.com' } });

@@ -145,9 +145,21 @@ export function SegmentedTabs({
         return;
       }
       const node = tabRefs.current.get(item.id);
-      node?.focus({ preventScroll: true });
+      if (!node) {
+        return;
+      }
+
+      node.focus();
+
+      if (scrollable) {
+        node.scrollIntoView({
+          behavior: 'auto',
+          block: 'nearest',
+          inline: 'center',
+        });
+      }
     },
-    [items],
+    [items, scrollable],
   );
 
   const cycleIndex = useCallback(

@@ -89,6 +89,22 @@ export class ShoppingListsPage extends BasePage {
     await expect(this.overviewSummary).toHaveText(text);
   }
 
+  async setOverviewTabsWidth(width: number): Promise<void> {
+    await this.overviewTabs.evaluate((element, nextWidth) => {
+      element.style.width = `${nextWidth}px`;
+    }, width);
+  }
+
+  async getOverviewTabsScroll(): Promise<number> {
+    return this.overviewTabs.evaluate((element) => element.scrollLeft);
+  }
+
+  async resetOverviewTabsScroll(): Promise<void> {
+    await this.overviewTabs.evaluate((element) => {
+      element.scrollLeft = 0;
+    });
+  }
+
   overviewGrid(tab: 'active' | 'completed' = 'active'): Locator {
     return this.page.getByTestId(`shopping-lists.overview.grid.${tab}`);
   }
