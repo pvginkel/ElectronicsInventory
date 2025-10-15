@@ -74,7 +74,7 @@ const ToastComponent = React.forwardRef<
           </div>
           <div className="ml-4 flex flex-shrink-0">
             <ToastPrimitive.Close
-              className="inline-flex rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 hover:opacity-75"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 hover:opacity-75"
             >
               <span className="sr-only">Close</span>
               <ClearButtonIcon className="w-4 h-4" />
@@ -125,7 +125,7 @@ export function ToastContainer({ toasts, onRemove, viewportProps, getItemProps }
         data-testid={viewportTestId}
         {...viewportProps}
         className={cn(
-          "fixed bottom-0 right-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
+          "fixed bottom-0 right-0 z-[100] flex max-h-screen w-full flex-col-reverse gap-3 p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
           viewportProps?.className
         )}
       />

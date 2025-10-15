@@ -10,9 +10,10 @@ interface SellerGroupListProps {
   onOpenOrderGroup: (group: ShoppingListSellerGroup, trigger?: HTMLElement | null) => void;
   onRevertLine: (line: ShoppingListConceptLine) => void;
   onEditLine: (line: ShoppingListConceptLine) => void;
-  onUpdateStock: (line: ShoppingListConceptLine) => void;
+  onUpdateStock: (line: ShoppingListConceptLine, trigger?: HTMLElement | null) => void;
   pendingLineIds: Set<number>;
   highlightedLineId?: number | null;
+  isCompleted: boolean;
 }
 
 export function SellerGroupList({
@@ -25,25 +26,32 @@ export function SellerGroupList({
   onUpdateStock,
   pendingLineIds,
   highlightedLineId,
+  isCompleted,
 }: SellerGroupListProps) {
   const sortedGroups = useMemo(() => sortSellerGroupsForReadyView(groups), [groups]);
 
   return (
     <div className="space-y-6" data-testid="shopping-lists.ready.groups">
-      {sortedGroups.map(group => (
-        <SellerGroupCard
-          key={group.groupKey}
-          listId={listId}
-          group={group}
-          onOpenOrderLine={onOpenOrderLine}
-          onOpenOrderGroup={onOpenOrderGroup}
-          onRevertLine={onRevertLine}
-          onEditLine={onEditLine}
-          onUpdateStock={onUpdateStock}
-          pendingLineIds={pendingLineIds}
-          highlightedLineId={highlightedLineId}
-        />
-      ))}
+      {sortedGroups.map(group => {
+        const hasNewLines = group.hasNewLines ?? group.lines.some(line => line.status === 'new');
+
+        return (
+          <SellerGroupCard
+            key={group.groupKey}
+            listId={listId}
+            group={group}
+            onOpenOrderLine={onOpenOrderLine}
+            onOpenOrderGroup={onOpenOrderGroup}
+            onRevertLine={onRevertLine}
+            onEditLine={onEditLine}
+            onUpdateStock={onUpdateStock}
+            pendingLineIds={pendingLineIds}
+            highlightedLineId={highlightedLineId}
+            canBulkOrder={!isCompleted && hasNewLines}
+            isCompleted={isCompleted}
+          />
+        );
+      })}
     </div>
   );
 }

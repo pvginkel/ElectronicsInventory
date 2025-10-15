@@ -1,12 +1,12 @@
 export const LINE_TABLE_WIDTHS = {
-  part: 'w-[26%]',
-  seller: 'w-[16%]',
+  part: 'w-[30%]',
+  seller: 'w-[10%]',
   status: 'w-[10%]',
-  needed: 'w-[8%]',
-  ordered: 'w-[8%]',
-  received: 'w-[8%]',
-  note: 'w-[18%]',
-  actions: 'w-[6%]',
+  needed: 'w-[10%]',
+  ordered: 'w-[10%]',
+  received: 'w-[10%]',
+  note: 'w-[20%]',
+  actions: 'min-w-[200px]',
 } as const;
 
 export type LineTableWidthKey = keyof typeof LINE_TABLE_WIDTHS;

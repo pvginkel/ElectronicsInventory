@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useRef, useEffect, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, type ReactNode } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -76,6 +76,8 @@ interface SearchableSelectProps<
   // Error state
   /** Error message to display (backward compatibility) */
   error?: string;
+  /** Capture wheel events on the popover content */
+  onPopoverWheelCapture?: (event: React.WheelEvent<HTMLDivElement>) => void;
 }
 
 function SearchableSelectComponent<
@@ -98,11 +100,13 @@ function SearchableSelectComponent<
   noResultsText = "No results found",
   error,
   onFocus,
+  onPopoverWheelCapture,
   ...props
 }: SearchableSelectProps<IdType, Option>, ref: React.Ref<HTMLInputElement>) {
   const [open, setOpen] = useState(false);
   const [isUserEditing, setIsUserEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
   // Merge refs
   React.useImperativeHandle(ref, () => inputRef.current!);
@@ -170,7 +174,7 @@ function SearchableSelectComponent<
   };
 
   // Update search term when selection changes from outside
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (selectedOption && !isUserEditing && searchTerm !== selectedOption.name) {
       onSearchChange(selectedOption.name);
     } else if (!selectedOption && !isUserEditing && searchTerm) {
@@ -194,6 +198,33 @@ function SearchableSelectComponent<
       }, 0);
     }
   };
+  const handleWheelCapture = (event: React.WheelEvent<HTMLDivElement>) => {
+    onPopoverWheelCapture?.(event);
+  };
+
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content) {
+      return undefined;
+    }
+
+    const handleNativeWheel = (nativeEvent: WheelEvent) => {
+      try {
+        nativeEvent.preventDefault();
+      } catch {
+        /* noop - some browsers treat wheel listeners as passive */
+      }
+      content.scrollTop += nativeEvent.deltaY;
+      if (onPopoverWheelCapture) {
+        onPopoverWheelCapture(nativeEvent as unknown as React.WheelEvent<HTMLDivElement>);
+      }
+    };
+
+    content.addEventListener('wheel', handleNativeWheel, { passive: false });
+    return () => {
+      content.removeEventListener('wheel', handleNativeWheel);
+    };
+  }, [onPopoverWheelCapture, open]);
 
   // Check for exact match and create option
   const exactMatch = options.find(option =>
@@ -247,6 +278,7 @@ function SearchableSelectComponent<
 
       <Popover.Portal>
         <Popover.Content
+          ref={contentRef}
           className="z-50 w-[var(--radix-popover-trigger-width)] bg-card border border-input rounded-md shadow-md max-h-60 overflow-y-auto"
           sideOffset={4}
           align="start"
@@ -261,6 +293,7 @@ function SearchableSelectComponent<
               e.preventDefault();
             }
           }}
+          onWheelCapture={handleWheelCapture}
         >
           <div role="listbox">
             {isLoading ? (

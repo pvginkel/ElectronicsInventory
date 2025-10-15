@@ -13,6 +13,7 @@ export class ShoppingListsPage extends BasePage {
   readonly overviewCompletedTab: Locator;
   readonly overviewSummary: Locator;
   readonly conceptRoot: Locator;
+  readonly conceptToolbar: Locator;
   readonly conceptTable: Locator;
   readonly readyRoot: Locator;
   readonly readyToolbar: Locator;
@@ -29,6 +30,7 @@ export class ShoppingListsPage extends BasePage {
     this.overviewCompletedTab = page.getByTestId('shopping-lists.overview.tabs.completed');
     this.overviewSummary = page.getByTestId('shopping-lists.overview.summary');
     this.conceptRoot = page.getByTestId('shopping-lists.concept.page');
+    this.conceptToolbar = page.getByTestId('shopping-lists.concept.toolbar');
     this.conceptTable = page.getByTestId('shopping-lists.concept.table');
     this.readyRoot = page.getByTestId('shopping-lists.ready.page');
     this.readyToolbar = page.getByTestId('shopping-lists.ready.toolbar');
@@ -171,7 +173,7 @@ export class ShoppingListsPage extends BasePage {
   async waitForReadyView(): Promise<ListLoadingTestEvent> {
     const event = await waitForListLoading(this.page, 'shoppingLists.list', 'ready');
     if (event.metadata?.view) {
-      expect(event.metadata.view).toBe('ready');
+      expect(['ready', 'completed']).toContain(event.metadata.view);
     }
     await expect(this.readyRoot).toBeVisible();
     return event;
@@ -210,12 +212,30 @@ export class ShoppingListsPage extends BasePage {
     return this.readyLineRow(part).getByTestId(/\.status\.badge$/);
   }
 
+  readyLineAction(part: string | RegExp, action: 'mark-ordered' | 'adjust-ordered' | 'update-stock' | 'revert' | 'edit'): Locator {
+    if (action === 'update-stock') {
+      return this.readyLineRow(part).getByTestId(/\.update-stock$/);
+    }
+    if (action === 'adjust-ordered') {
+      return this.readyLineRow(part).getByTestId(/\.ordered\.edit$/);
+    }
+    return this.readyLineRow(part).getByTestId(new RegExp(`actions\\.${action}$`));
+  }
+
   conceptStatusBadge(part: string | RegExp): Locator {
     return this.conceptRowByPart(part).getByTestId(/\.status\.badge$/);
   }
 
   conceptSellerBadge(part: string | RegExp): Locator {
     return this.conceptRowByPart(part).getByTestId(/\.seller\.badge$/);
+  }
+
+  conceptBadge(badge: 'total' | 'new' | 'ordered' | 'done'): Locator {
+    return this.page.getByTestId(`shopping-lists.concept.header.badge.${badge}`);
+  }
+
+  conceptToolbarLineCount(): Locator {
+    return this.conceptToolbar.getByTestId('shopping-lists.concept.toolbar.line-count');
   }
 
   readyGroupTotals(seller: string | RegExp): { needed: Locator; ordered: Locator; received: Locator } {
@@ -249,6 +269,10 @@ export class ShoppingListsPage extends BasePage {
   readyGroupFilterNote(seller: string | RegExp): Locator {
     const card = this.readyGroupBySeller(seller);
     return card.getByTestId('shopping-lists.ready.group.filter-note');
+  }
+
+  readyGroupEditButton(seller: string | RegExp): Locator {
+    return this.readyGroupBySeller(seller).getByRole('button', { name: /edit group/i });
   }
 
   get readyMarkDoneButton(): Locator {
@@ -302,8 +326,7 @@ export class ShoppingListsPage extends BasePage {
   async editConceptLine(part: string | RegExp, updates: { needed?: number; sellerName?: string | null; note?: string }): Promise<void> {
     const row = this.conceptRowByPart(part);
     await expect(row).toBeVisible();
-    await row.getByTestId(/actions$/).click();
-    await this.page.getByRole('menuitem', { name: /edit line/i }).click();
+    await row.getByTestId(/\.edit$/).click();
 
     const dialog = this.page.getByRole('dialog', { name: /edit line/i });
     await expect(dialog).toBeVisible();
@@ -337,8 +360,7 @@ export class ShoppingListsPage extends BasePage {
   async editReadyLine(part: string | RegExp, updates: { sellerName?: string | null; needed?: number; note?: string }): Promise<void> {
     const row = this.readyLineRow(part);
     await expect(row).toBeVisible();
-    await row.getByTestId(/actions$/).click();
-    await this.page.getByTestId(/actions\.edit$/).click();
+    await row.getByTestId(/actions\.edit$/).click();
 
     const dialog = this.page.getByRole('dialog', { name: /edit line/i });
     await expect(dialog).toBeVisible();
@@ -371,8 +393,7 @@ export class ShoppingListsPage extends BasePage {
   async deleteConceptLine(part: string | RegExp): Promise<void> {
     const row = this.conceptRowByPart(part);
     await expect(row).toBeVisible();
-    await row.getByTestId(/actions$/).click();
-    await this.page.getByRole('menuitem', { name: /delete line/i }).click();
+    await row.getByTestId(/\.delete$/).click();
 
     const dialog = this.page.getByRole('dialog', { name: /delete line/i });
     await expect(dialog).toBeVisible();
@@ -381,7 +402,7 @@ export class ShoppingListsPage extends BasePage {
   }
 
   async markReady(): Promise<void> {
-    const button = this.page.getByTestId('shopping-lists.concept.mark-ready.button');
+    const button = this.page.getByTestId('shopping-lists.concept.toolbar.mark-ready');
     await button.click();
   }
 
@@ -455,7 +476,12 @@ export class ShoppingListsPage extends BasePage {
   async markLineOrdered(part: string | RegExp, quantity: number): Promise<void> {
     const row = this.readyLineRow(part);
     await expect(row).toBeVisible();
-    await row.getByTestId(/ordered\.edit$/).click();
+    const markButton = row.getByTestId(/actions\.mark-ordered$/);
+    if (await markButton.count()) {
+      await markButton.click();
+    } else {
+      await row.getByTestId(/\.ordered\.edit$/).click();
+    }
 
     const dialog = this.page.getByTestId('shopping-lists.ready.order-line.dialog');
     await expect(dialog).toBeVisible();
@@ -467,17 +493,17 @@ export class ShoppingListsPage extends BasePage {
   async revertLine(part: string | RegExp): Promise<void> {
     const row = this.readyLineRow(part);
     await expect(row).toBeVisible();
-    await row.getByTestId(/actions$/).click();
-    const revertOption = this.page.getByRole('menuitem', { name: /revert to new/i });
-    if (await revertOption.count()) {
-      await revertOption.first().click();
+    const revertButton = row.getByTestId(/actions\.revert$/);
+    if (await revertButton.count()) {
+      await revertButton.click();
       await this.waitForReadyView();
       return;
     }
 
-    // Fallback: adjust ordered quantity to zero when revert option unavailable.
-    await this.page.keyboard.press('Escape');
-    await row.getByTestId(/ordered\.edit$/).click();
+    // Fallback: adjust ordered quantity to zero when revert control unavailable.
+    const adjustButton = row.getByTestId(/\.ordered\.edit$/);
+    await expect(adjustButton).toBeVisible();
+    await adjustButton.click();
     const dialog = this.page.getByTestId('shopping-lists.ready.order-line.dialog');
     await expect(dialog).toBeVisible();
     await dialog.getByTestId('shopping-lists.ready.order-line.field.orderedQuantity').fill('0');

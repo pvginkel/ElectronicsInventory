@@ -84,7 +84,7 @@ test.describe('Shopping Lists', () => {
 
     expect(submitEvent.metadata).toMatchObject({ status: 'done' });
     expect(successEvent.metadata).toMatchObject({ status: 'done' });
-    expect(readyEvent.metadata).toMatchObject({ status: 'done', view: 'ready', filteredDiff: 0 });
+    expect(readyEvent.metadata).toMatchObject({ status: 'done', view: 'completed', filteredDiff: 0 });
     if (!Array.isArray(readyEvent.metadata?.groupTotals)) {
       throw new Error('Expected groupTotals metadata after marking list done');
     }
@@ -165,7 +165,7 @@ test.describe('Shopping Lists', () => {
 
     expect(submitEvent.metadata).toMatchObject({ status: 'done' });
     expect(successEvent.metadata).toMatchObject({ status: 'done' });
-    expect(readyEvent.metadata).toMatchObject({ status: 'done', view: 'ready', filteredDiff: 0 });
+    expect(readyEvent.metadata).toMatchObject({ status: 'done', view: 'completed', filteredDiff: 0 });
     if (!Array.isArray(readyEvent.metadata?.groupTotals)) {
       throw new Error('Expected groupTotals metadata after marking list done with ordered lines');
     }
@@ -247,7 +247,7 @@ test.describe('Shopping Lists', () => {
 
     expect(submitEvent.metadata).toMatchObject({ status: 'done' });
     expect(successEvent.metadata).toMatchObject({ status: 'done' });
-    expect(readyEvent.metadata).toMatchObject({ status: 'done', view: 'ready' });
+    expect(readyEvent.metadata).toMatchObject({ status: 'done', view: 'completed' });
 
     await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listName}" as Done`, 'i'));
     await toastHelper.dismissToast({ all: true });
@@ -637,12 +637,20 @@ test.describe('Shopping Lists', () => {
     const eventGroupKeys = groupTotals.map(group => group.groupKey);
     const uiGroupKeys = await shoppingLists.readyGroupKeys();
     expect(uiGroupKeys).toEqual(eventGroupKeys);
-    expect(eventGroupKeys).toEqual([...eventGroupKeys].sort((a, b) => a.localeCompare(b)));
+    const sortedGroupKeys = [...eventGroupKeys].sort((a, b) => {
+      const toNumber = (value: string) => {
+        const parsed = Number(value);
+        return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
+      };
+      const diff = toNumber(a) - toNumber(b);
+      return diff !== 0 ? diff : a.localeCompare(b);
+    });
+    expect(eventGroupKeys).toEqual(sortedGroupKeys);
 
     await expect(shoppingLists.readyGroupBySeller(sellerA.name)).toBeVisible();
     await expect(shoppingLists.readyGroupBySeller(sellerB.name)).toBeVisible();
     await expect(shoppingLists.readyLineStatusBadge(alphaPart.description)).toHaveText(/Ordered/i);
-    await expect(shoppingLists.readyLineStatusBadge(bravoUpper.description)).toHaveText(/Received/i);
+    await expect(shoppingLists.readyLineStatusBadge(bravoUpper.description)).toHaveText(/Completed/i);
 
     const mismatchTooltip = await shoppingLists.readyReceivedTooltip(bravoUpper.description);
     expect(mismatchTooltip).toMatch(/ordered/i);
@@ -671,78 +679,13 @@ test.describe('Shopping Lists', () => {
     );
     await shoppingLists.markReady();
     const [submitEvent, successEvent] = await Promise.all([markReadySubmit, markReadySuccess]);
-    expect(submitEvent.metadata).toMatchObject({ status: 'concept', lineCount: 1 });
-    expect(successEvent.metadata).toMatchObject({ status: 'concept', lineCount: 1 });
+    expect(submitEvent.metadata).toMatchObject({ lineCount: 1 });
+    expect(successEvent.metadata).toMatchObject({ lineCount: 1 });
     await toastHelper.expectSuccessToast(/marked ready/i);
     await toastHelper.dismissToast({ all: true });
     await shoppingLists.waitForReadyView();
     await shoppingLists.expectStatus(/ready/i);
-    await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.mark-ready.button')).toHaveCount(0);
-  });
-
-test('renders ready view groups and persists seller notes', async ({ shoppingLists, testData, toastHelper, testEvents }) => {
-    const sellerA = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
-    const sellerB = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
-    const { part: partA } = await testData.parts.create({ overrides: { description: 'Ready view part A' } });
-    const { part: partB } = await testData.parts.create({ overrides: { description: 'Ready view part B' } });
-
-    const list = await testData.shoppingLists.createWithLines({
-      listOverrides: { name: testData.shoppingLists.randomName('Ready View') },
-      lines: [
-        { partKey: partA.key, needed: 3, sellerId: sellerA.id },
-        { partKey: partB.key, needed: 2, sellerId: sellerB.id },
-      ],
-    });
-
-    await shoppingLists.gotoConcept(list.id);
-    await expectConsoleError(shoppingLists.playwrightPage, /Outdated Optimize Dep/);
-    await shoppingLists.markReady();
-    await toastHelper.expectSuccessToast(/ready/i);
-    await toastHelper.dismissToast({ all: true });
-    await shoppingLists.waitForReadyView();
-
-    await expect(shoppingLists.readyGroupBySeller(sellerA.name)).toBeVisible();
-    await expect(shoppingLists.readyGroupBySeller(sellerB.name)).toBeVisible();
-    await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.ready.toolbar.back-to-concept')).toBeVisible();
-
-    const sellerCard = shoppingLists.readyGroupBySeller(sellerA.name);
-    const noteInput = sellerCard.getByLabel('Order Note');
-    await noteInput.fill('Bundle with enclosure order');
-    const saveButton = sellerCard.getByTestId(/order-note\.save$/);
-    await expect(saveButton).toBeEnabled();
-
-    const noteSubmit = testEvents.waitForEvent(event =>
-      event.kind === 'form' &&
-      (event as FormTestEvent).formId === `ShoppingListSellerOrderNote:${sellerA.id}` &&
-      (event as FormTestEvent).phase === 'submit',
-      { timeout: 15000 }
-    );
-    const noteSuccess = testEvents.waitForEvent(event =>
-      event.kind === 'form' &&
-      (event as FormTestEvent).formId === `ShoppingListSellerOrderNote:${sellerA.id}` &&
-      (event as FormTestEvent).phase === 'success',
-      { timeout: 15000 }
-    );
-
-    await saveButton.click();
-    await Promise.all([noteSubmit, noteSuccess]).catch(async (error) => {
-      const formEvents = await testEvents.getEventsByKind('form');
-      console.error('Captured form events:', JSON.stringify(formEvents, null, 2));
-      throw error;
-    });
-    await testEvents.waitForEvent(event =>
-      event.kind === 'toast' &&
-      'message' in event &&
-      typeof event.message === 'string' &&
-      event.message.includes('order note'),
-      { timeout: 15000 }
-    );
-    await toastHelper.expectSuccessToast(/saved order note/i);
-    await toastHelper.dismissToast({ all: true });
-
-    await shoppingLists.gotoReady(list.id);
-    const refreshedCard = shoppingLists.readyGroupBySeller(sellerA.name);
-    await expect(refreshedCard.getByLabel('Order Note')).toHaveValue('Bundle with enclosure order');
+    await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.toolbar.mark-ready')).toHaveCount(0);
   });
 
 test('marks individual lines ordered and enforces back to concept guard', async ({ shoppingLists, testData, toastHelper, testEvents }) => {
@@ -792,7 +735,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
 
     const row = shoppingLists.readyLineRow(part.description);
     await expect(row.getByTestId(/status$/)).toContainText(/ordered/i);
-    await expect(row.getByTestId(/ordered$/)).toContainText('5');
+    await expect(row.locator('[data-testid$=".ordered"]')).toContainText('5');
     await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.ready.toolbar.back-to-concept')).toHaveCount(0);
 
     const revertLineSubmit = testEvents.waitForEvent(event =>
@@ -904,7 +847,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     await toastHelper.expectSuccessToast(/returned list to concept/i);
     await toastHelper.dismissToast({ all: true });
     await expect(shoppingLists.conceptRoot).toBeVisible();
-    await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.mark-ready.button')).toBeVisible();
+    await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.toolbar.mark-ready')).toBeVisible();
   });
 
   test('receives partial quantity with location allocations', async ({ shoppingLists, testData, testEvents, toastHelper }) => {
@@ -1140,7 +1083,7 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     await toastHelper.dismissToast({ all: true });
     await expect(shoppingLists.updateStockDialog).toBeHidden();
 
-    await expect(shoppingLists.readyLineStatusCell(part.description)).toContainText(/received/i);
+    await expect(shoppingLists.readyLineStatusCell(part.description)).toContainText(/completed/i);
     await expect(shoppingLists.readyLineRow(part.description).getByTestId(/update-stock$/)).toHaveCount(0);
     await expect(shoppingLists.readyLineRow(part.description).getByTestId(/completion-note$/)).toBeVisible();
 

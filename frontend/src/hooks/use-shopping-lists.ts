@@ -678,6 +678,8 @@ export function useShoppingListDetail(listId: number | string | undefined) {
   const shoppingList = useMemo<ShoppingListDetail | undefined>(() => selectShoppingListDetail(query.data), [query.data]);
   const lines = useMemo<ShoppingListConceptLine[]>(() => shoppingList?.lines ?? [], [shoppingList]);
   const sellerGroups = useMemo<ShoppingListSellerGroup[]>(() => shoppingList?.sellerGroups ?? [], [shoppingList]);
+  const isCompleted = shoppingList?.status === 'done';
+  const hasNewLines = Boolean(shoppingList?.lineCounts.new);
   const sellerGroupsByKey = useMemo<Map<string, ShoppingListSellerGroup>>(() => {
     const entries: Array<[string, ShoppingListSellerGroup]> = [];
     for (const group of sellerGroups) {
@@ -693,7 +695,7 @@ export function useShoppingListDetail(listId: number | string | undefined) {
 
   const getReadyMetadata = useCallback((sortKey: ShoppingListLineSortKey) => {
     const status = shoppingList?.status ?? 'concept';
-    const view = status === 'ready' || status === 'done' ? 'ready' : status;
+    const view = status === 'done' ? 'completed' : status === 'ready' ? 'ready' : status;
     return {
       status,
       view,
@@ -703,9 +705,11 @@ export function useShoppingListDetail(listId: number | string | undefined) {
       sortKey,
       groupTotals: sellerGroupInstrumentation,
       filteredDiff: aggregatedFilteredDiff,
+      hasNewLines,
     };
   }, [
     aggregatedFilteredDiff,
+    hasNewLines,
     lines.length,
     sellerGroupInstrumentation,
     sellerGroups.length,
@@ -726,6 +730,8 @@ export function useShoppingListDetail(listId: number | string | undefined) {
     duplicateCheck,
     getReadyMetadata,
     getErrorMetadata,
+    hasNewLines,
+    isCompleted,
   };
 }
 

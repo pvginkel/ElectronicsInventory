@@ -10,6 +10,7 @@ interface PartSelectorProps {
   error?: string;
   className?: string;
   onSelectSummary?: (summary: PartSelectorSummary | undefined) => void;
+  onPopoverWheelCapture?: (event: React.WheelEvent<HTMLDivElement>) => void;
 }
 
 export function PartSelector({
@@ -18,7 +19,8 @@ export function PartSelector({
   placeholder = 'Search or select part...',
   error,
   className,
-  onSelectSummary
+  onSelectSummary,
+  onPopoverWheelCapture
 }: PartSelectorProps) {
   const {
     options,
@@ -48,13 +50,16 @@ export function PartSelector({
     return (
       <div className="flex flex-col">
         <span className="font-medium">
-          {option.displayId} — {option.displayDescription}
+          {option.displayDescription} ({option.id})
         </span>
         {metaItems.length > 0 && (
           <span className="text-xs text-muted-foreground">
             {metaItems.join(' • ')}
           </span>
         )}
+        <span className="text-xs text-muted-foreground">
+          {option.displayId}
+        </span>
       </div>
     );
   }, []);
@@ -73,6 +78,7 @@ export function PartSelector({
         renderOption={renderOption}
         loadingText="Searching parts..."
         noResultsText="No parts found"
+        onPopoverWheelCapture={onPopoverWheelCapture}
         data-testid="parts.selector.input"
         // Inline create intentionally disabled until part creation flows adopt the selector.
         enableInlineCreate={false}
@@ -80,8 +86,10 @@ export function PartSelector({
 
       {selectedPart && (
         <div className="text-sm text-muted-foreground" data-testid="parts.selector.selected">
-          <div className="font-medium">{selectedPart.displayId}</div>
-          <div>{selectedPart.displayDescription}</div>
+          <div className="font-medium">
+            {selectedPart.displayDescription} ({selectedPart.id})
+          </div>
+          <div>{selectedPart.displayId}</div>
           <div className="text-xs">
             {`Key: ${selectedPart.id}`}
             {selectedPart.displayManufacturerCode && ` • MFR: ${selectedPart.displayManufacturerCode}`}

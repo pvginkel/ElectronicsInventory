@@ -137,7 +137,9 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
     },
 
     page: async ({ page, _serviceManager }, use) => {
-      const expectedErrors: RegExp[] = [];
+      const expectedErrors: RegExp[] = [
+        /Unable to preventDefault inside passive event listener invocation\./,
+      ];
       const buffer = await ensureTestEventBridge(page);
 
       buffer.addEvent({

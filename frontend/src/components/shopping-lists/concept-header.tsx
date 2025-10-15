@@ -147,11 +147,7 @@ export function ConceptHeader({
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground" data-testid="shopping-lists.concept.header.description">
               {list.description}
             </p>
-          ) : (
-            <p className="mt-2 text-sm text-muted-foreground italic" data-testid="shopping-lists.concept.header.description.empty">
-              No description yet. Use “Edit details” to add context for collaborators.
-            </p>
-          )}
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -161,7 +157,7 @@ export function ConceptHeader({
             data-testid="shopping-lists.concept.header.edit"
             title={isCompleted ? 'Completed lists are read-only' : undefined}
           >
-            Edit details
+            Edit List
           </Button>
           {onDeleteList && (
             <Button
@@ -178,19 +174,39 @@ export function ConceptHeader({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-6 text-sm text-muted-foreground" data-testid="shopping-lists.concept.header.counts">
-        <div title="Total lines across all statuses">
-          <span className="font-medium text-foreground">{list.totalLines}</span> total lines
-        </div>
-        <div title="Lines waiting to be ordered">
-          <span className="font-medium text-foreground">{newCount}</span> new
-        </div>
-        <div title="Lines in progress with suppliers">
-          <span className="font-medium text-foreground">{orderedCount}</span> ordered
-        </div>
-        <div title="Lines already received">
-          <span className="font-medium text-foreground">{doneCount}</span> received
-        </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="shopping-lists.concept.header.badges">
+        <Badge
+          variant="outline"
+          className="bg-slate-100 text-slate-700"
+          title="Total lines across all statuses"
+          data-testid="shopping-lists.concept.header.badge.total"
+        >
+          Total {list.totalLines}
+        </Badge>
+        <Badge
+          variant="outline"
+          className="bg-sky-100 text-sky-800"
+          title="Lines waiting to be ordered"
+          data-testid="shopping-lists.concept.header.badge.new"
+        >
+          New {newCount}
+        </Badge>
+        <Badge
+          variant="outline"
+          className="bg-amber-100 text-amber-800"
+          title="Lines in progress with sellers"
+          data-testid="shopping-lists.concept.header.badge.ordered"
+        >
+          Ordered {orderedCount}
+        </Badge>
+        <Badge
+          variant="outline"
+          className="bg-emerald-100 text-emerald-800"
+          title="Lines already received"
+          data-testid="shopping-lists.concept.header.badge.done"
+        >
+          Completed {doneCount}
+        </Badge>
       </div>
 
       <Dialog

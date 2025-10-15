@@ -98,7 +98,7 @@ export function useListArchiveConfirm(options: UseListArchiveConfirmOptions = {}
     pendingListRef.current = list;
     const confirmed = await confirm({
       title: 'Mark list as Done',
-      description: `Mark "${list.name}" as Done? This hides it from Active lists.`,
+      description: `Mark "${list.name}" as Done? This operation is irreversible and removes it from Active lists.`,
       confirmText: 'Mark Done',
       destructive: true,
     });

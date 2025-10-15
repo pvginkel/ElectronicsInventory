@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { WheelEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/ui/dialog';
 import { Form, FormField, FormLabel } from '@/components/ui/form';
@@ -56,6 +57,13 @@ export function ConceptLineForm({
   const updateMutation = useUpdateShoppingListLineMutation();
   const instrumentationRef = useRef<UseFormInstrumentationResult<{ listId: number; partKey: string; needed: number }> | null>(null);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
+  const handleSelectorWheelCapture = useCallback((event: WheelEvent<HTMLDivElement>) => {
+    const target = event.currentTarget as HTMLDivElement;
+    if (event.cancelable) {
+      event.preventDefault();
+    }
+    target.scrollTop += event.deltaY;
+  }, []);
 
   const initialValues = useMemo<LineFormValues>(() => {
     if (mode === 'edit' && line) {
@@ -290,7 +298,9 @@ export function ConceptLineForm({
                     setDuplicateError(null);
                   }}
                   onSelectSummary={handlePartSummary}
-                  error={duplicateError ?? undefined}
+                  error={form.errors.partKey ?? duplicateError ?? undefined}
+                  onPopoverWheelCapture={handleSelectorWheelCapture}
+                  placeholder="Search for part"
                 />
               </FormField>
             ) : (

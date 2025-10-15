@@ -1,10 +1,10 @@
 import { forwardRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { ShoppingListConceptLine } from '@/types/shopping-lists';
 import { LINE_TABLE_WIDTHS } from './table-layout';
+import { Pencil, Trash2 } from 'lucide-react';
 
 interface ConceptLineRowProps {
   line: ShoppingListConceptLine;
@@ -33,7 +33,7 @@ export const ConceptLineRow = forwardRef<HTMLTableRowElement, ConceptLineRowProp
       ref={ref}
       data-line-id={line.id}
       data-testid={`shopping-lists.concept.row.${line.id}`}
-      className={highlighted ? 'bg-amber-50/70 transition-colors' : undefined}
+      className={cn('transition-colors', highlighted && 'bg-accent/10 ring-2 ring-primary/30')}
     >
       <td className={cn(LINE_TABLE_WIDTHS.part, 'align-top px-4 py-3 text-sm')}>
         <div className="font-medium text-foreground" data-testid={`shopping-lists.concept.row.${line.id}.part`}>
@@ -67,7 +67,7 @@ export const ConceptLineRow = forwardRef<HTMLTableRowElement, ConceptLineRowProp
         )}
       </td>
       <td
-        className={cn(LINE_TABLE_WIDTHS.status, 'align-middle px-4 py-3 text-sm')}
+        className={cn(LINE_TABLE_WIDTHS.status, 'align-middle px-4 py-3 text-sm text-center')}
         data-testid={`shopping-lists.concept.row.${line.id}.status`}
       >
         <Badge
@@ -101,29 +101,35 @@ export const ConceptLineRow = forwardRef<HTMLTableRowElement, ConceptLineRowProp
         className={cn(LINE_TABLE_WIDTHS.note, 'align-top px-4 py-3 text-sm text-muted-foreground')}
         data-testid={`shopping-lists.concept.row.${line.id}.note`}
       >
-        {note || '—'}
+        <div className="line-clamp-2 overflow-hidden" title={note}>
+          {note || '—'}
+        </div>
       </td>
       <td className={cn(LINE_TABLE_WIDTHS.actions, 'align-middle px-4 py-3 text-right')}>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label={`Actions for ${line.part.description}`}
-              data-testid={`shopping-lists.concept.row.${line.id}.actions`}
-            >
-              ⋯
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onEdit(line)} data-testid={`shopping-lists.concept.row.${line.id}.edit`}>
-              Edit line
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onDelete(line)} data-testid={`shopping-lists.concept.row.${line.id}.delete`}>
-              Delete line
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center justify-end gap-2 flex-nowrap" data-testid={`shopping-lists.concept.row.${line.id}.actions`}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 shrink-0"
+            aria-label={`Edit line for ${line.part.description}`}
+            onClick={() => onEdit(line)}
+            data-testid={`shopping-lists.concept.row.${line.id}.edit`}
+            title="Edit line"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 shrink-0"
+            aria-label={`Delete line for ${line.part.description}`}
+            onClick={() => onDelete(line)}
+            data-testid={`shopping-lists.concept.row.${line.id}.delete`}
+            title="Delete line"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </td>
     </tr>
   );

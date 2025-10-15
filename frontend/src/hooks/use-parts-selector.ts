@@ -82,7 +82,7 @@ export function usePartsSelector(): UsePartsSelectorResult {
   }, [types]);
 
   const optionsWithMeta = useMemo<PartSelectorOptionMeta[]>(() => {
-    return parts.map((part) => {
+    const mapped = parts.map((part) => {
       const {
         displayId,
         displayDescription,
@@ -95,7 +95,7 @@ export function usePartsSelector(): UsePartsSelectorResult {
 
       const option: PartSelectorOption = {
         id: part.key,
-        name: `${displayId} — ${displayDescription}`,
+        name: `${displayDescription} (${part.key})`,
         partId,
         displayId,
         displayDescription,
@@ -119,6 +119,14 @@ export function usePartsSelector(): UsePartsSelectorResult {
         summary,
         searchTokens: buildSearchTokens(option, part)
       };
+    });
+
+    return mapped.sort((a, b) => {
+      return a.option.displayDescription.localeCompare(
+        b.option.displayDescription,
+        undefined,
+        { sensitivity: 'base' }
+      );
     });
   }, [parts, typeMap]);
 

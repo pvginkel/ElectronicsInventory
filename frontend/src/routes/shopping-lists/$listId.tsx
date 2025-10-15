@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ConceptHeader } from '@/components/shopping-lists/concept-header';
 import { ConceptTable } from '@/components/shopping-lists/concept-table';
 import { ConceptLineForm } from '@/components/shopping-lists/concept-line-form';
-import { MarkReadyFooter } from '@/components/shopping-lists/mark-ready-footer';
+import { ConceptToolbar } from '@/components/shopping-lists/concept-toolbar';
 import { SellerGroupList } from '@/components/shopping-lists/ready/seller-group-list';
 import { OrderLineDialog } from '@/components/shopping-lists/ready/order-line-dialog';
 import { OrderGroupDialog } from '@/components/shopping-lists/ready/order-group-dialog';
@@ -100,6 +100,7 @@ function ShoppingListDetailRoute() {
     error,
     getReadyMetadata,
     getErrorMetadata,
+    isCompleted: detailIsCompleted,
   } = useShoppingListDetail(hasValidListId ? listId : undefined);
 
   const sortedLines = useSortedShoppingListLines(lines, sortKey);
@@ -237,6 +238,9 @@ function ShoppingListDetailRoute() {
   }, [showException, showSuccess, updateMetadataMutation]);
 
   const handleMarkReady = useCallback(async () => {
+    if (!shoppingList || shoppingList.status !== 'concept') {
+      return;
+    }
     try {
       await markReadyMutation.mutateAsync({ listId: normalizedListId });
       showSuccess('List marked Ready. Seller planning view is now available.');
@@ -245,7 +249,7 @@ function ShoppingListDetailRoute() {
       showException(message, err);
       throw err;
     }
-  }, [markReadyMutation, normalizedListId, showException, showSuccess]);
+  }, [markReadyMutation, normalizedListId, shoppingList, showException, showSuccess]);
 
   const handleDeleteList = useCallback(() => {
     if (!shoppingList) {
@@ -269,14 +273,20 @@ function ShoppingListDetailRoute() {
   }, []);
 
   const handleOpenOrderLineDialog = useCallback((line: ShoppingListConceptLine, trigger?: HTMLElement | null) => {
+    if (detailIsCompleted) {
+      return;
+    }
     setOrderLineState({ open: true, line, trigger: trigger ?? null });
-  }, []);
+  }, [detailIsCompleted]);
 
   const handleCloseOrderLineDialog = useCallback(() => {
     setOrderLineState(prev => ({ open: false, line: null, trigger: prev.trigger }));
   }, []);
 
   const handleConfirmLineOrder = useCallback(async (quantity: number) => {
+    if (detailIsCompleted) {
+      return;
+    }
     const target = orderLineState.line;
     if (!target) {
       return;
@@ -301,9 +311,12 @@ function ShoppingListDetailRoute() {
     } finally {
       updatePendingLine(target.id, false);
     }
-  }, [orderLineMutation, orderLineState.line, showException, showSuccess, updatePendingLine]);
+  }, [detailIsCompleted, orderLineMutation, orderLineState.line, showException, showSuccess, updatePendingLine]);
 
   const handleRevertLine = useCallback(async (line: ShoppingListConceptLine) => {
+    if (detailIsCompleted) {
+      return;
+    }
     updatePendingLine(line.id, true);
     try {
       await revertLineMutation.mutateAsync({
@@ -318,17 +331,23 @@ function ShoppingListDetailRoute() {
     } finally {
       updatePendingLine(line.id, false);
     }
-  }, [revertLineMutation, showException, showSuccess, updatePendingLine]);
+  }, [detailIsCompleted, revertLineMutation, showException, showSuccess, updatePendingLine]);
 
   const handleOpenOrderGroupDialog = useCallback((group: ShoppingListSellerGroup, trigger?: HTMLElement | null) => {
+    if (detailIsCompleted) {
+      return;
+    }
     setOrderGroupState({ open: true, group, trigger: trigger ?? null });
-  }, []);
+  }, [detailIsCompleted]);
 
   const handleCloseOrderGroupDialog = useCallback(() => {
     setOrderGroupState(prev => ({ open: false, group: null, trigger: prev.trigger }));
   }, []);
 
   const handleConfirmGroupOrder = useCallback(async (orderedLines: Array<{ lineId: number; orderedQuantity: number }>) => {
+    if (detailIsCompleted) {
+      return;
+    }
     const targetGroup = orderGroupState.group;
     if (!targetGroup) {
       return;
@@ -355,7 +374,7 @@ function ShoppingListDetailRoute() {
     } finally {
       pendingIds.forEach(id => updatePendingLine(id, false));
     }
-  }, [normalizedListId, orderGroupMutation, orderGroupState.group, showException, showSuccess, updatePendingLine]);
+  }, [detailIsCompleted, normalizedListId, orderGroupMutation, orderGroupState.group, showException, showSuccess, updatePendingLine]);
 
   const handleCloseUpdateStock = useCallback(() => {
     setUpdateStockState(prev => ({ open: false, line: null, trigger: prev.trigger }));
@@ -366,6 +385,9 @@ function ShoppingListDetailRoute() {
     receiveQuantity: number;
     allocations: ShoppingListLineReceiveAllocationInput[];
   }) => {
+    if (detailIsCompleted) {
+      return;
+    }
     const target = updateStockState.line;
     if (!target) {
       return;
@@ -427,9 +449,12 @@ function ShoppingListDetailRoute() {
     } finally {
       updatePendingLine(target.id, false);
     }
-  }, [lines, receiveLineMutation, sellerGroups, showException, showSuccess, updatePendingLine, updateStockState.line]);
+  }, [detailIsCompleted, lines, receiveLineMutation, sellerGroups, showException, showSuccess, updatePendingLine, updateStockState.line]);
 
   const handleMarkLineDone = useCallback(async (payload: { mismatchReason: string | null }) => {
+    if (detailIsCompleted) {
+      return;
+    }
     const target = updateStockState.line;
     if (!target) {
       return;
@@ -455,10 +480,10 @@ function ShoppingListDetailRoute() {
     } finally {
       updatePendingLine(target.id, false);
     }
-  }, [completeLineMutation, showException, showSuccess, updatePendingLine, updateStockState.line]);
+  }, [completeLineMutation, detailIsCompleted, showException, showSuccess, updatePendingLine, updateStockState.line]);
 
   const handleBackToConcept = useCallback(async () => {
-    if (!shoppingList) {
+    if (!shoppingList || detailIsCompleted) {
       return;
     }
     try {
@@ -469,25 +494,29 @@ function ShoppingListDetailRoute() {
       showException(message, err);
       throw err;
     }
-  }, [shoppingList, showException, showSuccess, updateStatusMutation]);
+  }, [detailIsCompleted, shoppingList, showException, showSuccess, updateStatusMutation]);
 
   const handleMarkListDone = useCallback(async () => {
-    if (!shoppingList) {
+    if (!shoppingList || detailIsCompleted) {
       return;
     }
     await confirmReadyArchive(shoppingList);
-  }, [confirmReadyArchive, shoppingList]);
+  }, [confirmReadyArchive, detailIsCompleted, shoppingList]);
 
   const handleOpenUpdateStock = useCallback((line: ShoppingListConceptLine, trigger?: HTMLElement | null) => {
+    if (detailIsCompleted) {
+      return;
+    }
     setUpdateStockState({ open: true, line, trigger: trigger ?? null });
     setHighlightedLineId(line.id);
-  }, []);
+  }, [detailIsCompleted]);
 
   const listLoaded = shoppingList != null;
   const status = shoppingList?.status ?? 'concept';
-  const isReadyView = status === 'ready' || status === 'done';
-  const canReturnToConcept = Boolean(shoppingList?.canReturnToConcept);
-  const canMarkListDone = Boolean(shoppingList && shoppingList.status !== 'done' && status !== 'concept');
+  const isCompleted = detailIsCompleted || status === 'done';
+  const isReadyView = status === 'ready' || isCompleted;
+  const canReturnToConcept = Boolean(shoppingList?.canReturnToConcept && !isCompleted);
+  const canMarkListDone = Boolean(shoppingList && !isCompleted && status !== 'concept');
 
   const nextReceivableLine = useMemo(() => {
     if (!updateStockState.line) {
@@ -505,6 +534,8 @@ function ShoppingListDetailRoute() {
     );
   }
 
+  const conceptLineCount = shoppingList?.lines.length ?? sortedLines.length;
+
   const conceptView = (
     <div className="space-y-6" data-testid="shopping-lists.concept.page">
       <ConceptHeader
@@ -515,6 +546,15 @@ function ShoppingListDetailRoute() {
         isDeletingList={isDeletingList}
         overviewSearchTerm={search.originSearch ?? ''}
       />
+
+      {status === 'concept' && listLoaded && (
+        <ConceptToolbar
+          lineCount={conceptLineCount}
+          canMarkReady={conceptLineCount > 0}
+          isSubmitting={markReadyMutation.isPending}
+          onMarkReady={handleMarkReady}
+        />
+      )}
 
       <ConceptTable
         lines={sortedLines}
@@ -528,14 +568,6 @@ function ShoppingListDetailRoute() {
         onDismissDuplicateNotice={handleDismissDuplicate}
         highlightedLineId={highlightedLineId}
       />
-
-      {listLoaded && (
-        <MarkReadyFooter
-          list={shoppingList}
-          onMarkReady={handleMarkReady}
-          isMarkingReady={markReadyMutation.isPending}
-        />
-      )}
     </div>
   );
 
@@ -556,6 +588,7 @@ function ShoppingListDetailRoute() {
         canMarkDone={canMarkListDone}
         onMarkDone={handleMarkListDone}
         isMarkingDone={isMarkingDone}
+        isCompleted={isCompleted}
       />
       <SellerGroupList
         listId={shoppingList?.id ?? normalizedListId}
@@ -567,6 +600,7 @@ function ShoppingListDetailRoute() {
         onUpdateStock={handleOpenUpdateStock}
         pendingLineIds={pendingLineIds}
         highlightedLineId={highlightedLineId}
+        isCompleted={isCompleted}
       />
     </div>
   );
@@ -591,36 +625,42 @@ function ShoppingListDetailRoute() {
         onDismissDuplicateNotice={handleDismissDuplicate}
       />
 
-      <OrderLineDialog
-        open={orderLineState.open}
-        line={orderLineState.line}
-        onClose={handleCloseOrderLineDialog}
-        onSubmit={handleConfirmLineOrder}
-        isSubmitting={orderLineMutation.isPending}
-        restoreFocusElement={orderLineState.trigger ?? undefined}
-      />
+      {!isCompleted && (
+        <OrderLineDialog
+          open={orderLineState.open}
+          line={orderLineState.line}
+          onClose={handleCloseOrderLineDialog}
+          onSubmit={handleConfirmLineOrder}
+          isSubmitting={orderLineMutation.isPending}
+          restoreFocusElement={orderLineState.trigger ?? undefined}
+        />
+      )}
 
-      <OrderGroupDialog
-        open={orderGroupState.open}
-        listId={shoppingList?.id ?? normalizedListId}
-        group={orderGroupState.group}
-        onClose={handleCloseOrderGroupDialog}
-        onSubmit={handleConfirmGroupOrder}
-        isSubmitting={orderGroupMutation.isPending}
-        restoreFocusElement={orderGroupState.trigger ?? undefined}
-      />
+      {!isCompleted && (
+        <OrderGroupDialog
+          open={orderGroupState.open}
+          listId={shoppingList?.id ?? normalizedListId}
+          group={orderGroupState.group}
+          onClose={handleCloseOrderGroupDialog}
+          onSubmit={handleConfirmGroupOrder}
+          isSubmitting={orderGroupMutation.isPending}
+          restoreFocusElement={orderGroupState.trigger ?? undefined}
+        />
+      )}
 
-      <UpdateStockDialog
-        open={updateStockState.open}
-        line={updateStockState.line}
-        hasNextLine={Boolean(nextReceivableLine)}
-        onClose={handleCloseUpdateStock}
-      onSubmit={handleReceiveSubmit}
-      onMarkDone={handleMarkLineDone}
-      isReceiving={receiveLineMutation.isPending}
-      isCompleting={completeLineMutation.isPending}
-      restoreFocusElement={updateStockState.trigger ?? undefined}
-    />
+      {!isCompleted && (
+        <UpdateStockDialog
+          open={updateStockState.open}
+          line={updateStockState.line}
+          hasNextLine={Boolean(nextReceivableLine)}
+          onClose={handleCloseUpdateStock}
+          onSubmit={handleReceiveSubmit}
+          onMarkDone={handleMarkLineDone}
+          isReceiving={receiveLineMutation.isPending}
+          isCompleting={completeLineMutation.isPending}
+          restoreFocusElement={updateStockState.trigger ?? undefined}
+        />
+      )}
 
       {deleteListDialog}
       {markDoneDialog}

@@ -1,13 +1,10 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { useFormState } from '@/hooks/use-form-state';
-import { useFormInstrumentation } from '@/hooks/use-form-instrumentation';
-import { summarizeSellerGroupVisibility, useUpdateSellerOrderNoteMutation } from '@/hooks/use-shopping-lists';
-import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { summarizeSellerGroupVisibility } from '@/hooks/use-shopping-lists';
 import type { ShoppingListConceptLine, ShoppingListSellerGroup } from '@/types/shopping-lists';
 import { ReadyLineRow } from './ready-line-row';
 import { LINE_TABLE_WIDTHS } from '../table-layout';
+import { SellerGroupOrderNoteDialog } from './seller-group-order-note-dialog';
 
 interface SellerGroupCardProps {
   listId: number;
@@ -19,13 +16,9 @@ interface SellerGroupCardProps {
   onUpdateStock: (line: ShoppingListConceptLine, trigger?: HTMLElement | null) => void;
   pendingLineIds: Set<number>;
   highlightedLineId?: number | null;
+  canBulkOrder: boolean;
+  isCompleted: boolean;
 }
-
-interface OrderNoteFormValues extends Record<string, unknown> {
-  note: string;
-}
-
-const NOTE_LIMIT = 500;
 
 export function SellerGroupCard({
   listId,
@@ -37,94 +30,19 @@ export function SellerGroupCard({
   onUpdateStock,
   pendingLineIds,
   highlightedLineId,
+  canBulkOrder,
+  isCompleted,
 }: SellerGroupCardProps) {
-  const { showSuccess, showException } = useToast();
-  const updateNoteMutation = useUpdateSellerOrderNoteMutation();
   const visibility = useMemo(() => summarizeSellerGroupVisibility(group), [group]);
   const { visibleTotals, filteredDiff } = visibility;
   const showFilterNote = filteredDiff > 0;
 
-  const canEditNote = group.sellerId != null;
-  const initialNote = useMemo(() => group.orderNote ?? '', [group.orderNote]);
-  const validationRules = {
-    note: (value: unknown) => {
-      const raw = (value as string) ?? '';
-      if (raw.trim().length > NOTE_LIMIT) {
-        return `Order note must be ${NOTE_LIMIT} characters or fewer`;
-      }
-      return undefined;
-    },
-  };
-
-  const form = useFormState<OrderNoteFormValues>({
-    initialValues: { note: initialNote },
-    validationRules,
-    onSubmit: async (values) => {
-      if (!canEditNote || group.sellerId == null) {
-        return;
-      }
-
-      const trimmed = values.note.trim();
-      const payload = {
-        listId,
-        sellerId: group.sellerId,
-        note: trimmed,
-      };
-
-      instrumentation.trackSubmit({
-        listId,
-        sellerId: group.sellerId,
-        noteLength: trimmed.length,
-      });
-
-      try {
-        await updateNoteMutation.mutateAsync(payload);
-        instrumentation.trackSuccess({
-          listId,
-          sellerId: group.sellerId,
-          noteLength: trimmed.length,
-        });
-
-        if (trimmed.length > 0) {
-          showSuccess(`Saved order note for ${group.sellerName}`);
-        } else {
-          showSuccess(`Cleared order note for ${group.sellerName}`);
-        }
-      } catch (error) {
-        instrumentation.trackError({
-          listId,
-          sellerId: group.sellerId,
-          noteLength: trimmed.length,
-        });
-        const message = error instanceof Error ? error.message : 'Failed to update order note';
-        showException(message, error);
-      }
-    },
-  });
-
-  useEffect(() => {
-    form.setValue('note', initialNote);
-    form.setFieldTouched('note', false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialNote]);
-
-  const instrumentation = useFormInstrumentation({
-    formId: canEditNote ? `ShoppingListSellerOrderNote:${group.sellerId}` : `ShoppingListSellerOrderNote:${group.groupKey}`,
-    isOpen: true,
-    snapshotFields: () => ({
-      listId,
-      sellerId: group.sellerId,
-      noteLength: form.values.note.trim().length,
-    }),
-  });
-
-  const trimmedInitial = initialNote.trim();
-  const trimmedCurrent = form.values.note.trim();
-  const noteChanged = trimmedInitial !== trimmedCurrent;
-  const saveDisabled = !noteChanged || !!form.errors.note || updateNoteMutation.isPending;
-
   const readyLines = group.lines;
   const hasOrderableLines = readyLines.some(line => line.status !== 'done');
+  const note = group.orderNote?.trim() ?? '';
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
+  const showActions = !isCompleted;
+  const showEditGroup = showActions && group.sellerId != null;
 
   return (
     <div
@@ -168,16 +86,31 @@ export function SellerGroupCard({
               {visibleTotals.received}
             </span>
           </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={!hasOrderableLines}
-            onClick={(event) => onOpenOrderGroup(group, event.currentTarget as HTMLElement)}
-            title="Set ordered quantities for every line in this group"
-            data-testid={`shopping-lists.ready.group.${group.groupKey}.order-group`}
-          >
-            Mark group as Ordered
-          </Button>
+          {showActions && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="ml-4"
+                disabled={!hasOrderableLines || !canBulkOrder}
+                onClick={(event) => onOpenOrderGroup(group, event.currentTarget as HTMLElement)}
+                title="Set ordered quantities for every line in this group"
+                data-testid={`shopping-lists.ready.group.${group.groupKey}.order-group`}
+              >
+                Mark group as Ordered
+              </Button>
+              {showEditGroup && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setNoteDialogOpen(true)}
+                  data-testid={`shopping-lists.ready.group.${group.groupKey}.edit`}
+                >
+                  Edit Group
+                </Button>
+              )}
+            </div>
+          )}
         </div>
         {showFilterNote && (
           <div
@@ -189,71 +122,15 @@ export function SellerGroupCard({
         )}
       </div>
 
-      {canEditNote && (
-        <form
-          onSubmit={form.handleSubmit}
-          className="space-y-2 border-b px-4 py-4"
-          data-testid={`shopping-lists.ready.group.${group.groupKey}.order-note.form`}
-        >
-          <label
-            htmlFor={`ready-note-${group.groupKey}`}
-            className="text-sm font-medium text-foreground"
-          >
-            Order Note
-          </label>
-          <textarea
-            id={`ready-note-${group.groupKey}`}
-            className={cn(
-              'flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm',
-              'ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none',
-              'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-              'disabled:cursor-not-allowed disabled:opacity-50 min-h-[96px]'
-            )}
-            maxLength={NOTE_LIMIT}
-            value={form.values.note}
-            onChange={(event) => form.setValue('note', event.target.value)}
-            onBlur={() => form.setFieldTouched('note')}
-            disabled={updateNoteMutation.isPending}
-            aria-invalid={form.errors.note ? 'true' : undefined}
-            data-testid={`shopping-lists.ready.group.${group.groupKey}.order-note.input`}
-          />
-          {form.errors.note && (
-            <p className="text-sm text-destructive">{form.errors.note}</p>
-          )}
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{trimmedCurrent.length}/{NOTE_LIMIT} characters</span>
-            <div className="flex items-center gap-2">
-              {noteChanged && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    form.setValue('note', initialNote);
-                    form.setFieldTouched('note', false);
-                  }}
-                  disabled={updateNoteMutation.isPending}
-                  data-testid={`shopping-lists.ready.group.${group.groupKey}.order-note.cancel`}
-                >
-                  Cancel
-                </Button>
-              )}
-              <Button
-                type="submit"
-                size="sm"
-                loading={updateNoteMutation.isPending}
-                disabled={saveDisabled}
-                data-testid={`shopping-lists.ready.group.${group.groupKey}.order-note.save`}
-              >
-                Save note
-              </Button>
-            </div>
-          </div>
-        </form>
+      {note && (
+        <div className="border-b px-4 py-4 text-sm text-muted-foreground" data-testid={`shopping-lists.ready.group.${group.groupKey}.order-note`}>
+          <div className="font-medium text-foreground">Order note</div>
+          <p className="mt-2 whitespace-pre-wrap">{note}</p>
+        </div>
       )}
 
       <div className="overflow-x-auto">
-        <table className="w-full table-fixed border-collapse" data-testid={`shopping-lists.ready.group.${group.groupKey}.lines`}>
+        <table className="w-full table-auto border-collapse" data-testid={`shopping-lists.ready.group.${group.groupKey}.lines`}>
           <thead>
             <tr className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
               <th className={`${LINE_TABLE_WIDTHS.part} px-4 py-2 text-left`}>Part</th>
@@ -261,7 +138,7 @@ export function SellerGroupCard({
               <th className={`${LINE_TABLE_WIDTHS.ordered} px-4 py-2 text-right`}>Ordered</th>
               <th className={`${LINE_TABLE_WIDTHS.received} px-4 py-2 text-right`}>Received</th>
               <th className={`${LINE_TABLE_WIDTHS.note} px-4 py-2 text-left`}>Note</th>
-              <th className={`${LINE_TABLE_WIDTHS.status} px-4 py-2 text-right`}>Status</th>
+              <th className={`${LINE_TABLE_WIDTHS.status} px-4 py-2 text-center`}>Status</th>
               <th className={`${LINE_TABLE_WIDTHS.actions} px-4 py-2 text-right`}>Actions</th>
             </tr>
           </thead>
@@ -283,12 +160,20 @@ export function SellerGroupCard({
                   onUpdateStock={onUpdateStock}
                   highlight={highlightedLineId === line.id}
                   disabled={pendingLineIds.has(line.id)}
+                  readOnly={isCompleted}
                 />
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      <SellerGroupOrderNoteDialog
+        open={noteDialogOpen}
+        listId={listId}
+        group={group}
+        onClose={() => setNoteDialogOpen(false)}
+      />
     </div>
   );
 }

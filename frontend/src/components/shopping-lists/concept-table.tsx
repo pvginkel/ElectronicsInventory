@@ -5,6 +5,7 @@ import { SHOPPING_LIST_LINE_SORT_OPTIONS } from '@/hooks/use-shopping-lists';
 import type { ShoppingListConceptLine, ShoppingListLineSortKey } from '@/types/shopping-lists';
 import { ConceptLineRow } from './concept-line-row';
 import { LINE_TABLE_WIDTHS } from './table-layout';
+import { ArrowDownAZ } from 'lucide-react';
 
 interface DuplicateNotice {
   lineId: number;
@@ -57,29 +58,47 @@ export function ConceptTable({
 
   return (
     <div className="rounded-lg border bg-card" data-testid="shopping-lists.concept.table">
-      <div className="flex items-center justify-between border-b px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
         <div>
           <h2 className="text-base font-semibold text-foreground">Concept lines</h2>
           <p className="text-xs text-muted-foreground">Manage needed quantities and seller overrides.</p>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" data-testid="shopping-lists.concept.sort.button">
-              Sort: {sortLabel}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {SHOPPING_LIST_LINE_SORT_OPTIONS.map(option => (
-              <DropdownMenuItem
-                key={option.key}
-                onClick={() => onSortChange(option.key)}
-                data-testid={`shopping-lists.concept.sort.${option.key}`}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={onCreateLine}
+            disabled={isMutating}
+            data-testid="shopping-lists.concept.table.add"
+          >
+            Add row
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 w-9 p-0"
+                aria-label="Change sort order"
+                title={`Current sort: ${sortLabel}`}
+                data-testid="shopping-lists.concept.sort.button"
               >
-                {option.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <ArrowDownAZ className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {SHOPPING_LIST_LINE_SORT_OPTIONS.map(option => (
+                <DropdownMenuItem
+                  key={option.key}
+                  onClick={() => onSortChange(option.key)}
+                  data-testid={`shopping-lists.concept.sort.${option.key}`}
+                >
+                  {option.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {duplicateNotice && !isMutating && (
@@ -117,12 +136,12 @@ export function ConceptTable({
       )}
 
       <div className="overflow-x-auto">
-        <table className="w-full table-fixed border-collapse">
+        <table className="w-full table-auto border-collapse">
           <thead>
             <tr className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
               <th className={`${LINE_TABLE_WIDTHS.part} px-4 py-2 text-left`}>Part</th>
               <th className={`${LINE_TABLE_WIDTHS.seller} px-4 py-2 text-left`}>Seller</th>
-              <th className={`${LINE_TABLE_WIDTHS.status} px-4 py-2 text-left`}>Status</th>
+              <th className={`${LINE_TABLE_WIDTHS.status} px-4 py-2 text-center`}>Status</th>
               <th className={`${LINE_TABLE_WIDTHS.needed} px-4 py-2 text-right`}>Needed</th>
               <th className={`${LINE_TABLE_WIDTHS.ordered} px-4 py-2 text-right`}>Ordered</th>
               <th className={`${LINE_TABLE_WIDTHS.received} px-4 py-2 text-right`}>Received</th>
@@ -156,21 +175,6 @@ export function ConceptTable({
               ))
             )}
           </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={8} className="px-4 py-3 text-right">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={onCreateLine}
-                  disabled={isMutating}
-                  data-testid="shopping-lists.concept.table.add"
-                >
-                  Add row
-                </Button>
-              </td>
-            </tr>
-          </tfoot>
         </table>
       </div>
     </div>
