@@ -418,33 +418,37 @@ export class ShoppingListsPage extends BasePage {
     await expect(this.updateStockDialog).toBeVisible();
   }
 
-  async setReceiveQuantity(quantity: number): Promise<void> {
-    await this.updateStockDialog.getByTestId('shopping-lists.ready.update-stock.field.receive').fill(String(quantity));
-  }
-
-  private allocationRow(index: number): Locator {
-    return this.updateStockDialog.getByTestId(`shopping-lists.ready.update-stock.allocation.${index}`);
-  }
-
   async addAllocationRow(): Promise<void> {
     await this.updateStockDialog.getByTestId('shopping-lists.ready.update-stock.add-allocation').click();
   }
 
-  async setAllocationRow(index: number, values: { box?: number; location?: number; quantity?: number }): Promise<void> {
-    const row = this.allocationRow(index);
+  async setExistingAllocationReceive(index: number, receive: number): Promise<void> {
+    const row = this.updateStockDialog.locator(
+      `[data-testid^="shopping-lists.ready.update-stock.row."][data-allocation-type="existing"]`,
+    ).nth(index);
+    await row.getByTestId(/\.receive$/).fill(String(receive));
+  }
+
+  async setNewAllocationRow(index: number, values: { box?: number; location?: number; receive?: number }): Promise<void> {
+    const row = this.updateStockDialog.locator(
+      `[data-testid^="shopping-lists.ready.update-stock.row."][data-allocation-type="new"]`,
+    ).nth(index);
     if (values.box !== undefined) {
       await row.getByTestId(/\.box$/).selectOption(String(values.box));
     }
     if (values.location !== undefined) {
       await row.getByTestId(/\.location$/).fill(String(values.location));
     }
-    if (values.quantity !== undefined) {
-      await row.getByTestId(/\.quantity$/).fill(String(values.quantity));
+    if (values.receive !== undefined) {
+      await row.getByTestId(/\.receive$/).fill(String(values.receive));
     }
   }
 
-  async removeAllocationRow(index: number): Promise<void> {
-    await this.allocationRow(index).getByTestId(/\.remove$/).click();
+  async removeNewAllocationRow(index: number): Promise<void> {
+    const row = this.updateStockDialog.locator(
+      `[data-testid^="shopping-lists.ready.update-stock.row."][data-allocation-type="new"]`,
+    ).nth(index);
+    await row.getByTestId(/\.remove$/).click();
   }
 
   async submitReceiveForm(mode: 'save' | 'saveAndNext'): Promise<void> {

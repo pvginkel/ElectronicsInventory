@@ -871,11 +871,28 @@ test('marks individual lines ordered and enforces back to concept guard', async 
 
     await shoppingLists.markLineOrdered(part.description, 5);
 
+    const boxesReady = waitForListLoading(
+      shoppingLists.playwrightPage,
+      'shoppingLists.receive.locations',
+      'ready',
+    );
+
     await shoppingLists.openUpdateStock(part.description);
-    await shoppingLists.setReceiveQuantity(3);
-    await shoppingLists.setAllocationRow(0, { box: existingBox.box_no, location: 1, quantity: 1 });
+    await expect(shoppingLists.updateStockDialog.getByTestId('shopping-lists.ready.update-stock.field.receive')).toHaveCount(0);
+
+    const boxesEvent = await boxesReady;
+    expect(boxesEvent.metadata).toMatchObject({
+      allocationCount: 0,
+      receiveQuantity: 0,
+    });
+
+    await shoppingLists.setNewAllocationRow(0, { box: existingBox.box_no, location: 1, receive: 1 });
     await shoppingLists.addAllocationRow();
-    await shoppingLists.setAllocationRow(1, { box: newBox.box_no, location: 2, quantity: 2 });
+    await shoppingLists.setNewAllocationRow(1, { box: newBox.box_no, location: 2, receive: 2 });
+
+    await expect(
+      shoppingLists.updateStockDialog.locator('[data-testid^="shopping-lists.ready.update-stock.row."][data-allocation-type="new"]'),
+    ).toHaveCount(2);
 
     await testEvents.clearEvents();
     const receiveSubmit = testEvents.waitForEvent(event =>
@@ -890,11 +907,18 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     );
 
     await shoppingLists.submitReceiveForm('save');
-    await Promise.all([receiveSubmit, receiveSuccess]).catch(async (error) => {
+    let receiveEvents: [FormTestEvent, FormTestEvent];
+    try {
+      receiveEvents = await Promise.all([receiveSubmit, receiveSuccess]) as [FormTestEvent, FormTestEvent];
+    } catch (error) {
       const formEvents = await testEvents.getEventsByKind('form');
       console.error('Captured form events:', JSON.stringify(formEvents, null, 2));
       throw error;
-    });
+    }
+
+    const [receiveSubmitEvent, receiveSuccessEvent] = receiveEvents;
+    expect(receiveSubmitEvent.metadata).toMatchObject({ receiveQuantity: 3, allocationCount: 2 });
+    expect(receiveSuccessEvent.metadata).toMatchObject({ receiveQuantity: 3, allocationCount: 2 });
 
     await toastHelper.expectSuccessToast(new RegExp(`Received 3 for ${part.description}`, 'i'));
     await toastHelper.dismissToast({ all: true });
@@ -936,6 +960,11 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     await shoppingLists.markLineOrdered(secondPart.description, 2);
 
     await testEvents.clearEvents();
+    const firstBoxesReady = waitForListLoading(
+      shoppingLists.playwrightPage,
+      'shoppingLists.receive.locations',
+      'ready',
+    );
     await shoppingLists.openUpdateStock(firstPart.description);
     await testEvents.waitForEvent(event =>
       event.kind === 'form' &&
@@ -943,10 +972,15 @@ test('marks individual lines ordered and enforces back to concept guard', async 
       (event as FormTestEvent).phase === 'open'
     );
 
-    await shoppingLists.setReceiveQuantity(2);
-    await shoppingLists.setAllocationRow(0, { box: boxA.box_no, location: 3, quantity: 1 });
+    const firstBoxesEvent = await firstBoxesReady;
+    expect(firstBoxesEvent.metadata).toMatchObject({ allocationCount: 0, receiveQuantity: 0 });
+
+    await shoppingLists.setNewAllocationRow(0, { box: boxA.box_no, location: 3, receive: 1 });
     await shoppingLists.addAllocationRow();
-    await shoppingLists.setAllocationRow(1, { box: boxB.box_no, location: 4, quantity: 1 });
+    await shoppingLists.setNewAllocationRow(1, { box: boxB.box_no, location: 4, receive: 1 });
+    await expect(
+      shoppingLists.updateStockDialog.locator('[data-testid^="shopping-lists.ready.update-stock.row."][data-allocation-type="new"]'),
+    ).toHaveCount(2);
 
     await testEvents.clearEvents();
     const firstSubmit = testEvents.waitForEvent(event =>
@@ -960,24 +994,39 @@ test('marks individual lines ordered and enforces back to concept guard', async 
       (event as FormTestEvent).phase === 'success'
     );
 
-    await shoppingLists.submitReceiveForm('saveAndNext');
-    await Promise.all([firstSubmit, firstSuccess]).catch(async (error) => {
-      const formEvents = await testEvents.getEventsByKind('form');
-      console.error('Captured form events:', JSON.stringify(formEvents, null, 2));
-      throw error;
-    });
-
-    await toastHelper.expectSuccessToast(new RegExp(`Received 2 for ${firstPart.description}`, 'i'));
-    await toastHelper.dismissToast({ all: true });
-
-    await testEvents.waitForEvent(event =>
+    const nextDialogOpen = testEvents.waitForEvent(event =>
       event.kind === 'form' &&
       (event as FormTestEvent).formId === `ShoppingListLineReceive:line:${secondLineId}` &&
       (event as FormTestEvent).phase === 'open'
     );
+    const secondBoxesReady = waitForListLoading(
+      shoppingLists.playwrightPage,
+      'shoppingLists.receive.locations',
+      'ready',
+    );
 
-    await shoppingLists.setReceiveQuantity(2);
-    await shoppingLists.setAllocationRow(0, { box: boxA.box_no, location: 5, quantity: 2 });
+    await shoppingLists.submitReceiveForm('saveAndNext');
+    let firstReceiveEvents: [FormTestEvent, FormTestEvent];
+    try {
+      firstReceiveEvents = await Promise.all([firstSubmit, firstSuccess]) as [FormTestEvent, FormTestEvent];
+    } catch (error) {
+      const formEvents = await testEvents.getEventsByKind('form');
+      console.error('Captured form events:', JSON.stringify(formEvents, null, 2));
+      throw error;
+    }
+
+    await toastHelper.expectSuccessToast(new RegExp(`Received 2 for ${firstPart.description}`, 'i'));
+    await toastHelper.dismissToast({ all: true });
+
+    const [firstSubmitEvent, firstSuccessEvent] = firstReceiveEvents;
+    expect(firstSubmitEvent.metadata).toMatchObject({ receiveQuantity: 2, allocationCount: 2 });
+    expect(firstSuccessEvent.metadata).toMatchObject({ receiveQuantity: 2, allocationCount: 2 });
+
+    await nextDialogOpen;
+    const secondBoxesEvent = await secondBoxesReady;
+    expect(secondBoxesEvent.metadata).toMatchObject({ allocationCount: 0, receiveQuantity: 0 });
+
+    await shoppingLists.setNewAllocationRow(0, { box: boxA.box_no, location: 5, receive: 2 });
 
     await testEvents.clearEvents();
     const secondSubmit = testEvents.waitForEvent(event =>
@@ -992,15 +1041,22 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     );
 
     await shoppingLists.submitReceiveForm('save');
-    await Promise.all([secondSubmit, secondSuccess]).catch(async (error) => {
+    let secondReceiveEvents: [FormTestEvent, FormTestEvent];
+    try {
+      secondReceiveEvents = await Promise.all([secondSubmit, secondSuccess]) as [FormTestEvent, FormTestEvent];
+    } catch (error) {
       const formEvents = await testEvents.getEventsByKind('form');
       console.error('Captured form events:', JSON.stringify(formEvents, null, 2));
       throw error;
-    });
+    }
 
     await toastHelper.expectSuccessToast(new RegExp(`Received 2 for ${secondPart.description}`, 'i'));
     await toastHelper.dismissToast({ all: true });
     await expect(shoppingLists.updateStockDialog).toBeHidden();
+
+    const [secondSubmitEvent, secondSuccessEvent] = secondReceiveEvents;
+    expect(secondSubmitEvent.metadata).toMatchObject({ receiveQuantity: 2, allocationCount: 1 });
+    expect(secondSuccessEvent.metadata).toMatchObject({ receiveQuantity: 2, allocationCount: 1 });
 
     await expect(shoppingLists.readyLineReceivedCell(firstPart.description)).toContainText('2');
     await expect(shoppingLists.readyLineReceivedCell(secondPart.description)).toContainText('2');
@@ -1032,9 +1088,25 @@ test('marks individual lines ordered and enforces back to concept guard', async 
 
     await shoppingLists.markLineOrdered(part.description, 3);
 
+    const mismatchBoxesReady = waitForListLoading(
+      shoppingLists.playwrightPage,
+      'shoppingLists.receive.locations',
+      'ready',
+    );
     await shoppingLists.openUpdateStock(part.description);
-    await shoppingLists.setReceiveQuantity(1);
-    await shoppingLists.setAllocationRow(0, { box: box.box_no, location: 6, quantity: 1 });
+    const primaryBoxesEvent = await mismatchBoxesReady;
+    expect(primaryBoxesEvent.metadata).toMatchObject({ allocationCount: 0, receiveQuantity: 0 });
+
+    const saveButton = shoppingLists.updateStockDialog.getByTestId('shopping-lists.ready.update-stock.submit');
+    await expect(saveButton).toBeDisabled();
+
+    await shoppingLists.updateStockForm.evaluate((form: HTMLFormElement) => form.requestSubmit());
+    const summaryError = shoppingLists.updateStockDialog.locator('[data-testid="shopping-lists.ready.update-stock.allocations.error"]');
+    await expect(summaryError).toHaveText(/Enter at least one Receive entry/i);
+
+    await shoppingLists.setNewAllocationRow(0, { box: box.box_no, location: 6, receive: 1 });
+    await expect(summaryError).toHaveCount(0);
+    await expect(saveButton).toBeEnabled();
 
     await testEvents.clearEvents();
     const receiveSubmit = testEvents.waitForEvent(event =>
@@ -1048,15 +1120,37 @@ test('marks individual lines ordered and enforces back to concept guard', async 
       (event as FormTestEvent).phase === 'success'
     );
     await shoppingLists.submitReceiveForm('save');
-    await Promise.all([receiveSubmit, receiveSuccess]).catch(async (error) => {
+    let mismatchReceiveEvents: [FormTestEvent, FormTestEvent];
+    try {
+      mismatchReceiveEvents = await Promise.all([receiveSubmit, receiveSuccess]) as [FormTestEvent, FormTestEvent];
+    } catch (error) {
       const formEvents = await testEvents.getEventsByKind('form');
       console.error('Captured form events:', JSON.stringify(formEvents, null, 2));
       throw error;
-    });
+    }
     await toastHelper.expectSuccessToast(new RegExp(`Received 1 for ${part.description}`, 'i'));
     await toastHelper.dismissToast({ all: true });
 
+    const [mismatchSubmitEvent, mismatchSuccessEvent] = mismatchReceiveEvents;
+    expect(mismatchSubmitEvent.metadata).toMatchObject({ receiveQuantity: 1, allocationCount: 1 });
+    expect(mismatchSuccessEvent.metadata).toMatchObject({ receiveQuantity: 1, allocationCount: 1 });
+
+    const reopenBoxesReady = waitForListLoading(
+      shoppingLists.playwrightPage,
+      'shoppingLists.receive.locations',
+      'ready',
+    );
     await shoppingLists.openUpdateStock(part.description);
+    const reopenBoxesEvent = await reopenBoxesReady;
+    expect(reopenBoxesEvent.metadata).toMatchObject({ allocationCount: 0, receiveQuantity: 0 });
+
+    const existingRow = shoppingLists.updateStockDialog.locator('[data-testid^="shopping-lists.ready.update-stock.row."][data-allocation-type="existing"]').first();
+    await expect(existingRow.getByTestId(/\.box$/)).toContainText(`#${box.box_no}`);
+    await expect(existingRow.getByTestId(/\.location$/)).toHaveText('6');
+    await expect(existingRow.getByTestId(/\.quantity$/)).toHaveText('1');
+    await expect(
+      shoppingLists.updateStockDialog.locator('[data-testid^="shopping-lists.ready.update-stock.row."][data-allocation-type="new"]'),
+    ).toHaveCount(1);
 
     await testEvents.clearEvents();
     const completeSubmit = testEvents.waitForEvent(event =>

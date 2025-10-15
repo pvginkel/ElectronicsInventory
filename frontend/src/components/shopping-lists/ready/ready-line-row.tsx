@@ -92,7 +92,7 @@ export const ReadyLineRow = forwardRef<HTMLTableRowElement, ReadyLineRowProps>(f
           <span className={cn('font-medium', line.ordered > 0 ? 'text-foreground' : 'text-muted-foreground')}>
             {line.ordered}
           </span>
-          {!readOnly && (
+          {!readOnly && line.status !== 'done' && (
             <Button
               variant="ghost"
               size="sm"
@@ -197,18 +197,20 @@ export const ReadyLineRow = forwardRef<HTMLTableRowElement, ReadyLineRowProps>(f
                 <Undo2 className="h-4 w-4" />
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0 shrink-0"
-              disabled={disableActions}
-              aria-label={`Edit ${line.part.description}`}
-              onClick={() => onEditLine(line)}
-              data-testid={`shopping-lists.ready.line.${line.id}.actions.edit`}
-              title="Edit line"
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
+            {line.status !== 'done' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 shrink-0"
+                disabled={disableActions}
+                aria-label={`Edit ${line.part.description}`}
+                onClick={() => onEditLine(line)}
+                data-testid={`shopping-lists.ready.line.${line.id}.actions.edit`}
+                title="Edit line"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         )}
       </td>

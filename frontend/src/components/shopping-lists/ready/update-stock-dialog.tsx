@@ -5,37 +5,51 @@ import { Form, FormField, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { BoxSelector } from '@/components/parts/box-selector';
 import { Badge } from '@/components/ui/badge';
+import { Trash2 } from 'lucide-react';
 import { useFormState } from '@/hooks/use-form-state';
 import { useFormInstrumentation } from '@/hooks/use-form-instrumentation';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { useGetBoxes } from '@/lib/api/generated/hooks';
 import type {
   ShoppingListConceptLine,
+  ShoppingListLinePartLocation,
   ShoppingListLineReceiveAllocationInput,
 } from '@/types/shopping-lists';
 import { cn } from '@/lib/utils';
 import { makeUniqueToken } from '@/lib/utils/random';
 
-interface AllocationDraft {
+interface ExistingAllocationDraft {
   id: string;
+  type: 'existing';
+  sourceLocationId: number;
+  boxNo: number;
+  locNo: number;
+  existingQuantity: number;
+  receive: string;
+}
+
+interface NewAllocationDraft {
+  id: string;
+  type: 'new';
   boxNo?: number;
   locNo: string;
-  quantity: string;
+  receive: string;
 }
+
+type AllocationDraft = ExistingAllocationDraft | NewAllocationDraft;
 
 interface AllocationValidationResult {
   isValid: boolean;
   summary?: string;
   rows: Record<string, {
     box?: string;
-    loc?: string;
-    quantity?: string;
+    location?: string;
+    receive?: string;
   }>;
-  totalQuantity: number;
+  totalReceive: number;
 }
 
 interface UpdateStockFormValues extends Record<string, unknown> {
-  receiveNow: string;
   allocations: AllocationDraft[];
 }
 
@@ -57,13 +71,35 @@ interface UpdateStockDialogProps {
   restoreFocusElement?: HTMLElement | null;
 }
 
-function createAllocationDraft(): AllocationDraft {
+function createNewAllocationDraft(): NewAllocationDraft {
   return {
     id: makeUniqueToken(16),
+    type: 'new',
     boxNo: undefined,
     locNo: '',
-    quantity: '',
+    receive: '',
   };
+}
+
+function createExistingAllocationDraft(location: ShoppingListLinePartLocation): ExistingAllocationDraft {
+  return {
+    id: makeUniqueToken(16),
+    type: 'existing',
+    sourceLocationId: location.id,
+    boxNo: location.boxNo,
+    locNo: location.locNo,
+    existingQuantity: location.quantity,
+    receive: '',
+  };
+}
+
+function buildInitialAllocations(line: ShoppingListConceptLine | null): AllocationDraft[] {
+  if (!line) {
+    return [];
+  }
+
+  const existingDrafts = line.partLocations.map(createExistingAllocationDraft);
+  return [...existingDrafts, createNewAllocationDraft()];
 }
 
 function parseInteger(value: string): number | null {
@@ -74,114 +110,134 @@ function parseInteger(value: string): number | null {
   return parsed;
 }
 
-function validateReceiveQuantity(raw: string): string | undefined {
-  const trimmed = raw.trim();
-  if (!trimmed.length) {
-    return 'Enter quantity to receive';
-  }
-  const parsed = parseInteger(trimmed);
-  if (parsed == null) {
-    return 'Receive now must be an integer';
-  }
-  if (parsed < 1) {
-    return 'Receive now must be at least 1';
-  }
-  return undefined;
-}
-
-function validateAllocations(
-  allocations: AllocationDraft[],
-  receiveQuantity: number | null
-): AllocationValidationResult {
+function validateAllocations(allocations: AllocationDraft[]): AllocationValidationResult {
   const rows: AllocationValidationResult['rows'] = {};
-  const summaryMessages: string[] = [];
-  let totalQuantity = 0;
+  const summaryMessages = new Set<string>();
+  const existingKeys = new Set<string>();
+  const newKeys = new Set<string>();
   let hasError = false;
-  const seenKeys = new Set<string>();
+  let totalReceive = 0;
+  let positiveEntries = 0;
 
-  if (!allocations.length) {
-    summaryMessages.push('Add at least one allocation row');
-    return {
-      isValid: false,
-      summary: summaryMessages.join(' '),
-      rows,
-      totalQuantity: 0,
-    };
+  for (const allocation of allocations) {
+    if (allocation.type === 'existing') {
+      existingKeys.add(`${allocation.boxNo}:${allocation.locNo}`);
+    }
   }
 
   for (const allocation of allocations) {
-    const errors: { box?: string; loc?: string; quantity?: string } = {};
-    const hasAnyInput = allocation.boxNo != null || allocation.locNo.trim().length > 0 || allocation.quantity.trim().length > 0;
+    if (allocation.type === 'existing') {
+      const trimmedReceive = allocation.receive.trim();
+      if (!trimmedReceive.length) {
+        continue;
+      }
 
+      const parsedReceive = parseInteger(trimmedReceive);
+      if (parsedReceive == null || parsedReceive < 1) {
+        hasError = true;
+        rows[allocation.id] = {
+          receive: 'Receive must be a positive integer',
+        };
+        summaryMessages.add('Fix invalid Receive entries');
+        continue;
+      }
+
+      totalReceive += parsedReceive;
+      positiveEntries += 1;
+      continue;
+    }
+
+    const hasAnyInput =
+      allocation.boxNo != null ||
+      allocation.locNo.trim().length > 0 ||
+      allocation.receive.trim().length > 0;
     if (!hasAnyInput) {
-      errors.box = 'Enter box, location, and quantity or remove row';
-      errors.loc = 'Enter box, location, and quantity or remove row';
-      errors.quantity = 'Enter box, location, and quantity or remove row';
-      hasError = true;
-    } else {
-      if (allocation.boxNo == null) {
-        errors.box = 'Select a box';
-        hasError = true;
-      }
+      continue;
+    }
 
-      const locParsed = parseInteger(allocation.locNo);
-      if (locParsed == null || locParsed < 1) {
-        errors.loc = 'Location must be positive integer';
-        hasError = true;
-      }
+    const errors: AllocationValidationResult['rows'][string] = {};
+    let rowHasError = false;
 
-      const qtyParsed = parseInteger(allocation.quantity);
-      if (qtyParsed == null || qtyParsed < 1) {
-        errors.quantity = 'Quantity must be positive integer';
-        hasError = true;
-      } else {
-        totalQuantity += qtyParsed;
-      }
+    if (allocation.boxNo == null) {
+      errors.box = 'Select a box';
+      rowHasError = true;
+    }
 
-      if (allocation.boxNo != null && locParsed != null && locParsed >= 1) {
-        const key = `${allocation.boxNo}:${locParsed}`;
-        if (seenKeys.has(key)) {
-          errors.box = errors.box ?? 'Duplicate location';
-          errors.loc = errors.loc ?? 'Duplicate location';
-          hasError = true;
-        } else {
-          seenKeys.add(key);
-        }
+    const locTrimmed = allocation.locNo.trim();
+    const parsedLoc = parseInteger(locTrimmed);
+    if (parsedLoc == null || parsedLoc < 1) {
+      errors.location = 'Location must be a positive integer';
+      rowHasError = true;
+    }
+
+    const receiveTrimmed = allocation.receive.trim();
+    const parsedReceive = parseInteger(receiveTrimmed);
+    if (parsedReceive == null || parsedReceive < 1) {
+      errors.receive = 'Receive must be a positive integer';
+      rowHasError = true;
+    }
+
+    let locationKey: string | null = null;
+    if (!rowHasError) {
+      locationKey = `${allocation.boxNo}:${parsedLoc}`;
+      if (existingKeys.has(locationKey) || newKeys.has(locationKey)) {
+        errors.box = errors.box ?? 'Duplicate box/location';
+        errors.location = errors.location ?? 'Duplicate box/location';
+        rowHasError = true;
+        summaryMessages.add('Receive entries must use unique box/location combinations');
       }
     }
 
-    if (errors.box || errors.loc || errors.quantity) {
+    if (rowHasError) {
       rows[allocation.id] = errors;
-    }
-  }
-
-  if (receiveQuantity != null) {
-    if (totalQuantity !== receiveQuantity) {
       hasError = true;
-      const difference = receiveQuantity - totalQuantity;
-      if (difference > 0) {
-        summaryMessages.push(`Allocate ${difference} more to match Receive now`);
-      } else if (difference < 0) {
-        summaryMessages.push(`Remove ${Math.abs(difference)} from allocations to match Receive now`);
-      }
+      summaryMessages.add('Complete the highlighted Receive entries');
+      continue;
     }
+
+    newKeys.add(locationKey!);
+    totalReceive += parsedReceive!;
+    positiveEntries += 1;
   }
 
-  const summary = summaryMessages.length ? summaryMessages.join(' ') : undefined;
+  if (positiveEntries === 0) {
+    hasError = true;
+    summaryMessages.add('Enter at least one Receive entry');
+  }
+
+  const summary = summaryMessages.size ? Array.from(summaryMessages).join(' ') : undefined;
 
   return {
     isValid: !hasError,
     summary,
     rows,
-    totalQuantity,
+    totalReceive,
   };
 }
 
-function allocationToPayload(allocation: AllocationDraft): ShoppingListLineReceiveAllocationInput {
+function allocationToPayload(allocation: AllocationDraft): ShoppingListLineReceiveAllocationInput | null {
+  if (allocation.type === 'existing') {
+    const quantity = parseInteger(allocation.receive);
+    if (quantity == null || quantity < 1) {
+      return null;
+    }
+    return {
+      boxNo: allocation.boxNo,
+      locNo: allocation.locNo,
+      quantity,
+    };
+  }
+
+  const quantity = parseInteger(allocation.receive);
+  const locNo = parseInteger(allocation.locNo);
+  if (allocation.boxNo == null || quantity == null || quantity < 1 || locNo == null || locNo < 1) {
+    return null;
+  }
+
   return {
-    boxNo: allocation.boxNo as number,
-    locNo: Number(allocation.locNo),
-    quantity: Number(allocation.quantity),
+    boxNo: allocation.boxNo,
+    locNo,
+    quantity,
   };
 }
 
@@ -203,55 +259,55 @@ export function UpdateStockDialog({
   const [mismatchError, setMismatchError] = useState<string | null>(null);
 
   const boxesQuery = useGetBoxes();
+  const boxLookup = useMemo(() => {
+    const boxes = boxesQuery.data ?? [];
+    return new Map(boxes.map((box) => [box.box_no, box]));
+  }, [boxesQuery.data]);
 
   const form = useFormState<UpdateStockFormValues>({
     initialValues: {
-      receiveNow: '',
       allocations: [],
-    },
-    validationRules: {
-      receiveNow: (value: unknown) => {
-        const raw = typeof value === 'string' ? value : String(value ?? '');
-        return validateReceiveQuantity(raw);
-      },
     },
     onSubmit: async (values) => {
       if (!line) {
         return;
       }
 
-      const receiveQuantity = parseInteger(values.receiveNow);
-      const allocationValidation = validateAllocations(values.allocations, receiveQuantity);
+      const allocationValidation = validateAllocations(values.allocations);
+      const receiveQuantity = allocationValidation.totalReceive;
 
-      if (receiveQuantity == null || !allocationValidation.isValid) {
+      if (!allocationValidation.isValid || receiveQuantity < 1) {
         setShowAllocationErrors(true);
         formInstrumentation.trackValidationErrors({
-          receiveNow: validateReceiveQuantity(values.receiveNow),
           allocations: allocationValidation.summary ?? 'Allocation validation failed',
         });
         return;
       }
+
+      const allocationsPayload = values.allocations
+        .map(allocationToPayload)
+        .filter((allocation): allocation is ShoppingListLineReceiveAllocationInput => allocation != null);
 
       formInstrumentation.trackSubmit({
         listId: line.shoppingListId,
         lineId: line.id,
         mode: submitModeRef.current,
         receiveQuantity,
-        allocationCount: values.allocations.length,
+        allocationCount: allocationsPayload.length,
       });
 
       try {
         await onSubmit({
           mode: submitModeRef.current,
           receiveQuantity,
-          allocations: values.allocations.map(allocationToPayload),
+          allocations: allocationsPayload,
         });
         formInstrumentation.trackSuccess({
           listId: line.shoppingListId,
           lineId: line.id,
           mode: submitModeRef.current,
           receiveQuantity,
-          allocationCount: values.allocations.length,
+          allocationCount: allocationsPayload.length,
         });
         setShowAllocationErrors(false);
       } catch (error) {
@@ -260,37 +316,34 @@ export function UpdateStockDialog({
           lineId: line.id,
           mode: submitModeRef.current,
           receiveQuantity,
-          allocationCount: values.allocations.length,
+          allocationCount: allocationsPayload.length,
         });
         throw error;
       }
     },
   });
 
-  const allocationValidation = useMemo(() => {
-    const receiveQuantity = parseInteger(form.values.receiveNow);
-    return validateAllocations(form.values.allocations, receiveQuantity);
-  }, [form.values.allocations, form.values.receiveNow]);
+  const allocationValidation = useMemo(
+    () => validateAllocations(form.values.allocations),
+    [form.values.allocations],
+  );
 
-  const receiveError = validateReceiveQuantity(form.values.receiveNow);
-  const canSubmit = !receiveError && allocationValidation.isValid && !isReceiving;
+  const canSubmit = !!line && allocationValidation.isValid && allocationValidation.totalReceive > 0 && !isReceiving;
 
   useEffect(() => {
     if (!open) {
       return;
     }
     if (line) {
-      form.setValue('receiveNow', '');
-      form.setFieldTouched('receiveNow', false);
-      form.setValue('allocations', [createAllocationDraft()]);
+      form.setValue('allocations', buildInitialAllocations(line));
       setShowAllocationErrors(false);
       submitModeRef.current = 'save';
     } else {
-      form.setValue('receiveNow', '');
       form.setValue('allocations', []);
+      setShowAllocationErrors(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, line?.id]);
+  }, [open, line]);
 
   useEffect(() => {
     if (open) {
@@ -314,13 +367,20 @@ export function UpdateStockDialog({
   const formInstrumentation = useFormInstrumentation({
     formId: line ? `ShoppingListLineReceive:line:${line.id}` : 'ShoppingListLineReceive:line:none',
     isOpen: open,
-    snapshotFields: () => ({
-      listId: line?.shoppingListId ?? null,
-      lineId: line?.id ?? null,
-      mode: submitModeRef.current,
-      receiveQuantity: parseInteger(form.values.receiveNow) ?? 0,
-      allocationCount: form.values.allocations.length,
-    }),
+    snapshotFields: () => {
+      const snapshotValidation = validateAllocations(form.values.allocations);
+      const allocationCount = form.values.allocations.reduce<number>((count, allocation) => {
+        return allocationToPayload(allocation) ? count + 1 : count;
+      }, 0);
+
+      return {
+        listId: line?.shoppingListId ?? null,
+        lineId: line?.id ?? null,
+        mode: submitModeRef.current,
+        receiveQuantity: snapshotValidation.totalReceive,
+        allocationCount,
+      };
+    },
   });
 
   const completionInstrumentation = useFormInstrumentation({
@@ -338,11 +398,17 @@ export function UpdateStockDialog({
     isLoading: boxesQuery.isLoading,
     isFetching: boxesQuery.isFetching,
     error: boxesQuery.error,
-    getReadyMetadata: () => ({
-      listId: line?.shoppingListId ?? null,
-      lineId: line?.id ?? null,
-      allocationCount: form.values.allocations.length,
-    }),
+    getReadyMetadata: () => {
+      const allocationCount = form.values.allocations.reduce<number>((count, allocation) => {
+        return allocationToPayload(allocation) ? count + 1 : count;
+      }, 0);
+      return {
+        listId: line?.shoppingListId ?? null,
+        lineId: line?.id ?? null,
+        allocationCount,
+        receiveQuantity: allocationValidation.totalReceive,
+      };
+    },
     getErrorMetadata: (error: unknown) => ({
       message: error instanceof Error ? error.message : String(error),
     }),
@@ -367,12 +433,13 @@ export function UpdateStockDialog({
   };
 
   const handleAddAllocation = () => {
-    form.setValue('allocations', [...form.values.allocations, createAllocationDraft()]);
+    form.setValue('allocations', [...form.values.allocations, createNewAllocationDraft()]);
   };
 
   const handleRemoveAllocation = (allocationId: string) => {
-    const next = form.values.allocations.filter(allocation => allocation.id !== allocationId);
-    form.setValue('allocations', next.length ? next : [createAllocationDraft()]);
+    const next = form.values.allocations.filter((allocation) => allocation.id !== allocationId);
+    const hasNewRow = next.some((allocation) => allocation.type === 'new');
+    form.setValue('allocations', hasNewRow ? next : [...next, createNewAllocationDraft()]);
   };
 
   const handleSubmitMode = (mode: SubmitMode) => {
@@ -456,13 +523,17 @@ export function UpdateStockDialog({
   const allocations = form.values.allocations;
   const showAllocationSummaryError = showAllocationErrors && !!allocationValidation.summary;
 
-  const existingLocations = line?.partLocations ?? [];
+  const hasExistingAllocations = allocations.some((allocation) => allocation.type === 'existing');
   const receiveDisabled = !line || isReceiving;
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(next) => !next && handleClose()}>
-        <DialogContent className="sm:max-w-3xl" data-testid="shopping-lists.ready.update-stock.dialog">
+      <Dialog
+        open={open}
+        onOpenChange={(next) => !next && handleClose()}
+        className="max-w-[95vw] sm:max-w-3xl"
+      >
+        <DialogContent data-testid="shopping-lists.ready.update-stock.dialog">
           <Form onSubmit={form.handleSubmit} data-testid="shopping-lists.ready.update-stock.form">
             <DialogHeader>
               <DialogTitle>{line ? `Update stock for ${line.part.description}` : 'Update stock'}</DialogTitle>
@@ -503,138 +574,171 @@ export function UpdateStockDialog({
                   </div>
                 </div>
 
-                <div className="rounded-md border border-dashed border-border px-4 py-3">
-                  <p className="text-sm font-medium text-foreground mb-2">Existing locations</p>
-                  {existingLocations.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No stock on hand for this part.</p>
-                  ) : (
-                    <div className="max-h-40 overflow-y-auto">
-                      <table className="w-full border-separate border-spacing-y-1 text-sm">
-                        <thead>
-                          <tr className="text-xs uppercase text-muted-foreground">
-                            <th className="text-left">Box</th>
-                            <th className="text-left">Location</th>
-                            <th className="text-right">Quantity</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {existingLocations.map((location) => (
-                            <tr key={location.id} className="rounded bg-muted/40">
-                              <td className="px-2 py-1">#{location.boxNo}</td>
-                              <td className="px-2 py-1">{location.locNo}</td>
-                              <td className="px-2 py-1 text-right font-medium">{location.quantity}</td>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <FormLabel className="text-sm font-medium text-foreground">Receive allocations</FormLabel>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      onClick={handleAddAllocation}
+                      disabled={receiveDisabled}
+                      data-testid="shopping-lists.ready.update-stock.add-allocation"
+                    >
+                      Add location
+                    </Button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full table-auto border-separate border-spacing-y-1 text-sm">
+                      <thead>
+                        <tr className="text-xs uppercase text-muted-foreground">
+                          <th className="px-3 py-2 text-left">Box</th>
+                          <th className="px-3 py-2 text-left">Location</th>
+                          <th className="px-3 py-2 text-right">Quantity</th>
+                          <th className="px-3 py-2 text-right">Receive</th>
+                          <th className="px-2 py-2">
+                            <span className="sr-only">Actions</span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allocations.map((allocation) => {
+                          const allocationTestId = `shopping-lists.ready.update-stock.row.${allocation.id}`;
+                          const rowError = allocationValidation.rows[allocation.id] ?? {};
+                          const showRowErrors = showAllocationErrors && allocationValidation.rows[allocation.id] != null;
+
+                          if (allocation.type === 'existing') {
+                            const boxMeta = boxLookup.get(allocation.boxNo);
+                            return (
+                              <tr
+                                key={allocation.id}
+                                className="bg-muted/40"
+                                data-testid={allocationTestId}
+                                data-allocation-type="existing"
+                              >
+                                <td className="px-3 py-2">
+                                  <div className="space-y-1">
+                                    <span className="font-medium pr-1" data-testid={`${allocationTestId}.box`}>
+                                      #{allocation.boxNo}
+                                    </span>
+                                    {boxMeta?.description ? (
+                                      <span className="text-muted-foreground" data-testid={`${allocationTestId}.box-name`}>
+                                        {boxMeta.description}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2">
+                                  <span data-testid={`${allocationTestId}.location`}>{allocation.locNo}</span>
+                                </td>
+                                <td className="px-3 py-2 text-right">
+                                  <span className="font-medium" data-testid={`${allocationTestId}.quantity`}>
+                                    {allocation.existingQuantity}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2">
+                                  <div className="flex justify-end">
+                                    <Input
+                                      type="number"
+                                      min={1}
+                                      step={1}
+                                      value={allocation.receive}
+                                      onChange={(event) => handleAllocationChange(allocation.id, { receive: event.target.value })}
+                                      error={showRowErrors ? rowError.receive : undefined}
+                                      disabled={receiveDisabled}
+                                      data-testid={`${allocationTestId}.receive`}
+                                      className="w-full max-w-[140px]"
+                                    />
+                                  </div>
+                                </td>
+                                <td className="px-2 py-2" />
+                              </tr>
+                            );
+                          }
+
+                          return (
+                            <tr
+                              key={allocation.id}
+                              className="bg-muted/20"
+                              data-testid={allocationTestId}
+                              data-allocation-type="new"
+                            >
+                              <td className="px-3 py-2">
+                                <div className="max-w-full">
+                                  <BoxSelector
+                                    value={allocation.boxNo}
+                                    onChange={(value) => handleAllocationChange(allocation.id, { boxNo: value })}
+                                    error={showRowErrors ? rowError.box : undefined}
+                                    disabled={receiveDisabled}
+                                    testId={`${allocationTestId}.box`}
+                                  />
+                                </div>
+                              </td>
+                              <td className="px-3 py-2">
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  step={1}
+                                  value={allocation.locNo}
+                                  onChange={(event) => handleAllocationChange(allocation.id, { locNo: event.target.value })}
+                                  error={showRowErrors ? rowError.location : undefined}
+                                  disabled={receiveDisabled}
+                                  data-testid={`${allocationTestId}.location`}
+                                  className="w-full"
+                                />
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <span className="text-muted-foreground">—</span>
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="flex justify-end">
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    value={allocation.receive}
+                                    onChange={(event) => handleAllocationChange(allocation.id, { receive: event.target.value })}
+                                    error={showRowErrors ? rowError.receive : undefined}
+                                    disabled={receiveDisabled}
+                                    data-testid={`${allocationTestId}.receive`}
+                                    className="w-full max-w-[140px]"
+                                  />
+                                </div>
+                              </td>
+                              <td className="px-2 py-2">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-9 w-9 p-0"
+                                  onClick={() => handleRemoveAllocation(allocation.id)}
+                                  disabled={receiveDisabled}
+                                  data-testid={`${allocationTestId}.remove`}
+                                  aria-label="Remove allocation"
+                                >
+                                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                                </Button>
+                              </td>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {!hasExistingAllocations && (
+                    <p className="px-3 text-xs text-muted-foreground">No stock on hand for this part.</p>
+                  )}
+
+                  {showAllocationSummaryError && (
+                    <p className="text-sm text-destructive" data-testid="shopping-lists.ready.update-stock.allocations.error">
+                      {allocationValidation.summary}
+                    </p>
                   )}
                 </div>
               </div>
             )}
-
-            <div className="space-y-4">
-              <FormField>
-                <FormLabel required>Receive now</FormLabel>
-                <Input
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={form.values.receiveNow}
-                  onChange={(event) => form.setValue('receiveNow', event.target.value)}
-                  onBlur={() => form.setFieldTouched('receiveNow')}
-                  error={form.touched.receiveNow ? form.errors.receiveNow : undefined}
-                  disabled={receiveDisabled}
-                  data-testid="shopping-lists.ready.update-stock.field.receive"
-                />
-              </FormField>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-foreground">Allocate to locations</p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleAddAllocation}
-                    disabled={receiveDisabled}
-                    data-testid="shopping-lists.ready.update-stock.add-allocation"
-                  >
-                    Add location
-                  </Button>
-                </div>
-
-                <div className="space-y-2">
-                  {allocations.map((allocation, index) => {
-                    const allocationTestId = `shopping-lists.ready.update-stock.allocation.${index}`;
-                    const rowError = allocationValidation.rows[allocation.id] ?? {};
-                    const showRowErrors = showAllocationErrors && allocationValidation.rows[allocation.id] != null;
-                    return (
-                      <div
-                        key={allocation.id}
-                        className="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-3 md:flex-row md:items-end"
-                        data-testid={allocationTestId}
-                      >
-                        <div className="md:w-40">
-                          <FormLabel className="text-xs text-muted-foreground">Box</FormLabel>
-                          <BoxSelector
-                            value={allocation.boxNo}
-                            onChange={(value) => handleAllocationChange(allocation.id, { boxNo: value })}
-                            error={showRowErrors ? rowError.box : undefined}
-                            disabled={receiveDisabled}
-                            testId={`${allocationTestId}.box`}
-                          />
-                        </div>
-                        <div className="md:w-32">
-                          <FormLabel className="text-xs text-muted-foreground">Location</FormLabel>
-                          <Input
-                            type="number"
-                            min={1}
-                            step={1}
-                            value={allocation.locNo}
-                            onChange={(event) => handleAllocationChange(allocation.id, { locNo: event.target.value })}
-                            error={showRowErrors ? rowError.loc : undefined}
-                            disabled={receiveDisabled}
-                            data-testid={`${allocationTestId}.location`}
-                          />
-                        </div>
-                        <div className="md:w-32">
-                          <FormLabel className="text-xs text-muted-foreground">Quantity</FormLabel>
-                          <Input
-                            type="number"
-                            min={1}
-                            step={1}
-                            value={allocation.quantity}
-                            onChange={(event) => handleAllocationChange(allocation.id, { quantity: event.target.value })}
-                            error={showRowErrors ? rowError.quantity : undefined}
-                            disabled={receiveDisabled}
-                            data-testid={`${allocationTestId}.quantity`}
-                          />
-                        </div>
-                        <div className="flex items-center gap-2 md:flex-1 md:justify-end">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveAllocation(allocation.id)}
-                            disabled={receiveDisabled}
-                            data-testid={`${allocationTestId}.remove`}
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {showAllocationSummaryError && (
-                  <p className="text-sm text-destructive" data-testid="shopping-lists.ready.update-stock.allocations.error">
-                    {allocationValidation.summary}
-                  </p>
-                )}
-              </div>
-            </div>
 
             <DialogFooter className="mt-4 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
