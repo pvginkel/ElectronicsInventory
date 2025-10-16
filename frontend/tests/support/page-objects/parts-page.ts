@@ -123,6 +123,50 @@ export class PartsPage extends BasePage {
     return this.page.getByTestId('parts.detail');
   }
 
+  get detailEditLayout(): Locator {
+    return this.page.getByTestId('parts.detail.edit.layout');
+  }
+
+  get detailEditHeader(): Locator {
+    return this.page.getByTestId('parts.detail.edit.header');
+  }
+
+  get detailEditContent(): Locator {
+    return this.page.getByTestId('parts.detail.edit.content');
+  }
+
+  get detailEditFooter(): Locator {
+    return this.page.getByTestId('parts.detail.edit.footer');
+  }
+
+  async getDetailEditHeaderRect(): Promise<{ top: number; bottom: number; height: number }> {
+    return this.detailEditHeader.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, height: rect.height };
+    });
+  }
+
+  async getDetailEditFooterRect(): Promise<{ top: number; bottom: number; height: number }> {
+    return this.detailEditFooter.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, height: rect.height };
+    });
+  }
+
+  async scrollDetailEditContent(target: number | 'bottom' = 'bottom'): Promise<void> {
+    await this.detailEditContent.evaluate((element, value) => {
+      if (value === 'bottom') {
+        element.scrollTo({ top: element.scrollHeight });
+        return;
+      }
+      element.scrollTo({ top: value });
+    }, target);
+  }
+
+  async detailEditContentScrollTop(): Promise<number> {
+    return this.detailEditContent.evaluate((element) => element.scrollTop);
+  }
+
   get detailDocumentsCard(): Locator {
     return this.page.getByTestId('parts.detail.documents');
   }

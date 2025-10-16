@@ -23,51 +23,46 @@ export function ReadyToolbar({
   const showMarkDone = canMarkDone && !isCompleted;
 
   return (
-    <div
-      className="sticky top-0 z-10 border-b border-border bg-background/95 px-4 py-3 backdrop-blur"
-      data-testid="shopping-lists.ready.toolbar"
-    >
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-1">
-          <h2 className="text-base font-semibold text-foreground">Ready actions</h2>
-          {isCompleted ? (
-            <p className="text-sm text-muted-foreground" data-testid="shopping-lists.ready.toolbar.completed">
-              This list is Completed and read-only. Archive history is available from the overview.
-            </p>
-          ) : showHelperCopy ? (
-            <p className="text-sm text-muted-foreground" data-testid="shopping-lists.ready.toolbar.copy">
-              No lines are currently marked Ordered. You can return to Concept planning if adjustments are needed.
-            </p>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {showMarkDone && (
-            <Button
-              variant="primary"
-              size="sm"
-              loading={isMarkingDone}
-              disabled={isMarkingDone || isUpdatingBackToConcept}
-              onClick={() => { void onMarkDone(); }}
-              title="Archive this Ready list once all lines are complete"
-              data-testid="shopping-lists.ready.toolbar.mark-done"
-            >
-              Mark Done
-            </Button>
-          )}
-          {canReturnToConcept && !isCompleted && (
-            <Button
-              variant="outline"
-              size="sm"
-              loading={isUpdatingBackToConcept}
-              disabled={isUpdatingBackToConcept || isMarkingDone}
-              onClick={() => { void onBackToConcept(); }}
-              title="Return lines to Concept planning without marking the list done"
-              data-testid="shopping-lists.ready.toolbar.back-to-concept"
-            >
-              Back to Concept
-            </Button>
-          )}
-        </div>
+    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between" data-testid="shopping-lists.ready.toolbar">
+      <div className="space-y-1">
+        <h2 className="text-base font-semibold text-foreground">Ready actions</h2>
+        {isCompleted ? (
+          <p className="text-sm text-muted-foreground" data-testid="shopping-lists.ready.toolbar.completed">
+            This list is Completed and read-only. Archive history is available from the overview.
+          </p>
+        ) : showHelperCopy ? (
+          <p className="text-sm text-muted-foreground" data-testid="shopping-lists.ready.toolbar.copy">
+            No lines are currently marked Ordered. You can return to Concept planning if adjustments are needed.
+          </p>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {showMarkDone && (
+          <Button
+            variant="primary"
+            size="sm"
+            loading={isMarkingDone}
+            disabled={isMarkingDone || isUpdatingBackToConcept}
+            onClick={() => { void onMarkDone(); }}
+            title="Archive this Ready list once all lines are complete"
+            data-testid="shopping-lists.ready.toolbar.mark-done"
+          >
+            Mark Done
+          </Button>
+        )}
+        {canReturnToConcept && !isCompleted ? (
+          <Button
+            variant="outline"
+            size="sm"
+            loading={isUpdatingBackToConcept}
+            disabled={isUpdatingBackToConcept || isMarkingDone}
+            onClick={() => { void onBackToConcept(); }}
+            title="Return lines to Concept planning without marking the list done"
+            data-testid="shopping-lists.ready.toolbar.back-to-concept"
+          >
+            Back to Concept
+          </Button>
+        ) : null}
       </div>
     </div>
   );

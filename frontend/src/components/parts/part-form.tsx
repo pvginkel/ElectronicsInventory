@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { type ReactNode, useState, useEffect } from 'react';
 import { Form, FormField, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -41,9 +41,10 @@ interface PartFormProps {
   duplicateFromPartId?: string;
   onSuccess: (partId: string) => void;
   onCancel?: () => void;
+  screenLayout?: (sections: { header: ReactNode; content: ReactNode; footer: ReactNode }) => ReactNode;
 }
 
-export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: PartFormProps) {
+export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel, screenLayout }: PartFormProps) {
   const formId = generateFormId('PartForm', partId ? 'edit' : duplicateFromPartId ? 'duplicate' : 'create');
 
   const [formData, setFormData] = useState<PartFormData>({
@@ -323,329 +324,347 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel }: P
 
   const isLoading = createPartMutation.isPending || updatePartMutation.isPending || isCopying;
 
-  return (
-    <Card className="p-6">
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold">
-          {isEditing ? `Edit Part ${partId}` : isDuplicating ? `Duplicate Part from ${duplicateFromPartId}` : 'Add Part'}
-        </h2>
+  const headerSection = (
+    <div className="space-y-1">
+      <h2 className="text-lg font-semibold">
+        {isEditing ? `Edit Part ${partId}` : isDuplicating ? `Duplicate Part from ${duplicateFromPartId}` : 'Add Part'}
+      </h2>
+    </div>
+  );
+
+  const contentSection = (
+    <div className="space-y-6">
+      {/* Basic Information */}
+      <div className="space-y-4">
+        <div className="border-b pb-2">
+          <h3 className="text-lg font-medium">Basic Information</h3>
+          <p className="text-sm text-muted-foreground">Essential part details and classification</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <FormField>
+            <FormLabel htmlFor="description" required>
+              Description
+            </FormLabel>
+            <Input
+              id="description"
+              data-testid="parts.form.description"
+              value={formData.description}
+              onChange={(e) => updateFormData('description', e.target.value)}
+              error={errors.description}
+              maxLength={200}
+            />
+          </FormField>
+
+          <FormField>
+            <FormLabel htmlFor="manufacturerCode">
+              Manufacturer Code
+            </FormLabel>
+            <Input
+              id="manufacturerCode"
+              data-testid="parts.form.manufacturer"
+              value={formData.manufacturerCode}
+              onChange={(e) => updateFormData('manufacturerCode', e.target.value)}
+              error={errors.manufacturerCode}
+              maxLength={100}
+            />
+          </FormField>
+
+          <FormField>
+            <FormLabel>Type</FormLabel>
+            <TypeSelector
+              value={formData.typeId}
+              onChange={(value) => updateFormData('typeId', value)}
+              error={errors.typeId}
+            />
+          </FormField>
+
+          <FormField>
+            <FormLabel>Tags</FormLabel>
+            <TagsInput
+              value={formData.tags}
+              onChange={(tags) => updateFormData('tags', tags)}
+            />
+          </FormField>
+        </div>
       </div>
 
-      <Form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Information */}
-        <div className="space-y-4">
-          <div className="pb-2 border-b">
-            <h3 className="text-lg font-medium">Basic Information</h3>
-            <p className="text-sm text-muted-foreground">Essential part details and classification</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField>
-              <FormLabel htmlFor="description" required>
-                Description
-              </FormLabel>
-              <Input
-                id="description"
-                data-testid="parts.form.description"
-                value={formData.description}
-                onChange={(e) => updateFormData('description', e.target.value)}
-                error={errors.description}
-                maxLength={200}
-              />
-            </FormField>
-
-            <FormField>
-              <FormLabel htmlFor="manufacturerCode">
-                Manufacturer Code
-              </FormLabel>
-              <Input
-                id="manufacturerCode"
-                data-testid="parts.form.manufacturer"
-                value={formData.manufacturerCode}
-                onChange={(e) => updateFormData('manufacturerCode', e.target.value)}
-                error={errors.manufacturerCode}
-                maxLength={100}
-              />
-            </FormField>
-
-            <FormField>
-              <FormLabel>Type</FormLabel>
-              <TypeSelector
-                value={formData.typeId}
-                onChange={(value) => updateFormData('typeId', value)}
-                error={errors.typeId}
-              />
-            </FormField>
-
-            <FormField>
-              <FormLabel>Tags</FormLabel>
-              <TagsInput
-                value={formData.tags}
-                onChange={(tags) => updateFormData('tags', tags)}
-              />
-            </FormField>
-          </div>
+      {/* Physical Specifications */}
+      <div className="space-y-4">
+        <div className="border-b pb-2">
+          <h3 className="text-lg font-medium">Physical Specifications</h3>
+          <p className="text-sm text-muted-foreground">Physical dimensions, packaging, and mounting details</p>
         </div>
 
-        {/* Physical Specifications */}
-        <div className="space-y-4">
-          <div className="pb-2 border-b">
-            <h3 className="text-lg font-medium">Physical Specifications</h3>
-            <p className="text-sm text-muted-foreground">Physical dimensions, packaging, and mounting details</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField>
-              <FormLabel htmlFor="dimensions">
-                Dimensions
-              </FormLabel>
-              <Input
-                id="dimensions"
-                value={formData.dimensions}
-                onChange={(e) => updateFormData('dimensions', e.target.value)}
-                error={errors.dimensions}
-                maxLength={100}
-                placeholder="e.g., 20x15x5mm"
-              />
-            </FormField>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <FormField>
+            <FormLabel htmlFor="dimensions">
+              Dimensions
+            </FormLabel>
+            <Input
+              id="dimensions"
+              value={formData.dimensions}
+              onChange={(e) => updateFormData('dimensions', e.target.value)}
+              error={errors.dimensions}
+              maxLength={100}
+              placeholder="e.g., 20x15x5mm"
+            />
+          </FormField>
 
-            <FormField>
-              <FormLabel htmlFor="package">
-                Package
-              </FormLabel>
-              <Input
-                id="package"
-                value={formData.package}
-                onChange={(e) => updateFormData('package', e.target.value)}
-                error={errors.package}
-                maxLength={100}
-                placeholder="e.g., DIP-8, SOIC-16"
-              />
-            </FormField>
+          <FormField>
+            <FormLabel htmlFor="package">
+              Package
+            </FormLabel>
+            <Input
+              id="package"
+              value={formData.package}
+              onChange={(e) => updateFormData('package', e.target.value)}
+              error={errors.package}
+              maxLength={100}
+              placeholder="e.g., DIP-8, SOIC-16"
+            />
+          </FormField>
 
-            <FormField>
-              <FormLabel htmlFor="pinCount">
-                Pin Count
-              </FormLabel>
-              <Input
-                id="pinCount"
-                type="number"
-                min="1"
-                max="9999"
-                value={formData.pinCount}
-                onChange={(e) => updateFormData('pinCount', e.target.value)}
-                error={errors.pinCount}
-                placeholder="Number of pins"
-              />
-            </FormField>
+          <FormField>
+            <FormLabel htmlFor="pinCount">
+              Pin Count
+            </FormLabel>
+            <Input
+              id="pinCount"
+              type="number"
+              min="1"
+              max="9999"
+              value={formData.pinCount}
+              onChange={(e) => updateFormData('pinCount', e.target.value)}
+              error={errors.pinCount}
+              placeholder="Number of pins"
+            />
+          </FormField>
 
-            <FormField>
-              <FormLabel htmlFor="pinPitch">
-                Pin Pitch
-              </FormLabel>
-              <Input
-                id="pinPitch"
-                value={formData.pinPitch}
-                onChange={(e) => updateFormData('pinPitch', e.target.value)}
-                error={errors.pinPitch}
-                maxLength={100}
-                placeholder="e.g., 0.1mm, 2.54mm"
-              />
-            </FormField>
+          <FormField>
+            <FormLabel htmlFor="pinPitch">
+              Pin Pitch
+            </FormLabel>
+            <Input
+              id="pinPitch"
+              value={formData.pinPitch}
+              onChange={(e) => updateFormData('pinPitch', e.target.value)}
+              error={errors.pinPitch}
+              maxLength={100}
+              placeholder="e.g., 0.1mm, 2.54mm"
+            />
+          </FormField>
 
-            <FormField>
-              <FormLabel htmlFor="mountingType">
-                Mounting Type
-              </FormLabel>
-              <MountingTypeSelector
-                value={formData.mountingType}
-                onChange={(value) => updateFormData('mountingType', value || '')}
-                error={errors.mountingType}
-                placeholder="Select mounting type..."
-              />
-            </FormField>
-          </div>
+          <FormField>
+            <FormLabel htmlFor="mountingType">
+              Mounting Type
+            </FormLabel>
+            <MountingTypeSelector
+              value={formData.mountingType}
+              onChange={(value) => updateFormData('mountingType', value || '')}
+              error={errors.mountingType}
+              placeholder="Select mounting type..."
+            />
+          </FormField>
+        </div>
+      </div>
+
+      {/* Technical Specifications */}
+      <div className="space-y-4">
+        <div className="border-b pb-2">
+          <h3 className="text-lg font-medium">Technical Specifications</h3>
+          <p className="text-sm text-muted-foreground">Electrical ratings and component series information</p>
         </div>
 
-        {/* Technical Specifications */}
-        <div className="space-y-4">
-          <div className="pb-2 border-b">
-            <h3 className="text-lg font-medium">Technical Specifications</h3>
-            <p className="text-sm text-muted-foreground">Electrical ratings and component series information</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField>
-              <FormLabel htmlFor="voltageRating">
-                Voltage Rating
-              </FormLabel>
-              <Input
-                id="voltageRating"
-                value={formData.voltageRating}
-                onChange={(e) => updateFormData('voltageRating', e.target.value)}
-                error={errors.voltageRating}
-                maxLength={100}
-                placeholder="e.g., 3.3V, 5V"
-              />
-            </FormField>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <FormField>
+            <FormLabel htmlFor="voltageRating">
+              Voltage Rating
+            </FormLabel>
+            <Input
+              id="voltageRating"
+              value={formData.voltageRating}
+              onChange={(e) => updateFormData('voltageRating', e.target.value)}
+              error={errors.voltageRating}
+              maxLength={100}
+              placeholder="e.g., 3.3V, 5V"
+            />
+          </FormField>
 
-            <FormField>
-              <FormLabel htmlFor="inputVoltage">
-                Input Voltage
-              </FormLabel>
-              <Input
-                id="inputVoltage"
-                value={formData.inputVoltage}
-                onChange={(e) => updateFormData('inputVoltage', e.target.value)}
-                error={errors.inputVoltage}
-                maxLength={100}
-                placeholder="e.g., 5V, 12-24V"
-              />
-            </FormField>
+          <FormField>
+            <FormLabel htmlFor="inputVoltage">
+              Input Voltage
+            </FormLabel>
+            <Input
+              id="inputVoltage"
+              value={formData.inputVoltage}
+              onChange={(e) => updateFormData('inputVoltage', e.target.value)}
+              error={errors.inputVoltage}
+              maxLength={100}
+              placeholder="e.g., 5V, 12-24V"
+            />
+          </FormField>
 
-            <FormField>
-              <FormLabel htmlFor="outputVoltage">
-                Output Voltage
-              </FormLabel>
-              <Input
-                id="outputVoltage"
-                value={formData.outputVoltage}
-                onChange={(e) => updateFormData('outputVoltage', e.target.value)}
-                error={errors.outputVoltage}
-                maxLength={100}
-                placeholder="e.g., 3.3V, 5V"
-              />
-            </FormField>
+          <FormField>
+            <FormLabel htmlFor="outputVoltage">
+              Output Voltage
+            </FormLabel>
+            <Input
+              id="outputVoltage"
+              value={formData.outputVoltage}
+              onChange={(e) => updateFormData('outputVoltage', e.target.value)}
+              error={errors.outputVoltage}
+              maxLength={100}
+              placeholder="e.g., 3.3V, 5V"
+            />
+          </FormField>
 
-            <FormField>
-              <FormLabel htmlFor="series">
-                Series
-              </FormLabel>
-              <Input
-                id="series"
-                value={formData.series}
-                onChange={(e) => updateFormData('series', e.target.value)}
-                error={errors.series}
-                maxLength={100}
-                placeholder="e.g., 74HC, LM"
-              />
-            </FormField>
-          </div>
+          <FormField>
+            <FormLabel htmlFor="series">
+              Series
+            </FormLabel>
+            <Input
+              id="series"
+              value={formData.series}
+              onChange={(e) => updateFormData('series', e.target.value)}
+              error={errors.series}
+              maxLength={100}
+              placeholder="e.g., 74HC, LM"
+            />
+          </FormField>
+        </div>
+      </div>
+
+      {/* Seller Information */}
+      <div className="space-y-4">
+        <div className="border-b pb-2">
+          <h3 className="text-lg font-medium">Seller Information</h3>
+          <p className="text-sm text-muted-foreground">Manufacturer and vendor details</p>
         </div>
 
-        {/* Seller Information */}
-        <div className="space-y-4">
-          <div className="pb-2 border-b">
-            <h3 className="text-lg font-medium">Seller Information</h3>
-            <p className="text-sm text-muted-foreground">Manufacturer and vendor details</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField>
-              <FormLabel htmlFor="manufacturer">
-                Manufacturer
-              </FormLabel>
-              <Input
-                id="manufacturer"
-                value={formData.manufacturer}
-                onChange={(e) => updateFormData('manufacturer', e.target.value)}
-                error={errors.manufacturer}
-                maxLength={255}
-                placeholder="e.g., Texas Instruments, Arduino"
-              />
-            </FormField>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <FormField>
+            <FormLabel htmlFor="manufacturer">
+              Manufacturer
+            </FormLabel>
+            <Input
+              id="manufacturer"
+              value={formData.manufacturer}
+              onChange={(e) => updateFormData('manufacturer', e.target.value)}
+              error={errors.manufacturer}
+              maxLength={255}
+              placeholder="e.g., Texas Instruments, Arduino"
+            />
+          </FormField>
 
-            <FormField>
-              <FormLabel htmlFor="productPage">
-                Product Page
-              </FormLabel>
-              <Input
-                id="productPage"
-                value={formData.productPage}
-                onChange={(e) => updateFormData('productPage', e.target.value)}
-                error={errors.productPage}
-                maxLength={500}
-                placeholder="e.g., https://www.ti.com/product/SN74HC595"
-              />
-            </FormField>
+          <FormField>
+            <FormLabel htmlFor="productPage">
+              Product Page
+            </FormLabel>
+            <Input
+              id="productPage"
+              value={formData.productPage}
+              onChange={(e) => updateFormData('productPage', e.target.value)}
+              error={errors.productPage}
+              maxLength={500}
+              placeholder="e.g., https://www.ti.com/product/SN74HC595"
+            />
+          </FormField>
 
-            <FormField>
-              <FormLabel>
-                Seller
-              </FormLabel>
-              <SellerSelector
-                value={formData.sellerId}
-                onChange={(value) => updateFormData('sellerId', value)}
-                error={errors.sellerId}
-              />
-            </FormField>
+          <FormField>
+            <FormLabel>
+              Seller
+            </FormLabel>
+            <SellerSelector
+              value={formData.sellerId}
+              onChange={(value) => updateFormData('sellerId', value)}
+              error={errors.sellerId}
+            />
+          </FormField>
 
-            <FormField>
-              <FormLabel htmlFor="sellerLink">
-                Seller Link
-              </FormLabel>
-              <Input
-                id="sellerLink"
-                value={formData.sellerLink}
-                onChange={(e) => updateFormData('sellerLink', e.target.value)}
-                error={errors.sellerLink}
-              />
-            </FormField>
-          </div>
+          <FormField>
+            <FormLabel htmlFor="sellerLink">
+              Seller Link
+            </FormLabel>
+            <Input
+              id="sellerLink"
+              value={formData.sellerLink}
+              onChange={(e) => updateFormData('sellerLink', e.target.value)}
+              error={errors.sellerLink}
+            />
+          </FormField>
         </div>
+      </div>
 
-        {/* Documents Section - only shown in duplication mode */}
-        {isDuplicating && duplicateDocuments.length > 0 && (
-          <div className="space-y-4">
-            <div className="pb-2 border-b">
-              <h3 className="text-lg font-medium">Documents</h3>
-              <p className="text-sm text-muted-foreground">Documents from the original part that will be copied</p>
-            </div>
-            <DuplicateDocumentGrid
-              documents={duplicateDocuments}
-              coverDocumentId={coverDocumentId}
-              partId={duplicateFromPartId!}
-              onDocumentsChange={handleDocumentsChange}
+      {/* Documents Section - only shown in duplication mode */}
+      {isDuplicating && duplicateDocuments.length > 0 ? (
+        <div className="space-y-4">
+          <div className="border-b pb-2">
+            <h3 className="text-lg font-medium">Documents</h3>
+            <p className="text-sm text-muted-foreground">Documents from the original part that will be copied</p>
+          </div>
+          <DuplicateDocumentGrid
+            documents={duplicateDocuments}
+            coverDocumentId={coverDocumentId}
+            partId={duplicateFromPartId!}
+            onDocumentsChange={handleDocumentsChange}
+          />
+        </div>
+      ) : null}
+
+      {/* Progress UI during document copying */}
+      {isCopying ? (
+        <div className="space-y-2">
+          <div className="text-sm font-medium">
+            Copying documents ({copyProgress.completed}/{copyProgress.total})...
+          </div>
+          <div className="h-2 w-full rounded-full bg-muted">
+            <div
+              className="h-2 rounded-full bg-primary transition-all duration-300"
+              style={{ width: `${(copyProgress.completed / copyProgress.total) * 100}%` }}
             />
           </div>
-        )}
-
-        {/* Progress UI during document copying */}
-        {isCopying && (
-          <div className="space-y-2">
-            <div className="text-sm font-medium">
-              Copying documents ({copyProgress.completed}/{copyProgress.total})...
-            </div>
-            <div className="w-full bg-muted rounded-full h-2">
-              <div 
-                className="bg-primary h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(copyProgress.completed / copyProgress.total) * 100}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="flex justify-end gap-3 pt-4">
-          {onCancel && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-          )}
-          <Button
-            type="submit"
-            disabled={isLoading}
-            loading={isLoading}
-            data-testid="parts.form.submit"
-          >
-            {isCopying ? 'Copying Documents...' : isEditing ? 'Update Part' : isDuplicating ? 'Create Duplicate' : 'Add Part'}
-          </Button>
         </div>
-      </Form>
-    </Card>
+      ) : null}
+    </div>
+  );
+
+  const footerSection = (
+    <div className="flex justify-end gap-3">
+      {onCancel ? (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={isLoading}
+        >
+          Cancel
+        </Button>
+      ) : null}
+      <Button
+        type="submit"
+        disabled={isLoading}
+        loading={isLoading}
+        data-testid="parts.form.submit"
+      >
+        {isCopying ? 'Copying Documents...' : isEditing ? 'Update Part' : isDuplicating ? 'Create Duplicate' : 'Add Part'}
+      </Button>
+    </div>
+  );
+
+  const renderedForm = screenLayout
+    ? screenLayout({ header: headerSection, content: contentSection, footer: footerSection })
+    : (
+      <Card className="space-y-6 p-6">
+        {headerSection}
+        {contentSection}
+        {footerSection}
+      </Card>
+    );
+
+  return (
+    <Form onSubmit={handleSubmit} className={screenLayout ? 'flex h-full flex-col' : 'space-y-6'}>
+      {renderedForm}
+    </Form>
   );
 }

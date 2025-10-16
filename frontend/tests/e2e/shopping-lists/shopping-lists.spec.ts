@@ -35,7 +35,8 @@ test.describe('Shopping Lists', () => {
     await waitTestEvent<FormTestEvent>(shoppingLists.playwrightPage, 'form', event => event.formId === 'ShoppingListCreate:concept' && event.phase === 'success');
 
     await shoppingLists.waitForConceptReady();
-    await expect(shoppingLists.conceptRoot).toBeVisible();
+    await expect(shoppingLists.detailLayout).toBeVisible();
+    await expect(shoppingLists.detailContentConcept).toBeVisible();
 
     // Return to overview and ensure the list is present.
     await shoppingLists.gotoOverview();
@@ -126,7 +127,8 @@ test.describe('Shopping Lists', () => {
 
     await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listDetail.name}" as Done`, 'i'));
     await toastHelper.dismissToast({ all: true });
-    await expect(shoppingLists.readyRoot).toBeVisible();
+    await expect(shoppingLists.detailLayout).toBeVisible();
+    await expect(shoppingLists.detailContentReady).toBeVisible();
     await expect(shoppingLists.readyMarkDoneButton).toHaveCount(0);
     await shoppingLists.expectStatus(/Completed/i);
 
@@ -208,7 +210,8 @@ test.describe('Shopping Lists', () => {
     await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listDetail.name}" as Done`, 'i'));
     await toastHelper.dismissToast({ all: true });
 
-    await expect(shoppingLists.readyRoot).toBeVisible();
+    await expect(shoppingLists.detailLayout).toBeVisible();
+    await expect(shoppingLists.detailContentReady).toBeVisible();
     await expect(shoppingLists.readyMarkDoneButton).toHaveCount(0);
     await expect(shoppingLists.readyLineRow(orderedPart.description)).toBeVisible();
     await expect(shoppingLists.readyLineStatusCell(orderedPart.description)).toContainText(/ordered/i);
@@ -807,7 +810,8 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     await toastHelper.expectSuccessToast(/cleared ordered quantity/i);
     await toastHelper.dismissToast({ all: true });
 
-    await expect(shoppingLists.readyRoot).toBeVisible();
+    await expect(shoppingLists.detailLayout).toBeVisible();
+    await expect(shoppingLists.detailContentReady).toBeVisible();
     await shoppingLists.gotoReady(list.id);
     await expect(shoppingLists.readyLineRow(part.description).getByTestId(/status$/)).toContainText(/new/i);
     await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.ready.toolbar.back-to-concept')).toBeVisible();
@@ -886,7 +890,8 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     await shoppingLists.backToConcept();
     await toastHelper.expectSuccessToast(/returned list to concept/i);
     await toastHelper.dismissToast({ all: true });
-    await expect(shoppingLists.conceptRoot).toBeVisible();
+    await expect(shoppingLists.detailLayout).toBeVisible();
+    await expect(shoppingLists.detailContentConcept).toBeVisible();
     await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.toolbar.mark-ready')).toBeVisible();
   });
 

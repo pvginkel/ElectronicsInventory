@@ -19,6 +19,7 @@ import { useConfirm } from '@/hooks/use-confirm';
 import { useClipboardPaste } from '@/hooks/use-clipboard-paste';
 import { usePartShoppingListMemberships, invalidatePartMemberships } from '@/hooks/use-part-shopping-list-memberships';
 import { AddToShoppingListDialog } from '@/components/shopping-lists/part/add-to-shopping-list-dialog';
+import { FormScreenLayout } from '@/components/layout/form-screen-layout';
 
 interface PartDetailsProps {
   partId: string;
@@ -183,6 +184,20 @@ export function PartDetails({ partId }: PartDetailsProps) {
           refetch();
         }}
         onCancel={() => setIsEditing(false)}
+        screenLayout={({ content, footer }) => (
+          // Map PartForm's sections into the fixed-header layout while keeping the original form element intact.
+          <FormScreenLayout
+            rootTestId="parts.detail.edit.layout"
+            headerTestId="parts.detail.edit.header"
+            contentTestId="parts.detail.edit.content"
+            footerTestId="parts.detail.edit.footer"
+            actionsTestId="parts.detail.edit.actions"
+            title={`Edit Part ${partId}`}
+            footer={footer}
+          >
+            {content}
+          </FormScreenLayout>
+        )}
       />
     );
   }
