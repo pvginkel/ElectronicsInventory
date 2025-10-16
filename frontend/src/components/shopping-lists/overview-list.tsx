@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import { ListScreenLayout } from '@/components/layout/list-screen-layout';
+import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
@@ -91,19 +93,55 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
   );
   const totalActiveCount = useMemo(
     () => lists.filter((list) => list.status !== 'done').length,
-    [lists]
+    [lists],
   );
   const totalCompletedCount = useMemo(
     () => lists.filter((list) => list.status === 'done').length,
-    [lists]
+    [lists],
   );
+  const totalInActiveTab = activeTab === 'active' ? totalActiveCount : totalCompletedCount;
+  const filteredCount = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return undefined;
+    }
+
+    if (filteredLists.length === lists.length) {
+      return undefined;
+    }
+
+    return filteredLists.length;
+  }, [filteredLists, lists, searchTerm]);
   // Instrumentation metadata mirrors the Playwright expectations for filter + tab counts.
-  const filtersMetadata = useMemo(() => ({
+  const filtersMetadata = useMemo(() => {
+    const base = {
+      activeTab,
+      activeCount: activeLists.length,
+      completedCount: completedLists.length,
+      visibleCount: visibleLists.length,
+      totalActiveCount,
+      totalCompletedCount,
+      totalInView: totalInActiveTab,
+    };
+
+    if (typeof filteredCount === 'number') {
+      return {
+        ...base,
+        filteredCount,
+      };
+    }
+
+    return base;
+  }, [
+    activeLists.length,
     activeTab,
-    activeCount: activeLists.length,
-    completedCount: completedLists.length,
-    visibleCount: visibleLists.length,
-  }), [activeLists.length, activeTab, completedLists.length, visibleLists.length]);
+    completedLists.length,
+    filteredCount,
+    totalActiveCount,
+    totalCompletedCount,
+    totalInActiveTab,
+    visibleLists.length,
+  ]);
+  const searchState = searchTerm.trim() ? 'active' : 'none';
 
   useListLoadingInstrumentation({
     scope: 'shoppingLists.overview',
@@ -112,16 +150,16 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
     error,
     getReadyMetadata: () => ({
       ...getReadyMetadata(),
-      filtered: filteredLists.length,
-      search: searchTerm ? 'active' : 'none',
+      ...(typeof filteredCount === 'number' ? { filtered: filteredCount } : {}),
+      search: searchState,
       ...filtersMetadata,
     }),
     getErrorMetadata,
     getAbortedMetadata: () => ({
       reason: 'component-unmount',
       ...getReadyMetadata(),
-      filtered: filteredLists.length,
-      search: searchTerm ? 'active' : 'none',
+      ...(typeof filteredCount === 'number' ? { filtered: filteredCount } : {}),
+      search: searchState,
       ...filtersMetadata,
     }),
   });
@@ -252,14 +290,8 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
   const isFiltered = searchTerm.trim().length > 0;
   const hasLists = lists.length > 0;
   const noMatches = isFiltered && filteredLists.length === 0;
-  const totalInActiveTab = activeTab === 'active' ? totalActiveCount : totalCompletedCount;
   const hasVisibleLists = visibleLists.length > 0;
   const summaryCategory = activeTab === 'active' ? 'Active' : 'Completed';
-  const summaryListNoun = totalInActiveTab === 1 ? 'list' : 'lists';
-  const summaryCategoryLower = summaryCategory.toLowerCase();
-  const summaryText = isFiltered
-    ? `${visibleLists.length} of ${totalInActiveTab} ${summaryCategoryLower} ${summaryListNoun} showing`
-    : `${totalInActiveTab} ${summaryCategoryLower} ${summaryListNoun}`;
   const tabItems = [
     {
       id: 'active',
@@ -276,110 +308,129 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
       testId: 'shopping-lists.overview.tabs.completed',
     },
   ];
+  const breadcrumbsNode = (
+    <span data-testid="shopping-lists.overview.breadcrumb">Shopping Lists</span>
+  );
+
+  const countsNode = (
+    <div data-testid="shopping-lists.overview.summary">
+      <ListScreenCounts
+        visible={visibleLists.length}
+        total={totalInActiveTab}
+        category={summaryCategory}
+        noun={{ singular: 'list', plural: 'lists' }}
+        filtered={filteredCount}
+      />
+    </div>
+  );
+
+  const searchNode = (
+    <div className="relative" data-testid="shopping-lists.overview.search-container">
+      <Input
+        placeholder="Search..."
+        value={searchTerm}
+        onChange={(event) => handleSearchChange(event.target.value)}
+        className="w-full pr-8"
+        data-testid="shopping-lists.overview.search"
+      />
+      {searchTerm && (
+        <button
+          type="button"
+          onClick={handleClearSearch}
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors hover:bg-muted"
+          aria-label="Clear search"
+          data-testid="shopping-lists.overview.search.clear"
+        >
+          <ClearButtonIcon />
+        </button>
+      )}
+    </div>
+  );
+
+  const segmentedTabsNode = (
+    <SegmentedTabs
+      value={activeTab}
+      onValueChange={handleSegmentedTabChange}
+      items={tabItems}
+      ariaLabel="Shopping list status"
+      data-testid="shopping-lists.overview.tabs"
+      className="w-full"
+    />
+  );
+
+  const content = !hasLists ? (
+    <div
+      className="rounded-lg border border-dashed border-muted py-16 text-center"
+      data-testid="shopping-lists.overview.empty"
+    >
+      <h2 className="text-lg font-semibold">No concept lists yet</h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Start by creating a Concept list, then populate it with parts ready for purchasing.
+      </p>
+      <Button className="mt-4" onClick={() => setCreateDialogOpen(true)}>
+        Create your first list
+      </Button>
+    </div>
+  ) : noMatches ? (
+    <div
+      className="rounded-lg border border-dashed border-muted py-16 text-center"
+      data-testid="shopping-lists.overview.no-results"
+    >
+      <h2 className="text-lg font-semibold">No lists match “{searchTerm}”</h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Adjust the search or create a new Concept list tailored to your build.
+      </p>
+    </div>
+  ) : hasVisibleLists ? (
+    <div
+      className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+      data-testid={`shopping-lists.overview.grid.${activeTab}`}
+    >
+      {visibleLists.map((list) => (
+        <ShoppingListOverviewCard
+          key={list.id}
+          list={list}
+          onOpen={() => handleOpenList(list.id)}
+        />
+      ))}
+    </div>
+  ) : (
+    <div
+      className="rounded-md border border-dashed border-muted px-4 py-6 text-sm text-muted-foreground"
+      data-testid={`shopping-lists.overview.${activeTab}.empty`}
+    >
+      {isFiltered
+        ? `No ${summaryCategory.toLowerCase()} lists match the current filters.`
+        : `No ${summaryCategory.toLowerCase()} lists yet.`}
+    </div>
+  );
 
   return (
-    <div data-testid="shopping-lists.overview">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold" data-testid="shopping-lists.overview.heading">
-          Shopping Lists
-        </h1>
-        <Button onClick={() => setCreateDialogOpen(true)} data-testid="shopping-lists.overview.create">
-          Create Concept List
-        </Button>
-      </div>
-
-      {hasLists && (
-        <>
-          <div
-            className="w-full mb-6 relative"
-            data-testid="shopping-lists.overview.search-container"
-          >
-            <Input
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={(event) => handleSearchChange(event.target.value)}
-              className="w-full pr-8"
-              data-testid="shopping-lists.overview.search"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={handleClearSearch}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors hover:bg-muted"
-                aria-label="Clear search"
-                data-testid="shopping-lists.overview.search.clear"
-              >
-                <ClearButtonIcon />
-              </button>
-            )}
-          </div>
-
-          <SegmentedTabs
-            value={activeTab}
-            onValueChange={handleSegmentedTabChange}
-            items={tabItems}
-            ariaLabel="Shopping list status"
-            data-testid="shopping-lists.overview.tabs"
-            className="mb-4"
-          />
-
-          <div
-            className="flex justify-between items-center text-sm text-muted-foreground mb-6"
-            data-testid="shopping-lists.overview.summary"
-          >
-            <span>{summaryText}</span>
-            {isFiltered && (
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground/80">
-                {filteredLists.length} filtered
-              </span>
-            )}
-          </div>
-        </>
-      )}
-
-      {!hasLists ? (
-        <div className="text-center py-16 border border-dashed border-muted rounded-lg" data-testid="shopping-lists.overview.empty">
-          <h2 className="text-lg font-semibold">No concept lists yet</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Start by creating a Concept list, then populate it with parts ready for purchasing.
-          </p>
-          <Button className="mt-4" onClick={() => setCreateDialogOpen(true)}>
-            Create your first list
+    <>
+      <ListScreenLayout
+        rootTestId="shopping-lists.overview"
+        headerTestId="shopping-lists.overview.header"
+        contentTestId="shopping-lists.overview.content"
+        breadcrumbs={breadcrumbsNode}
+        className="flex-1"
+        title={<span data-testid="shopping-lists.overview.heading">Shopping Lists</span>}
+        actions={
+          <Button onClick={() => setCreateDialogOpen(true)} data-testid="shopping-lists.overview.create">
+            Create Concept List
           </Button>
-        </div>
-      ) : noMatches ? (
-        <div className="text-center py-16 border border-dashed border-muted rounded-lg" data-testid="shopping-lists.overview.no-results">
-          <h2 className="text-lg font-semibold">No lists match “{searchTerm}”</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Adjust the search or create a new Concept list tailored to your build.
-          </p>
-        </div>
-      ) : hasVisibleLists ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" data-testid={`shopping-lists.overview.grid.${activeTab}`}>
-          {visibleLists.map((list) => (
-            <ShoppingListOverviewCard
-              key={list.id}
-              list={list}
-              onOpen={() => handleOpenList(list.id)}
-            />
-          ))}
-        </div>
-      ) : (
-        <div
-          className="rounded-md border border-dashed border-muted px-4 py-6 text-sm text-muted-foreground"
-          data-testid={`shopping-lists.overview.${activeTab}.empty`}
-        >
-          {isFiltered
-            ? `No ${summaryCategory.toLowerCase()} lists match the current filters.`
-            : `No ${summaryCategory.toLowerCase()} lists yet.`}
-        </div>
-      )}
+        }
+        search={searchNode}
+        segmentedTabs={segmentedTabsNode}
+        counts={countsNode}
+      >
+        {content}
+      </ListScreenLayout>
 
       <ListCreateDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         onCreated={handleListCreated}
       />
-    </div>
+    </>
   );
 }

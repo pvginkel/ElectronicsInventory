@@ -6,6 +6,8 @@ import type { ListLoadingTestEvent, UiStateTestEvent } from '@/types/test-events
 
 export class ShoppingListsPage extends BasePage {
   readonly overviewRoot: Locator;
+  readonly overviewHeader: Locator;
+  readonly overviewContent: Locator;
   readonly overviewSearch: Locator;
   readonly overviewCreateButton: Locator;
   readonly overviewTabs: Locator;
@@ -23,6 +25,8 @@ export class ShoppingListsPage extends BasePage {
   constructor(page: Page) {
     super(page);
     this.overviewRoot = page.getByTestId('shopping-lists.overview');
+    this.overviewHeader = page.getByTestId('shopping-lists.overview.header');
+    this.overviewContent = page.getByTestId('shopping-lists.overview.content');
     this.overviewSearch = page.getByTestId('shopping-lists.overview.search');
     this.overviewCreateButton = page.getByTestId('shopping-lists.overview.create');
     this.overviewTabs = page.getByTestId('shopping-lists.overview.tabs');
@@ -89,6 +93,28 @@ export class ShoppingListsPage extends BasePage {
 
   async expectOverviewSummary(text: string): Promise<void> {
     await expect(this.overviewSummary).toHaveText(text);
+  }
+
+  async getOverviewHeaderRect(): Promise<{ top: number; bottom: number; height: number }> {
+    return this.overviewHeader.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, height: rect.height };
+    });
+  }
+
+  async scrollOverviewContent(target: number | 'bottom' = 'bottom'): Promise<void> {
+    await this.overviewContent.evaluate((element, value) => {
+      if (value === 'bottom') {
+        element.scrollTo({ top: element.scrollHeight });
+        return;
+      }
+
+      element.scrollTo({ top: value });
+    }, target);
+  }
+
+  async overviewContentScrollTop(): Promise<number> {
+    return this.overviewContent.evaluate((element) => element.scrollTop);
   }
 
   async setOverviewTabsWidth(width: number): Promise<void> {

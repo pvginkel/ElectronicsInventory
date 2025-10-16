@@ -16,10 +16,11 @@ const overviewSummaryText = ({
 }) => {
   const noun = total === 1 ? 'list' : 'lists';
   const category = tab === 'active' ? 'active' : 'completed';
+  const totalText = total.toLocaleString();
   if (filtered) {
-    return `${visible} of ${total} ${category} ${noun} showing`;
+    return `${visible.toLocaleString()} of ${totalText} ${category} ${noun} showing`;
   }
-  return `${total} ${category} ${noun}`;
+  return `${totalText} ${category} ${noun}`;
 };
 test.describe('Shopping Lists', () => {
   test('creates, opens, and deletes a concept list from the overview', async ({ shoppingLists, testData, toastHelper }) => {
@@ -44,6 +45,37 @@ test.describe('Shopping Lists', () => {
     await toastHelper.expectSuccessToast(new RegExp(`Deleted shopping list "${listName}"`, 'i'));
     await toastHelper.dismissToast({ all: true });
     await expect(shoppingLists.overviewCardByName(listName)).toHaveCount(0);
+  });
+
+  test('keeps the overview header sticky while content scrolls', async ({ shoppingLists, testData }) => {
+    const createCount = 15;
+    for (let index = 0; index < createCount; index += 1) {
+      await testData.shoppingLists.create({
+        name: testData.shoppingLists.randomName(`Sticky Header ${index + 1}`),
+      });
+    }
+
+    await shoppingLists.gotoOverview();
+    await shoppingLists.waitForOverviewFiltersReady();
+
+    const position = await shoppingLists.overviewHeader.evaluate((element) =>
+      window.getComputedStyle(element).position,
+    );
+    expect(position).toBe('sticky');
+
+    const headerBefore = await shoppingLists.getOverviewHeaderRect();
+    await shoppingLists.scrollOverviewContent('bottom');
+
+    await expect
+      .poll(async () => shoppingLists.overviewContentScrollTop())
+      .toBeGreaterThan(0);
+
+    const headerAfter = await shoppingLists.getOverviewHeaderRect();
+    expect(Math.abs(headerAfter.top - headerBefore.top)).toBeLessThan(2);
+    expect(Math.abs(headerAfter.height - headerBefore.height)).toBeLessThan(2);
+
+    await expect(shoppingLists.overviewCreateButton).toBeVisible();
+    await expect(shoppingLists.overviewCreateButton).toBeEnabled();
   });
 
   test('marks a ready list without ordered lines as done from the detail view', async ({ shoppingLists, testData, toastHelper }) => {
@@ -363,6 +395,7 @@ test.describe('Shopping Lists', () => {
     const filteredEvent = await filteredEventPromise;
     expect(filteredEvent.metadata).toMatchObject({ activeTab: 'active' });
     expect(filteredEvent.metadata?.visibleCount).toBe(1);
+    expect(filteredEvent.metadata?.totalInView).toBe(totalActive);
     await expect(shoppingLists.overviewSummary).toContainText(
       overviewSummaryText({
         visible: 1,
@@ -374,13 +407,19 @@ test.describe('Shopping Lists', () => {
     const filteredTotal =
       Number(filteredEvent.metadata?.activeCount ?? 0) +
       Number(filteredEvent.metadata?.completedCount ?? 0);
+    expect(filteredEvent.metadata?.filteredCount).toBe(filteredTotal);
     await expect(shoppingLists.overviewSummary).toContainText(`${filteredTotal} filtered`);
     await expect(shoppingLists.overviewCardByName(activeName)).toBeVisible();
     await shoppingLists.expectOverviewTabCounts({ active: totalActive, completed: totalCompleted });
 
+    const headerBeforeToggle = await shoppingLists.getOverviewHeaderRect();
     const completedEvent = await shoppingLists.selectOverviewTab('completed');
     expect(completedEvent.metadata).toMatchObject({ activeTab: 'completed' });
     expect(completedEvent.metadata?.visibleCount).toBe(1);
+    expect(completedEvent.metadata?.totalInView).toBe(totalCompleted);
+    const headerAfterToggle = await shoppingLists.getOverviewHeaderRect();
+    expect(Math.abs(headerAfterToggle.height - headerBeforeToggle.height)).toBeLessThan(2);
+    expect(Math.abs(headerAfterToggle.top - headerBeforeToggle.top)).toBeLessThan(2);
     await expect(shoppingLists.overviewCardByName(completedName, 'completed')).toBeVisible();
     await expect(shoppingLists.overviewSummary).toContainText(
       overviewSummaryText({
@@ -390,6 +429,7 @@ test.describe('Shopping Lists', () => {
         filtered: true,
       }),
     );
+    expect(completedEvent.metadata?.filteredCount).toBe(filteredTotal);
     await expect(shoppingLists.overviewSummary).toContainText(`${filteredTotal} filtered`);
     await expect(shoppingLists.overviewSearch).toHaveValue(searchTerm);
     await shoppingLists.expectOverviewTabCounts({ active: totalActive, completed: totalCompleted });
