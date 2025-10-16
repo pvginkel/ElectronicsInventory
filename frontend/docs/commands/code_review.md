@@ -6,7 +6,7 @@
 **Inputs**
 - The feature branch or repo snapshot under review.
 - The related plan (`plan.md`) at the same revision (if available).
-- Optional: a diff/PR. If present, be diff-aware and prioritize changed code. The user will have told you where the changes are (staged, unstaged or committed). If not, refuse to do the review before this is clarified.
+- The exact code changes in the form of one or more commits. Refuse to do the review if this information has not been provided,
 
 **Ignore (out of scope)**
 Minor cosmetic nits that a competent developer would auto-fix: exact message wording, trivial import shuffles, minor formatting, variable naming bikeshedding.
