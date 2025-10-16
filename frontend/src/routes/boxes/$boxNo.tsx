@@ -14,9 +14,11 @@ function BoxDetailsPage() {
   }
 
   return (
-    <BoxDetails 
-      boxNo={parseInt(boxNo, 10)} 
-      onDeleted={handleDeleted}
-    />
+    <div className="p-6">
+      <BoxDetails
+        boxNo={parseInt(boxNo, 10)}
+        onDeleted={handleDeleted}
+      />
+    </div>
   )
 }

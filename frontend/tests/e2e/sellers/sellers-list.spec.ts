@@ -6,19 +6,37 @@ test.describe('Sellers - List Experience', () => {
     const prefix = makeUnique('QA-Sellers')
     const primary = await testData.sellers.create({ overrides: { name: `${prefix} Primary`, website: `https://primary-${makeUniqueToken(8)}.example.com` } })
     const secondary = await testData.sellers.create({ overrides: { name: `${prefix} Secondary`, website: `https://secondary-${makeUniqueToken(8)}.example.com` } })
+    await Promise.all(
+      Array.from({ length: 4 }).map((_, index) =>
+        testData.sellers.create({ overrides: { name: `${prefix} Overflow ${index}`, website: `https://overflow-${index}-${makeUniqueToken(6)}.example.com` } })
+      )
+    )
 
     await sellers.goto('/sellers')
     await expect(sellers.listTable).toBeVisible({ timeout: 15000 })
     await sellers.expectCardVisible(primary.id)
     await sellers.expectCardVisible(secondary.id)
+    await expect(sellers.summary).toContainText(/\d+ sellers/i)
+
+    const headerBefore = await sellers.header.boundingBox()
+    expect(headerBefore).toBeTruthy()
+    await sellers.scrollContentBy(600)
+    await expect(sellers.header).toBeVisible()
+    const headerAfter = await sellers.header.boundingBox()
+    if (headerBefore && headerAfter) {
+      expect(Math.abs(headerAfter.y - headerBefore.y)).toBeLessThan(1)
+    }
 
     await sellers.search(`${prefix} Primary`)
     await expect(sellers.sellerCard(primary.id)).toBeVisible()
     await expect(sellers.sellerCard(secondary.id)).toBeHidden()
+    await expect(sellers.summary).toContainText(/1 of \d+ sellers showing/i)
+    await expect(sellers.playwrightPage.getByTestId('list-screen.counts.filtered')).toHaveText(/1 filtered/i)
 
     await sellers.clearSearch()
     await expect(sellers.sellerCard(primary.id)).toBeVisible()
     await expect(sellers.sellerCard(secondary.id)).toBeVisible()
+    await expect(sellers.summary).toContainText(/\d+ sellers/i)
   })
 
   test('creates, edits, and deletes a seller with instrumentation and toasts', async ({ sellers, testEvents, toastHelper }) => {

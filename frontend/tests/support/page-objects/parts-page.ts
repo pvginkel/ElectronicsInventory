@@ -5,6 +5,8 @@ import { SellerSelectorHarness } from './seller-selector-harness';
 
 export class PartsPage extends BasePage {
   readonly root: Locator;
+  readonly header: Locator;
+  readonly content: Locator;
   readonly listRoot: Locator;
   readonly searchInput: Locator;
   readonly summary: Locator;
@@ -17,10 +19,12 @@ export class PartsPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.root = page.getByTestId('parts.page');
+    this.root = page.getByTestId('parts.overview');
+    this.header = page.getByTestId('parts.overview.header');
+    this.content = page.getByTestId('parts.overview.content');
     this.listRoot = page.getByTestId('parts.list');
     this.searchInput = page.getByTestId('parts.list.search');
-    this.summary = page.getByTestId('parts.list.summary');
+    this.summary = page.getByTestId('parts.overview.summary');
     this.loadingSkeletons = page.getByTestId('parts.list.loading.skeleton');
     this.emptyState = page.getByTestId('parts.list.empty');
     this.noResultsState = page.getByTestId('parts.list.no-results');
@@ -74,6 +78,18 @@ export class PartsPage extends BasePage {
 
   async clearSearch(): Promise<void> {
     await this.searchInput.fill('');
+  }
+
+  async scrollContent(distance: number): Promise<void> {
+    await this.content.evaluate((element, value) => {
+      element.scrollTop = value;
+    }, distance);
+  }
+
+  async scrollContentBy(delta: number): Promise<void> {
+    await this.content.evaluate((element, value) => {
+      element.scrollTop += value;
+    }, delta);
   }
 
   async expectSummaryText(expected: string | RegExp): Promise<void> {

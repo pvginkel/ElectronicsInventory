@@ -45,6 +45,9 @@ export const selectors = {
   // Parts page selectors
   parts: {
     page: testId('parts.page'),
+    overview: testId('parts.overview'),
+    header: testId('parts.overview.header'),
+    content: testId('parts.overview.content'),
     list: {
       table: testId('parts.list.table'),
       item: (id: string) => testId(`parts.list.item.${id}`),
@@ -85,7 +88,9 @@ export const selectors = {
 
   // Types page selectors
   types: {
-    page: testId('types.page'),
+    page: testId('types.overview'),
+    header: testId('types.overview.header'),
+    content: testId('types.overview.content'),
     list: {
       table: testId('types.list.table'),
       item: (id: string) => testId(`types.list.item.${id}`),
@@ -106,8 +111,9 @@ export const selectors = {
 
   // Boxes page selectors
   boxes: {
-    page: testId('boxes.page'),
-    header: testId('boxes.page.header'),
+    page: testId('boxes.overview'),
+    header: testId('boxes.overview.header'),
+    content: testId('boxes.overview.content'),
     list: {
       table: testId('boxes.list.table'),
       item: (id: string | number) => testId(`boxes.list.item.${id}`),
@@ -143,8 +149,9 @@ export const selectors = {
   },
 
   sellers: {
-    page: testId('sellers.page'),
-    header: testId('sellers.page.header'),
+    page: testId('sellers.overview'),
+    header: testId('sellers.overview.header'),
+    content: testId('sellers.overview.content'),
     list: {
       table: testId('sellers.list.table'),
       item: (id: string | number) => testId(`sellers.list.item.${id}`),

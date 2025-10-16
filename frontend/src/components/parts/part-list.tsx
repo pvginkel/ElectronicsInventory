@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
+import { ListScreenLayout } from '@/components/layout/list-screen-layout';
+import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -76,46 +78,6 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
 
   const combinedError = partsError ?? typesError;
 
-  useListLoadingInstrumentation({
-    scope: 'parts.list',
-    isLoading: partsLoading || typesLoading,
-    isFetching: partsFetching || typesFetching,
-    error: combinedError,
-    getReadyMetadata: () => ({
-      status: 'success',
-      queries: {
-        parts: 'success',
-        types: 'success',
-      },
-      counts: {
-        parts: parts.length,
-        types: types.length,
-      },
-    }),
-    getErrorMetadata: () => {
-      const metadata: Record<string, unknown> = {
-        status: 'error',
-        queries: {
-          parts: partsError ? 'error' : 'success',
-          types: typesError ? 'error' : 'success',
-        },
-      };
-
-      if (partsError) {
-        metadata.partsMessage = partsError instanceof Error ? partsError.message : String(partsError);
-      }
-
-      if (typesError) {
-        metadata.typesMessage = typesError instanceof Error ? typesError.message : String(typesError);
-      }
-
-      return metadata;
-    },
-    getAbortedMetadata: () => ({
-      status: 'aborted',
-    }),
-  });
-
   // Create a lookup map for type names
   const typeMap = useMemo(() => {
     const map = new Map();
@@ -162,130 +124,249 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
     });
   }, [parts, searchTerm, typeMap]);
 
-  const partKeys = useMemo(() => filteredParts.map((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => part.key), [filteredParts]);
+  const sortedParts = useMemo(
+    () => [...filteredParts].sort((a, b) => a.description.localeCompare(b.description, undefined, { numeric: true, sensitivity: 'base' })),
+    [filteredParts],
+  );
+
+  const totalCount = parts.length;
+  const visibleCount = filteredParts.length;
+  const filteredCount = filteredParts.length < parts.length ? filteredParts.length : undefined;
+  const searchActive = searchTerm.trim().length > 0;
+
+  const partKeys = useMemo(
+    () => filteredParts.map((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => part.key),
+    [filteredParts],
+  );
   const membershipIndicators = useShoppingListMembershipIndicators(partKeys);
   const indicatorMap = membershipIndicators.summaryByPartKey;
 
-  if (partsError) {
-    return (
-      <Card className="p-6" data-testid="parts.list.error">
-        <div className="text-center">
-          <h2 className="text-lg font-semibold mb-2">Failed to load parts</h2>
-          <p className="text-muted-foreground">
-            There was an error loading the parts list. Please try again.
-          </p>
+  useListLoadingInstrumentation({
+    scope: 'parts.list',
+    isLoading: partsLoading || typesLoading,
+    isFetching: partsFetching || typesFetching,
+    error: combinedError,
+    getReadyMetadata: () => ({
+      status: 'success',
+      queries: {
+        parts: 'success',
+        types: 'success',
+      },
+      counts: {
+        parts: parts.length,
+        types: types.length,
+      },
+      totalCount,
+      visibleCount,
+      ...(typeof filteredCount === 'number' ? { filteredCount } : {}),
+      searchTerm: searchActive ? searchTerm : null,
+    }),
+    getErrorMetadata: () => {
+      const metadata: Record<string, unknown> = {
+        status: 'error',
+        queries: {
+          parts: partsError ? 'error' : 'success',
+          types: typesError ? 'error' : 'success',
+        },
+        counts: {
+          parts: parts.length,
+          types: types.length,
+        },
+        totalCount,
+        visibleCount,
+        ...(typeof filteredCount === 'number' ? { filteredCount } : {}),
+        searchTerm: searchActive ? searchTerm : null,
+      };
+
+      if (partsError) {
+        metadata.partsMessage = partsError instanceof Error ? partsError.message : String(partsError);
+      }
+
+      if (typesError) {
+        metadata.typesMessage = typesError instanceof Error ? typesError.message : String(typesError);
+      }
+
+      return metadata;
+    },
+    getAbortedMetadata: () => ({
+      status: 'aborted',
+      queries: {
+        parts: 'aborted',
+        types: 'aborted',
+      },
+      counts: {
+        parts: parts.length,
+        types: types.length,
+      },
+      totalCount,
+      visibleCount,
+      ...(typeof filteredCount === 'number' ? { filteredCount } : {}),
+      searchTerm: searchActive ? searchTerm : null,
+    }),
+  });
+
+  const breadcrumbsNode = (
+    <span data-testid="parts.overview.breadcrumb">Parts</span>
+  );
+
+  const actionsNode = (onCreatePart || onCreateWithAI) ? (
+    <div className="flex flex-wrap gap-2">
+      {onCreateWithAI && (
+        <Button onClick={onCreateWithAI} variant="ai_assisted">
+          Add with AI
+        </Button>
+      )}
+      {onCreatePart && (
+        <Button onClick={onCreatePart} data-testid="parts.list.add">
+          Add Part
+        </Button>
+      )}
+    </div>
+  ) : undefined;
+
+  const searchNode = (
+    <div className="relative" data-testid="parts.list.search-container">
+      <Input
+        placeholder="Search..."
+        value={searchTerm}
+        onChange={(event) => handleSearchChange(event.target.value)}
+        className="w-full pr-8"
+        data-testid="parts.list.search"
+      />
+      {searchTerm && (
+        <button
+          type="button"
+          onClick={handleClearSearch}
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors hover:bg-muted"
+          aria-label="Clear search"
+          data-testid="parts.list.search.clear"
+        >
+          <ClearButtonIcon />
+        </button>
+      )}
+    </div>
+  );
+
+  const countsNode = (
+    <div data-testid="parts.overview.summary">
+      <div data-testid="parts.list.summary">
+        {showLoading ? (
+          <span className="text-sm text-muted-foreground">Loading...</span>
+        ) : (
+          <ListScreenCounts
+            visible={visibleCount}
+            total={totalCount}
+            noun={{ singular: 'part', plural: 'parts' }}
+            filtered={filteredCount}
+          />
+        )}
+      </div>
+    </div>
+  );
+
+  const loadingContent = (
+    <div
+      className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+      data-testid="parts.list.loading"
+    >
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div key={index} className="animate-pulse" data-testid="parts.list.loading.skeleton">
+          <div className="h-48 rounded-lg bg-muted" />
         </div>
-      </Card>
-    );
+      ))}
+    </div>
+  );
+
+  const errorMessage = combinedError
+    ? (combinedError instanceof Error ? combinedError.message : String(combinedError))
+    : '';
+
+  const errorContent = (
+    <Card className="p-6" data-testid="parts.list.error">
+      <div className="text-center">
+        <h2 className="mb-2 text-lg font-semibold">Failed to load parts</h2>
+        <p className="text-muted-foreground">
+          There was an error loading the parts list. Please try again.
+        </p>
+        {errorMessage && (
+          <p className="mt-2 text-sm text-muted-foreground">{errorMessage}</p>
+        )}
+      </div>
+    </Card>
+  );
+
+  const emptyContent = (
+    <Card className="p-8" data-testid="parts.list.empty">
+      <div className="text-center">
+        <h3 className="mb-2 text-lg font-medium">No parts yet</h3>
+        <p className="mb-4 text-muted-foreground">
+          Get started by adding your first part to the inventory.
+        </p>
+        {onCreatePart && (
+          <Button onClick={onCreatePart}>
+            Add First Part
+          </Button>
+        )}
+      </div>
+    </Card>
+  );
+
+  const noResultsContent = (
+    <Card className="p-8" data-testid="parts.list.no-results">
+      <div className="text-center">
+        <h3 className="mb-2 text-lg font-medium">No parts found</h3>
+        <p className="text-muted-foreground">
+          Try adjusting your search terms or create a new part.
+        </p>
+      </div>
+    </Card>
+  );
+
+  const listContent = (
+    <div
+      className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+      data-testid="parts.list.container"
+    >
+      {sortedParts.map((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => (
+        <PartListItem
+          key={part.key}
+          part={part}
+          typeMap={typeMap}
+          onClick={() => onSelectPart?.(part.key)}
+          indicatorSummary={indicatorMap.get(part.key)}
+          indicatorStatus={membershipIndicators.status}
+          indicatorFetchStatus={membershipIndicators.fetchStatus}
+          indicatorError={membershipIndicators.error}
+        />
+      ))}
+    </div>
+  );
+
+  let contentNode: ReactNode;
+  if (combinedError) {
+    contentNode = errorContent;
+  } else if (showLoading) {
+    contentNode = loadingContent;
+  } else if (visibleCount === 0) {
+    contentNode = searchActive ? noResultsContent : emptyContent;
+  } else {
+    contentNode = listContent;
   }
 
   return (
-    <div className="space-y-6" data-testid="parts.list">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Parts</h1>
-        {(onCreatePart || onCreateWithAI) && (
-          <div className="flex gap-2">
-            {onCreateWithAI && (
-              <Button onClick={onCreateWithAI} variant="ai_assisted">
-                Add with AI
-              </Button>
-            )}
-            {onCreatePart && (
-              <Button onClick={onCreatePart}>
-                Add Part
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Search */}
-      <div className="w-full relative" data-testid="parts.list.search-container">
-        <Input
-          placeholder="Search..."
-          value={searchTerm}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          className="w-full pr-8"
-          data-testid="parts.list.search"
-        />
-        {searchTerm && (
-          <button
-            onClick={handleClearSearch}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
-            aria-label="Clear search"
-          >
-            <ClearButtonIcon />
-          </button>
-        )}
-      </div>
-
-      {/* Results Summary */}
-      <div className="flex justify-between items-center text-sm text-muted-foreground" data-testid="parts.list.summary">
-        <span>
-          {showLoading
-            ? 'Loading...'
-            : `${filteredParts.length}`
-              + (filteredParts.length == parts.length ? '' : ` of ${parts.length}`)
-              + ' parts'
-          }
-        </span>
-      </div>
-
-      {/* Parts List */}
-      <div>
-        {showLoading ? (
-          <div
-            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
-            data-testid="parts.list.loading"
-          >
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="animate-pulse" data-testid="parts.list.loading.skeleton">
-                <div className="h-48 bg-muted rounded-lg"></div>
-              </div>
-            ))}
-          </div>
-        ) : filteredParts.length === 0 ? (
-          <Card
-            className="p-8"
-            data-testid={searchTerm ? 'parts.list.no-results' : 'parts.list.empty'}
-          >
-            <div className="text-center">
-              <h3 className="text-lg font-medium mb-2">
-                {searchTerm ? 'No parts found' : 'No parts yet'}
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                {searchTerm 
-                  ? 'Try adjusting your search terms or create a new part.'
-                  : 'Get started by adding your first part to the inventory.'}
-              </p>
-              {onCreatePart && !searchTerm && (
-                <Button onClick={onCreatePart}>
-                  Add First Part
-                </Button>
-              )}
-            </div>
-          </Card>
-        ) : (
-          <div
-            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
-            data-testid="parts.list.container"
-          >
-            {filteredParts.sort((a, b) => a.description.localeCompare(b.description, undefined, { numeric: true, sensitivity: 'base' })).map((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => (
-              <PartListItem
-                key={part.key}
-                part={part}
-                typeMap={typeMap}
-                onClick={() => onSelectPart?.(part.key)}
-                indicatorSummary={indicatorMap.get(part.key)}
-                indicatorStatus={membershipIndicators.status}
-                indicatorFetchStatus={membershipIndicators.fetchStatus}
-                indicatorError={membershipIndicators.error}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+    <div className="flex h-full min-h-0 flex-col" data-testid="parts.list">
+      <ListScreenLayout
+        rootTestId="parts.overview"
+        headerTestId="parts.overview.header"
+        contentTestId="parts.overview.content"
+        breadcrumbs={breadcrumbsNode}
+        title="Parts"
+        actions={actionsNode}
+        search={searchNode}
+        counts={countsNode}
+      >
+        {contentNode}
+      </ListScreenLayout>
     </div>
   );
 }

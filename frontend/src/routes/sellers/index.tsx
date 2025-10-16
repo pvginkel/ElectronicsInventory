@@ -1,25 +1,17 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { SellerList } from '@/components/sellers/seller-list'
+import { createFileRoute } from '@tanstack/react-router';
+import { SellerList } from '@/components/sellers/seller-list';
 
 export const Route = createFileRoute('/sellers/')({
   validateSearch: (search: Record<string, unknown>) => {
     const searchTerm = search.search as string;
     return searchTerm ? { search: searchTerm } : {};
   },
-  component: Sellers,
-})
+  component: SellersRoute,
+});
 
-function Sellers() {
-  const search = Route.useSearch()
+function SellersRoute() {
+  const search = Route.useSearch();
+  const searchTerm = typeof search.search === 'string' ? search.search : '';
 
-  return (
-    <div>
-      {/* Breadcrumb */}
-      <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
-        <span>Sellers</span>
-      </div>
-
-      <SellerList searchTerm={search.search || ''} />
-    </div>
-  )
+  return <SellerList searchTerm={searchTerm} />;
 }

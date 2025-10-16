@@ -7,11 +7,6 @@ import { DeploymentProvider } from '@/contexts/deployment-context';
 import { DeploymentNotificationBar } from '@/components/ui/deployment-notification-bar';
 import { queryClient, setToastFunction } from '@/lib/query-client';
 import { useToast } from '@/hooks/use-toast';
-import {
-  AppShellContentProvider,
-  useAppShellContentPadding,
-} from '@/components/layout/app-shell-content-context';
-import { cn } from '@/lib/utils';
 
 export const Route = createRootRoute({
   component: RootLayout,
@@ -39,9 +34,7 @@ function RootLayout() {
       <ToastProvider>
         <DeploymentProvider>
           <QuerySetup>
-            <AppShellContentProvider>
-              <AppShellFrame />
-            </AppShellContentProvider>
+            <AppShellFrame />
           </QuerySetup>
         </DeploymentProvider>
       </ToastProvider>
@@ -52,7 +45,6 @@ function RootLayout() {
 function AppShellFrame() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { contentPaddingClass } = useAppShellContentPadding();
 
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => !prev);
@@ -120,7 +112,7 @@ function AppShellFrame() {
           </div>
 
           <main
-            className={cn('flex-1 overflow-auto bg-muted/30', contentPaddingClass)}
+            className="flex-1 overflow-auto bg-muted/30"
             data-testid="app-shell.content"
           >
             <Outlet />

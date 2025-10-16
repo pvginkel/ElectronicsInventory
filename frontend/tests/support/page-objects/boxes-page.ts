@@ -5,6 +5,7 @@ import { waitForListLoading } from '../helpers'
 export class BoxesPage extends BasePage {
   readonly root: Locator
   readonly header: Locator
+  readonly content: Locator
   readonly addButton: Locator
   readonly searchInput: Locator
   readonly searchClear: Locator
@@ -13,12 +14,13 @@ export class BoxesPage extends BasePage {
 
   constructor(page: Page) {
     super(page)
-    this.root = page.getByTestId('boxes.page')
-    this.header = page.getByTestId('boxes.page.header')
+    this.root = page.getByTestId('boxes.overview')
+    this.header = page.getByTestId('boxes.overview.header')
+    this.content = page.getByTestId('boxes.overview.content')
     this.addButton = page.getByTestId('boxes.list.add')
     this.searchInput = page.getByTestId('boxes.list.search')
     this.searchClear = page.getByTestId('boxes.list.search.clear')
-    this.summary = page.getByTestId('boxes.list.summary')
+    this.summary = page.getByTestId('boxes.overview.summary')
     this.listTable = page.getByTestId('boxes.list.table')
   }
 
@@ -43,6 +45,18 @@ export class BoxesPage extends BasePage {
     } else {
       await this.searchInput.fill('')
     }
+  }
+
+  async scrollContent(distance: number): Promise<void> {
+    await this.content.evaluate((element, value) => {
+      element.scrollTop = value
+    }, distance)
+  }
+
+  async scrollContentBy(delta: number): Promise<void> {
+    await this.content.evaluate((element, value) => {
+      element.scrollTop += value
+    }, delta)
   }
 
   boxCard(boxNo: number): Locator {

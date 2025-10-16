@@ -527,7 +527,7 @@ function ShoppingListDetailRoute() {
 
   if (!hasValidListId) {
     return (
-      <div className="space-y-4" data-testid="shopping-lists.concept.invalid">
+      <div className="space-y-4 p-6" data-testid="shopping-lists.concept.invalid">
         <h1 className="text-3xl font-semibold text-foreground">Shopping Lists</h1>
         <p className="text-sm text-destructive">Invalid shopping list identifier.</p>
       </div>
@@ -606,7 +606,7 @@ function ShoppingListDetailRoute() {
   );
 
   return (
-    <>
+    <div className="p-6">
       {isReadyView ? readyView : conceptView}
 
       <ConceptLineForm
@@ -665,6 +665,6 @@ function ShoppingListDetailRoute() {
       {deleteListDialog}
       {markDoneDialog}
       <ConfirmDialog {...confirmProps} />
-    </>
+    </div>
   );
 }

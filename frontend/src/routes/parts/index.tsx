@@ -1,56 +1,49 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
-import { PartList } from '@/components/parts/part-list'
-import { AIPartDialog } from '@/components/parts/ai-part-dialog'
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { useState } from 'react';
+import { PartList } from '@/components/parts/part-list';
+import { AIPartDialog } from '@/components/parts/ai-part-dialog';
 
 export const Route = createFileRoute('/parts/')({
   validateSearch: (search: Record<string, unknown>) => {
     const searchTerm = search.search as string;
     return searchTerm ? { search: searchTerm } : {};
   },
-  component: Parts,
-})
+  component: PartsRoute,
+});
 
-function Parts() {
-  const navigate = useNavigate()
-  const search = Route.useSearch()
-  const [showAIDialog, setShowAIDialog] = useState(false)
+function PartsRoute() {
+  const navigate = useNavigate();
+  const search = Route.useSearch();
+  const [showAIDialog, setShowAIDialog] = useState(false);
 
   const handleSelectPart = (partId: string) => {
-    navigate({ to: '/parts/$partId', params: { partId } })
-  }
+    navigate({ to: '/parts/$partId', params: { partId } });
+  };
 
   const handleCreatePart = () => {
-    navigate({ to: '/parts/new' })
-  }
+    navigate({ to: '/parts/new' });
+  };
 
   const handleCreateWithAI = () => {
-    setShowAIDialog(true)
-  }
+    setShowAIDialog(true);
+  };
 
   const handleAIDialogClose = () => {
-    setShowAIDialog(false)
-  }
+    setShowAIDialog(false);
+  };
 
   const handlePartCreated = (partId: string, createAnother: boolean) => {
     if (createAnother) {
-      // Keep dialog open and reset for another part
-      return
-    } else {
-      // Navigate to the created part
-      navigate({ to: '/parts/$partId', params: { partId } })
+      return;
     }
-  }
+
+    navigate({ to: '/parts/$partId', params: { partId } });
+  };
 
   return (
-    <div data-testid="parts.page">
-      {/* Breadcrumb */}
-      <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
-        <span>Parts</span>
-      </div>
-      
-      <PartList 
-        searchTerm={search.search || ''}
+    <div className="flex h-full min-h-0 flex-col" data-testid="parts.page">
+      <PartList
+        searchTerm={typeof search.search === 'string' ? search.search : ''}
         onSelectPart={handleSelectPart}
         onCreatePart={handleCreatePart}
         onCreateWithAI={handleCreateWithAI}
@@ -62,5 +55,5 @@ function Parts() {
         onPartCreated={handlePartCreated}
       />
     </div>
-  )
+  );
 }

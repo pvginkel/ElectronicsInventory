@@ -28,7 +28,7 @@ function NewPart() {
   }
 
   return (
-    <div>
+    <div className="p-6">
       <PartForm
         duplicateFromPartId={search.duplicate}
         onSuccess={handleSuccess}

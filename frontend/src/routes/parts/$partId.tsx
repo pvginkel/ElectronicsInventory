@@ -9,7 +9,7 @@ function PartDetail() {
   const { partId } = Route.useParams()
 
   return (
-    <div>
+    <div className="p-6">
       {/* Breadcrumb */}
       <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
         <Link to="/parts" className="hover:text-foreground">Parts</Link>

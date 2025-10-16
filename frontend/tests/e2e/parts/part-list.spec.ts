@@ -5,12 +5,21 @@ test.describe('Parts - List View', () => {
   // Coverage note: failure scenarios are temporarily exercised via manual QA while backend updates land.
 
   test('shows loading skeleton before data resolves', async ({ parts, testData }) => {
-    await testData.parts.create();
+    await Promise.all(Array.from({ length: 6 }).map(() => testData.parts.create()));
 
     await parts.gotoList();
     await parts.waitForLoading();
     await parts.waitForCards();
     await parts.expectSummaryText(/parts/i);
+
+    const headerBefore = await parts.header.boundingBox();
+    expect(headerBefore).toBeTruthy();
+    await parts.scrollContentBy(1200);
+    await expect(parts.header).toBeVisible();
+    const headerAfter = await parts.header.boundingBox();
+    if (headerBefore && headerAfter) {
+      expect(Math.abs(headerAfter.y - headerBefore.y)).toBeLessThan(1);
+    }
   });
 
   test('renders part card metadata and navigates to detail', async ({ parts, testData, apiClient }) => {
@@ -66,7 +75,7 @@ test.describe('Parts - List View', () => {
 
     await parts.search(capacitorDescription);
     await expect(parts.cardByDescription(capacitorDescription)).toBeVisible();
-    await parts.expectSummaryText(/1 of \d+ parts/i);
+    await parts.expectSummaryText(/1 of \d+ parts showing/i);
 
     await parts.clearSearch();
     await parts.expectSummaryText(/\d+ parts/i);

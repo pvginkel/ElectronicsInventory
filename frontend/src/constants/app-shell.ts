@@ -1,1 +1,0 @@
-export const DEFAULT_APP_SHELL_CONTENT_PADDING = 'p-6';

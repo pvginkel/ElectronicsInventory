@@ -40,17 +40,19 @@ export function ListScreenCounts({
 }: ListScreenCountsProps) {
   const nounText = resolveNoun(total, noun);
   const categoryPrefix = category ? `${category.toLowerCase()} ` : '';
-  const summary = filtered !== undefined
+  const showFilteredSummary = typeof filtered === 'number' && filtered >= 0 && filtered < total;
+  const filteredCount = showFilteredSummary ? filtered : undefined;
+  const summary = showFilteredSummary
     ? `${formatCount(visible)} of ${formatCount(total)} ${categoryPrefix}${nounText} showing`
     : `${formatCount(total)} ${categoryPrefix}${nounText}`;
-  const hasFilteredBadge = typeof filtered === 'number' && filtered >= 0;
+  const hasFilteredBadge = typeof filteredCount === 'number';
 
   return (
     <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
       <span aria-live="polite">{summary}</span>
       {hasFilteredBadge && (
         <span className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground/80" data-testid="list-screen.counts.filtered">
-          {formatCount(filtered)} filtered
+          {formatCount(filteredCount)} filtered
         </span>
       )}
     </div>

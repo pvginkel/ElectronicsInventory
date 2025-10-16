@@ -64,7 +64,7 @@ function About() {
   ]
 
   return (
-    <div className="space-y-8" data-testid="about.page">
+    <div className="space-y-8 p-6" data-testid="about.page">
       {/* Hero Section */}
       <div className="text-center py-12" data-testid="about.hero">
         <div className="text-6xl mb-4">⚡</div>
