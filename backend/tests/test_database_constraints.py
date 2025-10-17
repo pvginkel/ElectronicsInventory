@@ -1,5 +1,7 @@
 """Tests for database constraints and validation."""
 
+from datetime import UTC, datetime
+
 import pytest
 from flask import Flask
 from sqlalchemy import exc
@@ -423,7 +425,9 @@ class TestDatabaseConstraints:
             link = KitShoppingListLink(
                 kit_id=kit.id,
                 shopping_list_id=shopping_list.id,
-                linked_status=ShoppingListStatus.CONCEPT,
+                requested_units=kit.build_target,
+                honor_reserved=False,
+                snapshot_kit_updated_at=datetime.now(UTC),
             )
             db.session.add(link)
             db.session.commit()
@@ -431,7 +435,9 @@ class TestDatabaseConstraints:
             duplicate = KitShoppingListLink(
                 kit_id=kit.id,
                 shopping_list_id=shopping_list.id,
-                linked_status=ShoppingListStatus.CONCEPT,
+                requested_units=kit.build_target,
+                honor_reserved=False,
+                snapshot_kit_updated_at=datetime.now(UTC),
             )
             db.session.add(duplicate)
 
@@ -450,7 +456,9 @@ class TestDatabaseConstraints:
             link = KitShoppingListLink(
                 kit_id=kit.id,
                 shopping_list_id=shopping_list.id,
-                linked_status=ShoppingListStatus.CONCEPT,
+                requested_units=kit.build_target,
+                honor_reserved=False,
+                snapshot_kit_updated_at=datetime.now(UTC),
             )
             pick_list = KitPickList(
                 kit_id=kit.id,

@@ -44,6 +44,23 @@ class ShoppingListService(BaseService):
         shopping_list = self._attach_ready_payload(shopping_list)
         return self._attach_line_counts(shopping_list)
 
+    def get_concept_list_for_append(self, list_id: int) -> ShoppingList:
+        """Fetch a shopping list for append workflows ensuring Concept status."""
+        stmt = (
+            select(ShoppingList)
+            .where(ShoppingList.id == list_id)
+            .with_for_update()
+        )
+        shopping_list = self.db.execute(stmt).scalar_one_or_none()
+        if shopping_list is None:
+            raise RecordNotFoundException("Shopping list", list_id)
+        if shopping_list.status != ShoppingListStatus.CONCEPT:
+            raise InvalidOperationException(
+                "append kit shopping list",
+                "shopping list must be in concept status to receive kit pushes",
+            )
+        return shopping_list
+
     def update_list(
         self,
         list_id: int,
@@ -144,8 +161,13 @@ class ShoppingListService(BaseService):
         )
         return self._attach_line_counts(refreshed)
 
-    def list_lists(self, include_done: bool = False) -> list[ShoppingList]:
-        """Return all shopping lists with aggregated line counts."""
+    def list_lists(
+        self,
+        include_done: bool = False,
+        *,
+        statuses: Sequence[ShoppingListStatus] | None = None,
+    ) -> list[ShoppingList]:
+        """Return shopping lists filtered by workflow status with derived counts."""
         stmt = select(ShoppingList).options(
             selectinload(ShoppingList.seller_notes).selectinload(
                 ShoppingListSellerNote.seller
@@ -153,6 +175,12 @@ class ShoppingListService(BaseService):
         )
         if not include_done:
             stmt = stmt.where(ShoppingList.status != ShoppingListStatus.DONE)
+
+        if statuses is not None:
+            normalized_statuses = tuple(dict.fromkeys(statuses))
+            if not normalized_statuses:
+                return []
+            stmt = stmt.where(ShoppingList.status.in_(normalized_statuses))
 
         stmt = stmt.order_by(ShoppingList.updated_at.desc(), ShoppingList.id.desc())
         shopping_lists = list(self.db.execute(stmt).scalars().all())

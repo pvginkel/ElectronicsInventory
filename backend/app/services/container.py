@@ -14,6 +14,7 @@ from app.services.image_service import ImageService
 from app.services.inventory_service import InventoryService
 from app.services.kit_reservation_service import KitReservationService
 from app.services.kit_service import KitService
+from app.services.kit_shopping_list_service import KitShoppingListService
 from app.services.metrics_service import MetricsService
 from app.services.part_service import PartService
 from app.services.s3_service import S3Service
@@ -107,20 +108,28 @@ class ServiceContainer(containers.DeclarativeContainer):
         KitReservationService,
         db=db_session,
     )
-    kit_service = providers.Factory(
-        KitService,
-        db=db_session,
-        metrics_service=metrics_service,
-        inventory_service=inventory_service,
-        kit_reservation_service=kit_reservation_service,
-    )
-
     shopping_list_line_service = providers.Factory(
         ShoppingListLineService,
         db=db_session,
         seller_service=seller_service,
         inventory_service=inventory_service,
         metrics_service=metrics_service,
+    )
+    kit_shopping_list_service = providers.Factory(
+        KitShoppingListService,
+        db=db_session,
+        inventory_service=inventory_service,
+        kit_reservation_service=kit_reservation_service,
+        shopping_list_service=shopping_list_service,
+        shopping_list_line_service=shopping_list_line_service,
+        metrics_service=metrics_service,
+    )
+    kit_service = providers.Factory(
+        KitService,
+        db=db_session,
+        metrics_service=metrics_service,
+        inventory_service=inventory_service,
+        kit_reservation_service=kit_reservation_service,
     )
 
     # URL interceptor registry with LCSC interceptor

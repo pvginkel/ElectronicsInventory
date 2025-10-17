@@ -149,6 +149,19 @@ class StubMetricsService(MetricsServiceProtocol):
         """No-op kit content deletion metric recording."""
         pass
 
+    def record_kit_shopping_list_push(
+        self,
+        outcome: str,
+        honor_reserved: bool,
+        duration_seconds: float,
+    ) -> None:
+        """No-op kit shopping list push metric recording."""
+        pass
+
+    def record_kit_shopping_list_unlink(self, outcome: str) -> None:
+        """No-op kit shopping list unlink metric recording."""
+        pass
+
     def record_ai_analysis(
         self,
         status: str,

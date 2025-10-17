@@ -5,12 +5,17 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, UniqueConstraint, func
-from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    ForeignKey,
+    Integer,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
-from app.models.shopping_list import ShoppingListStatus
 
 if TYPE_CHECKING:
     from app.models.kit import Kit
@@ -31,18 +36,17 @@ class KitShoppingListLink(db.Model):  # type: ignore[name-defined]
         ForeignKey("shopping_lists.id", ondelete="CASCADE"),
         nullable=False,
     )
-    linked_status: Mapped[ShoppingListStatus] = mapped_column(
-        SQLEnum(
-            ShoppingListStatus,
-            name="kit_linked_status",
-            values_callable=lambda enum_cls: [item.value for item in enum_cls],
-            native_enum=False,
-        ),
+    requested_units: Mapped[int] = mapped_column(
+        Integer,
         nullable=False,
     )
-    snapshot_kit_updated_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    is_stale: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default="false"
+    honor_reserved: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default="false",
+    )
+    snapshot_kit_updated_at: Mapped[datetime] = mapped_column(
+        nullable=False,
     )
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.now()
@@ -57,6 +61,10 @@ class KitShoppingListLink(db.Model):  # type: ignore[name-defined]
             "shopping_list_id",
             name="uq_kit_shopping_list_link",
         ),
+        CheckConstraint(
+            "requested_units >= 1",
+            name="ck_kit_shopping_list_links_requested_units_positive",
+        ),
     )
 
     kit: Mapped[Kit] = relationship(
@@ -70,8 +78,20 @@ class KitShoppingListLink(db.Model):  # type: ignore[name-defined]
         lazy="selectin",
     )
 
+    @property
+    def is_stale(self) -> bool:
+        """Return whether the linked kit has changed since the snapshot."""
+        if self.snapshot_kit_updated_at is None:
+            return False
+        kit = self.kit
+        if kit is None or kit.updated_at is None:
+            return False
+        return kit.updated_at > self.snapshot_kit_updated_at
+
     def __repr__(self) -> str:
         return (
             f"<KitShoppingListLink kit_id={self.kit_id} "
-            f"shopping_list_id={self.shopping_list_id} status={self.linked_status.value}>"
+            f"shopping_list_id={self.shopping_list_id} "
+            f"requested_units={self.requested_units} "
+            f"honor_reserved={self.honor_reserved}>"
         )

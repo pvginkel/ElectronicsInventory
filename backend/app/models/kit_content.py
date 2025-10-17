@@ -5,7 +5,15 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Integer, Text, UniqueConstraint, func
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    ForeignKey,
+    Integer,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
@@ -56,12 +64,12 @@ class KitContent(db.Model):  # type: ignore[name-defined]
 
     __mapper_args__ = {"version_id_col": version}
 
-    kit: Mapped["Kit"] = relationship(
+    kit: Mapped[Kit] = relationship(
         "Kit",
         back_populates="contents",
         lazy="selectin",
     )
-    part: Mapped["Part"] = relationship(
+    part: Mapped[Part] = relationship(
         "Part",
         back_populates="kit_contents",
         lazy="selectin",

@@ -11,6 +11,7 @@ from app.models.kit import KitStatus
 from app.models.kit_pick_list import KitPickListStatus
 from app.models.shopping_list import ShoppingListStatus
 from app.schemas.part import PartListSchema
+from app.schemas.shopping_list import ShoppingListResponseSchema
 
 
 class KitStatusSchema(str, Enum):
@@ -283,12 +284,25 @@ class KitShoppingListLinkSchema(BaseModel):
         description="Identifier of the linked shopping list",
         json_schema_extra={"example": 21},
     )
-    linked_status: ShoppingListStatus = Field(
-        description="Snapshot status of the shopping list when linked",
+    shopping_list_name: str = Field(
+        description="Name of the linked shopping list",
+        json_schema_extra={"example": "Concept BOM"},
+    )
+    status: ShoppingListStatus = Field(
+        description="Current status of the linked shopping list",
         json_schema_extra={"example": ShoppingListStatus.READY.value},
     )
-    snapshot_kit_updated_at: datetime | None = Field(
-        description="Timestamp of the kit update captured by the snapshot",
+    requested_units: int = Field(
+        description="Number of kit build units used when pushing to the list",
+        ge=1,
+        json_schema_extra={"example": 3},
+    )
+    honor_reserved: bool = Field(
+        description="Whether reserved quantities were honored during the push",
+        json_schema_extra={"example": False},
+    )
+    snapshot_kit_updated_at: datetime = Field(
+        description="Kit timestamp captured when the link was last refreshed",
         json_schema_extra={"example": "2024-05-01T14:15:00Z"},
     )
     is_stale: bool = Field(
@@ -304,9 +318,92 @@ class KitShoppingListLinkSchema(BaseModel):
         json_schema_extra={"example": "2024-04-08T12:05:00Z"},
     )
 
-    name: str = Field(
-        description="Name of the linked shopping list",
-        json_schema_extra={"example": "Concept BOM"},
+
+class KitShoppingListChipSchema(KitShoppingListLinkSchema):
+    """Compact schema for chip renderings on kit and shopping list detail views."""
+
+
+class KitShoppingListRequestSchema(BaseModel):
+    """Request payload for pushing kit contents to a shopping list."""
+
+    units: int | None = Field(
+        default=None,
+        ge=1,
+        description="Number of kit units to plan for; defaults to the kit build target when omitted",
+        json_schema_extra={"example": 2},
+    )
+    honor_reserved: bool = Field(
+        default=False,
+        description="Subtract reserved quantities belonging to other kits when true",
+        json_schema_extra={"example": False},
+    )
+    shopping_list_id: int | None = Field(
+        default=None,
+        description="Existing Concept shopping list to append to",
+        json_schema_extra={"example": 18},
+    )
+    new_list_name: str | None = Field(
+        default=None,
+        description="Name for a new Concept shopping list when creating one",
+        json_schema_extra={"example": "Synth Voice Purchasing"},
+    )
+    new_list_description: str | None = Field(
+        default=None,
+        description="Optional description for the new shopping list",
+        json_schema_extra={"example": "Sourcing pass for the spring synth kits"},
+    )
+    note_prefix: str | None = Field(
+        default=None,
+        description="Fallback text appended to line notes when kit BOM rows lack notes",
+        json_schema_extra={"example": "General replenishment"},
+    )
+
+    @model_validator(mode="after")
+    def _validate_target(self) -> KitShoppingListRequestSchema:
+        """Ensure the request targets an existing or new list."""
+        new_list_name = (
+            self.new_list_name.strip() if self.new_list_name else None
+        )
+        note_prefix = self.note_prefix.strip() if self.note_prefix else None
+
+        object.__setattr__(self, "new_list_name", new_list_name or None)
+        object.__setattr__(self, "note_prefix", note_prefix or None)
+
+        if self.shopping_list_id is None and not (new_list_name):
+            raise ValueError(
+                "provide either shopping_list_id or new_list_name when pushing kit contents"
+            )
+        return self
+
+
+class KitShoppingListLinkResponseSchema(BaseModel):
+    """Response payload after creating or appending a kit shopping list link."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    link: KitShoppingListLinkSchema | None = Field(
+        default=None,
+        description="Link metadata after the push completes; omitted when no changes occurred",
+    )
+    shopping_list: ShoppingListResponseSchema | None = Field(
+        default=None,
+        description="Refreshed shopping list payload reflecting merged lines",
+    )
+    created_new_list: bool = Field(
+        description="Indicates whether a new shopping list was created during the push",
+        json_schema_extra={"example": True},
+    )
+    lines_modified: int = Field(
+        description="Number of shopping list lines created or updated",
+        json_schema_extra={"example": 4},
+    )
+    total_needed_quantity: int = Field(
+        description="Total needed quantity summed across affected lines",
+        json_schema_extra={"example": 16},
+    )
+    noop: bool = Field(
+        description="True when no shopping list lines required changes (no link created)",
+        json_schema_extra={"example": False},
     )
 
 

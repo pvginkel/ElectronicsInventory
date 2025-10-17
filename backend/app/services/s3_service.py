@@ -75,16 +75,20 @@ class S3Service(BaseService):
             InvalidOperationException: If upload fails
         """
         try:
-            upload_kwargs = {
-                "Fileobj": file_obj,
-                "Bucket": self.settings.S3_BUCKET_NAME,
-                "Key": s3_key,
-            }
-
-            if content_type:
-                upload_kwargs["ExtraArgs"] = {"ContentType": content_type}
-
-            self.s3_client.upload_fileobj(**upload_kwargs)
+            extra_args = {"ContentType": content_type} if content_type else None
+            if extra_args is not None:
+                self.s3_client.upload_fileobj(
+                    file_obj,
+                    self.settings.S3_BUCKET_NAME,
+                    s3_key,
+                    ExtraArgs=extra_args,
+                )
+            else:
+                self.s3_client.upload_fileobj(
+                    file_obj,
+                    self.settings.S3_BUCKET_NAME,
+                    s3_key,
+                )
             return True
 
         except ClientError as e:

@@ -523,7 +523,9 @@ class TestTestDataService:
                 {
                     "kit_name": "Missing Kit",
                     "shopping_list_name": "Linked List",
-                    "linked_status": "concept",
+                    "requested_units": 1,
+                    "honor_reserved": False,
+                    "snapshot_kit_updated_at": "2024-01-01T12:00:00",
                 }
             ]
 

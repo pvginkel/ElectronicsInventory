@@ -67,6 +67,7 @@ class ShoppingList(db.Model):  # type: ignore[name-defined]
     kit_links: Mapped[list[KitShoppingListLink]] = relationship(
         "KitShoppingListLink",
         back_populates="shopping_list",
+        cascade="all, delete-orphan",
         lazy="selectin",
     )
 

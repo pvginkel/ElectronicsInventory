@@ -2,8 +2,9 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
+from app.models.kit import KitStatus
 from app.models.shopping_list import ShoppingListStatus
 from app.schemas.seller import SellerListSchema
 from app.schemas.shopping_list_line import (
@@ -123,6 +124,71 @@ class ShoppingListListQuerySchema(BaseModel):
         default=False,
         description="Include lists whose status is DONE when true",
         json_schema_extra={"example": False},
+    )
+    status: list[str] | str | None = Field(
+        default=None,
+        description="Filter by one or more shopping list statuses",
+        json_schema_extra={
+            "example": [
+                ShoppingListStatus.CONCEPT.value,
+                ShoppingListStatus.READY.value,
+            ]
+        },
+    )
+
+    @model_validator(mode="after")
+    def _normalize_status(self) -> "ShoppingListListQuerySchema":
+        raw_status = getattr(self, "status", None)
+        if isinstance(raw_status, str):
+            object.__setattr__(self, "status", [raw_status])
+        return self
+
+
+class KitChipSchema(BaseModel):
+    """Schema describing kits linked to a shopping list."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int = Field(
+        description="Identifier for the kit-to-shopping-list link",
+        json_schema_extra={"example": 42},
+    )
+    kit_id: int = Field(
+        description="Identifier of the linked kit",
+        json_schema_extra={"example": 5},
+    )
+    kit_name: str = Field(
+        description="Name of the linked kit",
+        json_schema_extra={"example": "Synth Voice Starter"},
+    )
+    kit_status: KitStatus = Field(
+        description="Lifecycle status of the linked kit",
+        json_schema_extra={"example": KitStatus.ACTIVE.value},
+    )
+    requested_units: int = Field(
+        description="Number of kit units requested during the push",
+        ge=1,
+        json_schema_extra={"example": 2},
+    )
+    honor_reserved: bool = Field(
+        description="Whether reserved quantities were honored for the push",
+        json_schema_extra={"example": True},
+    )
+    snapshot_kit_updated_at: datetime = Field(
+        description="Kit timestamp captured when the link was last refreshed",
+        json_schema_extra={"example": "2024-05-02T12:00:00Z"},
+    )
+    is_stale: bool = Field(
+        description="Indicates whether the kit changed after the snapshot",
+        json_schema_extra={"example": False},
+    )
+    created_at: datetime = Field(
+        description="Timestamp when the link was created",
+        json_schema_extra={"example": "2024-05-02T12:01:00Z"},
+    )
+    updated_at: datetime = Field(
+        description="Timestamp when the link was last updated",
+        json_schema_extra={"example": "2024-05-04T09:00:00Z"},
     )
 
 

@@ -21,6 +21,7 @@ from app.api.dashboard import dashboard_bp  # noqa: E402
 from app.api.documents import documents_bp  # noqa: E402
 from app.api.health import health_bp  # noqa: E402
 from app.api.inventory import inventory_bp  # noqa: E402
+from app.api.kit_shopping_list_links import kit_shopping_list_links_bp  # noqa: E402
 from app.api.kits import kits_bp  # noqa: E402
 from app.api.locations import locations_bp  # noqa: E402
 from app.api.metrics import metrics_bp  # noqa: E402
@@ -39,6 +40,7 @@ api_bp.register_blueprint(documents_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(health_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(inventory_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(kits_bp)  # type: ignore[attr-defined]
+api_bp.register_blueprint(kit_shopping_list_links_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(locations_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(metrics_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(parts_bp)  # type: ignore[attr-defined]

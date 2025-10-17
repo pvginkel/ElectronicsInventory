@@ -21,7 +21,7 @@ from app.models.kit_content import KitContent
 from app.models.kit_pick_list import KitPickList, KitPickListStatus
 from app.models.kit_shopping_list_link import KitShoppingListLink
 from app.models.part import Part
-from app.models.shopping_list import ShoppingListStatus
+from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.services.base import BaseService
 from app.services.inventory_service import InventoryService
 from app.services.kit_reservation_service import KitReservationService
@@ -59,11 +59,13 @@ class KitService(BaseService):
         """Return kits for overview cards with badge counts applied."""
         shopping_badges = (
             select(func.count(KitShoppingListLink.id))
+            .join(
+                ShoppingList,
+                ShoppingList.id == KitShoppingListLink.shopping_list_id,
+            )
             .where(
                 KitShoppingListLink.kit_id == Kit.id,
-                KitShoppingListLink.linked_status.in_(
-                    self._shopping_badge_statuses()
-                ),
+                ShoppingList.status.in_(self._shopping_badge_statuses()),
             )
             .correlate(Kit)
             .scalar_subquery()
@@ -170,7 +172,13 @@ class KitService(BaseService):
         )
         for link in kit.shopping_list_links:
             if link.shopping_list is not None:
-                link.name = link.shopping_list.name
+                link.shopping_list_name = link.shopping_list.name
+                link.shopping_list_status = link.shopping_list.status
+                link.status = link.shopping_list.status
+            else:
+                link.shopping_list_name = ""
+                link.shopping_list_status = ShoppingListStatus.CONCEPT
+                link.status = ShoppingListStatus.CONCEPT
         kit.pick_lists[:] = sorted(
             kit.pick_lists,
             key=lambda pick_list: (
@@ -180,6 +188,14 @@ class KitService(BaseService):
         )
 
         self._record_detail_metric(kit.id)
+        return kit
+
+    def get_active_kit_for_flow(self, kit_id: int, *, operation: str) -> Kit:
+        """Ensure kit exists and is active before proceeding with workflow."""
+        kit = self.db.get(Kit, kit_id)
+        if kit is None:
+            raise RecordNotFoundException("Kit", kit_id)
+        self._ensure_active_kit(kit, operation)
         return kit
 
     def create_content(
@@ -274,7 +290,7 @@ class KitService(BaseService):
                 applied_change = True
 
         if note_provided and content.note != note:
-            content.note = note  # type: ignore[assignment]
+            content.note = note
             applied_change = True
 
         if not applied_change:

@@ -184,17 +184,23 @@ class TestKitService:
                 KitShoppingListLink(
                     kit_id=active_kit.id,
                     shopping_list_id=concept_list.id,
-                    linked_status=ShoppingListStatus.CONCEPT,
+                    requested_units=active_kit.build_target,
+                    honor_reserved=False,
+                    snapshot_kit_updated_at=datetime.now(UTC),
                 ),
                 KitShoppingListLink(
                     kit_id=active_kit.id,
                     shopping_list_id=ready_list.id,
-                    linked_status=ShoppingListStatus.READY,
+                    requested_units=active_kit.build_target,
+                    honor_reserved=True,
+                    snapshot_kit_updated_at=datetime.now(UTC),
                 ),
                 KitShoppingListLink(
                     kit_id=active_kit.id,
                     shopping_list_id=done_list.id,
-                    linked_status=ShoppingListStatus.DONE,
+                    requested_units=active_kit.build_target,
+                    honor_reserved=False,
+                    snapshot_kit_updated_at=datetime.now(UTC),
                 ),
             ]
         )
