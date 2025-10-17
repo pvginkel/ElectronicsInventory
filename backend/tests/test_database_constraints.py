@@ -6,9 +6,12 @@ from sqlalchemy import exc
 
 from app.extensions import db
 from app.models.box import Box
+from app.models.kit import Kit
+from app.models.kit_pick_list import KitPickList, KitPickListStatus
+from app.models.kit_shopping_list_link import KitShoppingListLink
 from app.models.location import Location
 from app.models.seller import Seller
-from app.models.shopping_list import ShoppingList
+from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.models.shopping_list_seller_note import ShoppingListSellerNote
 
 
@@ -348,3 +351,115 @@ class TestDatabaseConstraints:
             db.session.commit()
 
             assert db.session.query(ShoppingListSellerNote).count() == 0
+
+    def test_kit_name_uniqueness(self, app: Flask):
+        """Kit names must remain unique."""
+        with app.app_context():
+            first = Kit(name="Duplicate Kit", build_target=1)
+            second = Kit(name="Duplicate Kit", build_target=2)
+            db.session.add_all([first, second])
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+    def test_kit_build_target_positive_constraint(self, app: Flask):
+        """Build target constraint enforces positive values."""
+        with app.app_context():
+            kit = Kit(name="Invalid Target", build_target=0)
+            db.session.add(kit)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+    def test_kit_pick_list_requested_units_positive(self, app: Flask):
+        """Kit pick list requested units must be positive."""
+        with app.app_context():
+            kit = Kit(name="Pick Constraint Kit", build_target=1)
+            db.session.add(kit)
+            db.session.flush()
+
+            pick_list = KitPickList(
+                kit_id=kit.id,
+                requested_units=0,
+                status=KitPickListStatus.DRAFT,
+            )
+            db.session.add(pick_list)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+    def test_kit_pick_list_decreased_build_target_nonnegative(self, app: Flask):
+        """decreased_build_target_by must not be negative."""
+        with app.app_context():
+            kit = Kit(name="Decrement Constraint Kit", build_target=1)
+            db.session.add(kit)
+            db.session.flush()
+
+            pick_list = KitPickList(
+                kit_id=kit.id,
+                requested_units=1,
+                status=KitPickListStatus.IN_PROGRESS,
+                decreased_build_target_by=-1,
+            )
+            db.session.add(pick_list)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+    def test_kit_shopping_list_link_uniqueness(self, app: Flask):
+        """Kit-shopping list link enforces uniqueness."""
+        with app.app_context():
+            kit = Kit(name="Link Kit", build_target=1)
+            shopping_list = ShoppingList(name="Link List", status=ShoppingListStatus.CONCEPT)
+            db.session.add_all([kit, shopping_list])
+            db.session.flush()
+
+            link = KitShoppingListLink(
+                kit_id=kit.id,
+                shopping_list_id=shopping_list.id,
+                linked_status=ShoppingListStatus.CONCEPT,
+            )
+            db.session.add(link)
+            db.session.commit()
+
+            duplicate = KitShoppingListLink(
+                kit_id=kit.id,
+                shopping_list_id=shopping_list.id,
+                linked_status=ShoppingListStatus.CONCEPT,
+            )
+            db.session.add(duplicate)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+    def test_cascade_delete_kit_removes_links_and_pick_lists(self, app: Flask):
+        """Deleting a kit cascades to related child tables."""
+        with app.app_context():
+            kit = Kit(name="Cascade Kit", build_target=1)
+            shopping_list = ShoppingList(name="Cascade List", status=ShoppingListStatus.CONCEPT)
+            db.session.add_all([kit, shopping_list])
+            db.session.flush()
+
+            link = KitShoppingListLink(
+                kit_id=kit.id,
+                shopping_list_id=shopping_list.id,
+                linked_status=ShoppingListStatus.CONCEPT,
+            )
+            pick_list = KitPickList(
+                kit_id=kit.id,
+                requested_units=1,
+                status=KitPickListStatus.DRAFT,
+            )
+            db.session.add_all([link, pick_list])
+            db.session.commit()
+
+            db.session.delete(kit)
+            db.session.commit()
+
+            assert db.session.query(KitShoppingListLink).count() == 0
+            assert db.session.query(KitPickList).count() == 0

@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from sqlalchemy import inspect
+
+from app.extensions import db
+
 
 def test_upgrade_database_recreate_sqlite_uses_sqlalchemy_metadata(app, monkeypatch):
     """When recreating a SQLite database, migrations should fall back to metadata rebuild."""
@@ -65,3 +69,12 @@ def test_upgrade_database_recreate_sqlite_uses_sqlalchemy_metadata(app, monkeypa
     stamped_config = stamp_calls[0][0]
     assert stamped_config.attributes["connection"] is not None
     assert result == []
+
+
+def test_kits_tables_exist_after_upgrade(app):
+    """Kits-related tables should be present after migrations run."""
+    with app.app_context():
+        inspector = inspect(db.engine)
+        tables = set(inspector.get_table_names())
+        expected = {"kits", "kit_shopping_list_links", "kit_pick_lists"}
+        assert expected.issubset(tables)

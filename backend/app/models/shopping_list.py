@@ -13,6 +13,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.extensions import db
 
 if TYPE_CHECKING:
+    from app.models.kit_shopping_list_link import KitShoppingListLink
     from app.models.shopping_list_line import ShoppingListLine
     from app.models.shopping_list_seller_note import ShoppingListSellerNote
 
@@ -61,6 +62,11 @@ class ShoppingList(db.Model):  # type: ignore[name-defined]
         "ShoppingListSellerNote",
         back_populates="shopping_list",
         cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    kit_links: Mapped[list[KitShoppingListLink]] = relationship(
+        "KitShoppingListLink",
+        back_populates="shopping_list",
         lazy="selectin",
     )
 

@@ -12,9 +12,8 @@ from app.services.download_cache_service import DownloadCacheService
 from app.services.html_document_handler import HtmlDocumentHandler
 from app.services.image_service import ImageService
 from app.services.inventory_service import InventoryService
-from app.services.metrics_service import (
-    MetricsService,
-)
+from app.services.kit_service import KitService
+from app.services.metrics_service import MetricsService
 from app.services.part_service import PartService
 from app.services.s3_service import S3Service
 from app.services.seller_service import SellerService
@@ -28,9 +27,7 @@ from app.services.type_service import TypeService
 from app.services.url_transformers import LCSCInterceptor, URLInterceptorRegistry
 from app.services.version_service import VersionService
 from app.utils.reset_lock import ResetLock
-from app.utils.shutdown_coordinator import (
-    ShutdownCoordinator,
-)
+from app.utils.shutdown_coordinator import ShutdownCoordinator
 from app.utils.temp_file_manager import TempFileManager
 
 
@@ -97,6 +94,12 @@ class ServiceContainer(containers.DeclarativeContainer):
         MetricsService,
         container=providers.Self(),
         shutdown_coordinator=shutdown_coordinator,
+    )
+
+    kit_service = providers.Factory(
+        KitService,
+        db=db_session,
+        metrics_service=metrics_service,
     )
 
     # InventoryService depends on PartService and MetricsService
