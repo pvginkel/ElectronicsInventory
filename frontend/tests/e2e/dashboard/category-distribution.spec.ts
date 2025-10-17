@@ -33,8 +33,11 @@ test.describe('Dashboard category distribution', () => {
       throw new Error('Expected at least one category in distribution data');
     }
 
-    const firstBar = dashboard.categoryBars().first();
-    await expect(firstBar).toHaveAttribute('data-category', sortedCategories[0].type_name);
+    const uiCategories = await dashboard.categoryBars().evaluateAll((elements) =>
+      elements.map((element) => element.getAttribute('data-category')),
+    );
+    const expectedOrder = sortedCategories.map((category) => category.type_name);
+    expect(uiCategories).toEqual(expectedOrder.slice(0, uiCategories.length));
 
     if (sortedCategories.length > 10) {
       await dashboard.expandCategories();

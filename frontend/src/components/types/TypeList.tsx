@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 import { useConfirm } from '@/hooks/use-confirm';
+import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import {
   useCreateType,
@@ -32,6 +33,7 @@ interface TypeSummary {
 export function TypeList({ searchTerm = '' }: TypeListProps) {
   const navigate = useNavigate();
   const { confirm, confirmProps } = useConfirm();
+  const { showSuccess, showException } = useToast();
 
   const [createFormOpen, setCreateFormOpen] = useState(false);
   const [editFormOpen, setEditFormOpen] = useState(false);
@@ -180,9 +182,16 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
       return;
     }
 
-    await deleteMutation.mutateAsync({
-      path: { type_id: type.id },
-    });
+    try {
+      await deleteMutation.mutateAsync({
+        path: { type_id: type.id },
+      });
+      showSuccess(`Type "${type.name}" deleted`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to delete type';
+      showException(message, error);
+    }
   };
 
   const renderAddButton = (disabled = false) => (
