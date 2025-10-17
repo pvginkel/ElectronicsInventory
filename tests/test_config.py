@@ -58,9 +58,12 @@ def test_settings_testing_env_override(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DEFAULT_ENV_FILES", (base_env,))
     monkeypatch.setattr(config, "ENV_FILE_OVERRIDES", {"testing": (override_env,)})
 
-    settings = config.get_settings()
-
-    assert settings.DATABASE_URL == "postgresql://override"
+    try:
+        settings = config.get_settings()
+        assert settings.DATABASE_URL == "postgresql://override"
+    finally:
+        # Ensure later tests see fresh settings values rather than the override copy.
+        config.get_settings.cache_clear()
 
 
 def test_settings_extra_env_ignored(monkeypatch):
