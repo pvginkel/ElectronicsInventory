@@ -3,6 +3,7 @@
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -190,6 +191,11 @@ class Settings(BaseSettings):
     def SQLALCHEMY_TRACK_MODIFICATIONS(self) -> bool:
         """Disable SQLAlchemy track modifications."""
         return False
+
+    SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Optional engine options passed to SQLAlchemy.create_engine",
+    )
 
     @property
     def is_testing(self) -> bool:
