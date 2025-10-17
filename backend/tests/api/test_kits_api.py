@@ -3,8 +3,10 @@
 from datetime import UTC, datetime
 
 from app.models.kit import Kit, KitStatus
+from app.models.kit_content import KitContent
 from app.models.kit_pick_list import KitPickList, KitPickListStatus
 from app.models.kit_shopping_list_link import KitShoppingListLink
+from app.models.part import Part
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 
 
@@ -65,6 +67,29 @@ def _seed_badge_data(session) -> Kit:
     )
     session.commit()
     return kit
+
+
+def _seed_kit_with_content(session) -> tuple[Kit, Part, KitContent]:
+    """Create a kit with a single kit content for detail tests."""
+    kit = Kit(
+        name="Detail API Kit",
+        description="Kit for detail endpoint",
+        build_target=2,
+        status=KitStatus.ACTIVE,
+    )
+    part = Part(key="AP01", description="Detail part")
+    session.add_all([kit, part])
+    session.flush()
+
+    content = KitContent(
+        kit=kit,
+        part=part,
+        required_per_unit=2,
+        note="Initial note",
+    )
+    session.add(content)
+    session.commit()
+    return kit, part, content
 
 
 class TestKitsApi:
@@ -175,3 +200,130 @@ class TestKitsApi:
             json={"description": "Should fail"},
         )
         assert response.status_code == 409
+
+    def test_get_kit_detail_endpoint_returns_computed_fields(self, client, session):
+        kit, part, _ = _seed_kit_with_content(session)
+
+        shopping_list = ShoppingList(name="Detail Link", status=ShoppingListStatus.CONCEPT)
+        session.add(shopping_list)
+        session.flush()
+        session.add(
+            KitShoppingListLink(
+                kit_id=kit.id,
+                shopping_list_id=shopping_list.id,
+                linked_status=ShoppingListStatus.CONCEPT,
+            )
+        )
+        session.add(
+            KitPickList(
+                kit_id=kit.id,
+                requested_units=1,
+                status=KitPickListStatus.IN_PROGRESS,
+            )
+        )
+        session.commit()
+
+        response = client.get(f"/api/kits/{kit.id}")
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["id"] == kit.id
+        assert payload["contents"][0]["part_id"] == part.id
+        assert payload["contents"][0]["total_required"] == kit.build_target * 2
+        assert payload["contents"][0]["in_stock"] == 0
+        assert payload["contents"][0]["reserved"] == 0
+        assert payload["contents"][0]["shortfall"] == kit.build_target * 2
+        assert payload["shopping_list_links"][0]["name"] == shopping_list.name
+        assert payload["pick_lists"][0]["status"] == KitPickListStatus.IN_PROGRESS.value
+
+    def test_create_kit_content_endpoint(self, client, session):
+        kit, part, _ = _seed_kit_with_content(session)
+        new_part = Part(key="AP02", description="New content part")
+        session.add(new_part)
+        session.commit()
+
+        response = client.post(
+            f"/api/kits/{kit.id}/contents",
+            json={"part_id": new_part.id, "required_per_unit": 1},
+        )
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data["part_id"] == new_part.id
+        assert data["required_per_unit"] == 1
+        assert data["total_required"] == kit.build_target
+
+        db_content = session.get(KitContent, data["id"])
+        assert db_content is not None
+
+        duplicate = client.post(
+            f"/api/kits/{kit.id}/contents",
+            json={"part_id": new_part.id, "required_per_unit": 1},
+        )
+        assert duplicate.status_code == 409
+
+    def test_update_kit_content_endpoint(self, client, session):
+        kit, part, content = _seed_kit_with_content(session)
+        stale_version = content.version
+
+        response = client.patch(
+            f"/api/kits/{kit.id}/contents/{content.id}",
+            json={
+                "version": content.version,
+                "required_per_unit": 4,
+                "note": "Updated note",
+            },
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["required_per_unit"] == 4
+        assert data["note"] == "Updated note"
+        assert data["version"] == stale_version + 1
+
+        conflict = client.patch(
+            f"/api/kits/{kit.id}/contents/{content.id}",
+            json={"version": stale_version, "required_per_unit": 3},
+        )
+        assert conflict.status_code == 409
+
+    def test_delete_kit_content_endpoint(self, client, session):
+        kit, _, content = _seed_kit_with_content(session)
+
+        response = client.delete(f"/api/kits/{kit.id}/contents/{content.id}")
+        assert response.status_code == 204
+        assert session.get(KitContent, content.id) is None
+
+    def test_kit_content_operations_blocked_for_archived_kit(self, client, session):
+        kit = Kit(
+            name="Archived Content Kit",
+            build_target=1,
+            status=KitStatus.ARCHIVED,
+            archived_at=datetime.now(UTC),
+        )
+        part = Part(key="AP03", description="Archived part")
+        session.add_all([kit, part])
+        session.flush()
+        content = KitContent(kit=kit, part=part, required_per_unit=1)
+        session.add(content)
+        session.commit()
+
+        create_response = client.post(
+            f"/api/kits/{kit.id}/contents",
+            json={"part_id": part.id, "required_per_unit": 1},
+        )
+        assert create_response.status_code == 409
+
+        update_response = client.patch(
+            f"/api/kits/{kit.id}/contents/{content.id}",
+            json={"version": content.version, "required_per_unit": 2},
+        )
+        assert update_response.status_code == 409
+
+        delete_response = client.delete(f"/api/kits/{kit.id}/contents/{content.id}")
+        assert delete_response.status_code == 409
+
+    def test_create_kit_content_invalid_part_returns_404(self, client, session):
+        kit, _, _ = _seed_kit_with_content(session)
+        response = client.post(
+            f"/api/kits/{kit.id}/contents",
+            json={"part_id": 99999, "required_per_unit": 1},
+        )
+        assert response.status_code == 404

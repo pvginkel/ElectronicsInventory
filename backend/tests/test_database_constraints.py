@@ -7,9 +7,11 @@ from sqlalchemy import exc
 from app.extensions import db
 from app.models.box import Box
 from app.models.kit import Kit
+from app.models.kit_content import KitContent
 from app.models.kit_pick_list import KitPickList, KitPickListStatus
 from app.models.kit_shopping_list_link import KitShoppingListLink
 from app.models.location import Location
+from app.models.part import Part
 from app.models.seller import Seller
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.models.shopping_list_seller_note import ShoppingListSellerNote
@@ -463,3 +465,41 @@ class TestDatabaseConstraints:
 
             assert db.session.query(KitShoppingListLink).count() == 0
             assert db.session.query(KitPickList).count() == 0
+
+    def test_kit_content_required_per_unit_positive(self, app: Flask):
+        """Ensure kit contents enforce positive required quantities."""
+        with app.app_context():
+            kit = Kit(name="Constraint Kit", build_target=1)
+            part = Part(key="QC01", description="Constraint Part")
+            db.session.add_all([kit, part])
+            db.session.flush()
+
+            invalid_content = KitContent(
+                kit=kit,
+                part=part,
+                required_per_unit=0,
+            )
+            db.session.add(invalid_content)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+    def test_kit_content_unique_per_kit_part(self, app: Flask):
+        """Ensure kit contents enforce uniqueness per kit and part."""
+        with app.app_context():
+            kit = Kit(name="Unique Kit", build_target=1)
+            part = Part(key="QC02", description="Unique Part")
+            db.session.add_all([kit, part])
+            db.session.flush()
+
+            first = KitContent(kit=kit, part=part, required_per_unit=1)
+            db.session.add(first)
+            db.session.commit()
+
+            duplicate = KitContent(kit=kit, part=part, required_per_unit=2)
+            db.session.add(duplicate)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()

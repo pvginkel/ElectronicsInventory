@@ -19,6 +19,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.extensions import db
 
 if TYPE_CHECKING:
+    from app.models.kit_content import KitContent
     from app.models.part_attachment import PartAttachment
     from app.models.part_location import PartLocation
     from app.models.quantity_history import QuantityHistory
@@ -93,6 +94,11 @@ class Part(db.Model):  # type: ignore[name-defined]
         cascade="all, delete-orphan",
         lazy="selectin",
         foreign_keys="PartAttachment.part_id"
+    )
+    kit_contents: Mapped[list["KitContent"]] = relationship(
+        "KitContent",
+        back_populates="part",
+        lazy="selectin",
     )
     cover_attachment: Mapped[Optional["PartAttachment"]] = relationship(
         "PartAttachment",
