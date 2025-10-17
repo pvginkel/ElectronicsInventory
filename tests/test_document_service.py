@@ -1,5 +1,6 @@
 """Unit tests for DocumentService."""
 
+import hashlib
 import io
 import logging
 import tempfile
@@ -489,10 +490,12 @@ class TestDocumentService:
         session.add(attachment)
         session.flush()
 
-        thumbnail_path, content_type = document_service.get_attachment_thumbnail(attachment.id, 150)
+        thumbnail_path, content_type, etag = document_service.get_attachment_thumbnail(attachment.id, 150)
 
         assert thumbnail_path == "<svg>pdf icon</svg>"
         assert content_type == "image/svg+xml"
+        icon_bytes, _ = mock_image_service.get_pdf_icon_data.return_value
+        assert etag == hashlib.sha256(icon_bytes).hexdigest()
 
     def test_get_attachment_thumbnail_image(self, document_service, session, sample_part, mock_image_service):
         """Test getting thumbnail for image."""
@@ -506,10 +509,11 @@ class TestDocumentService:
         session.add(attachment)
         session.flush()
 
-        thumbnail_path, content_type = document_service.get_attachment_thumbnail(attachment.id, 150)
+        thumbnail_path, content_type, etag = document_service.get_attachment_thumbnail(attachment.id, 150)
 
         assert thumbnail_path == "/tmp/thumbnail.jpg"
         assert content_type == "image/jpeg"
+        assert etag == hashlib.sha256(attachment.s3_key.encode("utf-8")).hexdigest()
         mock_image_service.get_thumbnail_path.assert_called_once_with(attachment.id, "test.jpg", 150)
 
     def test_set_part_cover_attachment_success(self, document_service, session, sample_part):
@@ -791,10 +795,11 @@ class TestDocumentService:
         # Mock the link icon return
         mock_image_service.get_link_icon_data.return_value = (b"<svg>link icon</svg>", "image/svg+xml")
 
-        thumbnail_path, content_type = document_service.get_attachment_thumbnail(attachment.id, 150)
+        thumbnail_path, content_type, etag = document_service.get_attachment_thumbnail(attachment.id, 150)
 
         assert thumbnail_path == "<svg>link icon</svg>"
         assert content_type == "image/svg+xml"
+        assert etag == hashlib.sha256(b"<svg>link icon</svg>").hexdigest()
         mock_image_service.get_link_icon_data.assert_called_once()
 
     def test_get_attachment_thumbnail_url_with_s3_key(self, document_service, session, sample_part, mock_image_service):
@@ -813,10 +818,11 @@ class TestDocumentService:
         # Mock thumbnail path return
         mock_image_service.get_thumbnail_path.return_value = "/tmp/thumbnail.jpg"
 
-        thumbnail_path, content_type = document_service.get_attachment_thumbnail(attachment.id, 150)
+        thumbnail_path, content_type, etag = document_service.get_attachment_thumbnail(attachment.id, 150)
 
         assert thumbnail_path == "/tmp/thumbnail.jpg"
         assert content_type == "image/jpeg"
+        assert etag == hashlib.sha256(attachment.s3_key.encode("utf-8")).hexdigest()
         mock_image_service.get_thumbnail_path.assert_called_once_with(attachment.id, attachment.s3_key, 150)
 
     def test_has_image_property_image_attachment(self, document_service, session, sample_part, sample_image_file):
