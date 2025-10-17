@@ -3,7 +3,6 @@ import { useCoverAttachment } from '@/hooks/use-cover-image';
 import { getCoverThumbnailUrl, generateCoverSrcSet, getSizesAttribute } from '@/lib/utils/thumbnail-urls';
 import pdfIconSvg from '@/assets/pdf-icon.svg';
 import { ImagePlaceholderIcon } from '@/components/icons/ImagePlaceholderIcon';
-import { makeUniqueToken } from '@/lib/utils/random';
 
 interface CoverImageDisplayProps {
   partId: string;
@@ -23,18 +22,20 @@ export function CoverImageDisplay({
   const { coverAttachment, isLoading, dataUpdatedAt } = useCoverAttachment(partId, hasCoverAttachment);
   const [imageError, setImageError] = useState(false);
 
-  // Generate cache buster based on when the cover data was last updated
-  const cacheBuster = useMemo(() => {
+  const reloadToken = useMemo(() => {
     if (typeof dataUpdatedAt === 'number') {
       return dataUpdatedAt.toString();
     }
-    return makeUniqueToken(16);
-  }, [dataUpdatedAt]);
+    if (coverAttachment?.updated_at) {
+      return String(coverAttachment.updated_at);
+    }
+    return coverAttachment ? `${coverAttachment.id ?? ''}` : 'initial';
+  }, [coverAttachment, dataUpdatedAt]);
 
   // Reset image error when cache buster changes (new image to load)
   useEffect(() => {
     setImageError(false);
-  }, [cacheBuster]);
+  }, [reloadToken]);
 
   if (hasCoverAttachment !== false && isLoading) {
     return (
@@ -74,9 +75,9 @@ export function CoverImageDisplay({
   return (
     <div className={`rounded-lg overflow-hidden bg-muted ${getSizeClasses(size)} ${className}`}>
       <img
-        key={`cover-${partId}-${cacheBuster}`}
-        src={getCoverThumbnailUrl(partId, size, cacheBuster)}
-        srcSet={generateCoverSrcSet(partId, cacheBuster)}
+        key={`cover-${partId}-${reloadToken}`}
+        src={getCoverThumbnailUrl(partId, size)}
+        srcSet={generateCoverSrcSet(partId)}
         sizes={getSizesAttribute()}
         alt={coverAttachment.title}
         className="w-full h-full object-cover"

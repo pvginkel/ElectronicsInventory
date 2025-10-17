@@ -21,12 +21,10 @@ export function getThumbnailUrl(
 
 export function getCoverThumbnailUrl(
   partKey: string, 
-  size: keyof ThumbnailSizes = 'medium',
-  cacheBuster?: string | number
+  size: keyof ThumbnailSizes = 'medium'
 ): string {
   const sizeValue = THUMBNAIL_SIZES[size];
-  const bust = cacheBuster ? `&__pb=${cacheBuster}` : '';
-  return `/api/parts/${encodeURIComponent(partKey)}/cover/thumbnail?size=${sizeValue}${bust}`;
+  return `/api/parts/${encodeURIComponent(partKey)}/cover/thumbnail?size=${sizeValue}`;
 }
 
 export function getDownloadUrl(partKey: string, attachmentId: string): string {
@@ -49,12 +47,11 @@ export function generateSrcSet(
     .join(', ');
 }
 
-export function generateCoverSrcSet(partKey: string, cacheBuster?: string | number): string {
+export function generateCoverSrcSet(partKey: string): string {
   const sizes = Object.entries(THUMBNAIL_SIZES);
-  const bust = cacheBuster ? `&__pb=${cacheBuster}` : '';
   return sizes
     .map(([, size]) => 
-      `/api/parts/${encodeURIComponent(partKey)}/cover/thumbnail?size=${size}${bust} ${size}w`
+      `/api/parts/${encodeURIComponent(partKey)}/cover/thumbnail?size=${size} ${size}w`
     )
     .join(', ');
 }
