@@ -69,18 +69,20 @@ class HtmlDocumentHandler:
             # Try the simple case first (well-formed HTML)
             title_string = title_tag.string
             if isinstance(title_string, str):
-                title = title_string.strip()
-                if title:
-                    return title
+                simple_title = title_string.strip()
+                if simple_title and '<' not in simple_title and '\n' not in simple_title:
+                    return simple_title
 
-            # Handle malformed HTML where title contains other elements
-            # Extract all text and take the first meaningful line
-            title_text = title_tag.get_text().strip()
-            if title_text:
-                # Split by newlines and take the first non-empty line
-                first_line = title_text.split('\n')[0].strip()
-                if first_line:
-                    return first_line
+            # Handle malformed HTML where title captures stray markup/text.
+            raw_text = title_tag.get_text().strip()
+            if raw_text:
+                cleaned_text = raw_text
+                if '<' in cleaned_text:
+                    cleaned_text = cleaned_text.split('<', 1)[0].strip()
+                if '\n' in cleaned_text:
+                    cleaned_text = cleaned_text.split('\n', 1)[0].strip()
+                if cleaned_text:
+                    return cleaned_text
         return None
 
     def _find_preview_image(

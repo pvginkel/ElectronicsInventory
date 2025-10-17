@@ -2,6 +2,8 @@
 
 import hashlib
 import logging
+from collections.abc import Callable
+from dataclasses import dataclass
 from io import BytesIO
 from typing import BinaryIO
 
@@ -22,6 +24,25 @@ from app.services.s3_service import S3Service
 from app.services.url_transformers import URLInterceptorRegistry
 from app.utils.text_utils import truncate_with_ellipsis
 from app.utils.url_utils import get_filename_from_url
+
+
+@dataclass(frozen=True)
+class AttachmentThumbnail:
+    """Metadata wrapper for attachment thumbnails."""
+
+    content_type: str
+    etag: str
+    svg_data: str | None
+    _image_loader: Callable[[], str] | None
+
+    @property
+    def is_svg(self) -> bool:
+        return self.svg_data is not None
+
+    def resolve_image_path(self) -> str:
+        if self._image_loader is None:
+            raise InvalidOperationException("get attachment thumbnail", "no image loader available")
+        return self._image_loader()
 
 logger = logging.getLogger(__name__)
 
@@ -456,15 +477,15 @@ class DocumentService(BaseService):
             # No S3 content available
             return None
 
-    def get_attachment_thumbnail(self, attachment_id: int, size: int = 150) -> tuple[str, str, str]:
-        """Get thumbnail for attachment.
+    def get_attachment_thumbnail(self, attachment_id: int, size: int = 150) -> AttachmentThumbnail:
+        """Get thumbnail metadata for attachment, lazily loading image files.
 
         Args:
             attachment_id: ID of the attachment
             size: Thumbnail size in pixels
 
         Returns:
-            Tuple of (thumbnail_path, content_type, etag)
+            AttachmentThumbnail metadata
 
         Raises:
             RecordNotFoundException: If attachment not found
@@ -474,20 +495,38 @@ class DocumentService(BaseService):
 
         # Check if content_type starts with 'image/' and s3_key exists
         if attachment.content_type and attachment.content_type.startswith('image/') and attachment.s3_key:
-            # Generate/retrieve thumbnail from S3 content
-            thumbnail_path = self.image_service.get_thumbnail_path(attachment.id, attachment.s3_key, size)
-            etag = hashlib.sha256(attachment.s3_key.encode("utf-8")).hexdigest()
-            return thumbnail_path, 'image/jpeg', etag
+            s3_key = attachment.s3_key
+            etag = hashlib.sha256(s3_key.encode("utf-8")).hexdigest()
+
+            def _load_path() -> str:
+                return self.image_service.get_thumbnail_path(attachment.id, s3_key, size)
+
+            return AttachmentThumbnail(
+                content_type='image/jpeg',
+                etag=etag,
+                svg_data=None,
+                _image_loader=_load_path,
+            )
         elif attachment.attachment_type == AttachmentType.PDF:
             # Return PDF icon SVG
             pdf_data, content_type = self.image_service.get_pdf_icon_data()
             etag = hashlib.sha256(pdf_data).hexdigest()
-            return pdf_data.decode('utf-8'), content_type, etag
+            return AttachmentThumbnail(
+                content_type=content_type,
+                etag=etag,
+                svg_data=pdf_data.decode('utf-8'),
+                _image_loader=None,
+            )
         elif attachment.attachment_type == AttachmentType.URL:
             # Return link icon SVG
             link_data, content_type = self.image_service.get_link_icon_data()
             etag = hashlib.sha256(link_data).hexdigest()
-            return link_data.decode('utf-8'), content_type, etag
+            return AttachmentThumbnail(
+                content_type=content_type,
+                etag=etag,
+                svg_data=link_data.decode('utf-8'),
+                _image_loader=None,
+            )
         else:
             raise InvalidOperationException("get attachment thumbnail", "thumbnail not available for this attachment type")
 
