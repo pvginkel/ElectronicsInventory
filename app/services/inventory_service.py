@@ -1,8 +1,9 @@
 """Inventory service for managing part locations and quantities."""
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
 from app.exceptions import (
@@ -279,8 +280,6 @@ class InventoryService(BaseService):
 
     def calculate_total_quantity(self, part_key: str) -> int:
         """Calculate total quantity across all locations for a part."""
-        from sqlalchemy import func
-
         from app.models.part import Part
         stmt = select(func.coalesce(func.sum(PartLocation.qty), 0)).join(
             Part, PartLocation.part_id == Part.id
@@ -290,8 +289,6 @@ class InventoryService(BaseService):
 
     def get_all_parts_with_totals(self, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list['PartWithTotalModel']:
         """Get all parts with their total quantities calculated."""
-        from sqlalchemy import func
-
         from app.models.part import Part
         from app.schemas.part import PartWithTotalModel
 
@@ -351,6 +348,34 @@ class InventoryService(BaseService):
                 part_with_total.part._part_locations_data = part_locations
 
         return parts_with_totals
+
+    def get_total_quantities_by_part_keys(
+        self,
+        part_keys: Sequence[str],
+    ) -> dict[str, int]:
+        """Return total quantities for each requested part key in one query."""
+        if not part_keys:
+            return {}
+
+        lookup_keys = tuple(dict.fromkeys(part_keys))
+
+        from app.models.part import Part
+
+        stmt = (
+            select(
+                Part.key,
+                func.coalesce(func.sum(PartLocation.qty), 0),
+            )
+            .join(Part, Part.id == PartLocation.part_id)
+            .where(Part.key.in_(lookup_keys))
+            .group_by(Part.key)
+        )
+
+        totals = {key: 0 for key in part_keys}
+        for key, total in self.db.execute(stmt).all():
+            totals[str(key)] = int(total or 0)
+
+        return totals
 
     def _get_location(self, box_no: int, loc_no: int) -> Location | None:
         """Get location by box_no and loc_no."""

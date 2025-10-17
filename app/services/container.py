@@ -12,6 +12,7 @@ from app.services.download_cache_service import DownloadCacheService
 from app.services.html_document_handler import HtmlDocumentHandler
 from app.services.image_service import ImageService
 from app.services.inventory_service import InventoryService
+from app.services.kit_reservation_service import KitReservationService
 from app.services.kit_service import KitService
 from app.services.metrics_service import MetricsService
 from app.services.part_service import PartService
@@ -96,18 +97,22 @@ class ServiceContainer(containers.DeclarativeContainer):
         shutdown_coordinator=shutdown_coordinator,
     )
 
-    kit_service = providers.Factory(
-        KitService,
-        db=db_session,
-        metrics_service=metrics_service,
-    )
-
-    # InventoryService depends on PartService and MetricsService
     inventory_service = providers.Factory(
         InventoryService,
         db=db_session,
         part_service=part_service,
         metrics_service=metrics_service
+    )
+    kit_reservation_service = providers.Factory(
+        KitReservationService,
+        db=db_session,
+    )
+    kit_service = providers.Factory(
+        KitService,
+        db=db_session,
+        metrics_service=metrics_service,
+        inventory_service=inventory_service,
+        kit_reservation_service=kit_reservation_service,
     )
 
     shopping_list_line_service = providers.Factory(

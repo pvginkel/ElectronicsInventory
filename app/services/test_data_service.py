@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.exceptions import InvalidOperationException
 from app.models.box import Box
 from app.models.kit import Kit, KitStatus
+from app.models.kit_content import KitContent
 from app.models.kit_pick_list import KitPickList, KitPickListStatus
 from app.models.kit_shopping_list_link import KitShoppingListLink
 from app.models.location import Location
@@ -37,6 +38,7 @@ class TestDataService(BaseService):
         parts = self.load_parts(data_dir, types, sellers)
         shopping_lists = self.load_shopping_lists(data_dir)
         kits = self.load_kits(data_dir)
+        self.load_kit_contents(data_dir, kits, parts)
         self.load_kit_shopping_list_links(
             data_dir,
             kits,
@@ -259,6 +261,65 @@ class TestDataService(BaseService):
             self.db.flush()
             kits_map[name] = kit
         return kits_map
+
+    def load_kit_contents(
+        self,
+        data_dir: Path,
+        kits: dict[str, Kit],
+        parts: dict[str, Part],
+    ) -> None:
+        """Load kit contents from kit_contents.json."""
+        kit_contents_file = data_dir / "kit_contents.json"
+        try:
+            with kit_contents_file.open() as f:
+                kit_contents_data = json.load(f)
+        except FileNotFoundError:
+            return
+        except json.JSONDecodeError as exc:
+            raise InvalidOperationException(
+                "load kit contents data",
+                f"failed to parse {kit_contents_file}: {exc}",
+            ) from exc
+
+        for entry in kit_contents_data:
+            kit_name = entry.get("kit")
+            part_key = entry.get("part")
+            required_per_unit = entry.get("required_per_unit")
+
+            if kit_name is None or part_key is None or required_per_unit is None:
+                raise InvalidOperationException(
+                    "load kit contents data",
+                    "kit, part, and required_per_unit fields are required for kit contents",
+                )
+
+            kit = kits.get(kit_name)
+            if kit is None:
+                raise InvalidOperationException(
+                    "load kit contents data",
+                    f"unknown kit '{kit_name}' referenced in kit contents",
+                )
+
+            part = parts.get(part_key)
+            if part is None:
+                raise InvalidOperationException(
+                    "load kit contents data",
+                    f"unknown part '{part_key}' referenced in kit contents",
+                )
+
+            if required_per_unit < 1:
+                raise InvalidOperationException(
+                    "load kit contents data",
+                    f"required_per_unit must be at least 1 for {kit_name}/{part_key}",
+                )
+
+            content = KitContent(
+                kit=kit,
+                part=part,
+                required_per_unit=required_per_unit,
+                note=entry.get("note"),
+            )
+            self.db.add(content)
+            self.db.flush()
 
     def load_kit_shopping_list_links(
         self,

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.exceptions import InvalidOperationException
 from app.models.box import Box
 from app.models.kit import Kit, KitStatus
+from app.models.kit_content import KitContent
 from app.models.location import Location
 from app.models.part import Part
 from app.models.part_location import PartLocation
@@ -454,6 +455,45 @@ class TestTestDataService:
                 assert loaded.status == KitStatus.ARCHIVED
                 assert loaded.archived_at == datetime.fromisoformat("2024-03-01T12:00:00")
 
+    def test_load_kit_contents_success(self, app: Flask, session: Session, container: ServiceContainer):
+        """Kit contents loader should attach parts to kits."""
+        with app.app_context():
+            kit = Kit(name="Content Kit", build_target=2)
+            part = Part(key="KC01", description="Content Part")
+            session.add_all([kit, part])
+            session.flush()
+
+            kits_map = {kit.name: kit}
+            parts_map = {part.key: part}
+
+            kit_contents_data = [
+                {
+                    "kit": "Content Kit",
+                    "part": "KC01",
+                    "required_per_unit": 3,
+                    "note": "Preload for tests",
+                }
+            ]
+
+            with tempfile.TemporaryDirectory() as temp_dir:
+                data_dir = Path(temp_dir)
+                with (data_dir / "kit_contents.json").open("w") as f:
+                    json.dump(kit_contents_data, f)
+
+                container.test_data_service().load_kit_contents(
+                    data_dir,
+                    kits_map,
+                    parts_map,
+                )
+
+            contents = session.query(KitContent).all()
+            assert len(contents) == 1
+            row = contents[0]
+            assert row.kit_id == kit.id
+            assert row.part_id == part.id
+            assert row.required_per_unit == 3
+            assert row.note == "Preload for tests"
+
     def test_load_kits_invalid_status_raises(self, app: Flask, session: Session, container: ServiceContainer):
         """Invalid status values in kits data should raise errors."""
         with app.app_context():
@@ -538,11 +578,29 @@ class TestTestDataService:
             # Create minimal test dataset
             sellers_data = [{"id": 1, "name": "Test Seller", "website": "https://example.com"}]
             boxes_data = [{"box_no": 1, "description": "Test Box", "capacity": 5}]
-            parts_data = [{
-                "key": "ABCD",
-                "description": "Test resistor",
-                "type": "Resistor"  # This type exists in database
-            }]
+            parts_data = [
+                {
+                    "key": "ABCD",
+                    "description": "Test resistor",
+                    "type": "Resistor",  # This type exists in database
+                }
+            ]
+            kits_data = [
+                {
+                    "name": "Integration Kit",
+                    "description": "Integration test kit",
+                    "build_target": 2,
+                    "status": "active",
+                }
+            ]
+            kit_contents_data = [
+                {
+                    "kit": "Integration Kit",
+                    "part": "ABCD",
+                    "required_per_unit": 2,
+                    "note": "Integration note",
+                }
+            ]
             part_locations_data = [{"part_key": "ABCD", "box_no": 1, "loc_no": 1, "qty": 10}]
             history_data = [{
                 "part_key": "ABCD",
@@ -561,6 +619,10 @@ class TestTestDataService:
                     json.dump(boxes_data, f)
                 with (data_dir / "parts.json").open("w") as f:
                     json.dump(parts_data, f)
+                with (data_dir / "kits.json").open("w") as f:
+                    json.dump(kits_data, f)
+                with (data_dir / "kit_contents.json").open("w") as f:
+                    json.dump(kit_contents_data, f)
                 with (data_dir / "part_locations.json").open("w") as f:
                     json.dump(part_locations_data, f)
                 with (data_dir / "quantity_history.json").open("w") as f:
@@ -572,6 +634,8 @@ class TestTestDataService:
                 sellers = service.load_sellers(data_dir)
                 boxes = service.load_boxes(data_dir)
                 parts = service.load_parts(data_dir, types, sellers)
+                kits = service.load_kits(data_dir)
+                service.load_kit_contents(data_dir, kits, parts)
                 service.load_part_locations(data_dir, parts, boxes)
                 service.load_quantity_history(data_dir, parts)
                 session.commit()
@@ -585,6 +649,8 @@ class TestTestDataService:
                 assert session.query(Part).count() == 1
                 assert session.query(PartLocation).count() == 1
                 assert session.query(QuantityHistory).count() == 1
+                assert session.query(Kit).count() == 1
+                assert session.query(KitContent).count() == 1
 
                 # Verify relationships
                 part = session.query(Part).first()

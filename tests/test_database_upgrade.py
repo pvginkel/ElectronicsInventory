@@ -76,5 +76,5 @@ def test_kits_tables_exist_after_upgrade(app):
     with app.app_context():
         inspector = inspect(db.engine)
         tables = set(inspector.get_table_names())
-        expected = {"kits", "kit_shopping_list_links", "kit_pick_lists"}
+        expected = {"kits", "kit_shopping_list_links", "kit_pick_lists", "kit_contents"}
         assert expected.issubset(tables)

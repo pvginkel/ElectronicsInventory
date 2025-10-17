@@ -76,6 +76,22 @@ class MetricsServiceProtocol(ABC):
         """Record kit overview listing calls."""
         return None
 
+    def record_kit_detail_view(self, kit_id: int) -> None:
+        """Record a kit detail view."""
+        return None
+
+    def record_kit_content_created(self, kit_id: int, part_id: int, required_per_unit: int) -> None:
+        """Record creation of a kit content entry."""
+        return None
+
+    def record_kit_content_updated(self, kit_id: int, part_id: int, duration_seconds: float) -> None:
+        """Record update of a kit content entry."""
+        return None
+
+    def record_kit_content_deleted(self, kit_id: int, part_id: int) -> None:
+        """Record deletion of a kit content entry."""
+        return None
+
     @abstractmethod
     def record_ai_analysis(
         self,
@@ -237,6 +253,19 @@ class MetricsService(MetricsServiceProtocol):
         self.kits_archived_count = Gauge(
             'kits_archived_count',
             'Current count of archived kits'
+        )
+        self.kit_detail_views_total = Counter(
+            'kit_detail_views_total',
+            'Total kit detail view requests'
+        )
+        self.kit_content_mutations_total = Counter(
+            'kit_content_mutations_total',
+            'Total kit content mutations grouped by action',
+            ['action'],
+        )
+        self.kit_content_update_duration_seconds = Histogram(
+            'kit_content_update_duration_seconds',
+            'Duration of kit content update operations in seconds'
         )
 
         # Shopping list metrics
@@ -465,6 +494,37 @@ class MetricsService(MetricsServiceProtocol):
                     self.kits_archived_count.set(result_count)
         except Exception as exc:
             logger.error("Error recording kit overview metrics: %s", exc)
+
+    def record_kit_detail_view(self, kit_id: int) -> None:
+        """Record kit detail view usage."""
+        try:
+            self.kit_detail_views_total.inc()
+        except Exception as exc:
+            logger.error("Error recording kit detail view metric: %s", exc)
+
+    def record_kit_content_created(self, kit_id: int, part_id: int, required_per_unit: int) -> None:
+        """Record creation of a kit content entry."""
+        try:
+            self.kit_content_mutations_total.labels(action="create").inc()
+        except Exception as exc:
+            logger.error("Error recording kit content creation metric: %s", exc)
+
+    def record_kit_content_updated(self, kit_id: int, part_id: int, duration_seconds: float) -> None:
+        """Record update of a kit content entry including duration."""
+        try:
+            self.kit_content_mutations_total.labels(action="update").inc()
+            self.kit_content_update_duration_seconds.observe(
+                max(duration_seconds, 0.0)
+            )
+        except Exception as exc:
+            logger.error("Error recording kit content update metric: %s", exc)
+
+    def record_kit_content_deleted(self, kit_id: int, part_id: int) -> None:
+        """Record deletion of a kit content entry."""
+        try:
+            self.kit_content_mutations_total.labels(action="delete").inc()
+        except Exception as exc:
+            logger.error("Error recording kit content deletion metric: %s", exc)
 
     def record_shopping_list_line_receipt(self, lines: int, total_qty: int) -> None:
         """Record metrics for shopping list line stock receipts."""

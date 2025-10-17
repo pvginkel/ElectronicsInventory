@@ -13,6 +13,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.extensions import db
 
 if TYPE_CHECKING:
+    from app.models.kit_content import KitContent
     from app.models.kit_pick_list import KitPickList
     from app.models.kit_shopping_list_link import KitShoppingListLink
 
@@ -74,11 +75,22 @@ class Kit(db.Model):  # type: ignore[name-defined]
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    contents: Mapped[list["KitContent"]] = relationship(
+        "KitContent",
+        back_populates="kit",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
     @property
     def is_archived(self) -> bool:
         """Return whether the kit is archived based on current status."""
         return self.status is KitStatus.ARCHIVED
+
+    @property
+    def has_contents(self) -> bool:
+        """Return True if the kit has at least one BOM entry attached."""
+        return bool(self.contents)
 
     def __repr__(self) -> str:
         return (

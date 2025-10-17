@@ -91,6 +91,24 @@ def get_real_metrics_service(container):
                 registry=self._test_registry
             )
 
+            # Kit Metrics
+            self.kit_detail_views_total = Counter(
+                'kit_detail_views_total',
+                'Total kit detail view requests',
+                registry=self._test_registry
+            )
+            self.kit_content_mutations_total = Counter(
+                'kit_content_mutations_total',
+                'Total kit content mutations grouped by action',
+                ['action'],
+                registry=self._test_registry
+            )
+            self.kit_content_update_duration_seconds = Histogram(
+                'kit_content_update_duration_seconds',
+                'Duration of kit content update operations in seconds',
+                registry=self._test_registry
+            )
+
             # AI Analysis Metrics
             self.ai_analysis_requests_total = Counter(
                 'ai_analysis_requests_total',
@@ -212,6 +230,23 @@ class TestMetricsService:
 
         # Verify mock call
         mock_category_distribution.assert_called_once()
+
+    def test_record_kit_content_metrics(self, app, session, container):
+        """Ensure kit detail and content metrics increment correctly."""
+        service = get_real_metrics_service(container)
+
+        service.record_kit_detail_view(kit_id=1)
+        assert service.kit_detail_views_total._value.get() == 1
+
+        service.record_kit_content_created(kit_id=1, part_id=2, required_per_unit=3)
+        assert service.kit_content_mutations_total.labels(action="create")._value.get() == 1
+
+        service.record_kit_content_updated(kit_id=1, part_id=2, duration_seconds=0.5)
+        assert service.kit_content_mutations_total.labels(action="update")._value.get() == 1
+        assert service.kit_content_update_duration_seconds._sum.get() == 0.5
+
+        service.record_kit_content_deleted(kit_id=1, part_id=2)
+        assert service.kit_content_mutations_total.labels(action="delete")._value.get() == 1
 
     def test_record_quantity_change(self, app, session, container):
         """Test recording quantity changes."""

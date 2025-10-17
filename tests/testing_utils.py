@@ -133,6 +133,22 @@ class StubMetricsService(MetricsServiceProtocol):
         """No-op receipt metric recording."""
         pass
 
+    def record_kit_detail_view(self, kit_id: int) -> None:
+        """No-op kit detail metric recording."""
+        pass
+
+    def record_kit_content_created(self, kit_id: int, part_id: int, required_per_unit: int) -> None:
+        """No-op kit content creation metric recording."""
+        pass
+
+    def record_kit_content_updated(self, kit_id: int, part_id: int, duration_seconds: float) -> None:
+        """No-op kit content update metric recording."""
+        pass
+
+    def record_kit_content_deleted(self, kit_id: int, part_id: int) -> None:
+        """No-op kit content deletion metric recording."""
+        pass
+
     def record_ai_analysis(
         self,
         status: str,
