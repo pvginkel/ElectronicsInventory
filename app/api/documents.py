@@ -100,19 +100,19 @@ def get_part_cover_thumbnail(part_key: str, document_service : DocumentService =
     if not cover_attachment:
         return jsonify({'error': 'No cover attachment set'}), 404
 
-    thumbnail_path, content_type, etag = document_service.get_attachment_thumbnail(cover_attachment.id, size)
-    quoted_etag = f'"{etag}"'
+    thumbnail = document_service.get_attachment_thumbnail(cover_attachment.id, size)
+    quoted_etag = f'"{thumbnail.etag}"'
 
     if_none_match = request.headers.get('If-None-Match')
     if if_none_match == quoted_etag:
         return '', 304, {'ETag': quoted_etag}
 
-    if content_type == 'image/svg+xml':
+    if thumbnail.is_svg:
         # Return SVG data directly
-        return thumbnail_path, 200, {'Content-Type': content_type, 'ETag': quoted_etag}
+        return thumbnail.svg_data, 200, {'Content-Type': thumbnail.content_type, 'ETag': quoted_etag}
     else:
         # Return thumbnail file
-        response = send_file(thumbnail_path, mimetype=content_type)
+        response = send_file(thumbnail.resolve_image_path(), mimetype=thumbnail.content_type)
         response.headers['ETag'] = quoted_etag
         return response
 
@@ -212,19 +212,19 @@ def get_attachment_thumbnail(part_key: str, attachment_id: int, document_service
     """Get attachment thumbnail."""
     size = int(request.args.get('size', 150))
 
-    thumbnail_path, content_type, etag = document_service.get_attachment_thumbnail(attachment_id, size)
-    quoted_etag = f'"{etag}"'
+    thumbnail = document_service.get_attachment_thumbnail(attachment_id, size)
+    quoted_etag = f'"{thumbnail.etag}"'
 
     if_none_match = request.headers.get('If-None-Match')
     if if_none_match == quoted_etag:
         return '', 304, {'ETag': quoted_etag}
 
-    if content_type == 'image/svg+xml':
+    if thumbnail.is_svg:
         # Return SVG data directly
-        return thumbnail_path, 200, {'Content-Type': content_type, 'ETag': quoted_etag}
+        return thumbnail.svg_data, 200, {'Content-Type': thumbnail.content_type, 'ETag': quoted_etag}
     else:
         # Return thumbnail file
-        response = send_file(thumbnail_path, mimetype=content_type)
+        response = send_file(thumbnail.resolve_image_path(), mimetype=thumbnail.content_type)
         response.headers['ETag'] = quoted_etag
         return response
 

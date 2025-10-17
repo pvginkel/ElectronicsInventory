@@ -1,7 +1,7 @@
 """Pytest configuration and fixtures."""
 
-from collections.abc import Generator
 import sqlite3
+from collections.abc import Generator
 
 import pytest
 from flask import Flask

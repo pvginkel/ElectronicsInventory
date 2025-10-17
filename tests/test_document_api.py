@@ -2,7 +2,6 @@
 
 import hashlib
 import io
-import logging
 from unittest.mock import patch
 
 from flask import Flask
@@ -405,9 +404,10 @@ class TestDocumentAPI:
         thumbnail_file = tmp_path / "thumbnail.jpg"
         thumbnail_file.write_bytes(b"fake thumbnail data")
 
-        with patch('app.services.image_service.ImageService.get_thumbnail_path', return_value=str(thumbnail_file)):
+        with patch('app.services.image_service.ImageService.get_thumbnail_path', return_value=str(thumbnail_file)) as mock_get_thumbnail:
             response = client.get(f'/api/parts/{part.key}/attachments/{attachment.id}/thumbnail')
 
+        mock_get_thumbnail.assert_called_once_with(attachment.id, attachment.s3_key, 150)
         assert response.status_code == 200
         assert response.content_type == 'image/jpeg'
         expected_etag = hashlib.sha256(attachment.s3_key.encode('utf-8')).hexdigest()
@@ -441,7 +441,43 @@ class TestDocumentAPI:
                 headers={'If-None-Match': f'"{expected_etag}"'}
             )
 
-        mock_get_thumbnail.assert_called_once_with(attachment.id, attachment.s3_key, 150)
+        mock_get_thumbnail.assert_not_called()
+        assert response.status_code == 304
+        assert response.data == b''
+        assert response.headers['ETag'] == f'"{expected_etag}"'
+
+    def test_get_attachment_thumbnail_not_modified_handles_generation_failure(self, client: FlaskClient, container: ServiceContainer, session: Session):
+        """ETag matches should short-circuit even if thumbnail generation would fail."""
+        part_type = container.type_service().create_type("Thumbnail Failure Type")
+        part = container.part_service().create_part(
+            description="Thumbnail failure part",
+            manufacturer_code="THMB-FAIL",
+            type_id=part_type.id
+        )
+        session.commit()
+
+        attachment = PartAttachment(
+            part_id=part.id,
+            attachment_type=AttachmentType.IMAGE,
+            title="Test Image",
+            s3_key="fail.jpg",
+            content_type="image/jpeg"
+        )
+        session.add(attachment)
+        session.commit()
+
+        expected_etag = hashlib.sha256(attachment.s3_key.encode('utf-8')).hexdigest()
+
+        with patch(
+            'app.services.image_service.ImageService.get_thumbnail_path',
+            side_effect=InvalidOperationException("generate thumbnail", "forced failure")
+        ) as mock_get_thumbnail:
+            response = client.get(
+                f'/api/parts/{part.key}/attachments/{attachment.id}/thumbnail',
+                headers={'If-None-Match': f'"{expected_etag}"'}
+            )
+
+        mock_get_thumbnail.assert_not_called()
         assert response.status_code == 304
         assert response.data == b''
         assert response.headers['ETag'] == f'"{expected_etag}"'
@@ -568,7 +604,7 @@ class TestDocumentAPI:
                 headers={'If-None-Match': f'"{expected_etag}"'}
             )
 
-        mock_get_thumbnail.assert_called_once_with(attachment.id, attachment.s3_key, 150)
+        mock_get_thumbnail.assert_not_called()
         assert response.status_code == 304
         assert response.data == b''
         assert response.headers['ETag'] == f'"{expected_etag}"'
