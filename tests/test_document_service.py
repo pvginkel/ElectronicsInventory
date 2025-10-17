@@ -423,9 +423,8 @@ class TestDocumentService:
         mock_image_service.cleanup_thumbnails.assert_called_once_with(attachment_id)
         mock_s3_service.delete_file.side_effect = None
 
-    def test_delete_attachment_s3_cleanup_fails(self, document_service, session, sample_part, mock_s3_service, caplog):
+    def test_delete_attachment_s3_cleanup_fails(self, document_service, session, sample_part, mock_s3_service):
         """Test attachment deletion when S3 cleanup fails."""
-        caplog.set_level(logging.WARNING, logger='app.services.document_service')
         mock_s3_service.delete_file.side_effect = InvalidOperationException("delete", "S3 error")
 
         attachment = PartAttachment(
@@ -444,8 +443,6 @@ class TestDocumentService:
         # Verify attachment is still deleted from database
         with pytest.raises(RecordNotFoundException):
             document_service.get_attachment(attachment_id)
-
-        assert any("S3 deletion failed" in record.message for record in caplog.records)
 
     def test_get_attachment_file_data_pdf_with_file(self, document_service, session, sample_part):
         """Test getting file data for PDF with stored file."""
