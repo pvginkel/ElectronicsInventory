@@ -19,7 +19,7 @@ async function createBoxWithRetry(testData: any, overrides: Record<string, unkno
 test.describe('Boxes - Detail View', () => {
 test('shows usage metrics, location assignments, and supports deletion from detail', async ({ boxes, parts, partsLocations, testData, toastHelper }) => {
     const description = makeUnique('Detail Box')
-    const box = await createBoxWithRetry(testData, { description, capacity: 20 })
+    const box = await createBoxWithRetry(testData, { description, capacity: 60 })
     const { part } = await testData.parts.create({ overrides: { description: makeUnique('Box Detail Part') } })
 
     await parts.gotoList()
@@ -37,15 +37,35 @@ test('shows usage metrics, location assignments, and supports deletion from deta
 
     await boxes.openDetail(box.box_no)
 
+    await expect(boxes.detailLayout).toBeVisible()
     await expect(boxes.detailSummary).toContainText('Box Number')
     await expect(boxes.detailSummary).toContainText(String(box.box_no))
     await expect(boxes.detailSummary).toContainText(box.description)
-    await expect(boxes.detailSummary).toContainText(/Usage\s*1\/20/i)
+    await expect(boxes.detailSummary).toContainText(new RegExp(`Usage\\s*1\\/${box.capacity}`, 'i'))
+
+    const headerBefore = await boxes.getDetailHeaderRect()
+    const actionsBefore = await boxes.getDetailActionsRect()
+
+    await boxes.detailContent.evaluate((element) => {
+      const filler = document.createElement('div')
+      filler.style.height = '1200px'
+      filler.setAttribute('data-testid', 'boxes.detail.test-filler')
+      element.appendChild(filler)
+    })
+
+    await boxes.scrollDetailContent('bottom')
+    await expect.poll(() => boxes.detailContentScrollTop()).toBeGreaterThan(0)
+
+    const headerAfter = await boxes.getDetailHeaderRect()
+    const actionsAfter = await boxes.getDetailActionsRect()
+
+    expect(Math.abs(headerAfter.top - headerBefore.top)).toBeLessThan(1)
+    expect(Math.abs(actionsAfter.top - actionsBefore.top)).toBeLessThan(1)
 
     await boxes.expectLocationOccupied(box.box_no, 4, { partKey: part.key, quantity: 3 })
 
     await expectConsoleError(boxes.playwrightPage, /cannot delete box/i)
-    await boxes.detailRoot.getByRole('button', { name: /delete box/i }).click()
+    await boxes.detailDeleteButton.click()
     const confirmDialog = boxes.playwrightPage.getByRole('dialog', { name: /delete box/i })
     await expect(confirmDialog).toBeVisible()
     await confirmDialog.getByRole('button', { name: /delete/i }).click()

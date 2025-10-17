@@ -25,15 +25,15 @@ test.describe('Parts - Duplication', () => {
     await parts.waitForCards();
     await parts.openCardByKey(part.key);
 
-    await expect(parts.detailRoot).toBeVisible();
+    await parts.waitForDetailReady();
     await expect(parts.detailDocumentsCard).toContainText('Documents');
 
     await parts.duplicateCurrentPart();
-    await expect(parts.formRoot).toBeVisible();
+    await expect(parts.formLayout).toBeVisible();
 
     await parts.submitForm();
 
-    await expect(parts.detailRoot).toBeVisible();
+    await parts.waitForDetailReady();
     await parts.expectDetailHeading('Temperature Sensor Module');
 
     const currentUrl = await parts.getUrl();

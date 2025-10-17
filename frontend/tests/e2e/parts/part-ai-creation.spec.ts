@@ -118,6 +118,7 @@ test.describe('Parts - AI assisted creation', () => {
 
     const currentUrl = await parts.getUrl();
     expect(currentUrl).toContain(`/parts/${createdPartKey}`);
+    await parts.waitForDetailReady();
     await parts.expectDetailHeading(analysisResult.description);
 
     const { data } = await apiClient.GET('/api/parts/{part_key}', {

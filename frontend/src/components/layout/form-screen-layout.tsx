@@ -14,6 +14,7 @@ interface FormScreenLayoutProps {
   contentTestId?: string;
   footerTestId?: string;
   actionsTestId?: string;
+  cardTestId?: string;
   headerProps?: HTMLAttributes<HTMLElement>;
   contentProps?: HTMLAttributes<HTMLElement>;
   footerProps?: HTMLAttributes<HTMLElement>;
@@ -34,6 +35,7 @@ export function FormScreenLayout({
   contentTestId,
   footerTestId,
   actionsTestId,
+  cardTestId,
   headerProps,
   contentProps,
   footerProps,
@@ -41,14 +43,20 @@ export function FormScreenLayout({
   const { className: headerClassName, ...headerRest } = headerProps ?? {};
   const { className: contentClassName, ...contentRest } = contentProps ?? {};
   const { className: footerClassName, ...footerRest } = footerProps ?? {};
+  const rootId = rootTestId ?? 'form-screen.layout';
+  const cardId = cardTestId ?? 'form-screen.card';
+  const headerId = headerTestId ?? 'form-screen.header';
+  const contentId = contentTestId ?? 'form-screen.content';
+  const footerId = footerTestId ?? 'form-screen.footer';
+  const actionsId = actionsTestId ?? 'form-screen.actions';
 
   return (
-    <div className={cn('flex h-full min-h-0 flex-col', className)} data-testid={rootTestId}>
-      <Card className="flex h-full min-h-0 flex-col overflow-hidden p-0">
+    <div className={cn('flex h-full min-h-0 flex-col', className)} data-testid={rootId}>
+      <Card className="flex h-full min-h-0 flex-col overflow-hidden p-0" data-testid={cardId}>
         {/* Header anchors breadcrumbs, title, and actions inside the card chrome */}
         <header
           className={cn('border-b border-border bg-background px-6 py-5', headerClassName)}
-          data-testid={headerTestId}
+          data-testid={headerId}
           {...headerRest}
         >
           {breadcrumbs ? (
@@ -63,7 +71,7 @@ export function FormScreenLayout({
             </h1>
 
             {actions ? (
-              <div className="flex flex-wrap items-center gap-2" data-testid={actionsTestId ?? 'form-screen.actions'}>
+              <div className="flex flex-wrap items-center gap-2" data-testid={actionsId}>
                 {actions}
               </div>
             ) : null}
@@ -72,7 +80,8 @@ export function FormScreenLayout({
 
         <main
           className={cn('flex-1 min-h-0 overflow-auto bg-background px-6 py-6', contentClassName)}
-          data-testid={contentTestId}
+          data-testid={contentId}
+          role="main"
           {...contentRest}
         >
           {children}
@@ -81,7 +90,7 @@ export function FormScreenLayout({
         {footer ? (
           <footer
             className={cn('border-t border-border bg-background px-6 py-5', footerClassName)}
-            data-testid={footerTestId}
+            data-testid={footerId}
             {...footerRest}
           >
             {footer}

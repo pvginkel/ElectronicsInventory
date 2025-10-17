@@ -84,7 +84,7 @@ export class BoxesPage extends BasePage {
     await expect(card).toBeVisible()
     await card.click()
     await waitForListLoading(this.page, 'boxes.detail', 'ready')
-    await expect(this.detailRoot).toBeVisible()
+    await expect(this.detailLayout).toBeVisible()
   }
 
   async fillBoxForm(formId: string, values: { description?: string; capacity?: number }): Promise<void> {
@@ -111,6 +111,22 @@ export class BoxesPage extends BasePage {
     return this.page.getByTestId('boxes.detail')
   }
 
+  get detailLayout(): Locator {
+    return this.page.getByTestId('boxes.detail.layout')
+  }
+
+  get detailHeader(): Locator {
+    return this.page.getByTestId('boxes.detail.header')
+  }
+
+  get detailContent(): Locator {
+    return this.page.getByTestId('boxes.detail.content')
+  }
+
+  get detailActions(): Locator {
+    return this.page.getByTestId('boxes.detail.actions')
+  }
+
   get detailSummary(): Locator {
     return this.page.getByTestId('boxes.detail.summary')
   }
@@ -120,15 +136,43 @@ export class BoxesPage extends BasePage {
   }
 
   get detailEditButton(): Locator {
-    return this.detailRoot.getByRole('button', { name: /edit box/i })
+    return this.page.getByTestId('boxes.detail.actions.edit')
   }
 
   get detailDeleteButton(): Locator {
-    return this.detailRoot.getByRole('button', { name: /delete box/i })
+    return this.page.getByTestId('boxes.detail.actions.delete')
   }
 
   get detailBreadcrumb(): Locator {
-    return this.page.getByTestId('boxes.detail.header').getByRole('link', { name: /storage boxes/i })
+    return this.detailHeader.getByRole('link', { name: /storage boxes/i })
+  }
+
+  async getDetailHeaderRect(): Promise<{ top: number; bottom: number; height: number }> {
+    return this.detailHeader.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      return { top: rect.top, bottom: rect.bottom, height: rect.height }
+    })
+  }
+
+  async getDetailActionsRect(): Promise<{ top: number; bottom: number; height: number }> {
+    return this.detailActions.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      return { top: rect.top, bottom: rect.bottom, height: rect.height }
+    })
+  }
+
+  async scrollDetailContent(target: number | 'bottom' = 'bottom'): Promise<void> {
+    await this.detailContent.evaluate((element, value) => {
+      if (value === 'bottom') {
+        element.scrollTo({ top: element.scrollHeight })
+        return
+      }
+      element.scrollTo({ top: value })
+    }, target)
+  }
+
+  async detailContentScrollTop(): Promise<number> {
+    return this.detailContent.evaluate((element) => element.scrollTop)
   }
 
   async returnToListFromDetail(): Promise<void> {

@@ -123,38 +123,59 @@ export class PartsPage extends BasePage {
     return this.page.getByTestId('parts.detail');
   }
 
-  get detailEditLayout(): Locator {
-    return this.page.getByTestId('parts.detail.edit.layout');
+  get detailLayout(): Locator {
+    return this.page.getByTestId('parts.detail.layout');
   }
 
-  get detailEditHeader(): Locator {
-    return this.page.getByTestId('parts.detail.edit.header');
+  get detailHeader(): Locator {
+    return this.page.getByTestId('parts.detail.header');
   }
 
-  get detailEditContent(): Locator {
-    return this.page.getByTestId('parts.detail.edit.content');
+  get detailContent(): Locator {
+    return this.page.getByTestId('parts.detail.content');
   }
 
-  get detailEditFooter(): Locator {
-    return this.page.getByTestId('parts.detail.edit.footer');
+  get detailActions(): Locator {
+    return this.page.getByTestId('parts.detail.actions');
   }
 
-  async getDetailEditHeaderRect(): Promise<{ top: number; bottom: number; height: number }> {
-    return this.detailEditHeader.evaluate((element) => {
+  async waitForDetailReady(): Promise<void> {
+    await waitForListLoading(this.page, 'parts.detail', 'ready');
+    await expect(this.detailLayout).toBeVisible();
+  }
+
+  get formLayout(): Locator {
+    return this.page.getByTestId('parts.form.layout');
+  }
+
+  get formHeader(): Locator {
+    return this.page.getByTestId('parts.form.header');
+  }
+
+  get formContent(): Locator {
+    return this.page.getByTestId('parts.form.content');
+  }
+
+  get formFooter(): Locator {
+    return this.page.getByTestId('parts.form.footer');
+  }
+
+  async getFormHeaderRect(): Promise<{ top: number; bottom: number; height: number }> {
+    return this.formHeader.evaluate((element) => {
       const rect = element.getBoundingClientRect();
       return { top: rect.top, bottom: rect.bottom, height: rect.height };
     });
   }
 
-  async getDetailEditFooterRect(): Promise<{ top: number; bottom: number; height: number }> {
-    return this.detailEditFooter.evaluate((element) => {
+  async getFormFooterRect(): Promise<{ top: number; bottom: number; height: number }> {
+    return this.formFooter.evaluate((element) => {
       const rect = element.getBoundingClientRect();
       return { top: rect.top, bottom: rect.bottom, height: rect.height };
     });
   }
 
-  async scrollDetailEditContent(target: number | 'bottom' = 'bottom'): Promise<void> {
-    await this.detailEditContent.evaluate((element, value) => {
+  async scrollFormContent(target: number | 'bottom' = 'bottom'): Promise<void> {
+    await this.formContent.evaluate((element, value) => {
       if (value === 'bottom') {
         element.scrollTo({ top: element.scrollHeight });
         return;
@@ -163,8 +184,8 @@ export class PartsPage extends BasePage {
     }, target);
   }
 
-  async detailEditContentScrollTop(): Promise<number> {
-    return this.detailEditContent.evaluate((element) => element.scrollTop);
+  async formContentScrollTop(): Promise<number> {
+    return this.formContent.evaluate((element) => element.scrollTop);
   }
 
   get detailDocumentsCard(): Locator {
@@ -228,11 +249,11 @@ export class PartsPage extends BasePage {
   }
 
   get editPartButton(): Locator {
-    return this.page.getByRole('button', { name: /edit part/i });
+    return this.page.getByTestId('parts.detail.actions.edit');
   }
 
   get deletePartButton(): Locator {
-    return this.page.getByRole('button', { name: /delete part/i });
+    return this.page.getByTestId('parts.detail.actions.delete');
   }
 
   get deleteDialog(): Locator {
@@ -343,7 +364,7 @@ export class PartsPage extends BasePage {
   }
   // Form helpers (create/edit)
   get formRoot(): Locator {
-    return this.page.locator('form').filter({ has: this.formDescription });
+    return this.page.getByTestId('parts.form.form');
   }
 
   get formDescription(): Locator {

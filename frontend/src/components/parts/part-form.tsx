@@ -2,7 +2,6 @@ import { type ReactNode, useState, useEffect } from 'react';
 import { Form, FormField, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { TypeSelector } from '@/components/types/type-selector';
 import { SellerSelector } from '@/components/sellers/seller-selector';
 import { TagsInput } from './tags-input';
@@ -41,10 +40,16 @@ interface PartFormProps {
   duplicateFromPartId?: string;
   onSuccess: (partId: string) => void;
   onCancel?: () => void;
-  screenLayout?: (sections: { header: ReactNode; content: ReactNode; footer: ReactNode }) => ReactNode;
+  renderLayout?: (sections: { header: ReactNode; content: ReactNode; footer: ReactNode }) => ReactNode;
 }
 
-export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel, screenLayout }: PartFormProps) {
+export function PartForm({
+  partId,
+  duplicateFromPartId,
+  onSuccess,
+  onCancel,
+  renderLayout,
+}: PartFormProps) {
   const formId = generateFormId('PartForm', partId ? 'edit' : duplicateFromPartId ? 'duplicate' : 'create');
 
   const [formData, setFormData] = useState<PartFormData>({
@@ -308,17 +313,21 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel, scr
 
   if (isEditing && isLoadingPart) {
     return (
-      <Card className="p-6">
-        <div className="text-center">Loading part details...</div>
-      </Card>
+      <Form onSubmit={handleSubmit} className="flex h-full flex-col" data-testid="parts.form.form">
+        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-muted p-6 text-sm text-muted-foreground">
+          Loading part details...
+        </div>
+      </Form>
     );
   }
 
   if (isDuplicating && isDuplicateLoading) {
     return (
-      <Card className="p-6">
-        <div className="text-center">Loading part to duplicate...</div>
-      </Card>
+      <Form onSubmit={handleSubmit} className="flex h-full flex-col" data-testid="parts.form.form">
+        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-muted p-6 text-sm text-muted-foreground">
+          Loading part to duplicate...
+        </div>
+      </Form>
     );
   }
 
@@ -637,6 +646,7 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel, scr
           variant="outline"
           onClick={onCancel}
           disabled={isLoading}
+          data-testid="parts.form.cancel"
         >
           Cancel
         </Button>
@@ -652,18 +662,22 @@ export function PartForm({ partId, duplicateFromPartId, onSuccess, onCancel, scr
     </div>
   );
 
-  const renderedForm = screenLayout
-    ? screenLayout({ header: headerSection, content: contentSection, footer: footerSection })
+  const renderedForm = renderLayout
+    ? renderLayout({ header: headerSection, content: contentSection, footer: footerSection })
     : (
-      <Card className="space-y-6 p-6">
+      <div className="space-y-6">
         {headerSection}
         {contentSection}
-        {footerSection}
-      </Card>
+        <div>{footerSection}</div>
+      </div>
     );
 
   return (
-    <Form onSubmit={handleSubmit} className={screenLayout ? 'flex h-full flex-col' : 'space-y-6'}>
+    <Form
+      onSubmit={handleSubmit}
+      className={renderLayout ? 'flex h-full min-h-0 flex-col' : 'space-y-6'}
+      data-testid="parts.form.form"
+    >
       {renderedForm}
     </Form>
   );

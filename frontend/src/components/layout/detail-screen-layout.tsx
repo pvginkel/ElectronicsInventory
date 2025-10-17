@@ -18,6 +18,7 @@ interface DetailScreenLayoutProps {
   contentTestId?: string;
   footerTestId?: string;
   actionsTestId?: string;
+  toolbarTestId?: string;
   headerProps?: HTMLAttributes<HTMLElement>;
   contentProps?: HTMLAttributes<HTMLDivElement>;
   footerProps?: HTMLAttributes<HTMLElement>;
@@ -44,6 +45,7 @@ export function DetailScreenLayout({
   contentTestId,
   footerTestId,
   actionsTestId,
+  toolbarTestId,
   headerProps,
   contentProps,
   footerProps,
@@ -53,13 +55,19 @@ export function DetailScreenLayout({
   const { className: contentClassName, ...contentRest } = contentProps ?? {};
   const { className: footerClassName, ...footerRest } = footerProps ?? {};
   const { className: toolbarClassName, ...toolbarRest } = toolbarProps ?? {};
+  const rootId = rootTestId ?? 'detail-screen.layout';
+  const headerId = headerTestId ?? 'detail-screen.header';
+  const contentId = contentTestId ?? 'detail-screen.content';
+  const footerId = footerTestId ?? 'detail-screen.footer';
+  const actionsId = actionsTestId ?? 'detail-screen.actions';
+  const toolbarId = toolbarTestId ?? 'detail-screen.toolbar';
 
   return (
-    <div className={cn('flex h-full min-h-0 flex-col', className)} data-testid={rootTestId}>
+    <div className={cn('flex h-full min-h-0 flex-col', className)} data-testid={rootId}>
       {/* Header stays fixed above the scroll container */}
       <header
         className={cn('border-b border-border bg-background px-6 py-6', headerClassName)}
-        data-testid={headerTestId}
+        data-testid={headerId}
         {...headerRest}
       >
         {breadcrumbs ? (
@@ -101,7 +109,7 @@ export function DetailScreenLayout({
           </div>
 
           {actions ? (
-            <div className="flex flex-wrap gap-2" data-testid={actionsTestId ?? 'detail-screen.actions'}>
+            <div className="flex flex-wrap gap-2" data-testid={actionsId}>
               {actions}
             </div>
           ) : null}
@@ -111,6 +119,7 @@ export function DetailScreenLayout({
       {toolbar ? (
         <section
           className={cn('border-b border-border bg-background px-6 py-4', toolbarClassName)}
+          data-testid={toolbarId}
           {...toolbarRest}
         >
           {toolbar}
@@ -119,7 +128,8 @@ export function DetailScreenLayout({
 
       <main
         className={cn('flex-1 min-h-0 overflow-auto bg-background px-6 py-6', contentClassName)}
-        data-testid={contentTestId}
+        data-testid={contentId}
+        role="main"
         {...contentRest}
       >
         {children}
@@ -128,7 +138,7 @@ export function DetailScreenLayout({
       {footer ? (
         <footer
           className={cn('border-t border-border bg-background px-6 py-4', footerClassName)}
-          data-testid={footerTestId}
+          data-testid={footerId}
           {...footerRest}
         >
           {footer}

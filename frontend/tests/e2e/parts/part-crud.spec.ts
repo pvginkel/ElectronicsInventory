@@ -13,8 +13,7 @@ test.describe('Parts - Create & Edit', () => {
     await parts.selectType(type.name);
 
     await parts.submitForm();
-
-    await expect(parts.detailRoot).toBeVisible();
+    await parts.waitForDetailReady();
     await parts.expectDetailHeading('LM7805 Voltage Regulator');
     await expect(parts.detailRoot).toContainText('LM7805');
   });
@@ -33,15 +32,16 @@ test.describe('Parts - Create & Edit', () => {
     await parts.gotoList();
     await parts.waitForCards();
     await parts.openCardByKey(part.key);
+    await parts.waitForDetailReady();
 
     await parts.editPartButton.click();
-    await expect(parts.formRoot).toBeVisible();
+    await expect(parts.formLayout).toBeVisible();
 
     await parts.formDescription.fill('ESP32 Dev Board v2');
     await parts.formManufacturerCode.fill('ESP32-DEV-02');
 
     await parts.submitForm();
-    await expect(parts.detailRoot).toBeVisible();
+    await parts.waitForDetailReady();
     await parts.expectDetailHeading('ESP32 Dev Board v2');
     await expect(parts.detailRoot).toContainText('ESP32-DEV-02');
   });
@@ -57,18 +57,19 @@ test.describe('Parts - Create & Edit', () => {
     await parts.gotoList();
     await parts.waitForCards();
     await parts.openCardByKey(part.key);
+    await parts.waitForDetailReady();
 
     await parts.editPartButton.click();
-    await expect(parts.detailEditLayout).toBeVisible();
+    await expect(parts.formLayout).toBeVisible();
 
-    const headerBefore = await parts.getDetailEditHeaderRect();
-    const footerBefore = await parts.getDetailEditFooterRect();
+    const headerBefore = await parts.getFormHeaderRect();
+    const footerBefore = await parts.getFormFooterRect();
 
-    await parts.scrollDetailEditContent('bottom');
-    await expect.poll(() => parts.detailEditContentScrollTop()).toBeGreaterThan(0);
+    await parts.scrollFormContent('bottom');
+    await expect.poll(() => parts.formContentScrollTop()).toBeGreaterThan(0);
 
-    const headerAfter = await parts.getDetailEditHeaderRect();
-    const footerAfter = await parts.getDetailEditFooterRect();
+    const headerAfter = await parts.getFormHeaderRect();
+    const footerAfter = await parts.getFormFooterRect();
 
     expect(Math.abs(headerAfter.top - headerBefore.top)).toBeLessThan(1);
     expect(Math.abs(footerAfter.bottom - footerBefore.bottom)).toBeLessThan(1);
