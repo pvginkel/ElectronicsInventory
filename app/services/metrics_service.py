@@ -60,6 +60,22 @@ class MetricsServiceProtocol(ABC):
         """Record shopping list line stock receipt events."""
         pass
 
+    def record_kit_created(self) -> None:
+        """Record kit creation lifecycle events."""
+        return None
+
+    def record_kit_archived(self) -> None:
+        """Record kit archive lifecycle events."""
+        return None
+
+    def record_kit_unarchived(self) -> None:
+        """Record kit unarchive lifecycle events."""
+        return None
+
+    def record_kit_overview_request(self, status: str, result_count: int, limit: int | None = None) -> None:
+        """Record kit overview listing calls."""
+        return None
+
     @abstractmethod
     def record_ai_analysis(
         self,
@@ -194,6 +210,33 @@ class MetricsService(MetricsServiceProtocol):
             'inventory_parts_by_type',
             'Parts per category',
             ['type_name']
+        )
+
+        # Kit Metrics
+        self.kits_created_total = Counter(
+            'kits_created_total',
+            'Total kits created'
+        )
+        self.kits_archived_total = Counter(
+            'kits_archived_total',
+            'Total kits archived'
+        )
+        self.kits_unarchived_total = Counter(
+            'kits_unarchived_total',
+            'Total kits restored from archive'
+        )
+        self.kits_overview_requests_total = Counter(
+            'kits_overview_requests_total',
+            'Total kit overview requests',
+            ['status']
+        )
+        self.kits_active_count = Gauge(
+            'kits_active_count',
+            'Current count of active kits'
+        )
+        self.kits_archived_count = Gauge(
+            'kits_archived_count',
+            'Current count of archived kits'
         )
 
         # Shopping list metrics
@@ -384,6 +427,44 @@ class MetricsService(MetricsServiceProtocol):
             self.shopping_list_lines_marked_ordered_total.labels(mode=mode).inc(count)
         except Exception as exc:
             logger.error("Error recording shopping list ordered lines metric: %s", exc)
+
+    def record_kit_created(self) -> None:
+        """Record kit creation lifecycle event."""
+        try:
+            self.kits_created_total.inc()
+            self.kits_active_count.inc()
+        except Exception as exc:
+            logger.error("Error recording kit creation metric: %s", exc)
+
+    def record_kit_archived(self) -> None:
+        """Record kit archive lifecycle event."""
+        try:
+            self.kits_archived_total.inc()
+            self.kits_active_count.dec()
+            self.kits_archived_count.inc()
+        except Exception as exc:
+            logger.error("Error recording kit archive metric: %s", exc)
+
+    def record_kit_unarchived(self) -> None:
+        """Record kit unarchive lifecycle event."""
+        try:
+            self.kits_unarchived_total.inc()
+            self.kits_archived_count.dec()
+            self.kits_active_count.inc()
+        except Exception as exc:
+            logger.error("Error recording kit unarchive metric: %s", exc)
+
+    def record_kit_overview_request(self, status: str, result_count: int, limit: int | None = None) -> None:
+        """Record list endpoint usage and optionally refresh gauges."""
+        try:
+            self.kits_overview_requests_total.labels(status=status).inc()
+            if limit is None:
+                if status == "active":
+                    self.kits_active_count.set(result_count)
+                elif status == "archived":
+                    self.kits_archived_count.set(result_count)
+        except Exception as exc:
+            logger.error("Error recording kit overview metrics: %s", exc)
 
     def record_shopping_list_line_receipt(self, lines: int, total_qty: int) -> None:
         """Record metrics for shopping list line stock receipts."""
