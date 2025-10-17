@@ -132,7 +132,7 @@ class TestKitsApi:
         assert data["build_target"] == 5
 
         empty_payload = client.patch(f"/api/kits/{kit.id}", json={})
-        assert empty_payload.status_code == 400
+        assert empty_payload.status_code == 409
 
     def test_archive_and_unarchive_endpoints(self, client, session):
         kit = Kit(name="Lifecycle API Kit", build_target=2)
@@ -146,7 +146,7 @@ class TestKitsApi:
         assert archived["archived_at"] is not None
 
         second_archive = client.post(f"/api/kits/{kit.id}/archive")
-        assert second_archive.status_code == 400
+        assert second_archive.status_code == 409
 
         unarchive_response = client.post(f"/api/kits/{kit.id}/unarchive")
         assert unarchive_response.status_code == 200
@@ -154,7 +154,7 @@ class TestKitsApi:
         assert unarchived["status"] == KitStatus.ACTIVE.value
 
         second_unarchive = client.post(f"/api/kits/{kit.id}/unarchive")
-        assert second_unarchive.status_code == 400
+        assert second_unarchive.status_code == 409
 
     def test_get_kits_rejects_invalid_status(self, client):
         response = client.get("/api/kits?status=bogus")
@@ -174,4 +174,4 @@ class TestKitsApi:
             f"/api/kits/{kit.id}",
             json={"description": "Should fail"},
         )
-        assert response.status_code == 400
+        assert response.status_code == 409
