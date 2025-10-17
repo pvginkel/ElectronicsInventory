@@ -75,6 +75,14 @@ def run_migrations_online() -> None:
     if configuration is not None:
         configuration["sqlalchemy.url"] = get_url()
 
+    # Reuse externally provided connection (e.g., in tests) when available
+    existing_connection = config.attributes.get("connection")
+    if existing_connection is not None:
+        context.configure(connection=existing_connection, target_metadata=target_metadata)
+        with context.begin_transaction():
+            context.run_migrations()
+        return
+
     connectable: "Engine" = engine_from_config(
         configuration or {},
         prefix="sqlalchemy.",
