@@ -1,7 +1,6 @@
 """Integration tests for document API endpoints."""
 
 import io
-import logging
 from unittest.mock import patch
 
 from flask import Flask

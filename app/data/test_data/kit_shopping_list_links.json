@@ -2,29 +2,29 @@
   {
     "kit_name": "Synth Voice Starter",
     "shopping_list_name": "Spring Synth Build",
-    "linked_status": "concept",
-    "snapshot_kit_updated_at": "2024-04-10T09:00:00",
-    "is_stale": false
+    "requested_units": 3,
+    "honor_reserved": false,
+    "snapshot_kit_updated_at": "2024-04-10T09:00:00"
   },
   {
     "kit_name": "Synth Voice Starter",
     "shopping_list_name": "Bench Replenishment",
-    "linked_status": "ready",
-    "snapshot_kit_updated_at": "2024-04-11T12:15:00",
-    "is_stale": false
+    "requested_units": 2,
+    "honor_reserved": true,
+    "snapshot_kit_updated_at": "2024-04-11T12:15:00"
   },
   {
     "kit_name": "Field Recorder Essentials",
     "shopping_list_name": "Bench Replenishment",
-    "linked_status": "ready",
-    "snapshot_kit_updated_at": "2024-03-22T08:10:00",
-    "is_stale": true
+    "requested_units": 2,
+    "honor_reserved": false,
+    "snapshot_kit_updated_at": "2024-03-22T08:10:00"
   },
   {
     "kit_name": "Legacy Mixer Refresh",
     "shopping_list_name": "Audio Mixer Beta",
-    "linked_status": "done",
-    "snapshot_kit_updated_at": "2024-01-05T08:20:00",
-    "is_stale": true
+    "requested_units": 1,
+    "honor_reserved": false,
+    "snapshot_kit_updated_at": "2024-01-05T08:20:00"
   }
 ]

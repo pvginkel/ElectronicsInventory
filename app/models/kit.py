@@ -68,6 +68,7 @@ class Kit(db.Model):  # type: ignore[name-defined]
         back_populates="kit",
         cascade="all, delete-orphan",
         lazy="selectin",
+        order_by="KitShoppingListLink.created_at",
     )
     pick_lists: Mapped[list[KitPickList]] = relationship(
         "KitPickList",
@@ -75,7 +76,7 @@ class Kit(db.Model):  # type: ignore[name-defined]
         cascade="all, delete-orphan",
         lazy="selectin",
     )
-    contents: Mapped[list["KitContent"]] = relationship(
+    contents: Mapped[list[KitContent]] = relationship(
         "KitContent",
         back_populates="kit",
         cascade="all, delete-orphan",
@@ -91,6 +92,16 @@ class Kit(db.Model):  # type: ignore[name-defined]
     def has_contents(self) -> bool:
         """Return True if the kit has at least one BOM entry attached."""
         return bool(self.contents)
+
+    @property
+    def shopping_list_badge_count(self) -> int:
+        """Return cached badge count or derive from current links."""
+        return getattr(self, "_shopping_list_badge_count", len(self.shopping_list_links))
+
+    @shopping_list_badge_count.setter
+    def shopping_list_badge_count(self, value: int) -> None:
+        """Store computed badge count for API serialization."""
+        self._shopping_list_badge_count = value
 
     def __repr__(self) -> str:
         return (

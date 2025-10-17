@@ -92,6 +92,19 @@ class MetricsServiceProtocol(ABC):
         """Record deletion of a kit content entry."""
         return None
 
+    def record_kit_shopping_list_push(
+        self,
+        outcome: str,
+        honor_reserved: bool,
+        duration_seconds: float,
+    ) -> None:
+        """Record metrics for kit-to-shopping-list pushes."""
+        return None
+
+    def record_kit_shopping_list_unlink(self, outcome: str) -> None:
+        """Record metrics for kit-to-shopping-list unlink operations."""
+        return None
+
     @abstractmethod
     def record_ai_analysis(
         self,
@@ -257,6 +270,21 @@ class MetricsService(MetricsServiceProtocol):
         self.kit_detail_views_total = Counter(
             'kit_detail_views_total',
             'Total kit detail view requests'
+        )
+        self.kit_shopping_list_push_total = Counter(
+            'kit_shopping_list_push_total',
+            'Total kit shopping list push operations by outcome',
+            ['outcome', 'honor_reserved'],
+        )
+        self.kit_shopping_list_push_seconds = Histogram(
+            'kit_shopping_list_push_seconds',
+            'Duration of kit shopping list push operations',
+            ['honor_reserved'],
+        )
+        self.kit_shopping_list_unlink_total = Counter(
+            'kit_shopping_list_unlink_total',
+            'Total kit shopping list unlink operations by outcome',
+            ['outcome'],
         )
         self.kit_content_mutations_total = Counter(
             'kit_content_mutations_total',
@@ -525,6 +553,38 @@ class MetricsService(MetricsServiceProtocol):
             self.kit_content_mutations_total.labels(action="delete").inc()
         except Exception as exc:
             logger.error("Error recording kit content deletion metric: %s", exc)
+
+    def record_kit_shopping_list_push(
+        self,
+        outcome: str,
+        honor_reserved: bool,
+        duration_seconds: float,
+    ) -> None:
+        """Record metrics for kit push flows."""
+        try:
+            reserved_label = "true" if honor_reserved else "false"
+            self.kit_shopping_list_push_total.labels(
+                outcome=outcome,
+                honor_reserved=reserved_label,
+            ).inc()
+            self.kit_shopping_list_push_seconds.labels(
+                honor_reserved=reserved_label,
+            ).observe(max(duration_seconds, 0.0))
+        except Exception as exc:
+            logger.error(
+                "Error recording kit shopping list push metrics: %s",
+                exc,
+            )
+
+    def record_kit_shopping_list_unlink(self, outcome: str) -> None:
+        """Record metrics for unlink operations."""
+        try:
+            self.kit_shopping_list_unlink_total.labels(outcome=outcome).inc()
+        except Exception as exc:
+            logger.error(
+                "Error recording kit shopping list unlink metrics: %s",
+                exc,
+            )
 
     def record_shopping_list_line_receipt(self, lines: int, total_qty: int) -> None:
         """Record metrics for shopping list line stock receipts."""

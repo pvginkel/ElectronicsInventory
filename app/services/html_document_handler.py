@@ -71,7 +71,9 @@ class HtmlDocumentHandler:
             if isinstance(title_string, str):
                 title = title_string.strip()
                 if title:
-                    return title
+                    cleaned_title = title.split('\n')[0].strip().split('<')[0].strip()
+                    if cleaned_title:
+                        return cleaned_title
 
             # Handle malformed HTML where title contains other elements
             # Extract all text and take the first meaningful line
@@ -80,7 +82,9 @@ class HtmlDocumentHandler:
                 # Split by newlines and take the first non-empty line
                 first_line = title_text.split('\n')[0].strip()
                 if first_line:
-                    return first_line
+                    clean_first_line = first_line.split('<')[0].strip()
+                    if clean_first_line:
+                        return clean_first_line
         return None
 
     def _find_preview_image(

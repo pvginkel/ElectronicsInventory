@@ -1,8 +1,6 @@
 """Kit overview and lifecycle API endpoints."""
 
 from __future__ import annotations
-
-# type: ignore[import-untyped]
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request
 from spectree import Response as SpectreeResponse
@@ -18,6 +16,9 @@ from app.schemas.kit import (
     KitDetailResponseSchema,
     KitListQuerySchema,
     KitResponseSchema,
+    KitShoppingListChipSchema,
+    KitShoppingListLinkResponseSchema,
+    KitShoppingListRequestSchema,
     KitSummarySchema,
     KitUpdateSchema,
 )
@@ -242,6 +243,65 @@ def delete_kit_content(
     """Remove a kit content entry."""
     kit_service.delete_content(kit_id, content_id)
     return "", 204
+
+
+@kits_bp.route("/<int:kit_id>/shopping-lists", methods=["GET"])
+@api.validate(
+    resp=SpectreeResponse(
+        HTTP_200=list[KitShoppingListChipSchema],
+        HTTP_404=ErrorResponseSchema,
+    ),
+)
+@handle_api_errors
+@inject
+def list_kit_shopping_lists(
+    kit_id: int,
+    kit_shopping_list_service=Provide[ServiceContainer.kit_shopping_list_service],
+):
+    """Return shopping list chips linked to the specified kit."""
+    links = kit_shopping_list_service.list_links_for_kit(kit_id)
+    return [
+        KitShoppingListChipSchema.model_validate(link).model_dump()
+        for link in links
+    ]
+
+
+@kits_bp.route("/<int:kit_id>/shopping-lists", methods=["POST"])
+@api.validate(
+    json=KitShoppingListRequestSchema,
+    resp=SpectreeResponse(
+        HTTP_200=KitShoppingListLinkResponseSchema,
+        HTTP_201=KitShoppingListLinkResponseSchema,
+        HTTP_400=ErrorResponseSchema,
+        HTTP_404=ErrorResponseSchema,
+        HTTP_409=ErrorResponseSchema,
+    ),
+)
+@handle_api_errors
+@inject
+def push_kit_to_shopping_list(
+    kit_id: int,
+    kit_service=Provide[ServiceContainer.kit_service],
+    kit_shopping_list_service=Provide[ServiceContainer.kit_shopping_list_service],
+):
+    """Create or append a shopping list from kit contents."""
+    payload = KitShoppingListRequestSchema.model_validate(request.get_json())
+    kit_service.get_active_kit_for_flow(
+        kit_id,
+        operation="push kit to shopping list",
+    )
+    result = kit_shopping_list_service.create_or_append_list(
+        kit_id,
+        units=payload.units,
+        honor_reserved=payload.honor_reserved,
+        shopping_list_id=payload.shopping_list_id,
+        note_prefix=payload.note_prefix,
+        new_list_name=payload.new_list_name,
+        new_list_description=payload.new_list_description,
+    )
+    response_model = KitShoppingListLinkResponseSchema.model_validate(result)
+    status_code = 201 if result.created_new_list else 200
+    return response_model.model_dump(), status_code
 
 
 @kits_bp.route("/<int:kit_id>/archive", methods=["POST"])

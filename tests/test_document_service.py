@@ -1,7 +1,6 @@
 """Unit tests for DocumentService."""
 
 import io
-import logging
 import tempfile
 from unittest.mock import MagicMock, patch
 

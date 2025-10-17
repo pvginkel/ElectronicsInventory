@@ -357,32 +357,38 @@ class TestDataService(BaseService):
                     f"unknown shopping list '{shopping_list_name}' in kit_shopping_list_links.json",
                 )
 
-            raw_status = link_data.get("linked_status", ShoppingListStatus.CONCEPT.value)
+            requested_units = link_data.get("requested_units")
+            if not isinstance(requested_units, int) or requested_units < 1:
+                raise InvalidOperationException(
+                    "load kit shopping list links data",
+                    f"invalid requested_units '{requested_units}' for kit '{kit_name}'",
+                )
+            honor_reserved_raw = link_data.get("honor_reserved", False)
+            if not isinstance(honor_reserved_raw, bool):
+                raise InvalidOperationException(
+                    "load kit shopping list links data",
+                    f"invalid honor_reserved '{honor_reserved_raw}' for kit '{kit_name}'",
+                )
+            snapshot_value = link_data.get("snapshot_kit_updated_at")
+            if not snapshot_value:
+                raise InvalidOperationException(
+                    "load kit shopping list links data",
+                    f"missing snapshot_kit_updated_at for kit '{kit_name}'",
+                )
             try:
-                linked_status = ShoppingListStatus(raw_status)
+                snapshot_updated_at = datetime.fromisoformat(snapshot_value)
             except ValueError as exc:
                 raise InvalidOperationException(
                     "load kit shopping list links data",
-                    f"invalid linked_status '{raw_status}' for kit '{kit_name}'",
+                    f"invalid snapshot_kit_updated_at '{snapshot_value}' for kit '{kit_name}'",
                 ) from exc
-
-            snapshot_updated_at = None
-            snapshot_value = link_data.get("snapshot_kit_updated_at")
-            if snapshot_value:
-                try:
-                    snapshot_updated_at = datetime.fromisoformat(snapshot_value)
-                except ValueError as exc:
-                    raise InvalidOperationException(
-                        "load kit shopping list links data",
-                        f"invalid snapshot_kit_updated_at '{snapshot_value}' for kit '{kit_name}'",
-                    ) from exc
 
             link = KitShoppingListLink(
                 kit_id=kit.id,
                 shopping_list_id=shopping_list.id,
-                linked_status=linked_status,
+                requested_units=requested_units,
+                honor_reserved=honor_reserved_raw,
                 snapshot_kit_updated_at=snapshot_updated_at,
-                is_stale=link_data.get("is_stale", False),
             )
             self.db.add(link)
             self.db.flush()

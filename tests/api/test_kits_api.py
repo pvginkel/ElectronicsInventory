@@ -31,17 +31,23 @@ def _seed_badge_data(session) -> Kit:
             KitShoppingListLink(
                 kit_id=kit.id,
                 shopping_list_id=concept_list.id,
-                linked_status=ShoppingListStatus.CONCEPT,
+                requested_units=kit.build_target,
+                honor_reserved=False,
+                snapshot_kit_updated_at=datetime.now(UTC),
             ),
             KitShoppingListLink(
                 kit_id=kit.id,
                 shopping_list_id=ready_list.id,
-                linked_status=ShoppingListStatus.READY,
+                requested_units=kit.build_target,
+                honor_reserved=True,
+                snapshot_kit_updated_at=datetime.now(UTC),
             ),
             KitShoppingListLink(
                 kit_id=kit.id,
                 shopping_list_id=done_list.id,
-                linked_status=ShoppingListStatus.DONE,
+                requested_units=kit.build_target,
+                honor_reserved=False,
+                snapshot_kit_updated_at=datetime.now(UTC),
             ),
         ]
     )
@@ -201,6 +207,116 @@ class TestKitsApi:
         )
         assert response.status_code == 409
 
+    def test_get_kit_shopping_lists_endpoint(self, client, session):
+        kit = _seed_badge_data(session)
+
+        response = client.get(f"/api/kits/{kit.id}/shopping-lists")
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert isinstance(payload, list)
+        names = {entry["shopping_list_name"] for entry in payload}
+        assert names == {"Concept List", "Ready List", "Done List"}
+        for entry in payload:
+            assert "requested_units" in entry
+            assert "honor_reserved" in entry
+            assert "snapshot_kit_updated_at" in entry
+
+    def test_post_kit_shopping_lists_creates_new_list(self, client, session):
+        kit, part, _ = _seed_kit_with_content(session)
+
+        response = client.post(
+            f"/api/kits/{kit.id}/shopping-lists",
+            json={
+                "honor_reserved": False,
+                "note_prefix": "Fallback",
+                "new_list_name": "API Push",
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data["created_new_list"] is True
+        assert data["noop"] is False
+        assert data["link"]["shopping_list_name"] == "API Push"
+        assert data["link"]["requested_units"] == kit.build_target
+        assert data["link"]["shopping_list_id"] is not None
+        assert data["shopping_list"]["status"] == ShoppingListStatus.CONCEPT.value
+        line_payload = data["shopping_list"]["lines"][0]
+        assert line_payload["part_id"] == part.id
+        assert line_payload["needed"] == kit.build_target * 2
+        assert line_payload["note"].startswith("[From Kit")
+
+    def test_post_kit_shopping_lists_appends_existing_list(self, client, session):
+        kit, _, _ = _seed_kit_with_content(session)
+
+        initial_response = client.post(
+            f"/api/kits/{kit.id}/shopping-lists",
+            json={
+                "honor_reserved": False,
+                "note_prefix": "Fallback",
+                "new_list_name": "Append Flow",
+            },
+        )
+        initial = initial_response.get_json()
+        list_id = initial["link"]["shopping_list_id"]
+        base_needed = initial["shopping_list"]["lines"][0]["needed"]
+
+        response = client.post(
+            f"/api/kits/{kit.id}/shopping-lists",
+            json={
+                "shopping_list_id": list_id,
+                "units": 1,
+                "honor_reserved": False,
+                "note_prefix": "Fallback",
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["created_new_list"] is False
+        assert data["link"]["requested_units"] == 1
+        assert data["lines_modified"] == 1
+        assert data["shopping_list"]["lines"][0]["needed"] == base_needed + 2
+
+    def test_post_kit_shopping_lists_rejects_non_concept(self, client, session):
+        kit, _, _ = _seed_kit_with_content(session)
+        shopping_list = ShoppingList(name="Ready Target", status=ShoppingListStatus.READY)
+        session.add(shopping_list)
+        session.commit()
+
+        response = client.post(
+            f"/api/kits/{kit.id}/shopping-lists",
+            json={
+                "shopping_list_id": shopping_list.id,
+                "honor_reserved": False,
+                "note_prefix": "Fallback",
+            },
+        )
+
+        assert response.status_code == 409
+        assert "concept" in response.get_json()["error"].lower()
+
+    def test_post_kit_shopping_lists_rejects_archived_kits(self, client, session):
+        kit = Kit(
+            name="Archived Push",
+            build_target=1,
+            status=KitStatus.ARCHIVED,
+            archived_at=datetime.now(UTC),
+        )
+        session.add(kit)
+        session.commit()
+
+        response = client.post(
+            f"/api/kits/{kit.id}/shopping-lists",
+            json={
+                "honor_reserved": False,
+                "note_prefix": "Fallback",
+                "new_list_name": "Should Fail",
+            },
+        )
+
+        assert response.status_code == 409
+
     def test_get_kit_detail_endpoint_returns_computed_fields(self, client, session):
         kit, part, _ = _seed_kit_with_content(session)
 
@@ -211,7 +327,9 @@ class TestKitsApi:
             KitShoppingListLink(
                 kit_id=kit.id,
                 shopping_list_id=shopping_list.id,
-                linked_status=ShoppingListStatus.CONCEPT,
+                requested_units=kit.build_target,
+                honor_reserved=False,
+                snapshot_kit_updated_at=datetime.now(UTC),
             )
         )
         session.add(
@@ -232,7 +350,13 @@ class TestKitsApi:
         assert payload["contents"][0]["in_stock"] == 0
         assert payload["contents"][0]["reserved"] == 0
         assert payload["contents"][0]["shortfall"] == kit.build_target * 2
-        assert payload["shopping_list_links"][0]["name"] == shopping_list.name
+        link_payload = payload["shopping_list_links"][0]
+        assert link_payload["shopping_list_id"] == shopping_list.id
+        assert link_payload["shopping_list_name"] == shopping_list.name
+        assert link_payload["status"] == ShoppingListStatus.CONCEPT.value
+        assert link_payload["requested_units"] == kit.build_target
+        assert link_payload["honor_reserved"] is False
+        assert link_payload["is_stale"] is False
         assert payload["pick_lists"][0]["status"] == KitPickListStatus.IN_PROGRESS.value
 
     def test_create_kit_content_endpoint(self, client, session):
