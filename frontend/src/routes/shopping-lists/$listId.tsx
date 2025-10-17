@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { ConceptHeader } from '@/components/shopping-lists/concept-header';
 import { ConceptTable } from '@/components/shopping-lists/concept-table';
 import { ConceptLineForm } from '@/components/shopping-lists/concept-line-form';
 import { ConceptToolbar } from '@/components/shopping-lists/concept-toolbar';
@@ -37,6 +36,8 @@ import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
 import { useConfirm } from '@/hooks/use-confirm';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { Route as ShoppingListsRoute } from '@/routes/shopping-lists/index';
+import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
+import { useShoppingListDetailHeaderSlots } from '@/components/shopping-lists/detail-header-slots';
 
 const SORT_KEYS: ShoppingListLineSortKey[] = ['description', 'mpn', 'createdAt'];
 
@@ -525,9 +526,18 @@ function ShoppingListDetailRoute() {
     return findNextReceivableLine(updateStockState.line.id, sellerGroups);
   }, [sellerGroups, updateStockState.line]);
 
+  const { slots: detailHeaderSlots, overlays: headerOverlays } = useShoppingListDetailHeaderSlots({
+    list: shoppingList,
+    onUpdateMetadata: handleUpdateMetadata,
+    isUpdating: updateMetadataMutation.isPending,
+    onDeleteList: handleDeleteList,
+    isDeletingList,
+    overviewSearchTerm: search.originSearch ?? '',
+  });
+
   if (!hasValidListId) {
     return (
-      <div className="space-y-4" data-testid="shopping-lists.concept.invalid">
+      <div className="space-y-4 p-6" data-testid="shopping-lists.concept.invalid">
         <h1 className="text-3xl font-semibold text-foreground">Shopping Lists</h1>
         <p className="text-sm text-destructive">Invalid shopping list identifier.</p>
       </div>
@@ -536,26 +546,31 @@ function ShoppingListDetailRoute() {
 
   const conceptLineCount = shoppingList?.lines.length ?? sortedLines.length;
 
-  const conceptView = (
-    <div className="space-y-6" data-testid="shopping-lists.concept.page">
-      <ConceptHeader
-        list={shoppingList}
-        onUpdateMetadata={handleUpdateMetadata}
-        isUpdating={updateMetadataMutation.isPending}
-        onDeleteList={handleDeleteList}
-        isDeletingList={isDeletingList}
-        overviewSearchTerm={search.originSearch ?? ''}
-      />
+  const conceptToolbar = status === 'concept' && listLoaded ? (
+    <ConceptToolbar
+      lineCount={conceptLineCount}
+      canMarkReady={conceptLineCount > 0}
+      isSubmitting={markReadyMutation.isPending}
+      onMarkReady={handleMarkReady}
+    />
+  ) : null;
 
-      {status === 'concept' && listLoaded && (
-        <ConceptToolbar
-          lineCount={conceptLineCount}
-          canMarkReady={conceptLineCount > 0}
-          isSubmitting={markReadyMutation.isPending}
-          onMarkReady={handleMarkReady}
-        />
-      )}
+  const readyToolbarNode = isReadyView && listLoaded ? (
+    <ReadyToolbar
+      canReturnToConcept={canReturnToConcept}
+      onBackToConcept={handleBackToConcept}
+      isUpdatingBackToConcept={updateStatusMutation.isPending}
+      canMarkDone={canMarkListDone}
+      onMarkDone={handleMarkListDone}
+      isMarkingDone={isMarkingDone}
+      isCompleted={isCompleted}
+    />
+  ) : null;
 
+  const toolbarNode = status === 'concept' ? conceptToolbar : readyToolbarNode;
+
+  const conceptContent = (
+    <div className="space-y-6" data-testid="shopping-lists.concept.content">
       <ConceptTable
         lines={sortedLines}
         sortKey={sortKey}
@@ -571,25 +586,8 @@ function ShoppingListDetailRoute() {
     </div>
   );
 
-  const readyView = (
-    <div className="space-y-6" data-testid="shopping-lists.ready.page">
-      <ConceptHeader
-        list={shoppingList}
-        onUpdateMetadata={handleUpdateMetadata}
-        isUpdating={updateMetadataMutation.isPending}
-        onDeleteList={handleDeleteList}
-        isDeletingList={isDeletingList}
-        overviewSearchTerm={search.originSearch ?? ''}
-      />
-      <ReadyToolbar
-        canReturnToConcept={canReturnToConcept}
-        onBackToConcept={handleBackToConcept}
-        isUpdatingBackToConcept={updateStatusMutation.isPending}
-        canMarkDone={canMarkListDone}
-        onMarkDone={handleMarkListDone}
-        isMarkingDone={isMarkingDone}
-        isCompleted={isCompleted}
-      />
+  const readyContent = (
+    <div className="space-y-6" data-testid="shopping-lists.ready.content">
       <SellerGroupList
         listId={shoppingList?.id ?? normalizedListId}
         groups={sellerGroups}
@@ -605,9 +603,31 @@ function ShoppingListDetailRoute() {
     </div>
   );
 
+  const contentNode = status === 'concept' ? conceptContent : readyContent;
+  const contentTestId = status === 'concept'
+    ? 'shopping-lists.detail.content.concept'
+    : 'shopping-lists.detail.content.ready';
+
   return (
     <>
-      {isReadyView ? readyView : conceptView}
+      <DetailScreenLayout
+        rootTestId="shopping-lists.detail.layout"
+        headerTestId="shopping-lists.detail.header"
+        contentTestId={contentTestId}
+        actionsTestId="shopping-lists.detail.actions"
+        breadcrumbs={detailHeaderSlots.breadcrumbs}
+        title={detailHeaderSlots.title}
+        titleMetadata={detailHeaderSlots.titleMetadata}
+        description={detailHeaderSlots.description}
+        supplementary={detailHeaderSlots.supplementary}
+        metadataRow={detailHeaderSlots.metadataRow}
+        actions={detailHeaderSlots.actions}
+        toolbar={toolbarNode ?? undefined}
+      >
+        {contentNode}
+      </DetailScreenLayout>
+
+      {headerOverlays}
 
       <ConceptLineForm
         open={lineFormOpen}

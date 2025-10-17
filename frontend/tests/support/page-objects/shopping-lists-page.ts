@@ -14,10 +14,13 @@ export class ShoppingListsPage extends BasePage {
   readonly overviewActiveTab: Locator;
   readonly overviewCompletedTab: Locator;
   readonly overviewSummary: Locator;
-  readonly conceptRoot: Locator;
+  readonly detailLayout: Locator;
+  readonly detailHeader: Locator;
+  readonly detailContentConcept: Locator;
+  readonly detailContentReady: Locator;
+  readonly detailActions: Locator;
   readonly conceptToolbar: Locator;
   readonly conceptTable: Locator;
-  readonly readyRoot: Locator;
   readonly readyToolbar: Locator;
   readonly updateStockDialog: Locator;
   readonly updateStockForm: Locator;
@@ -33,10 +36,13 @@ export class ShoppingListsPage extends BasePage {
     this.overviewActiveTab = page.getByTestId('shopping-lists.overview.tabs.active');
     this.overviewCompletedTab = page.getByTestId('shopping-lists.overview.tabs.completed');
     this.overviewSummary = page.getByTestId('shopping-lists.overview.summary');
-    this.conceptRoot = page.getByTestId('shopping-lists.concept.page');
+    this.detailLayout = page.getByTestId('shopping-lists.detail.layout');
+    this.detailHeader = page.getByTestId('shopping-lists.detail.header');
+    this.detailContentConcept = page.getByTestId('shopping-lists.detail.content.concept');
+    this.detailContentReady = page.getByTestId('shopping-lists.detail.content.ready');
+    this.detailActions = page.getByTestId('shopping-lists.detail.actions');
     this.conceptToolbar = page.getByTestId('shopping-lists.concept.toolbar');
     this.conceptTable = page.getByTestId('shopping-lists.concept.table');
-    this.readyRoot = page.getByTestId('shopping-lists.ready.page');
     this.readyToolbar = page.getByTestId('shopping-lists.ready.toolbar');
     this.updateStockDialog = page.getByTestId('shopping-lists.ready.update-stock.dialog');
     this.updateStockForm = page.getByTestId('shopping-lists.ready.update-stock.form');
@@ -100,6 +106,40 @@ export class ShoppingListsPage extends BasePage {
       const rect = element.getBoundingClientRect();
       return { top: rect.top, bottom: rect.bottom, height: rect.height };
     });
+  }
+
+  detailContent(view: 'concept' | 'ready'): Locator {
+    return view === 'concept' ? this.detailContentConcept : this.detailContentReady;
+  }
+
+  async getDetailHeaderRect(): Promise<{ top: number; bottom: number; height: number }> {
+    return this.detailHeader.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, height: rect.height };
+    });
+  }
+
+  async getToolbarRect(view: 'concept' | 'ready'): Promise<{ top: number; bottom: number; height: number }> {
+    const target = view === 'concept' ? this.conceptToolbar : this.readyToolbar;
+    return target.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, height: rect.height };
+    });
+  }
+
+  async scrollDetailContent(view: 'concept' | 'ready', target: number | 'bottom' = 'bottom'): Promise<void> {
+    const container = this.detailContent(view);
+    await container.evaluate((element, value) => {
+      if (value === 'bottom') {
+        element.scrollTo({ top: element.scrollHeight });
+        return;
+      }
+      element.scrollTo({ top: value });
+    }, target);
+  }
+
+  async detailContentScrollTop(view: 'concept' | 'ready'): Promise<number> {
+    return this.detailContent(view).evaluate((element) => element.scrollTop);
   }
 
   async scrollOverviewContent(target: number | 'bottom' = 'bottom'): Promise<void> {
@@ -192,7 +232,8 @@ export class ShoppingListsPage extends BasePage {
     if (event.metadata?.view) {
       expect(event.metadata.view).toBe('concept');
     }
-    await expect(this.conceptRoot).toBeVisible();
+    await expect(this.detailLayout).toBeVisible();
+    await expect(this.detailContentConcept).toBeVisible();
     return event;
   }
 
@@ -201,7 +242,8 @@ export class ShoppingListsPage extends BasePage {
     if (event.metadata?.view) {
       expect(['ready', 'completed']).toContain(event.metadata.view);
     }
-    await expect(this.readyRoot).toBeVisible();
+    await expect(this.detailLayout).toBeVisible();
+    await expect(this.detailContentReady).toBeVisible();
     return event;
   }
 

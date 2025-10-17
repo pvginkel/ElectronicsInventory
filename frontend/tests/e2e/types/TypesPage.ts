@@ -4,6 +4,8 @@ import { waitForListLoading } from '../../support/helpers';
 export class TypesPage {
   readonly page: Page;
   readonly root: Locator;
+  readonly header: Locator;
+  readonly content: Locator;
   readonly createButton: Locator;
   readonly listContainer: Locator;
   readonly cards: Locator;
@@ -16,7 +18,9 @@ export class TypesPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.root = page.getByTestId('types.page');
+    this.root = page.getByTestId('types.overview');
+    this.header = page.getByTestId('types.overview.header');
+    this.content = page.getByTestId('types.overview.content');
 
     // Main page elements
     this.createButton = this.root.getByRole('button', { name: /add type/i })
@@ -27,7 +31,7 @@ export class TypesPage {
     this.listContainer = this.root.getByTestId('types.list.container');
     this.cards = this.root.getByTestId('types.list.card');
     this.loadingSkeletons = this.root.getByTestId('types.list.loading').locator('[data-testid="types.list.loading.skeleton"]');
-    this.summary = this.root.getByTestId('types.list.summary');
+    this.summary = this.root.getByTestId('types.overview.summary');
     this.emptyState = this.root.getByTestId('types.list.empty');
     this.noResultsState = this.root.getByTestId('types.list.no-results');
     this.errorState = this.root.getByTestId('types.list.error');
@@ -41,6 +45,19 @@ export class TypesPage {
   async waitForListState(phase: 'loading' | 'ready' | 'error' | 'aborted') {
     await waitForListLoading(this.page, 'types.list', phase);
   }
+
+  async scrollContent(distance: number) {
+    await this.content.evaluate((element, value) => {
+      element.scrollTop = value;
+    }, distance);
+  }
+
+  async scrollContentBy(delta: number) {
+    await this.content.evaluate((element, value) => {
+      element.scrollTop += value;
+    }, delta);
+  }
+
 
   // Modal locators (dynamic since they're not always present)
   createModal(): Locator {

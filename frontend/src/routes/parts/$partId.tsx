@@ -1,23 +1,13 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { PartDetails } from '@/components/parts/part-details'
+import { Outlet, createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/parts/$partId')({
-  component: PartDetail,
+  component: PartDetailLayout,
 })
 
-function PartDetail() {
-  const { partId } = Route.useParams()
-
+function PartDetailLayout() {
   return (
-    <div>
-      {/* Breadcrumb */}
-      <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
-        <Link to="/parts" className="hover:text-foreground">Parts</Link>
-        <span>/</span>
-        <span>{partId}</span>
-      </div>
-      
-      <PartDetails partId={partId} />
+    <div className="flex h-full min-h-0 flex-col">
+      <Outlet />
     </div>
   )
 }

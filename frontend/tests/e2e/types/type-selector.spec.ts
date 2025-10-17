@@ -45,8 +45,9 @@ test.describe('TypeSelector - Part form integration', () => {
     await page.getByTestId('parts.form.submit').click();
     await expect(page.getByRole('button', { name: /edit part/i })).toBeVisible();
 
-    await expect(page.getByText(alternateType.name)).toBeVisible();
-    await expect(page.getByText(primaryType.name)).toHaveCount(0);
+    const detailInformationCard = page.getByTestId('parts.detail.information');
+    await expect(detailInformationCard.getByText(alternateType.name)).toBeVisible();
+    await expect(detailInformationCard.getByText(primaryType.name)).toHaveCount(0);
   });
 });
 

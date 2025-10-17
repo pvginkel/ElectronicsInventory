@@ -13,8 +13,7 @@ test.describe('Parts - Create & Edit', () => {
     await parts.selectType(type.name);
 
     await parts.submitForm();
-
-    await expect(parts.detailRoot).toBeVisible();
+    await parts.waitForDetailReady();
     await parts.expectDetailHeading('LM7805 Voltage Regulator');
     await expect(parts.detailRoot).toContainText('LM7805');
   });
@@ -33,16 +32,46 @@ test.describe('Parts - Create & Edit', () => {
     await parts.gotoList();
     await parts.waitForCards();
     await parts.openCardByKey(part.key);
+    await parts.waitForDetailReady();
 
     await parts.editPartButton.click();
-    await expect(parts.formRoot).toBeVisible();
+    await expect(parts.formLayout).toBeVisible();
 
     await parts.formDescription.fill('ESP32 Dev Board v2');
     await parts.formManufacturerCode.fill('ESP32-DEV-02');
 
     await parts.submitForm();
-    await expect(parts.detailRoot).toBeVisible();
+    await parts.waitForDetailReady();
     await parts.expectDetailHeading('ESP32 Dev Board v2');
     await expect(parts.detailRoot).toContainText('ESP32-DEV-02');
+  });
+
+  test('edit form keeps header and footer fixed while fields scroll', async ({ parts, testData }) => {
+    const { part } = await testData.parts.create({
+      overrides: {
+        description: 'Scrolling Edit Part',
+        manufacturer_code: 'SCROLL-01',
+      },
+    });
+
+    await parts.gotoList();
+    await parts.waitForCards();
+    await parts.openCardByKey(part.key);
+    await parts.waitForDetailReady();
+
+    await parts.editPartButton.click();
+    await expect(parts.formLayout).toBeVisible();
+
+    const headerBefore = await parts.getFormHeaderRect();
+    const footerBefore = await parts.getFormFooterRect();
+
+    await parts.scrollFormContent('bottom');
+    await expect.poll(() => parts.formContentScrollTop()).toBeGreaterThan(0);
+
+    const headerAfter = await parts.getFormHeaderRect();
+    const footerAfter = await parts.getFormFooterRect();
+
+    expect(Math.abs(headerAfter.top - headerBefore.top)).toBeLessThan(1);
+    expect(Math.abs(footerAfter.bottom - footerBefore.bottom)).toBeLessThan(1);
   });
 });

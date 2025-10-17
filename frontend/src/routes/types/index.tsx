@@ -1,25 +1,17 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { TypeList } from '@/components/types/TypeList'
+import { createFileRoute } from '@tanstack/react-router';
+import { TypeList } from '@/components/types/TypeList';
 
 export const Route = createFileRoute('/types/')({
   validateSearch: (search: Record<string, unknown>) => {
     const searchTerm = search.search as string;
     return searchTerm ? { search: searchTerm } : {};
   },
-  component: Types,
-})
+  component: TypesRoute,
+});
 
-function Types() {
-  const search = Route.useSearch()
-  
-  return (
-    <div data-testid="types.page">
-      {/* Breadcrumb */}
-      <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
-        <span>Types</span>
-      </div>
+function TypesRoute() {
+  const search = Route.useSearch();
+  const searchTerm = typeof search.search === 'string' ? search.search : '';
 
-      <TypeList searchTerm={search.search || ''} />
-    </div>
-  )
+  return <TypeList searchTerm={searchTerm} />;
 }

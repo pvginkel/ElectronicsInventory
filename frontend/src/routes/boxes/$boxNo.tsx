@@ -14,9 +14,8 @@ function BoxDetailsPage() {
   }
 
   return (
-    <BoxDetails 
-      boxNo={parseInt(boxNo, 10)} 
-      onDeleted={handleDeleted}
-    />
+    <div className="flex h-full min-h-0 flex-col">
+      <BoxDetails boxNo={parseInt(boxNo, 10)} onDeleted={handleDeleted} />
+    </div>
   )
 }

@@ -1,7 +1,7 @@
 # Data Display Conventions
 
 ## Scope
-These guidelines cover list, grid, and detail presentations that sit on top of the generated TanStack Query client. They draw from [`TypeList`](../../../../src/components/types/TypeList.tsx), [`PartList`](../../../../src/components/parts/part-list.tsx), and [`PartDetails`](../../../../src/components/parts/part-details.tsx).
+These guidelines cover list, grid, and detail presentations that sit on top of the generated TanStack Query client. They draw from `TypeList` (`src/components/types/TypeList.tsx`), `PartList` (`src/components/parts/part-list.tsx`), and `PartDetails` (`src/components/parts/part-details.tsx`).
 
 ## Lists & Collections
 - Lists fetch data through generated hooks (`useGetTypesWithStats`, `useGetPartsWithLocations`, etc.) and expose memoized derived state (`filteredTypes`, `filteredParts`) rather than mutating the server payload.
@@ -21,7 +21,7 @@ These guidelines cover list, grid, and detail presentations that sit on top of t
 - Error surfaces should render explanatory copy plus the raw error string, wrapped in the shared `Card` when appropriate. Keep confirmation dialogs (`ConfirmDialog`) for destructive actions.
 
 ## Instrumentation & Query Management
-- Lists must register with [`useListLoadingInstrumentation`](../../../../src/lib/test/query-instrumentation.ts) using a stable scope (e.g., `types.list`, `parts.list`). Provide metadata callbacks so Playwright can assert on query status and counts.
+- Lists must register with `useListLoadingInstrumentation` (`src/lib/test/query-instrumentation.ts`) using a stable scope (e.g., `types.list`, `parts.list`). Provide metadata callbacks so Playwright can assert on query status and counts.
 - Detail and form views should reuse `useFormInstrumentation` or other instrumentation helpers (`useClipboardPaste`, `useDuplicatePart`) instead of emitting bespoke events.
 - Do not intercept network requests in tests. Instead, expose deterministic hooks like `data-testid`, instrumentation scopes, and state-specific metadata. Cross-reference [Testing → Playwright Developer Guide](../testing/playwright_developer_guide.md) and [Testing → Factories & Fixtures](../testing/factories_and_fixtures.md) before adding new UI telemetry.
 

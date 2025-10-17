@@ -5,6 +5,8 @@ import { SellerSelectorHarness } from './seller-selector-harness';
 
 export class PartsPage extends BasePage {
   readonly root: Locator;
+  readonly header: Locator;
+  readonly content: Locator;
   readonly listRoot: Locator;
   readonly searchInput: Locator;
   readonly summary: Locator;
@@ -17,10 +19,12 @@ export class PartsPage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.root = page.getByTestId('parts.page');
+    this.root = page.getByTestId('parts.overview');
+    this.header = page.getByTestId('parts.overview.header');
+    this.content = page.getByTestId('parts.overview.content');
     this.listRoot = page.getByTestId('parts.list');
     this.searchInput = page.getByTestId('parts.list.search');
-    this.summary = page.getByTestId('parts.list.summary');
+    this.summary = page.getByTestId('parts.overview.summary');
     this.loadingSkeletons = page.getByTestId('parts.list.loading.skeleton');
     this.emptyState = page.getByTestId('parts.list.empty');
     this.noResultsState = page.getByTestId('parts.list.no-results');
@@ -76,6 +80,18 @@ export class PartsPage extends BasePage {
     await this.searchInput.fill('');
   }
 
+  async scrollContent(distance: number): Promise<void> {
+    await this.content.evaluate((element, value) => {
+      element.scrollTop = value;
+    }, distance);
+  }
+
+  async scrollContentBy(delta: number): Promise<void> {
+    await this.content.evaluate((element, value) => {
+      element.scrollTop += value;
+    }, delta);
+  }
+
   async expectSummaryText(expected: string | RegExp): Promise<void> {
     await expect(this.summary).toContainText(expected);
   }
@@ -105,6 +121,71 @@ export class PartsPage extends BasePage {
   // Detail page helpers
   get detailRoot(): Locator {
     return this.page.getByTestId('parts.detail');
+  }
+
+  get detailLayout(): Locator {
+    return this.page.getByTestId('parts.detail.layout');
+  }
+
+  get detailHeader(): Locator {
+    return this.page.getByTestId('parts.detail.header');
+  }
+
+  get detailContent(): Locator {
+    return this.page.getByTestId('parts.detail.content');
+  }
+
+  get detailActions(): Locator {
+    return this.page.getByTestId('parts.detail.actions');
+  }
+
+  async waitForDetailReady(): Promise<void> {
+    await waitForListLoading(this.page, 'parts.detail', 'ready');
+    await expect(this.detailLayout).toBeVisible();
+  }
+
+  get formLayout(): Locator {
+    return this.page.getByTestId('parts.form.layout');
+  }
+
+  get formHeader(): Locator {
+    return this.page.getByTestId('parts.form.header');
+  }
+
+  get formContent(): Locator {
+    return this.page.getByTestId('parts.form.content');
+  }
+
+  get formFooter(): Locator {
+    return this.page.getByTestId('parts.form.footer');
+  }
+
+  async getFormHeaderRect(): Promise<{ top: number; bottom: number; height: number }> {
+    return this.formHeader.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, height: rect.height };
+    });
+  }
+
+  async getFormFooterRect(): Promise<{ top: number; bottom: number; height: number }> {
+    return this.formFooter.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, height: rect.height };
+    });
+  }
+
+  async scrollFormContent(target: number | 'bottom' = 'bottom'): Promise<void> {
+    await this.formContent.evaluate((element, value) => {
+      if (value === 'bottom') {
+        element.scrollTo({ top: element.scrollHeight });
+        return;
+      }
+      element.scrollTo({ top: value });
+    }, target);
+  }
+
+  async formContentScrollTop(): Promise<number> {
+    return this.formContent.evaluate((element) => element.scrollTop);
   }
 
   get detailDocumentsCard(): Locator {
@@ -168,11 +249,11 @@ export class PartsPage extends BasePage {
   }
 
   get editPartButton(): Locator {
-    return this.page.getByRole('button', { name: /edit part/i });
+    return this.page.getByTestId('parts.detail.actions.edit');
   }
 
   get deletePartButton(): Locator {
-    return this.page.getByRole('button', { name: /delete part/i });
+    return this.page.getByTestId('parts.detail.actions.delete');
   }
 
   get deleteDialog(): Locator {
@@ -283,7 +364,7 @@ export class PartsPage extends BasePage {
   }
   // Form helpers (create/edit)
   get formRoot(): Locator {
-    return this.page.locator('form').filter({ has: this.formDescription });
+    return this.page.getByTestId('parts.form.form');
   }
 
   get formDescription(): Locator {

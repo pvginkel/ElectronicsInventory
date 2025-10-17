@@ -1,59 +1,72 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
-import { 
-  useGetBoxes, 
-  usePostBoxes, 
-  type BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema
-} from '@/lib/api/generated/hooks'
-import { BoxCard } from './box-card'
-import { BoxForm } from './box-form'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { ClearButtonIcon } from '@/components/icons/clear-button-icon'
-import { useToast } from '@/hooks/use-toast'
-import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import { ListScreenLayout } from '@/components/layout/list-screen-layout';
+import { ListScreenCounts } from '@/components/layout/list-screen-counts';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
+import { useToast } from '@/hooks/use-toast';
+import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
+import {
+  useGetBoxes,
+  usePostBoxes,
+  type BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema,
+} from '@/lib/api/generated/hooks';
+import { BoxCard } from './box-card';
+import { BoxForm } from './box-form';
 
 interface BoxListProps {
   searchTerm?: string;
 }
 
 export function BoxList({ searchTerm = '' }: BoxListProps) {
-  const navigate = useNavigate()
-  const [createFormOpen, setCreateFormOpen] = useState(false)
-  const { showSuccess, showException } = useToast()
+  const navigate = useNavigate();
+  const { showSuccess, showException } = useToast();
+  const [createFormOpen, setCreateFormOpen] = useState(false);
 
   const {
     data: boxes = [],
     isLoading,
     isFetching,
-    error
-  } = useGetBoxes()
-  const createMutation = usePostBoxes()
+    error,
+  } = useGetBoxes();
+  const createMutation = usePostBoxes();
 
-  const [showLoading, setShowLoading] = useState(isLoading)
+  const [showLoading, setShowLoading] = useState(isLoading);
 
   useEffect(() => {
     if (isLoading) {
-      setShowLoading(true)
-      return
+      setShowLoading(true);
+      return;
     }
 
     if (!isFetching) {
-      setShowLoading(false)
+      setShowLoading(false);
     }
-  }, [isFetching, isLoading])
+  }, [isFetching, isLoading]);
 
   const filteredBoxes = useMemo(() => {
-    if (!searchTerm.trim()) return boxes
+    if (!searchTerm.trim()) {
+      return boxes;
+    }
 
-    const term = searchTerm.toLowerCase()
+    const term = searchTerm.toLowerCase();
     return boxes.filter((box: BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema) => {
-      const boxNumber = box.box_no.toString()
-      const description = box.description.toLowerCase()
+      const boxNumber = String(box.box_no);
+      const description = box.description?.toLowerCase() ?? '';
+      return boxNumber.includes(term) || description.includes(term);
+    });
+  }, [boxes, searchTerm]);
 
-      return boxNumber.includes(term) || description.includes(term)
-    })
-  }, [boxes, searchTerm])
+  const sortedBoxes = useMemo(
+    () => [...filteredBoxes].sort((a, b) => a.box_no - b.box_no),
+    [filteredBoxes],
+  );
+
+  const totalCount = boxes.length;
+  const visibleCount = filteredBoxes.length;
+  const filteredCount = filteredBoxes.length < boxes.length ? filteredBoxes.length : undefined;
+  const searchActive = searchTerm.trim().length > 0;
 
   useListLoadingInstrumentation({
     scope: 'boxes.list',
@@ -62,217 +75,268 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
     error,
     getReadyMetadata: () => ({
       status: 'success',
-      totals: {
-        all: boxes.length,
-        filtered: filteredBoxes.length
-      },
-      searchTerm: searchTerm || null
+      totals: { all: totalCount },
+      visible: visibleCount,
+      ...(typeof filteredCount === 'number' ? { filtered: filteredCount } : {}),
+      searchTerm: searchActive ? searchTerm : null,
     }),
-    getErrorMetadata: () => ({
+    getErrorMetadata: (err) => ({
       status: 'error',
-      message: error instanceof Error ? error.message : String(error)
+      message: err instanceof Error ? err.message : String(err),
+      totals: { all: totalCount },
+      visible: visibleCount,
+      ...(typeof filteredCount === 'number' ? { filtered: filteredCount } : {}),
+      searchTerm: searchActive ? searchTerm : null,
     }),
-    getAbortedMetadata: () => ({ status: 'aborted' })
-  })
+    getAbortedMetadata: () => ({
+      status: 'aborted',
+      totals: { all: totalCount },
+      visible: visibleCount,
+      ...(typeof filteredCount === 'number' ? { filtered: filteredCount } : {}),
+      searchTerm: searchActive ? searchTerm : null,
+    }),
+  });
 
   const handleCreateBox = async (data: { description: string; capacity: number }) => {
     try {
-      await createMutation.mutateAsync({ body: data })
-      showSuccess('Box created successfully')
+      await createMutation.mutateAsync({ body: data });
+      showSuccess('Box created successfully');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create box'
-      showException(message, err)
-      throw err
+      const message = err instanceof Error ? err.message : 'Failed to create box';
+      showException(message, err);
+      throw err;
     }
-  }
+  };
 
   const handleViewBox = (boxNo: number) => {
-    navigate({ to: '/boxes/$boxNo', params: { boxNo: boxNo.toString() } })
-  }
+    navigate({ to: '/boxes/$boxNo', params: { boxNo: boxNo.toString() } });
+  };
 
   const handleSearchChange = (value: string) => {
     if (value) {
       navigate({
         to: '/boxes',
         search: { search: value },
-        replace: true
-      })
-    } else {
-      navigate({
-        to: '/boxes',
-        replace: true
-      })
+        replace: true,
+      });
+      return;
     }
-  }
+
+    navigate({
+      to: '/boxes',
+      replace: true,
+    });
+  };
 
   const handleClearSearch = () => {
     handleSearchChange('');
-  }
+  };
+
+  const boxForm = (
+    <BoxForm
+      open={createFormOpen}
+      onOpenChange={setCreateFormOpen}
+      onSubmit={handleCreateBox}
+      title="Add Box"
+      submitText="Add Box"
+      formId="boxes.create"
+    />
+  );
+
+  const breadcrumbNode = (
+    <span data-testid="boxes.overview.breadcrumb">
+      Storage
+    </span>
+  );
+
+  const renderAddButton = (disabled = false) => (
+    <Button
+      onClick={() => setCreateFormOpen(true)}
+      disabled={disabled}
+      data-testid="boxes.list.add"
+    >
+      Add Box
+    </Button>
+  );
+
+  const renderSearchField = (disabled = false) => (
+    <div className="relative" data-testid="boxes.list.search-container">
+      <Input
+        placeholder="Search..."
+        value={searchTerm}
+        onChange={(event) => handleSearchChange(event.target.value)}
+        className="w-full pr-8"
+        data-testid="boxes.list.search"
+        disabled={disabled}
+      />
+      {searchTerm && (
+        <button
+          type="button"
+          onClick={handleClearSearch}
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors hover:bg-muted disabled:opacity-50"
+          aria-label="Clear search"
+          data-testid="boxes.list.search.clear"
+          disabled={disabled}
+        >
+          <ClearButtonIcon />
+        </button>
+      )}
+    </div>
+  );
+
+  const renderCounts = (content: ReactNode) => (
+    <div data-testid="boxes.overview.summary">
+      <div data-testid="boxes.list.summary">
+        {content}
+      </div>
+    </div>
+  );
+
+  const renderLayout = ({
+    content,
+    actionsDisabled = false,
+    showSearch = true,
+    searchDisabled = false,
+    counts,
+  }: {
+    content: ReactNode;
+    actionsDisabled?: boolean;
+    showSearch?: boolean;
+    searchDisabled?: boolean;
+    counts?: ReactNode;
+  }) => (
+    <div className="flex h-full min-h-0 flex-col" data-testid="boxes.page">
+      <ListScreenLayout
+        rootTestId="boxes.overview"
+        headerTestId="boxes.overview.header"
+        contentTestId="boxes.overview.content"
+        breadcrumbs={breadcrumbNode}
+        title="Storage Boxes"
+        actions={(
+          <div className="flex flex-wrap gap-2">
+            {renderAddButton(actionsDisabled)}
+          </div>
+        )}
+        search={showSearch ? renderSearchField(searchDisabled) : undefined}
+        counts={counts}
+      >
+        {content}
+      </ListScreenLayout>
+    </div>
+  );
 
   if (isLoading && showLoading) {
-    return (
-      <div data-testid="boxes.page">
-        <div className="flex justify-between items-center mb-6" data-testid="boxes.page.header">
-          <h1 className="text-3xl font-bold">Storage Boxes</h1>
-          <Button disabled data-testid="boxes.list.add">Add Box</Button>
-        </div>
-
-        {/* Search */}
-        <div className="w-full mb-6 relative" data-testid="boxes.list.search-container">
-          <Input
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full pr-8"
-            data-testid="boxes.list.search"
-          />
-          {searchTerm && (
-            <button
-              onClick={handleClearSearch}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
-              aria-label="Clear search"
-              data-testid="boxes.list.search.clear"
-            >
-              <ClearButtonIcon />
-            </button>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="boxes.list.loading">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-48 bg-muted animate-pulse rounded-lg" />
-          ))}
-        </div>
+    const loadingContent = (
+      <div
+        className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+        data-testid="boxes.list.loading"
+      >
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div key={index} className="h-48 animate-pulse rounded-lg bg-muted" />
+        ))}
       </div>
-    )
+    );
+
+    return (
+      <>
+        {renderLayout({
+          content: loadingContent,
+          actionsDisabled: true,
+          searchDisabled: true,
+          counts: renderCounts(
+            <span className="inline-flex h-5 w-32 animate-pulse rounded bg-muted" />,
+          ),
+        })}
+        {boxForm}
+      </>
+    );
   }
 
   if (error) {
     return (
-      <div data-testid="boxes.page">
-        <div className="flex justify-between items-center mb-6" data-testid="boxes.page.header">
-          <h1 className="text-3xl font-bold">Storage Boxes</h1>
-          <Button onClick={() => setCreateFormOpen(true)} data-testid="boxes.list.add">
-            Add Box
-          </Button>
-        </div>
-
-        {/* Search */}
-        <div className="w-full mb-6 relative" data-testid="boxes.list.search-container">
-          <Input
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full pr-8"
-            data-testid="boxes.list.search"
-          />
-          {searchTerm && (
-            <button
-              onClick={handleClearSearch}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
-              aria-label="Clear search"
-              data-testid="boxes.list.search.clear"
-            >
-              <ClearButtonIcon />
-            </button>
-          )}
-        </div>
-
-        <div className="text-center py-12" data-testid="boxes.list.error">
-          <p className="text-lg text-muted-foreground">Failed to load boxes</p>
-          <p className="text-sm text-muted-foreground mt-2">{String(error)}</p>
-        </div>
-      </div>
-    )
+      <>
+        {renderLayout({
+          content: (
+            <div className="py-12 text-center" data-testid="boxes.list.error">
+              <p className="text-lg text-muted-foreground">Failed to load boxes</p>
+              <p className="mt-2 text-sm text-muted-foreground">{String(error)}</p>
+            </div>
+          ),
+          counts: undefined,
+        })}
+        {boxForm}
+      </>
+    );
   }
 
-  const isEmpty = boxes.length === 0
-  const isFiltered = searchTerm.trim().length > 0
-  const filteredIsEmpty = filteredBoxes.length === 0
+  if (totalCount === 0) {
+    return (
+      <>
+        {renderLayout({
+          content: (
+            <div className="py-12 text-center" data-testid="boxes.list.empty">
+              <h3 className="text-lg font-medium text-muted-foreground">No storage boxes yet</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Add your first storage box to start organizing your electronics parts.
+              </p>
+              <Button
+                className="mt-4"
+                onClick={() => setCreateFormOpen(true)}
+                data-testid="boxes.list.empty.cta"
+              >
+                Add First Box
+              </Button>
+            </div>
+          ),
+          showSearch: false,
+          counts: undefined,
+        })}
+        {boxForm}
+      </>
+    );
+  }
+
+  const hasResults = filteredBoxes.length > 0;
+
+  const countsNode = renderCounts(
+    <ListScreenCounts
+      visible={visibleCount}
+      total={totalCount}
+      noun={{ singular: 'box', plural: 'boxes' }}
+      filtered={filteredCount}
+    />,
+  );
+
+  const listContent = hasResults ? (
+    <div
+      className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+      data-testid="boxes.list.table"
+    >
+      {sortedBoxes.map((box) => (
+        <BoxCard
+          key={box.box_no}
+          box={box}
+          onOpen={() => handleViewBox(box.box_no)}
+        />
+      ))}
+    </div>
+  ) : (
+    <div className="py-12 text-center" data-testid="boxes.list.no-results">
+      <h3 className="text-lg font-medium text-muted-foreground">No boxes found</h3>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Try adjusting your search terms or add a new box.
+      </p>
+    </div>
+  );
 
   return (
-    <div data-testid="boxes.page">
-      <div className="flex justify-between items-center mb-6" data-testid="boxes.page.header">
-        <h1 className="text-3xl font-bold">Storage Boxes</h1>
-        <Button onClick={() => setCreateFormOpen(true)} data-testid="boxes.list.add">
-          Add Box
-        </Button>
-      </div>
+    <>
+      {renderLayout({
+        content: listContent,
+        counts: countsNode,
+      })}
 
-      {/* Search */}
-      <div className="w-full mb-6 relative" data-testid="boxes.list.search-container">
-        <Input
-          placeholder="Search..."
-          value={searchTerm}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          className="w-full pr-8"
-          data-testid="boxes.list.search"
-        />
-        {searchTerm && (
-          <button
-            onClick={handleClearSearch}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
-            aria-label="Clear search"
-            data-testid="boxes.list.search.clear"
-          >
-            <ClearButtonIcon />
-          </button>
-        )}
-      </div>
-
-      {/* Results Summary */}
-      {!isEmpty && (
-        <div className="flex justify-between items-center text-sm text-muted-foreground mb-6" data-testid="boxes.list.summary">
-          <span>
-            {isFiltered 
-              ? `${filteredBoxes?.length || 0} of ${boxes.length} boxes`
-              : `${boxes.length} boxes`}
-          </span>
-        </div>
-      )}
-
-      {isEmpty ? (
-        <div className="text-center py-12" data-testid="boxes.list.empty">
-          <h3 className="text-lg font-medium text-muted-foreground">No storage boxes yet</h3>
-          <p className="text-sm text-muted-foreground mt-2">
-            Add your first storage box to start organizing your electronics parts.
-          </p>
-          <Button 
-            className="mt-4" 
-            onClick={() => setCreateFormOpen(true)}
-            data-testid="boxes.list.empty.cta"
-          >
-            Add First Box
-          </Button>
-        </div>
-      ) : filteredIsEmpty ? (
-        <div className="text-center py-12" data-testid="boxes.list.no-results">
-          <h3 className="text-lg font-medium text-muted-foreground">No boxes found</h3>
-          <p className="text-sm text-muted-foreground mt-2">
-            Try adjusting your search terms or add a new box.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="boxes.list.table">
-          {filteredBoxes.sort((a, b) => a.box_no - b.box_no).map((box: BoxWithUsageSchemaList_a9993e3_BoxWithUsageSchema) => (
-            <BoxCard
-              key={box.box_no}
-              box={box}
-              onOpen={() => handleViewBox(box.box_no)}
-            />
-          ))}
-        </div>
-      )}
-
-      <BoxForm
-        open={createFormOpen}
-        onOpenChange={setCreateFormOpen}
-        onSubmit={handleCreateBox}
-        title="Add Box"
-        submitText="Add Box"
-        formId="boxes.create"
-      />
-
-    </div>
-  )
+      {boxForm}
+    </>
+  );
 }

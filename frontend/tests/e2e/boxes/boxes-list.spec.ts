@@ -33,6 +33,11 @@ test.describe('Boxes - List Experience', () => {
     const betaDescription = `${prefix}-Beta`
     const alphaBox = await createSeedBox(testData, alphaDescription, 10)
     const betaBox = await createSeedBox(testData, betaDescription, 12)
+    await Promise.all(
+      Array.from({ length: 4 }).map((_, index) =>
+        createSeedBox(testData, `${prefix}-Overflow-${index}`, 8 + index),
+      ),
+    )
 
     await testEvents.clearEvents()
     await boxes.goto('/boxes')
@@ -41,15 +46,30 @@ test.describe('Boxes - List Experience', () => {
     await expect(boxes.listTable).toBeVisible({ timeout: 15000 })
     await boxes.expectCardVisible(alphaBox.box_no)
     await boxes.expectCardVisible(betaBox.box_no)
+    await expect(boxes.summary).toContainText(/\d+ boxes/i)
+
+    const headerBefore = await boxes.header.boundingBox()
+    expect(headerBefore).toBeTruthy()
+    await boxes.scrollContentBy(800)
+    await expect(boxes.header).toBeVisible()
+    const headerAfter = await boxes.header.boundingBox()
+    expect(headerAfter).toBeTruthy()
+    expect(headerAfter && headerBefore).toBeTruthy()
+    if (headerBefore && headerAfter) {
+      expect(Math.abs(headerAfter.y - headerBefore.y)).toBeLessThan(1)
+    }
 
     await boxes.search(alphaDescription)
     await expect(boxes.boxCard(alphaBox.box_no)).toBeVisible()
     await expect(boxes.boxCard(betaBox.box_no)).toBeHidden()
     await expect(boxes.listTable.locator('[data-testid^="boxes.list.item."]')).toHaveCount(1)
+    await expect(boxes.summary).toContainText(/1 of \d+ boxes showing/i)
+    await expect(boxes.playwrightPage.getByTestId('list-screen.counts.filtered')).toHaveText(/1 filtered/i)
 
     await boxes.clearSearch()
     await expect(boxes.boxCard(alphaBox.box_no)).toBeVisible()
     await expect(boxes.boxCard(betaBox.box_no)).toBeVisible()
+    await expect(boxes.summary).toContainText(/\d+ boxes/i)
   })
 
   test('creates, edits, and deletes a box with instrumentation and toasts', async ({ boxes, testEvents, toastHelper }) => {

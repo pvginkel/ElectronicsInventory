@@ -132,6 +132,33 @@ test.describe('Shopping List Detail Phase 2', () => {
     await expect(dialog.getByTestId('parts.selector.selected').locator('div').first()).toHaveText(`Module Alpha (${alphaPart.key})`);
   });
 
+  test('concept detail header and toolbar stay pinned while lines scroll', async ({ shoppingLists, testData }) => {
+    const seller = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
+    const parts = await Promise.all(
+      Array.from({ length: 24 }, (_, index) => testData.parts.create({ overrides: { description: `Scrollable Concept Part ${index + 1}` } })),
+    );
+
+    const list = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: testData.shoppingLists.randomName('Concept Scroll Anchors') },
+      lines: parts.map(({ part }) => ({ partKey: part.key, needed: 1, sellerId: seller.id })),
+    });
+
+    await shoppingLists.gotoConcept(list.id);
+    await expect(shoppingLists.detailLayout).toBeVisible();
+
+    const headerBefore = await shoppingLists.getDetailHeaderRect();
+    const toolbarBefore = await shoppingLists.getToolbarRect('concept');
+
+    await shoppingLists.scrollDetailContent('concept', 'bottom');
+    await expect.poll(() => shoppingLists.detailContentScrollTop('concept')).toBeGreaterThan(0);
+
+    const headerAfter = await shoppingLists.getDetailHeaderRect();
+    const toolbarAfter = await shoppingLists.getToolbarRect('concept');
+
+    expect(Math.abs(headerAfter.top - headerBefore.top)).toBeLessThan(1);
+    expect(Math.abs(toolbarAfter.top - toolbarBefore.top)).toBeLessThan(1);
+  });
+
   test('seller group edit dialog tracks instrumentation and hides note when cleared', async ({ shoppingLists, testData, testEvents, toastHelper }) => {
     const seller = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
     const { part: partA } = await testData.parts.create({ overrides: { description: 'Seller Edit Part A' } });
@@ -177,6 +204,33 @@ test.describe('Shopping List Detail Phase 2', () => {
     await toastHelper.expectSuccessToast(/cleared order note/i);
     await toastHelper.dismissToast({ all: true });
     await expect(notePanel).toHaveCount(0);
+  });
+
+  test('ready detail header and toolbar stay pinned while seller groups scroll', async ({ shoppingLists, testData }) => {
+    const seller = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
+    const parts = await Promise.all(
+      Array.from({ length: 18 }, (_, index) => testData.parts.create({ overrides: { description: `Scrollable Ready Part ${index + 1}` } })),
+    );
+
+    const list = await testData.shoppingLists.createWithLines({
+      listOverrides: { name: testData.shoppingLists.randomName('Ready Scroll Anchors') },
+      lines: parts.map(({ part }) => ({ partKey: part.key, needed: 1, sellerId: seller.id })),
+    });
+
+    await testData.shoppingLists.markReady(list.id);
+    await shoppingLists.gotoReady(list.id);
+
+    const headerBefore = await shoppingLists.getDetailHeaderRect();
+    const toolbarBefore = await shoppingLists.getToolbarRect('ready');
+
+    await shoppingLists.scrollDetailContent('ready', 'bottom');
+    await expect.poll(() => shoppingLists.detailContentScrollTop('ready')).toBeGreaterThan(0);
+
+    const headerAfter = await shoppingLists.getDetailHeaderRect();
+    const toolbarAfter = await shoppingLists.getToolbarRect('ready');
+
+    expect(Math.abs(headerAfter.top - headerBefore.top)).toBeLessThan(1);
+    expect(Math.abs(toolbarAfter.top - toolbarBefore.top)).toBeLessThan(1);
   });
 
   test('ready inline actions present explicit controls and irreversible messaging', async ({ shoppingLists, testData, toastHelper }) => {

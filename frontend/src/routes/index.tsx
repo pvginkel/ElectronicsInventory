@@ -13,7 +13,7 @@ export const Route = createFileRoute('/')({
 
 function Dashboard() {
   return (
-    <div className="space-y-6" data-testid="dashboard.page">
+    <div className="space-y-6 p-6" data-testid="dashboard.page">
       {/* Key Metrics */}
       <EnhancedMetricsCards />
 

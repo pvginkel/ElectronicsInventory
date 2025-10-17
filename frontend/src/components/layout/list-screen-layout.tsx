@@ -14,6 +14,7 @@ interface ListScreenLayoutProps {
   contentProps?: HTMLAttributes<HTMLDivElement>;
   className?: string;
   rootTestId?: string;
+  headerProps?: HTMLAttributes<HTMLElement>;
 }
 
 /**
@@ -32,15 +33,21 @@ export function ListScreenLayout({
   contentProps,
   className,
   rootTestId,
+  headerProps,
 }: ListScreenLayoutProps) {
   const { className: contentClassName, ...contentRest } = contentProps ?? {};
+  const { className: headerClassName, ...headerRest } = headerProps ?? {};
 
   return (
     <div className={cn('flex h-full min-h-0 flex-col', className)} data-testid={rootTestId}>
       {/* Sticky header captures breadcrumbs, titles, filters, and counts */}
       <header
-        className="sticky top-0 z-20 border-b border-border bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/75"
+        className={cn(
+          'sticky top-0 z-20 border-b border-border bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/75',
+          headerClassName,
+        )}
         data-testid={headerTestId}
+        {...headerRest}
       >
         <div className="space-y-4 px-6 py-4">
           {breadcrumbs && (
