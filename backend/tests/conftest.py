@@ -1,11 +1,13 @@
 """Pytest configuration and fixtures."""
 
 from collections.abc import Generator
+import sqlite3
 
 import pytest
 from flask import Flask
 from prometheus_client import REGISTRY
 from sqlalchemy.orm import Session
+from sqlalchemy.pool import StaticPool
 
 from app import create_app
 from app.config import Settings
@@ -34,10 +36,9 @@ def clear_prometheus_registry():
             pass
 
 
-@pytest.fixture
-def test_settings() -> Settings:
-    """Create test settings with in-memory database."""
-    settings = Settings(
+def _build_test_settings() -> Settings:
+    """Construct base Settings object for tests."""
+    return Settings(
         DATABASE_URL="sqlite:///:memory:",
         SECRET_KEY="test-secret-key",
         DEBUG=True,
@@ -53,22 +54,57 @@ def test_settings() -> Settings:
         SSE_HEARTBEAT_INTERVAL=1,
     )
 
-    return settings
+@pytest.fixture
+def test_settings() -> Settings:
+    """Create test settings with in-memory database."""
+    return _build_test_settings()
+
+
+@pytest.fixture(scope="session")
+def template_connection() -> Generator[sqlite3.Connection, None, None]:
+    """Create a template SQLite database once and apply migrations."""
+    conn = sqlite3.connect(":memory:", check_same_thread=False)
+
+    settings = _build_test_settings().model_copy()
+    settings.DATABASE_URL = "sqlite://"
+    settings.SQLALCHEMY_ENGINE_OPTIONS = {
+        "poolclass": StaticPool,
+        "creator": lambda: conn,
+    }
+
+    template_app = create_app(settings)
+    with template_app.app_context():
+        upgrade_database(recreate=True)
+
+    yield conn
+
+    conn.close()
 
 
 @pytest.fixture
-def app(test_settings: Settings) -> Flask:
-    """Create Flask app for testing."""
-    app = create_app(test_settings)
+def app(test_settings: Settings, template_connection: sqlite3.Connection) -> Generator[Flask, None, None]:
+    """Create Flask app for testing using a fresh copy of the template database."""
+    clone_conn = sqlite3.connect(":memory:", check_same_thread=False)
+    template_connection.backup(clone_conn)
 
-    with app.app_context():
-        # Note: Flask-SQLAlchemy doesn't easily support configuring autoflush
-        # For constraint tests that use db.session directly, manual flush() is needed
-        # before accessing auto-generated IDs
+    settings = test_settings.model_copy()
+    settings.DATABASE_URL = "sqlite://"
+    settings.SQLALCHEMY_ENGINE_OPTIONS = {
+        "poolclass": StaticPool,
+        "creator": lambda: clone_conn,
+    }
 
-        upgrade_database(recreate=True)
+    app = create_app(settings)
 
-    return app
+    try:
+        yield app
+    finally:
+        with app.app_context():
+            from app.extensions import db as flask_db
+
+            flask_db.session.remove()
+
+        clone_conn.close()
 
 
 @pytest.fixture
