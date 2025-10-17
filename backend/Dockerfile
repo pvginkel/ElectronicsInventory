@@ -1,4 +1,6 @@
-FROM python:slim AS build
+# Pinning Python version (here and below) to 3.13 because pydantic-core doesn't
+# yet support 3.14.
+FROM python:3.13-slim AS build
 
 ENV POETRY_HOME=/opt/poetry
 ENV POETRY_VIRTUALENVS_IN_PROJECT=1
@@ -23,7 +25,7 @@ RUN poetry install --no-root && rm -rf $POETRY_CACHE_DIR
 
 # Now let's build the runtime image from the builder.
 #   We'll just copy the env and the PATH reference.
-FROM python:slim
+FROM python:3.13-slim
 
 ENV VIRTUAL_ENV=/app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
