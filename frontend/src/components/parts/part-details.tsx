@@ -349,14 +349,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
       );
     }
 
-    return (
-      <p
-        className="text-sm text-muted-foreground"
-        data-testid="parts.detail.shopping-list.badges.empty"
-      >
-        This part is not on any Concept or Ready shopping lists.
-      </p>
-    );
+    return null;
   };
 
   const detailBody = (() => {
@@ -393,15 +386,16 @@ export function PartDetails({ partId }: PartDetailsProps) {
 
     const { displayId, displayManufacturerCode, displayManufacturer, displayProductPage } =
       formattedPart;
+    const membershipBadges = renderMembershipBadges();
 
     return (
       <div className="space-y-6">
         <div
           id="parts.detail.shopping-list.badges"
           data-testid="parts.detail.shopping-list.badges"
-          className="min-h-[32px]"
+          className={membershipBadges ? 'min-h-[32px]' : undefined}
         >
-          {renderMembershipBadges()}
+          {membershipBadges}
         </div>
 
         <div
