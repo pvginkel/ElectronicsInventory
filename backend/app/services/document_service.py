@@ -1,5 +1,6 @@
 """Document service for managing part attachments."""
 
+import hashlib
 import logging
 from io import BytesIO
 from typing import BinaryIO
@@ -455,7 +456,7 @@ class DocumentService(BaseService):
             # No S3 content available
             return None
 
-    def get_attachment_thumbnail(self, attachment_id: int, size: int = 150) -> tuple[str, str]:
+    def get_attachment_thumbnail(self, attachment_id: int, size: int = 150) -> tuple[str, str, str]:
         """Get thumbnail for attachment.
 
         Args:
@@ -463,7 +464,7 @@ class DocumentService(BaseService):
             size: Thumbnail size in pixels
 
         Returns:
-            Tuple of (thumbnail_path, content_type)
+            Tuple of (thumbnail_path, content_type, etag)
 
         Raises:
             RecordNotFoundException: If attachment not found
@@ -475,15 +476,18 @@ class DocumentService(BaseService):
         if attachment.content_type and attachment.content_type.startswith('image/') and attachment.s3_key:
             # Generate/retrieve thumbnail from S3 content
             thumbnail_path = self.image_service.get_thumbnail_path(attachment.id, attachment.s3_key, size)
-            return thumbnail_path, 'image/jpeg'
+            etag = hashlib.sha256(attachment.s3_key.encode("utf-8")).hexdigest()
+            return thumbnail_path, 'image/jpeg', etag
         elif attachment.attachment_type == AttachmentType.PDF:
             # Return PDF icon SVG
             pdf_data, content_type = self.image_service.get_pdf_icon_data()
-            return pdf_data.decode('utf-8'), content_type
+            etag = hashlib.sha256(pdf_data).hexdigest()
+            return pdf_data.decode('utf-8'), content_type, etag
         elif attachment.attachment_type == AttachmentType.URL:
             # Return link icon SVG
             link_data, content_type = self.image_service.get_link_icon_data()
-            return link_data.decode('utf-8'), content_type
+            etag = hashlib.sha256(link_data).hexdigest()
+            return link_data.decode('utf-8'), content_type, etag
         else:
             raise InvalidOperationException("get attachment thumbnail", "thumbnail not available for this attachment type")
 

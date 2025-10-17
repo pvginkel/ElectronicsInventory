@@ -1,5 +1,6 @@
 """Integration tests for document API endpoints."""
 
+import hashlib
 import io
 import logging
 from unittest.mock import patch
@@ -409,6 +410,41 @@ class TestDocumentAPI:
 
         assert response.status_code == 200
         assert response.content_type == 'image/jpeg'
+        expected_etag = hashlib.sha256(attachment.s3_key.encode('utf-8')).hexdigest()
+        assert response.headers['ETag'] == f'"{expected_etag}"'
+
+    def test_get_attachment_thumbnail_not_modified(self, client: FlaskClient, container: ServiceContainer, session: Session):
+        """Test attachment thumbnail endpoint returns 304 when ETag matches."""
+        part_type = container.type_service().create_type("Thumbnail 304 Type")
+        part = container.part_service().create_part(
+            description="Thumbnail 304 part",
+            manufacturer_code="THMB-304",
+            type_id=part_type.id
+        )
+        session.commit()
+
+        attachment = PartAttachment(
+            part_id=part.id,
+            attachment_type=AttachmentType.IMAGE,
+            title="Test Image",
+            s3_key="not-modified.jpg",
+            content_type="image/jpeg"
+        )
+        session.add(attachment)
+        session.commit()
+
+        expected_etag = hashlib.sha256(attachment.s3_key.encode('utf-8')).hexdigest()
+
+        with patch('app.services.image_service.ImageService.get_thumbnail_path', return_value="/tmp/ignored_thumbnail.jpg") as mock_get_thumbnail:
+            response = client.get(
+                f'/api/parts/{part.key}/attachments/{attachment.id}/thumbnail',
+                headers={'If-None-Match': f'"{expected_etag}"'}
+            )
+
+        mock_get_thumbnail.assert_called_once_with(attachment.id, attachment.s3_key, 150)
+        assert response.status_code == 304
+        assert response.data == b''
+        assert response.headers['ETag'] == f'"{expected_etag}"'
 
     def test_set_part_cover_attachment(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test setting part cover attachment."""
@@ -467,6 +503,75 @@ class TestDocumentAPI:
         data = response.get_json()
         assert data['attachment_id'] == attachment.id
         assert data['attachment']['title'] == 'Cover Image'
+
+    def test_get_part_cover_thumbnail(self, client: FlaskClient, container: ServiceContainer, session: Session, tmp_path):
+        """Test getting part cover thumbnail includes ETag header."""
+        part_type = container.type_service().create_type("Cover Thumb Type")
+        part = container.part_service().create_part(
+            description="Cover thumbnail part",
+            manufacturer_code="COVR-THMB",
+            type_id=part_type.id
+        )
+        session.commit()
+
+        attachment = PartAttachment(
+            part_id=part.id,
+            attachment_type=AttachmentType.IMAGE,
+            title="Cover Image",
+            s3_key="cover-thumb.jpg",
+            content_type="image/jpeg"
+        )
+        session.add(attachment)
+        session.flush()
+        part.cover_attachment_id = attachment.id
+        session.commit()
+
+        thumbnail_file = tmp_path / "cover_thumbnail.jpg"
+        thumbnail_file.write_bytes(b"fake cover thumbnail data")
+
+        with patch('app.services.image_service.ImageService.get_thumbnail_path', return_value=str(thumbnail_file)) as mock_get_thumbnail:
+            response = client.get(f'/api/parts/{part.key}/cover/thumbnail')
+
+        mock_get_thumbnail.assert_called_once_with(attachment.id, attachment.s3_key, 150)
+        assert response.status_code == 200
+        assert response.content_type == 'image/jpeg'
+        expected_etag = hashlib.sha256(attachment.s3_key.encode('utf-8')).hexdigest()
+        assert response.headers['ETag'] == f'"{expected_etag}"'
+
+    def test_get_part_cover_thumbnail_not_modified(self, client: FlaskClient, container: ServiceContainer, session: Session):
+        """Test cover thumbnail endpoint returns 304 when ETag matches."""
+        part_type = container.type_service().create_type("Cover Thumb 304 Type")
+        part = container.part_service().create_part(
+            description="Cover thumbnail 304 part",
+            manufacturer_code="COVR-304",
+            type_id=part_type.id
+        )
+        session.commit()
+
+        attachment = PartAttachment(
+            part_id=part.id,
+            attachment_type=AttachmentType.IMAGE,
+            title="Cover Image",
+            s3_key="cover-304.jpg",
+            content_type="image/jpeg"
+        )
+        session.add(attachment)
+        session.flush()
+        part.cover_attachment_id = attachment.id
+        session.commit()
+
+        expected_etag = hashlib.sha256(attachment.s3_key.encode('utf-8')).hexdigest()
+
+        with patch('app.services.image_service.ImageService.get_thumbnail_path', return_value="/tmp/ignored_cover_thumbnail.jpg") as mock_get_thumbnail:
+            response = client.get(
+                f'/api/parts/{part.key}/cover/thumbnail',
+                headers={'If-None-Match': f'"{expected_etag}"'}
+            )
+
+        mock_get_thumbnail.assert_called_once_with(attachment.id, attachment.s3_key, 150)
+        assert response.status_code == 304
+        assert response.data == b''
+        assert response.headers['ETag'] == f'"{expected_etag}"'
 
     def test_clear_part_cover_attachment(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test clearing part cover attachment."""
