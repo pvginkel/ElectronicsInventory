@@ -117,7 +117,7 @@ class KitService(BaseService):
                 selectinload(Kit.shopping_list_links).selectinload(
                     KitShoppingListLink.shopping_list
                 ),
-                selectinload(Kit.pick_lists),
+                selectinload(Kit.pick_lists).selectinload(KitPickList.lines),
             )
             .where(Kit.id == kit_id)
         )
@@ -185,6 +185,9 @@ class KitService(BaseService):
                 pick_list.created_at or datetime.min,
                 pick_list.id or 0,
             ),
+        )
+        kit.pick_list_badge_count = sum(
+            1 for pick_list in kit.pick_lists if not pick_list.is_completed
         )
 
         self._record_detail_metric(kit.id)

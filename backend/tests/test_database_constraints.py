@@ -11,6 +11,7 @@ from app.models.box import Box
 from app.models.kit import Kit
 from app.models.kit_content import KitContent
 from app.models.kit_pick_list import KitPickList, KitPickListStatus
+from app.models.kit_pick_list_line import KitPickListLine, PickListLineStatus
 from app.models.kit_shopping_list_link import KitShoppingListLink
 from app.models.location import Location
 from app.models.part import Part
@@ -387,26 +388,7 @@ class TestDatabaseConstraints:
             pick_list = KitPickList(
                 kit_id=kit.id,
                 requested_units=0,
-                status=KitPickListStatus.DRAFT,
-            )
-            db.session.add(pick_list)
-
-            with pytest.raises(exc.IntegrityError):
-                db.session.commit()
-            db.session.rollback()
-
-    def test_kit_pick_list_decreased_build_target_nonnegative(self, app: Flask):
-        """decreased_build_target_by must not be negative."""
-        with app.app_context():
-            kit = Kit(name="Decrement Constraint Kit", build_target=1)
-            db.session.add(kit)
-            db.session.flush()
-
-            pick_list = KitPickList(
-                kit_id=kit.id,
-                requested_units=1,
-                status=KitPickListStatus.IN_PROGRESS,
-                decreased_build_target_by=-1,
+                status=KitPickListStatus.OPEN,
             )
             db.session.add(pick_list)
 
@@ -463,7 +445,7 @@ class TestDatabaseConstraints:
             pick_list = KitPickList(
                 kit_id=kit.id,
                 requested_units=1,
-                status=KitPickListStatus.DRAFT,
+                status=KitPickListStatus.OPEN,
             )
             db.session.add_all([link, pick_list])
             db.session.commit()
@@ -507,6 +489,86 @@ class TestDatabaseConstraints:
 
             duplicate = KitContent(kit=kit, part=part, required_per_unit=2)
             db.session.add(duplicate)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+    def test_pick_list_line_quantity_positive(self, app: Flask):
+        """Pick list line quantity_to_pick must be positive."""
+        with app.app_context():
+            box = Box(box_no=50, description="Constraint Box", capacity=2)
+            kit = Kit(name="Line Constraint Kit", build_target=1)
+            part = Part(key="PLC01", description="Constraint Part")
+            db.session.add_all([box, kit, part])
+            db.session.flush()
+
+            location = Location(box_id=box.id, box_no=box.box_no, loc_no=1)
+            db.session.add(location)
+            db.session.flush()
+
+            content = KitContent(kit=kit, part=part, required_per_unit=1)
+            pick_list = KitPickList(
+                kit_id=kit.id,
+                requested_units=1,
+                status=KitPickListStatus.OPEN,
+            )
+            db.session.add_all([content, pick_list])
+            db.session.flush()
+
+            invalid_line = KitPickListLine(
+                pick_list_id=pick_list.id,
+                kit_content_id=content.id,
+                location_id=location.id,
+                quantity_to_pick=0,
+                status=PickListLineStatus.OPEN,
+            )
+            db.session.add(invalid_line)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+    def test_pick_list_line_unique_constraint(self, app: Flask):
+        """Duplicate allocations for the same content/location are rejected."""
+        with app.app_context():
+            box = Box(box_no=51, description="Unique Box", capacity=2)
+            kit = Kit(name="Line Unique Kit", build_target=1)
+            part = Part(key="PLC02", description="Unique Part")
+            db.session.add_all([box, kit, part])
+            db.session.flush()
+
+            location = Location(box_id=box.id, box_no=box.box_no, loc_no=1)
+            db.session.add(location)
+            db.session.flush()
+
+            content = KitContent(kit=kit, part=part, required_per_unit=1)
+            pick_list = KitPickList(
+                kit_id=kit.id,
+                requested_units=1,
+                status=KitPickListStatus.OPEN,
+            )
+            db.session.add_all([content, pick_list])
+            db.session.flush()
+
+            first_line = KitPickListLine(
+                pick_list_id=pick_list.id,
+                kit_content_id=content.id,
+                location_id=location.id,
+                quantity_to_pick=1,
+                status=PickListLineStatus.OPEN,
+            )
+            db.session.add(first_line)
+            db.session.commit()
+
+            duplicate_line = KitPickListLine(
+                pick_list_id=pick_list.id,
+                kit_content_id=content.id,
+                location_id=location.id,
+                quantity_to_pick=2,
+                status=PickListLineStatus.OPEN,
+            )
+            db.session.add(duplicate_line)
 
             with pytest.raises(exc.IntegrityError):
                 db.session.commit()
