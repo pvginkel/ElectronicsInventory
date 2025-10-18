@@ -12,6 +12,7 @@ from app.services.download_cache_service import DownloadCacheService
 from app.services.html_document_handler import HtmlDocumentHandler
 from app.services.image_service import ImageService
 from app.services.inventory_service import InventoryService
+from app.services.kit_pick_list_service import KitPickListService
 from app.services.kit_reservation_service import KitReservationService
 from app.services.kit_service import KitService
 from app.services.kit_shopping_list_service import KitShoppingListService
@@ -112,6 +113,12 @@ class ServiceContainer(containers.DeclarativeContainer):
         ShoppingListLineService,
         db=db_session,
         seller_service=seller_service,
+        inventory_service=inventory_service,
+        metrics_service=metrics_service,
+    )
+    kit_pick_list_service = providers.Factory(
+        KitPickListService,
+        db=db_session,
         inventory_service=inventory_service,
         metrics_service=metrics_service,
     )

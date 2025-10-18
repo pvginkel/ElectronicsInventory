@@ -105,6 +105,26 @@ class MetricsServiceProtocol(ABC):
         """Record metrics for kit-to-shopping-list unlink operations."""
         return None
 
+    def record_pick_list_created(self, kit_id: int, requested_units: int, line_count: int) -> None:
+        """Record creation of a pick list."""
+        return None
+
+    def record_pick_list_line_picked(self, line_id: int, quantity: int) -> None:
+        """Record pick list line completion."""
+        return None
+
+    def record_pick_list_line_undo(self, outcome: str, duration_seconds: float) -> None:
+        """Record pick list line undo attempt."""
+        return None
+
+    def record_pick_list_detail_request(self, pick_list_id: int) -> None:
+        """Record pick list detail request metrics."""
+        return None
+
+    def record_pick_list_list_request(self, kit_id: int, result_count: int) -> None:
+        """Record pick list listing request metrics."""
+        return None
+
     @abstractmethod
     def record_ai_analysis(
         self,
@@ -239,6 +259,37 @@ class MetricsService(MetricsServiceProtocol):
             'inventory_parts_by_type',
             'Parts per category',
             ['type_name']
+        )
+
+        # Pick List Metrics
+        self.pick_list_created_total = Counter(
+            'pick_list_created_total',
+            'Total pick lists created'
+        )
+        self.pick_list_lines_per_creation = Histogram(
+            'pick_list_lines_per_creation',
+            'Distribution of pick list line counts per creation event'
+        )
+        self.pick_list_line_picked_total = Counter(
+            'pick_list_line_picked_total',
+            'Pick list lines marked as picked'
+        )
+        self.pick_list_line_undo_total = Counter(
+            'pick_list_line_undo_total',
+            'Pick list line undo outcomes',
+            ['outcome']
+        )
+        self.pick_list_line_undo_duration_seconds = Histogram(
+            'pick_list_line_undo_duration_seconds',
+            'Duration of pick list line undo operations in seconds'
+        )
+        self.pick_list_detail_requests_total = Counter(
+            'pick_list_detail_requests_total',
+            'Pick list detail requests processed'
+        )
+        self.pick_list_list_requests_total = Counter(
+            'pick_list_list_requests_total',
+            'Pick list list requests processed'
         )
 
         # Kit Metrics
@@ -585,6 +636,49 @@ class MetricsService(MetricsServiceProtocol):
                 "Error recording kit shopping list unlink metrics: %s",
                 exc,
             )
+
+    def record_pick_list_created(self, kit_id: int, requested_units: int, line_count: int) -> None:
+        """Record metrics when a new pick list is created."""
+        if line_count < 0:
+            line_count = 0
+        try:
+            self.pick_list_created_total.inc()
+            self.pick_list_lines_per_creation.observe(line_count)
+        except Exception as exc:
+            logger.error("Error recording pick list creation metrics: %s", exc)
+
+    def record_pick_list_line_picked(self, line_id: int, quantity: int) -> None:
+        """Record metrics for pick line completion."""
+        if quantity <= 0:
+            return
+        try:
+            self.pick_list_line_picked_total.inc()
+        except Exception as exc:
+            logger.error("Error recording pick list line pick metric: %s", exc)
+
+    def record_pick_list_line_undo(self, outcome: str, duration_seconds: float) -> None:
+        """Record metrics for undo attempts."""
+        try:
+            self.pick_list_line_undo_total.labels(outcome=outcome).inc()
+            self.pick_list_line_undo_duration_seconds.observe(
+                max(duration_seconds, 0.0)
+            )
+        except Exception as exc:
+            logger.error("Error recording pick list undo metrics: %s", exc)
+
+    def record_pick_list_detail_request(self, pick_list_id: int) -> None:
+        """Record detail request metrics."""
+        try:
+            self.pick_list_detail_requests_total.inc()
+        except Exception as exc:
+            logger.error("Error recording pick list detail metrics: %s", exc)
+
+    def record_pick_list_list_request(self, kit_id: int, result_count: int) -> None:
+        """Record list request metrics."""
+        try:
+            self.pick_list_list_requests_total.inc()
+        except Exception as exc:
+            logger.error("Error recording pick list list metrics: %s", exc)
 
     def record_shopping_list_line_receipt(self, lines: int, total_qty: int) -> None:
         """Record metrics for shopping list line stock receipts."""

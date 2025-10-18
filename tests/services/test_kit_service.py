@@ -26,6 +26,12 @@ class MetricsStub:
         self.content_created: list[tuple[int, int, int]] = []
         self.content_updated: list[tuple[int, int, float]] = []
         self.content_deleted: list[tuple[int, int]] = []
+        self.quantity_changes: list[tuple[str, int]] = []
+        self.pick_list_creations: list[tuple[int, int, int]] = []
+        self.pick_list_line_picks: list[tuple[int, int]] = []
+        self.pick_list_line_undo: list[tuple[str, float]] = []
+        self.pick_list_detail_requests: list[int] = []
+        self.pick_list_list_requests: list[tuple[int, int]] = []
 
     def record_kit_created(self) -> None:
         self.created += 1
@@ -65,6 +71,24 @@ class MetricsStub:
 
     def record_kit_content_deleted(self, kit_id: int, part_id: int) -> None:
         self.content_deleted.append((kit_id, part_id))
+
+    def record_quantity_change(self, operation: str, delta: int) -> None:
+        self.quantity_changes.append((operation, delta))
+
+    def record_pick_list_created(self, kit_id: int, requested_units: int, line_count: int) -> None:
+        self.pick_list_creations.append((kit_id, requested_units, line_count))
+
+    def record_pick_list_line_picked(self, line_id: int, quantity: int) -> None:
+        self.pick_list_line_picks.append((line_id, quantity))
+
+    def record_pick_list_line_undo(self, outcome: str, duration_seconds: float) -> None:
+        self.pick_list_line_undo.append((outcome, duration_seconds))
+
+    def record_pick_list_detail_request(self, pick_list_id: int) -> None:
+        self.pick_list_detail_requests.append(pick_list_id)
+
+    def record_pick_list_list_request(self, kit_id: int, result_count: int) -> None:
+        self.pick_list_list_requests.append((kit_id, result_count))
 
 
 class InventoryStub:
@@ -210,12 +234,12 @@ class TestKitService:
                 KitPickList(
                     kit_id=active_kit.id,
                     requested_units=2,
-                    status=KitPickListStatus.IN_PROGRESS,
+                    status=KitPickListStatus.OPEN,
                 ),
                 KitPickList(
                     kit_id=active_kit.id,
                     requested_units=1,
-                    status=KitPickListStatus.DRAFT,
+                    status=KitPickListStatus.OPEN,
                 ),
                 KitPickList(
                     kit_id=active_kit.id,
@@ -231,7 +255,7 @@ class TestKitService:
         result = results[0]
         assert result.name == "Synth Demo Kit"
         assert result.shopping_list_badge_count == 2  # concept + ready only
-        assert result.pick_list_badge_count == 2  # draft + in_progress
+        assert result.pick_list_badge_count == 2  # open pick lists remain
 
         assert metrics_stub.overview_calls
         status, count, limit = metrics_stub.overview_calls[-1]

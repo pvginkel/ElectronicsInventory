@@ -25,6 +25,7 @@ from app.api.kit_shopping_list_links import kit_shopping_list_links_bp  # noqa: 
 from app.api.kits import kits_bp  # noqa: E402
 from app.api.locations import locations_bp  # noqa: E402
 from app.api.metrics import metrics_bp  # noqa: E402
+from app.api.pick_lists import pick_lists_bp  # noqa: E402
 from app.api.parts import parts_bp  # noqa: E402
 from app.api.sellers import sellers_bp  # noqa: E402
 from app.api.shopping_list_lines import shopping_list_lines_bp  # noqa: E402
@@ -43,6 +44,7 @@ api_bp.register_blueprint(kits_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(kit_shopping_list_links_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(locations_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(metrics_bp)  # type: ignore[attr-defined]
+api_bp.register_blueprint(pick_lists_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(parts_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(sellers_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(shopping_lists_bp)  # type: ignore[attr-defined]

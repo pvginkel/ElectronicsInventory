@@ -20,6 +20,7 @@ from app.extensions import db
 
 if TYPE_CHECKING:  # pragma: no cover - only used for type checking
     from app.models.kit import Kit
+    from app.models.kit_pick_list_line import KitPickListLine
     from app.models.part import Part
 
 
@@ -74,6 +75,12 @@ class KitContent(db.Model):  # type: ignore[name-defined]
         back_populates="kit_contents",
         lazy="selectin",
     )
+    pick_list_lines: Mapped[list["KitPickListLine"]] = relationship(
+        "KitPickListLine",
+        back_populates="kit_content",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
     def __repr__(self) -> str:
         return (
@@ -81,3 +88,13 @@ class KitContent(db.Model):  # type: ignore[name-defined]
             f"id={self.id} kit_id={self.kit_id} part_id={self.part_id} "
             f"required_per_unit={self.required_per_unit}>"
         )
+
+    @property
+    def part_key(self) -> str:
+        """Expose the associated part key for schema compatibility."""
+        return self.part.key if self.part else ""
+
+    @property
+    def part_description(self) -> str | None:
+        """Expose the associated part description for schema compatibility."""
+        return self.part.description if self.part else None

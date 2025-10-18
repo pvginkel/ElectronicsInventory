@@ -96,8 +96,8 @@ class InventoryService(BaseService):
 
     def remove_stock(
         self, part_key: str, box_no: int, loc_no: int, qty: int
-    ) -> None:
-        """Remove stock from a location."""
+    ) -> QuantityHistory:
+        """Remove stock from a location and return the quantity history entry."""
         if qty <= 0:
             raise InvalidOperationException("remove negative or zero stock", "quantity must be positive")
 
@@ -141,6 +141,9 @@ class InventoryService(BaseService):
 
         # Check if total quantity is now zero and cleanup if needed
         self.cleanup_zero_quantities(part_key)
+
+        self.db.flush()
+        return history
 
     def move_stock(
         self,

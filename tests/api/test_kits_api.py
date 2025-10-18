@@ -56,12 +56,12 @@ def _seed_badge_data(session) -> Kit:
             KitPickList(
                 kit_id=kit.id,
                 requested_units=2,
-                status=KitPickListStatus.IN_PROGRESS,
+                status=KitPickListStatus.OPEN,
             ),
             KitPickList(
                 kit_id=kit.id,
                 requested_units=1,
-                status=KitPickListStatus.DRAFT,
+                status=KitPickListStatus.OPEN,
             ),
             KitPickList(
                 kit_id=kit.id,
@@ -336,7 +336,7 @@ class TestKitsApi:
             KitPickList(
                 kit_id=kit.id,
                 requested_units=1,
-                status=KitPickListStatus.IN_PROGRESS,
+                status=KitPickListStatus.OPEN,
             )
         )
         session.commit()
@@ -357,7 +357,11 @@ class TestKitsApi:
         assert link_payload["requested_units"] == kit.build_target
         assert link_payload["honor_reserved"] is False
         assert link_payload["is_stale"] is False
-        assert payload["pick_lists"][0]["status"] == KitPickListStatus.IN_PROGRESS.value
+        pick_summary = payload["pick_lists"][0]
+        assert pick_summary["status"] == KitPickListStatus.OPEN.value
+        assert pick_summary["line_count"] == 0
+        assert pick_summary["open_line_count"] == 0
+        assert pick_summary["is_archived_ui"] is False
 
     def test_create_kit_content_endpoint(self, client, session):
         kit, part, _ = _seed_kit_with_content(session)

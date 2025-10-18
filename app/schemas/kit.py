@@ -8,9 +8,9 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 from app.models.kit import KitStatus
-from app.models.kit_pick_list import KitPickListStatus
 from app.models.shopping_list import ShoppingListStatus
 from app.schemas.part import PartListSchema
+from app.schemas.pick_list import KitPickListSummarySchema
 from app.schemas.shopping_list import ShoppingListResponseSchema
 
 
@@ -407,45 +407,6 @@ class KitShoppingListLinkResponseSchema(BaseModel):
     )
 
 
-class KitPickListSchema(BaseModel):
-    """Schema detailing pick list chips for the kit detail workspace."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int = Field(
-        description="Unique identifier for the pick list",
-        json_schema_extra={"example": 4},
-    )
-    status: KitPickListStatus = Field(
-        description="Current status of the pick list",
-        json_schema_extra={"example": KitPickListStatus.IN_PROGRESS.value},
-    )
-    requested_units: int = Field(
-        description="Number of kits requested for fulfillment",
-        json_schema_extra={"example": 3},
-    )
-    first_deduction_at: datetime | None = Field(
-        description="Timestamp when parts were first deducted for this pick list",
-        json_schema_extra={"example": "2024-04-12T10:42:00Z"},
-    )
-    completed_at: datetime | None = Field(
-        description="Timestamp when the pick list was completed",
-        json_schema_extra={"example": "2024-04-20T16:10:00Z"},
-    )
-    decreased_build_target_by: int = Field(
-        description="Amount the kit build target was lowered by this pick list",
-        json_schema_extra={"example": 1},
-    )
-    created_at: datetime = Field(
-        description="Timestamp when the pick list was created",
-        json_schema_extra={"example": "2024-04-10T08:00:00Z"},
-    )
-    updated_at: datetime = Field(
-        description="Timestamp when the pick list was last updated",
-        json_schema_extra={"example": "2024-04-15T09:45:00Z"},
-    )
-
-
 class KitContentDetailSchema(BaseModel):
     """Schema representing a kit content row with availability math."""
 
@@ -564,9 +525,9 @@ class KitDetailResponseSchema(BaseModel):
         default_factory=list,
         description="Shopping lists linked to this kit",
     )
-    pick_lists: list[KitPickListSchema] = Field(
+    pick_lists: list[KitPickListSummarySchema] = Field(
         default_factory=list,
-        description="Pick lists associated with this kit",
+        description="Pick list summaries associated with this kit",
     )
 
     @computed_field
