@@ -2,6 +2,9 @@
 
 from datetime import UTC, datetime
 
+import pytest
+
+from app.exceptions import RecordNotFoundException
 from app.models.kit import Kit, KitStatus
 from app.models.kit_content import KitContent
 from app.models.part import Part
@@ -100,3 +103,38 @@ def test_get_reservations_by_part_ids_includes_multiple_parts(session):
     assert set(reservations.keys()) == {resistor.id, capacitor.id}
     assert reservations[resistor.id][0].reserved_quantity == 2
     assert reservations[capacitor.id][0].reserved_quantity == 10
+
+
+def test_list_kits_for_part_returns_active_only(session):
+    part = Part(key="IC01", description="Logic IC")
+    active = Kit(name="Synth Controller", build_target=3, status=KitStatus.ACTIVE)
+    archived = Kit(
+        name="Old Controller",
+        build_target=5,
+        status=KitStatus.ARCHIVED,
+        archived_at=datetime.now(UTC),
+    )
+    session.add_all([part, active, archived])
+    session.flush()
+    session.add_all(
+        [
+            KitContent(kit=active, part=part, required_per_unit=2),
+            KitContent(kit=archived, part=part, required_per_unit=4),
+        ]
+    )
+    session.commit()
+
+    service = KitReservationService(session)
+
+    usage_entries = service.list_kits_for_part(part.key)
+    assert len(usage_entries) == 1
+    entry = usage_entries[0]
+    assert entry.kit_id == active.id
+    assert entry.reserved_quantity == 6  # 2 required * build target 3
+    assert entry.status is KitStatus.ACTIVE
+
+
+def test_list_kits_for_part_unknown_key_raises(session):
+    service = KitReservationService(session)
+    with pytest.raises(RecordNotFoundException):
+        service.list_kits_for_part("NOPE")

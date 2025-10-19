@@ -80,6 +80,10 @@ class MetricsServiceProtocol(ABC):
         """Record a kit detail view."""
         return None
 
+    def record_part_kit_usage_request(self, has_results: bool) -> None:
+        """Record lookups for kits that consume a part."""
+        return None
+
     def record_kit_content_created(self, kit_id: int, part_id: int, required_per_unit: int) -> None:
         """Record creation of a kit content entry."""
         return None
@@ -321,6 +325,11 @@ class MetricsService(MetricsServiceProtocol):
         self.kit_detail_views_total = Counter(
             'kit_detail_views_total',
             'Total kit detail view requests'
+        )
+        self.part_kit_usage_requests_total = Counter(
+            'part_kit_usage_requests_total',
+            'Total part kit usage lookup requests',
+            ['has_results'],
         )
         self.kit_shopping_list_push_total = Counter(
             'kit_shopping_list_push_total',
@@ -580,6 +589,14 @@ class MetricsService(MetricsServiceProtocol):
             self.kit_detail_views_total.inc()
         except Exception as exc:
             logger.error("Error recording kit detail view metric: %s", exc)
+
+    def record_part_kit_usage_request(self, has_results: bool) -> None:
+        """Record part detail kit usage lookups."""
+        try:
+            result_label = "true" if has_results else "false"
+            self.part_kit_usage_requests_total.labels(has_results=result_label).inc()
+        except Exception as exc:
+            logger.error("Error recording part kit usage metric: %s", exc)
 
     def record_kit_content_created(self, kit_id: int, part_id: int, required_per_unit: int) -> None:
         """Record creation of a kit content entry."""

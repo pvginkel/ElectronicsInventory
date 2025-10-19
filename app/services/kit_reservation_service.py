@@ -10,8 +10,10 @@ from typing import Any
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
+from app.exceptions import RecordNotFoundException
 from app.models.kit import Kit, KitStatus
 from app.models.kit_content import KitContent
+from app.models.part import Part
 from app.services.base import BaseService
 
 
@@ -62,6 +64,15 @@ class KitReservationService(BaseService):
     ) -> list[KitReservationUsage]:
         """Return active kit usage entries for a single part."""
         return self.get_reservations_by_part_ids([part_id]).get(part_id, [])
+
+    def list_kits_for_part(self, part_key: str) -> list[KitReservationUsage]:
+        """Return active kit usage for the part identified by key."""
+        stmt = select(Part.id).where(Part.key == part_key)
+        part_id = self.db.execute(stmt).scalar_one_or_none()
+        if part_id is None:
+            raise RecordNotFoundException("Part", part_key)
+
+        return self.list_active_reservations_for_part(part_id)
 
     def get_reserved_totals_for_parts(
         self,

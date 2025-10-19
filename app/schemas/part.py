@@ -282,6 +282,11 @@ class PartResponseSchema(BaseModel):
         description="List of part attachments (images, PDFs, URLs)",
         default=[]
     )
+    used_in_kits: bool = Field(
+        default=False,
+        description="True when the part is reserved by at least one active kit",
+        json_schema_extra={"example": True},
+    )
     cover_attachment: PartAttachmentResponseSchema | None = Field(
         description="Cover attachment details",
         default=None
