@@ -125,6 +125,10 @@ export function KitOverviewList({
     [counts.active, counts.archived],
   );
 
+  const breadcrumbsNode = (
+    <span data-testid="kits.overview.breadcrumb">Kits</span>
+  );
+
   const countsNode = (
     <ListScreenCounts
       visible={activeKits.length}
@@ -256,6 +260,7 @@ export function KitOverviewList({
       rootTestId="kits.overview"
       headerTestId="kits.overview.header"
       contentTestId="kits.overview.content"
+      breadcrumbs={breadcrumbsNode}
       title={<span data-testid="kits.overview.title">Kits</span>}
       actions={
         <Button onClick={onCreateKit} data-testid="kits.overview.new">

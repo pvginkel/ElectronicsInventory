@@ -3,6 +3,7 @@ import { Card, CardDescription, CardFooter, CardTitle } from '@/components/ui/ca
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { KitSummary } from '@/types/kits';
+import { QuantityBadge } from '../parts/quantity-badge';
 
 interface KitCardProps {
   kit: KitSummary;
@@ -45,6 +46,11 @@ export function KitCard({ kit, controls, className }: KitCardProps) {
       <div className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <CardTitle className="text-xl font-semibold leading-tight">{kit.name}</CardTitle>
+              
+          <div className="flex flex-col items-end gap-2">
+            <QuantityBadge quantity={kit.buildTarget} />
+          </div>
+        
           {kit.status === 'archived' && (
             <Badge variant="outline" className="uppercase tracking-wide text-xs">
               Archived
@@ -71,9 +77,6 @@ export function KitCard({ kit, controls, className }: KitCardProps) {
               {pickListBadgeLabel}
             </Badge>
           )}
-          <Badge variant="outline" data-testid={`kits.overview.card.${kit.id}.build-target`}>
-            Build target: {kit.buildTarget}
-          </Badge>
         </div>
 
         <div className="text-xs text-muted-foreground">
@@ -82,7 +85,7 @@ export function KitCard({ kit, controls, className }: KitCardProps) {
       </div>
 
       {controls && (
-        <CardFooter className="mt-auto flex items-center justify-end gap-2 p-0 pt-4">
+        <CardFooter className="mt-auto flex items-center justify-end gap-2 p-0">
           {controls}
         </CardFooter>
       )}

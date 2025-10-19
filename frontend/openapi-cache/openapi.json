@@ -2736,6 +2736,37 @@
         "title": "KitStatusSchema",
         "type": "string"
       },
+      "KitMembershipBulkQueryRequestSchema.b98797e": {
+        "description": "Schema for querying kit memberships across related resources.",
+        "properties": {
+          "include_done": {
+            "default": false,
+            "description": "Include archived or completed memberships when true",
+            "title": "Include Done",
+            "type": "boolean"
+          },
+          "kit_ids": {
+            "description": "Ordered collection of kit identifiers to resolve",
+            "example": [
+              1,
+              2,
+              3
+            ],
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Kit Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kit_ids"
+        ],
+        "title": "KitMembershipBulkQueryRequestSchema",
+        "type": "object"
+      },
       "KitPickListCreateSchema.b247181": {
         "description": "Request payload for creating a pick list.",
         "properties": {
@@ -3035,6 +3066,163 @@
           "completed"
         ],
         "title": "PickListLineStatus",
+        "type": "string"
+      },
+      "KitPickListMembershipQueryResponseSchema.b247181": {
+        "description": "Bulk response schema for pick list memberships grouped by kit.",
+        "properties": {
+          "memberships": {
+            "description": "Memberships grouped by kit identifier order",
+            "items": {
+              "$ref": "#/components/schemas/KitPickListMembershipQueryResponseSchema.b247181.KitPickListMembershipQueryItemSchema"
+            },
+            "title": "Memberships",
+            "type": "array"
+          }
+        },
+        "title": "KitPickListMembershipQueryResponseSchema",
+        "type": "object"
+      },
+      "KitPickListMembershipQueryResponseSchema.b247181.KitPickListMembershipQueryItemSchema": {
+        "description": "Schema encapsulating pick list memberships for a single kit.",
+        "properties": {
+          "kit_id": {
+            "description": "Requested kit identifier",
+            "example": 7,
+            "title": "Kit Id",
+            "type": "integer"
+          },
+          "pick_lists": {
+            "description": "Pick lists associated with the kit",
+            "items": {
+              "$ref": "#/components/schemas/KitPickListMembershipQueryResponseSchema.b247181.KitPickListMembershipSchema"
+            },
+            "title": "Pick Lists",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kit_id"
+        ],
+        "title": "KitPickListMembershipQueryItemSchema",
+        "type": "object"
+      },
+      "KitPickListMembershipQueryResponseSchema.b247181.KitPickListMembershipSchema": {
+        "description": "Schema describing pick list membership for bulk kit queries.",
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp when the pick list was completed",
+            "example": "2024-04-16T13:25:00Z",
+            "title": "Completed At"
+          },
+          "completed_line_count": {
+            "description": "Number of lines that have already been picked",
+            "example": 3,
+            "title": "Completed Line Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "description": "Timestamp when the pick list was created",
+            "example": "2024-04-15T09:00:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the pick list",
+            "example": 12,
+            "title": "Id",
+            "type": "integer"
+          },
+          "kit_id": {
+            "description": "Identifier of the kit that owns the pick list",
+            "example": 3,
+            "title": "Kit Id",
+            "type": "integer"
+          },
+          "line_count": {
+            "description": "Total number of lines in the pick list",
+            "example": 5,
+            "title": "Line Count",
+            "type": "integer"
+          },
+          "open_line_count": {
+            "description": "Number of lines that still need to be picked",
+            "example": 2,
+            "title": "Open Line Count",
+            "type": "integer"
+          },
+          "picked_quantity": {
+            "description": "Quantity already picked for the pick list",
+            "example": 8,
+            "title": "Picked Quantity",
+            "type": "integer"
+          },
+          "remaining_quantity": {
+            "description": "Quantity still outstanding for the pick list",
+            "example": 4,
+            "title": "Remaining Quantity",
+            "type": "integer"
+          },
+          "requested_units": {
+            "description": "Number of kit builds requested for the pick list",
+            "example": 2,
+            "title": "Requested Units",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitPickListMembershipQueryResponseSchema.b247181.KitPickListStatus",
+            "description": "Lifecycle status for the pick list",
+            "example": "open"
+          },
+          "total_quantity_to_pick": {
+            "description": "Sum of quantities across all lines",
+            "example": 12,
+            "title": "Total Quantity To Pick",
+            "type": "integer"
+          },
+          "updated_at": {
+            "description": "Timestamp when the pick list was last updated",
+            "example": "2024-04-15T11:10:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kit_id",
+          "requested_units",
+          "status",
+          "created_at",
+          "updated_at",
+          "completed_at",
+          "line_count",
+          "open_line_count",
+          "completed_line_count",
+          "total_quantity_to_pick",
+          "picked_quantity",
+          "remaining_quantity"
+        ],
+        "title": "KitPickListMembershipSchema",
+        "type": "object"
+      },
+      "KitPickListMembershipQueryResponseSchema.b247181.KitPickListStatus": {
+        "description": "Lifecycle status for a kit pick list.",
+        "enum": [
+          "open",
+          "completed"
+        ],
+        "title": "KitPickListStatus",
         "type": "string"
       },
       "KitPickListSummarySchemaList.a9993e3": {
@@ -4083,6 +4271,137 @@
         "type": "object"
       },
       "KitShoppingListLinkResponseSchema.b98797e.ShoppingListStatus": {
+        "description": "Possible lifecycle states for a shopping list.",
+        "enum": [
+          "concept",
+          "ready",
+          "done"
+        ],
+        "title": "ShoppingListStatus",
+        "type": "string"
+      },
+      "KitShoppingListMembershipQueryResponseSchema.b98797e": {
+        "description": "Bulk response schema for shopping list memberships grouped by kit.",
+        "properties": {
+          "memberships": {
+            "description": "Memberships grouped by kit identifier order",
+            "items": {
+              "$ref": "#/components/schemas/KitShoppingListMembershipQueryResponseSchema.b98797e.KitShoppingListMembershipQueryItemSchema"
+            },
+            "title": "Memberships",
+            "type": "array"
+          }
+        },
+        "title": "KitShoppingListMembershipQueryResponseSchema",
+        "type": "object"
+      },
+      "KitShoppingListMembershipQueryResponseSchema.b98797e.KitShoppingListLinkSchema": {
+        "description": "Schema describing shopping lists linked to a kit.",
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when the link was created",
+            "example": "2024-04-01T09:30:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "honor_reserved": {
+            "description": "Whether reserved quantities were honored during the push",
+            "example": false,
+            "title": "Honor Reserved",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Unique identifier for the kit to shopping list link",
+            "example": 9,
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_stale": {
+            "description": "Indicates whether the link needs resynchronization",
+            "example": true,
+            "title": "Is Stale",
+            "type": "boolean"
+          },
+          "requested_units": {
+            "description": "Number of kit build units used when pushing to the list",
+            "example": 3,
+            "minimum": 1,
+            "title": "Requested Units",
+            "type": "integer"
+          },
+          "shopping_list_id": {
+            "description": "Identifier of the linked shopping list",
+            "example": 21,
+            "title": "Shopping List Id",
+            "type": "integer"
+          },
+          "shopping_list_name": {
+            "description": "Name of the linked shopping list",
+            "example": "Concept BOM",
+            "title": "Shopping List Name",
+            "type": "string"
+          },
+          "snapshot_kit_updated_at": {
+            "description": "Kit timestamp captured when the link was last refreshed",
+            "example": "2024-05-01T14:15:00Z",
+            "format": "date-time",
+            "title": "Snapshot Kit Updated At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitShoppingListMembershipQueryResponseSchema.b98797e.ShoppingListStatus",
+            "description": "Current status of the linked shopping list",
+            "example": "ready"
+          },
+          "updated_at": {
+            "description": "Timestamp when the link was last updated",
+            "example": "2024-04-08T12:05:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "shopping_list_id",
+          "shopping_list_name",
+          "status",
+          "requested_units",
+          "honor_reserved",
+          "snapshot_kit_updated_at",
+          "is_stale",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "KitShoppingListLinkSchema",
+        "type": "object"
+      },
+      "KitShoppingListMembershipQueryResponseSchema.b98797e.KitShoppingListMembershipQueryItemSchema": {
+        "description": "Schema encapsulating shopping list memberships for a single kit.",
+        "properties": {
+          "kit_id": {
+            "description": "Requested kit identifier",
+            "example": 7,
+            "title": "Kit Id",
+            "type": "integer"
+          },
+          "memberships": {
+            "description": "Shopping list memberships associated with the kit",
+            "items": {
+              "$ref": "#/components/schemas/KitShoppingListMembershipQueryResponseSchema.b98797e.KitShoppingListLinkSchema"
+            },
+            "title": "Memberships",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kit_id"
+        ],
+        "title": "KitShoppingListMembershipQueryItemSchema",
+        "type": "object"
+      },
+      "KitShoppingListMembershipQueryResponseSchema.b98797e.ShoppingListStatus": {
         "description": "Possible lifecycle states for a shopping list.",
         "enum": [
           "concept",
@@ -11529,6 +11848,108 @@
           }
         },
         "summary": "Create a new kit definition.",
+        "tags": []
+      }
+    },
+    "/api/kits/pick-list-memberships/query": {
+      "post": {
+        "description": "",
+        "operationId": "post__api_kits_pick-list-memberships_query",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KitMembershipBulkQueryRequestSchema.b98797e"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitPickListMembershipQueryResponseSchema.b247181"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Return pick list memberships for the requested kits.",
+        "tags": []
+      }
+    },
+    "/api/kits/shopping-list-memberships/query": {
+      "post": {
+        "description": "",
+        "operationId": "post__api_kits_shopping-list-memberships_query",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KitMembershipBulkQueryRequestSchema.b98797e"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitShoppingListMembershipQueryResponseSchema.b98797e"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Return shopping list memberships for the requested kits.",
         "tags": []
       }
     },
