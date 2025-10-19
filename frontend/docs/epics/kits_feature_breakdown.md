@@ -1,3 +1,5 @@
+This document contains the feature breakdown of the work described in `docs/epics/kits_brief.md`. It's meant to accompany that document.
+
 # Feature: Kits overview & archiving controls
 
 Deliver the global kits index so users can find, inspect, and change lifecycle state on kits while staying within the single source of truth for inventory planning.
@@ -121,48 +123,45 @@ Allow planners to generate or extend purchasing lists from a kit, while keeping 
 
 # Feature: Pick list workflow & deduction
 
-Provide a persisted pick list tool that guides stock pulls per location, enforces inventory limits, and adjusts build plans when work is completed.
+Provide a persisted pick list tool that auto-allocates stock per location, enforces availability, and lets operators finish lines with a single “Picked” action.
 
 ## Use cases
 
-- Create and update pick lists
+- Create pick lists
   - Features:
-    - Launch modal or routed form to create pick list with requested units, generating line items per kit part per location sorted by box then location number.
-    - Provide a location dropdown on each line so planners can reassign the pull to a different location before saving.
-    - Auto-fill pick quantities greedily from the first location downward while showing all locations for manual adjustments.
-    - Validate picked quantity against location on-hand (blocking) and show warning when total exceeds planned quantity for the part.
-    - Allow saving multiple times; each save deducts only checked lines and locks them from further edits.
-    - Reuse the shared stock-change code path from part detail so deductions keep quantity history and location updates consistent.
+    - Launch modal or routed form that prompts for **Requested units** (persisted on the pick list).
+    - For each kit content row, compute `required_total = required_per_unit × requested_units`.
+    - Gather the part’s locations sorted by ascending on-hand quantity, then by box number and location number.
+    - Allocate greedily across locations, creating immutable lines with `quantity_to_pick = min(remaining_required, location_on_hand)` and decrement the remaining requirement after each line.
+    - Abort creation with a validation error if any part cannot be fully satisfied (no partial pick lists are stored).
+    - Render generated lines as read-only entries; there is no option to add, remove, or edit allocations manually.
   - Database / data model:
-    - Add `KitPickList` model mapped to `kit_pick_lists` with columns: `id` PK, `kit_id` FK (`kits.id`, `ondelete="CASCADE"`), `requested_units` integer not null, `status` `KitPickListStatus` enum (`draft`, `in_progress`, `completed`) stored via `SQLEnum(..., native_enum=False)` with server default `draft`, `first_deduction_at` timestamp nullable, `completed_at` timestamp nullable, `decreased_build_target_by` integer not null default `0`, `created_at`/`updated_at` timestamps. Apply `CheckConstraint("requested_units >= 1", name="ck_kit_pick_lists_requested_positive")`.
-    - Add `KitPickListLine` model mapped to `kit_pick_list_lines` with columns: `id` PK, `pick_list_id` FK (`kit_pick_lists.id`, `ondelete="CASCADE"`), `kit_content_id` FK (`kit_contents.id`, `ondelete="CASCADE"`), `location_id` FK (`locations.id`), `planned_quantity` integer not null, `picked_quantity` integer not null default `0`, `is_locked` boolean not null default `false`, `created_at`/`updated_at` timestamps.
-    - Enforce `CheckConstraint("planned_quantity >= 0", name="ck_pick_list_lines_planned_non_negative")`, `CheckConstraint("picked_quantity >= 0", name="ck_pick_list_lines_picked_non_negative")`, and `UniqueConstraint("pick_list_id", "kit_content_id", "location_id", name="uq_pick_list_line_allocation")`. Index `(pick_list_id, is_locked)` for quick filtering.
+    - Add `KitPickList` model mapped to `kit_pick_lists` with columns: `id` PK, `kit_id` FK (`kits.id`, `ondelete="CASCADE"`), `requested_units` integer not null, `status` `KitPickListStatus` enum (`open`, `completed`) stored via `SQLEnum(..., native_enum=False)` with server default `open`, `completed_at` timestamp nullable, `created_at`/`updated_at` timestamps. Apply `CheckConstraint("requested_units >= 1", name="ck_kit_pick_lists_requested_positive")`.
+    - Add `KitPickListLine` model mapped to `kit_pick_list_lines` with columns: `id` PK, `pick_list_id` FK (`kit_pick_lists.id`, `ondelete="CASCADE"`), `kit_content_id` FK (`kit_contents.id`, `ondelete="CASCADE"`), `location_id` FK (`locations.id`), `quantity_to_pick` integer not null, `status` `PickListLineStatus` enum (`open`, `completed`) stored via `SQLEnum(..., native_enum=False)` with server default `open`, `picked_at` timestamp nullable, optional `inventory_change_id` FK to quantity history for auditing, `created_at`/`updated_at` timestamps.
+    - Enforce `CheckConstraint("quantity_to_pick > 0", name="ck_pick_list_lines_quantity_positive")` and `UniqueConstraint("pick_list_id", "kit_content_id", "location_id", name="uq_pick_list_line_allocation")`. Add index `(pick_list_id, status)` for fast open-line queries.
   - API surface:
     - `POST /kits/<int:kit_id>/pick-lists`
-      - Body: `KitPickListCreateSchema` (`requested_units`, optional `honor_reserved` for allocation hints).
-      - Generates lines from current `KitContent` + `PartLocation` data and returns `KitPickListDetailSchema`.
+      - Body: `KitPickListCreateSchema` (`requested_units`).
+      - Runs the allocator and returns `KitPickListDetailSchema` with immutable lines (`quantity_to_pick`, `status`, `picked_at`, location metadata).
     - `GET /pick-lists/<int:pick_list_id>`
-      - Returns header info plus lines with current on-hand quantities and lock flags.
-    - `PATCH /pick-lists/<int:pick_list_id>`
-      - Body: `KitPickListUpdateSchema` containing `lines` array with `line_id`, optional `picked_quantity`, optional `location_id`, and `mark_ready` flag to trigger deduction.
-      - Service validates quantities, uses `InventoryService.remove_stock` per deduction, stamps `first_deduction_at` when first successful, updates status to `in_progress`, and locks fully deducted lines.
+      - Returns header data (`requested_units`, `status`, timestamps) plus read-only line objects including live on-hand snapshots for display.
 
-- Complete pick lists and adjust build target
+- Execute pick lists
   - Features:
-    - Offer completion action at any time; prompt user to optionally reduce kit build target by the requested units (clamped at zero).
-    - Disallow deleting pick lists once any deduction has occurred; otherwise allow delete to clean up drafts.
-    - Update kit detail chips to show completed vs open pick lists.
+    - Display each line with a single **“Picked”** button and no quantity or location inputs.
+    - On click, call shared inventory deduction (`InventoryService.remove_stock`) for `quantity_to_pick`, mark the line `status = completed`, set `picked_at`, and remove the location from the part when quantity reaches zero (existing behavior).
+    - Completed lines keep an **“Undo”** button. Undo reverses the inventory change, resets the line to `open`, clears `picked_at`, and returns the pick list to the open state when applicable.
+    - Once the final line is marked picked (all lines completed), set pick list `status = completed`, stamp `completed_at`, and display the list in the UI’s archived grouping. Undo on any line removes the list from the archived grouping by setting status back to `open`.
   - Database / data model:
-    - `KitPickList.status` transitions to `completed`, stamps `completed_at`, and retains `decreased_build_target_by` for auditing.
-    - `KitService` handles optional `build_target` decrements while enforcing the `build_target >= 1` check constraint.
+    - Persist `inventory_change_id` per line when a pick occurs to support undo operations; clearing it on undo ensures idempotency.
+    - Maintain audit timestamps (`completed_at`, `picked_at`) for historical reporting and to drive UI state.
   - API surface:
-    - `POST /pick-lists/<int:pick_list_id>/complete`
-      - Body: `KitPickListCompleteSchema` (`decrease_build_target`: bool, optional `decrement_override`).
-      - Marks list completed, optionally decreases kit `build_target`, and returns refreshed `KitDetailResponseSchema`.
-    - `DELETE /pick-lists/<int:pick_list_id>`
-      - Allowed only when `first_deduction_at` is null; returns 204.
+    - `POST /pick-lists/<int:pick_list_id>/lines/<int:line_id>/pick`
+      - No body; triggers the deduction and line completion. Returns updated `KitPickListDetailSchema`.
+    - `POST /pick-lists/<int:pick_list_id>/lines/<int:line_id>/undo`
+      - No body; reverses the deduction and reopens the line. Returns updated detail schema.
     - `GET /kits/<int:kit_id>/pick-lists`
-      - Returns `KitPickListSummarySchema` objects (status, requested_units, created_at, completed_at, is_locked).
+      - Returns `KitPickListSummarySchema` objects with `status`, `requested_units`, `created_at`, `completed_at`, and derived `is_archived_ui` flag (`status == completed`).
 
 # Feature: Data integrity & reserved math
 
@@ -185,7 +184,7 @@ Centralize validation, reservation math, and invariants so every surface reflect
 
 - Enforce validation rules across kit operations
   - Features:
-    - Ensure integer-only inputs (`required_per_unit`, `build_target`, `order_units`, pick quantities) and reject non-positive values.
+    - Ensure integer-only inputs (`required_per_unit`, `build_target`, `order_units`, `requested_units`) and reject non-positive values.
     - Block duplicate parts within a kit with descriptive error messaging.
     - Restrict shopping list append flow to Concept lists and enforce archived-kit read-only rule across APIs.
   - Database / data model:
@@ -207,10 +206,10 @@ Surface kit usage context on the part detail page so planners can trace where a 
     - Provide click-through navigation from tooltip entries to the corresponding kit detail route.
     - Hide the icon when no active kits reference the part.
   - Database / data model:
-    - Extend `KitReservationService` with a `list_kits_for_part` helper that joins `KitContent` with `Kit`, filtered to `Kit.status == KitStatus.ACTIVE`, and returns structured usage details.
+    - Extend `KitReservationService` with a `list_kits_for_part` helper that joins `KitContent` with `Kit`, filtered to `Kit.status == KitStatus.ACTIVE`, and returns structured usage details (including `required_per_unit`).
     - No dedicated SQL view is required; reuse the existing ORM models.
   - API surface:
-    - `GET /parts/<int:part_id>/kits` returns `PartKitUsageSchema` objects (`kit_id`, `kit_name`, `status`, `updated_at`, `reserved_quantity`, `build_target`).
+    - `GET /parts/<string:part_key>/kits` returns `PartKitUsageSchema` objects (`kit_id`, `kit_name`, `status`, `required_per_unit`, `updated_at`, `reserved_quantity`, `build_target`).
     - Extend existing `GET /parts/<part_key>` response schema with boolean `used_in_kits` derived from whether the above query returns results.
 
 ## Outstanding Questions
@@ -218,4 +217,4 @@ Surface kit usage context on the part detail page so planners can trace where a 
 - Should kit names be globally unique to simplify search and linking, or can duplicates exist while relying on surrogate IDs?
 - Is persisting `honor_reserved` and `requested_units` on `KitShoppingListLink` sufficient, or do we need additional auditing for how quantities were derived?
 - How should optimistic locking conflicts for kit contents be surfaced to users (toast vs inline), and is an API affordance needed to return the latest row alongside the error?
-- Are additional pick list statuses (`cancelled`, `failed`) needed beyond `draft`/`in_progress`/`completed`?
+- Are pick list statuses `open` and `completed` sufficient, or do we need extra states for cancel/failed flows?

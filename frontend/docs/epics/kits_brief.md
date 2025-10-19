@@ -2,6 +2,8 @@
 
 > **Goal:** A **Kit** is a named collection of existing **Parts** with a **Build target**. It computes shortages from on-hand inventory (taking other Kits into account when you want) and lets you create/append a **Shopping List** for ordering, or create a **Pick List** for stepwise stock deduction. Single-user; no docs/pricing/AI.
 
+See `docs/epics/kits_feature_breakdown.md` for a breakdown of the work in this brief.
+
 ---
 
 ## 1) Scope & non-goals
@@ -36,9 +38,10 @@
 ### PickList
 
 * `kit_id`, `requested_units` (int ≥1), `completed` (bool), timestamps.
-* **PickListLine** = one line **per Part × Location** (we **show all locations** for the part).
-* Location rows sorted by **Box number → Location number** (natural numeric).
-* Location column rendered as a **dropdown** (user can change the location for that row if needed).
+* **PickListLine** = allocation entry for a **Part × Location** that contributes stock toward the request.
+* Lines are generated automatically by the allocator (no manual creation or edits).
+* Allocation order: locations sorted by **lowest on-hand quantity**, breaking ties by **Box number → Location number**.
+* Each line stores the immutable **quantity_to_pick** that will be deducted once picked.
 
 ---
 
@@ -89,32 +92,27 @@ No “coverage states”; **Shortfall** is the signal.
 
 ---
 
-## 6) **Pick List** (persisted, stepwise deduction)
+## 6) **Pick List** (persisted, allocator-driven picking)
 
 **Create**
 
-* “Create Pick List” → enter **Requested units (Q)** (int ≥1).
+* “Create Pick List” → enter **Requested units (Q)** (int ≥1); persisted on the pick list.
+* For each Kit part, compute **required_total = required_per_unit × Q**.
+* Allocate stock by iterating the part’s locations in ascending **on-hand quantity**, then **Box → Location**.
+  * For each location, create a line with `quantity_to_pick = min(remaining_required, location_on_hand)`.
+  * Decrease the remaining requirement and continue until the requirement is satisfied or locations are exhausted.
+* If the allocator runs out of locations before fulfilling the part’s requirement, **abort creation** with a validation error (pick list is not created).
+* Persist only the generated lines; there is no option to add, remove, or edit allocations manually.
 
-**Lines**
+**Execution**
 
-* For each Kit part, expand to **one row per Location**, sorted **Box → Location**.
-* Auto-allocation: **max from first**, then second, etc. (but we **still show all locations**).
-* User may edit picked quantity on any row:
-
-  * **Blocking error** if > that location’s on-hand.
-  * **Warning triangle** if sum across locations for that part **exceeds planned per-part target** (non-blocking).
-
-**Save & Complete**
-
-* **Save** deducts quantities for **checked** lines and **disables** those lines. Remaining lines stay editable; **multiple saves** allowed.
-* **Complete** at any time (even if some lines remain): prompt **“Decrease build target by Q?”**
-
-  * If yes, decrease by **Q** (the original requested units, not the actually checked). **Clamp at 0.**
-* **Delete** a Pick List is allowed **only if no deductions were saved**; otherwise, mark **Completed**.
-
-**Inventory**
-
-* Deduction uses the same stock-change code path as on the Part screen (quantity history, location updates).
+* Pick list detail shows read-only rows (part, location, quantity to pick); no quantity/location inputs.
+* Every line has a single **“Picked”** button. Clicking it:
+  * Marks the line as completed and deducts `quantity_to_pick` from the assigned location (same inventory mutation path as Part screen).
+  * Drops the location from the part if the new on-hand hits zero (standard behavior).
+* Completed lines display an **“Undo”** button. Undo restores the previously deducted quantity and returns the line to the open state.
+* Once the final line is marked picked (all lines completed), the pick list automatically transitions to **Completed**. Completed pick lists are shown in the UI as archived.
+* The **“Undo”** buttons stay available and the user. Undo restores the previously deducted quantity, returns the line to the open state, and returns the list to the open state.
 
 ---
 
