@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useQuery, type QueryClient, type UseQueryResult } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/generated/client';
 import { toApiError } from '@/lib/api/api-error';
 import {
@@ -14,6 +14,10 @@ import type {
   ShoppingListMembershipSummary,
   ShoppingListSellerSummary,
 } from '@/types/shopping-lists';
+import {
+  normalizeMembershipKeys,
+  useMembershipLookup,
+} from '@/hooks/use-membership-lookup';
 
 const MEMBERSHIP_QUERY_KEY = ['parts.shoppingListMemberships'] as const;
 
@@ -22,59 +26,34 @@ type MembershipQueryItem = PartShoppingListMembershipQueryResponseSchema_d085feb
 type MembershipSchema = PartShoppingListMembershipQueryResponseSchema_d085feb_PartShoppingListMembershipSchema;
 type MembershipQueryKey = [typeof MEMBERSHIP_QUERY_KEY[number], { partKeys: string[]; includeDone: boolean }];
 
-interface NormalizedPartKeys {
-  original: string[];
-  unique: string[];
-}
-
-interface MembershipLookupOptions {
-  includeDone?: boolean;
-  enabled?: boolean;
-  staleTime?: number;
-  gcTime?: number;
-}
-
-interface MembershipLookupResult {
-  partKeys: string[];
-  uniquePartKeys: string[];
-  summaries: ShoppingListMembershipSummary[];
-  summaryByPartKey: Map<string, ShoppingListMembershipSummary>;
-  query: UseQueryResult<MembershipQueryResult, Error>;
-}
-
-function normalizePartKeys(partKeys: string | string[] | undefined): NormalizedPartKeys {
-  if (!partKeys) {
-    return { original: [], unique: [] };
+function normalizePartKey(candidate: string): string | null {
+  if (typeof candidate !== 'string') {
+    return null;
   }
-
-  const raw = Array.isArray(partKeys) ? partKeys : [partKeys];
-  const original: string[] = [];
-  const unique: string[] = [];
-  const seen = new Set<string>();
-
-  for (const key of raw) {
-    if (typeof key !== 'string') {
-      continue;
-    }
-    const trimmed = key.trim();
-    if (!trimmed) {
-      continue;
-    }
-    original.push(trimmed);
-    if (!seen.has(trimmed)) {
-      seen.add(trimmed);
-      unique.push(trimmed);
-    }
-  }
-
-  return { original, unique };
+  const trimmed = candidate.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function membershipQueryKey(partKeys: string[], includeDone: boolean): MembershipQueryKey {
   return [MEMBERSHIP_QUERY_KEY[0], { partKeys, includeDone }] as const;
 }
 
-function mapSeller(seller: PartShoppingListMembershipQueryResponseSchema_d085feb_SellerListSchema | null): ShoppingListSellerSummary | null {
+async function fetchPartMemberships(partKeys: string[], includeDone: boolean): Promise<MembershipQueryResult> {
+  const { data, error } = await api.POST('/api/parts/shopping-list-memberships/query', {
+    body: {
+      part_keys: partKeys,
+      include_done: includeDone,
+    },
+  });
+  if (error) {
+    throw toApiError(error);
+  }
+  return data;
+}
+
+function mapSeller(
+  seller: PartShoppingListMembershipQueryResponseSchema_d085feb_SellerListSchema | null
+): ShoppingListSellerSummary | null {
   if (!seller) {
     return null;
   }
@@ -102,7 +81,9 @@ function mapMembership(raw: MembershipSchema): ShoppingListMembership {
 }
 
 function createSummary(partKey: string, memberships: ShoppingListMembership[]): ShoppingListMembershipSummary {
-  const activeMemberships = memberships.filter(membership => membership.listStatus !== 'done' && membership.lineStatus !== 'done');
+  const activeMemberships = memberships.filter(
+    membership => membership.listStatus !== 'done' && membership.lineStatus !== 'done'
+  );
   const conceptMemberships = activeMemberships.filter(membership => membership.listStatus === 'concept');
   const readyMemberships = activeMemberships.filter(membership => membership.listStatus === 'ready');
 
@@ -138,7 +119,11 @@ function createEmptySummary(partKey: string): ShoppingListMembershipSummary {
 
 function mapQueryItem(item: MembershipQueryItem, includeDone: boolean): ShoppingListMembershipSummary {
   const memberships = (item.memberships ?? []).map(mapMembership);
-  const filtered = includeDone ? memberships : memberships.filter(membership => membership.listStatus !== 'done' && membership.lineStatus !== 'done');
+  const filtered = includeDone
+    ? memberships
+    : memberships.filter(
+        membership => membership.listStatus !== 'done' && membership.lineStatus !== 'done'
+      );
   return createSummary(item.part_key.trim(), filtered);
 }
 
@@ -147,7 +132,7 @@ function buildSummaryResults(
   uniqueKeys: string[],
   response: MembershipQueryResult | undefined,
   includeDone: boolean
-): { ordered: ShoppingListMembershipSummary[]; byPartKey: Map<string, ShoppingListMembershipSummary> } {
+): { ordered: ShoppingListMembershipSummary[]; byKey: Map<string, ShoppingListMembershipSummary> } {
   const byPartKey = new Map<string, ShoppingListMembershipSummary>();
 
   for (const key of uniqueKeys) {
@@ -176,49 +161,7 @@ function buildSummaryResults(
     return fallback;
   });
 
-  return { ordered, byPartKey };
-}
-
-function useMembershipLookup(partKeys: string | string[] | undefined, options?: MembershipLookupOptions): MembershipLookupResult {
-  const normalized = useMemo(() => normalizePartKeys(partKeys), [partKeys]);
-  const includeDone = options?.includeDone ?? false;
-  const hasKeys = normalized.unique.length > 0;
-  const queryKey = useMemo(
-    () => membershipQueryKey(normalized.unique, includeDone),
-    [includeDone, normalized.unique]
-  );
-
-  const query = useQuery<MembershipQueryResult, Error>({
-    queryKey,
-    queryFn: async () => {
-      const { data, error } = await api.POST('/api/parts/shopping-list-memberships/query', {
-        body: {
-          part_keys: normalized.unique,
-          include_done: includeDone,
-        },
-      });
-      if (error) {
-        throw toApiError(error);
-      }
-      return data;
-    },
-    enabled: (options?.enabled ?? true) && hasKeys,
-    staleTime: options?.staleTime,
-    gcTime: options?.gcTime,
-  });
-
-  const { ordered, byPartKey } = useMemo(
-    () => buildSummaryResults(normalized.original, normalized.unique, query.data, includeDone),
-    [includeDone, normalized.original, normalized.unique, query.data]
-  );
-
-  return {
-    partKeys: normalized.original,
-    uniquePartKeys: normalized.unique,
-    summaries: ordered,
-    summaryByPartKey: byPartKey,
-    query,
-  };
+  return { ordered, byKey: byPartKey };
 }
 
 interface UsePartShoppingListMembershipsOptions {
@@ -229,39 +172,55 @@ export function usePartShoppingListMemberships(
   partKey: string | undefined,
   options?: UsePartShoppingListMembershipsOptions
 ) {
-  const { summaries, partKeys, summaryByPartKey, query } = useMembershipLookup(partKey, {
+  const lookup = useMembershipLookup<string, MembershipQueryResult, ShoppingListMembershipSummary>({
+    keys: partKey,
     includeDone: options?.includeDone,
+    normalizeKey: normalizePartKey,
+    queryKey: membershipQueryKey,
+    queryFn: fetchPartMemberships,
+    buildSummaries: ({ originalKeys, uniqueKeys, response, includeDone }) =>
+      buildSummaryResults(originalKeys, uniqueKeys, response, includeDone),
   });
 
-  const summary = summaries[0] ?? createEmptySummary(typeof partKey === 'string' ? partKey.trim() : '');
+  const fallbackKey = typeof partKey === 'string' ? normalizePartKey(partKey) ?? '' : '';
+  const summary = lookup.summaries[0] ?? createEmptySummary(fallbackKey);
 
-  const getReadyMetadata = useCallback(() => ({
-    partKey: summary.partKey,
-    activeCount: summary.activeCount,
-    conceptCount: summary.conceptCount,
-  }), [summary.activeCount, summary.conceptCount, summary.partKey]);
+  const getReadyMetadata = useCallback(
+    () => ({
+      partKey: summary.partKey,
+      activeCount: summary.activeCount,
+      conceptCount: summary.conceptCount,
+    }),
+    [summary.activeCount, summary.conceptCount, summary.partKey]
+  );
 
-  const getErrorMetadata = useCallback((error: unknown) => ({
-    partKey: summary.partKey,
-    message: error instanceof Error ? error.message : String(error ?? 'Unknown error'),
-  }), [summary.partKey]);
+  const getErrorMetadata = useCallback(
+    (error: unknown) => ({
+      partKey: summary.partKey,
+      message: error instanceof Error ? error.message : String(error ?? 'Unknown error'),
+    }),
+    [summary.partKey]
+  );
 
-  const getAbortedMetadata = useCallback(() => ({
-    partCount: partKeys.length,
-  }), [partKeys.length]);
+  const getAbortedMetadata = useCallback(
+    () => ({
+      partCount: lookup.keys.length,
+    }),
+    [lookup.keys.length]
+  );
 
   useListLoadingInstrumentation({
     scope: 'parts.detail.shoppingLists',
-    isLoading: query.isLoading,
-    isFetching: query.isFetching,
-    error: query.error,
+    isLoading: lookup.query.isLoading,
+    isFetching: lookup.query.isFetching,
+    error: lookup.query.error,
     getReadyMetadata,
     getErrorMetadata,
     getAbortedMetadata,
   });
 
   return {
-    ...query,
+    ...lookup.query,
     memberships: summary.memberships,
     summary,
     hasActiveMembership: summary.hasActiveMembership,
@@ -271,8 +230,8 @@ export function usePartShoppingListMemberships(
     conceptCount: summary.conceptCount,
     readyCount: summary.readyCount,
     completedCount: summary.completedCount,
-    partKeys,
-    summaryByPartKey,
+    partKeys: lookup.keys,
+    summaryByPartKey: lookup.summaryByKey,
   };
 }
 
@@ -287,13 +246,20 @@ export function useShoppingListMembershipIndicators(
   partKeys: string[],
   options?: UseShoppingListMembershipIndicatorsOptions
 ) {
-  const lookup = useMembershipLookup(partKeys, {
+  const lookup = useMembershipLookup<string, MembershipQueryResult, ShoppingListMembershipSummary>({
+    keys: partKeys,
     includeDone: options?.includeDone,
+    normalizeKey: normalizePartKey,
+    queryKey: membershipQueryKey,
+    queryFn: fetchPartMemberships,
+    buildSummaries: ({ originalKeys, uniqueKeys, response, includeDone }) =>
+      buildSummaryResults(originalKeys, uniqueKeys, response, includeDone),
     staleTime: INDICATOR_STALE_TIME,
     gcTime: INDICATOR_GC_TIME,
   });
 
-  const uniquePartCount = lookup.uniquePartKeys.length;
+  const uniquePartCount = lookup.uniqueKeys.length;
+
   const indicatorStats = useMemo(() => {
     let activePartCount = 0;
     let membershipCount = 0;
@@ -306,20 +272,29 @@ export function useShoppingListMembershipIndicators(
     return { activePartCount, membershipCount };
   }, [lookup.summaries]);
 
-  const getReadyMetadata = useCallback(() => ({
-    partCount: uniquePartCount,
-    activePartCount: indicatorStats.activePartCount,
-    membershipCount: indicatorStats.membershipCount,
-  }), [indicatorStats.activePartCount, indicatorStats.membershipCount, uniquePartCount]);
+  const getReadyMetadata = useCallback(
+    () => ({
+      partCount: uniquePartCount,
+      activePartCount: indicatorStats.activePartCount,
+      membershipCount: indicatorStats.membershipCount,
+    }),
+    [indicatorStats.activePartCount, indicatorStats.membershipCount, uniquePartCount]
+  );
 
-  const getErrorMetadata = useCallback((error: unknown) => ({
-    partCount: uniquePartCount,
-    message: error instanceof Error ? error.message : String(error ?? 'Unknown error'),
-  }), [uniquePartCount]);
+  const getErrorMetadata = useCallback(
+    (error: unknown) => ({
+      partCount: uniquePartCount,
+      message: error instanceof Error ? error.message : String(error ?? 'Unknown error'),
+    }),
+    [uniquePartCount]
+  );
 
-  const getAbortedMetadata = useCallback(() => ({
-    partCount: uniquePartCount,
-  }), [uniquePartCount]);
+  const getAbortedMetadata = useCallback(
+    () => ({
+      partCount: uniquePartCount,
+    }),
+    [uniquePartCount]
+  );
 
   useListLoadingInstrumentation({
     scope: 'parts.list.shoppingListIndicators',
@@ -334,14 +309,14 @@ export function useShoppingListMembershipIndicators(
   return {
     ...lookup.query,
     summaries: lookup.summaries,
-    summaryByPartKey: lookup.summaryByPartKey,
-    partKeys: lookup.partKeys,
-    uniquePartKeys: lookup.uniquePartKeys,
+    summaryByPartKey: lookup.summaryByKey,
+    partKeys: lookup.keys,
+    uniquePartKeys: lookup.uniqueKeys,
   };
 }
 
 export function invalidatePartMemberships(queryClient: QueryClient, partKeys: string | string[]): void {
-  const normalized = normalizePartKeys(partKeys);
+  const normalized = normalizeMembershipKeys<string>(partKeys, normalizePartKey);
   if (normalized.unique.length === 0) {
     return;
   }

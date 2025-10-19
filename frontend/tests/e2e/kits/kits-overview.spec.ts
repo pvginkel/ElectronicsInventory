@@ -4,6 +4,81 @@ import { waitForListLoading, waitTestEvent } from '../../support/helpers';
 import type { FormTestEvent, ToastTestEvent } from '@/types/test-events';
 
 test.describe('Kits overview', () => {
+test('shows shopping and pick list indicators with tooltip details', async ({ kits, apiClient, page }) => {
+  const kitsSummary = await apiClient.apiRequest(() =>
+    apiClient.GET('/api/kits', {
+      params: { query: { status: 'active' } },
+    })
+  );
+
+  const fixtureKit = kitsSummary.find(
+    (entry) => entry.shopping_list_badge_count > 0 && entry.pick_list_badge_count > 0
+  );
+
+  if (!fixtureKit) {
+    throw new Error('Expected seeded kit with shopping and pick list memberships');
+  }
+
+  const shoppingQuery = await apiClient.apiRequest(() =>
+    apiClient.POST('/api/kits/shopping-list-memberships/query', {
+      body: {
+        kit_ids: [fixtureKit.id],
+        include_done: false,
+      },
+    })
+  );
+
+  const pickQuery = await apiClient.apiRequest(() =>
+    apiClient.POST('/api/kits/pick-list-memberships/query', {
+      body: {
+        kit_ids: [fixtureKit.id],
+        include_done: false,
+      },
+    })
+  );
+
+  const shoppingMemberships = shoppingQuery.memberships?.[0]?.memberships ?? [];
+  const pickMemberships = pickQuery.memberships?.[0]?.pick_lists ?? [];
+
+  if (shoppingMemberships.length === 0 || pickMemberships.length === 0) {
+    throw new Error('Fixture kit missing membership data required for indicator assertions');
+  }
+
+  const expectedShoppingNames = shoppingMemberships.map((membership) => membership.shopping_list_name);
+  const expectedShoppingStatuses = new Set(
+    shoppingMemberships.map((membership) => membership.status)
+  );
+
+  const expectedPickLabels = pickMemberships.map((membership) => `Pick list #${membership.id}`);
+
+  await kits.gotoOverview();
+  await waitForListLoading(page, 'kits.list.memberships.shopping', 'ready');
+  await waitForListLoading(page, 'kits.list.memberships.pick', 'ready');
+
+  const shoppingIndicator = kits.shoppingIndicator(fixtureKit.id);
+  await expect(shoppingIndicator).toBeVisible();
+  await shoppingIndicator.hover();
+  const shoppingTooltip = kits.shoppingIndicatorTooltip(fixtureKit.id);
+  await expect(shoppingTooltip).toBeVisible();
+  for (const name of expectedShoppingNames) {
+    await expect(shoppingTooltip).toContainText(name);
+  }
+  for (const status of expectedShoppingStatuses) {
+    await expect(shoppingTooltip).toContainText(status);
+  }
+
+  const pickIndicator = kits.pickIndicator(fixtureKit.id);
+  await expect(pickIndicator).toBeVisible();
+  await pickIndicator.hover();
+  const pickTooltip = kits.pickIndicatorTooltip(fixtureKit.id);
+  await expect(pickTooltip).toBeVisible();
+  for (const label of expectedPickLabels) {
+    await expect(pickTooltip).toContainText(label);
+  }
+  await expect(pickTooltip).toContainText('open');
+  await expect(pickTooltip).toContainText('remaining');
+});
+
   test('lists kits across tabs with search persistence', async ({ kits, testData }) => {
     const [alpha, beta, archived] = await Promise.all([
       testData.kits.create({ overrides: { name: 'Alpha Synth Kit', build_target: 2 } }),

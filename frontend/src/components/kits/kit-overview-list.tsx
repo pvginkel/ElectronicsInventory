@@ -9,6 +9,7 @@ import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 import { KitCard } from '@/components/kits/kit-card';
 import { KitArchiveControls } from '@/components/kits/kit-archive-controls';
 import { useKitsOverview } from '@/hooks/use-kits';
+import { useKitPickListMemberships, useKitShoppingListMemberships } from '@/hooks/use-kit-memberships';
 import { useDebouncedValue } from '@/lib/utils/debounce';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import type { KitStatus } from '@/types/kits';
@@ -48,6 +49,20 @@ export function KitOverviewList({
   }, [debouncedSearch, onSearchChange, searchTerm]);
 
   const { queries, buckets, counts } = useKitsOverview(debouncedSearch);
+
+  const allKitIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const kit of buckets.active) {
+      ids.add(kit.id);
+    }
+    for (const kit of buckets.archived) {
+      ids.add(kit.id);
+    }
+    return Array.from(ids);
+  }, [buckets.active, buckets.archived]);
+
+  const shoppingMemberships = useKitShoppingListMemberships(allKitIds);
+  const pickMemberships = useKitPickListMemberships(allKitIds);
 
   const activeKits = status === 'archived' ? buckets.archived : buckets.active;
   const searchActive = debouncedSearch.trim().length > 0;
@@ -249,6 +264,18 @@ export function KitOverviewList({
             key={kit.id}
             kit={kit}
             controls={<KitArchiveControls kit={kit} search={debouncedSearch} />}
+            shoppingIndicator={{
+              summary: shoppingMemberships.summaryByKitId.get(kit.id),
+              status: shoppingMemberships.status,
+              fetchStatus: shoppingMemberships.fetchStatus,
+              error: shoppingMemberships.error,
+            }}
+            pickIndicator={{
+              summary: pickMemberships.summaryByKitId.get(kit.id),
+              status: pickMemberships.status,
+              fetchStatus: pickMemberships.fetchStatus,
+              error: pickMemberships.error,
+            }}
           />
         ))}
       </div>

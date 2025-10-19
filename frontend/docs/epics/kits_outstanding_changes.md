@@ -6,3 +6,4 @@ This **MUST** be ignored by LLMs. It's not yet finished and will only be picked 
 - Kits list view:
   - Archive button must not be on the card. It needs to be a button in the detail screen.
   - The kit list screen does multiple queries for the shopping list and it icons instead of a batch query like the part list screen does.
+  - The tooltip of the shopping list indicator on the kit show "Refresh needed" for shopping lists where the kit was modified after it was linked to the shopping list. Has such a refresh function been implemented? Otherwise, I appreciate this information is being tracked, but it has no value showing this in the tooltip.

@@ -61,6 +61,26 @@ export class KitsPage extends BasePage {
       .first();
   }
 
+  activityRow(kitId: number, tab: KitTab = 'active'): Locator {
+    return this.cardById(kitId, tab).getByTestId(`kits.overview.card.${kitId}.activity`);
+  }
+
+  shoppingIndicator(kitId: number, tab: KitTab = 'active'): Locator {
+    return this.cardById(kitId, tab).getByTestId(`kits.overview.card.${kitId}.shopping-indicator`);
+  }
+
+  shoppingIndicatorTooltip(kitId: number): Locator {
+    return this.page.getByTestId(`kits.overview.card.${kitId}.shopping-indicator.tooltip`);
+  }
+
+  pickIndicator(kitId: number, tab: KitTab = 'active'): Locator {
+    return this.cardById(kitId, tab).getByTestId(`kits.overview.card.${kitId}.pick-indicator`);
+  }
+
+  pickIndicatorTooltip(kitId: number): Locator {
+    return this.page.getByTestId(`kits.overview.card.${kitId}.pick-indicator.tooltip`);
+  }
+
   archiveButton(kitId: number): Locator {
     return this.page.getByTestId(`kits.overview.controls.archive.${kitId}`);
   }

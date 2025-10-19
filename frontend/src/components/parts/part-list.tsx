@@ -15,10 +15,11 @@ import { LocationSummary } from './location-summary';
 import { VendorInfo } from './vendor-info';
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
-import { Loader2, ShoppingCart, AlertTriangle } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import { useShoppingListMembershipIndicators } from '@/hooks/use-part-shopping-list-memberships';
 import type { ShoppingListMembershipSummary } from '@/types/shopping-lists';
 import { Badge } from '@/components/ui/badge';
+import { MembershipIndicator } from '@/components/common/membership-indicator';
 
 interface PartListProps {
   searchTerm?: string;
@@ -431,11 +432,17 @@ function PartListItem({
         {/* Quantity & Indicator */}
         <div className="flex flex-col items-end gap-2">
           <QuantityBadge quantity={part.total_quantity} />
-          <ShoppingListIndicator
+          <MembershipIndicator<ShoppingListMembershipSummary>
             summary={indicatorSummary}
             status={indicatorStatus}
             fetchStatus={indicatorFetchStatus}
             error={indicatorError}
+            testId="parts.list.card.shopping-list-indicator"
+            icon={ShoppingCart}
+            ariaLabel={getPartShoppingIndicatorLabel}
+            hasMembership={partHasShoppingMembership}
+            renderTooltip={renderPartShoppingTooltip}
+            errorMessage="Failed to load shopping list data."
           />
         </div>
       </div>
@@ -493,92 +500,47 @@ function PartListItem({
   );
 }
 
-interface ShoppingListIndicatorProps {
-  summary?: ShoppingListMembershipSummary;
-  status: 'pending' | 'error' | 'success';
-  fetchStatus: 'idle' | 'fetching' | 'paused';
-  error: unknown;
+function getPartShoppingIndicatorLabel(summary: ShoppingListMembershipSummary): string {
+  const count = summary.activeCount;
+  const noun = count === 1 ? 'list' : 'lists';
+  return `Part appears on ${count} shopping ${noun}`;
 }
 
-function ShoppingListIndicator({ summary, status, fetchStatus, error }: ShoppingListIndicatorProps) {
-  const isPending = status === 'pending';
-  const isRefetching = fetchStatus === 'fetching';
+function partHasShoppingMembership(summary: ShoppingListMembershipSummary): boolean {
+  return summary.hasActiveMembership;
+}
 
-  if (isPending) {
+function renderPartShoppingTooltip(summary: ShoppingListMembershipSummary) {
+  if (summary.memberships.length === 0) {
     return (
-      <div className="flex h-8 w-8 items-center justify-center" data-testid="parts.list.card.shopping-list-indicator.loading">
-        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-      </div>
+      <p className="text-sm text-muted-foreground">No active shopping lists.</p>
     );
-  }
-
-  if (error) {
-    return (
-      <div
-        className="group relative flex h-8 w-8 items-center justify-center"
-        data-testid="parts.list.card.shopping-list-indicator.error"
-        onClick={(event) => event.stopPropagation()}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <AlertTriangle className="h-4 w-4 text-destructive" />
-        <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden w-52 rounded-md border border-destructive/50 bg-background p-2 text-xs text-destructive shadow-lg group-hover:block">
-          Failed to load shopping list data.
-        </div>
-      </div>
-    );
-  }
-
-  if (!summary || !summary.hasActiveMembership) {
-    if (isRefetching) {
-      return (
-        <div className="flex h-8 w-8 items-center justify-center" data-testid="parts.list.card.shopping-list-indicator.loading">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-        </div>
-      );
-    }
-    return null;
   }
 
   return (
-    <div
-      className="group relative flex h-8 w-8 items-center justify-center"
-      data-testid="parts.list.card.shopping-list-indicator"
-      onClick={(event) => event.stopPropagation()}
-      onMouseDown={(event) => event.stopPropagation()}
-      tabIndex={0}
-      role="button"
-      aria-label={`Part appears on ${summary.activeCount} shopping ${summary.activeCount === 1 ? 'list' : 'lists'}`}
-    >
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary transition group-hover:bg-primary/20">
-        <ShoppingCart className="h-4 w-4" />
-      </div>
-      <div
-        className="pointer-events-auto absolute right-0 top-full z-50 mt-2 hidden w-64 rounded-md border border-input bg-background p-3 text-sm shadow-lg group-hover:block group-focus-within:block"
-        data-testid="parts.list.card.shopping-list-indicator.tooltip"
-      >
-        <p className="mb-2 text-xs font-medium text-muted-foreground">On shopping lists</p>
-        <ul className="space-y-1">
-          {summary.memberships.map((membership) => (
-            <li key={membership.listId}>
-              <Link
-                to="/shopping-lists/$listId"
-                params={{ listId: String(membership.listId) }}
-                search={{ sort: 'description', originSearch: undefined }}
-                className="flex items-center justify-between gap-2 truncate text-sm hover:text-primary"
-                onClick={(event) => event.stopPropagation()}
+    <>
+      <p className="mb-2 text-xs font-medium text-muted-foreground">On shopping lists</p>
+      <ul className="space-y-1">
+        {summary.memberships.map((membership) => (
+          <li key={membership.listId}>
+            <Link
+              to="/shopping-lists/$listId"
+              params={{ listId: String(membership.listId) }}
+              search={{ sort: 'description', originSearch: undefined }}
+              className="flex items-center justify-between gap-2 truncate text-sm hover:text-primary"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <span className="truncate">{membership.listName}</span>
+              <Badge
+                variant={membership.listStatus === 'ready' ? 'default' : 'secondary'}
+                className="shrink-0 capitalize"
               >
-                <span className="truncate">{membership.listName}</span>
-                <Badge
-                  variant={membership.listStatus === 'ready' ? 'default' : 'secondary'}
-                  className="shrink-0 capitalize"
-                >
-                  {membership.listStatus}
-                </Badge>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+                {membership.listStatus}
+              </Badge>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

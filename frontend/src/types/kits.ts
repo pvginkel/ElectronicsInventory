@@ -2,6 +2,7 @@ import type {
   KitSummarySchemaList_a9993e3_KitStatus,
   KitSummarySchemaList_a9993e3_KitSummarySchema,
 } from '@/lib/api/generated/hooks';
+import type { ShoppingListStatus } from '@/types/shopping-lists';
 
 export type KitStatus = KitSummarySchemaList_a9993e3_KitStatus;
 export type KitSummaryRecord = KitSummarySchemaList_a9993e3_KitSummarySchema;
@@ -66,4 +67,56 @@ export function toKitSummaryRecord(summary: KitSummary): KitSummaryRecord {
     shopping_list_badge_count: summary.shoppingListBadgeCount,
     pick_list_badge_count: summary.pickListBadgeCount,
   };
+}
+
+export interface KitShoppingListMembership {
+  id: number;
+  listId: number;
+  listName: string;
+  status: ShoppingListStatus;
+  requestedUnits: number;
+  honorReserved: boolean;
+  isStale: boolean;
+  snapshotKitUpdatedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface KitShoppingListMembershipSummary {
+  kitId: number;
+  memberships: KitShoppingListMembership[];
+  hasActiveMembership: boolean;
+  listNames: string[];
+  conceptListIds: number[];
+  activeCount: number;
+  conceptCount: number;
+  readyCount: number;
+  completedCount: number;
+}
+
+export type KitPickListStatus = 'open' | 'completed';
+
+export interface KitPickListMembership {
+  id: number;
+  kitId: number;
+  status: KitPickListStatus;
+  requestedUnits: number;
+  lineCount: number;
+  openLineCount: number;
+  completedLineCount: number;
+  totalQuantityToPick: number;
+  pickedQuantity: number;
+  remainingQuantity: number;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+}
+
+export interface KitPickListMembershipSummary {
+  kitId: number;
+  memberships: KitPickListMembership[];
+  hasOpenMembership: boolean;
+  totalCount: number;
+  openCount: number;
+  completedCount: number;
 }
