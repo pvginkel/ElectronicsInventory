@@ -206,10 +206,10 @@ Surface kit usage context on the part detail page so planners can trace where a 
     - Provide click-through navigation from tooltip entries to the corresponding kit detail route.
     - Hide the icon when no active kits reference the part.
   - Database / data model:
-    - Extend `KitReservationService` with a `list_kits_for_part` helper that joins `KitContent` with `Kit`, filtered to `Kit.status == KitStatus.ACTIVE`, and returns structured usage details.
+    - Extend `KitReservationService` with a `list_kits_for_part` helper that joins `KitContent` with `Kit`, filtered to `Kit.status == KitStatus.ACTIVE`, and returns structured usage details (including `required_per_unit`).
     - No dedicated SQL view is required; reuse the existing ORM models.
   - API surface:
-    - `GET /parts/<int:part_id>/kits` returns `PartKitUsageSchema` objects (`kit_id`, `kit_name`, `status`, `updated_at`, `reserved_quantity`, `build_target`).
+    - `GET /parts/<string:part_key>/kits` returns `PartKitUsageSchema` objects (`kit_id`, `kit_name`, `status`, `required_per_unit`, `updated_at`, `reserved_quantity`, `build_target`).
     - Extend existing `GET /parts/<part_key>` response schema with boolean `used_in_kits` derived from whether the above query returns results.
 
 ## Outstanding Questions

@@ -1,7 +1,7 @@
 # Part Detail Cross Navigation — Backend Plan
 
 ### 0) Research Log & Findings
-- Reviewed the feature breakdown for cross-navigation requirements and prescribed service/API changes `docs/epics/kits_feature_breakdown.md:197-213 — "Extend KitReservationService... GET /parts/<int:part_id>/kits ... used_in_kits"`.
+- Reviewed the feature breakdown for cross-navigation requirements and prescribed service/API changes `docs/epics/kits_feature_breakdown.md:198-210 — "Extend KitReservationService... GET /parts/<string:part_key>/kits ... used_in_kits"`.
 - Inspected current reservation aggregation logic to understand reuse and caching patterns `app/services/kit_reservation_service.py:35-188 — "self._usage_cache... list_active_reservations_for_part"` .
 - Examined part detail API behavior and schemas to see how responses are produced today `app/api/parts.py:161-197 — "get_part... PartResponseSchema.model_validate"`, `app/schemas/part.py:232-360 — "class PartResponseSchema(BaseModel)"`.
 - Confirmed metrics infrastructure extension points for adding request counters `app/services/metrics_service.py:300-360 — "self.kit_detail_views_total ..."` and existing tests verifying metric increments `tests/test_metrics_service.py:264-299 — "service.record_kit_detail_view..."`.
@@ -14,7 +14,7 @@ Expose kit usage directly on part detail so planners can trace consumption and n
 
 **Prompt quotes**
 
-"Surface kit usage context on the part detail page so planners can trace where a part is consumed and jump to the relevant kits." / "Extend `KitReservationService` with a `list_kits_for_part` helper..." / "`GET /parts/<int:part_id>/kits` returns `PartKitUsageSchema` objects" `docs/epics/kits_feature_breakdown.md:197-213`.
+"Surface kit usage context on the part detail page so planners can trace where a part is consumed and jump to the relevant kits." / "Extend `KitReservationService` with a `list_kits_for_part` helper..." / "`GET /parts/<string:part_key>/kits` returns `PartKitUsageSchema` objects" `docs/epics/kits_feature_breakdown.md:198-210`.
 
 **In scope**
 
@@ -31,7 +31,7 @@ Expose kit usage directly on part detail so planners can trace consumption and n
 
 **Assumptions / constraints**
 
-Assume kit names may still be non-unique (navigation will rely on kit ids). Assume part detail consumers already possess the part key; we will keep responses key-based. Continue reusing ORM joins without introducing SQL views per spec.
+Assume kit names may still be non-unique (navigation will rely on kit ids). Assume part detail consumers already possess the part key; we will keep responses key-based, consistent with the clarified spec. Continue reusing ORM joins without introducing SQL views per spec.
 
 ### 2) Affected Areas & File Map
 - Area: app/services/kit_reservation_service.py
@@ -45,7 +45,7 @@ Assume kit names may still be non-unique (navigation will rely on kit ids). Assu
   - Evidence: app/schemas/part.py:232-360 — `"class PartResponseSchema(BaseModel)"` lists existing response fields.
 - Area: app/schemas/part_kits.py (new)
   - Why: Define `PartKitUsageSchema` matching the feature spec for kit usage entries.
-  - Evidence: docs/epics/kits_feature_breakdown.md:212-213 — `"PartKitUsageSchema objects (kit_id, kit_name, status, updated_at, reserved_quantity, build_target)"`.
+  - Evidence: docs/epics/kits_feature_breakdown.md:204-210 — `"PartKitUsageSchema objects (kit_id, kit_name, status, required_per_unit, updated_at, reserved_quantity, build_target)"`.
 - Area: app/services/metrics_service.py
   - Why: Register a counter helper for part kit usage lookups and expose a public recording method.
   - Evidence: app/services/metrics_service.py:300-360 — `"Counter(... kit_detail_views_total)"` shows pattern for request counters.
@@ -83,8 +83,8 @@ Assume kit names may still be non-unique (navigation will rely on kit ids). Assu
       "updated_at": "2024-05-01T12:00:00Z"
     }
     ```
-  - Refactor strategy: New schema pulling directly from ORM rows without modifying database tables; leverage `ConfigDict(from_attributes=True)` and reuse existing columns for `required_per_unit`.
-  - Evidence: docs/epics/kits_feature_breakdown.md:209-213 — spec enumerates fields for the helper and endpoint; app/models/kit_content.py:34-78 exposes `required_per_unit`.
+  - Refactor strategy: New schema pulling directly from ORM rows without modifying database tables; leverage `ConfigDict(from_attributes=True)` and reuse existing columns for `required_per_unit`, which stakeholders confirmed belongs in the tooltip payload.
+  - Evidence: docs/epics/kits_feature_breakdown.md:204-215 — spec enumerates fields for the helper and endpoint; app/models/kit_content.py:34-78 exposes `required_per_unit`.
 
 ### 4) API / Integration Surface
 - Surface: GET /parts/<string:part_key>
@@ -119,8 +119,8 @@ Assume kit names may still be non-unique (navigation will rely on kit ids). Assu
 ### 6) Derived State & Invariants
 - Derived value: reserved_quantity
   - Source: Multiply `required_per_unit` by `Kit.build_target` inside `_ensure_usage_cache` join.
-  - Writes / cleanup: Stored only in `_usage_cache` entries; refreshed after `reset_usage_cache`.
-  - Guards: Mutation flows touching kit contents must call `reset_usage_cache` to avoid stale totals.
+  - Writes / cleanup: Stored only in `_usage_cache` entries; refreshed automatically whenever `_ensure_usage_cache` runs for a part within the request-scoped service instance.
+  - Guards: Recompute via `_ensure_usage_cache` per request so stale totals cannot leak across requests.
   - Invariant: Reserved totals reflect only active kits at the time of cache rebuild.
   - Evidence: app/services/kit_reservation_service.py:108-188.
 - Derived value: used_in_kits
@@ -131,16 +131,16 @@ Assume kit names may still be non-unique (navigation will rely on kit ids). Assu
   - Evidence: app/services/kit_reservation_service.py:108-168; app/api/parts.py:161-197.
 - Derived value: kit_usage_list_sorted
   - Source: SQL query orders by kit name then id before caching.
-  - Writes / cleanup: Cached list exposed through API and reused until invalidation.
-  - Guards: Re-run sort/order during cache rebuild; ensure rename flows trigger cache reset.
+  - Writes / cleanup: Cached list exposed through API for the life of the request; new service instances rebuild it automatically.
+  - Guards: Ordering enforced in query so renames picked up on next request without manual resets.
   - Invariant: Response ordering remains deterministic for identical datasets.
   - Evidence: app/services/kit_reservation_service.py:138-188.
 
 ### 7) Consistency, Transactions & Concurrency
 - Transaction scope: Reads occur within the request-scoped session provided by `BaseService`, and the API endpoint completes within the same Flask request (app/services/base_service.py:15-38).
-- Atomic requirements: No writes happen on the happy path; the only mutable state is `_usage_cache`, which must be reset in the same request that mutates kit contents (app/services/kit_reservation_service.py:170-188).
-- Retry / idempotency: Endpoint is GET; repeated calls return cached data unless invalidated. No explicit retry tokens required.
-- Ordering / concurrency controls: `_usage_cache` is a simple in-memory dict accessed per-process. If concurrent requests rebuild it, latest rebuild wins but remains consistent because joins are deterministic. Document requirement to call `reset_usage_cache` within locked mutation flows if races appear.
+- Atomic requirements: No writes happen on the happy path; `_usage_cache` is scoped to each service instance so mutations within the same request will rebuild it by re-calling `_ensure_usage_cache`.
+- Retry / idempotency: Endpoint is GET; repeated calls return cached data scoped to the request. No explicit retry tokens required.
+- Ordering / concurrency controls: `_usage_cache` is a simple in-memory dict per service instance. Concurrent requests obtain separate instances, so no cross-request contention; deterministic ordering comes from the SQL `order_by`.
 - Evidence: app/services/kit_reservation_service.py:35-188; app/services/container.py:24-60.
 
 ### 8) Errors & Edge Cases
@@ -159,11 +159,6 @@ Assume kit names may still be non-unique (navigation will rely on kit ids). Assu
   - Handling: Wrap increment in try/except (pattern established in MetricsService) so response still succeeds.
   - Guardrails: MetricsService already isolates Prometheus errors (app/services/metrics_service.py:300-360, 560-603).
   - Evidence: app/services/metrics_service.py:300-603.
-- Failure: Cache not reset after kit mutation
-  - Surface: Service may return stale `used_in_kits`
-  - Handling: Mutation flows must invoke `reset_usage_cache`; add test asserting cache refresh.
-  - Guardrails: Implementation slice includes work to wire cache reset hooks.
-  - Evidence: app/services/kit_reservation_service.py:170-188.
 
 ### 9) Observability
 - Signal: part_kit_usage_requests_total
@@ -229,9 +224,9 @@ Assume kit names may still be non-unique (navigation will rely on kit ids). Assu
   - Dependencies: Slices 1-2.
 
 ### 15) Risks & Open Questions
-- Risk: Reservation cache invalidation might serve stale `used_in_kits` data until cache cleared.
-  - Impact: Users could see outdated tooltip until process flushes cache.
-  - Mitigation: Wire existing `reset_usage_cache` into every kit mutation path and cover with tests.
+- Risk: Query performance might regress if kit usage lists grow large without additional indexes.
+  - Impact: Part detail requests could slow when many kits consume the same part.
+  - Mitigation: Benchmark during implementation; add composite index on `kit_contents.part_id` + `kit_id` if necessary.
 - Risk: Part key lookups rely on consistent casing and normalization.
   - Impact: Mismatched keys would cause false 404s.
   - Mitigation: Reuse canonical key normalization utilities before querying.
@@ -241,9 +236,9 @@ Assume kit names may still be non-unique (navigation will rely on kit ids). Assu
 - Question: Are additional per-kit annotations (e.g., notes, due dates) required alongside `required_per_unit`?
   - Why it matters: Missing context could limit tooltip usefulness.
   - Owner / follow-up: Confirm with product/UX stakeholders before build.
-- Question: Do we need cache invalidation hooks when kit contents mutate?
-  - Why it matters: Without invalidation, tooltip could lag after kit edits.
-  - Owner / follow-up: Evaluate when implementing future kit mutation flows; consider hooking into existing services.
+- Question: Should we include kit navigation URLs in the payload or let the frontend map ids to routes?
+  - Why it matters: Backend could provide canonical links if routing ever changes.
+  - Owner / follow-up: Coordinate with frontend when implementing UI.
 
 ### 16) Confidence
-Confidence: Medium — Existing reservation logic can be reused, with remaining uncertainty focused on cache invalidation coverage and kit metadata completeness.
+Confidence: Medium — Existing reservation logic can be reused, with residual uncertainty tied to tooltip data expectations and large-kit performance.
