@@ -1,102 +1,90 @@
 ### 1) Summary & Decision
 **Readiness**
-The plan identifies the right touchpoints but omits mandatory template content for derived invariants, transactional scope, and error handling, leaving core guardrails undefined (`docs/features/part_detail_cross_navigation/plan.md:119-138` — lines titled “Derived value...” / “Validation & Error Handling”; `docs/commands/plan_feature.md:121-165` — template requirements for sections 6–8).
+The plan cleanly maps spec requirements to code touch points—service helper, schemas, API route, metrics, and tests (docs/features/part_detail_cross_navigation/plan.md:36-210)—and cites the updated cross-navigation spec (docs/epics/kits_feature_breakdown.md:203-213), keeping work within service/API boundaries and providing explicit risk callouts.
 
 **Decision**
-`NO-GO` — Required sections 6–8 do not follow `docs/commands/plan_feature.md`, so the implementation lacks vetted invariants, transaction scopes, and error coverage.
+`GO` — Scope, contracts, and coverage are aligned with the clarified spec; residual risks are documented and manageable.
 
 ### 2) Conformance & Fit (with evidence)
 **Conformance to refs**
-- `docs/commands/plan_feature.md:125-132` — Fail — `docs/features/part_detail_cross_navigation/plan.md:119-128` — “- Derived value: reserved_quantity ... Writes / cleanup...” (no Guards/Invariants/Evidence despite template).
-- `docs/commands/plan_feature.md:136-149` — Fail — `docs/features/part_detail_cross_navigation/plan.md:130-133` — Heading “### 7) Validation & Error Handling” replaces required Consistency template.
-- `docs/commands/plan_feature.md:152-165` — Fail — `docs/features/part_detail_cross_navigation/plan.md:135-138` — Section “### 8) Performance & Scaling” appears where Errors & Edge Cases must be logged.
+- `docs/epics/kits_feature_breakdown.md` — Pass — docs/features/part_detail_cross_navigation/plan.md:40-99 — “Introduce new `/parts/<string:part_key>/kits` route… PartKitUsageSchema…” matches the updated spec (`required_per_unit`, string keys).
+- Electronics Inventory Backend Guidelines — Pass — docs/features/part_detail_cross_navigation/plan.md:36-60 — Changes live in services, schemas, and APIs with tests, honoring the layered architecture.
 
 **Fit with codebase**
-- `app/schemas/part.py` — `docs/features/part_detail_cross_navigation/plan.md:43-45` — Plan assumes `PartResponseSchema` can expose `id`; must confirm model already pulls `id` or extend ORM projection.
-- `app/services/kit_reservation_service.py` — `docs/features/part_detail_cross_navigation/plan.md:204-207` — Cache invalidation risk noted but no mitigation path specified for existing `_usage_cache`.
-- `app/api/parts.py` — `docs/features/part_detail_cross_navigation/plan.md:41-42` — New `/parts/<int:part_id>/kits` endpoint depends on Part IDs being available to callers; current API returns only part key.
+- `KitReservationService` — docs/features/part_detail_cross_navigation/plan.md:37-48 — Reuses existing cache/query helper, minimizing new logic.
+- `app/api/parts.py` — docs/features/part_detail_cross_navigation/plan.md:40-57,196-210 — Adds a sibling endpoint alongside existing part routes with matching dependency-injection pattern.
+- `MetricsService` — docs/features/part_detail_cross_navigation/plan.md:49-60,164-168 — Extends established counter patterns, so instrumentation fits current design.
 
 ### 3) Open Questions & Ambiguities
-- Question: How will clients obtain `part_id` to call `/parts/<int:part_id>/kits`? (`docs/features/part_detail_cross_navigation/plan.md:34`, `207-209`)
-  - Why it matters: Without a reliable identifier, the new endpoint is unusable.
-  - Needed answer: Confirm `PartResponseSchema` will expose the numeric id or adjust endpoint to key-based routing.
-- Question: Should the usage payload include `required_per_unit` alongside reserved quantity? (`docs/features/part_detail_cross_navigation/plan.md:213-215`)
-  - Why it matters: Missing data could block planned frontend tooltips.
-  - Needed answer: Decide whether to extend schema or confirm omission is acceptable.
+- Question: Are additional per-kit annotations (notes, due dates) required with `required_per_unit`?
+  - Why it matters: Tooltip usefulness depends on the payload breadth.
+  - Needed answer: UX confirmation on desired fields (docs/features/part_detail_cross_navigation/plan.md:236-238).
+- Question: Should backend emit navigation URLs or let the frontend derive them?
+  - Why it matters: Determines whether URL construction is centralized.
+  - Needed answer: Frontend preference during implementation (docs/features/part_detail_cross_navigation/plan.md:239-241).
 
 ### 4) Deterministic Backend Coverage (new/changed behavior only)
 - Behavior: `KitReservationService.list_kits_for_part`
   - Scenarios:
-    - Given a part with active and archived kits, When listing usage, Then only active kits emerge with totals (`docs/features/part_detail_cross_navigation/plan.md:166-169`).
-    - Given a part without kits, When listing usage, Then an empty list returns (`docs/features/part_detail_cross_navigation/plan.md:168-170`).
-  - Instrumentation: None at service level; relies on API counter (`docs/features/part_detail_cross_navigation/plan.md:141-145`).
-  - Persistence hooks: No schema change; cached data reuse only (`docs/features/part_detail_cross_navigation/plan.md:30`, `204-207`).
-  - Gaps: Guarded cache invalidation test path unspecified.
-  - Evidence: `docs/features/part_detail_cross_navigation/plan.md:166-172`.
-- Behavior: `GET /parts/<int:part_id>/kits`
+    - Given active + archived kits, When listing usage, Then only active kits remain (`tests/services/test_kit_reservation_service.py::…`) — docs/features/part_detail_cross_navigation/plan.md:189-195.
+    - Given no kits, When listing, Then empty list returns (`tests/services/test_kit_reservation_service.py::…`) — docs/features/part_detail_cross_navigation/plan.md:189-195.
+  - Instrumentation: None (service-level); endpoint counter covers API usage — docs/features/part_detail_cross_navigation/plan.md:164-168.
+  - Persistence hooks: Existing tables reused; no migrations — docs/features/part_detail_cross_navigation/plan.md:36-55,62-87.
+  - Gaps: None noted.
+  - Evidence: docs/features/part_detail_cross_navigation/plan.md:189-195.
+- Behavior: `GET /parts/<string:part_key>/kits`
   - Scenarios:
-    - Given an existing part with active kits, When requesting usage, Then schema list plus counter increment (`docs/features/part_detail_cross_navigation/plan.md:173-176`).
-    - Given no kits, When requesting usage, Then 200 with empty list and `has_results=false` label (`docs/features/part_detail_cross_navigation/plan.md:176-177`, `141-145`).
-    - Given missing part id, When requesting usage, Then 404 (`docs/features/part_detail_cross_navigation/plan.md:177-178`).
-  - Instrumentation: `part_kit_usage_requests_total` counter with `has_results` label (`docs/features/part_detail_cross_navigation/plan.md:141-145`).
-  - Persistence hooks: None cited; relies on existing tables (`docs/features/part_detail_cross_navigation/plan.md:29-30`).
-  - Gaps: Metric emission success/failure paths not covered by tests.
-  - Evidence: `docs/features/part_detail_cross_navigation/plan.md:173-180`.
-- Behavior: `GET /parts/<string:part_key>`
+    - Given active kits, When calling endpoint, Then payload matches schema incl. `required_per_unit` and metric increments (`tests/api/test_parts_api.py::…`) — docs/features/part_detail_cross_navigation/plan.md:196-203.
+    - Given no kits, When calling, Then 200 + empty list + `has_results="false"` label — docs/features/part_detail_cross_navigation/plan.md:196-203.
+    - Given unknown key, When calling, Then 404 — docs/features/part_detail_cross_navigation/plan.md:196-203.
+  - Instrumentation: `part_kit_usage_requests_total` counter with `has_results` label — docs/features/part_detail_cross_navigation/plan.md:164-168.
+  - Persistence hooks: None (read-only); DI wiring handled via existing provider — docs/features/part_detail_cross_navigation/plan.md:40-57.
+  - Gaps: None.
+  - Evidence: docs/features/part_detail_cross_navigation/plan.md:89-99,164-168,196-203.
+- Behavior: `GET /parts/<string:part_key>` (augmented)
   - Scenarios:
-    - Given kit usage, When fetching part detail, Then `used_in_kits` true (and `id` present if added) (`docs/features/part_detail_cross_navigation/plan.md:181-184`).
-    - Given no usage, When fetching, Then `used_in_kits` false (`docs/features/part_detail_cross_navigation/plan.md:184-185`).
-  - Instrumentation: None beyond existing part detail metrics.
-  - Persistence hooks: Response-only flag; no writes (`docs/features/part_detail_cross_navigation/plan.md:123-125`).
-  - Gaps: Test plan does not assert metric side effects or cache coherence.
-  - Evidence: `docs/features/part_detail_cross_navigation/plan.md:181-187`.
+    - Given kits consume part, When fetching detail, Then `used_in_kits=True`.
+    - Given no kits, Then `used_in_kits=False` — docs/features/part_detail_cross_navigation/plan.md:204-210.
+  - Instrumentation: None beyond existing logs; relies on service computations — docs/features/part_detail_cross_navigation/plan.md:89-99,164-168.
+  - Persistence hooks: N/A (response-only flag) — docs/features/part_detail_cross_navigation/plan.md:62-87.
+  - Gaps: None.
+  - Evidence: docs/features/part_detail_cross_navigation/plan.md:204-210.
 
 ### 5) Adversarial Sweep (must find ≥3 credible issues or declare why none exist)
-**Major — Missing derived-state guards**
-**Evidence:** `docs/commands/plan_feature.md:125-132`; `docs/features/part_detail_cross_navigation/plan.md:119-128` — “- Derived value: reserved_quantity ... Writes / cleanup...” (no Guards/Invariants/Evidence).
-**Why it matters:** Without the required guard/invariant detail, reviewers cannot verify cache safety or filtered-write protections.
-**Fix suggestion:** Expand section 6 with Guard, Invariant, and Evidence fields per template, citing actual code points.
-**Confidence:** High
-
-**Major — Consistency section omitted**
-**Evidence:** `docs/commands/plan_feature.md:136-149`; `docs/features/part_detail_cross_navigation/plan.md:130-133` — Heading “### 7) Validation & Error Handling...” supplies bullets unrelated to transaction scope.
-**Why it matters:** Concurrency assumptions (cache reuse, session lifecycle) remain undocumented, risking stale reads and partial writes.
-**Fix suggestion:** Replace section 7 with the required Consistency template covering unit-of-work, atomic updates, retries, and ordering.
-**Confidence:** High
-
-**Major — Errors & edge cases missing**
-**Evidence:** `docs/commands/plan_feature.md:152-165`; `docs/features/part_detail_cross_navigation/plan.md:135-138` — “### 8) Performance & Scaling...” appears in place of required failure handling.
-**Why it matters:** Without enumerated failure surfaces (metrics failures, cache misses, invalid ids), implementers lack guidance on API responses and guardrails.
-**Fix suggestion:** Add section 8 using the error-case template, covering invalid IDs, empty usage, cache eviction failures, and metric errors.
-**Confidence:** High
+- Checks attempted: Contract alignment (string keys, payload fields), cache invalidation expectations, metrics instrumentation, coverage completeness.
+- Evidence: docs/features/part_detail_cross_navigation/plan.md:37-60,89-168,189-210; docs/epics/kits_feature_breakdown.md:203-213.
+- Why the plan holds: Clarified spec now matches plan (string keys + `required_per_unit`), caching relies on request-scoped service instances, and every behavior has explicit tests + metrics, so no credible blockers remain.
 
 ### 6) Derived-Value & Persistence Invariants (stacked entries)
-- Derived value: reserved_quantity
-  - Source dataset: Active kit contents multiplication described in `docs/features/part_detail_cross_navigation/plan.md:121-122`.
-  - Write / cleanup triggered: Response projection only; cache reuse noted (`docs/features/part_detail_cross_navigation/plan.md:122`).
-  - Guards: Not specified; needs cache invalidation guard per template.
-  - Invariant: Reserved totals must match active kits; unstated.
-  - Evidence: `docs/features/part_detail_cross_navigation/plan.md:121-122`.
-- Derived value: used_in_kits
-  - Source dataset: Boolean from usage list length (`docs/features/part_detail_cross_navigation/plan.md:123-124`).
-  - Write / cleanup triggered: Adds transient attribute before schema dump (`docs/features/part_detail_cross_navigation/plan.md:125`).
-  - Guards: None described; should assert list excludes archived kits.
-  - Invariant: Flag true iff list non-empty; not declared.
-  - Evidence: `docs/features/part_detail_cross_navigation/plan.md:123-125`.
-- Derived value: kit_usage_list_sorted
-  - Source dataset: Sorted service output (`docs/features/part_detail_cross_navigation/plan.md:126-127`).
-  - Write / cleanup triggered: Deterministic response ordering, cached until refreshed (`docs/features/part_detail_cross_navigation/plan.md:128`).
-  - Guards: Absent; must ensure cache invalidation on kit rename.
-  - Invariant: Order must remain deterministic across requests; unstated.
-  - Evidence: `docs/features/part_detail_cross_navigation/plan.md:126-128`.
+- Derived value: `reserved_quantity`
+  - Source dataset: Active kit rows per part (`KitContent`, `Kit`) — docs/features/part_detail_cross_navigation/plan.md:121-129.
+  - Write / cleanup triggered: Stored in `_usage_cache` for the request — docs/features/part_detail_cross_navigation/plan.md:121-133.
+  - Guards: Recomputed each request via `_ensure_usage_cache`; no cross-request staleness — docs/features/part_detail_cross_navigation/plan.md:131-133.
+  - Invariant: Totals reflect active kits only — docs/features/part_detail_cross_navigation/plan.md:121-134.
+  - Evidence: docs/features/part_detail_cross_navigation/plan.md:121-134.
+- Derived value: `used_in_kits`
+  - Source dataset: Length of usage list post-filter — docs/features/part_detail_cross_navigation/plan.md:129-134.
+  - Write / cleanup triggered: Added to part response; no persistence — docs/features/part_detail_cross_navigation/plan.md:90-99,129-134.
+  - Guards: Filter excludes archived kits — docs/features/part_detail_cross_navigation/plan.md:129-134.
+  - Invariant: True iff at least one active kit usage exists — docs/features/part_detail_cross_navigation/plan.md:129-134.
+  - Evidence: docs/features/part_detail_cross_navigation/plan.md:129-134.
+- Derived value: `kit_usage_list_sorted`
+  - Source dataset: SQL ordered by kit name then id — docs/features/part_detail_cross_navigation/plan.md:134-137.
+  - Write / cleanup triggered: Cached per request for deterministic API responses — docs/features/part_detail_cross_navigation/plan.md:134-137.
+  - Guards: Ordering enforced in query; new requests rebuild automatically — docs/features/part_detail_cross_navigation/plan.md:134-137.
+  - Invariant: List order is stable across identical datasets — docs/features/part_detail_cross_navigation/plan.md:134-137.
+  - Evidence: docs/features/part_detail_cross_navigation/plan.md:134-137.
 
 ### 7) Risks & Mitigations (top 3)
-- Risk: Cache invalidation could leave stale `used_in_kits` data (`docs/features/part_detail_cross_navigation/plan.md:204-206`)
-  - Mitigation: Document bypass or invalidation hook (needs plan addition).
-- Risk: Part detail payload may lack `id`, blocking new endpoint (`docs/features/part_detail_cross_navigation/plan.md:207-209`)
-  - Mitigation: Commit to exposing id or changing endpoint signature.
-- Risk: Metric proliferation without dashboards (`docs/features/part_detail_cross_navigation/plan.md:210-212`)
-  - Mitigation: Coordinate with ops or justify metric usage.
+- Risk: Large fan-out parts could slow query performance.
+  - Mitigation: Benchmark and add supporting indexes if needed.
+  - Evidence: docs/features/part_detail_cross_navigation/plan.md:226-229.
+- Risk: Part key normalization errors could lead to 404s.
+  - Mitigation: Reuse existing key normalization helpers.
+  - Evidence: docs/features/part_detail_cross_navigation/plan.md:230-232.
+- Risk: New metric may lack operational consumers.
+  - Mitigation: Coordinate dashboard/alert updates alongside release.
+  - Evidence: docs/features/part_detail_cross_navigation/plan.md:233-235.
 
 ### 8) Confidence
-Confidence: Low — Missing template sections leave transactional and error-handling behavior undefined.
+Confidence: Medium — Plan is grounded in current architecture with clear coverage, and remaining uncertainty is limited to UX payload breadth and performance tuning (docs/features/part_detail_cross_navigation/plan.md:164-168,226-241,243-244).
