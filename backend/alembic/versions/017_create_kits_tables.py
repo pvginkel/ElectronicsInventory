@@ -1,8 +1,8 @@
-"""Create kit tables and supporting indexes
+"""Create kit domain tables and supporting constraints.
 
 Revision ID: 017
 Revises: 016
-Create Date: 2025-12-12 00:00:00.000000
+Create Date: 2026-04-30 00:00:00.000000
 
 """
 from collections.abc import Sequence
@@ -26,25 +26,23 @@ KIT_STATUS_ENUM = sa.Enum(
     native_enum=False,
 )
 
-KIT_LINKED_STATUS_ENUM = sa.Enum(
-    "concept",
-    "ready",
-    "done",
-    name="kit_linked_status",
-    native_enum=False,
-)
-
 KIT_PICK_LIST_STATUS_ENUM = sa.Enum(
-    "draft",
-    "in_progress",
+    "open",
     "completed",
     name="kit_pick_list_status",
     native_enum=False,
 )
 
+KIT_PICK_LIST_LINE_STATUS_ENUM = sa.Enum(
+    "open",
+    "completed",
+    name="kit_pick_list_line_status",
+    native_enum=False,
+)
+
 
 def upgrade() -> None:
-    """Create kit tables with lifecycle metadata."""
+    """Create kit tables, indexes, and workflow constraints."""
     op.create_table(
         "kits",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
@@ -80,6 +78,10 @@ def upgrade() -> None:
             "build_target >= 1",
             name="ck_kits_build_target_positive",
         ),
+        sa.CheckConstraint(
+            "(status != 'archived') OR (archived_at IS NOT NULL)",
+            name="ck_kits_archived_requires_timestamp",
+        ),
     )
 
     op.create_index("ix_kits_status", "kits", ["status"])
@@ -112,20 +114,19 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column(
-            "linked_status",
-            KIT_LINKED_STATUS_ENUM,
+            "requested_units",
+            sa.Integer(),
+            nullable=False,
+        ),
+        sa.Column(
+            "honor_reserved",
+            sa.Boolean(),
             nullable=False,
         ),
         sa.Column(
             "snapshot_kit_updated_at",
             sa.DateTime(),
-            nullable=True,
-        ),
-        sa.Column(
-            "is_stale",
-            sa.Boolean(),
             nullable=False,
-            server_default=text("false"),
         ),
         sa.Column(
             "created_at",
@@ -144,6 +145,10 @@ def upgrade() -> None:
             "shopping_list_id",
             name="uq_kit_shopping_list_link",
         ),
+        sa.CheckConstraint(
+            "requested_units >= 1",
+            name="ck_kit_shopping_list_links_requested_units_positive",
+        ),
     )
     op.create_index(
         "ix_kit_shopping_list_links_kit_id",
@@ -157,7 +162,7 @@ def upgrade() -> None:
     )
 
     op.create_table(
-        "kit_pick_lists",
+        "kit_contents",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column(
             "kit_id",
@@ -166,24 +171,73 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column(
-            "requested_units",
+            "part_id",
+            sa.Integer(),
+            sa.ForeignKey("parts.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "required_per_unit",
             sa.Integer(),
             nullable=False,
         ),
+        sa.Column("note", sa.Text(), nullable=True),
+        sa.Column(
+            "version",
+            sa.BigInteger(),
+            nullable=False,
+            server_default=text("1"),
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(),
+            nullable=False,
+            server_default=func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(),
+            nullable=False,
+            server_default=func.now(),
+        ),
+        sa.CheckConstraint(
+            "required_per_unit >= 1",
+            name="ck_kit_contents_required_positive",
+        ),
+        sa.UniqueConstraint(
+            "kit_id",
+            "part_id",
+            name="uq_kit_contents_kit_part",
+        ),
+    )
+    op.create_index(
+        "ix_kit_contents_kit_id",
+        "kit_contents",
+        ["kit_id"],
+    )
+    op.create_index(
+        "ix_kit_contents_part_id",
+        "kit_contents",
+        ["part_id"],
+    )
+
+    op.create_table(
+        "kit_pick_lists",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column(
+            "kit_id",
+            sa.Integer(),
+            sa.ForeignKey("kits.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("requested_units", sa.Integer(), nullable=False),
         sa.Column(
             "status",
             KIT_PICK_LIST_STATUS_ENUM,
             nullable=False,
-            server_default="draft",
+            server_default="open",
         ),
-        sa.Column("first_deduction_at", sa.DateTime(), nullable=True),
         sa.Column("completed_at", sa.DateTime(), nullable=True),
-        sa.Column(
-            "decreased_build_target_by",
-            sa.Integer(),
-            nullable=False,
-            server_default=text("0"),
-        ),
         sa.Column(
             "created_at",
             sa.DateTime(),
@@ -200,10 +254,6 @@ def upgrade() -> None:
             "requested_units >= 1",
             name="ck_kit_pick_lists_requested_units_positive",
         ),
-        sa.CheckConstraint(
-            "decreased_build_target_by >= 0",
-            name="ck_kit_pick_lists_decreased_build_target_nonnegative",
-        ),
     )
     op.create_index(
         "ix_kit_pick_lists_kit_id",
@@ -216,12 +266,86 @@ def upgrade() -> None:
         ["status"],
     )
 
+    op.create_table(
+        "kit_pick_list_lines",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column(
+            "pick_list_id",
+            sa.Integer(),
+            sa.ForeignKey("kit_pick_lists.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "kit_content_id",
+            sa.Integer(),
+            sa.ForeignKey("kit_contents.id"),
+            nullable=False,
+        ),
+        sa.Column(
+            "location_id",
+            sa.Integer(),
+            sa.ForeignKey("locations.id"),
+            nullable=False,
+        ),
+        sa.Column("quantity_to_pick", sa.Integer(), nullable=False),
+        sa.Column(
+            "status",
+            KIT_PICK_LIST_LINE_STATUS_ENUM,
+            nullable=False,
+            server_default="open",
+        ),
+        sa.Column(
+            "inventory_change_id",
+            sa.Integer(),
+            sa.ForeignKey("quantity_history.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+        sa.Column("picked_at", sa.DateTime(), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(),
+            nullable=False,
+            server_default=func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(),
+            nullable=False,
+            server_default=func.now(),
+        ),
+        sa.CheckConstraint(
+            "quantity_to_pick >= 1",
+            name="ck_pick_list_lines_quantity_positive",
+        ),
+        sa.UniqueConstraint(
+            "pick_list_id",
+            "kit_content_id",
+            "location_id",
+            name="uq_pick_list_line_allocation",
+        ),
+    )
+    op.create_index(
+        "ix_kit_pick_list_lines_pick_list_id_status",
+        "kit_pick_list_lines",
+        ["pick_list_id", "status"],
+    )
+
 
 def downgrade() -> None:
     """Drop kit tables and associated indexes."""
+    op.drop_index(
+        "ix_kit_pick_list_lines_pick_list_id_status",
+        table_name="kit_pick_list_lines",
+    )
+    op.drop_table("kit_pick_list_lines")
+
     op.drop_index("ix_kit_pick_lists_status", table_name="kit_pick_lists")
     op.drop_index("ix_kit_pick_lists_kit_id", table_name="kit_pick_lists")
     op.drop_table("kit_pick_lists")
+
+    op.drop_index("ix_kit_contents_part_id", table_name="kit_contents")
+    op.drop_index("ix_kit_contents_kit_id", table_name="kit_contents")
+    op.drop_table("kit_contents")
 
     op.drop_index(
         "ix_kit_shopping_list_links_shopping_list_id",
@@ -238,6 +362,6 @@ def downgrade() -> None:
     op.drop_index("ix_kits_status", table_name="kits")
     op.drop_table("kits")
 
+    KIT_PICK_LIST_LINE_STATUS_ENUM.drop(op.get_bind(), checkfirst=False)
     KIT_PICK_LIST_STATUS_ENUM.drop(op.get_bind(), checkfirst=False)
-    KIT_LINKED_STATUS_ENUM.drop(op.get_bind(), checkfirst=False)
     KIT_STATUS_ENUM.drop(op.get_bind(), checkfirst=False)
