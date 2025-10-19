@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request
 from spectree import Response as SpectreeResponse
@@ -16,18 +18,26 @@ from app.schemas.kit import (
     KitCreateSchema,
     KitDetailResponseSchema,
     KitListQuerySchema,
+    KitMembershipBulkQueryRequestSchema,
     KitResponseSchema,
     KitShoppingListChipSchema,
+    KitShoppingListLinkSchema,
     KitShoppingListLinkResponseSchema,
+    KitShoppingListMembershipQueryResponseSchema,
     KitShoppingListRequestSchema,
     KitSummarySchema,
     KitUpdateSchema,
+)
+from app.schemas.pick_list import (
+    KitPickListMembershipQueryResponseSchema,
+    KitPickListMembershipSchema,
 )
 from app.services.container import ServiceContainer
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
 kits_bp = Blueprint("kits", __name__, url_prefix="/kits")
+logger = logging.getLogger(__name__)
 
 
 def _ensure_badge_attributes(kit) -> None:
@@ -244,6 +254,104 @@ def delete_kit_content(
     """Remove a kit content entry."""
     kit_service.delete_content(kit_id, content_id)
     return "", 204
+
+
+@kits_bp.route("/shopping-list-memberships/query", methods=["POST"])
+@api.validate(
+    json=KitMembershipBulkQueryRequestSchema,
+    resp=SpectreeResponse(
+        HTTP_200=KitShoppingListMembershipQueryResponseSchema,
+        HTTP_400=ErrorResponseSchema,
+        HTTP_404=ErrorResponseSchema,
+    ),
+)
+@handle_api_errors
+@inject
+def query_shopping_list_memberships_for_kits(
+    kit_service=Provide[ServiceContainer.kit_service],
+    kit_shopping_list_service=Provide[ServiceContainer.kit_shopping_list_service],
+):
+    """Return shopping list memberships for the requested kits."""
+    payload = KitMembershipBulkQueryRequestSchema.model_validate(request.get_json())
+    kit_ids = payload.kit_ids
+    include_done = payload.include_done
+
+    kit_service.resolve_kits_for_bulk(kit_ids)
+    logger.debug(
+        "kit_bulk_membership_query",
+        extra={
+            "resource": "shopping_lists",
+            "kit_count": len(kit_ids),
+            "include_done": include_done,
+        },
+    )
+
+    memberships = kit_shopping_list_service.list_links_for_kits_bulk(
+        kit_ids,
+        include_done=include_done,
+    )
+    response_model = KitShoppingListMembershipQueryResponseSchema(
+        memberships=[
+            {
+                "kit_id": kit_id,
+                "memberships": [
+                    KitShoppingListLinkSchema.model_validate(link).model_dump()
+                    for link in memberships.get(kit_id, [])
+                ],
+            }
+            for kit_id in kit_ids
+        ],
+    )
+    return response_model.model_dump()
+
+
+@kits_bp.route("/pick-list-memberships/query", methods=["POST"])
+@api.validate(
+    json=KitMembershipBulkQueryRequestSchema,
+    resp=SpectreeResponse(
+        HTTP_200=KitPickListMembershipQueryResponseSchema,
+        HTTP_400=ErrorResponseSchema,
+        HTTP_404=ErrorResponseSchema,
+    ),
+)
+@handle_api_errors
+@inject
+def query_pick_list_memberships_for_kits(
+    kit_service=Provide[ServiceContainer.kit_service],
+    kit_pick_list_service=Provide[ServiceContainer.kit_pick_list_service],
+):
+    """Return pick list memberships for the requested kits."""
+    payload = KitMembershipBulkQueryRequestSchema.model_validate(request.get_json())
+    kit_ids = payload.kit_ids
+    include_done = payload.include_done
+
+    kit_service.resolve_kits_for_bulk(kit_ids)
+    logger.debug(
+        "kit_bulk_membership_query",
+        extra={
+            "resource": "pick_lists",
+            "kit_count": len(kit_ids),
+            "include_done": include_done,
+        },
+    )
+
+    pick_lists = kit_pick_list_service.list_pick_lists_for_kits_bulk(
+        kit_ids,
+        include_done=include_done,
+    )
+    response_model = KitPickListMembershipQueryResponseSchema(
+        memberships=[
+            {
+                "kit_id": kit_id,
+                "pick_lists": [
+                    KitPickListMembershipSchema.model_validate(pick_list).model_dump()
+                    for pick_list in pick_lists.get(kit_id, [])
+                ],
+            }
+            for kit_id in kit_ids
+        ],
+    )
+    return response_model.model_dump()
 
 
 @kits_bp.route("/<int:kit_id>/shopping-lists", methods=["GET"])

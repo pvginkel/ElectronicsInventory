@@ -4,7 +4,11 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.exceptions import InvalidOperationException, ResourceConflictException
+from app.exceptions import (
+    InvalidOperationException,
+    RecordNotFoundException,
+    ResourceConflictException,
+)
 from app.models.kit import Kit, KitStatus
 from app.models.kit_content import KitContent
 from app.models.kit_pick_list import KitPickList, KitPickListStatus
@@ -290,6 +294,61 @@ class TestKitService:
         archived_results = kit_service.list_kits(status=KitStatus.ARCHIVED)
         assert len(archived_results) == 1
         assert archived_results[0].status == KitStatus.ARCHIVED
+
+    def test_resolve_kits_for_bulk_preserves_order(
+        self,
+        session,
+        kit_service: KitService,
+    ) -> None:
+        first = Kit(name="First Kit", build_target=1, status=KitStatus.ACTIVE)
+        second = Kit(name="Second Kit", build_target=1, status=KitStatus.ACTIVE)
+        session.add_all([first, second])
+        session.commit()
+
+        result = kit_service.resolve_kits_for_bulk([second.id, first.id])
+        assert [kit.id for kit in result] == [second.id, first.id]
+
+    def test_resolve_kits_for_bulk_rejects_duplicates(
+        self,
+        session,
+        kit_service: KitService,
+    ) -> None:
+        kit = Kit(name="Unique Kit", build_target=1, status=KitStatus.ACTIVE)
+        session.add(kit)
+        session.commit()
+
+        with pytest.raises(InvalidOperationException):
+            kit_service.resolve_kits_for_bulk([kit.id, kit.id])
+
+    def test_resolve_kits_for_bulk_missing_kit(
+        self,
+        session,
+        kit_service: KitService,
+    ) -> None:
+        kit = Kit(name="Present Kit", build_target=1, status=KitStatus.ACTIVE)
+        session.add(kit)
+        session.commit()
+
+        with pytest.raises(RecordNotFoundException):
+            kit_service.resolve_kits_for_bulk([kit.id, kit.id + 1])
+
+    def test_resolve_kits_for_bulk_enforces_limit(
+        self,
+        session,
+        kit_service: KitService,
+    ) -> None:
+        kits = [
+            Kit(name=f"Kit {index}", build_target=1, status=KitStatus.ACTIVE)
+            for index in range(3)
+        ]
+        session.add_all(kits)
+        session.commit()
+
+        with pytest.raises(InvalidOperationException):
+            kit_service.resolve_kits_for_bulk(
+                [kit.id for kit in kits],
+                limit=2,
+            )
 
     def test_create_kit_enforces_constraints_and_records_metrics(
         self,

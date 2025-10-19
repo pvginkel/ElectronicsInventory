@@ -105,7 +105,7 @@ class TestKitsApi:
         kit = _seed_badge_data(session)
 
         response = client.get("/api/kits")
-        assert response.status_code == 200
+        assert response.status_code == 200, response.get_data(as_text=True)
         payload = response.get_json()
         assert isinstance(payload, list)
         assert payload[0]["name"] == kit.name
@@ -124,7 +124,7 @@ class TestKitsApi:
         session.commit()
 
         response = client.get("/api/kits?query=recorder")
-        assert response.status_code == 200
+        assert response.status_code == 200, response.get_json()
         payload = response.get_json()
         assert len(payload) == 1
         assert payload[0]["name"] == "Portable Recorder Kit"
@@ -157,7 +157,7 @@ class TestKitsApi:
             f"/api/kits/{kit.id}",
             json={"description": "Updated", "build_target": 5},
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, response.get_data(as_text=True)
         data = response.get_json()
         assert data["description"] == "Updated"
         assert data["build_target"] == 5
@@ -316,6 +316,84 @@ class TestKitsApi:
         )
 
         assert response.status_code == 409
+
+    def test_post_kits_shopping_list_memberships_query(self, client, session):
+        kit_with_links = _seed_badge_data(session)
+        empty_kit = Kit(name="Empty Membership", build_target=1, status=KitStatus.ACTIVE)
+        session.add(empty_kit)
+        session.commit()
+
+        response = client.post(
+            "/api/kits/shopping-list-memberships/query",
+            json={"kit_ids": [kit_with_links.id, empty_kit.id]},
+        )
+        assert response.status_code == 200, response.get_data(as_text=True)
+        payload = response.get_json()
+        assert payload["memberships"][0]["kit_id"] == kit_with_links.id
+        first_memberships = payload["memberships"][0]["memberships"]
+        names = [entry["shopping_list_name"] for entry in first_memberships]
+        assert set(names) == {"Concept List", "Ready List"}
+        assert payload["memberships"][1]["kit_id"] == empty_kit.id
+        assert payload["memberships"][1]["memberships"] == []
+
+        include_done = client.post(
+            "/api/kits/shopping-list-memberships/query",
+            json={
+                "kit_ids": [kit_with_links.id],
+                "include_done": True,
+            },
+        )
+        assert include_done.status_code == 200, include_done.get_json()
+        include_payload = include_done.get_json()
+        done_names = [
+            entry["shopping_list_name"]
+            for entry in include_payload["memberships"][0]["memberships"]
+        ]
+        assert "Done List" in done_names
+
+    def test_post_kits_pick_list_memberships_query(self, client, session):
+        kit_with_pick_lists = _seed_badge_data(session)
+        extra = Kit(name="No Picks", build_target=1, status=KitStatus.ACTIVE)
+        session.add(extra)
+        session.commit()
+
+        response = client.post(
+            "/api/kits/pick-list-memberships/query",
+            json={"kit_ids": [kit_with_pick_lists.id, extra.id]},
+        )
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["memberships"][0]["kit_id"] == kit_with_pick_lists.id
+        pick_lists = payload["memberships"][0]["pick_lists"]
+        statuses = {entry["status"] for entry in pick_lists}
+        assert statuses == {KitPickListStatus.OPEN.value}
+        assert payload["memberships"][1]["pick_lists"] == []
+
+        include_done = client.post(
+            "/api/kits/pick-list-memberships/query",
+            json={
+                "kit_ids": [kit_with_pick_lists.id],
+                "include_done": True,
+            },
+        )
+        assert include_done.status_code == 200
+        include_payload = include_done.get_json()
+        include_statuses = {
+            entry["status"]
+            for entry in include_payload["memberships"][0]["pick_lists"]
+        }
+        assert KitPickListStatus.COMPLETED.value in include_statuses
+
+    def test_post_kits_membership_query_missing_kit_returns_404(self, client, session):
+        kit = Kit(name="Existing Kit", build_target=1, status=KitStatus.ACTIVE)
+        session.add(kit)
+        session.commit()
+
+        response = client.post(
+            "/api/kits/shopping-list-memberships/query",
+            json={"kit_ids": [kit.id, kit.id + 999]},
+        )
+        assert response.status_code == 404
 
     def test_get_kit_detail_endpoint_returns_computed_fields(self, client, session):
         kit, part, _ = _seed_kit_with_content(session)

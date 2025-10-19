@@ -5,7 +5,14 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 from app.models.kit import KitStatus
 from app.models.shopping_list import ShoppingListStatus
@@ -375,6 +382,63 @@ class KitShoppingListRequestSchema(BaseModel):
                 "provide either shopping_list_id or new_list_name when pushing kit contents"
             )
         return self
+
+
+class KitMembershipBulkQueryRequestSchema(BaseModel):
+    """Schema for querying kit memberships across related resources."""
+
+    kit_ids: list[int] = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="Ordered collection of kit identifiers to resolve",
+        json_schema_extra={"example": [1, 2, 3]},
+    )
+    include_done: bool = Field(
+        default=False,
+        description="Include archived or completed memberships when true",
+    )
+
+    @field_validator("kit_ids")
+    @classmethod
+    def _validate_kit_ids(cls, kit_ids: list[int]) -> list[int]:
+        """Normalise kit identifiers and enforce uniqueness."""
+        seen: set[int] = set()
+        ordered: list[int] = []
+
+        for raw_id in kit_ids:
+            if not isinstance(raw_id, int):
+                raise TypeError("kit_ids must contain only integers")
+            if raw_id < 1:
+                raise ValueError("kit_ids must be positive integers")
+            if raw_id in seen:
+                raise ValueError("kit_ids must not contain duplicate values")
+            seen.add(raw_id)
+            ordered.append(raw_id)
+
+        return ordered
+
+
+class KitShoppingListMembershipQueryItemSchema(BaseModel):
+    """Schema encapsulating shopping list memberships for a single kit."""
+
+    kit_id: int = Field(
+        description="Requested kit identifier",
+        json_schema_extra={"example": 7},
+    )
+    memberships: list[KitShoppingListLinkSchema] = Field(
+        default_factory=list,
+        description="Shopping list memberships associated with the kit",
+    )
+
+
+class KitShoppingListMembershipQueryResponseSchema(BaseModel):
+    """Bulk response schema for shopping list memberships grouped by kit."""
+
+    memberships: list[KitShoppingListMembershipQueryItemSchema] = Field(
+        default_factory=list,
+        description="Memberships grouped by kit identifier order",
+    )
 
 
 class KitShoppingListLinkResponseSchema(BaseModel):

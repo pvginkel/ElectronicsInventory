@@ -27,6 +27,8 @@ from app.services.inventory_service import InventoryService
 from app.services.kit_reservation_service import KitReservationService
 from app.services.metrics_service import MetricsServiceProtocol
 
+MAX_BULK_KIT_QUERY = 100
+
 
 class KitService(BaseService):
     """Service encapsulating kit overview operations and lifecycle rules."""
@@ -107,6 +109,40 @@ class KitService(BaseService):
 
         self._record_overview_metric(status, len(kits), limit)
         return kits
+
+    def resolve_kits_for_bulk(
+        self,
+        kit_ids: Sequence[int],
+        *,
+        limit: int = MAX_BULK_KIT_QUERY,
+    ) -> list[Kit]:
+        """Resolve kits for bulk membership queries while preserving order."""
+        ordered_ids = list(kit_ids)
+
+        if not ordered_ids:
+            return []
+
+        if len(ordered_ids) > limit:
+            raise InvalidOperationException(
+                "kit bulk membership query",
+                f"cannot request more than {limit} kits at once",
+            )
+
+        if len(set(ordered_ids)) != len(ordered_ids):
+            raise InvalidOperationException(
+                "kit bulk membership query",
+                "kit_ids must not contain duplicate values",
+            )
+
+        stmt = select(Kit).where(Kit.id.in_(ordered_ids))
+        rows = self.db.execute(stmt).scalars().all()
+        kits_by_id: dict[int, Kit] = {kit.id: kit for kit in rows}
+
+        missing = [kit_id for kit_id in ordered_ids if kit_id not in kits_by_id]
+        if missing:
+            raise RecordNotFoundException("Kit", missing[0])
+
+        return [kits_by_id[kit_id] for kit_id in ordered_ids]
 
     def get_kit_detail(self, kit_id: int) -> Kit:
         """Return kit with contents and computed availability details."""
