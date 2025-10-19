@@ -213,6 +213,28 @@ class TestKitPickListService:
         with pytest.raises(InvalidOperationException):
             kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
 
+    def test_create_pick_list_accounts_for_existing_reservations(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        metrics_stub: PickListMetricsStub,
+    ) -> None:
+        kit = _create_active_kit(session)
+        part = _create_part(session, "RESV", "Reserved Part")
+        _attach_content(session, kit, part, required_per_unit=1)
+        location = _create_location(session, box_no=41, loc_no=1)
+        _attach_location(session, part, location, qty=1)
+
+        first = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        session.flush()
+
+        assert first.lines[0].quantity_to_pick == 1
+
+        with pytest.raises(InvalidOperationException):
+            kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+
+        assert len(metrics_stub.pick_list_creations) == 1
+
     def test_pick_line_completes_line_and_updates_parent(
         self,
         session,
@@ -343,3 +365,52 @@ class TestKitPickListService:
     ) -> None:
         with pytest.raises(RecordNotFoundException):
             kit_pick_list_service.list_pick_lists_for_kit(9999)
+
+    def test_pick_line_updates_parent_timestamp_when_still_open(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        kit = _create_active_kit(session)
+        part = _create_part(session, "TIME", "Timestamp Part")
+        _attach_content(session, kit, part, required_per_unit=1)
+        location_a = _create_location(session, box_no=101, loc_no=1)
+        _attach_location(session, part, location_a, qty=1)
+        location_b = _create_location(session, box_no=102, loc_no=1)
+        _attach_location(session, part, location_b, qty=1)
+
+        pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=2)
+        session.flush()
+        initial_updated_at = pick_list.updated_at
+
+        open_line = pick_list.lines[0]
+        kit_pick_list_service.pick_line(pick_list.id, open_line.id)
+        session.flush()
+        session.refresh(pick_list)
+
+        assert pick_list.status is KitPickListStatus.OPEN
+        assert pick_list.updated_at != initial_updated_at
+
+    def test_undo_line_updates_parent_timestamp(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        kit = _create_active_kit(session)
+        part = _create_part(session, "UNDO2", "Undo Timestamp Part")
+        _attach_content(session, kit, part, required_per_unit=1)
+        location = _create_location(session, box_no=103, loc_no=1)
+        _attach_location(session, part, location, qty=1)
+
+        pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        line = pick_list.lines[0]
+        kit_pick_list_service.pick_line(pick_list.id, line.id)
+        session.flush()
+        session.refresh(pick_list)
+        post_pick_updated_at = pick_list.updated_at
+
+        kit_pick_list_service.undo_line(pick_list.id, line.id)
+        session.flush()
+        session.refresh(pick_list)
+
+        assert pick_list.updated_at != post_pick_updated_at

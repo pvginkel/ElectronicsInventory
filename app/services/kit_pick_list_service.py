@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from time import perf_counter
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.exceptions import InvalidOperationException, RecordNotFoundException
@@ -60,6 +60,12 @@ class KitPickListService(BaseService):
             )
 
         locations_by_part = self._load_part_locations(part_ids)
+        all_location_ids = [
+            location.location_id
+            for part_locations in locations_by_part.values()
+            for location in part_locations
+        ]
+        reserved_by_location = self._load_open_line_reservations(all_location_ids)
         planned_lines: list[tuple[KitContent, int, PartLocation]] = []
 
         for content in contents:
@@ -70,11 +76,18 @@ class KitPickListService(BaseService):
             for candidate in part_locations:
                 if remaining <= 0:
                     break
-                allocation = min(remaining, candidate.qty)
+                reserved = reserved_by_location.get(candidate.location_id, 0)
+                available_quantity = max(candidate.qty - reserved, 0)
+                if available_quantity <= 0:
+                    continue
+                allocation = min(remaining, available_quantity)
                 if allocation <= 0:
                     continue
                 planned_lines.append((content, allocation, candidate))
                 remaining -= allocation
+                reserved_by_location[candidate.location_id] = (
+                    reserved + allocation
+                )
 
             if remaining > 0:
                 part_key = content.part.key if content.part else "unknown"
@@ -193,17 +206,19 @@ class KitPickListService(BaseService):
             line.quantity_to_pick,
         )
 
+        now = datetime.now(UTC)
         line.inventory_change_id = history.id
-        line.picked_at = datetime.now(UTC)
+        line.picked_at = now
         line.status = PickListLineStatus.COMPLETED
 
         pick_list = line.pick_list
+        pick_list.updated_at = now
         if all(
             sibling.status is PickListLineStatus.COMPLETED
             for sibling in pick_list.lines
         ):
             pick_list.status = KitPickListStatus.COMPLETED
-            pick_list.completed_at = datetime.now(UTC)
+            pick_list.completed_at = now
 
         self.db.flush()
         self.metrics_service.record_pick_list_line_picked(
@@ -245,11 +260,13 @@ class KitPickListService(BaseService):
             line.quantity_to_pick,
         )
 
+        now = datetime.now(UTC)
         line.inventory_change_id = None
         line.picked_at = None
         line.status = PickListLineStatus.OPEN
 
         pick_list = line.pick_list
+        pick_list.updated_at = now
         if pick_list.status is KitPickListStatus.COMPLETED:
             pick_list.status = KitPickListStatus.OPEN
             pick_list.completed_at = None
@@ -328,3 +345,29 @@ class KitPickListService(BaseService):
         if line is None:
             raise RecordNotFoundException("Pick list line", line_id)
         return line
+
+    def _load_open_line_reservations(
+        self,
+        location_ids: Sequence[int],
+    ) -> dict[int, int]:
+        """Return reserved quantities for locations from open pick list lines."""
+        if not location_ids:
+            return {}
+
+        unique_ids = tuple(dict.fromkeys(location_ids))
+        stmt = (
+            select(
+                KitPickListLine.location_id,
+                func.coalesce(func.sum(KitPickListLine.quantity_to_pick), 0),
+            )
+            .where(
+                KitPickListLine.location_id.in_(unique_ids),
+                KitPickListLine.status == PickListLineStatus.OPEN,
+            )
+            .group_by(KitPickListLine.location_id)
+        )
+
+        reservations = {
+            location_id: int(total or 0) for location_id, total in self.db.execute(stmt)
+        }
+        return reservations
