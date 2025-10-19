@@ -15,6 +15,7 @@ from app.schemas.part import (
     PartWithTotalAndLocationsSchema,
     PartWithTotalSchema,
 )
+from app.schemas.part_kits import PartKitUsageSchema
 from app.schemas.part_shopping_list import (
     PartShoppingListMembershipCreateSchema,
     PartShoppingListMembershipQueryItemSchema,
@@ -162,10 +163,43 @@ def list_parts_with_locations(inventory_service=Provide[ServiceContainer.invento
 @api.validate(resp=SpectreeResponse(HTTP_200=PartResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_part(part_key: str, part_service=Provide[ServiceContainer.part_service]):
+def get_part(
+    part_key: str,
+    part_service=Provide[ServiceContainer.part_service],
+    kit_reservation_service=Provide[ServiceContainer.kit_reservation_service],
+):
     """Get single part with full details."""
     part = part_service.get_part(part_key)
-    return PartResponseSchema.model_validate(part).model_dump()
+    reservations = kit_reservation_service.list_active_reservations_for_part(part.id)
+    part_schema = PartResponseSchema.model_validate(part)
+    return part_schema.model_copy(
+        update={"used_in_kits": bool(reservations)}
+    ).model_dump()
+
+
+@parts_bp.route("/<string:part_key>/kits", methods=["GET"])
+@api.validate(
+    resp=SpectreeResponse(
+        HTTP_200=list[PartKitUsageSchema],
+        HTTP_404=ErrorResponseSchema,
+    )
+)
+@handle_api_errors
+@inject
+def list_part_kits(
+    part_key: str,
+    kit_reservation_service=Provide[ServiceContainer.kit_reservation_service],
+    metrics_service=Provide[ServiceContainer.metrics_service],
+):
+    """List active kits consuming the specified part."""
+    usage_entries = kit_reservation_service.list_kits_for_part(part_key)
+    has_results = bool(usage_entries)
+    metrics_service.record_part_kit_usage_request(has_results=has_results)
+
+    return [
+        PartKitUsageSchema.model_validate(entry).model_dump()
+        for entry in usage_entries
+    ]
 
 
 @parts_bp.route("/<string:part_key>/kit-reservations", methods=["GET"])

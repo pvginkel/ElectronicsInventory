@@ -97,6 +97,12 @@ def get_real_metrics_service(container):
                 'Total kit detail view requests',
                 registry=self._test_registry
             )
+            self.part_kit_usage_requests_total = Counter(
+                'part_kit_usage_requests_total',
+                'Total part kit usage lookup requests',
+                ['has_results'],
+                registry=self._test_registry
+            )
             self.kit_content_mutations_total = Counter(
                 'kit_content_mutations_total',
                 'Total kit content mutations grouped by action',
@@ -247,6 +253,23 @@ class TestMetricsService:
 
         service.record_kit_content_deleted(kit_id=1, part_id=2)
         assert service.kit_content_mutations_total.labels(action="delete")._value.get() == 1
+
+    def test_record_part_kit_usage_request(self, app, session, container):
+        """Ensure part kit usage counter increments for both result states."""
+        service = get_real_metrics_service(container)
+
+        service.record_part_kit_usage_request(has_results=True)
+        assert (
+            service.part_kit_usage_requests_total.labels(has_results="true")._value.get()
+            == 1
+        )
+
+        service.record_part_kit_usage_request(has_results=False)
+        assert (
+            service.part_kit_usage_requests_total.labels(has_results="false")
+            ._value.get()
+            == 1
+        )
 
     def test_record_quantity_change(self, app, session, container):
         """Test recording quantity changes."""
