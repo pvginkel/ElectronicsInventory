@@ -17,8 +17,19 @@ from app.database import (
 )
 from app.extensions import db
 from app.models.box import Box
+from app.models.kit import Kit
+from app.models.kit_content import KitContent
+from app.models.kit_pick_list import KitPickList
+from app.models.kit_pick_list_line import KitPickListLine
+from app.models.kit_shopping_list_link import KitShoppingListLink
+from app.models.location import Location
 from app.models.part import Part
 from app.models.part_location import PartLocation
+from app.models.quantity_history import QuantityHistory
+from app.models.seller import Seller
+from app.models.shopping_list import ShoppingList
+from app.models.shopping_list_line import ShoppingListLine
+from app.models.shopping_list_seller_note import ShoppingListSellerNote
 from app.models.type import Type
 from app.services.test_data_service import TestDataService
 
@@ -219,16 +230,81 @@ def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
                 print("✅ Test data loaded successfully")
 
                 # Show summary of loaded data
-                part_count = session.query(Part).count()
-                box_count = session.query(Box).count()
                 type_count = session.query(Type).count()
-                location_count = session.query(PartLocation).count()
+                part_count = session.query(Part).count()
+                seller_count = session.query(Seller).count()
+                box_count = session.query(Box).count()
+                location_slot_count = session.query(Location).count()
+                part_location_count = session.query(PartLocation).count()
+                quantity_history_count = session.query(QuantityHistory).count()
+                shopping_list_count = session.query(ShoppingList).count()
+                shopping_list_line_count = session.query(ShoppingListLine).count()
+                shopping_list_note_count = session.query(
+                    ShoppingListSellerNote
+                ).count()
+                kit_count = session.query(Kit).count()
+                kit_content_count = session.query(KitContent).count()
+                kit_link_count = session.query(KitShoppingListLink).count()
+                kit_pick_list_count = session.query(KitPickList).count()
+                kit_pick_list_line_count = session.query(
+                    KitPickListLine
+                ).count()
+
+                summary_sections = [
+                    (
+                        "🏷️  Catalog",
+                        [
+                            f"{type_count} part types",
+                            f"{part_count} parts",
+                            f"{seller_count} sellers",
+                        ],
+                    ),
+                    (
+                        "📦 Storage",
+                        [
+                            f"{box_count} storage boxes",
+                            f"{location_slot_count} location slots",
+                            f"{part_location_count} inventory placements",
+                            f"{quantity_history_count} quantity history events",
+                        ],
+                    ),
+                    (
+                        "🛒 Shopping",
+                        [
+                            (
+                                f"{shopping_list_count} shopping lists "
+                                f"with {shopping_list_line_count} lines"
+                            ),
+                            (
+                                f"{shopping_list_note_count} shopping list "
+                                "seller notes"
+                            ),
+                        ],
+                    ),
+                    (
+                        "🧰 Kits",
+                        [
+                            (
+                                f"{kit_count} kits stocked with "
+                                f"{kit_content_count} contents"
+                            ),
+                            (
+                                f"{kit_pick_list_count} pick lists wrangled "
+                                f"into {kit_pick_list_line_count} lines"
+                            ),
+                            (
+                                f"{kit_link_count} kit to shopping list links "
+                                "kept in sync"
+                            ),
+                        ],
+                    ),
+                ]
 
                 print("📊 Dataset summary:")
-                print(f"   • {type_count} part types")
-                print(f"   • {box_count} storage boxes")
-                print(f"   • {part_count} parts")
-                print(f"   • {location_count} part locations with inventory")
+                for section_title, entries in summary_sections:
+                    print(f"   {section_title}")
+                    for entry in entries:
+                        print(f"      • {entry}")
 
         except Exception as e:
             print(f"❌ Failed to load test data: {e}", file=sys.stderr)
