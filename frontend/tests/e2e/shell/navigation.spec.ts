@@ -8,6 +8,7 @@ test.describe('App shell - desktop navigation', () => {
     parts,
     boxes,
     types,
+    kits,
     sellers,
     about,
     page,
@@ -36,6 +37,11 @@ test.describe('App shell - desktop navigation', () => {
     await expect(page).toHaveURL(/\/types(?:$|\?)/);
     await types.waitForListState('ready');
     await appShell.expectActiveNav('types');
+
+    await appShell.clickDesktopNav('kits');
+    await expect(page).toHaveURL(/\/kits(?:$|\?)/);
+    await kits.waitForOverviewReady();
+    await appShell.expectActiveNav('kits');
 
     await appShell.clickDesktopNav('sellers');
     await expect(page).toHaveURL(/\/sellers(?:$|\?)/);

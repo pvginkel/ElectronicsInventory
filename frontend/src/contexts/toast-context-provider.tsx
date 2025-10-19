@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { Toast, ToastType } from '@/components/ui/toast'
 import { ToastContainer } from '@/components/ui/toast'
+import type { Toast, ToastOptions, ToastType } from '@/components/ui/toast'
 import { isTestMode } from '@/lib/config/test-mode'
 import { createInstrumentedToastWrapper } from '@/lib/test/toast-instrumentation'
 import { ToastContext } from './toast-context-base'
@@ -14,38 +14,56 @@ interface ToastProviderProps {
 export function ToastProvider({ children }: ToastProviderProps) {
   const [toasts, setToasts] = useState<Toast[]>([])
 
-  const showToast = (message: string, type: ToastType, duration?: number) => {
-    const id = Math.random().toString(36).substring(2, 11)
-    const toast: Toast = { id, message, type, duration }
-    
-    setToasts(prev => [...prev, toast])
-  }
-
-  const showError = (message: string, duration?: number) => {
-    showToast(message, 'error', duration)
-  }
-
-  const showSuccess = (message: string, duration?: number) => {
-    showToast(message, 'success', duration)
-  }
-
-  const showWarning = (message: string, duration?: number) => {
-    showToast(message, 'warning', duration)
-  }
-
-  const showInfo = (message: string, duration?: number) => {
-    showToast(message, 'info', duration)
-  }
-
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
-  const showException = (message: string, error: unknown, duration?: number) => {
+  const showToast = (message: string, type: ToastType, options?: ToastOptions) => {
+    const id = Math.random().toString(36).substring(2, 11)
+    const action = options?.action
+      ? {
+          ...options.action,
+          onClick: () => {
+            options.action?.onClick?.()
+            removeToast(id)
+          },
+        }
+      : undefined
+
+    const toast: Toast = {
+      id,
+      message,
+      type,
+      duration: options?.duration,
+      action,
+    }
+
+    setToasts(prev => [...prev, toast])
+
+    return id
+  }
+
+  const showError = (message: string, options?: ToastOptions) => {
+    return showToast(message, 'error', options)
+  }
+
+  const showSuccess = (message: string, options?: ToastOptions) => {
+    return showToast(message, 'success', options)
+  }
+
+  const showWarning = (message: string, options?: ToastOptions) => {
+    return showToast(message, 'warning', options)
+  }
+
+  const showInfo = (message: string, options?: ToastOptions) => {
+    return showToast(message, 'info', options)
+  }
+
+  const showException = (message: string, error: unknown, options?: ToastOptions) => {
     if (process.env.NODE_ENV !== 'production') {
       console.error('Toast exception', error)
     }
-    showToast(message, 'error', duration)
+    return showToast(message, 'error', options)
   }
 
   const baseContextValue: ToastContextValue = {
@@ -71,12 +89,12 @@ export function ToastProvider({ children }: ToastProviderProps) {
     }
 
     const handler = (event: Event) => {
-      const customEvent = event as CustomEvent<{ message: string; error: unknown; duration?: number }>
+      const customEvent = event as CustomEvent<{ message: string; error: unknown; options?: ToastOptions }>
       const detail = customEvent.detail
       if (!detail || typeof detail.message !== 'string') {
         return
       }
-      showExceptionFn(detail.message, detail.error, detail.duration)
+      showExceptionFn(detail.message, detail.error, detail.options)
     }
 
     window.addEventListener('app:testing:show-exception', handler)

@@ -17,6 +17,7 @@ interface SidebarProps {
 const navigationItems: SidebarItem[] = [
   { to: '/', label: 'Dashboard', icon: '📊', testId: 'dashboard' },
   { to: '/parts', label: 'Parts', icon: '🔧', testId: 'parts' },
+  { to: '/kits', label: 'Kits', icon: '🧰', testId: 'kits' },
   { to: '/shopping-lists', label: 'Shopping Lists', icon: '🛒', testId: 'shopping-lists' },
   { to: '/boxes', label: 'Storage', icon: '📦', testId: 'boxes' },
   { to: '/types', label: 'Types', icon: '🏷️', testId: 'types' },
