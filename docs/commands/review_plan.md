@@ -69,7 +69,7 @@ For each new or changed backend behavior, document the scenarios, observability,
 Stress-test the plan by targeting failure modes that would surface in implementation. Record each issue with `<finding_template>`, or—if no credible issues remain—log the attempted checks and justification via `<adversarial_proof_template>`.
 
 <finding_template>
-**[ID] Severity — Title**
+**Severity — Title**
 **Evidence:** `plan_path:lines` (+ refs) — <quote>
 **Why it matters:** <impact>
 **Fix suggestion:** <minimal plan change>
