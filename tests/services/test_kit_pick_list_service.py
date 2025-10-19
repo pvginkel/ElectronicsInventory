@@ -18,6 +18,7 @@ from app.models.part import Part
 from app.models.part_location import PartLocation
 from app.services.inventory_service import InventoryService
 from app.services.kit_pick_list_service import KitPickListService
+from app.services.kit_reservation_service import KitReservationService
 from app.services.part_service import PartService
 
 
@@ -76,6 +77,7 @@ def inventory_service(session, part_service: PartService, metrics_stub: PickList
 def kit_pick_list_service(
     session,
     inventory_service: InventoryService,
+    kit_reservation_service: KitReservationService,
     metrics_stub: PickListMetricsStub,
 ) -> KitPickListService:
     """Instantiate the service under test with real dependencies."""
@@ -83,8 +85,16 @@ def kit_pick_list_service(
     return KitPickListService(
         session,
         inventory_service=inventory_service,
+        kit_reservation_service=kit_reservation_service,
         metrics_service=metrics_stub,
     )
+
+
+@pytest.fixture
+def kit_reservation_service(session) -> KitReservationService:
+    """Provide reservation service backed by the test session."""
+
+    return KitReservationService(session)
 
 
 def _create_location(session, *, box_no: int, loc_no: int) -> Location:
@@ -184,7 +194,7 @@ class TestKitPickListService:
     ) -> None:
         kit = _create_active_kit(session)
         part = _create_part(session, "LOW", "Limited Stock Part")
-        content = _attach_content(session, kit, part, required_per_unit=5)
+        _attach_content(session, kit, part, required_per_unit=5)
 
         location = _create_location(session, box_no=30, loc_no=1)
         _attach_location(session, part, location, qty=4)
@@ -195,6 +205,28 @@ class TestKitPickListService:
         assert not metrics_stub.pick_list_creations
         remaining_lists = session.execute(select(KitPickList)).all()
         assert not remaining_lists
+
+    def test_create_pick_list_blocks_other_kit_reservations(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        kit = _create_active_kit(session)
+        competitor = Kit(name="Competing Kit", build_target=3, status=KitStatus.ACTIVE)
+        session.add(competitor)
+        session.flush()
+
+        part = _create_part(session, "RESF", "Reservation sensitive part")
+        _attach_content(session, kit, part, required_per_unit=2)
+        _attach_content(session, competitor, part, required_per_unit=1)
+
+        location = _create_location(session, box_no=31, loc_no=1)
+        _attach_location(session, part, location, qty=5)
+
+        with pytest.raises(InvalidOperationException) as excinfo:
+            kit_pick_list_service.create_pick_list(kit.id, requested_units=2)
+
+        assert "honoring kit reservations" in str(excinfo.value).lower()
 
     def test_create_pick_list_rejects_archived_kit(
         self,
@@ -243,7 +275,7 @@ class TestKitPickListService:
     ) -> None:
         kit = _create_active_kit(session)
         part = _create_part(session, "PICK", "Picker Part")
-        content = _attach_content(session, kit, part, required_per_unit=2)
+        _attach_content(session, kit, part, required_per_unit=2)
         location = _create_location(session, box_no=50, loc_no=1)
         assignment = _attach_location(session, part, location, qty=3)
 
@@ -275,7 +307,7 @@ class TestKitPickListService:
     ) -> None:
         kit = _create_active_kit(session)
         part = _create_part(session, "UNDO", "Undo Part")
-        content = _attach_content(session, kit, part, required_per_unit=1)
+        _attach_content(session, kit, part, required_per_unit=1)
         location = _create_location(session, box_no=60, loc_no=1)
         assignment = _attach_location(session, part, location, qty=2)
         initial_qty = assignment.qty

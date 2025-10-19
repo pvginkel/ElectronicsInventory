@@ -1,6 +1,7 @@
 """Kit overview and lifecycle API endpoints."""
 
 from __future__ import annotations
+
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request
 from spectree import Response as SpectreeResponse

@@ -5,6 +5,7 @@ from flask import Blueprint, request
 from spectree import Response as SpectreeResponse
 
 from app.schemas.common import ErrorResponseSchema
+from app.schemas.kit_reservations import PartKitReservationsResponseSchema
 from app.schemas.part import (
     PartCreateSchema,
     PartLocationListSchema,
@@ -165,6 +166,35 @@ def get_part(part_key: str, part_service=Provide[ServiceContainer.part_service])
     """Get single part with full details."""
     part = part_service.get_part(part_key)
     return PartResponseSchema.model_validate(part).model_dump()
+
+
+@parts_bp.route("/<string:part_key>/kit-reservations", methods=["GET"])
+@api.validate(
+    resp=SpectreeResponse(
+        HTTP_200=PartKitReservationsResponseSchema,
+        HTTP_404=ErrorResponseSchema,
+    )
+)
+@handle_api_errors
+@inject
+def get_part_kit_reservations(
+    part_key: str,
+    part_service=Provide[ServiceContainer.part_service],
+    kit_reservation_service=Provide[ServiceContainer.kit_reservation_service],
+):
+    """Return active kit reservations for the specified part."""
+    part = part_service.get_part(part_key)
+    reservations = kit_reservation_service.list_active_reservations_for_part(
+        part.id
+    )
+    response = PartKitReservationsResponseSchema(
+        part_id=part.id,
+        part_key=part.key,
+        part_description=part.description,
+        total_reserved=sum(entry.reserved_quantity for entry in reservations),
+        active_reservations=reservations,
+    )
+    return response.model_dump()
 
 
 @parts_bp.route("/<string:part_key>", methods=["PUT"])

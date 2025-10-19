@@ -120,6 +120,7 @@ class ServiceContainer(containers.DeclarativeContainer):
         KitPickListService,
         db=db_session,
         inventory_service=inventory_service,
+        kit_reservation_service=kit_reservation_service,
         metrics_service=metrics_service,
     )
     kit_shopping_list_service = providers.Factory(

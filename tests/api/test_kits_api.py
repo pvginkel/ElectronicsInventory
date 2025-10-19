@@ -350,6 +350,7 @@ class TestKitsApi:
         assert payload["contents"][0]["in_stock"] == 0
         assert payload["contents"][0]["reserved"] == 0
         assert payload["contents"][0]["shortfall"] == kit.build_target * 2
+        assert payload["contents"][0]["active_reservations"] == []
         link_payload = payload["shopping_list_links"][0]
         assert link_payload["shopping_list_id"] == shopping_list.id
         assert link_payload["shopping_list_name"] == shopping_list.name
@@ -362,6 +363,22 @@ class TestKitsApi:
         assert pick_summary["line_count"] == 0
         assert pick_summary["open_line_count"] == 0
         assert pick_summary["is_archived_ui"] is False
+
+    def test_kit_detail_includes_active_reservation_breakdown(self, client, session):
+        kit, part, content = _seed_kit_with_content(session)
+        other = Kit(name="Other Reserve Kit", build_target=2, status=KitStatus.ACTIVE)
+        session.add(other)
+        session.flush()
+        session.add(KitContent(kit=other, part=part, required_per_unit=1))
+        session.commit()
+
+        response = client.get(f"/api/kits/{kit.id}")
+        assert response.status_code == 200
+        payload = response.get_json()
+        reservations = payload["contents"][0]["active_reservations"]
+        assert len(reservations) == 1
+        assert reservations[0]["kit_id"] == other.id
+        assert reservations[0]["reserved_quantity"] == other.build_target
 
     def test_create_kit_content_endpoint(self, client, session):
         kit, part, _ = _seed_kit_with_content(session)
@@ -378,6 +395,7 @@ class TestKitsApi:
         assert data["part_id"] == new_part.id
         assert data["required_per_unit"] == 1
         assert data["total_required"] == kit.build_target
+        assert data["active_reservations"] == []
 
         db_content = session.get(KitContent, data["id"])
         assert db_content is not None
@@ -405,6 +423,7 @@ class TestKitsApi:
         assert data["required_per_unit"] == 4
         assert data["note"] == "Updated note"
         assert data["version"] == stale_version + 1
+        assert data["active_reservations"] == []
 
         conflict = client.patch(
             f"/api/kits/{kit.id}/contents/{content.id}",

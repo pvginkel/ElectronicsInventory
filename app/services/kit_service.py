@@ -128,9 +128,10 @@ class KitService(BaseService):
         contents = list(kit.contents)
         if contents:
             part_ids = [content.part_id for content in contents]
-            reserved = self.kit_reservation_service.get_reserved_totals_for_parts(
-                part_ids,
-                exclude_kit_id=kit.id,
+            reservations_by_part = (
+                self.kit_reservation_service.get_reservations_by_part_ids(
+                    part_ids,
+                )
             )
             part_keys = [
                 content.part.key
@@ -143,7 +144,14 @@ class KitService(BaseService):
 
             for content in contents:
                 total_required = content.required_per_unit * kit.build_target
-                part_reserved = reserved.get(content.part_id, 0)
+                peer_reservations = [
+                    entry
+                    for entry in reservations_by_part.get(content.part_id, [])
+                    if entry.kit_id != kit.id
+                ]
+                part_reserved = sum(
+                    entry.reserved_quantity for entry in peer_reservations
+                )
                 part_key = content.part.key if content.part is not None else ""
                 part_in_stock = in_stock.get(part_key, 0)
                 available = max(part_in_stock - part_reserved, 0)
@@ -154,6 +162,7 @@ class KitService(BaseService):
                 content.reserved = part_reserved
                 content.available = available
                 content.shortfall = shortfall
+                content.active_reservations = peer_reservations
 
             kit.contents[:] = sorted(
                 contents,

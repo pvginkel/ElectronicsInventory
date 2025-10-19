@@ -8,7 +8,7 @@ from sqlalchemy import exc
 
 from app.extensions import db
 from app.models.box import Box
-from app.models.kit import Kit
+from app.models.kit import Kit, KitStatus
 from app.models.kit_content import KitContent
 from app.models.kit_pick_list import KitPickList, KitPickListStatus
 from app.models.kit_pick_list_line import KitPickListLine, PickListLineStatus
@@ -377,6 +377,29 @@ class TestDatabaseConstraints:
             with pytest.raises(exc.IntegrityError):
                 db.session.commit()
             db.session.rollback()
+
+    def test_archived_kits_require_timestamp(self, app: Flask):
+        """Archived kits must include an archived_at timestamp."""
+        with app.app_context():
+            missing_timestamp = Kit(
+                name="Missing Timestamp",
+                build_target=1,
+                status=KitStatus.ARCHIVED,
+            )
+            db.session.add(missing_timestamp)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+            stamped = Kit(
+                name="Stamped Archived",
+                build_target=1,
+                status=KitStatus.ARCHIVED,
+                archived_at=datetime.now(UTC),
+            )
+            db.session.add(stamped)
+            db.session.commit()
 
     def test_kit_pick_list_requested_units_positive(self, app: Flask):
         """Kit pick list requested units must be positive."""

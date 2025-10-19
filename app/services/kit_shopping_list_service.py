@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from time import perf_counter
 
-from sqlalchemy import Select, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.exceptions import InvalidOperationException, RecordNotFoundException
@@ -283,10 +283,16 @@ class KitShoppingListService(BaseService):
             if content.part is not None
         ]
 
-        reserved_totals = self.kit_reservation_service.get_reserved_totals_for_parts(
-            part_ids,
-            exclude_kit_id=kit.id,
+        reservations_by_part = (
+            self.kit_reservation_service.get_reservations_by_part_ids(part_ids)
         )
+        reserved_totals: dict[int, int] = {}
+        for part_id in part_ids:
+            reserved_totals[part_id] = sum(
+                entry.reserved_quantity
+                for entry in reservations_by_part.get(part_id, [])
+                if entry.kit_id != kit.id
+            )
         in_stock_totals = self.inventory_service.get_total_quantities_by_part_keys(
             part_keys
         )

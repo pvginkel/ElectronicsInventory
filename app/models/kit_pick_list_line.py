@@ -6,7 +6,14 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, ForeignKey, Integer, UniqueConstraint, func, Index
+from sqlalchemy import (
+    CheckConstraint,
+    ForeignKey,
+    Index,
+    Integer,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -85,21 +92,21 @@ class KitPickListLine(db.Model):  # type: ignore[name-defined]
         nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
-    pick_list: Mapped["KitPickList"] = relationship(
+    pick_list: Mapped[KitPickList] = relationship(
         "KitPickList",
         back_populates="lines",
         lazy="selectin",
     )
-    kit_content: Mapped["KitContent"] = relationship(
+    kit_content: Mapped[KitContent] = relationship(
         "KitContent",
         back_populates="pick_list_lines",
         lazy="selectin",
     )
-    location: Mapped["Location"] = relationship(
+    location: Mapped[Location] = relationship(
         "Location",
         lazy="selectin",
     )
-    inventory_change: Mapped["QuantityHistory | None"] = relationship(
+    inventory_change: Mapped[QuantityHistory | None] = relationship(
         "QuantityHistory",
         lazy="selectin",
     )
