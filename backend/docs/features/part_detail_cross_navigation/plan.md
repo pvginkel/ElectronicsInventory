@@ -18,7 +18,7 @@ Expose kit usage directly on part detail so planners can trace consumption and n
 
 **In scope**
 
-- Add a service helper that returns active kit usage for a given part id.
+- Add a service helper that returns active kit usage for a given part key.
 - Deliver an API route exposing kit usage collection and wire part detail response to surface a `used_in_kits` flag.
 - Define response schemas matching the prescribed fields for kit usage rows.
 - Instrument metrics (counter) for the new usage endpoint and cover all additions with unit/API tests.
@@ -31,17 +31,17 @@ Expose kit usage directly on part detail so planners can trace consumption and n
 
 **Assumptions / constraints**
 
-Assume kit names may still be non-unique (navigation will rely on ids). Assume part detail consumers can obtain `part_id` or we will expose it alongside `used_in_kits`. Continue reusing ORM joins without introducing SQL views per spec.
+Assume kit names may still be non-unique (navigation will rely on kit ids). Assume part detail consumers already possess the part key; we will keep responses key-based. Continue reusing ORM joins without introducing SQL views per spec.
 
 ### 2) Affected Areas & File Map
 - Area: app/services/kit_reservation_service.py
   - Why: Add `list_kits_for_part` helper and share logic with existing reservation cache for consistent filtering.
   - Evidence: app/services/kit_reservation_service.py:35-188 — `"self._usage_cache... list_active_reservations_for_part"` shows current aggregation entry point we will extend.
 - Area: app/api/parts.py
-  - Why: Introduce new `/parts/<int:part_id>/kits` route and augment `get_part` to populate `used_in_kits`.
+  - Why: Introduce new `/parts/<string:part_key>/kits` route and augment `get_part` to populate `used_in_kits`.
   - Evidence: app/api/parts.py:161-197 — `"def get_part(...)"` demonstrates current schema serialization without kit usage.
 - Area: app/schemas/part.py
-  - Why: Extend `PartResponseSchema` with `used_in_kits` (and optionally expose `id` for caller parity).
+  - Why: Extend `PartResponseSchema` with `used_in_kits` while keeping key-based identification.
   - Evidence: app/schemas/part.py:232-360 — `"class PartResponseSchema(BaseModel)"` lists existing response fields.
 - Area: app/schemas/part_kits.py (new)
   - Why: Define `PartKitUsageSchema` matching the feature spec for kit usage entries.
@@ -53,7 +53,7 @@ Assume kit names may still be non-unique (navigation will rely on ids). Assume p
   - Why: Add coverage for `list_kits_for_part` success and filtering behavior.
   - Evidence: tests/services/test_kit_reservation_service.py:11-102 — `"test_list_active_reservations_returns_metadata"` indicates existing structure to extend.
 - Area: tests/api/test_parts_api.py (new)
-  - Why: Verify new `/parts/<int:part_id>/kits` response contract and `used_in_kits` flag on part detail route.
+  - Why: Verify new `/parts/<string:part_key>/kits` response contract and `used_in_kits` flag on part detail route.
   - Evidence: app/api/parts.py:161-197 — `"get_part"` and upcoming endpoint require API-level assertions.
 - Area: tests/test_metrics_service.py
   - Why: Assert new metric counter increments when invoked.
@@ -64,13 +64,12 @@ Assume kit names may still be non-unique (navigation will rely on ids). Assume p
   - Shape:
     ```json
     {
-      "id": 123,
       "key": "BZQP",
       "used_in_kits": true
     }
     ```
-  - Refactor strategy: Add optional `id` (if absent today) and boolean `used_in_kits` with default `False`; set attribute before validation so existing endpoints remain compatible.
-  - Evidence: app/schemas/part.py:232-360 — current fields omit kit usage and id exposure.
+  - Refactor strategy: Add boolean `used_in_kits` with default `False`; set attribute before validation so existing endpoints remain compatible.
+  - Evidence: app/schemas/part.py:232-360 — current fields omit kit usage.
 - Entity / contract: PartKitUsageSchema
   - Shape:
     ```json
@@ -79,37 +78,38 @@ Assume kit names may still be non-unique (navigation will rely on ids). Assume p
       "kit_name": "Synth Voice Starter",
       "status": "active",
       "reserved_quantity": 8,
+      "required_per_unit": 4,
       "build_target": 2,
       "updated_at": "2024-05-01T12:00:00Z"
     }
     ```
-  - Refactor strategy: New schema pulling directly from ORM rows without modifying database tables; leverage `ConfigDict(from_attributes=True)` for ORM integration.
-  - Evidence: docs/epics/kits_feature_breakdown.md:209-213 — spec enumerates fields for the helper and endpoint.
+  - Refactor strategy: New schema pulling directly from ORM rows without modifying database tables; leverage `ConfigDict(from_attributes=True)` and reuse existing columns for `required_per_unit`.
+  - Evidence: docs/epics/kits_feature_breakdown.md:209-213 — spec enumerates fields for the helper and endpoint; app/models/kit_content.py:34-78 exposes `required_per_unit`.
 
 ### 4) API / Integration Surface
 - Surface: GET /parts/<string:part_key>
   - Inputs: Path key (existing).
-  - Outputs: Part detail payload extended with `id` (if added) and `used_in_kits`.
+  - Outputs: Part detail payload extended with `used_in_kits`.
   - Errors: 404 via existing `RecordNotFoundException`.
   - Evidence: app/api/parts.py:161-168 — `"part = part_service.get_part(part_key)"`.
-- Surface: GET /parts/<int:part_id>/kits
-  - Inputs: Path part id, no body.
+- Surface: GET /parts/<string:part_key>/kits
+  - Inputs: Path part key, no body.
   - Outputs: JSON list of `PartKitUsageSchema` records sorted deterministically.
-  - Errors: 404 if part id invalid; empty list when no active kits.
+  - Errors: 404 if part key invalid; empty list when no active kits.
   - Evidence: docs/epics/kits_feature_breakdown.md:212-213 — required endpoint contract.
 
 ### 5) Algorithms & State Machines
 - Flow: list kits consuming a part
   - Steps:
-    1. Accept part id, normalize to int, and optionally short-circuit cache hits.
-    2. Issue select joining `KitContent`→`Kit` filtered to `Kit.status == KitStatus.ACTIVE`, reusing existing projection for reserved quantity.
+    1. Accept part key, resolve to `Part`, and optionally short-circuit cache hits.
+    2. Issue select joining `KitContent`→`Kit` filtered to `Kit.status == KitStatus.ACTIVE`, reusing existing projection for reserved quantity and exposing `required_per_unit`.
     3. Map rows into dataclass / schema-ready objects sorted by kit name then id.
   - States / transitions: None beyond cached vs fresh query.
   - Hotspots: Query should leverage current indexes; reuse `_usage_cache` to avoid duplicate work for consecutive calls.
   - Evidence: app/services/kit_reservation_service.py:108-168 — `_ensure_usage_cache` already builds the necessary join.
-- Flow: serve /parts/<id>/kits endpoint
+- Flow: serve /parts/<string:part_key>/kits endpoint
   - Steps:
-    1. Resolve `Part` by id (or map from key) using `PartService`.
+    1. Resolve `Part` by key using `PartService`.
     2. Call new `list_kits_for_part` helper for active usage.
     3. Emit metric counter with `has_results` label and return schema-dumped list.
   - States / transitions: Single HTTP transaction; no background state.
@@ -118,29 +118,57 @@ Assume kit names may still be non-unique (navigation will rely on ids). Assume p
 
 ### 6) Derived State & Invariants
 - Derived value: reserved_quantity
-  - Source: Multiply `required_per_unit` by `Kit.build_target` within the join `app/services/kit_reservation_service.py:121-163`.
-  - Writes / cleanup: Stored only in response objects; cache invalidated when `_usage_cache` drop logic introduced.
+  - Source: Multiply `required_per_unit` by `Kit.build_target` inside `_ensure_usage_cache` join.
+  - Writes / cleanup: Stored only in `_usage_cache` entries; refreshed after `reset_usage_cache`.
+  - Guards: Mutation flows touching kit contents must call `reset_usage_cache` to avoid stale totals.
+  - Invariant: Reserved totals reflect only active kits at the time of cache rebuild.
+  - Evidence: app/services/kit_reservation_service.py:108-188.
 - Derived value: used_in_kits
-  - Source: Boolean flag set from `len(kit_usage) > 0` before schema serialization.
-  - Writes / cleanup: Attribute attached to `Part` instance for serialization only; no persistence.
+  - Source: Boolean computed from `len(kit_usage) > 0` after filtering active kits.
+  - Writes / cleanup: Transient attribute injected prior to Pydantic serialization; no persistence.
+  - Guards: Filter inactive kits in `_ensure_usage_cache` query so flag never accounts for archived kits.
+  - Invariant: Flag true iff at least one active kit usage record exists.
+  - Evidence: app/services/kit_reservation_service.py:108-168; app/api/parts.py:161-197.
 - Derived value: kit_usage_list_sorted
-  - Source: Service returns list ordered by kit name then id ensuring deterministic tooltip order.
-  - Writes / cleanup: Endpoint returns the sorted list; caching preserves ordering until invalidated/reloaded.
+  - Source: SQL query orders by kit name then id before caching.
+  - Writes / cleanup: Cached list exposed through API and reused until invalidation.
+  - Guards: Re-run sort/order during cache rebuild; ensure rename flows trigger cache reset.
+  - Invariant: Response ordering remains deterministic for identical datasets.
+  - Evidence: app/services/kit_reservation_service.py:138-188.
 
-### 7) Validation & Error Handling
-- Validate part id/key exists before querying usage; reuse `RecordNotFoundException` from `PartService` for consistent 404 handling `app/services/part_service.py:84-110`.
-- Guard against non-integer ids by relying on Flask route converter (`<int:part_id>`) and type-casting inside service.
-- Ensure metrics recording is wrapped in try/except consistent with existing patterns to avoid surfacing Prometheus errors to clients `app/services/metrics_service.py:560-603`.
+### 7) Consistency, Transactions & Concurrency
+- Transaction scope: Reads occur within the request-scoped session provided by `BaseService`, and the API endpoint completes within the same Flask request (app/services/base_service.py:15-38).
+- Atomic requirements: No writes happen on the happy path; the only mutable state is `_usage_cache`, which must be reset in the same request that mutates kit contents (app/services/kit_reservation_service.py:170-188).
+- Retry / idempotency: Endpoint is GET; repeated calls return cached data unless invalidated. No explicit retry tokens required.
+- Ordering / concurrency controls: `_usage_cache` is a simple in-memory dict accessed per-process. If concurrent requests rebuild it, latest rebuild wins but remains consistent because joins are deterministic. Document requirement to call `reset_usage_cache` within locked mutation flows if races appear.
+- Evidence: app/services/kit_reservation_service.py:35-188; app/services/container.py:24-60.
 
-### 8) Performance & Scaling
-- Leverage `_usage_cache` for repeated part lookups; extend cache invalidation entry point if necessary but avoid redundant DB hits during single request `app/services/kit_reservation_service.py:108-168`.
-- Query adds only an equality filter on `KitContent.part_id` and `Kit.status`, both indexed through foreign keys/status index `app/models/kit_content.py:24-67`, `app/models/kit.py:34-87`.
-- Sorting by kit name/id happens in SQL ensuring stable ordering without Python resorting.
+### 8) Errors & Edge Cases
+- Failure: Part key not found
+  - Surface: `GET /parts/<string:part_key>` and `GET /parts/<string:part_key>/kits`
+  - Handling: `PartService` raises `RecordNotFoundException`; `@handle_api_errors` maps to 404.
+  - Guardrails: Lookup via `PartService.get_part` ensures consistent exception (app/services/part_service.py:82-120).
+  - Evidence: app/api/parts.py:161-219.
+- Failure: No active kits for a part
+  - Surface: `GET /parts/<string:part_key>/kits`
+  - Handling: Return 200 with empty list; metrics label `has_results="false"`.
+  - Guardrails: Service filters by status and returns empty list when nothing matches.
+  - Evidence: app/services/kit_reservation_service.py:108-188.
+- Failure: Metrics counter increment fails
+  - Surface: `/parts/<string:part_key>/kits`
+  - Handling: Wrap increment in try/except (pattern established in MetricsService) so response still succeeds.
+  - Guardrails: MetricsService already isolates Prometheus errors (app/services/metrics_service.py:300-360, 560-603).
+  - Evidence: app/services/metrics_service.py:300-603.
+- Failure: Cache not reset after kit mutation
+  - Surface: Service may return stale `used_in_kits`
+  - Handling: Mutation flows must invoke `reset_usage_cache`; add test asserting cache refresh.
+  - Guardrails: Implementation slice includes work to wire cache reset hooks.
+  - Evidence: app/services/kit_reservation_service.py:170-188.
 
 ### 9) Observability
 - Signal: part_kit_usage_requests_total
   - Type: counter
-  - Trigger: Increment when `/parts/<part_id>/kits` endpoint completes; label `has_results` to distinguish empty vs populated payload.
+  - Trigger: Increment when `/parts/<string:part_key>/kits` endpoint completes; label `has_results` to distinguish empty vs populated payload.
   - Labels / fields: `has_results` ("true"/"false").
   - Consumer: Prometheus dashboards tracking discovery of kit usages.
   - Evidence: app/services/metrics_service.py:300-360 — existing counter patterns to extend.
@@ -158,8 +186,8 @@ Assume kit names may still be non-unique (navigation will rely on ids). Assume p
 ### 12) UX / UI Impact
 - Entry point: Part detail page (frontend)
   - Change: Backend adds `used_in_kits` boolean and usage list endpoint to drive tooltip.
-  - User interaction: When boolean is true, UI can fetch `/parts/<id>/kits` to populate cross-navigation links.
-  - Dependencies: Frontend must consume new fields; ensure part detail payload exposes `id` for route call.
+  - User interaction: When boolean is true, UI can fetch `/parts/<string:part_key>/kits` to populate cross-navigation links.
+  - Dependencies: Frontend continues using part keys; ensure responses highlight key plus `used_in_kits`.
   - Evidence: docs/epics/kits_feature_breakdown.md:205-213 — tooltip/icon behavior.
 
 ### 13) Deterministic Test Plan
@@ -170,17 +198,17 @@ Assume kit names may still be non-unique (navigation will rely on ids). Assume p
   - Fixtures / hooks: Use `session` fixture to seed parts, kits, kit contents.
   - Gaps: None.
   - Evidence: tests/services/test_kit_reservation_service.py:57-102 — template for service tests.
-- Surface: GET /parts/<int:part_id>/kits
+- Surface: GET /parts/<string:part_key>/kits
   - Scenarios:
-    - Given an existing part with active kits, When requesting usage, Then response matches schema and counter increments.
+    - Given an existing part with active kits, When requesting usage, Then response matches schema (including `required_per_unit`) and counter increments.
     - Given an existing part without kits, When requesting usage, Then HTTP 200 with empty list and metric label `false`.
-    - Given a missing part id, When requesting, Then HTTP 404.
+    - Given an unknown part key, When requesting, Then HTTP 404.
   - Fixtures / hooks: `client`, `container` fixtures; use service container to seed data.
   - Gaps: None.
   - Evidence: app/api/parts.py:161-197 — current API conventions to mirror.
 - Surface: GET /parts/<string:part_key>
   - Scenarios:
-    - Given a part with kit usage, When fetching detail, Then `used_in_kits` is true (and `id` present if added).
+    - Given a part with kit usage, When fetching detail, Then `used_in_kits` is true.
     - Given a part without usage, When fetching detail, Then `used_in_kits` is false.
   - Fixtures / hooks: Use same seeded data.
   - Gaps: None.
@@ -192,7 +220,7 @@ Assume kit names may still be non-unique (navigation will rely on ids). Assume p
   - Touches: app/services/kit_reservation_service.py, app/schemas/part_kits.py, app/schemas/part.py.
   - Dependencies: None.
 - Slice: API endpoint & metrics wiring
-  - Goal: Expose `/parts/<id>/kits`, populate `used_in_kits`, and record metrics.
+  - Goal: Expose `/parts/<string:part_key>/kits`, populate `used_in_kits`, and record metrics.
   - Touches: app/api/parts.py, app/services/metrics_service.py.
   - Dependencies: Slice 1.
 - Slice: Test coverage
@@ -203,19 +231,19 @@ Assume kit names may still be non-unique (navigation will rely on ids). Assume p
 ### 15) Risks & Open Questions
 - Risk: Reservation cache invalidation might serve stale `used_in_kits` data until cache cleared.
   - Impact: Users could see outdated tooltip until process flushes cache.
-  - Mitigation: Expose helper to bypass cache or document need for future invalidation hook (beyond current scope).
-- Risk: Part detail payload currently lacks `id`, blocking callers from hitting `<int:part_id>` endpoint.
-  - Impact: Frontend cannot call new route.
-  - Mitigation: Include `id` alongside `used_in_kits` or adjust endpoint to use part key.
+  - Mitigation: Wire existing `reset_usage_cache` into every kit mutation path and cover with tests.
+- Risk: Part key lookups rely on consistent casing and normalization.
+  - Impact: Mismatched keys would cause false 404s.
+  - Mitigation: Reuse canonical key normalization utilities before querying.
 - Risk: Metric proliferation without dashboard updates.
   - Impact: Counter unused, noise.
   - Mitigation: Coordinate with ops to add panel or document usage.
-- Question: Should the `/parts/<int:part_id>/kits` endpoint optionally include `required_per_unit` as per existing reservation schema?
-  - Why it matters: Frontend may need per-unit context; ensure alignment with UX expectations.
+- Question: Are additional per-kit annotations (e.g., notes, due dates) required alongside `required_per_unit`?
+  - Why it matters: Missing context could limit tooltip usefulness.
   - Owner / follow-up: Confirm with product/UX stakeholders before build.
 - Question: Do we need cache invalidation hooks when kit contents mutate?
   - Why it matters: Without invalidation, tooltip could lag after kit edits.
   - Owner / follow-up: Evaluate when implementing future kit mutation flows; consider hooking into existing services.
 
 ### 16) Confidence
-Confidence: Medium — Existing reservation logic can be reused, but endpoint identifier alignment (id vs key) needs confirmation.
+Confidence: Medium — Existing reservation logic can be reused, with remaining uncertainty focused on cache invalidation coverage and kit metadata completeness.
