@@ -11,6 +11,7 @@ from app.models.kit import Kit, KitStatus
 from app.models.kit_content import KitContent
 from app.models.part import Part
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
+from app.services.kit_reservation_service import KitReservationUsage
 
 
 def _create_kit_with_content(session, *, note: str = "BOM note") -> tuple[Kit, KitContent]:
@@ -116,13 +117,26 @@ class TestKitShoppingListService:
             lambda keys: {part.key: 5},
         )
 
-        def fake_reserved(part_ids, *, exclude_kit_id=None):
-            return {part_ids[0]: 3}
+        def fake_reservations(part_ids):
+            return {
+                part_ids[0]: [
+                    KitReservationUsage(
+                        part_id=part_ids[0],
+                        kit_id=999,
+                        kit_name="Other Kit",
+                        status=KitStatus.ACTIVE,
+                        build_target=1,
+                        required_per_unit=3,
+                        reserved_quantity=3,
+                        updated_at=datetime.now(UTC),
+                    )
+                ]
+            }
 
         monkeypatch.setattr(
             service.kit_reservation_service,
-            "get_reserved_totals_for_parts",
-            fake_reserved,
+            "get_reservations_by_part_ids",
+            fake_reservations,
         )
 
         result = service.create_or_append_list(
@@ -151,8 +165,8 @@ class TestKitShoppingListService:
         )
         monkeypatch.setattr(
             service.kit_reservation_service,
-            "get_reserved_totals_for_parts",
-            lambda part_ids, *, exclude_kit_id=None: {part_ids[0]: 0},
+            "get_reservations_by_part_ids",
+            lambda part_ids: {part_ids[0]: []},
         )
 
         result = service.create_or_append_list(
@@ -170,7 +184,12 @@ class TestKitShoppingListService:
 
     def test_archived_kit_rejected(self, session, container):
         service = container.kit_shopping_list_service()
-        kit = Kit(name="Archived", build_target=1, status=KitStatus.ARCHIVED)
+        kit = Kit(
+            name="Archived",
+            build_target=1,
+            status=KitStatus.ARCHIVED,
+            archived_at=datetime.now(UTC),
+        )
         session.add(kit)
         session.commit()
 

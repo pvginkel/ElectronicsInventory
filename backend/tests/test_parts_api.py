@@ -8,6 +8,8 @@ from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
+from app.models.kit import Kit, KitStatus
+from app.models.kit_content import KitContent
 from app.models.shopping_list import ShoppingListStatus
 from app.models.shopping_list_line import ShoppingListLine, ShoppingListLineStatus
 from app.services.container import ServiceContainer
@@ -1435,3 +1437,81 @@ class TestPartsAPI:
             json={"shopping_list_id": 1, "needed": 1},
         )
         assert post_response.status_code == 404
+
+    def test_get_part_kit_reservations_empty(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+        """Part without kit usage should return zero reservations."""
+        with app.app_context():
+            part = container.part_service().create_part("Standalone part")
+            session.commit()
+
+            response = client.get(f"/api/parts/{part.key}/kit-reservations")
+            assert response.status_code == 200
+            payload = json.loads(response.data)
+
+            assert payload["part_key"] == part.key
+            assert payload["total_reserved"] == 0
+            assert payload["active_reservations"] == []
+
+    def test_get_part_kit_reservations_with_active_kits(
+        self,
+        app: Flask,
+        client: FlaskClient,
+        session: Session,
+        container: ServiceContainer,
+    ):
+        """Active kits reserving a part appear in the debug listing."""
+        with app.app_context():
+            part = container.part_service().create_part("Reserved capacitor")
+            kit_a = Kit(name="Synth Prep", build_target=2, status=KitStatus.ACTIVE)
+            kit_b = Kit(name="Drum Machine", build_target=1, status=KitStatus.ACTIVE)
+            archived = Kit(
+                name="Retired Kit",
+                build_target=4,
+                status=KitStatus.ARCHIVED,
+                archived_at=datetime.now(UTC),
+            )
+            session.add_all([kit_a, kit_b, archived])
+            session.flush()
+
+            session.add_all(
+                [
+                    KitContent(
+                        kit_id=kit_a.id,
+                        part_id=part.id,
+                        required_per_unit=3,
+                    ),
+                    KitContent(
+                        kit_id=kit_b.id,
+                        part_id=part.id,
+                        required_per_unit=2,
+                    ),
+                    KitContent(
+                        kit_id=archived.id,
+                        part_id=part.id,
+                        required_per_unit=5,
+                    ),
+                ]
+            )
+            session.commit()
+
+            response = client.get(f"/api/parts/{part.key}/kit-reservations")
+            assert response.status_code == 200
+            payload = json.loads(response.data)
+
+            expected_total = (3 * kit_a.build_target) + (2 * kit_b.build_target)
+            assert payload["total_reserved"] == expected_total
+            assert len(payload["active_reservations"]) == 2
+
+            reservations_by_name = {
+                entry["kit_name"]: entry for entry in payload["active_reservations"]
+            }
+            assert reservations_by_name["Synth Prep"]["reserved_quantity"] == 3 * kit_a.build_target
+            assert reservations_by_name["Drum Machine"]["reserved_quantity"] == 2 * kit_b.build_target
+            for entry in payload["active_reservations"]:
+                assert entry["status"] == KitStatus.ACTIVE.value
+                assert entry["updated_at"] is not None
+
+    def test_get_part_kit_reservations_not_found(self, client: FlaskClient):
+        """Unknown parts return 404 for the reservations endpoint."""
+        response = client.get("/api/parts/ZZZZ/kit-reservations")
+        assert response.status_code == 404

@@ -61,6 +61,10 @@ class Kit(db.Model):  # type: ignore[name-defined]
     __table_args__ = (
         UniqueConstraint("name", name="uq_kits_name"),
         CheckConstraint("build_target >= 1", name="ck_kits_build_target_positive"),
+        CheckConstraint(
+            "(status != 'archived') OR (archived_at IS NOT NULL)",
+            name="ck_kits_archived_requires_timestamp",
+        ),
     )
 
     shopping_list_links: Mapped[list[KitShoppingListLink]] = relationship(

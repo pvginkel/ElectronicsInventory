@@ -18,6 +18,7 @@ from app.models.kit_pick_list_line import KitPickListLine, PickListLineStatus
 from app.models.part_location import PartLocation
 from app.services.base import BaseService
 from app.services.inventory_service import InventoryService
+from app.services.kit_reservation_service import KitReservationService
 from app.services.metrics_service import MetricsServiceProtocol
 
 
@@ -28,10 +29,12 @@ class KitPickListService(BaseService):
         self,
         db: Session,
         inventory_service: InventoryService,
+        kit_reservation_service: KitReservationService,
         metrics_service: MetricsServiceProtocol,
     ) -> None:
         super().__init__(db)
         self.inventory_service = inventory_service
+        self.kit_reservation_service = kit_reservation_service
         self.metrics_service = metrics_service
 
     def create_pick_list(self, kit_id: int, requested_units: int) -> KitPickList:
@@ -59,6 +62,17 @@ class KitPickListService(BaseService):
                 "kit contents are missing part relationships",
             )
 
+        reservations_by_part = (
+            self.kit_reservation_service.get_reservations_by_part_ids(part_ids)
+        )
+        reserved_totals: dict[int, int] = {}
+        for part_id in part_ids:
+            reserved_totals[part_id] = sum(
+                entry.reserved_quantity
+                for entry in reservations_by_part.get(part_id, [])
+                if entry.kit_id != kit.id
+            )
+
         locations_by_part = self._load_part_locations(part_ids)
         all_location_ids = [
             location.location_id
@@ -70,27 +84,63 @@ class KitPickListService(BaseService):
 
         for content in contents:
             required_total = content.required_per_unit * requested_units
-            remaining = required_total
             part_locations = list(locations_by_part.get(content.part_id, []))
+            part_key = content.part.key if content.part else "unknown"
 
+            base_available_by_location: dict[int, int] = {}
+            total_available = 0
+            for candidate in part_locations:
+                reserved_for_location = reserved_by_location.get(
+                    candidate.location_id, 0
+                )
+                available_quantity = max(candidate.qty - reserved_for_location, 0)
+                base_available_by_location[candidate.location_id] = (
+                    available_quantity
+                )
+                total_available += available_quantity
+
+            reserved_total = reserved_totals.get(content.part_id, 0)
+            usable_quantity = max(total_available - reserved_total, 0)
+            if usable_quantity < required_total:
+                raise InvalidOperationException(
+                    "create pick list",
+                    (
+                        f"insufficient stock to allocate {required_total} units of "
+                        f"{part_key} after honoring kit reservations"
+                    ),
+                )
+
+            remaining = required_total
+            remaining_reserved = reserved_total
             for candidate in part_locations:
                 if remaining <= 0:
                     break
-                reserved = reserved_by_location.get(candidate.location_id, 0)
-                available_quantity = max(candidate.qty - reserved, 0)
+
+                available_quantity = base_available_by_location.get(
+                    candidate.location_id, 0
+                )
                 if available_quantity <= 0:
                     continue
+
+                if remaining_reserved > 0:
+                    skip_amount = min(available_quantity, remaining_reserved)
+                    available_quantity -= skip_amount
+                    remaining_reserved -= skip_amount
+
+                if available_quantity <= 0:
+                    continue
+
                 allocation = min(remaining, available_quantity)
                 if allocation <= 0:
                     continue
+
                 planned_lines.append((content, allocation, candidate))
                 remaining -= allocation
                 reserved_by_location[candidate.location_id] = (
-                    reserved + allocation
+                    reserved_by_location.get(candidate.location_id, 0) + allocation
                 )
 
             if remaining > 0:
-                part_key = content.part.key if content.part else "unknown"
                 raise InvalidOperationException(
                     "create pick list",
                     f"insufficient stock to allocate {required_total} units of {part_key}",
@@ -158,7 +208,7 @@ class KitPickListService(BaseService):
         if self.db.get(Kit, kit_id) is None:
             raise RecordNotFoundException("Kit", kit_id)
 
-        stmt: Select[KitPickList] = (
+        stmt: Select[tuple[KitPickList]] = (
             select(KitPickList)
             .options(
                 selectinload(KitPickList.lines)
@@ -304,7 +354,7 @@ class KitPickListService(BaseService):
             return {}
 
         unique_ids = tuple(dict.fromkeys(part_ids))
-        stmt: Select[PartLocation] = (
+        stmt: Select[tuple[PartLocation]] = (
             select(PartLocation)
             .where(PartLocation.part_id.in_(unique_ids))
             .order_by(

@@ -67,7 +67,7 @@ class KitPickList(db.Model):  # type: ignore[name-defined]
         back_populates="pick_lists",
         lazy="selectin",
     )
-    lines: Mapped[list["KitPickListLine"]] = relationship(
+    lines: Mapped[list[KitPickListLine]] = relationship(
         "KitPickListLine",
         back_populates="pick_list",
         cascade="all, delete-orphan",
@@ -86,12 +86,12 @@ class KitPickList(db.Model):  # type: ignore[name-defined]
         return self.kit.name if hasattr(self, "kit") and self.kit else ""
 
     @property
-    def completed_lines(self) -> tuple["KitPickListLine", ...]:
+    def completed_lines(self) -> tuple[KitPickListLine, ...]:
         """Return a tuple of lines that have been picked."""
         return tuple(line for line in self.lines if line.is_completed)
 
     @property
-    def open_lines(self) -> tuple["KitPickListLine", ...]:
+    def open_lines(self) -> tuple[KitPickListLine, ...]:
         """Return a tuple of lines that still need to be picked."""
         return tuple(line for line in self.lines if line.is_open)
 

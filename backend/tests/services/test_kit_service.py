@@ -11,6 +11,7 @@ from app.models.kit_pick_list import KitPickList, KitPickListStatus
 from app.models.kit_shopping_list_link import KitShoppingListLink
 from app.models.part import Part
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
+from app.services.kit_reservation_service import KitReservationUsage
 from app.services.kit_service import KitService
 
 
@@ -109,7 +110,7 @@ class KitReservationStub:
 
     def __init__(self) -> None:
         self.totals: dict[int, int] = {}
-        self.requests: list[tuple[tuple[int, ...], int | None]] = []
+        self.requests: list[tuple[int, ...]] = []
 
     def get_reserved_totals_for_parts(
         self,
@@ -118,7 +119,7 @@ class KitReservationStub:
         exclude_kit_id=None,
     ):
         ids = tuple(part_ids)
-        self.requests.append((ids, exclude_kit_id))
+        self.requests.append(ids)
         return {part_id: self.totals.get(part_id, 0) for part_id in part_ids}
 
     def get_reserved_quantity(
@@ -128,6 +129,29 @@ class KitReservationStub:
         exclude_kit_id=None,
     ) -> int:
         return self.totals.get(part_id, 0)
+
+    def get_reservations_by_part_ids(self, part_ids):
+        ids = tuple(part_ids)
+        self.requests.append(ids)
+        reservations: dict[int, list[KitReservationUsage]] = {}
+        for part_id in part_ids:
+            total = self.totals.get(part_id, 0)
+            if total:
+                reservations[part_id] = [
+                    KitReservationUsage(
+                        part_id=part_id,
+                        kit_id=-1,
+                        kit_name="stub",
+                        status=KitStatus.ACTIVE,
+                        build_target=1,
+                        required_per_unit=total,
+                        reserved_quantity=total,
+                        updated_at=datetime.now(UTC),
+                    )
+                ]
+            else:
+                reservations[part_id] = []
+        return reservations
 
 
 @pytest.fixture
@@ -377,7 +401,7 @@ class TestKitService:
 
         assert metrics_stub.detail_views == 1
         assert inventory_stub.requests[-1] == ("P001", "P002")
-        assert kit_reservation_stub.requests[-1] == ((part_a.id, part_b.id), kit.id)
+        assert kit_reservation_stub.requests[-1] == (part_a.id, part_b.id)
 
         # Contents sorted by part key for deterministic ordering
         keys = [content.part.key for content in detail.contents]
@@ -390,12 +414,15 @@ class TestKitService:
         assert content_a.available == 4
         assert content_a.shortfall == 2
         assert content_a.note == "Socket for reuse"
+        assert len(content_a.active_reservations) == 1
+        assert content_a.active_reservations[0].reserved_quantity == 1
 
         assert content_b.total_required == 2
         assert content_b.in_stock == 1
         assert content_b.reserved == 0
         assert content_b.available == 1
         assert content_b.shortfall == 1
+        assert content_b.active_reservations == []
 
     def test_create_content_enforces_rules_and_records_metrics(
         self,

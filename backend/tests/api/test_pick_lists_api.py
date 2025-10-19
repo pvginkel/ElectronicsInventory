@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
-import pytest
 from sqlalchemy import select
 
 from app.models.box import Box
 from app.models.kit import Kit, KitStatus
 from app.models.kit_content import KitContent
-from app.models.kit_pick_list import KitPickList
 from app.models.kit_pick_list_line import KitPickListLine, PickListLineStatus
 from app.models.location import Location
 from app.models.part import Part

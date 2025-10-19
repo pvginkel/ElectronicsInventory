@@ -75,7 +75,7 @@ class KitContent(db.Model):  # type: ignore[name-defined]
         back_populates="kit_contents",
         lazy="selectin",
     )
-    pick_list_lines: Mapped[list["KitPickListLine"]] = relationship(
+    pick_list_lines: Mapped[list[KitPickListLine]] = relationship(
         "KitPickListLine",
         back_populates="kit_content",
         cascade="all, delete-orphan",

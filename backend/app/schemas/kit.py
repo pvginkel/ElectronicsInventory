@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 
 from app.models.kit import KitStatus
 from app.models.shopping_list import ShoppingListStatus
+from app.schemas.kit_reservations import KitReservationEntrySchema
 from app.schemas.part import PartListSchema
 from app.schemas.pick_list import KitPickListSummarySchema
 from app.schemas.shopping_list import ShoppingListResponseSchema
@@ -467,6 +468,10 @@ class KitContentDetailSchema(BaseModel):
     shortfall: int = Field(
         description="Quantity short of the total requirement",
         json_schema_extra={"example": 3},
+    )
+    active_reservations: list[KitReservationEntrySchema] = Field(
+        default_factory=list,
+        description="Active kits reserving this part excluding the current kit",
     )
 
 
