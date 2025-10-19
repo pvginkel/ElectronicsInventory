@@ -267,3 +267,102 @@ class TestKitShoppingListService:
 
         with pytest.raises(RecordNotFoundException):
             service.unlink(link.id)
+
+    def test_list_links_for_kits_bulk_groups_and_orders(self, session, container):
+        service = container.kit_shopping_list_service()
+        kit_a = Kit(name="Kit A", build_target=1, status=KitStatus.ACTIVE)
+        kit_b = Kit(name="Kit B", build_target=1, status=KitStatus.ACTIVE)
+        kit_empty = Kit(name="Kit Empty", build_target=1, status=KitStatus.ACTIVE)
+        part_a = Part(key="KA-BULK", description="Kit A Part")
+        part_b = Part(key="KB-BULK", description="Kit B Part")
+        part_empty = Part(key="KC-BULK", description="Kit Empty Part")
+        session.add_all([kit_a, kit_b, kit_empty, part_a, part_b, part_empty])
+        session.flush()
+        session.add_all(
+            [
+                KitContent(
+                    kit_id=kit_a.id,
+                    part_id=part_a.id,
+                    required_per_unit=1,
+                ),
+                KitContent(
+                    kit_id=kit_b.id,
+                    part_id=part_b.id,
+                    required_per_unit=1,
+                ),
+                KitContent(
+                    kit_id=kit_empty.id,
+                    part_id=part_empty.id,
+                    required_per_unit=1,
+                ),
+            ]
+        )
+        session.commit()
+
+        service.create_or_append_list(
+            kit_a.id,
+            units=None,
+            honor_reserved=False,
+            shopping_list_id=None,
+            note_prefix="First",
+            new_list_name="Kit A Base",
+        )
+        service.create_or_append_list(
+            kit_a.id,
+            units=None,
+            honor_reserved=False,
+            shopping_list_id=None,
+            note_prefix="Second",
+            new_list_name="Kit A Latest",
+        )
+        service.create_or_append_list(
+            kit_b.id,
+            units=None,
+            honor_reserved=False,
+            shopping_list_id=None,
+            note_prefix="Other",
+            new_list_name="Kit B Only",
+        )
+
+        memberships = service.list_links_for_kits_bulk(
+            [kit_b.id, kit_a.id, kit_empty.id],
+            include_done=False,
+        )
+
+        assert list(memberships.keys()) == [kit_b.id, kit_a.id, kit_empty.id]
+        assert len(memberships.get(kit_b.id, [])) == 1
+        names_for_a = [
+            link.shopping_list_name for link in memberships.get(kit_a.id, [])
+        ]
+        assert names_for_a == ["Kit A Latest", "Kit A Base"]
+        assert memberships.get(kit_empty.id) == []
+
+    def test_list_links_for_kits_bulk_include_done_flag(self, session, container):
+        service = container.kit_shopping_list_service()
+        kit, _ = _create_kit_with_content(session)
+
+        result = service.create_or_append_list(
+            kit.id,
+            units=None,
+            honor_reserved=False,
+            shopping_list_id=None,
+            note_prefix="Done",
+            new_list_name="Done List",
+        )
+        shopping_list = result.shopping_list
+        assert shopping_list is not None
+        shopping_list.status = ShoppingListStatus.DONE
+        session.commit()
+
+        filtered = service.list_links_for_kits_bulk(
+            [kit.id],
+            include_done=False,
+        )
+        assert filtered.get(kit.id) == []
+
+        all_links = service.list_links_for_kits_bulk(
+            [kit.id],
+            include_done=True,
+        )
+        assert len(all_links.get(kit.id, [])) == 1
+        assert all_links[kit.id][0].status == ShoppingListStatus.DONE

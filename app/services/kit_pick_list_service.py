@@ -229,6 +229,58 @@ class KitPickListService(BaseService):
         )
         return pick_lists
 
+    def list_pick_lists_for_kits_bulk(
+        self,
+        kit_ids: Sequence[int],
+        *,
+        include_done: bool = False,
+    ) -> dict[int, list[KitPickList]]:
+        """Return pick lists grouped by kit according to input order."""
+        if not kit_ids:
+            return {}
+
+        ordered_ids = list(kit_ids)
+        stmt: Select[tuple[KitPickList]] = (
+            select(KitPickList)
+            .options(
+                selectinload(KitPickList.lines)
+                .selectinload(KitPickListLine.kit_content)
+                .selectinload(KitContent.part),
+                selectinload(KitPickList.lines).selectinload(
+                    KitPickListLine.location
+                ),
+            )
+            .where(KitPickList.kit_id.in_(ordered_ids))
+        )
+
+        if not include_done:
+            stmt = stmt.where(KitPickList.status != KitPickListStatus.COMPLETED)
+
+        stmt = stmt.order_by(
+            KitPickList.created_at.desc(),
+            KitPickList.id.desc(),
+        )
+
+        grouped: dict[int, list[KitPickList]] = {
+            kit_id: [] for kit_id in ordered_ids
+        }
+
+        for pick_list in (
+            self.db.execute(stmt).scalars().unique().all()
+        ):
+            grouped.setdefault(pick_list.kit_id, []).append(pick_list)
+
+        metrics_service = self.metrics_service
+        for kit_id in ordered_ids:
+            grouped.setdefault(kit_id, [])
+            if metrics_service is not None:
+                metrics_service.record_pick_list_list_request(
+                    kit_id,
+                    len(grouped[kit_id]),
+                )
+
+        return grouped
+
     def pick_line(self, pick_list_id: int, line_id: int) -> KitPickListLine:
         """Remove inventory and mark the line as picked."""
         line = self._get_line_for_update(pick_list_id, line_id)

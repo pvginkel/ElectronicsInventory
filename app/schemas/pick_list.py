@@ -170,3 +170,29 @@ class KitPickListDetailSchema(KitPickListSummarySchema):
         default_factory=list,
         description="Detailed picking instructions grouped by location",
     )
+
+
+class KitPickListMembershipSchema(KitPickListSummarySchema):
+    """Schema describing pick list membership for bulk kit queries."""
+
+
+class KitPickListMembershipQueryItemSchema(BaseModel):
+    """Schema encapsulating pick list memberships for a single kit."""
+
+    kit_id: int = Field(
+        description="Requested kit identifier",
+        json_schema_extra={"example": 7},
+    )
+    pick_lists: list[KitPickListMembershipSchema] = Field(
+        default_factory=list,
+        description="Pick lists associated with the kit",
+    )
+
+
+class KitPickListMembershipQueryResponseSchema(BaseModel):
+    """Bulk response schema for pick list memberships grouped by kit."""
+
+    memberships: list[KitPickListMembershipQueryItemSchema] = Field(
+        default_factory=list,
+        description="Memberships grouped by kit identifier order",
+    )

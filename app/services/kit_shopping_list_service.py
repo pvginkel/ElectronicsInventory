@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from time import perf_counter
 
@@ -124,6 +125,50 @@ class KitShoppingListService(BaseService):
         for link in links:
             self._hydrate_link_metadata(link)
         return links
+
+    def list_links_for_kits_bulk(
+        self,
+        kit_ids: Sequence[int],
+        *,
+        include_done: bool = False,
+    ) -> dict[int, list[KitShoppingListLink]]:
+        """Return shopping list links grouped by kit according to input order."""
+        if not kit_ids:
+            return {}
+
+        ordered_ids = list(kit_ids)
+        stmt = (
+            select(KitShoppingListLink)
+            .options(
+                selectinload(KitShoppingListLink.shopping_list),
+                selectinload(KitShoppingListLink.kit),
+            )
+            .where(KitShoppingListLink.kit_id.in_(ordered_ids))
+        )
+
+        if not include_done:
+            stmt = stmt.join(
+                ShoppingList,
+                ShoppingList.id == KitShoppingListLink.shopping_list_id,
+            ).where(ShoppingList.status != ShoppingListStatus.DONE)
+
+        stmt = stmt.order_by(
+            KitShoppingListLink.created_at.desc(),
+            KitShoppingListLink.id.desc(),
+        )
+
+        grouped: dict[int, list[KitShoppingListLink]] = {
+            kit_id: [] for kit_id in ordered_ids
+        }
+
+        for link in self.db.execute(stmt).scalars().all():
+            self._hydrate_link_metadata(link)
+            grouped.setdefault(link.kit_id, []).append(link)
+
+        for kit_id in ordered_ids:
+            grouped.setdefault(kit_id, [])
+
+        return grouped
 
     def list_kits_for_shopping_list(self, list_id: int) -> list[KitShoppingListLink]:
         """Return reciprocal kit chips for the provided shopping list."""

@@ -391,6 +391,81 @@ class TestKitPickListService:
         assert [pick_lists[0].id, pick_lists[1].id] == [second.id, first.id]
         assert metrics_stub.list_requests[-1] == (kit.id, 2)
 
+    def test_list_pick_lists_for_kits_bulk_groups_and_orders(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        metrics_stub: PickListMetricsStub,
+    ) -> None:
+        kit_a = _create_active_kit(session, name="Kit A")
+        kit_b = _create_active_kit(session, name="Kit B")
+        kit_empty = _create_active_kit(session, name="Kit Empty")
+
+        part_a = _create_part(session, "PA", "Kit A Part")
+        _attach_content(session, kit_a, part_a, required_per_unit=1)
+        location_a = _create_location(session, box_no=95, loc_no=1)
+        _attach_location(session, part_a, location_a, qty=10)
+
+        part_b = _create_part(session, "PB", "Kit B Part")
+        _attach_content(session, kit_b, part_b, required_per_unit=1)
+        location_b = _create_location(session, box_no=96, loc_no=1)
+        _attach_location(session, part_b, location_b, qty=10)
+
+        first_a = kit_pick_list_service.create_pick_list(kit_a.id, requested_units=1)
+        first_b = kit_pick_list_service.create_pick_list(kit_b.id, requested_units=1)
+        second_b = kit_pick_list_service.create_pick_list(kit_b.id, requested_units=2)
+        session.flush()
+
+        before_metrics = len(metrics_stub.list_requests)
+        memberships = kit_pick_list_service.list_pick_lists_for_kits_bulk(
+            [kit_a.id, kit_b.id, kit_empty.id],
+            include_done=False,
+        )
+        after_metrics = metrics_stub.list_requests[before_metrics:]
+
+        assert list(memberships.keys()) == [kit_a.id, kit_b.id, kit_empty.id]
+        assert [pick_list.id for pick_list in memberships[kit_a.id]] == [first_a.id]
+        assert [pick_list.id for pick_list in memberships[kit_b.id]] == [
+            second_b.id,
+            first_b.id,
+        ]
+        assert memberships[kit_empty.id] == []
+        assert after_metrics == [
+            (kit_a.id, 1),
+            (kit_b.id, 2),
+            (kit_empty.id, 0),
+        ]
+
+    def test_list_pick_lists_for_kits_bulk_include_done_flag(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        metrics_stub: PickListMetricsStub,
+    ) -> None:
+        kit = _create_active_kit(session, name="Kit Done")
+        part = _create_part(session, "PD", "Done Part")
+        _attach_content(session, kit, part, required_per_unit=1)
+        location = _create_location(session, box_no=97, loc_no=1)
+        _attach_location(session, part, location, qty=5)
+
+        pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        pick_list.status = KitPickListStatus.COMPLETED
+        pick_list.completed_at = datetime.now(UTC)
+        session.commit()
+
+        filtered = kit_pick_list_service.list_pick_lists_for_kits_bulk(
+            [kit.id],
+            include_done=False,
+        )
+        assert filtered.get(kit.id) == []
+
+        all_lists = kit_pick_list_service.list_pick_lists_for_kits_bulk(
+            [kit.id],
+            include_done=True,
+        )
+        assert len(all_lists.get(kit.id, [])) == 1
+        assert all_lists[kit.id][0].status is KitPickListStatus.COMPLETED
+
     def test_list_pick_lists_for_missing_kit_raises(
         self,
         kit_pick_list_service: KitPickListService,
