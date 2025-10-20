@@ -79,3 +79,19 @@ For structured tasks use the command templates under `docs/commands/`:
 - Perform code review: `@docs/commands/code_review.md`
 
 Refer back to this file only as a launchpad; the authoritative content lives in the linked docs.
+
+## Tips and tricks
+
+This project contains quite a few files with $ in their name. You can't use these file names verbatim in shell commands. E.g. the following command will given an error:
+
+```bash
+head src/routes/shopping-lists/$listId.tsx
+```
+
+This is because `$listId` expands to an empty string (assuming the environment variable is not defined).
+
+Whenever you want to use such a filename in a shell command, escape the `$` sign like this:
+
+```bash
+head src/routes/shopping-lists/\$listId.tsx
+```

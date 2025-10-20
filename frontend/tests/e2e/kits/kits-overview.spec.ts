@@ -4,80 +4,114 @@ import { waitForListLoading, waitTestEvent } from '../../support/helpers';
 import type { FormTestEvent, ToastTestEvent } from '@/types/test-events';
 
 test.describe('Kits overview', () => {
-test('shows shopping and pick list indicators with tooltip details', async ({ kits, apiClient, page }) => {
-  const kitsSummary = await apiClient.apiRequest(() =>
-    apiClient.GET('/api/kits', {
-      params: { query: { status: 'active' } },
-    })
-  );
+  test('shows shopping and pick list indicators with tooltip details', async ({ kits, apiClient, page, testData }) => {
+    const activeKits = await apiClient.apiRequest(() =>
+      apiClient.GET('/api/kits', {
+        params: { query: { status: 'active' } },
+      })
+    );
 
-  const fixtureKit = kitsSummary.find(
-    (entry) => entry.shopping_list_badge_count > 0 && entry.pick_list_badge_count > 0
-  );
+    if (activeKits.length === 0) {
+      throw new Error('Expected at least one active kit to seed memberships');
+    }
 
-  if (!fixtureKit) {
-    throw new Error('Expected seeded kit with shopping and pick list memberships');
-  }
+    let kitId: number | null = null;
 
-  const shoppingQuery = await apiClient.apiRequest(() =>
-    apiClient.POST('/api/kits/shopping-list-memberships/query', {
-      body: {
-        kit_ids: [fixtureKit.id],
-        include_done: false,
-      },
-    })
-  );
+    for (const summary of activeKits) {
+      const detail = await apiClient.apiRequest(() =>
+        apiClient.GET('/api/kits/{kit_id}', {
+          params: { path: { kit_id: summary.id } },
+        })
+      );
+      if ((detail.contents?.length ?? 0) > 0) {
+        kitId = summary.id;
+        break;
+      }
+    }
 
-  const pickQuery = await apiClient.apiRequest(() =>
-    apiClient.POST('/api/kits/pick-list-memberships/query', {
-      body: {
-        kit_ids: [fixtureKit.id],
-        include_done: false,
-      },
-    })
-  );
+    if (kitId === null) {
+      throw new Error('Expected at least one kit with contents to seed memberships');
+    }
 
-  const shoppingMemberships = shoppingQuery.memberships?.[0]?.memberships ?? [];
-  const pickMemberships = pickQuery.memberships?.[0]?.pick_lists ?? [];
+    const shoppingListName = testData.shoppingLists.randomName('Indicator Shopping');
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/kits/{kit_id}/shopping-lists', {
+        params: { path: { kit_id: kitId } },
+        body: {
+          shopping_list_id: null,
+          new_list_name: shoppingListName,
+          new_list_description: null,
+          honor_reserved: false,
+          note_prefix: null,
+          units: 1,
+        },
+      })
+    );
 
-  if (shoppingMemberships.length === 0 || pickMemberships.length === 0) {
-    throw new Error('Fixture kit missing membership data required for indicator assertions');
-  }
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/kits/{kit_id}/pick-lists', {
+        params: { path: { kit_id: kitId } },
+        body: { requested_units: 1 },
+      })
+    );
 
-  const expectedShoppingNames = shoppingMemberships.map((membership) => membership.shopping_list_name);
-  const expectedShoppingStatuses = new Set(
-    shoppingMemberships.map((membership) => membership.status)
-  );
+    const shoppingQuery = await apiClient.apiRequest(() =>
+      apiClient.POST('/api/kits/shopping-list-memberships/query', {
+        body: {
+          kit_ids: [kitId],
+          include_done: false,
+        },
+      })
+    );
 
-  const expectedPickLabels = pickMemberships.map((membership) => `Pick list #${membership.id}`);
+    const pickQuery = await apiClient.apiRequest(() =>
+      apiClient.POST('/api/kits/pick-list-memberships/query', {
+        body: {
+          kit_ids: [kitId],
+          include_done: false,
+        },
+      })
+    );
 
-  await kits.gotoOverview();
-  await waitForListLoading(page, 'kits.list.memberships.shopping', 'ready');
-  await waitForListLoading(page, 'kits.list.memberships.pick', 'ready');
+    const shoppingMemberships = shoppingQuery.memberships?.[0]?.memberships ?? [];
+    const pickMemberships = pickQuery.memberships?.[0]?.pick_lists ?? [];
 
-  const shoppingIndicator = kits.shoppingIndicator(fixtureKit.id);
-  await expect(shoppingIndicator).toBeVisible();
-  await shoppingIndicator.hover();
-  const shoppingTooltip = kits.shoppingIndicatorTooltip(fixtureKit.id);
-  await expect(shoppingTooltip).toBeVisible();
-  for (const name of expectedShoppingNames) {
-    await expect(shoppingTooltip).toContainText(name);
-  }
-  for (const status of expectedShoppingStatuses) {
-    await expect(shoppingTooltip).toContainText(status);
-  }
+    expect(shoppingMemberships.length, 'shopping memberships seeded for indicator').toBeGreaterThan(0);
+    expect(pickMemberships.length, 'pick list memberships seeded for indicator').toBeGreaterThan(0);
 
-  const pickIndicator = kits.pickIndicator(fixtureKit.id);
-  await expect(pickIndicator).toBeVisible();
-  await pickIndicator.hover();
-  const pickTooltip = kits.pickIndicatorTooltip(fixtureKit.id);
-  await expect(pickTooltip).toBeVisible();
-  for (const label of expectedPickLabels) {
-    await expect(pickTooltip).toContainText(label);
-  }
-  await expect(pickTooltip).toContainText('open');
-  await expect(pickTooltip).toContainText('remaining');
-});
+    const expectedShoppingNames = shoppingMemberships.map((membership) => membership.shopping_list_name);
+    const expectedShoppingStatuses = new Set(shoppingMemberships.map((membership) => membership.status));
+    const expectedPickLabels = pickMemberships.map((membership) => `Pick list #${membership.id}`);
+
+    await kits.gotoOverview();
+    await expect(kits.cardById(kitId)).toBeVisible();
+
+    await waitForListLoading(page, 'kits.list.memberships.shopping', 'ready');
+    await waitForListLoading(page, 'kits.list.memberships.pick', 'ready');
+
+    const shoppingIndicator = kits.shoppingIndicator(kitId);
+    await expect(shoppingIndicator).toBeVisible();
+    await shoppingIndicator.hover();
+    const shoppingTooltip = kits.shoppingIndicatorTooltip(kitId);
+    await expect(shoppingTooltip).toBeVisible();
+    for (const name of expectedShoppingNames) {
+      await expect(shoppingTooltip).toContainText(name);
+    }
+    for (const status of expectedShoppingStatuses) {
+      await expect(shoppingTooltip).toContainText(status);
+    }
+
+    const pickIndicator = kits.pickIndicator(kitId);
+    await expect(pickIndicator).toBeVisible();
+    await pickIndicator.hover();
+    const pickTooltip = kits.pickIndicatorTooltip(kitId);
+    await expect(pickTooltip).toBeVisible();
+    for (const label of expectedPickLabels) {
+      await expect(pickTooltip).toContainText(label);
+    }
+    await expect(pickTooltip).toContainText('open');
+    await expect(pickTooltip).toContainText('remaining');
+  });
 
   test('lists kits across tabs with search persistence', async ({ kits, testData }) => {
     const [alpha, beta, archived] = await Promise.all([
