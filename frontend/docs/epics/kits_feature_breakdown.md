@@ -52,7 +52,7 @@ Expose a rich kit detail workspace where planners maintain the bill of materials
 
 - View kit summary and computed availability
   - Features:
-    - Display editable name, description, and build target while kit is active; disable fields when archived.
+    - Display name, description, and build target in the header; expose an “Edit kit” trigger that opens a modal dialog (mirroring the shopping list detail header) while the kit is active, and disable the trigger for archived kits.
     - Show computed columns Required, Total, In stock, Reserved, Shortfall for each kit content row.
     - Provide client-side filtering across part name, SKU, and row note within the grid.
   - Database / data model:

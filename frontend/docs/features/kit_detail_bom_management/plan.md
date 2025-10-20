@@ -56,6 +56,10 @@ APIs described in the epic are deployed and reflected in the generated client; a
 - Why: Compose `DetailScreenLayout`, metadata form, BOM grid, filters, and related chips with instrumentation scopes.
 - Evidence: src/components/layout/detail-screen-layout.tsx:31 — layout contract for detail screens.
 
+- Area: src/components/shopping-lists/shopping-list-chip.tsx (new)
+- Why: Lift the part detail shopping-list chip implementation into a shared component for reuse on kit detail without duplicating styles.
+- Evidence: src/components/parts/part-details.tsx:323-357 — existing chip markup to extract.
+
 - Area: src/components/kits/kit-card.tsx
 - Why: Add detail navigation affordance (card title/link) so overview cards deep-link into `/kits/$kitId`.
 - Evidence: src/components/kits/kit-card.tsx:9 — card currently renders title without linking to the detail route.
@@ -206,7 +210,7 @@ APIs described in the epic are deployed and reflected in the generated client; a
 - Steps:
   1. Resolve `kitId` from router params and call `useKitDetail(kitId)`.
   2. Kick off membership queries when detail data resolves to hydrate chips.
-  3. Render `DetailScreenLayout` with breadcrumbs (`Kits` → current name), actions, and BOM section once query ready.
+  3. Render `DetailScreenLayout` with breadcrumbs (`Kits` → current name), actions, shopping-list chip component shared with part detail, and BOM section once query ready.
   4. Initialize filter state and derived view of `contents` array.
 - States / transitions: React Query statuses (`isLoading`, `isFetching`, `isError`) drive skeleton, ready content, and retry UI; filter state updates trigger derived list update.
 - Hotspots: Avoid re-render storms by memoizing derived collections; guard membership fetch until kitId is numeric.
@@ -216,10 +220,10 @@ APIs described in the epic are deployed and reflected in the generated client; a
 - Steps:
   1. Populate form with detail data; disable fields if status is `archived`.
   2. On submit, call `trackFormSubmit` via `useFormInstrumentation`, fire `usePatchKitsByKitId` mutation.
-  3. On success, update detail cache & kits overview entry, emit success toast, and track form success.
-  4. On error, display validation inline, emit toast, and track form error.
+  3. On success, invalidate `useKitDetail` and `useGetKits` so the server recalculates availability math; wait for refetch to settle before emitting form success instrumentation/toast copy.
+  4. On error, display validation inline, emit toast, and track form error (including conflict metadata when status === 409).
 - States / transitions: Form state toggles between pristine, submitting, success; query cache invalidation ensures overview reflects updated data.
-- Hotspots: Ensure build target change recomputes derived totals client-side until refetch completes to avoid stale UI.
+- Hotspots: Block optimistic recompute—the detail screen should render stale values until the server response lands; surface skeleton/inline spinner during invalidation to acknowledge recalculation.
 - Evidence: docs/epics/kits_feature_breakdown.md:55 — editable metadata; src/hooks/use-form-instrumentation.ts:26 — submit/success/error helpers; src/lib/api/generated/hooks.ts:854 — mutation.
 
 - Flow: Add kit content row
@@ -246,8 +250,8 @@ APIs described in the epic are deployed and reflected in the generated client; a
 - Steps:
   1. Update local search term on input; debounce to avoid churn.
   2. Filter `KitContentRow` array by part key, part name, or note tokens.
-  3. Update `ListLoading` ready metadata with `filteredCount` for instrumentation.
-- States / transitions: Filter text state, derived list state.
+  3. Emit `useUiStateInstrumentation('kits.detail.filter', ...)` loading/ready events during debounce so Playwright can deterministically await filtered state; include ready metadata `{ totalCount, filteredCount }`.
+- States / transitions: Filter text state, derived list state, filter instrumentation state (loading while debounce pending).
 - Hotspots: Keep debounce consistent with overview search (300ms) and ensure highlight/resume after mutation.
 - Evidence: docs/epics/kits_feature_breakdown.md:57 — filtering across part name, SKU, and note; src/components/kits/kit-overview-list.tsx:37 — existing debounce pattern.
 
@@ -265,8 +269,8 @@ APIs described in the epic are deployed and reflected in the generated client; a
 
 - Derived: availabilityStatus
   - Computation: For each row, compute `hasShortfall = shortfall > 0`, `isAvailable = available >= totalRequired` to drive badge coloring.
-  - Contract: Derived flags should update after optimistic mutations using server values to avoid stale numbers.
-  - Evidence: src/lib/api/generated/types.ts:2977 — `total_required`, `available`, `shortfall` fields supplied.
+  - Contract: Rows update after server refetch completes (post-patch/build target updates) to ensure aggregates reflect canonical backend math.
+- Evidence: src/lib/api/generated/types.ts:2977 — `total_required`, `available`, `shortfall` fields supplied.
 
 - Derived: optimisticRowMap
   - Computation: Track pending row IDs or synthetic temp IDs while mutations in flight to block duplicate submissions.
@@ -275,7 +279,7 @@ APIs described in the epic are deployed and reflected in the generated client; a
 
 ### 7) State Consistency & Async Coordination
 
-Detail screen will layer React Query caches with local optimistic state. `useKitDetail` wraps `useGetKitsByKitId` and exposes helpers to update cached detail rows; after metadata or content mutations succeed we will update the detail query via `queryClient.setQueryData` and invalidate the broader `['getKits']` overview cache to keep cards in sync (pattern mirrors `KitArchiveControls`, which cancels queries and writes optimistic data before invalidation at src/components/kits/kit-archive-controls.tsx:54). Optimistic BOM changes maintain a local draft map keyed by row ID; mutation handlers reconcile server payloads, clearing optimistic flags and re-sorting rows. Membership hooks remain independent queries; we defer their fetch until kit detail is ready to avoid duplicate requests on initial load. All promises guard component unmount by tracking `isMountedRef` similar to archive controls, preventing state updates on torn-down components.
+Detail screen will layer React Query caches with local optimistic state. `useKitDetail` wraps `useGetKitsByKitId` and exposes helpers to update cached detail rows; after metadata or content mutations succeed we will invalidate the detail query and rely on the server response (with canonical availability math) before surfacing success UI, while also invalidating the broader `['getKits']` overview cache for card parity (pattern mirrors `KitArchiveControls`, which cancels queries and writes optimistic data before invalidation at src/components/kits/kit-archive-controls.tsx:54). Optimistic BOM changes maintain a local draft map keyed by row ID; mutation handlers reconcile server payloads, clearing optimistic flags and re-sorting rows once the refetch returns. Membership hooks remain independent queries; we defer their fetch until kit detail is ready to avoid duplicate requests on initial load. All promises guard component unmount by tracking `isMountedRef` similar to archive controls, preventing state updates on torn-down components.
 
 ### 8) Errors & Edge Cases
 
@@ -290,7 +294,7 @@ Detail screen will layer React Query caches with local optimistic state. `useKit
 - Emit `useListLoadingInstrumentation` events for `scope: 'kits.detail'` (detail query) and `scope: 'kits.detail.contents'` (BOM mutations/refetches) following existing helper semantics (src/lib/test/query-instrumentation.ts:146).
 - Wrap metadata form and BOM editor with `useFormInstrumentation` so `form` events fire for open/submit/success/error using IDs like `KitDetail:metadata`, `KitDetail:content.create`, and `KitDetail:content.edit` (src/hooks/use-form-instrumentation.ts:26).
 - Toasts for success/error automatically produce `toast` events; include action IDs when offering retry or conflict resolution (src/components/kits/kit-archive-controls.tsx:131 — existing pattern with undo action).
-- Update ready metadata to include counts (`visible`, `filtered`, `shortfallCount`) so Playwright can assert deterministic state.
+- Drive filter determinism with `useUiStateInstrumentation('kits.detail.filter', ...)`—emit loading when debounce pending and ready metadata `{ totalCount, filteredCount }` on completion.
 - Add `data-testid` anchors for header (`kits.detail.header`), filters, rows (`kits.detail.row.<id>`), and form inputs to keep selectors stable per testing guidance (docs/contribute/testing/index.md:5 — instrumentation coupling requirement).
 
 ### 10) Lifecycle & Background Work
@@ -320,7 +324,7 @@ Detail screen will layer React Query caches with local optimistic state. `useKit
 
 - Surface: Kit detail metadata editing
   - Scenarios:
-    - Given an active kit, When the user edits name/build target and submits, Then form events emit submit/success and detail header reflects new values.
+    - Given an active kit, When the user edits name/build target and submits, Then form events emit submit/success only after the detail refetch completes with updated availability totals.
     - Given an archived kit, When navigating to detail, Then inputs are disabled and submit button is absent.
   - Instrumentation / hooks: `waitForListLoading(page, 'kits.detail', 'ready')`, `waitTestEvent<FormTestEvent>(..., evt => evt.formId === 'KitDetail:metadata')`, toast helper for success message.
   - Gaps: None.
@@ -330,6 +334,7 @@ Detail screen will layer React Query caches with local optimistic state. `useKit
   - Scenarios:
     - Given an active kit with seeded contents, When adding a new part via selector, Then row appears with computed totals and `list_loading` ready metadata includes updated counts.
     - Given an existing row, When updating required quantity, Then shortfall recomputes and version increments; When deleting, Then row disappears and totals update.
+    - Given a concurrent editor, When a PATCH returns 409, Then `KitDetail:content.edit` emits error instrumentation and conflict toast displays with retry CTA after the detail refetch.
   - Instrumentation / hooks: `waitForListLoading(page, 'kits.detail.contents', 'ready')`, form events for `KitDetail:content.*`, toast assertions for errors.
   - Gaps: None.
   - Evidence: docs/epics/kits_feature_breakdown.md:70 — inline BOM maintenance requirements.
@@ -338,7 +343,7 @@ Detail screen will layer React Query caches with local optimistic state. `useKit
   - Scenarios:
     - Given multiple rows with distinct part names, When filtering by SKU substring, Then only matching rows remain and empty state appears when none match.
     - Given shopping/pick list memberships, When detail loads, Then chips render with tooltip data and membership instrumentation transitions to ready.
-  - Instrumentation / hooks: `waitForListLoading(page, 'kits.detail.contents', 'ready')`, membership helpers `waitForListLoading(page, 'kits.list.memberships.<scope>', 'ready')`.
+  - Instrumentation / hooks: `useUiStateInstrumentation('kits.detail.filter', ...)` for filter waits, `waitForListLoading(page, 'kits.detail.contents', 'ready')`, membership helpers `waitForListLoading(page, 'kits.list.memberships.<scope>', 'ready')`.
   - Gaps: None.
   - Evidence: src/hooks/use-kit-memberships.ts:12 — membership instrumentation baseline.
 
@@ -351,7 +356,7 @@ Detail screen will layer React Query caches with local optimistic state. `useKit
 
 - Slice: Screen layout & metadata form
   - Goal: Render `DetailScreenLayout`, header badges, metadata editor with instrumentation and toasts.
-  - Touches: `src/components/kits/kit-detail-screen.tsx`, `src/components/kits/kit-card.tsx`, `src/hooks/use-kit-memberships.ts`.
+  - Touches: `src/components/kits/kit-detail-screen.tsx`, `src/components/kits/kit-card.tsx`, `src/components/shopping-lists/shopping-list-chip.tsx`, `src/hooks/use-kit-memberships.ts`.
   - Dependencies: Routing & data scaffolding.
 
 - Slice: BOM grid & mutations
