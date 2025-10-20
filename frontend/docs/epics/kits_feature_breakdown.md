@@ -44,44 +44,89 @@ Deliver the global kits index so users can find, inspect, and change lifecycle s
       - Clears `archived_at`, sets status to `active`, returns updated response.
     - Service layer raises `InvalidOperationException` if the kit is already in the requested state or if archiving would violate business rules; errors surface through the existing `@handle_api_errors` decorator.
 
-# Feature: Kit detail & BOM management
+# Feature: Kit detail workspace (read-only)
 
-Expose a rich kit detail workspace where planners maintain the bill of materials, inspect availability math, and keep the kit metadata current.
+Deliver the routed kit detail screen and availability math without any mutating flows so we can ship a narrow slice in a single session.
 
 ## Use cases
 
 - View kit summary and computed availability
   - Features:
-    - Display name, description, and build target in the header; expose an “Edit kit” trigger that opens a modal dialog (mirroring the shopping list detail header) while the kit is active, and disable the trigger for archived kits.
-    - Show computed columns Required, Total, In stock, Reserved, Shortfall for each kit content row.
-    - Provide client-side filtering across part name, SKU, and row note within the grid.
+    - Introduce TanStack Router route `/kits/$kitId` rendering a detail layout with header, toolbar, and main content similar to `PartDetails`.
+    - Display name, description, build target, lifecycle badge, and existing shopping/pick counts. The “Edit kit” button is rendered disabled (tooltip explains archived gating will arrive later).
+    - Render a read-only BOM table showing Required, Total, In stock, Reserved, Available, and Shortfall columns sourced from backend aggregates.
+    - Provide client-side filtering across part key, description, manufacturer code, and row note with toolbar counters (total rows, visible rows, overall shortfall, filtered shortfall).
   - Database / data model:
-    - Create `KitContent` model mapped to `kit_contents` table with columns: `id` PK, `kit_id` FK (`kits.id`, `ondelete="CASCADE"`), `part_id` FK (`parts.id`, `ondelete="CASCADE"`), `required_per_unit` `Integer` not null, `note` `Text` nullable, `version` `BigInteger` not null default `1`, `created_at`/`updated_at` timestamps.
-    - Add `UniqueConstraint("kit_id", "part_id", name="uq_kit_contents_kit_part")`, `CheckConstraint("required_per_unit >= 1", name="ck_kit_contents_required_positive")`, and indexes on `kit_id` and `part_id`. Configure SQLAlchemy optimistic locking via `__mapper_args__["version_id_col"] = KitContent.version`.
-    - `KitService.get_kit_detail` composes SQLAlchemy selects to derive per-line aggregates: `total_required = required_per_unit * kit.build_target`, `in_stock` from `InventoryService.calculate_total_quantity`, `reserved` from `KitReservationService.get_reserved_quantity(part_id, exclude_kit_id)`, `available = max(in_stock - reserved, 0)`, and `shortfall = max(total_required - available, 0)`.
-    - Linked shopping list and pick list chips are hydrated through relationships defined in later sections. **UI note:** surfacing these chips in the kit detail header remains pending and will be delivered with the shopping list & pick list linking feature slice.
+    - Create `KitContent` model mapped to `kit_contents`: `id` PK, `kit_id` FK (`kits.id`, `ondelete="CASCADE"`), `part_id` FK (`parts.id`, `ondelete="CASCADE"`), `required_per_unit` integer not null, `note` text nullable, `version` bigint not null default `1`, timestamps.
+    - Add `UniqueConstraint("kit_id", "part_id", name="uq_kit_contents_kit_part")`, `CheckConstraint("required_per_unit >= 1", name="ck_kit_contents_required_positive")`, and indexes on `(kit_id, part_id)` plus `(kit_id, updated_at)`. Configure SQLAlchemy optimistic locking via `__mapper_args__["version_id_col"] = KitContent.version`.
+    - Extend `KitService.get_kit_detail` to compute `total_required = required_per_unit * kit.build_target`, `reserved` via `KitReservationService` (excluding the current kit), `available = max(in_stock - reserved, 0)`, and `shortfall = max(total_required - available, 0)`. Existing shopping/pick list joins remain intact; linkage chips stay deferred to their own feature.
   - API surface:
-    - `GET /kits/<int:kit_id>`
-      - Returns `KitDetailResponseSchema` with metadata (`id`, `name`, `description`, `build_target`, `status`, timestamps), `contents` array (`KitContentDetailSchema` with part summary, `required_per_unit`, `note`, `version`, computed aggregates), `shopping_list_links`, and `pick_lists`.
-      - Raises `RecordNotFoundException` when kit missing or inaccessible.
+    - `GET /kits/<int:kit_id>` returns `KitDetailResponseSchema` with kit metadata, `contents` (per-row detail schema with part summary + aggregates), `shopping_list_links`, and `pick_lists`. Missing kits raise `RecordNotFoundException`; archived kits return the same payload but the UI treats them as read-only.
+- Observability & testing:
+  - Instrument `useListLoadingInstrumentation` scopes:
+    - `kits.detail` for the main query lifecycle (metadata: `kitId`, `status`, `contentCount`, `filteredCount`).
+    - `kits.detail.contents` for derived availability state (metadata: `kitId`, `visible`, `shortfallCount`, `total`).
+  - Emit `useUiStateInstrumentation` scope `kits.detail.toolbar` with `{ totalRequired, available, shortfallCount, filteredCount, filteredShortfall }`.
+  - Extend the kits Playwright page object with detail locators (header metadata, toolbar counters, table rows) and add a spec that navigates from an overview card, waits on instrumentation, verifies computed columns, and exercises the filter (no mutations yet).
+
+## Dependencies & sequencing
+
+- Relies on the kits overview navigation affordance (card click / CTA) to link into the detail route.
+- Scaffolds instrumentation, layout, and query cache wiring that later mutation slices will reuse.
+- Kit linkage chips continue to live in their dedicated feature; the header either hides them or shows a placeholder until that slice is delivered.
+
+# Feature: Kit BOM inline editing
+
+Layer inline add/edit/delete flows on top of the read-only workspace with optimistic updates, conflict handling, and matching instrumentation.
+
+## Use cases
 
 - Maintain bill of materials
   - Features:
-    - Enable inline add/edit/delete rows with validation for integer quantities and duplicate part protection.
-    - Persist per-row note field and surface validation errors inline.
-    - Reflect optimistic updates in the UI grid and re-fetch computed columns on success.
+    - Add an “Add part” button and inline row editor that uses the existing part selector plus integer quantity input; disable options for already-selected parts.
+    - Allow editing quantity and note inline for existing rows, piping optimistic updates through React Query cache and refetching availability after success.
+    - Provide delete affordance with confirmation dialog; remove rows optimistically and reconcile once the backend responds.
+    - Catch 409 conflicts (version mismatch), refetch the detail payload, reopen the edited row with latest data, and guide the user to retry.
   - Database / data model:
-    - `KitContent.version` powers optimistic concurrency; each mutation increments the version and resets `Kit.updated_at`.
+    - Reuse `KitContent` table; each mutation increments `version` and updates `Kit.updated_at` so availability calculations stay fresh. Cascading FKs ensure dependent reservations or pick list lines clean up correctly.
   - API surface:
-    - `POST /kits/<int:kit_id>/contents`
-      - Body: `KitContentCreateSchema` (`part_id`, `required_per_unit`, optional `note`).
-      - Returns full `KitContentDetailSchema`.
-      - Validates kit is active, part exists, and `(kit_id, part_id)` remains unique.
-    - `PATCH /kits/<int:kit_id>/contents/<int:content_id>`
-      - Body: `KitContentUpdateSchema` (`required_per_unit?`, `note?`, required `version`).
-      - Returns updated detail schema; version conflicts raise 409.
-    - `DELETE /kits/<int:kit_id>/contents/<int:content_id>`
-      - Removes the row, returns 204, and service cascades timestamp refresh.
+    - `POST /kits/<int:kit_id>/contents` accepts `KitContentCreateSchema` (`part_id`, `required_per_unit`, optional `note`) and returns `KitContentDetailSchema`.
+    - `PATCH /kits/<int:kit_id>/contents/<int:content_id>` accepts `KitContentUpdateSchema` (`required_per_unit?`, `note?`, required `version`) and returns the updated row; service raises 409 with latest payload when versions diverge.
+    - `DELETE /kits/<int:kit_id>/contents/<int:content_id>` responds with 204 after removing the row.
+- Observability & testing:
+  - `useFormInstrumentation` IDs `KitContent:create`, `KitContent:update`, `KitContent:delete` (metadata includes `kitId`, `contentId?`, `partKey`, `phase`).
+  - Continue emitting `kits.detail` / `kits.detail.contents` scopes; ensure optimistic phases do not emit “ready” until refetch completes.
+  - Playwright spec add-ons cover create, edit (including forced conflict via factory helper), and delete, waiting on instrumentation events and asserting real backend state.
+
+## Dependencies & sequencing
+
+- Depends on the read-only slice (route, layout, instrumentation scaffolding).
+- Requires part selector hooks/factories; tests need helpers to seed kits with parts.
+- Metadata editing slice (below) will reuse the same mutation utilities for cache invalidation.
+
+# Feature: Kit metadata editing & archived gating
+
+Ship the metadata dialog, enforce archived read-only rules, and coordinate cache updates across detail and overview.
+
+## Use cases
+
+- Update kit metadata (active kits only)
+  - Features:
+    - Enable the “Edit Kit” button for active kits to open a modal dialog (name, description, build target) with validation mirroring other forms.
+    - Disable the control for archived kits and surface tooltip copy explaining read-only state; ensure BOM action buttons respect the same gating.
+    - On submit, optimistically update header fields, close the modal on success, and invalidate overview queries so card badges stay in sync.
+  - Database / data model:
+    - Reuse `kits` table; `KitService.update` enforces `status != archived` before applying changes and bumps `updated_at`.
+  - API surface:
+    - `PATCH /kits/<int:kit_id>` accepts `KitUpdateSchema` (`name?`, `description?`, `build_target?`) and returns updated `KitResponseSchema`. Client invalidates `getKitsByKitId` and relevant `getKits` queries after success.
+- Observability & testing:
+  - Instrument modal with `useFormInstrumentation` form ID `KitDetail:metadata` (metadata: `kitId`, `buildTarget`), including validation events.
+  - Playwright coverage adds scenarios for successful update, validation error, and archived gating (modal blocked, actions disabled).
+
+## Dependencies & sequencing
+
+- Builds on the read-only workspace and benefits from mutation utilities introduced in the BOM slice.
+- Metadata changes should trigger the same refetch instrumentation (`kits.detail`, `kits.detail.toolbar`) so toolbar counts match new build targets.
 
 # Feature: Kit linkage chips
 
