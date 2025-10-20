@@ -52,10 +52,11 @@ Deliver the routed kit detail screen and availability math without any mutating 
 
 - View kit summary and computed availability
   - Features:
-    - Introduce TanStack Router route `/kits/$kitId` rendering a detail layout with header, toolbar, and main content similar to `PartDetails`.
-    - Display name, description, build target, lifecycle badge, and existing shopping/pick counts. The “Edit kit” button is rendered disabled (tooltip explains archived gating will arrive later).
+    - Introduce TanStack Router route `/kits/$kitId` rendering a detail layout with header and main content similar to `PartDetails`.
+    - Place the status badge immediately to the right of the kit title to mirror the shopping list detail header.
+    - Display name, description, lifecycle badge, build target as a chip styled like the shopping list `Total #` badge, and existing shopping/pick counts. The “Edit kit” button is rendered disabled (tooltip explains archived gating will arrive later).
+    - Defer shopping list and pick list linkage chips to their dedicated feature; the header simply omits them for now.
     - Render a read-only BOM table showing Required, Total, In stock, Reserved, Available, and Shortfall columns sourced from backend aggregates.
-    - Provide client-side filtering across part key, description, manufacturer code, and row note with toolbar counters (total rows, visible rows, overall shortfall, filtered shortfall).
   - Database / data model:
     - Create `KitContent` model mapped to `kit_contents`: `id` PK, `kit_id` FK (`kits.id`, `ondelete="CASCADE"`), `part_id` FK (`parts.id`, `ondelete="CASCADE"`), `required_per_unit` integer not null, `note` text nullable, `version` bigint not null default `1`, timestamps.
     - Add `UniqueConstraint("kit_id", "part_id", name="uq_kit_contents_kit_part")`, `CheckConstraint("required_per_unit >= 1", name="ck_kit_contents_required_positive")`, and indexes on `(kit_id, part_id)` plus `(kit_id, updated_at)`. Configure SQLAlchemy optimistic locking via `__mapper_args__["version_id_col"] = KitContent.version`.
@@ -64,10 +65,9 @@ Deliver the routed kit detail screen and availability math without any mutating 
     - `GET /kits/<int:kit_id>` returns `KitDetailResponseSchema` with kit metadata, `contents` (per-row detail schema with part summary + aggregates), `shopping_list_links`, and `pick_lists`. Missing kits raise `RecordNotFoundException`; archived kits return the same payload but the UI treats them as read-only.
 - Observability & testing:
   - Instrument `useListLoadingInstrumentation` scopes:
-    - `kits.detail` for the main query lifecycle (metadata: `kitId`, `status`, `contentCount`, `filteredCount`).
-    - `kits.detail.contents` for derived availability state (metadata: `kitId`, `visible`, `shortfallCount`, `total`).
-  - Emit `useUiStateInstrumentation` scope `kits.detail.toolbar` with `{ totalRequired, available, shortfallCount, filteredCount, filteredShortfall }`.
-  - Extend the kits Playwright page object with detail locators (header metadata, toolbar counters, table rows) and add a spec that navigates from an overview card, waits on instrumentation, verifies computed columns, and exercises the filter (no mutations yet).
+    - `kits.detail` for the main query lifecycle (metadata: `kitId`, `status`, `contentCount`).
+    - `kits.detail.contents` for derived availability state (metadata: `kitId`, `available`, `shortfallCount`, `total`).
+  - Extend the kits Playwright page object with detail locators (title, status badge placement, build target chip, table rows) and add a spec that navigates from an overview card, waits on instrumentation, and verifies computed columns (no mutations yet).
 
 ## Dependencies & sequencing
 
@@ -126,7 +126,7 @@ Ship the metadata dialog, enforce archived read-only rules, and coordinate cache
 ## Dependencies & sequencing
 
 - Builds on the read-only workspace and benefits from mutation utilities introduced in the BOM slice.
-- Metadata changes should trigger the same refetch instrumentation (`kits.detail`, `kits.detail.toolbar`) so toolbar counts match new build targets.
+- Metadata changes should trigger the same refetch instrumentation (`kits.detail`, `kits.detail.contents`) so availability metrics match new build targets.
 
 # Feature: Kit linkage chips
 
