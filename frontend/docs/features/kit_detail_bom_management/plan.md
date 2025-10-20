@@ -1,396 +1,444 @@
 # Kit Detail & BOM Management Plan
 
 ### 0) Research Log & Findings
-- Consulted kit detail epic requirements for editable metadata, computed availability columns, and filtering expectations (docs/epics/kits_feature_breakdown.md:55 — "Display editable name, description, and build target while kit is active; disable fields when archived.").
-- Reviewed BOM maintenance mandates covering inline add/edit/delete with optimistic refresh (docs/epics/kits_feature_breakdown.md:70 — "Enable inline add/edit/delete rows with validation for integer quantities and duplicate part protection.").
-- Inspected generated kit detail schema to understand available fields, computed aggregates, and badge counts (src/lib/api/generated/types.ts:2893 — "\"KitDetailResponseSchema.b98797e\": { archived_at, build_target, contents... }").
-- Verified per-row detail payload includes availability math and optimistic locking version (src/lib/api/generated/types.ts:2977 — "KitContentDetailSchema" fields include required_per_unit, total_required, reserved, shortfall, version).
-- Confirmed generated hooks for detail queries and content mutations to reuse (src/lib/api/generated/hooks.ts:838 — "return useQuery({ queryKey: ['getKitsByKitId', params], ... })").
-- Noted DetailScreenLayout shell already used by other detail screens (src/components/layout/detail-screen-layout.tsx:31 — "export function DetailScreenLayout({ ... })").
-- Studied PartDetails instrumentation pattern for list loading and nested queries (src/components/parts/part-details.tsx:145 — "useListLoadingInstrumentation({ scope: 'parts.detail', ... })").
-- Checked existing kits overview instrumentation scope for consistent naming (src/components/kits/kit-overview-list.tsx:76 — "useListLoadingInstrumentation({ scope: 'kits.overview', ... })").
-- Reviewed membership lookup hook to reuse summaries and instrumentation (src/hooks/use-kit-memberships.ts:64 — "const shoppingMemberships = useKitShoppingListMemberships(allKitIds);").
-- Examined current Playwright coverage and deterministic waits to mirror for detail specs (tests/e2e/kits/kits-overview.spec.ts:6 — `waitForListLoading(page, 'kits.overview', 'ready')`).
-- Audited kit factory helpers to extend with BOM seeding for tests (tests/api/factories/kit-factory.ts:26 — `async create(options?: KitCreateOptions)`).
+- Reviewed the kit detail requirements covering header summary, computed availability columns, and BOM mutation rules to scope UI responsibilities (docs/epics/kits_feature_breakdown.md:55).
+- Revisited the application architecture to align new hooks, types, and query usage with the React 19 + TanStack stack and camelCase adapters (docs/contribute/architecture/application_overview.md:5).
+- Consulted detail/list UI conventions to reuse `DetailScreenLayout`, skeleton patterns, and mandated `useListLoadingInstrumentation` hooks (docs/contribute/ui/data_display.md:14).
+- Confirmed instrumentation and testing expectations, including mandatory feature-owned Playwright specs and deterministic event waits (docs/contribute/testing/index.md:5, docs/contribute/testing/playwright_developer_guide.md:10, docs/contribute/architecture/test_instrumentation.md:14).
+- Studied `PartDetails` for detail layout, instrumentation wiring, and not-found fallbacks we can emulate (src/components/parts/part-details.tsx:145, src/components/parts/part-details.tsx:689).
+- Looked at current kits overview instrumentation and membership fetch patterns to ensure new scopes stay consistent (src/components/kits/kit-overview-list.tsx:76, src/hooks/use-kit-memberships.ts:340).
+- Audited generated hooks for kit detail, metadata updates, and kit content CRUD to plan React Query integration (src/lib/api/generated/hooks.ts:838).
+- Reviewed part selection helpers for reusing the searchable selector in BOM forms (src/components/parts/part-selector.tsx:67, src/hooks/use-parts-selector.ts:62).
+- Checked existing kits Playwright coverage and page object capabilities to extend them for detail scenarios (tests/e2e/kits/kits-overview.spec.ts:1, tests/support/page-objects/kits-page.ts:7).
+- Inspected the kit test factory to understand current seeding helpers and identify gaps for BOM content creation (tests/api/factories/kit-factory.ts:26).
+- Noted that `KitCard` currently renders a static card without navigation, so we must add an affordance to reach the new detail workspace (src/components/kits/kit-card.tsx:120, src/components/kits/kit-overview-list.tsx:240).
 
 ### 1) Intent & Scope
 
 **User intent**
 
-Deliver the `/kits/$kitId` workspace so planners can edit active kit metadata, manage the bill of materials with live availability math, and see related shopping/pick list context without leaving the app.
+Design and implement the kit detail workspace so planners can inspect kit metadata, manage the bill of materials, and rely on computed availability directly inside the frontend.
 
 **Prompt quotes**
 
-"Expose a rich kit detail workspace where planners maintain the bill of materials"  
-"Enable inline add/edit/delete rows with validation for integer quantities and duplicate part protection."
+"Display name, description, and build target in the header; expose an “Edit kit” trigger ... while the kit is active, and disable the trigger for archived kits." (docs/epics/kits_feature_breakdown.md:55)  
+"Enable inline add/edit/delete rows with validation for integer quantities and duplicate part protection." (docs/epics/kits_feature_breakdown.md:70)
 
 **In scope**
 
-- Wire TanStack Router detail route and compose the screen with `DetailScreenLayout`, breadcrumbs, and instrumentation.
-- Implement metadata editing (name, description, build target) gated by kit status, using generated PATCH hook plus form instrumentation.
-- Build a filterable BOM grid that shows computed Required/Total/In stock/Reserved/Shortfall columns and supports inline add/edit/delete with optimistic refresh.
-- Surface shopping list and pick list badges/chips alongside availability stats, reusing membership hooks and emitting deterministic test events.
+- Surface a `/kits/$kitId` detail route with header summary, status badges, and computed availability columns.
+- Build a BOM table with client-side filtering, inline add/edit/delete flows, and instrumentation-backed optimistic updates.
+- Provide a modal to edit kit metadata while respecting archived read-only rules.
+- Extend instrumentation and Playwright coverage (page objects + specs) to exercise the new UI and mutations.
 
 **Out of scope**
 
-- Shopping list creation/append workflows and unlinking chips (covered by separate epic sections).
-- Pick list creation, execution, and undo mechanics beyond summarizing existing lists.
-- Backend schema or API adjustments; plan assumes delivered endpoints and generated client stay as-is.
-- Global search or cross-feature navigation beyond linking from overview cards and related chips.
+- Shopping list linking workflows and pick-list execution flows covered by later features (linked shopping/pick list chips remain deferred per epic note).
+- Backend schema or API changes; rely on the delivered endpoints and generated client.
+- Global navigation or sidebar adjustments (already handled in the overview slice).
 
 **Assumptions / constraints**
 
-APIs described in the epic are deployed and reflected in the generated client; archived kits remain server-enforced read-only; tests must stay backend-driven with the instrumentation taxonomy from docs/contribute/testing.
+Backend endpoints and OpenAPI hooks already expose detail, content, and metadata operations; optimistic locking via `version` is authoritative; tests must hit the real backend without request interception; detail UI should remain responsive for medium BOM sizes without virtualisation.
 
 ### 2) Affected Areas & File Map
 
-- Area: src/routes/kits/$kitId.tsx (new)
-- Why: Register the nested route and layout container for kit detail mirroring part detail routing.
-- Evidence: src/routes/parts/$partId.tsx:3 — "export const Route = createFileRoute('/parts/$partId')({ ... })"
+- Area: src/routes/kits/$kitId.tsx
+  - Why: Provide the TanStack Router layout wrapper with an `<Outlet>` for the kit detail sub-route, mirroring other entity routes.
+  - Evidence: src/routes/parts/$partId.tsx:1
 
-- Area: src/routes/kits/$kitId/index.tsx (new)
-- Why: Load route params and render the kit detail screen component.
-- Evidence: src/routes/parts/$partId/index.tsx:4 — "export const Route = createFileRoute('/parts/$partId/')({ component: PartDetailScreen })"
+- Area: src/routes/kits/$kitId/index.tsx
+  - Why: Load route params and render the new `KitDetail` component as the default child route.
+  - Evidence: src/routes/parts/$partId/index.tsx:1
 
-- Area: src/components/kits/kit-detail-screen.tsx (new)
-- Why: Compose `DetailScreenLayout`, metadata form, BOM grid, filters, and related chips with instrumentation scopes.
-- Evidence: src/components/layout/detail-screen-layout.tsx:31 — layout contract for detail screens.
+- Area: src/components/kits/kit-detail.tsx
+  - Why: Compose the detail workspace with `DetailScreenLayout`, header metadata, instrumentation, and content sections.
+  - Evidence: docs/epics/kits_feature_breakdown.md:55, src/components/parts/part-details.tsx:689
 
-- Area: src/components/shopping-lists/shopping-list-chip.tsx (new)
-- Why: Lift the part detail shopping-list chip implementation into a shared component for reuse on kit detail without duplicating styles.
-- Evidence: src/components/parts/part-details.tsx:323-357 — existing chip markup to extract.
+- Area: src/components/kits/kit-content-table.tsx
+  - Why: Render the BOM grid with computed columns (Required/Total/In stock/Reserved/Shortfall) and selection states.
+  - Evidence: docs/epics/kits_feature_breakdown.md:56
+
+- Area: src/components/kits/kit-content-row.tsx
+  - Why: Present individual BOM rows with action affordances, notes, and availability indicators.
+  - Evidence: docs/epics/kits_feature_breakdown.md:56
+
+- Area: src/components/kits/kit-content-form.tsx
+  - Why: Implement inline create/edit forms with validation, instrumentation, and part selector integration.
+  - Evidence: docs/epics/kits_feature_breakdown.md:70, src/hooks/use-form-instrumentation.ts:52
+
+- Area: src/components/kits/kit-content-toolbar.tsx
+  - Why: Provide search/filter controls, counts, and an “Add part” entry point per detail filtering requirements.
+  - Evidence: docs/epics/kits_feature_breakdown.md:57, docs/contribute/ui/data_display.md:8
+
+- Area: src/components/kits/kit-metadata-dialog.tsx
+  - Why: Allow active kits to update name/description/build target via a modal, emitting form telemetry.
+  - Evidence: docs/epics/kits_feature_breakdown.md:55, src/hooks/use-form-instrumentation.ts:52
 
 - Area: src/components/kits/kit-card.tsx
-- Why: Add detail navigation affordance (card title/link) so overview cards deep-link into `/kits/$kitId`.
-- Evidence: src/components/kits/kit-card.tsx:9 — card currently renders title without linking to the detail route.
-
-- Area: src/hooks/use-kit-detail.ts (new)
-- Why: Wrap `useGetKitsByKitId` to map snake_case payloads into camelCase domain models and expose query state helpers.
-- Evidence: src/lib/api/generated/hooks.ts:838 — generated detail query hook to adapt.
-
-- Area: src/hooks/use-kit-content-mutations.ts (new)
-- Why: Centralize create/update/delete mutations with optimistic cache updates and version handling for BOM rows.
-- Evidence: src/lib/api/generated/hooks.ts:896 — content mutation hooks available for composition.
-
-- Area: src/types/kits.ts
-- Why: Extend kit types with detail view models, content row shape, and mapping helpers.
-- Evidence: docs/contribute/architecture/application_overview.md:33 — custom hooks/types map generated payloads into camelCase domain models.
-
-- Area: src/hooks/use-kit-memberships.ts
-- Why: Expose single-kit helpers and loading metadata so detail screen can show shopping/pick summaries without duplicating logic.
-- Evidence: src/hooks/use-kit-memberships.ts:64 — current multi-kit lookup to adapt for detail usage.
+  - Why: Add navigation affordance (e.g., wrapping title/card with a `<Link>`) so users can open the detail screen from the overview.
+  - Evidence: src/components/kits/kit-card.tsx:120
 
 - Area: src/components/kits/kit-overview-list.tsx
-- Why: Provide card prop/callback for deep-linking to detail and keep membership prefetch alignment with new screen.
-- Evidence: src/components/kits/kit-overview-list.tsx:51 — overview injects cards and controls we will extend.
+  - Why: Wire the new navigation target when rendering cards and preserve existing instrumentation/search behaviour.
+  - Evidence: src/components/kits/kit-overview-list.tsx:240
 
-- Area: tests/support/page-objects/kits-page.ts
-- Why: Add helpers for opening detail screens, interacting with metadata form, BOM grid, and instrumentation waits.
-- Evidence: tests/support/page-objects/kits-page.ts:6 — existing overview locators to expand.
+- Area: src/types/kits.ts
+  - Why: Extend kit domain types with `KitDetail`, `KitContentRow`, `KitShoppingListLink`, and helper mappers.
+  - Evidence: src/types/kits.ts:1, docs/contribute/architecture/application_overview.md:32
+
+- Area: src/hooks/use-kit-detail.ts
+  - Why: Wrap `useGetKitsByKitId`, map payloads to camelCase domain models, expose derived metadata, and handle instrumentation helpers.
+  - Evidence: src/lib/api/generated/hooks.ts:838, src/hooks/use-shopping-lists.ts:618
+
+- Area: src/hooks/use-kit-content-mutations.ts
+  - Why: Centralise create/update/delete mutations with optimistic cache updates, version handling, and form telemetry.
+  - Evidence: src/lib/api/generated/hooks.ts:896, src/components/kits/kit-archive-controls.tsx:112
+
+- Area: src/lib/utils/kits.ts
+  - Why: Share helpers for computing totals/shortfalls and instrumentation payload derivation from kit content rows.
+  - Evidence: docs/epics/kits_feature_breakdown.md:61
 
 - Area: tests/api/factories/kit-factory.ts
-- Why: Add helpers to seed kit contents via real `/kits/{id}/contents` endpoint for deterministic Playwright fixtures.
-- Evidence: tests/api/factories/kit-factory.ts:26 — factory scaffolding for kit CRUD.
+  - Why: Add helpers to seed kit contents (create/update) for deterministic Playwright setup.
+  - Evidence: tests/api/factories/kit-factory.ts:26
 
-- Area: tests/e2e/kits/kits-detail.spec.ts (new)
-- Why: Cover metadata edit, BOM add/edit/delete, and filtering scenarios against real backend using new instrumentation scopes.
-- Evidence: docs/epics/kits_feature_breakdown.md:53 — mandates detail workspace behavior to verify end-to-end.
+- Area: tests/support/page-objects/kits-page.ts
+  - Why: Extend the page object with detail locators/actions (header, BOM rows, filters, modals).
+  - Evidence: tests/support/page-objects/kits-page.ts:7
 
-- Area: tests/e2e/kits/kits-overview.spec.ts
-- Why: Add navigation smoke to assert overview cards and CTA reach the new detail route.
-- Evidence: tests/e2e/kits/kits-overview.spec.ts:57 — existing navigation assertions to extend.
+- Area: tests/e2e/kits/kits-detail.spec.ts
+  - Why: Add Playwright coverage for detail loading, metadata edits, BOM CRUD, and archived read-only behaviour.
+  - Evidence: docs/contribute/testing/index.md:5
 
 ### 3) Data Model / Contracts
 
 - Entity / contract: KitDetail
-- Shape:
-  ```json
-  {
-    "id": number,
-    "name": string,
-    "description": string | null,
-    "status": "active" | "archived",
-    "buildTarget": number,
-    "archivedAt": string | null,
-    "updatedAt": string,
-    "shoppingListBadgeCount": number,
-    "pickListBadgeCount": number,
-    "shoppingListLinks": KitShoppingListLink[],
-    "pickLists": KitPickListSummary[],
-    "contents": KitContentRow[]
-  }
-  ```
-- Mapping: `mapKitDetail(response: KitDetailResponseSchema)` converts snake_case payload into camelCase fields and maps nested arrays to domain helpers.
-- Evidence: src/lib/api/generated/types.ts:2893 — detail response includes metadata, badge counts, and related arrays.
+  - Shape: `{ id, name, description, status, buildTarget, archivedAt, updatedAt, shoppingListBadgeCount, pickListBadgeCount, contents: KitContentRow[], shoppingListLinks: KitShoppingListLink[], pickLists: KitPickListSummary[] }`
+  - Mapping: Map from `KitDetailResponseSchema_b98797e`, converting snake_case fields, coercing nullables, and sorting contents.
+  - Evidence: src/lib/api/generated/types.ts:2904
 
 - Entity / contract: KitContentRow
-- Shape:
-  ```json
-  {
-    "id": number,
-    "partId": number,
-    "partKey": string,
-    "partName": string,
-    "requiredPerUnit": number,
-    "totalRequired": number,
-    "inStock": number,
-    "reserved": number,
-    "available": number,
-    "shortfall": number,
-    "note": string | null,
-    "version": number,
-    "activeReservations": ReservationEntry[]
-  }
-  ```
-- Mapping: `mapKitContentRow(schema: KitContentDetailSchema)` pulls part summary metadata, converts numeric aggregates, and carries optimistic locking version for edit submissions.
-- Evidence: src/lib/api/generated/types.ts:2977 — content schema lists availability fields, note, and version.
+  - Shape: `{ id, kitId, partId, partKey, partDescription, requiredPerUnit, totalRequired, inStock, reserved, available, shortfall, note, version, createdAt, updatedAt, activeReservations: KitReservationEntry[] }`
+  - Mapping: Adapt `KitDetailResponseSchema_b98797e.KitContentDetailSchema` and compute helper booleans (e.g., `hasShortfall`).
+  - Evidence: src/lib/api/generated/types.ts:2984
 
-- Entity / contract: KitContentEditorDraft
-- Shape:
-  ```json
-  {
-    "mode": "create" | "edit",
-    "contentId": number | null,
-    "partKey": string | null,
-    "partId": number | null,
-    "requiredPerUnit": number,
-    "note": string,
-    "version": number | null
-  }
-  ```
-- Mapping: Initialized from `KitContentRow` for edit mode (prefilling fields, version) or defaults for add; snapshot feeds `useFormInstrumentation` metadata.
-- Evidence: docs/epics/kits_feature_breakdown.md:70 — inline add/edit/delete with validation and optimistic updates.
+- Entity / contract: KitShoppingListLink
+  - Shape: `{ id, shoppingListId, shoppingListName, status, requestedUnits, honorReserved, isStale, snapshotKitUpdatedAt, createdAt, updatedAt }`
+  - Mapping: Map link schema to camelCase, exposing stale status for UI badges.
+  - Evidence: src/lib/api/generated/types.ts:3210
 
-- Entity / contract: KitDetailQueryKey
-- Shape: `['getKitsByKitId', { path: { kit_id: number } }]`
-- Mapping: Derived from route param to drive cache updates and align with generated hook key.
-- Evidence: src/lib/api/generated/hooks.ts:841 — query key used by `useGetKitsByKitId`.
+- Entity / contract: KitPickListSummary
+  - Shape: `{ id, status, requestedUnits, lineCount, openLineCount, completedLineCount, totalQuantityToPick, pickedQuantity, remainingQuantity, createdAt, updatedAt, completedAt }`
+  - Mapping: Pass-through mapping for read-only summary chips.
+  - Evidence: src/lib/api/generated/types.ts:3068
+
+- Entity / contract: KitContentFormInput
+  - Shape: `{ partId, requiredPerUnit, note, version? }`
+  - Mapping: Build payloads for `KitContentCreateSchema` / `KitContentUpdateSchema`, ensuring integers and optimistic version inclusion.
+  - Evidence: src/lib/api/generated/types.ts:2669
 
 ### 4) API / Integration Surface
 
-- Surface: GET /api/kits/{kit_id} / useGetKitsByKitId
-- Inputs: `path: { kit_id: number }`
-- Outputs: `KitDetailResponseSchema` mapped to `KitDetail`; fetch status drives loading/ready instrumentation and membership fetch triggers.
-- Errors: 404 -> redirect to `/kits` with toast; generic errors show exception toast and emit list_loading error metadata.
-- Evidence: src/lib/api/generated/hooks.ts:838 — detail query definition.
+- Surface: GET /api/kits/{kit_id} via `useGetKitsByKitId`
+  - Inputs: `{ path: { kit_id } }` from route param.
+  - Outputs: Kit detail payload mapped into `KitDetail`.
+  - Errors: Display not-found or error card; emit `list_loading` error metadata.
+  - Evidence: src/lib/api/generated/hooks.ts:838
 
-- Surface: PATCH /api/kits/{kit_id} / usePatchKitsByKitId
-- Inputs: payload with optional `name`, `description`, `build_target` (active kits only), triggered from metadata form.
-- Outputs: `KitResponseSchema`; update detail cache and kits overview entry with new metadata.
-- Errors: 400 validation -> surface inline errors + toast; 409 conflict (archived) -> revert form, show warning.
-- Evidence: docs/epics/kits_feature_breakdown.md:38 — backend guards archived edits; src/lib/api/generated/hooks.ts:854 — mutation hook.
+- Surface: PATCH /api/kits/{kit_id} via `usePatchKitsByKitId`
+  - Inputs: `{ path: { kit_id }, body: { name?, description?, build_target? } }`.
+  - Outputs: Updated kit summary; refresh detail + overview caches.
+  - Errors: Inline validation (required strings, numeric bounds) and toast on failure.
+  - Evidence: src/lib/api/generated/hooks.ts:854, src/lib/api/generated/types.ts:4654
 
-- Surface: POST /api/kits/{kit_id}/contents / usePostKitsContentsByKitId
-- Inputs: `{ part_id, required_per_unit, note? }` from create draft; requires active kit state.
-- Outputs: `KitContentDetailSchema`; append to detail cache and recompute filters.
-- Errors: 400/409 for invalid quantity or duplicate part -> inline validation + toast instrumentation.
-- Evidence: src/lib/api/generated/hooks.ts:896 — create mutation; docs/epics/kits_feature_breakdown.md:76 — API contract.
+- Surface: POST /api/kits/{kit_id}/contents via `usePostKitsContentsByKitId`
+  - Inputs: `{ path: { kit_id }, body: { part_id, required_per_unit, note? } }` from form.
+  - Outputs: New content row; merge into cached detail and invalidate backend queries.
+  - Errors: Duplicate/validation errors surfaced inline and via `query_error` instrumentation.
+  - Evidence: src/lib/api/generated/hooks.ts:896
 
-- Surface: PATCH /api/kits/{kit_id}/contents/{content_id} / usePatchKitsContentsByKitIdAndContentId
-- Inputs: `{ required_per_unit?, note?, version }` from edit draft.
-- Outputs: Updated `KitContentDetailSchema`; replace row in cache using optimistic version.
-- Errors: 409 version conflict -> show toast, refetch row, surface conflict inline per open question.
-- Evidence: src/lib/api/generated/hooks.ts:938 — update mutation; docs/epics/kits_feature_breakdown.md:81 — conflict expectation.
+- Surface: PATCH /api/kits/{kit_id}/contents/{content_id}` via `usePatchKitsContentsByKitIdAndContentId`
+  - Inputs: `{ path: { kit_id, content_id }, body: { required_per_unit?, note?, version } }`.
+  - Outputs: Updated row with refreshed availability numbers.
+  - Errors: 409 conflicts trigger refetch + inline guidance; other errors raise toasts.
+  - Evidence: src/lib/api/generated/hooks.ts:938, src/lib/api/generated/types.ts:2858
 
-- Surface: DELETE /api/kits/{kit_id}/contents/{content_id} / useDeleteKitsContentsByKitIdAndContentId
-- Inputs: `{ path: { kit_id, content_id } }` triggered from row action.
-- Outputs: 204; remove row from cache and invalidate aggregated metrics.
-- Errors: 400 if kit archived; show toast and restore row state.
-- Evidence: src/lib/api/generated/hooks.ts:917 — delete mutation.
+- Surface: DELETE /api/kits/{kit_id}/contents/{content_id}` via `useDeleteKitsContentsByKitIdAndContentId`
+  - Inputs: `{ path: { kit_id, content_id } }`.
+  - Outputs: No body; remove row locally and revalidate detail query.
+  - Errors: Toast and `query_error` event on failure.
+  - Evidence: src/lib/api/generated/hooks.ts:917
 
-- Surface: POST /api/kits/shopping-list-memberships/query & POST /api/kits/pick-list-memberships/query
-- Inputs: `kit_ids: [kitId], include_done: false` from detail to reuse membership chips.
-- Outputs: Membership summaries fueling header badges.
-- Errors: Network failure -> emit list_loading error for membership scope and show fallback message.
-- Evidence: src/hooks/use-kit-memberships.ts:61 — membership fetch payload.
+- Surface: GET /api/parts via `useGetParts` (through `usePartsSelector`)
+  - Inputs: none; leveraged inside part selector for BOM forms.
+  - Outputs: Searchable list of parts with totals and metadata.
+  - Errors: Selector displays inline load error and instrumentation scope `parts.selector`.
+  - Evidence: src/hooks/use-parts-selector.ts:62
 
-### 5) Algorithms & UI Flows (step-by-step)
+### 5) Algorithms & UI Flows
 
-- Flow: Load kit detail screen
-- Steps:
-  1. Resolve `kitId` from router params and call `useKitDetail(kitId)`.
-  2. Kick off membership queries when detail data resolves to hydrate chips.
-  3. Render `DetailScreenLayout` with breadcrumbs (`Kits` → current name), actions, shopping-list chip component shared with part detail, and BOM section once query ready.
-  4. Initialize filter state and derived view of `contents` array.
-- States / transitions: React Query statuses (`isLoading`, `isFetching`, `isError`) drive skeleton, ready content, and retry UI; filter state updates trigger derived list update.
-- Hotspots: Avoid re-render storms by memoizing derived collections; guard membership fetch until kitId is numeric.
-- Evidence: src/lib/api/generated/hooks.ts:841 — query key usage; src/components/parts/part-details.tsx:145 — list instrumentation pattern to follow.
+- Flow: Load kit detail & emit instrumentation
+  - Steps:
+    1. Resolve `kitId` from route params and invoke `useKitDetail` (wraps `useGetKitsByKitId`).
+    2. While loading, show skeleton placeholders; on success, map to `KitDetail` and derive filtered rows/counts.
+    3. Render `DetailScreenLayout` with header metadata, badges, and toolbar.
+    4. Call `useListLoadingInstrumentation` with scope `kits.detail`, including kit id, status, and content counts in metadata.
+  - States / transitions: Loading → ready/error/aborted; data refresh after mutations invalidates query and replays instrumentation.
+  - Hotspots: Ensure the detail view handles stale kit IDs when navigating quickly and avoids rendering empty states before data arrives.
+  - Evidence: src/lib/api/generated/hooks.ts:838, src/components/parts/part-details.tsx:145, src/components/layout/detail-screen-layout.tsx:65, docs/contribute/ui/data_display.md:14
 
-- Flow: Update kit metadata
-- Steps:
-  1. Populate form with detail data; disable fields if status is `archived`.
-  2. On submit, call `trackFormSubmit` via `useFormInstrumentation`, fire `usePatchKitsByKitId` mutation.
-  3. On success, invalidate `useKitDetail` and `useGetKits` so the server recalculates availability math; wait for refetch to settle before emitting form success instrumentation/toast copy.
-  4. On error, display validation inline, emit toast, and track form error (including conflict metadata when status === 409).
-- States / transitions: Form state toggles between pristine, submitting, success; query cache invalidation ensures overview reflects updated data.
-- Hotspots: Block optimistic recompute—the detail screen should render stale values until the server response lands; surface skeleton/inline spinner during invalidation to acknowledge recalculation.
-- Evidence: docs/epics/kits_feature_breakdown.md:55 — editable metadata; src/hooks/use-form-instrumentation.ts:26 — submit/success/error helpers; src/lib/api/generated/hooks.ts:854 — mutation.
+- Flow: Edit kit metadata (active kits only)
+  - Steps:
+    1. Enable “Edit kit” button when `kit.status === 'active'`; clicking opens modal with current values.
+    2. Use `useFormInstrumentation` (form id `KitDetail:metadata`) to emit open/submit/success/error events.
+    3. On submit, call `usePatchKitsByKitId`, disable controls during mutation, and optimistically update cached detail.
+    4. On success, close modal, show toast, and invalidate overview queries so card badges refresh.
+  - States / transitions: Modal open/closed, mutation pending, ready; archived kits leave button disabled with tooltip.
+  - Hotspots: Validate numbers ≥1 and clamp whitespace, ensuring toasts and instrumentation metadata include kit id.
+  - Evidence: docs/epics/kits_feature_breakdown.md:55, src/lib/api/generated/hooks.ts:854, src/hooks/use-form-instrumentation.ts:52
 
-- Flow: Add kit content row
-- Steps:
-  1. Open inline row editor with PartSelector; track form open event.
-  2. Validate required per unit (>0) client-side; on submit call `usePostKitsContentsByKitId` with part ID and quantity.
-  3. Optimistically append draft row (pending state) to grid; on success replace with server payload and recompute availability totals.
-  4. On failure, roll back optimistic entry and surface toast with validation errors.
-- States / transitions: Draft state toggles between `idle`, `submitting`, `success`; optimistic row flagged until mutation resolves.
-- Hotspots: Deduplicate part selection before submit to prevent duplicate API errors; ensure filter term applies to newly added row immediately.
-- Evidence: docs/epics/kits_feature_breakdown.md:70 — inline add; src/lib/api/generated/hooks.ts:896 — create mutation; src/components/parts/part-selector.tsx:39 — selection helper pattern.
+- Flow: Manage BOM rows (add/edit/delete)
+  - Steps:
+    1. “Add part” opens inline row editor using `PartSelector`; validation ensures integer ≥1 and disables selector options (and inline errors) for parts already present in the kit so duplicates never submit.
+    2. On create, call `usePostKitsContentsByKitId`, append row to local cache, refetch detail for server-calculated availability, and emit `KitContent:create` form events.
+    3. Editing an existing row toggles it into form mode with current version; submit PATCH with latest version, handling 409 by refetching and showing guidance.
+    4. Delete prompts confirmation (using existing `ConfirmDialog`), calls DELETE mutation, and removes row from cache.
+  - States / transitions: Each row toggles between view/edit; maintain `activeRowId` to avoid concurrent edits; track per-row pending status.
+  - Hotspots: Ensure optimistic operations update `total_required`/`shortfall` placeholders until fresh data arrives; guard against stale selector values and ensure duplicate guard updates when cache refetches.
+  - Evidence: docs/epics/kits_feature_breakdown.md:70, src/lib/api/generated/hooks.ts:896, src/hooks/use-parts-selector.ts:62
 
-- Flow: Edit or delete kit content row
-- Steps:
-  1. Launch editor with existing row values, including version; track form open event.
-  2. For edits, submit PATCH with new quantity/note + version; update row in cache or show conflict message on 409.
-  3. For deletes, confirm action, optimistically remove row, and call DELETE endpoint.
-  4. After mutation settle, invalidate detail query if totals changed or recalc derived totals manually.
-- States / transitions: Row-level state toggles between `normal`, `optimistic`, `reverting`; conflict triggers `needsRefresh` state requesting refetch.
-- Hotspots: Ensure deleting the last row keeps empty state UX clean; throttle repeated delete clicks while mutation pending.
-- Evidence: docs/epics/kits_feature_breakdown.md:72 — optimistic refresh; src/lib/api/generated/hooks.ts:938 — update mutation; src/lib/api/generated/hooks.ts:917 — delete mutation.
-
-- Flow: Apply client-side BOM filter
-- Steps:
-  1. Update local search term on input; debounce to avoid churn.
-  2. Filter `KitContentRow` array by part key, part name, or note tokens.
-  3. Emit `useUiStateInstrumentation('kits.detail.filter', ...)` loading/ready events during debounce so Playwright can deterministically await filtered state; include ready metadata `{ totalCount, filteredCount }`.
-- States / transitions: Filter text state, derived list state, filter instrumentation state (loading while debounce pending).
-- Hotspots: Keep debounce consistent with overview search (300ms) and ensure highlight/resume after mutation.
-- Evidence: docs/epics/kits_feature_breakdown.md:57 — filtering across part name, SKU, and note; src/components/kits/kit-overview-list.tsx:37 — existing debounce pattern.
+- Flow: Client-side filtering and instrumentation metadata
+  - Steps:
+    1. Capture filter text (debounced) and compute `filteredContents` by matching part description, key, or note.
+    2. Surface counts (visible vs total, shortfall count) in toolbar and emit `kits.detail.toolbar` via `useUiStateInstrumentation` with the latest `filterSnapshot` payload.
+    3. Keep search state local to detail screen while resetting highlight when filters clear.
+  - States / transitions: Filter text updates recompute derived arrays; instrumentation should emit when readiness changes.
+  - Hotspots: Avoid expensive recalculations by memoising content arrays; ensure empty states differentiate “no results” vs “no contents”; guard against duplicate emissions when metadata unchanged.
+  - Evidence: docs/epics/kits_feature_breakdown.md:57, docs/contribute/ui/data_display.md:8
 
 ### 6) Derived State & Invariants
 
-- Derived: metadataEditable
-  - Computation: `kit.status === 'active'` enables form controls, else disables inputs and submit.
-  - Contract: Aligns with backend guard preventing archived edits.
-  - Evidence: docs/epics/kits_feature_breakdown.md:55 — fields editable only when active.
-
 - Derived: filteredContents
-  - Computation: Apply lowercase contains match on part key, part display name, and note for current search term.
-  - Contract: UI must reflect zero-state when filter removes all rows without mutating source array.
-  - Evidence: docs/epics/kits_feature_breakdown.md:57 — client-side filtering across name, SKU, note.
+  - Description: Array of BOM rows matching search tokens (part description, key, note).
+  - Lifecycle: Recomputed when filter term or raw contents change; memoised to avoid unnecessary renders.
+  - Guardrails: Trim search text, case-insensitive match, and ensure it resets when kit id changes.
+  - Evidence: docs/epics/kits_feature_breakdown.md:57
 
-- Derived: availabilityStatus
-  - Computation: For each row, compute `hasShortfall = shortfall > 0`, `isAvailable = available >= totalRequired` to drive badge coloring.
-  - Contract: Rows update after server refetch completes (post-patch/build target updates) to ensure aggregates reflect canonical backend math.
-- Evidence: src/lib/api/generated/types.ts:2977 — `total_required`, `available`, `shortfall` fields supplied.
+- Derived: availabilitySnapshot
+  - Description: Summary object (`totalRequired`, `available`, `shortfallCount`, `partsWithShortfall`) representing the **full** kit contents and feeding toolbar badges plus backend-aligned instrumentation.
+  - Lifecycle: Derived from the unfiltered contents array whenever the detail query resolves or a mutation refetch completes.
+  - Guardrails: Use zero-safe math, clamp negative availability to zero per backend contract, and ensure values stay in sync with server aggregates after each refetch.
+  - Evidence: docs/epics/kits_feature_breakdown.md:61
 
-- Derived: optimisticRowMap
-  - Computation: Track pending row IDs or synthetic temp IDs while mutations in flight to block duplicate submissions.
-  - Contract: Map cleared on success/failure to keep controls re-enabled.
-  - Evidence: docs/epics/kits_feature_breakdown.md:72 — optimistic updates should reflect in grid immediately.
+- Derived: isReadOnly
+  - Description: Boolean indicating whether metadata/BOM mutations are disabled (kit archived or awaiting mutation).
+  - Lifecycle: Computed from kit status and local pending flags.
+  - Guardrails: Prevents submit handlers from firing and ensures UI matches backend archived rule.
+  - Evidence: docs/epics/kits_feature_breakdown.md:55
+
+- Derived: conflictState
+  - Description: Tracks when a row hits a version conflict to show guidance and trigger refetch before re-enabling edit.
+  - Lifecycle: Set on mutation error with 409, cleared after refetch completes.
+  - Guardrails: Avoids repeating stale submissions and ensures instrumentation emits `error` phase.
+  - Evidence: docs/epics/kits_feature_breakdown.md:80
+
+- Derived: filterSnapshot
+  - Description: Metadata payload combining `availabilitySnapshot` totals (`totalRequired`, `available`, `shortfallCount`) with filter-specific fields (`filteredCount`, `filteredShortfall`).
+  - Lifecycle: Recomputed whenever filter text, contents, or availability snapshot changes.
+  - Guardrails: Must reference `availabilitySnapshot` for authoritative totals and avoid emitting stale counts after rapid filter toggles.
+  - Evidence: docs/epics/kits_feature_breakdown.md:57, docs/contribute/architecture/test_instrumentation.md:35
 
 ### 7) State Consistency & Async Coordination
 
-Detail screen will layer React Query caches with local optimistic state. `useKitDetail` wraps `useGetKitsByKitId` and exposes helpers to update cached detail rows; after metadata or content mutations succeed we will invalidate the detail query and rely on the server response (with canonical availability math) before surfacing success UI, while also invalidating the broader `['getKits']` overview cache for card parity (pattern mirrors `KitArchiveControls`, which cancels queries and writes optimistic data before invalidation at src/components/kits/kit-archive-controls.tsx:54). Optimistic BOM changes maintain a local draft map keyed by row ID; mutation handlers reconcile server payloads, clearing optimistic flags and re-sorting rows once the refetch returns. Membership hooks remain independent queries; we defer their fetch until kit detail is ready to avoid duplicate requests on initial load. All promises guard component unmount by tracking `isMountedRef` similar to archive controls, preventing state updates on torn-down components.
+- Source of truth: React Query cache keyed by `['getKitsByKitId', kitId]` plus derived local state (`filteredContents`, `availabilitySnapshot`, `filterSnapshot`, pending row ids).
+- Coordination: Mutations update the cached kit detail via `queryClient.setQueryData`, then invalidate related overview queries so badge counts stay in sync across screens (pattern borrowed from kit archive controls).
+- Async safeguards: Cancel in-flight detail queries before optimistic updates, include `version` in payloads, and refetch after optimistic changes to replace placeholders with authoritative availability.
+- Instrumentation: `useListLoadingInstrumentation` scopes `kits.detail`/`kits.detail.contents`; `useUiStateInstrumentation` emits `ui_state` events under `kits.detail.toolbar` whenever `filterSnapshot` changes; `useFormInstrumentation` emits `KitDetail:metadata` and `KitContent:*` events for Playwright waits.
+  - Evidence: src/lib/api/generated/hooks.ts:838, src/components/kits/kit-archive-controls.tsx:112, src/lib/test/query-instrumentation.ts:146, src/lib/test/ui-state.ts:48, src/hooks/use-form-instrumentation.ts:52
 
 ### 8) Errors & Edge Cases
 
-- 404 / missing kit: redirect to `/kits` with error toast and emit `list_loading` error metadata so tests validate the redirect path (docs/epics/kits_feature_breakdown.md:65 — `RecordNotFoundException` on missing kit).
-- Archive status flip mid-session: PATCH or content mutations returning 409 should flip UI to read-only, refetch detail, and narrate conflict to the user.
-- Duplicate part add attempt: backend 409 surfaces, highlight part selector error state, keep dialog open for correction (docs/epics/kits_feature_breakdown.md:79 — uniqueness enforcement).
-- Negative or zero quantity entry: client validation blocks submission; backend 400 fallback shows toast if bypassed (docs/epics/kits_feature_breakdown.md:74 — positive quantities required).
-- Infinite spinner risk if memberships fail: show inline fallback message while still emitting error instrumentation so tests can assert readiness.
+- Failure: Kit fetch returns 404 or network error
+  - Surface: `KitDetail` component
+  - Handling: Show not-found card with kit id, emit `kits.detail` list_loading error, and provide retry CTA.
+  - Guardrails: Keep instrumentation in sync even when detail is missing.
+  - Evidence: src/components/parts/part-details.tsx:360
+
+- Failure: BOM create/update violates validation (non-positive quantity or duplicate part)
+  - Surface: Inline content form
+  - Handling: Display inline field errors, disable duplicate options client-side, emit `validation_error` form events, and prevent mutation submission.
+  - Guardrails: Disable submit until fields valid; backend remains a final guard but UI blocks duplicates before calling mutations.
+  - Evidence: docs/epics/kits_feature_breakdown.md:70, docs/epics/kits_feature_breakdown.md:118
+
+- Failure: Optimistic locking conflict (stale version)
+  - Surface: Inline edit form
+  - Handling: Catch 409, show toast/link asking user to refresh, refetch detail, and re-open row with fresh data.
+  - Guardrails: Emit `KitContent:update` error event and call `expectConflictError` in tests.
+  - Evidence: docs/epics/kits_feature_breakdown.md:80, tests/support/helpers.ts:113
+
+- Failure: Part selector query fails
+  - Surface: Part selector popover
+  - Handling: Reuse existing selector error message and instrumentation to prompt retry.
+  - Guardrails: Disable save until selector resolves successfully.
+  - Evidence: src/components/parts/part-selector.tsx:101
 
 ### 9) Observability / Instrumentation
 
-- Emit `useListLoadingInstrumentation` events for `scope: 'kits.detail'` (detail query) and `scope: 'kits.detail.contents'` (BOM mutations/refetches) following existing helper semantics (src/lib/test/query-instrumentation.ts:146).
-- Wrap metadata form and BOM editor with `useFormInstrumentation` so `form` events fire for open/submit/success/error using IDs like `KitDetail:metadata`, `KitDetail:content.create`, and `KitDetail:content.edit` (src/hooks/use-form-instrumentation.ts:26).
-- Toasts for success/error automatically produce `toast` events; include action IDs when offering retry or conflict resolution (src/components/kits/kit-archive-controls.tsx:131 — existing pattern with undo action).
-- Drive filter determinism with `useUiStateInstrumentation('kits.detail.filter', ...)`—emit loading when debounce pending and ready metadata `{ totalCount, filteredCount }` on completion.
-- Add `data-testid` anchors for header (`kits.detail.header`), filters, rows (`kits.detail.row.<id>`), and form inputs to keep selectors stable per testing guidance (docs/contribute/testing/index.md:5 — instrumentation coupling requirement).
+- Signal: kits.detail
+  - Type: list_loading
+  - Trigger: Detail query load/settle cycles; includes `{ kitId, status, contentCount, filteredCount }`.
+  - Labels / fields: `kitId`, `status`, `contentCount`, `filteredCount`.
+  - Consumer: `waitForListLoading(page, 'kits.detail', ...)`.
+  - Evidence: src/lib/test/query-instrumentation.ts:146
+
+- Signal: kits.detail.contents
+  - Type: list_loading
+  - Trigger: When BOM rows finish loading or refetching after mutations.
+  - Labels / fields: `visible`, `shortfallCount`, `total`.
+  - Consumer: Playwright waits before asserting table rows.
+  - Evidence: src/lib/test/query-instrumentation.ts:146
+
+- Signal: KitDetail:metadata
+  - Type: form
+  - Trigger: Modal open/submit/success/error with payload `{ kitId, buildTarget }`.
+  - Labels / fields: `kitId`, `buildTarget`, `phase`.
+  - Consumer: `waitTestEvent` in metadata spec.
+  - Evidence: src/hooks/use-form-instrumentation.ts:52
+
+- Signal: KitContent:create / KitContent:update / KitContent:delete
+  - Type: form
+  - Trigger: Inline row create/update/delete flows with metadata `{ kitId, contentId?, partKey }`.
+  - Labels / fields: `kitId`, `contentId`, `partKey`, `phase`.
+  - Consumer: Playwright ensures optimistic path and conflict handling.
+  - Evidence: src/hooks/use-form-instrumentation.ts:52
+
+- Signal: kits.detail.toolbar
+  - Type: ui_state
+  - Trigger: Whenever `filterSnapshot` updates (initial load, filter change, mutation refetch) emit aggregated availability metadata so tests can assert shortfall counts without DOM scraping.
+  - Labels / fields: `totalRequired`, `available`, `shortfallCount`, `filteredCount`, `filteredShortfall`.
+  - Consumer: `waitForUiState(page, 'kits.detail.toolbar', 'ready')`.
+  - Evidence: docs/contribute/ui/data_display.md:24, src/lib/test/ui-state.ts:48
+
+- Data hooks: `data-testid="kits.detail.content.row.{id}"`, `kits.detail.content.row.{id}.actions.edit`, etc. for deterministic selectors.
+  - Evidence: tests/support/page-objects/parts-page.ts:89
 
 ### 10) Lifecycle & Background Work
 
-- Use `useEffect` to sync PartSelector summaries and form drafts with currently edited row, mirroring pattern in part selector (src/components/parts/part-selector.tsx:39).
-- Debounce filter input with `useDebouncedValue`, cleaning up timers on unmount (src/components/kits/kit-overview-list.tsx:37).
-- No background polling; rely on React Query revalidation on focus. When kit status changes (archived), disable mutations immediately and allow background refetch to refresh state.
-- Clean up optimistic draft refs on unmount to prevent memory leaks.
+- Hook / effect: Detail query subscription
+  - Trigger cadence: On mount and whenever `kitId` changes or mutations settle.
+  - Responsibilities: Subscribe to query, recompute filtered rows plus `availabilitySnapshot`, and emit `kits.detail`/`kits.detail.toolbar` instrumentation.
+  - Cleanup: `useListLoadingInstrumentation` abort handler fires on unmount to emit `aborted` phase.
+  - Evidence: src/lib/api/generated/hooks.ts:906, src/lib/test/query-instrumentation.ts:213, src/lib/test/ui-state.ts:48
 
-### 11) Security & Permissions (if applicable)
+- Hook / effect: Mutation-driven cache updates
+  - Trigger cadence: After create/update/delete resolves.
+  - Responsibilities: Update React Query cache, schedule invalidations for overview lists, and trigger derived snapshot recompute so `kits.detail.toolbar` emits fresh metadata.
+  - Cleanup: None beyond automatic query garbage collection.
+  - Evidence: src/components/kits/kit-archive-controls.tsx:112, src/lib/test/ui-state.ts:48
 
-- Concern: Archived kits must remain read-only.
-- Touchpoints: Metadata form disables inputs; BOM add/edit/delete actions hidden when `status === 'archived'`.
-- Mitigation: gate UI interactions and rely on backend guard for enforcement per epic.
-- Residual risk: None—the server rejects illegal edits even if UI fails to disable.
-- Evidence: docs/epics/kits_feature_breakdown.md:38 — service disallows edits when archived.
+### 11) Security & Permissions
 
-### 12) UX / UI Impact (if applicable)
+- Concern: Archived kits must remain read-only
+  - Touchpoints: Detail header action buttons, BOM action buttons, metadata modal.
+  - Mitigation: Disable controls when `kit.status === 'archived'` and guard mutation hooks accordingly.
+  - Residual risk: Backend already rejects archived mutations; UI belt-and-suspenders ensures consistent UX.
+  - Evidence: docs/epics/kits_feature_breakdown.md:55, docs/epics/kits_feature_breakdown.md:73
 
-- Entry point: `/kits/$kitId` routed from overview cards and related chips.
-- Change: Introduces detail workspace with sticky header, metadata editor, availability badges, filter bar, and responsive BOM grid.
-- User interaction: Active kits allow inline editing; archived kits show disabled inputs and explanatory messaging; filtering updates rows instantly.
-- Dependencies: Requires Tailwind layout via `DetailScreenLayout` and existing PartSelector for BOM entries.
-- Evidence: docs/epics/kits_feature_breakdown.md:53 — describes detail workspace goals.
+### 12) UX / UI Impact
 
-### 13) Deterministic Test Plan (new/changed behavior only)
+- Entry point: Kits overview card
+  - Change: Card/title becomes a link to `/kits/{id}` while preserving membership tooltips and archive controls.
+  - User interaction: Clicking opens detail workspace in-place; keyboard focus states reflect link semantics.
+  - Dependencies: `KitCard`, `KitOverviewList`, router navigation.
+  - Evidence: src/components/kits/kit-card.tsx:120
 
-- Surface: Kit detail metadata editing
+- Entry point: Kit detail header
+  - Change: New summary layout with quantity badge, status badge (Archived), and edit modal button.
+  - User interaction: Active kits can open modal; archived kits see disabled affordance with tooltip.
+  - Dependencies: `DetailScreenLayout`, `QuantityBadge`, instrumentation.
+  - Evidence: docs/epics/kits_feature_breakdown.md:55, src/components/parts/part-details.tsx:689
+
+- Entry point: Kit BOM table
+  - Change: Introduce responsive table with computed availability columns, inline row editing, and delete confirmation.
+  - User interaction: Filter contents, add/edit part rows, observe availability updates.
+  - Dependencies: `kit-content-*` components, `PartSelector`, Toast/ConfirmDialog.
+  - Evidence: docs/epics/kits_feature_breakdown.md:56, src/components/shopping-lists/concept-line-row.tsx:1
+
+### 13) Deterministic Test Plan
+
+- Surface: Kit detail loads with computed columns
   - Scenarios:
-    - Given an active kit, When the user edits name/build target and submits, Then form events emit submit/success only after the detail refetch completes with updated availability totals.
-    - Given an archived kit, When navigating to detail, Then inputs are disabled and submit button is absent.
-  - Instrumentation / hooks: `waitForListLoading(page, 'kits.detail', 'ready')`, `waitTestEvent<FormTestEvent>(..., evt => evt.formId === 'KitDetail:metadata')`, toast helper for success message.
+    - Given a kit with seeded contents, When I navigate from the overview card, Then `kits.detail` ready event fires and the table shows required/available/shortfall columns.
+    - Given a filter term, When I search by part key, Then only matching rows remain and `kits.detail.toolbar` telemetry reports updated filtered vs total counts.
+  - Instrumentation / hooks: `waitForListLoading(page, 'kits.detail', 'ready')`, `waitForUiState(page, 'kits.detail.toolbar', 'ready')`.
   - Gaps: None.
-  - Evidence: docs/contribute/testing/index.md:5 — instrumentation-test coupling.
+  - Evidence: docs/contribute/testing/index.md:5, tests/support/helpers.ts:49, tests/support/helpers.ts:63
 
-- Surface: BOM add/edit/delete lifecycle
+- Surface: Edit kit metadata (active)
   - Scenarios:
-    - Given an active kit with seeded contents, When adding a new part via selector, Then row appears with computed totals and `list_loading` ready metadata includes updated counts.
-    - Given an existing row, When updating required quantity, Then shortfall recomputes and version increments; When deleting, Then row disappears and totals update.
-    - Given a concurrent editor, When a PATCH returns 409, Then `KitDetail:content.edit` emits error instrumentation and conflict toast displays with retry CTA after the detail refetch.
-  - Instrumentation / hooks: `waitForListLoading(page, 'kits.detail.contents', 'ready')`, form events for `KitDetail:content.*`, toast assertions for errors.
+    - Given an active kit, When I open the Edit modal and submit new name/build target, Then `KitDetail:metadata` submit/success events fire and header reflects updates.
+    - Given validation errors, When I clear the name, Then validation error appears and `form` validation event is emitted.
+  - Instrumentation / hooks: `waitTestEvent` on `KitDetail:metadata`, toast helper for confirmation.
   - Gaps: None.
-  - Evidence: docs/epics/kits_feature_breakdown.md:70 — inline BOM maintenance requirements.
+  - Evidence: docs/epics/kits_feature_breakdown.md:55, tests/support/helpers.ts:63
 
-- Surface: Client-side filtering & related chips
+- Surface: BOM row create/update/delete
   - Scenarios:
-    - Given multiple rows with distinct part names, When filtering by SKU substring, Then only matching rows remain and empty state appears when none match.
-    - Given shopping/pick list memberships, When detail loads, Then chips render with tooltip data and membership instrumentation transitions to ready.
-  - Instrumentation / hooks: `useUiStateInstrumentation('kits.detail.filter', ...)` for filter waits, `waitForListLoading(page, 'kits.detail.contents', 'ready')`, membership helpers `waitForListLoading(page, 'kits.list.memberships.<scope>', 'ready')`.
+    - Given an empty kit, When I add a part via selector, Then new row appears, availability numbers match API, and `KitContent:create` success event fires.
+    - Given an existing row, When I edit quantity to trigger version conflict, Then `KitContent:update` error event fires and UI prompts refresh before retry.
+    - Given a row, When I delete it, Then `KitContent:delete` success event fires and table recalculates counts.
+  - Instrumentation / hooks: `KitContent:*` form events, `waitForListLoading('kits.detail.contents', 'ready')`, `expectConflictError`.
+  - Gaps: Conflict scenario uses manual version stomp via API factory to force 409.
+  - Evidence: docs/epics/kits_feature_breakdown.md:70, tests/support/helpers.ts:113
+
+- Surface: Archived kit read-only gating
+  - Scenarios:
+    - Given an archived kit, When I open detail, Then edit controls are disabled, no modal opens, and instrumentation still reports ready state.
+  - Instrumentation / hooks: `kits.detail` ready metadata includes `status: 'archived'`.
   - Gaps: None.
-  - Evidence: src/hooks/use-kit-memberships.ts:12 — membership instrumentation baseline.
+  - Evidence: docs/epics/kits_feature_breakdown.md:55, tests/e2e/kits/kits-overview.spec.ts:137
 
-### 14) Implementation Slices (only if large)
+### 14) Implementation Slices
 
-- Slice: Routing & data scaffolding
-  - Goal: Expose `/kits/$kitId` route, build `useKitDetail`, and extend types to map detail payloads.
-  - Touches: `src/routes/kits/$kitId.tsx`, `src/routes/kits/$kitId/index.tsx`, `src/hooks/use-kit-detail.ts`, `src/types/kits.ts`.
-  - Dependencies: None (foundation).
+- Slice: Detail route & data mapping
+  - Goal: Render kit detail screen with mapped data and skeleton/error states.
+  - Touches: routes (`$kitId.tsx`, `$kitId/index.tsx`), `use-kit-detail`, `kit-detail.tsx`, type additions.
+  - Dependencies: None.
 
-- Slice: Screen layout & metadata form
-  - Goal: Render `DetailScreenLayout`, header badges, metadata editor with instrumentation and toasts.
-  - Touches: `src/components/kits/kit-detail-screen.tsx`, `src/components/kits/kit-card.tsx`, `src/components/shopping-lists/shopping-list-chip.tsx`, `src/hooks/use-kit-memberships.ts`.
-  - Dependencies: Routing & data scaffolding.
+- Slice: BOM table & filtering
+  - Goal: Display contents table with filters, computed columns, and instrumentation hooks.
+  - Touches: `kit-content-table.tsx`, `kit-content-row.tsx`, `kit-content-toolbar.tsx`, utils.
+  - Dependencies: Detail route slice.
 
-- Slice: BOM grid & mutations
-  - Goal: Implement filter bar, table rendering, add/edit/delete flows with optimistic updates and list loading instrumentation.
-  - Touches: `src/components/kits/kit-detail-screen.tsx`, `src/hooks/use-kit-content-mutations.ts`, `src/components/kits/kit-overview-list.tsx` (for navigation), `src/types/kits.ts` (row helpers).
-  - Dependencies: Prior slices.
+- Slice: BOM mutations & metadata modal
+  - Goal: Enable create/edit/delete flows, metadata modal, optimistic updates, and guard archived kits.
+  - Touches: mutation hooks, `kit-content-form.tsx`, `kit-metadata-dialog.tsx`, cache coordination.
+  - Dependencies: BOM table slice.
 
-- Slice: Playwright coverage & factories
-  - Goal: Extend kit factory to seed contents, update page object, and author deterministic detail spec.
-  - Touches: `tests/api/factories/kit-factory.ts`, `tests/support/page-objects/kits-page.ts`, `tests/e2e/kits/kits-overview.spec.ts`, `tests/e2e/kits/kits-detail.spec.ts`.
-  - Dependencies: Screen and BOM slices.
+- Slice: Navigation + Playwright coverage
+  - Goal: Link overview cards to detail, extend page object, add end-to-end specs and factory helpers.
+  - Touches: `kit-card.tsx`, `kit-overview-list.tsx`, page object, new spec, kit factory.
+  - Dependencies: Prior slices (UI must exist before tests).
 
 ### 15) Risks & Open Questions
 
-- Risk: Detail cache and overview cache diverge after rapid edits if optimistic updates miss edge cases.
-  - Impact: Users may see stale build target or row counts on overview.
-  - Mitigation: Update detail cache and invalidate overview queries in every mutation handler.
+- Risk: Availability metadata becomes stale between optimistic updates and refetch.
+  - Impact: Users may see incorrect shortfall counts temporarily.
+  - Mitigation: Schedule immediate detail refetch after each mutation and gate instrumentation payloads until server data returns.
 
-- Risk: Large kits with many rows could trigger slow filter operations and React renders.
-  - Impact: Noticeable input lag.
-  - Mitigation: Memoize filtered array, debounce input, and consider virtualized list if profiling shows regressions.
+- Risk: Conflict handling UX could confuse users if repeated 409s occur.
+  - Impact: Users may repeatedly submit stale edits.
+  - Mitigation: Surface clear inline guidance, auto-refetch latest data, and log conflict via instrumentation for diagnostics.
 
-- Risk: 409 conflicts on row edits may frustrate users if surfaced poorly.
-  - Impact: Confusing error loops when another user updates BOM concurrently.
-  - Mitigation: Provide toast with retry CTA, refetch row, and highlight new values before allowing re-submit.
+- Risk: Large BOMs may lead to sluggish filtering/rendering.
+  - Impact: Perceived lag on detail screen.
+  - Mitigation: Memoise filtered results, paginate or chunk rendering if performance issues appear, and profile before shipping.
 
-- Open question: How should optimistic locking conflicts for kit contents be surfaced (toast vs inline) and should the API return the latest row on conflict? (docs/epics/kits_feature_breakdown.md:219)
-  - Why it matters: Determines UX when PATCH returns 409; influences whether we can auto-merge updates.
-  - Owner / follow-up: Confirm with product/backend before wiring conflict resolution messaging.
+- Question: Should the detail screen surface linked shopping/pick lists now or defer to the dedicated linking feature?
+  - Why it matters: Affects scope of sidebar chips and potential tooling in this slice.
+  - Owner / follow-up: Product/design (source brief references hydrated chips in detail payload).
 
-- Open question: Do we need to expose reserved breakdown (active_reservations list) in the UI, or can it remain hidden until reservation feature ships?
-  - Why it matters: Impacts whether we render expandable detail rows and associated selectors.
-  - Owner / follow-up: Align with inventory planners on expected visibility.
+### 16) Confidence
 
-### 16) Confidence (one line)
-
-Confidence: Medium — flows mirror existing detail patterns, but optimistic BOM handling plus conflict UX introduce moderate complexity that needs coordination.
+Confidence: Medium — Optimistic caching with version conflicts and multiple instrumentation scopes introduces complexity that needs careful validation against real backend responses.

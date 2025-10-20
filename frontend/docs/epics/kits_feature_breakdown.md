@@ -59,7 +59,7 @@ Expose a rich kit detail workspace where planners maintain the bill of materials
     - Create `KitContent` model mapped to `kit_contents` table with columns: `id` PK, `kit_id` FK (`kits.id`, `ondelete="CASCADE"`), `part_id` FK (`parts.id`, `ondelete="CASCADE"`), `required_per_unit` `Integer` not null, `note` `Text` nullable, `version` `BigInteger` not null default `1`, `created_at`/`updated_at` timestamps.
     - Add `UniqueConstraint("kit_id", "part_id", name="uq_kit_contents_kit_part")`, `CheckConstraint("required_per_unit >= 1", name="ck_kit_contents_required_positive")`, and indexes on `kit_id` and `part_id`. Configure SQLAlchemy optimistic locking via `__mapper_args__["version_id_col"] = KitContent.version`.
     - `KitService.get_kit_detail` composes SQLAlchemy selects to derive per-line aggregates: `total_required = required_per_unit * kit.build_target`, `in_stock` from `InventoryService.calculate_total_quantity`, `reserved` from `KitReservationService.get_reserved_quantity(part_id, exclude_kit_id)`, `available = max(in_stock - reserved, 0)`, and `shortfall = max(total_required - available, 0)`.
-    - Linked shopping list and pick list chips are hydrated through relationships defined in later sections.
+    - Linked shopping list and pick list chips are hydrated through relationships defined in later sections. **UI note:** surfacing these chips in the kit detail header remains pending and will be delivered with the shopping list & pick list linking feature slice.
   - API surface:
     - `GET /kits/<int:kit_id>`
       - Returns `KitDetailResponseSchema` with metadata (`id`, `name`, `description`, `build_target`, `status`, timestamps), `contents` array (`KitContentDetailSchema` with part summary, `required_per_unit`, `note`, `version`, computed aggregates), `shopping_list_links`, and `pick_lists`.
@@ -82,6 +82,44 @@ Expose a rich kit detail workspace where planners maintain the bill of materials
       - Returns updated detail schema; version conflicts raise 409.
     - `DELETE /kits/<int:kit_id>/contents/<int:content_id>`
       - Removes the row, returns 204, and service cascades timestamp refresh.
+
+# Feature: Kit linkage chips
+
+Highlight shopping list and pick list relationships directly on the kit detail screen so planners understand downstream commitments without leaving the workspace.
+
+## Use cases
+
+- Surface linkage summary chips in the kit header
+  - Features:
+    - Render a chip per linked shopping list with status badge (`concept`, `ready`, `done`), count tooltip, and stale warning when `snapshot_kit_updated_at < kit.updated_at`.
+    - Render chips for linked pick lists with state badge (`open`, `completed`) and requested unit counts so planners gauge fulfillment progress.
+    - Show loading skeletons while link data hydrates; empty state displays “No linked lists yet”.
+  - Database / data model:
+    - Reuse `Kit.shopping_list_links` and `Kit.pick_lists` relationships already returned by `KitService.get_kit_detail`; no new tables required.
+    - Ensure the service projects `is_stale`, `requested_units`, and badge counts consumed by the UI.
+  - API surface:
+    - Confirm `KitDetailResponseSchema` includes chip-ready summaries (`shopping_list_links`, `pick_lists`) with the fields above; extend schema if missing.
+    - No new endpoints; the frontend consumes the existing detail payload.
+
+- Navigate from chips to downstream workspaces
+  - Features:
+    - Clicking a shopping list chip routes to `/shopping-lists/:shoppingListId` in the same tab while recording a `route` instrumentation event.
+    - Clicking a pick list chip routes to `/pick-lists/:pickListId`; completed lists open read-only with a tooltip explaining status.
+    - Maintain focus styles and keyboard accessibility—chips behave as `<Link>` elements with `data-testid="kits.detail.links.shopping.<id>"` / `.pick.<id>` selectors.
+  - Database / data model:
+    - No persistence changes; leverages existing relationships.
+  - API surface:
+    - No new endpoints; ensure router definitions accept deep-link navigation from kit context.
+
+- Instrument visibility for deterministic tests
+  - Features:
+    - Emit `ui_state` scope `kits.detail.links` when linkage data loads, including counts and stale indicators for Playwright.
+    - Extend page objects with helpers to wait for and interact with linkage chips, reusing deterministic selectors.
+    - Add Playwright coverage asserting chip rendering, stale indicator display, and navigation flows.
+  - Database / data model:
+    - None.
+  - API surface:
+    - None.
 
 # Feature: Shopping list flow & linking
 
