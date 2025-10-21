@@ -66,6 +66,14 @@ function KitsOverviewRoute() {
     navigate({ to: '/kits/new' });
   };
 
+  const handleOpenDetail = (kitId: number) => {
+    navigate({
+      to: '/kits/$kitId',
+      params: { kitId: kitId.toString() },
+      search: () => (search ? { status, search } : { status }),
+    });
+  };
+
   return (
     <KitOverviewList
       status={status}
@@ -73,6 +81,7 @@ function KitsOverviewRoute() {
       onStatusChange={handleStatusChange}
       onSearchChange={handleSearchChange}
       onCreateKit={handleCreateKit}
+      onOpenDetail={handleOpenDetail}
     />
   );
 }

@@ -20,6 +20,7 @@ interface KitOverviewListProps {
   onStatusChange: (status: KitStatus) => void;
   onSearchChange: (search: string) => void;
   onCreateKit: () => void;
+  onOpenDetail: (kitId: number) => void;
 }
 
 const TAB_LABELS: Record<KitStatus, string> = {
@@ -33,6 +34,7 @@ export function KitOverviewList({
   onStatusChange,
   onSearchChange,
   onCreateKit,
+  onOpenDetail,
 }: KitOverviewListProps) {
   const [searchInput, setSearchInput] = useState(searchTerm);
   const debouncedSearch = useDebouncedValue(searchInput, 300);
@@ -276,6 +278,7 @@ export function KitOverviewList({
               fetchStatus: pickMemberships.fetchStatus,
               error: pickMemberships.error,
             }}
+            onOpenDetail={onOpenDetail}
           />
         ))}
       </div>

@@ -16,6 +16,21 @@ export class KitsPage extends BasePage {
   readonly overviewArchivedTab: Locator;
   readonly overviewCounts: Locator;
   readonly newKitButton: Locator;
+  readonly detailLayout: Locator;
+  readonly detailHeader: Locator;
+  readonly detailContent: Locator;
+  readonly detailTitle: Locator;
+  readonly detailStatusBadge: Locator;
+  readonly detailDescription: Locator;
+  readonly detailBuildTargetBadge: Locator;
+  readonly detailShoppingBadge: Locator;
+  readonly detailPickBadge: Locator;
+  readonly detailEditButton: Locator;
+  readonly detailEditWrapper: Locator;
+  readonly detailEditTooltip: Locator;
+  readonly detailSummary: Locator;
+  readonly detailTable: Locator;
+  readonly detailEmptyState: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -30,6 +45,21 @@ export class KitsPage extends BasePage {
     this.overviewArchivedTab = page.getByTestId('kits.overview.tabs.archived');
     this.overviewCounts = page.getByTestId('list-screen.counts');
     this.newKitButton = page.getByTestId('kits.overview.new');
+    this.detailLayout = page.getByTestId('kits.detail.layout');
+    this.detailHeader = page.getByTestId('kits.detail.header');
+    this.detailContent = page.getByTestId('kits.detail.content');
+    this.detailTitle = page.getByTestId('kits.detail.header.name');
+    this.detailStatusBadge = page.getByTestId('kits.detail.header.status');
+    this.detailDescription = page.getByTestId('kits.detail.header.description');
+    this.detailBuildTargetBadge = page.getByTestId('kits.detail.badge.build-target');
+    this.detailShoppingBadge = page.getByTestId('kits.detail.badge.shopping');
+    this.detailPickBadge = page.getByTestId('kits.detail.badge.pick-lists');
+    this.detailEditButton = page.getByTestId('kits.detail.actions.edit');
+    this.detailEditWrapper = page.getByTestId('kits.detail.actions.edit.wrapper');
+    this.detailEditTooltip = page.getByTestId('kits.detail.actions.edit.tooltip');
+    this.detailSummary = page.getByTestId('kits.detail.table.summary');
+    this.detailTable = page.getByTestId('kits.detail.table');
+    this.detailEmptyState = page.getByTestId('kits.detail.table.empty');
   }
 
   async gotoOverview(): Promise<void> {
@@ -52,6 +82,10 @@ export class KitsPage extends BasePage {
 
   cardById(kitId: number, tab: KitTab = 'active'): Locator {
     return this.gridLocator(tab).getByTestId(`kits.overview.card.${kitId}`);
+  }
+
+  cardDetailLink(kitId: number, tab: KitTab = 'active'): Locator {
+    return this.cardById(kitId, tab).getByTestId(`kits.overview.card.${kitId}.link`);
   }
 
   cardByName(name: string | RegExp, tab: KitTab = 'active'): Locator {
@@ -109,5 +143,27 @@ export class KitsPage extends BasePage {
     if (await this.overviewSearchClear.isVisible()) {
       await this.overviewSearchClear.click({ force: true });
     }
+  }
+
+  async openDetailFromCard(kitId: number, tab: KitTab = 'active'): Promise<void> {
+    const detailLink = this.cardDetailLink(kitId, tab);
+    await detailLink.click();
+    await expect(this.detailLayout).toBeVisible();
+  }
+
+  detailSummaryBadge(kind: 'total' | 'available' | 'shortfall'): Locator {
+    return this.page.getByTestId(`kits.detail.table.summary.${kind}`);
+  }
+
+  detailTableRow(contentId: number): Locator {
+    return this.page.getByTestId(`kits.detail.table.row.${contentId}`);
+  }
+
+  detailReservationTrigger(contentId: number): Locator {
+    return this.page.getByTestId(`kits.detail.table.row.${contentId}.reservations`);
+  }
+
+  detailReservationTooltip(contentId: number): Locator {
+    return this.page.getByTestId(`kits.detail.table.row.${contentId}.reservations.tooltip`);
   }
 }

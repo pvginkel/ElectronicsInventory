@@ -25,6 +25,7 @@ interface KitCardProps {
   className?: string;
   shoppingIndicator: MembershipIndicatorState<KitShoppingListMembershipSummary>;
   pickIndicator: MembershipIndicatorState<KitPickListMembershipSummary>;
+  onOpenDetail?: (kitId: number) => void;
 }
 
 function formatUpdatedAt(timestamp: string): string {
@@ -48,6 +49,7 @@ export function KitCard({
   className,
   shoppingIndicator,
   pickIndicator,
+  onOpenDetail,
 }: KitCardProps) {
   const hasDescription = Boolean(kit.description && kit.description.trim().length > 0);
   const updatedLabel = formatUpdatedAt(kit.updatedAt);
@@ -63,12 +65,40 @@ export function KitCard({
   const showShoppingIndicator = shouldShowIndicator(shoppingIndicator, kitHasShoppingMembership);
   const showPickIndicator = shouldShowIndicator(pickIndicator, kitHasOpenPickList);
 
+  const handleNavigate = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented || event.button !== 0) {
+      return;
+    }
+    const target = event.target as HTMLElement;
+    if (target.closest('a')) {
+      return;
+    }
+    onOpenDetail?.(kit.id);
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented) {
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onOpenDetail?.(kit.id);
+    }
+  };
+
   return (
     <Card
       className={cn('flex h-full flex-col gap-4', className)}
       data-testid={`kits.overview.card.${kit.id}`}
     >
-      <div className="flex flex-col gap-3">
+      <div
+        className="flex flex-1 flex-col gap-3 rounded-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        data-testid={`kits.overview.card.${kit.id}.link`}
+        role="link"
+        tabIndex={0}
+        onClick={handleNavigate}
+        onKeyDown={handleKeyDown}
+      >
         <div className="flex items-start justify-between gap-3">
           <CardTitle className="text-xl font-semibold leading-tight">{kit.name}</CardTitle>
           <div className="flex flex-col items-end gap-2">
@@ -117,29 +147,29 @@ export function KitCard({
           </div>
         </div>
 
-        {hasDescription && (
+        {hasDescription ? (
           <CardDescription className="line-clamp-3 text-sm text-muted-foreground">
             {kit.description}
           </CardDescription>
-        )}
-      </div>
+        ) : null}
 
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {kit.shoppingListBadgeCount > 0 && (
-            <Badge variant="secondary" data-testid={`kits.overview.card.${kit.id}.shopping`}>
-              {shoppingBadgeLabel}
-            </Badge>
-          )}
-          {kit.pickListBadgeCount > 0 && (
-            <Badge variant="secondary" data-testid={`kits.overview.card.${kit.id}.pick-lists`}>
-              {pickListBadgeLabel}
-            </Badge>
-          )}
-        </div>
+        <div className="flex flex-col gap-3 pt-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {kit.shoppingListBadgeCount > 0 && (
+              <Badge variant="secondary" data-testid={`kits.overview.card.${kit.id}.shopping`}>
+                {shoppingBadgeLabel}
+              </Badge>
+            )}
+            {kit.pickListBadgeCount > 0 && (
+              <Badge variant="secondary" data-testid={`kits.overview.card.${kit.id}.pick-lists`}>
+                {pickListBadgeLabel}
+              </Badge>
+            )}
+          </div>
 
-        <div className="text-xs text-muted-foreground">
-          Updated <span data-testid={`kits.overview.card.${kit.id}.updated`}>{updatedLabel}</span>
+          <div className="text-xs text-muted-foreground">
+            Updated <span data-testid={`kits.overview.card.${kit.id}.updated`}>{updatedLabel}</span>
+          </div>
         </div>
       </div>
 
