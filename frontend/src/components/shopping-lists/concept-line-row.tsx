@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { cn } from '@/lib/utils';
 import type { ShoppingListConceptLine } from '@/types/shopping-lists';
 import { LINE_TABLE_WIDTHS } from './table-layout';
@@ -36,13 +37,12 @@ export const ConceptLineRow = forwardRef<HTMLTableRowElement, ConceptLineRowProp
       className={cn('transition-colors', highlighted && 'bg-accent/10 ring-2 ring-primary/30')}
     >
       <td className={cn(LINE_TABLE_WIDTHS.part, 'align-top px-4 py-3 text-sm')}>
-        <div className="font-medium text-foreground" data-testid={`shopping-lists.concept.row.${line.id}.part`}>
-          {line.part.description}
-        </div>
-        <div className="text-xs text-muted-foreground space-x-2">
-          <span>Key {line.part.key}</span>
-          {line.part.manufacturerCode && <span>MPN {line.part.manufacturerCode}</span>}
-        </div>
+        <PartInlineSummary
+          partKey={line.part.key}
+          description={line.part.description}
+          manufacturerCode={line.part.manufacturerCode}
+          testId={`shopping-lists.concept.row.${line.id}.part`}
+        />
       </td>
       <td
         className={cn(LINE_TABLE_WIDTHS.seller, 'align-middle px-4 py-3 text-sm text-muted-foreground')}

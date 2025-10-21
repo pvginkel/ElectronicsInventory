@@ -55,6 +55,7 @@ Deliver the routed kit detail screen and availability math without any mutating 
     - Introduce TanStack Router route `/kits/$kitId` rendering a detail layout with header and main content similar to `PartDetails`.
     - Place the status badge immediately to the right of the kit title to mirror the shopping list detail header.
     - Display name, description, lifecycle badge, build target as a chip styled like the shopping list `Total #` badge, and existing shopping/pick counts. The “Edit kit” button is rendered disabled (tooltip explains archived gating will arrive later).
+    - Render the BOM “Part” column with the shared `PartInlineSummary` link component (also used in shopping list tables); reuse this component for pick list lines when that workspace ships to keep part affordances consistent.
     - Defer shopping list and pick list linkage chips to their dedicated feature; the header simply omits them for now.
     - Render a read-only BOM table showing Required, Total, In stock, Reserved, Available, and Shortfall columns sourced from backend aggregates.
   - Database / data model:

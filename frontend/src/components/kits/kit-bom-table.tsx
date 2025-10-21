@@ -3,6 +3,7 @@ import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import type { KitContentRow, KitReservationEntry } from '@/types/kits';
 
 interface KitBOMTableProps {
@@ -41,8 +42,12 @@ export function KitBOMTable({ rows }: KitBOMTableProps) {
                 )}
               >
                 <td className="px-4 py-3 align-top">
-                  <div className="font-medium text-foreground">{row.part.description}</div>
-                  <div className="font-mono text-xs text-muted-foreground">{row.part.key}</div>
+                  <PartInlineSummary
+                    partKey={row.part.key}
+                    description={row.part.description}
+                    manufacturerCode={row.part.manufacturerCode}
+                    testId={`kits.detail.table.row.${row.id}.part`}
+                  />
                 </td>
                 <td className="px-4 py-3 text-right align-top">
                   {formatNumber(row.requiredPerUnit)}

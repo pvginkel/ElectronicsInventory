@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ShoppingCart } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/dialog';
@@ -17,6 +16,7 @@ import { PartLocationGrid } from './part-location-grid';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import { PartDocumentGrid } from './part-document-grid';
 import { AddDocumentModal } from '@/components/documents/add-document-modal';
+import { ShoppingListLinkChip } from '@/components/shopping-lists/shopping-list-link-chip';
 import { MoreVerticalIcon } from '@/components/icons/MoreVerticalIcon';
 import { AddToShoppingListDialog } from '@/components/shopping-lists/part/add-to-shopping-list-dialog';
 import {
@@ -318,32 +318,16 @@ export function PartDetails({ partId }: PartDetailsProps) {
 
     if (membershipQuery.summary.hasActiveMembership) {
       return (
-        <div
-          className="flex flex-wrap gap-2"
-          data-testid="parts.detail.shopping-list.badge-list"
-        >
+        <div className="flex flex-wrap gap-2" data-testid="parts.detail.shopping-list.badges">
           {activeMemberships.map((membership) => (
-            <Link
+            <ShoppingListLinkChip
               key={membership.listId}
-              to="/shopping-lists/$listId"
-              params={{ listId: String(membership.listId) }}
-              search={{ sort: 'description', originSearch: undefined }}
-              className="group inline-flex items-center gap-2 rounded-full border border-input bg-muted/40 px-3 py-1 text-sm transition hover:border-primary hover:text-primary"
-              data-testid="parts.detail.shopping-list.badge"
-            >
-              <ShoppingCart
-                className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary"
-                aria-hidden="true"
-                data-testid="parts.detail.shopping-list.badge.icon"
-              />
-              <span>{membership.listName}</span>
-              <Badge
-                variant={membership.listStatus === 'ready' ? 'default' : 'secondary'}
-                className="capitalize"
-              >
-                {membership.listStatus}
-              </Badge>
-            </Link>
+              listId={membership.listId}
+              name={membership.listName}
+              status={membership.listStatus}
+              testId="parts.detail.shopping-list.badge"
+              iconTestId="parts.detail.shopping-list.badge.icon"
+            />
           ))}
         </div>
       );

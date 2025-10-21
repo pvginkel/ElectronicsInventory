@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
-import { waitForListLoading } from '../../support/helpers';
+import { waitForListLoading, waitTestEvent } from '../../support/helpers';
+import type { UiStateTestEvent } from '@/types/test-events';
 import type {
   KitDetailResponseSchema_b98797e,
   PartKitReservationsResponseSchema_d12d9a5,
@@ -117,6 +118,14 @@ test.describe('Kit detail workspace', () => {
 
     const detailReady = waitForListLoading(page, 'kits.detail', 'ready');
     const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');
+    const linksReady = waitTestEvent<UiStateTestEvent>(
+      page,
+      'ui_state',
+      event =>
+        event.scope === 'kits.detail.links' &&
+        event.phase === 'ready' &&
+        event.metadata?.status !== 'aborted',
+    );
 
     await kits.gotoOverview();
     const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
@@ -127,6 +136,7 @@ test.describe('Kit detail workspace', () => {
 
     const detailEvent = await detailReady;
     const contentsEvent = await contentsReady;
+    const linksEvent = await linksReady;
 
     expect(detailEvent.metadata).toMatchObject({
       kitId: targetKit.id,
@@ -141,19 +151,27 @@ test.describe('Kit detail workspace', () => {
       shortfallCount,
     });
 
+    expect(linksEvent.metadata).toMatchObject({
+      kitId: targetKit.id,
+      hasLinkedWork: false,
+      shoppingLists: {
+        count: 0,
+        ids: [],
+      },
+      pickLists: {
+        count: 0,
+        ids: [],
+      },
+    });
+
     await expect(kits.detailTitle).toHaveText(targetKit.name);
     await expect(kits.detailStatusBadge).toHaveText(new RegExp(kitDetail.status, 'i'));
     await expect(kits.detailBuildTargetBadge).toHaveText(
       new RegExp(`Build target\\s+${kitDetail.build_target}`)
     );
-    await expect(kits.detailShoppingBadge).toHaveText(
-      new RegExp(`Shopping lists ${kitDetail.shopping_list_badge_count}`)
-    );
-    await expect(kits.detailPickBadge).toHaveText(
-      new RegExp(`Pick lists ${kitDetail.pick_list_badge_count}`)
-    );
 
     await expect(kits.detailHeader).toContainText(targetKitDescription);
+    await expect(kits.detailLinksEmpty).toBeVisible();
 
     await expect(kits.detailEditButton).toBeDisabled();
     await kits.detailEditWrapper.hover();
@@ -207,6 +225,157 @@ test.describe('Kit detail workspace', () => {
     );
 
     await expect(kits.detailContent).toContainText(reservationRow.part.key);
+
+    const partLink = kits
+      .detailTableRow(reservationRow.id)
+      .getByTestId(`kits.detail.table.row.${reservationRow.id}.part`);
+    const partNavigation = page.waitForURL(new RegExp(`/parts/${reservationRow.part.key}`));
+    await Promise.all([partNavigation, partLink.click()]);
+    await expect(page.getByRole('heading', { level: 1, name: new RegExp(reservationRow.part.description, 'i') })).toBeVisible();
+
+  });
+
+  test('renders linked shopping and pick list chips with navigation', async ({
+    kits,
+    shoppingLists,
+    testData,
+    apiClient,
+    page,
+  }) => {
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Linkage chip part' },
+    });
+    await testData.parts.getDetail(part.key);
+
+    const box = await testData.boxes.create();
+    await apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+      params: { path: { part_key: part.key } },
+      body: { box_no: box.box_no, loc_no: 1, qty: 20 },
+    });
+
+    const partReservationMetadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+    const partId = partReservationMetadata.part_id;
+
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Linked Kit'),
+        build_target: 5,
+      },
+    });
+
+    await testData.kits.addContent(kit.id, {
+      partId,
+      requiredPerUnit: 2,
+    });
+
+    const conceptLinkResponse = await apiClient.apiRequest(() =>
+      apiClient.POST('/api/kits/{kit_id}/shopping-lists', {
+        params: { path: { kit_id: kit.id } },
+        body: {
+          new_list_name: testData.shoppingLists.randomName('Concept Link'),
+          new_list_description: null,
+          shopping_list_id: null,
+          units: 1,
+          honor_reserved: false,
+          note_prefix: null,
+        },
+      })
+    );
+    const conceptLink = conceptLinkResponse.link ?? null;
+
+    const pickList = await apiClient.apiRequest(() =>
+      apiClient.POST('/api/kits/{kit_id}/pick-lists', {
+        params: { path: { kit_id: kit.id } },
+        body: { requested_units: 1 },
+      })
+    );
+
+    const detailReady = waitForListLoading(page, 'kits.detail', 'ready');
+    const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');
+    const linksReady = waitTestEvent<UiStateTestEvent>(
+      page,
+      'ui_state',
+      event =>
+        event.scope === 'kits.detail.links' &&
+        event.phase === 'ready' &&
+        event.metadata?.status !== 'aborted',
+    );
+
+    await kits.gotoOverview();
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await expect(kits.cardById(kit.id)).toBeVisible();
+    await kits.openDetailFromCard(kit.id);
+
+    await detailReady;
+    await contentsReady;
+    const linksEvent = await linksReady;
+
+    expect(linksEvent.metadata).toMatchObject({
+      kitId: kit.id,
+      hasLinkedWork: true,
+      shoppingLists: {
+        count: conceptLink ? 1 : 0,
+      },
+      pickLists: {
+        count: 1,
+        ids: expect.arrayContaining([pickList.id]),
+        statusCounts: expect.objectContaining({ open: 1, completed: 0 }),
+      },
+    });
+    if (conceptLink) {
+      const shoppingMetadata = (linksEvent.metadata as Record<string, unknown> | undefined)
+        ?.shoppingLists as { ids?: number[] } | undefined;
+      expect(shoppingMetadata?.ids).toEqual(
+        expect.arrayContaining([conceptLink.shopping_list_id])
+      );
+    }
+
+    await expect(kits.detailLinksSection).toBeVisible();
+
+    const kitDetailPath = `/kits/${kit.id}`;
+
+    if (conceptLink) {
+      const conceptChip = kits.shoppingLinkChip(conceptLink.shopping_list_id);
+      await expect(conceptChip).toBeVisible();
+      await expect(conceptChip).toContainText(conceptLink.shopping_list_name);
+      await expect(conceptChip).toContainText(/Concept/i);
+
+      const conceptNavigation = shoppingLists.playwrightPage.waitForURL(
+        new RegExp(`/shopping-lists/${conceptLink.shopping_list_id}`)
+      );
+      const conceptReady = shoppingLists.waitForConceptReady();
+      await Promise.all([conceptNavigation, conceptReady, conceptChip.click()]);
+
+      const detailReload = waitForListLoading(page, 'kits.detail', 'ready');
+      const contentsReload = waitForListLoading(page, 'kits.detail.contents', 'ready');
+      const linksReload = waitTestEvent<UiStateTestEvent>(
+        page,
+        'ui_state',
+        event =>
+          event.scope === 'kits.detail.links' &&
+          event.phase === 'ready' &&
+          event.metadata?.status !== 'aborted',
+      );
+      await kits.goto(kitDetailPath);
+      await detailReload;
+      await contentsReload;
+      await linksReload;
+    }
+
+    const pickChip = kits.pickListChip(pickList.id);
+    await expect(pickChip).toBeVisible();
+    await expect(pickChip).toContainText(`Pick list #${pickList.id}`);
+    await expect(pickChip).toContainText(/Open/i);
+
+    const pickNavigation = page.waitForURL(new RegExp(`/pick-lists/${pickList.id}`));
+    await Promise.all([pickNavigation, pickChip.click()]);
+    await expect(page).toHaveURL(new RegExp(`/pick-lists/${pickList.id}`));
   });
 
   test('shows empty state when kit has no contents', async ({ kits, testData, page }) => {
@@ -241,5 +410,5 @@ test.describe('Kit detail workspace', () => {
 
     await expect(kits.detailEmptyState).toBeVisible();
     await expect(kits.detailEmptyState).toContainText('No parts in this kit yet');
-});
+  });
 });

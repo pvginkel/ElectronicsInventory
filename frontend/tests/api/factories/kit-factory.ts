@@ -101,7 +101,7 @@ export class KitTestFactory {
     const payload: KitContentCreateSchema = {
       part_id: options.partId,
       required_per_unit: options.requiredPerUnit,
-      ...(options.note !== undefined ? { note: options.note } : {}),
+      note: options.note ?? null,
     };
 
     const { data, error, response } = await this.client.POST('/api/kits/{kit_id}/contents', {

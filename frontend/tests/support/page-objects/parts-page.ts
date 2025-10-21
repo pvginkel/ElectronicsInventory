@@ -209,7 +209,11 @@ export class PartsPage extends BasePage {
   }
 
   shoppingListBadgeByName(name: string | RegExp): Locator {
-    return this.shoppingListBadgeContainer.getByRole('link', { name });
+    const pattern = typeof name === 'string' ? new RegExp(name, 'i') : name;
+    return this.page
+      .locator('[data-testid="parts.detail.shopping-list.badge"]')
+      .filter({ hasText: pattern })
+      .first();
   }
 
   get addToShoppingListDialog(): Locator {

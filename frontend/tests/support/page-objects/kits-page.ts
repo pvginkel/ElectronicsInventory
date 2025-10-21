@@ -23,8 +23,7 @@ export class KitsPage extends BasePage {
   readonly detailStatusBadge: Locator;
   readonly detailDescription: Locator;
   readonly detailBuildTargetBadge: Locator;
-  readonly detailShoppingBadge: Locator;
-  readonly detailPickBadge: Locator;
+  readonly detailLinksSection: Locator;
   readonly detailEditButton: Locator;
   readonly detailEditWrapper: Locator;
   readonly detailEditTooltip: Locator;
@@ -52,8 +51,7 @@ export class KitsPage extends BasePage {
     this.detailStatusBadge = page.getByTestId('kits.detail.header.status');
     this.detailDescription = page.getByTestId('kits.detail.header.description');
     this.detailBuildTargetBadge = page.getByTestId('kits.detail.badge.build-target');
-    this.detailShoppingBadge = page.getByTestId('kits.detail.badge.shopping');
-    this.detailPickBadge = page.getByTestId('kits.detail.badge.pick-lists');
+    this.detailLinksSection = page.getByTestId('kits.detail.links');
     this.detailEditButton = page.getByTestId('kits.detail.actions.edit');
     this.detailEditWrapper = page.getByTestId('kits.detail.actions.edit.wrapper');
     this.detailEditTooltip = page.getByTestId('kits.detail.actions.edit.tooltip');
@@ -149,6 +147,32 @@ export class KitsPage extends BasePage {
     const detailLink = this.cardDetailLink(kitId, tab);
     await detailLink.click();
     await expect(this.detailLayout).toBeVisible();
+  }
+
+  shoppingLinkChip(listId: number): Locator {
+    return this.page.getByTestId(`kits.detail.links.shopping.${listId}`);
+  }
+
+  shoppingLinkChipByName(name: string | RegExp): Locator {
+    return this.page
+      .locator('[data-testid^="kits.detail.links.shopping."]')
+      .filter({ hasText: name })
+      .first();
+  }
+
+  pickListChip(pickListId: number): Locator {
+    return this.page.getByTestId(`kits.detail.links.pick-lists.${pickListId}`);
+  }
+
+  pickListChipByLabel(label: string | RegExp): Locator {
+    return this.page
+      .locator('[data-testid^="kits.detail.links.pick-lists."]')
+      .filter({ hasText: label })
+      .first();
+  }
+
+  get detailLinksEmpty(): Locator {
+    return this.page.getByTestId('kits.detail.links.empty');
   }
 
   detailSummaryBadge(kind: 'total' | 'available' | 'shortfall'): Locator {

@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo } from 'react';
+import { type ReactNode, useCallback, useMemo } from 'react';
 import { Link } from '@tanstack/react-router';
 import { AlertTriangle } from 'lucide-react';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
@@ -8,9 +8,10 @@ import { createKitDetailHeaderSlots } from '@/components/kits/kit-detail-header'
 import { KitBOMTable } from '@/components/kits/kit-bom-table';
 import { useKitDetail } from '@/hooks/use-kit-detail';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
+import { useUiStateInstrumentation } from '@/lib/test/ui-state';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { KitContentAggregates } from '@/types/kits';
+import type { KitContentAggregates, KitDetail } from '@/types/kits';
 import type { KitStatus } from '@/types/kits';
 
 interface KitDetailProps {
@@ -40,7 +41,6 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
   const queryFetchStatus = query.fetchStatus;
 
   const isPending = isKitIdValid && queryStatus === 'pending';
-  const isFetching = isKitIdValid && queryFetchStatus === 'fetching';
   const hasError = isKitIdValid && queryStatus === 'error';
   const error = hasError ? query.error : undefined;
 
@@ -62,6 +62,18 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
     getReadyMetadata: getContentsReadyMetadata,
     getErrorMetadata: getContentsErrorMetadata,
     getAbortedMetadata: getContentsAbortedMetadata,
+  });
+
+  const getLinksReadyMetadata = useCallback(
+    () => buildLinkReadyMetadata(detail),
+    [detail],
+  );
+
+  useUiStateInstrumentation('kits.detail.links', {
+    isLoading: isKitIdValid ? queryStatus === 'pending' : false,
+    error,
+    getReadyMetadata: getLinksReadyMetadata,
+    getErrorMetadata: getDetailErrorMetadata,
   });
 
   const headerSlots = useMemo(
@@ -218,6 +230,48 @@ function KitDetailErrorState({
       </CardContent>
     </Card>
   );
+}
+
+function buildLinkReadyMetadata(detail: KitDetail | undefined) {
+  if (!detail) {
+    return undefined;
+  }
+
+  const shoppingStatusCounts: Record<string, number> = {
+    concept: 0,
+    ready: 0,
+    done: 0,
+  };
+
+  for (const link of detail.shoppingListLinks) {
+    shoppingStatusCounts[link.status] = (shoppingStatusCounts[link.status] ?? 0) + 1;
+  }
+
+  const pickListStatusCounts: Record<string, number> = {
+    open: 0,
+    completed: 0,
+  };
+
+  for (const pickList of detail.pickLists) {
+    pickListStatusCounts[pickList.status] =
+      (pickListStatusCounts[pickList.status] ?? 0) + 1;
+  }
+
+  return {
+    kitId: detail.id,
+    hasLinkedWork:
+      detail.shoppingListLinks.length > 0 || detail.pickLists.length > 0,
+    shoppingLists: {
+      count: detail.shoppingListLinks.length,
+      ids: detail.shoppingListLinks.map((link) => link.shoppingListId),
+      statusCounts: shoppingStatusCounts,
+    },
+    pickLists: {
+      count: detail.pickLists.length,
+      ids: detail.pickLists.map((pickList) => pickList.id),
+      statusCounts: pickListStatusCounts,
+    },
+  };
 }
 
 interface KitBOMSummaryProps {
