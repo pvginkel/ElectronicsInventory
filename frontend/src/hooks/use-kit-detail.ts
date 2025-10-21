@@ -11,6 +11,7 @@ import {
 
 export interface UseKitDetailResult {
   kitId: number | null;
+  isKitIdValid: boolean;
   query: ReturnType<typeof useGetKitsByKitId>;
   detail: KitDetail | undefined;
   contents: KitContentRow[];
@@ -30,10 +31,11 @@ export interface UseKitDetailResult {
  */
 export function useKitDetail(kitIdParam: number | string | undefined): UseKitDetailResult {
   const normalizedKitId = useMemo(() => normalizeKitId(kitIdParam), [kitIdParam]);
+  const isKitIdValid = normalizedKitId !== null;
   const query = useGetKitsByKitId(
-    normalizedKitId !== null ? { path: { kit_id: normalizedKitId } } : undefined,
+    isKitIdValid ? { path: { kit_id: normalizedKitId } } : undefined,
     {
-      enabled: normalizedKitId !== null,
+      enabled: isKitIdValid,
     }
   );
 
@@ -110,6 +112,7 @@ export function useKitDetail(kitIdParam: number | string | undefined): UseKitDet
 
   return {
     kitId: normalizedKitId,
+    isKitIdValid,
     query,
     detail,
     contents,

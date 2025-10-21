@@ -3,48 +3,113 @@ import { test } from '../../support/fixtures';
 import { waitForListLoading } from '../../support/helpers';
 import type {
   KitDetailResponseSchema_b98797e,
-  KitSummarySchemaList_a9993e3,
+  PartKitReservationsResponseSchema_d12d9a5,
 } from '@/lib/api/generated/hooks';
 
 const numberFormatter = new Intl.NumberFormat();
+type KitContentDetail = NonNullable<KitDetailResponseSchema_b98797e['contents']>[number];
 
 test.describe('Kit detail workspace', () => {
-  test('renders availability math and reservation breakdown', async ({ kits, page, apiClient }) => {
-    const activeSummaries = await apiClient.apiRequest<KitSummarySchemaList_a9993e3>(() =>
-      apiClient.GET('/api/kits', {
-        params: { query: { status: 'active' } },
+  test('renders availability math and reservation breakdown', async ({ kits, page, apiClient, testData }) => {
+    const reservationPartDescription = testData.parts.randomPartDescription('Detail Reservation Part');
+    const { part } = await testData.parts.create({
+      overrides: {
+        description: reservationPartDescription,
+      },
+    });
+
+    const partReservationMetadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
       })
     );
+    const partId = partReservationMetadata.part_id;
 
-    let kitSummary: KitSummarySchemaList_a9993e3[number] | null = null;
-    let kitDetail: KitDetailResponseSchema_b98797e | null = null;
+    const box = await testData.boxes.create();
+    const locationNumber = 1;
+    const stockQuantity = 8;
 
-    for (const summary of activeSummaries) {
-      const detail = await apiClient.apiRequest<KitDetailResponseSchema_b98797e>(() =>
+    await apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+      params: { path: { part_key: part.key } },
+      body: { box_no: box.box_no, loc_no: locationNumber, qty: stockQuantity },
+    });
+
+    const createCompetingKit = async (buildTarget: number, requiredPerUnit: number) => {
+      const competingKit = await testData.kits.create({
+        overrides: {
+          name: testData.kits.randomKitName('Competing Kit'),
+          build_target: buildTarget,
+        },
+      });
+
+      await testData.kits.addContent(competingKit.id, {
+        partId,
+        requiredPerUnit,
+      });
+    };
+
+    // Seed an initial competing kit before creating the target to ensure it retains reservation priority.
+    await createCompetingKit(6, 6);
+
+    const targetKitName = testData.kits.randomKitName('Detail Target Kit');
+    const targetKitDescription = testData.kits.randomKitDescription();
+    const targetKit = await testData.kits.create({
+      overrides: {
+        name: targetKitName,
+        build_target: 4,
+        description: targetKitDescription,
+      },
+    });
+
+    const targetContent = await testData.kits.addContent(targetKit.id, {
+      partId,
+      requiredPerUnit: 3,
+      note: 'Use matched pairs only',
+    });
+
+    const fetchTargetDetail = () =>
+      apiClient.apiRequest<KitDetailResponseSchema_b98797e>(() =>
         apiClient.GET('/api/kits/{kit_id}', {
-          params: { path: { kit_id: summary.id } },
+          params: { path: { kit_id: targetKit.id } },
         })
       );
-      const rows = detail.contents ?? [];
-      if (rows.length === 0) {
-        continue;
-      }
-      const hasReservation = rows.some((row) => (row.active_reservations?.length ?? 0) > 0);
-      if (hasReservation) {
-        kitSummary = summary;
-        kitDetail = detail;
-        break;
+
+    let kitDetail: KitDetailResponseSchema_b98797e | null = null;
+    let reservationRow: KitContentDetail | undefined;
+
+    const evaluateReservations = (detail: KitDetailResponseSchema_b98797e) =>
+      detail.contents?.find((row) => (row.active_reservations?.length ?? 0) > 0);
+
+    kitDetail = await fetchTargetDetail();
+    reservationRow = evaluateReservations(kitDetail);
+
+    if (!reservationRow) {
+      const additionalCompetingConfigs = [
+        { buildTarget: 8, requiredPerUnit: 7 },
+        { buildTarget: 12, requiredPerUnit: 8 },
+      ];
+
+      for (const config of additionalCompetingConfigs) {
+        await createCompetingKit(config.buildTarget, config.requiredPerUnit);
+        const detail = await fetchTargetDetail();
+        const candidate = evaluateReservations(detail);
+        if (candidate) {
+          kitDetail = detail;
+          reservationRow = candidate;
+          break;
+        }
       }
     }
 
-    if (!kitSummary || !kitDetail) {
-      throw new Error('Expected seeded kit with reservation data to exist');
+    if (!kitDetail || !reservationRow) {
+      throw new Error('Failed to seed kit reservations for detail workspace test');
     }
 
     const contents = kitDetail.contents ?? [];
-    const reservationRow = contents.find((row) => (row.active_reservations?.length ?? 0) > 0)!;
-    const noteRow = contents.find((row) => Boolean(row.note)) ?? reservationRow;
-
+    const noteRow =
+      contents.find((row) => row.id === targetContent.id) ??
+      contents.find((row) => Boolean(row.note)) ??
+      reservationRow;
     const totalRequired = contents.reduce((sum, row) => sum + row.total_required, 0);
     const totalAvailable = contents.reduce((sum, row) => sum + row.available, 0);
     const totalShortfall = contents.reduce((sum, row) => sum + row.shortfall, 0);
@@ -54,26 +119,29 @@ test.describe('Kit detail workspace', () => {
     const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');
 
     await kits.gotoOverview();
-    await expect(kits.cardById(kitSummary.id)).toBeVisible();
-    await kits.openDetailFromCard(kitSummary.id);
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(targetKit.name);
+    await searchReady;
+    await expect(kits.cardById(targetKit.id)).toBeVisible();
+    await kits.openDetailFromCard(targetKit.id);
 
     const detailEvent = await detailReady;
     const contentsEvent = await contentsReady;
 
     expect(detailEvent.metadata).toMatchObject({
-      kitId: kitSummary.id,
+      kitId: targetKit.id,
       status: kitDetail.status,
       contentCount: contents.length,
     });
     expect(contentsEvent.metadata).toMatchObject({
-      kitId: kitSummary.id,
+      kitId: targetKit.id,
       total: totalRequired,
       available: totalAvailable,
       contentCount: contents.length,
       shortfallCount,
     });
 
-    await expect(kits.detailTitle).toHaveText(kitSummary.name);
+    await expect(kits.detailTitle).toHaveText(targetKit.name);
     await expect(kits.detailStatusBadge).toHaveText(new RegExp(kitDetail.status, 'i'));
     await expect(kits.detailBuildTargetBadge).toHaveText(
       new RegExp(`Build target\\s+${kitDetail.build_target}`)
@@ -85,9 +153,7 @@ test.describe('Kit detail workspace', () => {
       new RegExp(`Pick lists ${kitDetail.pick_list_badge_count}`)
     );
 
-    if (kitDetail.description) {
-      await expect(kits.detailHeader).toContainText(kitDetail.description);
-    }
+    await expect(kits.detailHeader).toContainText(targetKitDescription);
 
     await expect(kits.detailEditButton).toBeDisabled();
     await kits.detailEditWrapper.hover();

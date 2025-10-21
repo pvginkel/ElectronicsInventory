@@ -100,6 +100,7 @@ export function createTestDataBundle(
     kits: {
       create: kitFactory.create.bind(kitFactory),
       createMany: kitFactory.createMany.bind(kitFactory),
+      addContent: kitFactory.addContent.bind(kitFactory),
       archive: kitFactory.archive.bind(kitFactory),
       unarchive: kitFactory.unarchive.bind(kitFactory),
       randomKitName: kitFactory.randomKitName.bind(kitFactory),

@@ -4,6 +4,8 @@ import type { components } from '../../../src/lib/api/generated/types';
 
 type KitCreateSchema = components['schemas']['KitCreateSchema.b98797e'];
 type KitResponseSchema = components['schemas']['KitResponseSchema.b98797e'];
+type KitContentCreateSchema = components['schemas']['KitContentCreateSchema.b98797e'];
+type KitContentDetailSchema = components['schemas']['KitContentDetailSchema.b98797e'];
 
 interface KitCreateOptions {
   overrides?: Partial<KitCreateSchema>;
@@ -87,6 +89,38 @@ export class KitTestFactory {
       kits.push(kit);
     }
     return kits;
+  }
+
+  /**
+   * Add a content row to the specified kit.
+   */
+  async addContent(
+    kitId: number,
+    options: { partId: number; requiredPerUnit: number; note?: string | null }
+  ): Promise<KitContentDetailSchema> {
+    const payload: KitContentCreateSchema = {
+      part_id: options.partId,
+      required_per_unit: options.requiredPerUnit,
+      ...(options.note !== undefined ? { note: options.note } : {}),
+    };
+
+    const { data, error, response } = await this.client.POST('/api/kits/{kit_id}/contents', {
+      params: { path: { kit_id: kitId } },
+      body: payload,
+    });
+
+    if (error || !response?.ok || !data) {
+      const detail =
+        (error && typeof error === 'object' && 'detail' in error && error.detail) ||
+        (error && typeof error === 'object' && 'message' in error && error.message) ||
+        JSON.stringify(error);
+      const reason = detail && detail !== '{}' ? detail : response?.statusText ?? 'Unknown error';
+      throw new Error(
+        `Failed to add kit content (kitId=${kitId}, partId=${options.partId}, requiredPerUnit=${options.requiredPerUnit}): ${reason}`
+      );
+    }
+
+    return data;
   }
 
   randomKitName(prefix = 'Test Kit'): string {

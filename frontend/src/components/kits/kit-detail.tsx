@@ -23,6 +23,7 @@ const SUMMARY_FORMATTER = new Intl.NumberFormat();
 
 export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailProps) {
   const {
+    isKitIdValid,
     detail,
     contents,
     aggregates,
@@ -35,15 +36,18 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
     getContentsAbortedMetadata,
   } = useKitDetail(kitId);
 
-  const isPending = query.status === 'pending';
-  const isFetching = query.fetchStatus === 'fetching';
-  const hasError = query.status === 'error';
-  const error = query.error;
+  const queryStatus = query.status;
+  const queryFetchStatus = query.fetchStatus;
+
+  const isPending = isKitIdValid && queryStatus === 'pending';
+  const isFetching = isKitIdValid && queryFetchStatus === 'fetching';
+  const hasError = isKitIdValid && queryStatus === 'error';
+  const error = hasError ? query.error : undefined;
 
   useListLoadingInstrumentation({
     scope: 'kits.detail',
-    isLoading: isPending,
-    isFetching,
+    isLoading: isKitIdValid ? queryStatus === 'pending' : false,
+    isFetching: isKitIdValid ? queryFetchStatus === 'fetching' : false,
     error,
     getReadyMetadata: getDetailReadyMetadata,
     getErrorMetadata: getDetailErrorMetadata,
@@ -52,8 +56,8 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
 
   useListLoadingInstrumentation({
     scope: 'kits.detail.contents',
-    isLoading: isPending,
-    isFetching,
+    isLoading: isKitIdValid ? queryStatus === 'pending' : false,
+    isFetching: isKitIdValid ? queryFetchStatus === 'fetching' : false,
     error,
     getReadyMetadata: getContentsReadyMetadata,
     getErrorMetadata: getContentsErrorMetadata,
@@ -80,6 +84,8 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
       <KitDetailErrorState
         kitId={kitId}
         error={error}
+        overviewStatus={overviewStatus}
+        overviewSearch={overviewSearch}
         onRetry={() => query.refetch()}
       />
     );
@@ -172,11 +178,22 @@ function KitDetailLoadingState() {
 interface KitDetailErrorStateProps {
   kitId: string;
   error: unknown;
+  overviewStatus: KitStatus;
+  overviewSearch?: string;
   onRetry: () => void;
 }
 
-function KitDetailErrorState({ kitId, error, onRetry }: KitDetailErrorStateProps) {
+function KitDetailErrorState({
+  kitId,
+  error,
+  overviewStatus,
+  overviewSearch,
+  onRetry,
+}: KitDetailErrorStateProps) {
   const message = error instanceof Error ? error.message : 'Unable to load kit details.';
+  const searchState = overviewSearch
+    ? { status: overviewStatus, search: overviewSearch }
+    : { status: overviewStatus };
 
   return (
     <Card data-testid="kits.detail.error">
@@ -193,7 +210,7 @@ function KitDetailErrorState({ kitId, error, onRetry }: KitDetailErrorStateProps
             Try again
           </Button>
           <Button asChild variant="ghost">
-            <Link to="/kits" search={{ status: 'active' }}>
+            <Link to="/kits" search={searchState}>
               Return to Kits
             </Link>
           </Button>
