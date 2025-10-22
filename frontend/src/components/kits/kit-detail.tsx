@@ -369,12 +369,6 @@ function KitBOMSummary({ aggregates }: KitBOMSummaryProps) {
         testId="kits.detail.table.summary.total"
       />
       <SummaryBadge
-        label="Available"
-        value={aggregates.totalAvailable}
-        className="bg-emerald-100 text-emerald-800"
-        testId="kits.detail.table.summary.available"
-      />
-      <SummaryBadge
         label="Shortfall"
         value={aggregates.totalShortfall}
         className="bg-rose-100 text-rose-800"

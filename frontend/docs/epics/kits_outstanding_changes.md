@@ -5,6 +5,9 @@ This **MUST** be ignored by LLMs. It's not yet finished and will only be picked 
   - The part card has a nice, simple, animation. That needs to be applied to all cards.
   - If you move the mouse very quickly from the anchor of a tooltip onto the tooltip, the tooltip stays open.
   - There's now one place where the success toast of an action has an undo button. There are likely quite a few success toasts where an undo feature would be helpful. I'd like a list of candidates so I can choose which ones I want to implement this pattern for.
+  - Very large toast texts move the close button out of the toast. Specifically this text:
+
+    [{"type":"greater_than_equal","loc":["build_target"],"msg":"Input should be greater than or equal to 1","input":0,"url":"https://errors.pydantic.dev/2.11/v/greater_than_equal"}]
 - Kits list view:
   - Archive button must not be on the card. It needs to be a button in the detail screen.
   - The kit list screen does multiple queries for the shopping list and it icons instead of a batch query like the part list screen does.
