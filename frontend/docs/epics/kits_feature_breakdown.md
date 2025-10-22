@@ -176,7 +176,7 @@ Allow planners to generate or extend purchasing lists from a kit, while keeping 
 
 - Create or append shopping lists from a kit
   - Features:
-    - Present dialog with Order-for-N control defaulting to kit build target and Honor-reserved toggle defaulting to OFF.
+    - Present dialog with Order-for-N control defaulting to kit build target and Honor-reserved toggle defaulting to ON.
     - Calculate Needed quantity per line based on selected units and reserved mode, zero-clamping negatives.
     - Support creating a new Concept shopping list or appending to an existing Concept list, merging quantities when lines already exist.
     - Append `[From Kit <name>]: <BOM note>` to line notes when merging, preserving prior notes.
@@ -202,8 +202,8 @@ Allow planners to generate or extend purchasing lists from a kit, while keeping 
   - Database / data model:
     - The `KitShoppingListLink` table provides bidirectional lookups; `is_stale` is computed in service by comparing `kit.updated_at` to `snapshot_kit_updated_at`.
   - API surface:
-    - `GET /kits/<int:kit_id>/shopping-lists` returns `KitShoppingListChipSchema` objects (`shopping_list_id`, `shopping_list_name`, `status`, `snapshot_kit_updated_at`, `is_stale`).
-    - `GET /shopping-lists/<int:list_id>/kits` returns reciprocal `KitChipSchema` objects (`kit_id`, `kit_name`, `status`, `is_stale`).
+    - `GET /kits/<int:kit_id>/shopping-lists` returns `KitShoppingListChipSchema` objects (`shopping_list_id`, `shopping_list_name`, `status`, `requested_units`, `honor_reserved`, `snapshot_kit_updated_at`, `is_stale`).
+    - `GET /shopping-lists/<int:list_id>/kits` returns reciprocal `KitChipSchema` objects (`kit_id`, `kit_name`, `status`, `requested_units`, `honor_reserved`, `is_stale`).
     - `DELETE /kit-shopping-list-links/<int:link_id>` removes the association (cascades through FK) and returns 204.
 
 # Feature: Pick list workflow & deduction
