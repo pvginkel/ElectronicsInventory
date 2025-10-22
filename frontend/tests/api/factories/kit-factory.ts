@@ -6,6 +6,8 @@ type KitCreateSchema = components['schemas']['KitCreateSchema.b98797e'];
 type KitResponseSchema = components['schemas']['KitResponseSchema.b98797e'];
 type KitContentCreateSchema = components['schemas']['KitContentCreateSchema.b98797e'];
 type KitContentDetailSchema = components['schemas']['KitContentDetailSchema.b98797e'];
+type KitContentUpdateSchema = components['schemas']['KitContentUpdateSchema.b98797e'];
+type KitDetailResponseSchema = components['schemas']['KitDetailResponseSchema.b98797e'];
 
 interface KitCreateOptions {
   overrides?: Partial<KitCreateSchema>;
@@ -121,6 +123,50 @@ export class KitTestFactory {
     }
 
     return data;
+  }
+
+  /**
+   * Update a specific content row using optimistic locking.
+   */
+  async updateContent(
+    kitId: number,
+    contentId: number,
+    options: { requiredPerUnit?: number; note?: string | null; version: number }
+  ): Promise<KitContentDetailSchema> {
+    const payload: KitContentUpdateSchema = {
+      required_per_unit: options.requiredPerUnit ?? null,
+      note: options.note ?? null,
+      version: options.version,
+    };
+
+    return apiRequest(() =>
+      this.client.PATCH('/api/kits/{kit_id}/contents/{content_id}', {
+        params: { path: { kit_id: kitId, content_id: contentId } },
+        body: payload,
+      })
+    );
+  }
+
+  /**
+   * Remove a content row from the specified kit.
+   */
+  async deleteContent(kitId: number, contentId: number): Promise<void> {
+    await apiRequest(() =>
+      this.client.DELETE('/api/kits/{kit_id}/contents/{content_id}', {
+        params: { path: { kit_id: kitId, content_id: contentId } },
+      })
+    );
+  }
+
+  /**
+   * Fetch the kit detail payload for assertions.
+   */
+  async getDetail(kitId: number): Promise<KitDetailResponseSchema> {
+    return apiRequest(() =>
+      this.client.GET('/api/kits/{kit_id}', {
+        params: { path: { kit_id: kitId } },
+      })
+    );
   }
 
   randomKitName(prefix = 'Test Kit'): string {

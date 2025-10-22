@@ -1,7 +1,8 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
 import { waitForListLoading, waitTestEvent } from '../../support/helpers';
-import type { UiStateTestEvent } from '@/types/test-events';
+import type { UiStateTestEvent, FormTestEvent } from '@/types/test-events';
+import type { KitContentDetailSchema_b98797e } from '@/lib/api/generated/hooks';
 import type {
   KitDetailResponseSchema_b98797e,
   PartKitReservationsResponseSchema_d12d9a5,
@@ -410,5 +411,277 @@ test.describe('Kit detail workspace', () => {
 
     await expect(kits.detailEmptyState).toBeVisible();
     await expect(kits.detailEmptyState).toContainText('No parts in this kit yet');
+  });
+
+  test('allows planners to add kit contents inline with optimistic instrumentation', async ({
+    kits,
+    page,
+    testData,
+  }) => {
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Inline Add Component' },
+    });
+    const kit = await testData.kits.create();
+
+    await kits.gotoOverview();
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await kits.openDetailFromCard(kit.id);
+    await waitForListLoading(page, 'kits.detail.contents', 'ready');
+
+    await kits.detailAddPartButton.click();
+    await waitForListLoading(page, 'parts.selector', 'ready');
+
+    const partInput = page.getByTestId('parts.selector.input');
+    await partInput.fill(part.key);
+    await page.getByRole('option', { name: new RegExp(part.key, 'i') }).first().click();
+
+    await kits.detailEditorQuantity('create').fill('3');
+    await kits.detailEditorNote('create').fill('Install near regulator');
+
+    const submitEvent = waitTestEvent(page, 'form', (event: any) => {
+      return event.formId === 'KitContent:create' && event.phase === 'submit';
+    });
+    const successEventPromise = waitTestEvent(page, 'form', (event: any) => {
+      return event.formId === 'KitContent:create' && event.phase === 'success';
+    });
+
+    await kits.detailEditorSubmit('create').click();
+    await submitEvent;
+    await waitForListLoading(page, 'kits.detail.contents', 'ready');
+
+    const successEvent = await successEventPromise;
+    expect(successEvent.fields?.kitId).toBe(kit.id);
+    expect(successEvent.fields?.partKey).toBe(part.key);
+
+    const newContentId = successEvent.fields?.contentId as number | undefined;
+    expect(newContentId).toBeDefined();
+
+    await expect(kits.detailTableRow(newContentId!)).toBeVisible();
+    await expect(kits.detailTableRow(newContentId!).locator('td').nth(1)).toHaveText(
+      numberFormatter.format(3)
+    );
+    await expect(kits.detailTableRow(newContentId!).locator('td').nth(7)).toContainText(
+      'Install near regulator'
+    );
+
+    const backendDetail = await testData.kits.getDetail(kit.id);
+    const backendContents = (backendDetail.contents ?? []) as KitContentDetailSchema_b98797e[];
+    const createdRow = backendContents.find((row) => row.id === newContentId);
+    expect(createdRow).toBeDefined();
+    expect(createdRow?.required_per_unit).toBe(3);
+    expect(createdRow?.note).toBe('Install near regulator');
+
+    await expect(kits.detailSummaryBadge('total')).toHaveText(
+      new RegExp(numberFormatter.format(createdRow?.total_required ?? 3))
+    );
+  });
+
+  test('supports inline editing with optimistic updates and form instrumentation', async ({
+    kits,
+    page,
+    testData,
+    apiClient,
+  }) => {
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Inline Edit Part' },
+    });
+    const partMetadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+    const kit = await testData.kits.create({
+      overrides: { build_target: 2 },
+    });
+    const existingContent = await testData.kits.addContent(kit.id, {
+      partId: partMetadata.part_id,
+      requiredPerUnit: 2,
+      note: 'Initial note',
+    });
+
+    await kits.gotoOverview();
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await kits.openDetailFromCard(kit.id);
+    await waitForListLoading(page, 'kits.detail.contents', 'ready');
+
+    await kits.detailRowEditButton(existingContent.id).click();
+    const editor = kits.detailEditor('edit', existingContent.id);
+    await expect(editor).toBeVisible();
+
+    await kits.detailEditorQuantity('edit', existingContent.id).fill('5');
+    await kits.detailEditorNote('edit', existingContent.id).fill('Update per unit requirement');
+
+    const submitEvent = waitTestEvent(page, 'form', (event: any) => {
+      return event.formId === 'KitContent:update' && event.phase === 'submit';
+    });
+    const successEventPromise = waitTestEvent(page, 'form', (event: any) => {
+      return event.formId === 'KitContent:update' && event.phase === 'success';
+    });
+
+    await kits.detailEditorSubmit('edit', existingContent.id).click();
+    await submitEvent;
+    await waitForListLoading(page, 'kits.detail.contents', 'ready');
+
+    const successEvent = await successEventPromise;
+    expect(successEvent.fields?.contentId).toBe(existingContent.id);
+    expect(successEvent.fields?.partKey).toBe(part.key);
+
+    const updatedRow = kits.detailTableRow(existingContent.id);
+    await expect(updatedRow.locator('td').nth(1)).toHaveText(numberFormatter.format(5));
+    await expect(updatedRow.locator('td').nth(7)).toContainText('Update per unit requirement');
+
+    const backendDetail = await testData.kits.getDetail(kit.id);
+    const backendContents = (backendDetail.contents ?? []) as KitContentDetailSchema_b98797e[];
+    const updatedBackendRow = backendContents.find((row) => row.id === existingContent.id);
+    expect(updatedBackendRow?.required_per_unit).toBe(5);
+    expect(updatedBackendRow?.note).toBe('Update per unit requirement');
+  });
+
+  test('recovers from optimistic locking conflicts when editing kit contents', async ({
+    kits,
+    page,
+    testData,
+    apiClient,
+    testEvents,
+    toastHelper,
+  }) => {
+    await testEvents.startCapture({ bufferSize: 200 });
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Conflict Part' },
+    });
+    const partMetadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+    const kit = await testData.kits.create();
+    const seeded = await testData.kits.addContent(kit.id, {
+      partId: partMetadata.part_id,
+      requiredPerUnit: 4,
+      note: null,
+    });
+
+    await kits.gotoOverview();
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await kits.openDetailFromCard(kit.id);
+    await waitForListLoading(page, 'kits.detail.contents', 'ready');
+
+    await kits.detailRowEditButton(seeded.id).click();
+    await expect(kits.detailEditor('edit', seeded.id)).toBeVisible();
+
+    await kits.detailEditorQuantity('edit', seeded.id).fill('6');
+    await kits.detailEditorNote('edit', seeded.id).fill('Local draft');
+
+    await testData.kits.updateContent(kit.id, seeded.id, {
+      requiredPerUnit: 9,
+      note: 'External update',
+      version: seeded.version,
+    });
+
+    const preConflictFormEvents = await testEvents.getEventsByKind('form');
+    await kits.detailEditorSubmit('edit', seeded.id).click();
+    await expect(kits.detailEditor('edit', seeded.id)).toContainText('updated by another request');
+    const postConflictFormEvents = await testEvents.getEventsByKind('form');
+    const conflictEvent = postConflictFormEvents.find((event, index) => {
+      if (event.kind !== 'form' || index < preConflictFormEvents.length) {
+        return false;
+      }
+      const formEvent = event as FormTestEvent;
+      if (formEvent.formId !== 'KitContent:update' || formEvent.phase !== 'error') {
+        return false;
+      }
+      const metadataPhase = formEvent.metadata?.phase ?? (formEvent.fields as { phase?: string } | undefined)?.phase;
+      return metadataPhase === 'conflict' || metadataPhase === 'error';
+    });
+    expect(conflictEvent).toBeDefined();
+    await toastHelper.dismissToast({ all: true });
+
+    const resolvedDetail = await testData.kits.getDetail(kit.id);
+    const resolvedContents = (resolvedDetail.contents ?? []) as KitContentDetailSchema_b98797e[];
+    const resolvedRow = resolvedContents.find((row) => row.id === seeded.id);
+    expect(resolvedRow?.required_per_unit).toBe(9);
+    expect(resolvedRow?.note).toBe('External update');
+
+    await testEvents.stopCapture();
+  });
+
+  test('removes kit contents after confirmation', async ({ kits, page, testData, apiClient }) => {
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Inline Delete Part' },
+    });
+    const partMetadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+    const kit = await testData.kits.create();
+    const content = await testData.kits.addContent(kit.id, {
+      partId: partMetadata.part_id,
+      requiredPerUnit: 2,
+    });
+
+    await kits.gotoOverview();
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await kits.openDetailFromCard(kit.id);
+    await waitForListLoading(page, 'kits.detail.contents', 'ready');
+
+    await kits.detailRowDeleteButton(content.id).click();
+    await expect(kits.detailDeleteDialog).toBeVisible();
+
+    const submitEvent = waitTestEvent(page, 'form', (event: any) => {
+      return event.formId === 'KitContent:delete' && event.phase === 'submit';
+    });
+    const successEventPromise = waitTestEvent(page, 'form', (event: any) => {
+      return event.formId === 'KitContent:delete' && event.phase === 'success';
+    });
+
+    await kits.detailDeleteConfirm.click();
+    await submitEvent;
+    await waitForListLoading(page, 'kits.detail.contents', 'ready');
+    await successEventPromise;
+
+    await expect(kits.detailTableRow(content.id)).toHaveCount(0);
+
+    const backendDetail = await testData.kits.getDetail(kit.id);
+    const backendContents = (backendDetail.contents ?? []) as KitContentDetailSchema_b98797e[];
+    const deleted = backendContents.find((row) => row.id === content.id);
+    expect(deleted).toBeUndefined();
+  });
+
+  test('disables inline editing controls for archived kits', async ({ kits, page, testData, apiClient }) => {
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Archived Part' },
+    });
+    const partMetadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+    const kit = await testData.kits.create();
+    const content = await testData.kits.addContent(kit.id, {
+      partId: partMetadata.part_id,
+      requiredPerUnit: 1,
+    });
+    await testData.kits.archive(kit.id);
+
+    await kits.gotoOverview();
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await kits.selectTab('archived');
+    await kits.openDetailFromCard(kit.id, 'archived');
+    await waitForListLoading(page, 'kits.detail.contents', 'ready');
+
+    await expect(kits.detailAddPartButton).toBeDisabled();
+    await expect(kits.detailRowEditButton(content.id)).toBeDisabled();
+    await expect(kits.detailRowDeleteButton(content.id)).toBeDisabled();
   });
 });

@@ -1,17 +1,19 @@
-import { type ReactNode, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Link } from '@tanstack/react-router';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Plus } from 'lucide-react';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { createKitDetailHeaderSlots } from '@/components/kits/kit-detail-header';
 import { KitBOMTable } from '@/components/kits/kit-bom-table';
 import { useKitDetail } from '@/hooks/use-kit-detail';
+import type { UseKitDetailResult } from '@/hooks/use-kit-detail';
+import { useKitContents } from '@/hooks/use-kit-contents';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { useUiStateInstrumentation } from '@/lib/test/ui-state';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { KitContentAggregates, KitDetail } from '@/types/kits';
+import type { KitContentAggregates, KitContentRow, KitDetail } from '@/types/kits';
 import type { KitStatus } from '@/types/kits';
 
 interface KitDetailProps {
@@ -87,51 +89,45 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
     [detail, isPending, overviewSearch, overviewStatus]
   );
 
-  let content: ReactNode;
+  const content = (() => {
+    if (isPending) {
+      return <KitDetailLoadingState />;
+    }
 
-  if (isPending) {
-    content = <KitDetailLoadingState />;
-  } else if (hasError) {
-    content = (
-      <KitDetailErrorState
-        kitId={kitId}
-        error={error}
-        overviewStatus={overviewStatus}
-        overviewSearch={overviewSearch}
-        onRetry={() => query.refetch()}
+    if (hasError) {
+      return (
+        <KitDetailErrorState
+          kitId={kitId}
+          error={error}
+          overviewStatus={overviewStatus}
+          overviewSearch={overviewSearch}
+          onRetry={() => query.refetch()}
+        />
+      );
+    }
+
+    if (!detail) {
+      return (
+        <Card className="p-6" data-testid="kits.detail.not-found">
+          <div className="text-center">
+            <h2 className="mb-2 text-lg font-semibold">Kit not found</h2>
+            <p className="text-muted-foreground">
+              The kit with ID &ldquo;{kitId}&rdquo; could not be found.
+            </p>
+          </div>
+        </Card>
+      );
+    }
+
+    return (
+      <KitDetailLoaded
+        detail={detail}
+        contents={contents}
+        aggregates={aggregates}
+        query={query}
       />
     );
-  } else if (!detail) {
-    content = (
-      <Card className="p-6" data-testid="kits.detail.not-found">
-        <div className="text-center">
-          <h2 className="mb-2 text-lg font-semibold">Kit not found</h2>
-          <p className="text-muted-foreground">
-            The kit with ID &ldquo;{kitId}&rdquo; could not be found.
-          </p>
-        </div>
-      </Card>
-    );
-  } else {
-    content = (
-      <div className="space-y-6" data-testid="kits.detail.body">
-        <Card>
-          <CardHeader className="flex flex-col gap-3 border-b border-border/70 px-6 py-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <CardTitle data-testid="kits.detail.table.title">Bill of materials</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Availability reflects stock after honoring reservations from other kits.
-              </p>
-            </div>
-            <KitBOMSummary aggregates={aggregates} />
-          </CardHeader>
-          <CardContent className="px-0 py-0">
-            <KitBOMTable rows={contents} />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  })();
 
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="kits.detail">
@@ -149,6 +145,69 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
       >
         {content}
       </DetailScreenLayout>
+    </div>
+  );
+}
+
+interface KitDetailLoadedProps {
+  detail: KitDetail;
+  contents: KitContentRow[];
+  aggregates: KitContentAggregates;
+  query: UseKitDetailResult['query'];
+}
+
+// Renders the BOM card with inline editing controls once kit data is ready.
+function KitDetailLoaded({ detail, contents, aggregates, query }: KitDetailLoadedProps) {
+  const kitContents = useKitContents({
+    detail,
+    contents,
+    query,
+  });
+
+  const handleAddClick = () => {
+    if (kitContents.create.isOpen) {
+      kitContents.create.close();
+    } else {
+      kitContents.create.open();
+    }
+  };
+
+  const addButtonDisabled =
+    kitContents.isArchived || kitContents.create.isSubmitting || kitContents.isMutationPending;
+  const addButtonLabel = kitContents.create.isOpen ? 'Close editor' : 'Add part';
+  const addButtonTitle = kitContents.isArchived ? 'Archived kits cannot be edited' : undefined;
+
+  return (
+    <div className="space-y-6" data-testid="kits.detail.body">
+      <Card className="p-0">
+        <CardHeader className="flex flex-col gap-3 border-b border-border/70 px-4 py-3 md:flex-row md:items-center md:justify-between space-y-0">
+          <div>
+            <CardTitle data-testid="kits.detail.table.title">Bill of materials</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Availability reflects stock after honoring reservations from other kits.
+            </p>
+          </div>
+          <div className="flex flex-row items-center gap-5">
+            <KitBOMSummary aggregates={aggregates} />
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={handleAddClick}
+              disabled={addButtonDisabled}
+              title={addButtonTitle}
+              className="inline-flex items-center gap-2"
+              data-testid="kits.detail.table.add"
+            >
+              <Plus className="h-4 w-4" />
+              <span>{addButtonLabel}</span>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="px-0 py-0">
+          <KitBOMTable rows={contents} controls={kitContents} />
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -286,12 +345,6 @@ function KitBOMSummary({ aggregates }: KitBOMSummaryProps) {
         value={aggregates.totalRequired}
         className="bg-slate-100 text-slate-700"
         testId="kits.detail.table.summary.total"
-      />
-      <SummaryBadge
-        label="Available"
-        value={aggregates.totalAvailable}
-        className="bg-emerald-100 text-emerald-800"
-        testId="kits.detail.table.summary.available"
       />
       <SummaryBadge
         label="Shortfall"

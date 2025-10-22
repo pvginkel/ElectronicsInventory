@@ -42,6 +42,7 @@ export const ConceptLineRow = forwardRef<HTMLTableRowElement, ConceptLineRowProp
           description={line.part.description}
           manufacturerCode={line.part.manufacturerCode}
           testId={`shopping-lists.concept.row.${line.id}.part`}
+          link={true}
         />
       </td>
       <td

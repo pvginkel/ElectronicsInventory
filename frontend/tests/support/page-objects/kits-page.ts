@@ -30,6 +30,13 @@ export class KitsPage extends BasePage {
   readonly detailSummary: Locator;
   readonly detailTable: Locator;
   readonly detailEmptyState: Locator;
+  readonly detailAddPartButton: Locator;
+  readonly detailCreateEditor: Locator;
+  readonly detailCreateSubmit: Locator;
+  readonly detailCreateCancel: Locator;
+  readonly detailDeleteDialog: Locator;
+  readonly detailDeleteConfirm: Locator;
+  readonly detailDeleteCancel: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -58,6 +65,13 @@ export class KitsPage extends BasePage {
     this.detailSummary = page.getByTestId('kits.detail.table.summary');
     this.detailTable = page.getByTestId('kits.detail.table');
     this.detailEmptyState = page.getByTestId('kits.detail.table.empty');
+    this.detailAddPartButton = page.getByTestId('kits.detail.table.add');
+    this.detailCreateEditor = page.getByTestId('kits.detail.table.editor.create');
+    this.detailCreateSubmit = page.getByTestId('kits.detail.table.editor.create.submit');
+    this.detailCreateCancel = page.getByTestId('kits.detail.table.editor.create.cancel');
+    this.detailDeleteDialog = page.getByTestId('kits.detail.table.delete.dialog');
+    this.detailDeleteConfirm = page.getByTestId('kits.detail.table.delete.confirm');
+    this.detailDeleteCancel = page.getByTestId('kits.detail.table.delete.cancel');
   }
 
   async gotoOverview(): Promise<void> {
@@ -189,5 +203,51 @@ export class KitsPage extends BasePage {
 
   detailReservationTooltip(contentId: number): Locator {
     return this.page.getByTestId(`kits.detail.table.row.${contentId}.reservations.tooltip`);
+  }
+
+  detailRowEditButton(contentId: number): Locator {
+    return this.page.getByTestId(`kits.detail.table.row.${contentId}.edit`);
+  }
+
+  detailRowDeleteButton(contentId: number): Locator {
+    return this.page.getByTestId(`kits.detail.table.row.${contentId}.delete`);
+  }
+
+  detailEditor(mode: 'create'): Locator;
+  detailEditor(mode: 'edit', rowId: number): Locator;
+  detailEditor(mode: 'create' | 'edit', rowId?: number): Locator {
+    if (mode === 'create') {
+      return this.detailCreateEditor;
+    }
+    const id = rowId ?? 'active';
+    return this.page.getByTestId(`kits.detail.table.editor.edit.${id}`);
+  }
+
+  detailEditorQuantity(mode: 'create'): Locator;
+  detailEditorQuantity(mode: 'edit', rowId: number): Locator;
+  detailEditorQuantity(mode: 'create' | 'edit', rowId?: number): Locator {
+    const suffix = mode === 'create' ? 'create' : `edit.${rowId ?? 'active'}`;
+    return this.page.getByTestId(`kits.detail.table.editor.${suffix}.quantity`);
+  }
+
+  detailEditorNote(mode: 'create'): Locator;
+  detailEditorNote(mode: 'edit', rowId: number): Locator;
+  detailEditorNote(mode: 'create' | 'edit', rowId?: number): Locator {
+    const suffix = mode === 'create' ? 'create' : `edit.${rowId ?? 'active'}`;
+    return this.page.getByTestId(`kits.detail.table.editor.${suffix}.note`);
+  }
+
+  detailEditorSubmit(mode: 'create'): Locator;
+  detailEditorSubmit(mode: 'edit', rowId: number): Locator;
+  detailEditorSubmit(mode: 'create' | 'edit', rowId?: number): Locator {
+    const suffix = mode === 'create' ? 'create' : `edit.${rowId ?? 'active'}`;
+    return this.page.getByTestId(`kits.detail.table.editor.${suffix}.submit`);
+  }
+
+  detailEditorCancel(mode: 'create'): Locator;
+  detailEditorCancel(mode: 'edit', rowId: number): Locator;
+  detailEditorCancel(mode: 'create' | 'edit', rowId?: number): Locator {
+    const suffix = mode === 'create' ? 'create' : `edit.${rowId ?? 'active'}`;
+    return this.page.getByTestId(`kits.detail.table.editor.${suffix}.cancel`);
   }
 }

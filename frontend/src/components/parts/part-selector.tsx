@@ -11,6 +11,8 @@ interface PartSelectorProps {
   className?: string;
   onSelectSummary?: (summary: PartSelectorSummary | undefined) => void;
   onPopoverWheelCapture?: (event: React.WheelEvent<HTMLDivElement>) => void;
+  excludePartKeys?: string[];
+  includePartKeys?: string[];
 }
 
 export function PartSelector({
@@ -20,7 +22,9 @@ export function PartSelector({
   error,
   className,
   onSelectSummary,
-  onPopoverWheelCapture
+  onPopoverWheelCapture,
+  excludePartKeys,
+  includePartKeys
 }: PartSelectorProps) {
   const {
     options,
@@ -30,7 +34,10 @@ export function PartSelector({
     isFetching,
     error: loadError,
     getSelectedSummary
-  } = usePartsSelector();
+  } = usePartsSelector({
+    excludePartKeys,
+    includePartKeys
+  });
 
   const selectedPart = getSelectedSummary(value);
   const showLoading = isLoading || isFetching;
