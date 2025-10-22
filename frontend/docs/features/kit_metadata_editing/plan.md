@@ -22,7 +22,7 @@ Let planners edit active-kit metadata directly from the detail header while arch
 
 **In scope**
 
-- Replace the disabled edit action with status-aware controls and propagate a read-only flag to downstream BOM interactions.
+- Replace the disabled edit action with status-aware controls and propagate a read-only flag to downstream BOM interactions, with matching Playwright assertions for each gated BOM affordance.
 - Implement a metadata modal that loads existing values, validates input, emits instrumentation, and calls `PATCH /api/kits/{kit_id}` with optimistic cache updates.
 - Invalidate overview queries and refresh detail instrumentation after successful edits so badge counts and aggregates stay current.
 - Extend Playwright coverage and page objects to exercise success, validation failure, and archived gating flows.
@@ -72,7 +72,7 @@ Backend already rejects archived edits and returns updated metadata with authori
 - Evidence: `docs/epics/kits_feature_breakdown.md:119`
 
 - Area: `tests/support/page-objects/kits-page.ts`
-- Why: Add modal locators/actions and archived gating expectations for Playwright specs.
+- Why: Add modal locators/actions plus helper methods like `expectBomActionsDisabled` for archived gating coverage.
 - Evidence: `tests/support/page-objects/kits-page.ts:62`
 
 - Area: `tests/support/page-objects/kit-metadata-dialog.ts` (new)
@@ -87,7 +87,7 @@ Backend already rejects archived edits and returns updated metadata with authori
 
 - Entity / contract: KitMetadataFormFields
 - Shape: `{ name: string; description: string; buildTarget: string }` (form state) → `{ name: string; description: string | null; build_target: number }`.
-- Mapping: Initialize from `KitDetail` data, trim strings, convert build target to integer, and submit the full payload (matching existing edit dialogs).
+- Mapping: Initialize from `KitDetail` data through `useFormState`, trim strings, convert build target to integer, and submit the full payload (matching existing edit dialogs) while feeding validation errors into instrumentation.
 - Evidence: `src/types/kits.ts:191`
 
 - Entity / contract: KitUpdate payload / response
@@ -117,8 +117,8 @@ Backend already rejects archived edits and returns updated metadata with authori
 ### 5) Algorithms & UI Flows (step-by-step)
 
 - Flow: Active kit metadata edit
-  1. User clicks `Edit Kit`; `KitDetail` sets modal open state and snapshots current metadata.
-  2. Dialog renders with form values from `KitDetail`, tracks open event via `useFormInstrumentation`, and validates on blur.
+  1. User clicks `Edit Kit`; `KitDetail` sets modal open state and snapshots current metadata for optimistic writes and instrumentation diffs.
+  2. Dialog renders with form values from `KitDetail`, tracks open event via `useFormInstrumentation`, validates on blur, and computes `nameChanged` / `buildTargetChanged` deltas against the snapshot for telemetry.
   3. Submit emits `trackFormSubmit`, converts form data to payload (even if values remain unchanged), applies optimistic cache update, and triggers mutation.
   4. On success, write server response into caches, emit `trackFormSuccess`, close modal, show success toast, and invalidate overview queries.
   5. On error, restore snapshot, emit `trackFormError`, surface toast, and keep modal open for correction.
@@ -129,7 +129,7 @@ Backend already rejects archived edits and returns updated metadata with authori
 - Flow: Archived gating enforcement
   1. Derive `isEditable = detail.status === 'active'`.
   2. Header renders enabled button when editable; otherwise keep tooltip/disabled state.
-  3. Pass read-only flag to BOM controls for future inline actions.
+  3. Pass read-only flag to BOM controls so row menus, inline quantity adjustments, and “Add part” shortcuts observe the same gating; expose tooltip copy for Playwright assertions.
 - States / transitions: Status updates after archive/unarchive flows; gating recomputes from latest detail.
 - Hotspots: Avoid opening modal for archived kits even if local state lags; ensure tooltip copy reflects archival reason.
 - Evidence: `docs/epics/kits_feature_breakdown.md:117`, `src/components/kits/kit-detail-header.tsx:213`
@@ -150,7 +150,7 @@ Backend already rejects archived edits and returns updated metadata with authori
 
 ### 7) Error Handling & Loading States
 
-- Client-side validation surfaces inline messages via `FormError`, emits `trackFormValidationError`, and blocks submit.
+- Client-side validation surfaces inline messages via `FormError`, emits `trackFormValidationErrors` (and field-level `trackFormValidationError`) through `useFormInstrumentation`, and blocks submit.
 - Mutation failure restores cached detail snapshot, keeps modal open, and shows `showException` toast.
 - Disable submit button and show spinner while mutation pending; close modal only after success callback.
 - Detail fetch error path remains unchanged, preserving existing card fallback.
@@ -159,9 +159,9 @@ Backend already rejects archived edits and returns updated metadata with authori
 
 - Signal: `KitDetail:metadata` form events
   - Type: `form` instrumentation.
-  - Trigger: Modal open/submit/success/error/validation via `useFormInstrumentation`.
-  - Labels / fields: `{ kitId, buildTarget, nameChanged, buildTargetChanged }` snapshot for deterministic assertions.
-  - Consumer: Playwright waits using `waitTestEvent('form', ...)`.
+  - Trigger: Modal open/submit/success/error/validation via `useFormInstrumentation`, with validation handlers calling `trackValidationError`/`trackValidationErrors`.
+  - Labels / fields: `{ kitId, buildTarget, nameChanged, buildTargetChanged }` snapshot for deterministic assertions, computed by comparing form values against the snapshot captured when the modal opens or after a successful save.
+  - Consumer: Playwright waits using `waitTestEvent('form', ...)` and `waitForFormValidationError`.
   - Evidence: `docs/epics/kits_feature_breakdown.md:124`
 
 - Signal: `kits.detail` / `kits.detail.contents` list loading
@@ -183,7 +183,7 @@ Backend already rejects archived edits and returns updated metadata with authori
 
 ### 10) Lifecycle & Background Work
 
-- Use `useEffect` to reset form values whenever `KitDetail` changes to avoid stale dirtiness.
+- Seed `useFormState` with current detail values when opening the modal and call `form.reset(updatedValues)` on close or after mutation success; avoid blanket `useEffect` resets during an open session so in-progress edits persist through background refetches.
 - Mutation hook should clean up optimistic snapshot in `onSettled`.
 - No timers or subscriptions introduced; rely on React Query revalidation.
 
@@ -209,16 +209,24 @@ Backend already rejects archived edits and returns updated metadata with authori
   - Scenarios:
     - Given an active kit, When the user updates name/description/build target with valid input and submits, Then modal closes, success toast appears, detail/overview reflect new values, and `KitDetail:metadata` emits submit/success events.
     - Given the dialog with blank name or build target < 1, When submit is pressed, Then inline validation errors display, no mutation runs, and `KitDetail:metadata` emits validation events.
-  - Instrumentation / hooks: `waitTestEvent('form', evt => evt.formId === 'KitDetail:metadata')`, `waitForListLoading(page, 'kits.detail', 'ready')`, toast helper assertions.
+  - Instrumentation / hooks: `waitTestEvent('form', evt => evt.formId === 'KitDetail:metadata')`, `waitForFormValidationError(page, 'KitDetail:metadata')`, `waitForListLoading(page, 'kits.detail', 'ready')`, toast helper assertions; dialog calls `trackValidationError(s)` when rules fail.
   - Gaps: Conflict (409) handling deferred until backend behavior is specified; document as follow-up.
   - Evidence: `tests/e2e/kits/kit-detail.spec.ts:176`, `docs/epics/kits_feature_breakdown.md:118`
 
 - Surface: Archived gating
   - Scenarios:
     - Given an archived kit detail page, When the user tries to open the edit modal, Then the button stays disabled, tooltip explains read-only gating, and no modal renders.
-  - Instrumentation / hooks: UI assertions via page object; ensure form events are absent.
+  - Instrumentation / hooks: UI assertions via page object; ensure form events are absent; page object verifies `edit` button disabled state and tooltip copy.
   - Gaps: None.
   - Evidence: `docs/epics/kits_feature_breakdown.md:117`
+
+- Surface: BOM read-only enforcement
+  - Scenarios:
+    - Given an archived kit, When the user interacts with BOM row menus or inline actions, Then controls remain disabled with read-only tooltips and no mutation events fire.
+    - Given an active kit that becomes archived after a refetch, When the BOM table re-renders, Then all mutation affordances transition to the disabled state without executing mutations.
+  - Instrumentation / hooks: `kitsPage.expectBomActionsDisabled()` assertions on disabled state/ARIA, tooltip copy, and absence of toast/mutation events.
+  - Gaps: None.
+  - Evidence: `docs/epics/kits_feature_breakdown.md:117`, `src/components/kits/kit-bom-table.tsx:15`, `tests/support/page-objects/kits-page.ts:62`
 
 ### 14) Implementation Slices (only if large)
 
@@ -233,7 +241,7 @@ Backend already rejects archived edits and returns updated metadata with authori
   - Dependencies: Header scaffolding to open modal.
 
 - Slice: Playwright + helpers
-  - Goal: Add dialog page object, extend kits spec for success/validation/gating.
+  - Goal: Add dialog page object, extend kits spec for success/validation/gating, and assert BOM actions honor read-only state.
   - Touches: `tests/support/page-objects/kits-page.ts`, new page object, `tests/e2e/kits/kit-detail.spec.ts`.
   - Dependencies: UI + instrumentation complete.
 
