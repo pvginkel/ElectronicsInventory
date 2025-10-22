@@ -176,10 +176,11 @@ Allow planners to generate or extend purchasing lists from a kit, while keeping 
 
 - Create or append shopping lists from a kit
   - Features:
-    - Present dialog with Order-for-N control defaulting to kit build target and Honor-reserved toggle defaulting to ON.
+    - Present dialog with Order-for-N control defaulting to kit build target and Honor-reserved slider defaulting to ON.
     - Calculate Needed quantity per line based on selected units and reserved mode, zero-clamping negatives.
     - Support creating a new Concept shopping list or appending to an existing Concept list, merging quantities when lines already exist.
     - Append `[From Kit <name>]: <BOM note>` to line notes when merging, preserving prior notes.
+    - Keep the dialog focused on high-level controls; do not render individual kit line items inside the form.
   - Database / data model:
     - Reuse existing `ShoppingList` and `ShoppingListLine` models (status enum values `concept`, `ready`, `done`). Service enforces that kit pushes target lists in `concept` state.
     - `ShoppingListLine.note` stores provenance text; no JSON metadata column is required.
@@ -196,15 +197,15 @@ Allow planners to generate or extend purchasing lists from a kit, while keeping 
 
 - Manage shopping list linkage chips
   - Features:
-    - Show chips on kit detail summarizing linked lists with state badge, stale warning when kit updated after snapshot, and unlink affordance.
-    - Show chips on shopping list detail indicating every originating kit.
-    - Allow unlinking with confirmation without altering list contents.
+    - Show chips on kit detail summarizing linked lists with the existing chip visual design, omitting any staleness UI or manual refresh control.
+    - Show chips on shopping list detail indicating every originating kit using the same chip styling and content treatment as on kit detail.
+    - Allow unlinking with an icon anchored on each chip and revealed on hover; clicking opens a confirmation dialog, and confirmed removals delete the association while leaving list contents untouched.
   - Database / data model:
-    - The `KitShoppingListLink` table provides bidirectional lookups; `is_stale` is computed in service by comparing `kit.updated_at` to `snapshot_kit_updated_at`.
+    - The `KitShoppingListLink` table provides bidirectional lookups; the service may compute staleness from `kit.updated_at` vs. `snapshot_kit_updated_at`, but the UI does not expose or refresh against that signal yet.
   - API surface:
-    - `GET /kits/<int:kit_id>/shopping-lists` returns `KitShoppingListChipSchema` objects (`shopping_list_id`, `shopping_list_name`, `status`, `requested_units`, `honor_reserved`, `snapshot_kit_updated_at`, `is_stale`).
-    - `GET /shopping-lists/<int:list_id>/kits` returns reciprocal `KitChipSchema` objects (`kit_id`, `kit_name`, `status`, `requested_units`, `honor_reserved`, `is_stale`).
-    - `DELETE /kit-shopping-list-links/<int:link_id>` removes the association (cascades through FK) and returns 204.
+    - `GET /kits/<int:kit_id>/shopping-lists` returns `KitShoppingListChipSchema` objects (`shopping_list_id`, `shopping_list_name`, `status`, `requested_units`, `honor_reserved`, `snapshot_kit_updated_at`).
+    - `GET /shopping-lists/<int:list_id>/kits` returns reciprocal `KitChipSchema` objects (`kit_id`, `kit_name`, `status`, `requested_units`, `honor_reserved`).
+    - `DELETE /kit-shopping-list-links/<int:link_id>` removes the association (cascades through FK) after user confirmation and returns 204.
 
 # Feature: Pick list workflow & deduction
 
