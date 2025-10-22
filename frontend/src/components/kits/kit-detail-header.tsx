@@ -85,7 +85,7 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
             data-testid="kits.detail.actions.edit"
             aria-disabled="true"
           >
-            Edit kit
+            Edit Kit
           </Button>
         </div>
       ),
@@ -202,7 +202,7 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
             data-testid="kits.detail.actions.edit"
             disabled={!onEditMetadata}
           >
-            Edit kit
+            Edit Kit
           </Button>
         )}
       </div>
@@ -252,7 +252,7 @@ function ArchivedEditTooltip() {
         aria-disabled="true"
         className="pointer-events-none"
       >
-        Edit kit
+        Edit Kit
       </Button>
       <div
         id={tooltipId}
