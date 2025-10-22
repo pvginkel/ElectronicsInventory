@@ -48,8 +48,8 @@ class KitCreateSchema(BaseModel):
     )
     build_target: int = Field(
         default=1,
-        ge=1,
-        description="Number of complete kits to maintain in stock",
+        ge=0,
+        description="Number of complete kits to maintain in stock; must be zero or greater",
         json_schema_extra={"example": 5},
     )
 
@@ -73,8 +73,8 @@ class KitUpdateSchema(BaseModel):
     )
     build_target: int | None = Field(
         None,
-        ge=1,
-        description="Updated build target for inventory planning",
+        ge=0,
+        description="Updated build target for inventory planning; must be zero or greater",
         json_schema_extra={"example": 3},
     )
 

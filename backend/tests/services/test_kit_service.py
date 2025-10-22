@@ -359,8 +359,12 @@ class TestKitService:
         assert kit.id is not None
         assert metrics_stub.created == 1
 
+        zero_target = kit_service.create_kit(name="Zero Kit", build_target=0)
+        assert zero_target.build_target == 0
+        assert metrics_stub.created == 2
+
         with pytest.raises(InvalidOperationException):
-            kit_service.create_kit(name="Invalid Kit", build_target=0)
+            kit_service.create_kit(name="Invalid Kit", build_target=-1)
 
     def test_update_kit_prevents_noop_and_archive_guard(
         self,
@@ -380,10 +384,13 @@ class TestKitService:
         updated = kit_service.update_kit(
             kit.id,
             description="Updated",
-            build_target=4,
+            build_target=0,
         )
         assert updated.description == "Updated"
-        assert updated.build_target == 4
+        assert updated.build_target == 0
+
+        with pytest.raises(InvalidOperationException):
+            kit_service.update_kit(kit.id, build_target=-1)
 
         with pytest.raises(InvalidOperationException):
             kit_service.update_kit(kit.id)

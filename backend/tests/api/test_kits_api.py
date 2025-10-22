@@ -148,6 +148,27 @@ class TestKitsApi:
         db_kit = session.query(Kit).filter_by(name="New API Kit").one()
         assert db_kit.description == "Created through API"
 
+        zero_response = client.post(
+            "/api/kits",
+            json={
+                "name": "Zero Target Kit",
+                "description": "Allows zero build target",
+                "build_target": 0,
+            },
+        )
+        assert zero_response.status_code == 201
+        zero_data = zero_response.get_json()
+        assert zero_data["build_target"] == 0
+
+        negative_response = client.post(
+            "/api/kits",
+            json={
+                "name": "Invalid Negative Kit",
+                "build_target": -1,
+            },
+        )
+        assert negative_response.status_code == 400
+
     def test_update_kit_endpoint(self, client, session):
         kit = Kit(name="Mutable API Kit", description="Original", build_target=1)
         session.add(kit)
@@ -161,6 +182,20 @@ class TestKitsApi:
         data = response.get_json()
         assert data["description"] == "Updated"
         assert data["build_target"] == 5
+
+        zero_update = client.patch(
+            f"/api/kits/{kit.id}",
+            json={"build_target": 0},
+        )
+        assert zero_update.status_code == 200
+        zero_payload = zero_update.get_json()
+        assert zero_payload["build_target"] == 0
+
+        negative_update = client.patch(
+            f"/api/kits/{kit.id}",
+            json={"build_target": -1},
+        )
+        assert negative_update.status_code == 400
 
         empty_payload = client.patch(f"/api/kits/{kit.id}", json={})
         assert empty_payload.status_code == 409

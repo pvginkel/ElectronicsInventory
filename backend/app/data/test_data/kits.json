@@ -17,5 +17,11 @@
     "build_target": 1,
     "status": "archived",
     "archived_at": "2024-02-15T10:30:00"
+  },
+  {
+    "name": "Bench Tooling Wizard",
+    "description": "Experimental flow kit kept on standby until tooling stabilizes.",
+    "build_target": 0,
+    "status": "active"
   }
 ]

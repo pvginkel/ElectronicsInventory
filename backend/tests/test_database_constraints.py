@@ -368,11 +368,15 @@ class TestDatabaseConstraints:
                 db.session.commit()
             db.session.rollback()
 
-    def test_kit_build_target_positive_constraint(self, app: Flask):
-        """Build target constraint enforces positive values."""
+    def test_kit_build_target_non_negative_constraint(self, app: Flask):
+        """Build target constraint enforces non-negative values."""
         with app.app_context():
-            kit = Kit(name="Invalid Target", build_target=0)
-            db.session.add(kit)
+            zero_allowed = Kit(name="Zero Target", build_target=0)
+            db.session.add(zero_allowed)
+            db.session.commit()
+
+            negative = Kit(name="Negative Target", build_target=-1)
+            db.session.add(negative)
 
             with pytest.raises(exc.IntegrityError):
                 db.session.commit()

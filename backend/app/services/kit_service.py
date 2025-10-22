@@ -401,10 +401,10 @@ class KitService(BaseService):
         build_target: int = 1,
     ) -> Kit:
         """Create a new kit in active status."""
-        if build_target < 1:
+        if build_target < 0:
             raise InvalidOperationException(
                 "create kit",
-                "build target must be at least 1",
+                "build target cannot be negative",
             )
 
         kit = Kit(
@@ -455,10 +455,10 @@ class KitService(BaseService):
             applied_change = True
 
         if build_target is not None:
-            if build_target < 1:
+            if build_target < 0:
                 raise InvalidOperationException(
                     "update kit",
-                    "build target must be at least 1",
+                    "build target cannot be negative",
                 )
             kit.build_target = build_target
             applied_change = True
