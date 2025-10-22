@@ -14,8 +14,17 @@ from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.services.kit_reservation_service import KitReservationUsage
 
 
-def _create_kit_with_content(session, *, note: str = "BOM note") -> tuple[Kit, KitContent]:
-    kit = Kit(name=f"Kit-{datetime.now(UTC).timestamp()}", build_target=2, status=KitStatus.ACTIVE)
+def _create_kit_with_content(
+    session,
+    *,
+    note: str = "BOM note",
+    build_target: int = 2,
+) -> tuple[Kit, KitContent]:
+    kit = Kit(
+        name=f"Kit-{datetime.now(UTC).timestamp()}",
+        build_target=build_target,
+        status=KitStatus.ACTIVE,
+    )
     part = Part(key=f"P{int(datetime.now(UTC).timestamp())}", description="Test part")
     session.add_all([kit, part])
     session.flush()
@@ -71,6 +80,41 @@ class TestKitShoppingListService:
         assert line.needed == kit.build_target * content.required_per_unit
         assert "[From Kit" in (line.note or "")
         assert "BOM note" in (line.note or "")
+
+    def test_zero_build_target_defaults_raise_and_emit_metrics(self, session, container):
+        service = container.kit_shopping_list_service()
+        kit, _ = _create_kit_with_content(session, build_target=0)
+
+        class PushMetricsRecorder:
+            def __init__(self) -> None:
+                self.push_events: list[tuple[str, bool]] = []
+                self.unlink_events: list[str] = []
+
+            def record_kit_shopping_list_push(
+                self,
+                outcome: str,
+                honor_reserved: bool,
+                duration_seconds: float,
+            ) -> None:
+                self.push_events.append((outcome, honor_reserved))
+
+            def record_kit_shopping_list_unlink(self, outcome: str) -> None:
+                self.unlink_events.append(outcome)
+
+        metrics_recorder = PushMetricsRecorder()
+        service.metrics_service = metrics_recorder
+
+        with pytest.raises(InvalidOperationException):
+            service.create_or_append_list(
+                kit.id,
+                units=None,
+                honor_reserved=False,
+                shopping_list_id=None,
+                note_prefix="Zero",
+                new_list_name="Should Fail",
+            )
+
+        assert metrics_recorder.push_events == [("error", False)]
 
     def test_append_existing_list_merges_quantities_and_notes(self, session, container):
         service = container.kit_shopping_list_service()

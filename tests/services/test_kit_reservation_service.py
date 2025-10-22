@@ -57,6 +57,24 @@ def test_reserved_totals_handles_empty_input(session):
     assert service.get_reserved_totals_for_parts([]) == {}
 
 
+def test_reserved_totals_allow_zero_build_target(session):
+    part = Part(key="RSZ0", description="Zero target resistor")
+    kit = Kit(name="Zero Target Kit", build_target=0, status=KitStatus.ACTIVE)
+    session.add_all([part, kit])
+    session.flush()
+    session.add(KitContent(kit=kit, part=part, required_per_unit=5))
+    session.commit()
+
+    service = KitReservationService(session)
+    totals = service.get_reserved_totals_for_parts([part.id])
+    assert totals[part.id] == 0
+
+    entries = service.list_active_reservations_for_part(part.id)
+    assert len(entries) == 1
+    assert entries[0].build_target == 0
+    assert entries[0].reserved_quantity == 0
+
+
 def test_list_active_reservations_returns_metadata(session):
     part = Part(key="LM358", description="Op-amp")
     kit = Kit(name="Audio Preamp", build_target=4, status=KitStatus.ACTIVE)
