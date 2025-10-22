@@ -88,6 +88,7 @@ Layer inline add/edit/delete flows on top of the read-only workspace with optimi
     - Allow editing quantity and note inline for existing rows, piping optimistic updates through React Query cache and refetching availability after success.
     - Provide delete affordance with confirmation dialog; remove rows optimistically and reconcile once the backend responds.
     - Catch 409 conflicts (version mismatch), refetch the detail payload, reopen the edited row with latest data, and guide the user to retry.
+    - Respect archived kits by disabling the add/edit/delete affordances and surfacing gating copy alongside the header action.
   - Database / data model:
     - Reuse `KitContent` table; each mutation increments `version` and updates `Kit.updated_at` so availability calculations stay fresh. Cascading FKs ensure dependent reservations or pick list lines clean up correctly.
   - API surface:
@@ -95,8 +96,8 @@ Layer inline add/edit/delete flows on top of the read-only workspace with optimi
     - `PATCH /kits/<int:kit_id>/contents/<int:content_id>` accepts `KitContentUpdateSchema` (`required_per_unit?`, `note?`, required `version`) and returns the updated row; service raises 409 with latest payload when versions diverge.
     - `DELETE /kits/<int:kit_id>/contents/<int:content_id>` responds with 204 after removing the row.
 - Observability & testing:
-  - `useFormInstrumentation` IDs `KitContent:create`, `KitContent:update`, `KitContent:delete` (metadata includes `kitId`, `contentId?`, `partKey`, `phase`).
-  - Continue emitting `kits.detail` / `kits.detail.contents` scopes; ensure optimistic phases do not emit “ready” until refetch completes.
+  - `useFormInstrumentation` IDs `KitContent:create`, `KitContent:update`, `KitContent:delete` (metadata includes `kitId`, `contentId?`, `partKey`, `phase`), with success deferred until the `kits.detail.contents` refetch completes.
+  - Continue emitting `kits.detail` / `kits.detail.contents` scopes; ensure optimistic phases do not emit “ready” until refetch completes and overlay state clears.
   - Playwright spec add-ons cover create, edit (including forced conflict via factory helper), and delete, waiting on instrumentation events and asserting real backend state.
 
 ## Dependencies & sequencing
