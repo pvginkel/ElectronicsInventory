@@ -71,7 +71,7 @@ function collectValidationErrors(values: KitMetadataFormValues) {
 function toSnapshot(values: KitMetadataFormValues, baseline: { name: string; buildTarget: number }, kitId: number): KitMetadataSnapshot {
   const trimmedName = normalizeWhitespace(String(values.name ?? ''));
   const parsedBuildTarget = parseBuildTarget(values.buildTarget);
-  const safeBuildTarget = parsedBuildTarget > 0 ? parsedBuildTarget : baseline.buildTarget;
+  const safeBuildTarget = parsedBuildTarget >= 0 ? parsedBuildTarget : baseline.buildTarget;
   return {
     kitId,
     buildTarget: safeBuildTarget,
@@ -453,7 +453,7 @@ export function KitMetadataDialog({ open, kit, onOpenChange, onSuccess }: KitMet
               <Input
                 id="kits.detail.metadata.build-target"
                 type="number"
-                min={1}
+                min={0}
                 value={form.values.buildTarget}
                 onChange={(event) => form.setValue('buildTarget', event.target.value)}
                 onBlur={() => form.setFieldTouched('buildTarget')}

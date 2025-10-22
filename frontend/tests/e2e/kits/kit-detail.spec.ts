@@ -183,12 +183,10 @@ test.describe('Kit detail workspace', () => {
     await expect(kits.detailSummaryBadge('total')).toHaveText(
       new RegExp(numberFormatter.format(totalRequired))
     );
-    await expect(kits.detailSummaryBadge('available')).toHaveText(
-      new RegExp(numberFormatter.format(totalAvailable))
-    );
     await expect(kits.detailSummaryBadge('shortfall')).toHaveText(
       new RegExp(numberFormatter.format(totalShortfall))
     );
+    await expect(page.getByTestId('kits.detail.table.summary.available')).toHaveCount(0);
 
     const noteRowLocator = kits.detailTableRow(noteRow.id);
     await expect(noteRowLocator).toContainText(noteRow.part.description);

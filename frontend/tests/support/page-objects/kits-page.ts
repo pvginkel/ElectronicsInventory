@@ -203,7 +203,7 @@ export class KitsPage extends BasePage {
     return this.page.getByTestId('kits.detail.links.empty');
   }
 
-  detailSummaryBadge(kind: 'total' | 'available' | 'shortfall'): Locator {
+  detailSummaryBadge(kind: 'total' | 'shortfall'): Locator {
     return this.page.getByTestId(`kits.detail.table.summary.${kind}`);
   }
 
