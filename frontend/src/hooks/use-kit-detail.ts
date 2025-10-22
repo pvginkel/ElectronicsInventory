@@ -26,6 +26,10 @@ export interface UseKitDetailResult {
   getContentsAbortedMetadata: () => { kitId: number | null; status: 'aborted' };
 }
 
+export function buildKitDetailQueryKey(kitId: number) {
+  return ['getKitsByKitId', { path: { kit_id: kitId } }] as const;
+}
+
 /**
  * Fetch kit detail payload and map into domain-friendly structures for UI consumption.
  */

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { AlertTriangle, Plus } from 'lucide-react';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { KitContentAggregates, KitContentRow, KitDetail } from '@/types/kits';
 import type { KitStatus } from '@/types/kits';
+import { KitMetadataDialog } from '@/components/kits/kit-metadata-dialog';
 
 interface KitDetailProps {
   kitId: string;
@@ -78,6 +79,15 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
     getErrorMetadata: getDetailErrorMetadata,
   });
 
+  const [isMetadataDialogOpen, setMetadataDialogOpen] = useState(false);
+
+  const handleMetadataOpen = useCallback(() => {
+    if (!detail || detail.status !== 'active') {
+      return;
+    }
+    setMetadataDialogOpen(true);
+  }, [detail]);
+
   const headerSlots = useMemo(
     () =>
       createKitDetailHeaderSlots({
@@ -85,8 +95,9 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
         isLoading: isPending,
         overviewStatus,
         overviewSearch,
+        onEditMetadata: handleMetadataOpen,
       }),
-    [detail, isPending, overviewSearch, overviewStatus]
+    [detail, handleMetadataOpen, isPending, overviewSearch, overviewStatus]
   );
 
   const content = (() => {
@@ -145,6 +156,16 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
       >
         {content}
       </DetailScreenLayout>
+      {detail ? (
+        <KitMetadataDialog
+          open={isMetadataDialogOpen}
+          kit={detail}
+          onOpenChange={setMetadataDialogOpen}
+          onSuccess={() => {
+            void query.refetch();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -196,6 +217,7 @@ function KitDetailLoaded({ detail, contents, aggregates, query }: KitDetailLoade
               onClick={handleAddClick}
               disabled={addButtonDisabled}
               title={addButtonTitle}
+              aria-disabled={kitContents.isArchived ? 'true' : undefined}
               className="inline-flex items-center gap-2"
               data-testid="kits.detail.table.add"
             >
@@ -345,6 +367,12 @@ function KitBOMSummary({ aggregates }: KitBOMSummaryProps) {
         value={aggregates.totalRequired}
         className="bg-slate-100 text-slate-700"
         testId="kits.detail.table.summary.total"
+      />
+      <SummaryBadge
+        label="Available"
+        value={aggregates.totalAvailable}
+        className="bg-emerald-100 text-emerald-800"
+        testId="kits.detail.table.summary.available"
       />
       <SummaryBadge
         label="Shortfall"

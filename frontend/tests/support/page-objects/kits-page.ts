@@ -37,6 +37,13 @@ export class KitsPage extends BasePage {
   readonly detailDeleteDialog: Locator;
   readonly detailDeleteConfirm: Locator;
   readonly detailDeleteCancel: Locator;
+  readonly detailMetadataDialog: Locator;
+  readonly detailMetadataForm: Locator;
+  readonly detailMetadataNameField: Locator;
+  readonly detailMetadataDescriptionField: Locator;
+  readonly detailMetadataBuildTargetField: Locator;
+  readonly detailMetadataSubmit: Locator;
+  readonly detailMetadataCancel: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -72,6 +79,13 @@ export class KitsPage extends BasePage {
     this.detailDeleteDialog = page.getByTestId('kits.detail.table.delete.dialog');
     this.detailDeleteConfirm = page.getByTestId('kits.detail.table.delete.confirm');
     this.detailDeleteCancel = page.getByTestId('kits.detail.table.delete.cancel');
+    this.detailMetadataDialog = page.getByTestId('kits.detail.metadata.dialog');
+    this.detailMetadataForm = page.getByTestId('kits.detail.metadata.form');
+    this.detailMetadataNameField = page.getByTestId('kits.detail.metadata.field.name');
+    this.detailMetadataDescriptionField = page.getByTestId('kits.detail.metadata.field.description');
+    this.detailMetadataBuildTargetField = page.getByTestId('kits.detail.metadata.field.build-target');
+    this.detailMetadataSubmit = page.getByTestId('kits.detail.metadata.submit');
+    this.detailMetadataCancel = page.getByTestId('kits.detail.metadata.cancel');
   }
 
   async gotoOverview(): Promise<void> {

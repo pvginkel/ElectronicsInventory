@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
-import { waitForListLoading, waitTestEvent } from '../../support/helpers';
+import { waitForFormValidationError, waitForListLoading, waitTestEvent } from '../../support/helpers';
 import type { UiStateTestEvent, FormTestEvent } from '@/types/test-events';
 import type { KitContentDetailSchema_b98797e } from '@/lib/api/generated/hooks';
 import type {
@@ -174,10 +174,11 @@ test.describe('Kit detail workspace', () => {
     await expect(kits.detailHeader).toContainText(targetKitDescription);
     await expect(kits.detailLinksEmpty).toBeVisible();
 
-    await expect(kits.detailEditButton).toBeDisabled();
-    await kits.detailEditWrapper.hover();
-    await expect(kits.detailEditTooltip).toBeVisible();
-    await expect(kits.detailEditTooltip).toContainText('Editing kits will be available');
+    await expect(kits.detailEditButton).toBeEnabled();
+    await kits.detailEditButton.click();
+    await expect(kits.detailMetadataDialog).toBeVisible();
+    await kits.detailMetadataCancel.click();
+    await expect(kits.detailMetadataDialog).not.toBeVisible();
 
     await expect(kits.detailSummaryBadge('total')).toHaveText(
       new RegExp(numberFormatter.format(totalRequired))
@@ -234,6 +235,205 @@ test.describe('Kit detail workspace', () => {
     await Promise.all([partNavigation, partLink.click()]);
     await expect(page.getByRole('heading', { level: 1, name: new RegExp(reservationRow.part.description, 'i') })).toBeVisible();
 
+  });
+
+  test('updates kit metadata and refetches detail instrumentation', async ({
+    kits,
+    page,
+    apiClient,
+    testData,
+  }) => {
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Metadata Kit'),
+        description: 'Original metadata description',
+        build_target: 3,
+      },
+    });
+
+    const detailReady = waitForListLoading(page, 'kits.detail', 'ready');
+    const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');
+
+    await kits.gotoOverview();
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await kits.openDetailFromCard(kit.id);
+
+    await detailReady;
+    await contentsReady;
+
+    const formOpen = waitTestEvent<FormTestEvent>(
+      page,
+      'form',
+      (event) => event.formId === 'KitDetail:metadata' && event.phase === 'open'
+    );
+    await kits.detailEditButton.click();
+    await formOpen;
+
+    await expect(kits.detailMetadataDialog).toBeVisible();
+
+    const updatedName = `${kit.name} Rev`;
+    const updatedDescription = 'Updated metadata description for planners';
+    const updatedBuildTarget = kit.build_target + 2;
+
+    await kits.detailMetadataNameField.fill(updatedName);
+    await kits.detailMetadataDescriptionField.fill(updatedDescription);
+    await kits.detailMetadataBuildTargetField.fill(String(updatedBuildTarget));
+
+    const submitEventPromise = waitTestEvent<FormTestEvent>(
+      page,
+      'form',
+      (event) => event.formId === 'KitDetail:metadata' && event.phase === 'submit'
+    );
+    const successEventPromise = waitTestEvent<FormTestEvent>(
+      page,
+      'form',
+      (event) => event.formId === 'KitDetail:metadata' && event.phase === 'success'
+    );
+    const detailReload = waitForListLoading(page, 'kits.detail', 'ready');
+    const contentsReload = waitForListLoading(page, 'kits.detail.contents', 'ready');
+
+    await kits.detailMetadataSubmit.click();
+
+    const submitEvent = await submitEventPromise;
+    expect(submitEvent.metadata?.kitId).toBe(kit.id);
+    expect(submitEvent.metadata?.buildTarget).toBe(updatedBuildTarget);
+    expect(submitEvent.metadata?.nameChanged).toBe(true);
+    expect(submitEvent.metadata?.buildTargetChanged).toBe(true);
+
+    const successEvent = await successEventPromise;
+    expect(successEvent.metadata?.kitId).toBe(kit.id);
+    expect(successEvent.metadata?.buildTarget).toBe(updatedBuildTarget);
+
+    await detailReload;
+    await contentsReload;
+
+    await expect(kits.detailMetadataDialog).not.toBeVisible();
+    await expect(kits.detailTitle).toHaveText(updatedName);
+    await expect(kits.detailBuildTargetBadge).toContainText(
+      new RegExp(String(updatedBuildTarget))
+    );
+    await expect(kits.detailDescription).toContainText(updatedDescription);
+
+    const backendDetail = await apiClient.apiRequest<KitDetailResponseSchema_b98797e>(() =>
+      apiClient.GET('/api/kits/{kit_id}', { params: { path: { kit_id: kit.id } } })
+    );
+    expect(backendDetail.name).toBe(updatedName);
+    expect(backendDetail.description).toBe(updatedDescription);
+    expect(backendDetail.build_target).toBe(updatedBuildTarget);
+  });
+
+  test('surfaces validation errors when metadata inputs are invalid', async ({
+    kits,
+    page,
+    testData,
+  }) => {
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Validation Kit'),
+        build_target: 5,
+      },
+    });
+
+    const detailReady = waitForListLoading(page, 'kits.detail', 'ready');
+    const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');
+
+    await kits.gotoOverview();
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await kits.openDetailFromCard(kit.id);
+
+    await detailReady;
+    await contentsReady;
+
+    await kits.detailEditButton.click();
+    await waitTestEvent<FormTestEvent>(
+      page,
+      'form',
+      (event) => event.formId === 'KitDetail:metadata' && event.phase === 'open'
+    );
+
+    await kits.detailMetadataNameField.fill('   ');
+    await kits.detailMetadataBuildTargetField.fill('-1');
+
+    const nameValidation = waitForFormValidationError(page, 'KitDetail:metadata', 'name');
+    const targetValidation = waitForFormValidationError(page, 'KitDetail:metadata', 'buildTarget');
+
+    await kits.detailMetadataSubmit.click();
+    await Promise.all([nameValidation, targetValidation]);
+
+    const dialog = kits.detailMetadataDialog;
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('Name is required')).toBeVisible();
+    await expect(dialog.getByText('Build target must be 0 or greater')).toBeVisible();
+
+    await kits.detailMetadataCancel.click();
+    await expect(kits.detailMetadataDialog).not.toBeVisible();
+  });
+
+  test('disables metadata editing and BOM actions for archived kits', async ({
+    kits,
+    page,
+    apiClient,
+    testData,
+  }) => {
+    const { part } = await testData.parts.create({
+      overrides: {
+        description: 'Archived Part',
+      },
+    });
+    const reservations = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Archived Kit'),
+        build_target: 4,
+      },
+    });
+    await testData.kits.addContent(kit.id, {
+      partId: reservations.part_id,
+      requiredPerUnit: 2,
+    });
+    await apiClient.POST('/api/kits/{kit_id}/archive', {
+      params: { path: { kit_id: kit.id } },
+    });
+
+    await kits.gotoOverview();
+    await kits.selectTab('archived');
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await kits.openDetailFromCard(kit.id, 'archived');
+
+    await waitForListLoading(page, 'kits.detail', 'ready');
+    await waitForListLoading(page, 'kits.detail.contents', 'ready');
+
+    await expect(kits.detailEditButton).toBeDisabled();
+    await kits.detailEditWrapper.hover();
+    await expect(kits.detailEditTooltip).toBeVisible();
+    await expect(kits.detailEditTooltip).toContainText('Archived kits are read-only');
+
+    await expect(kits.detailAddPartButton).toBeDisabled();
+    await expect(kits.detailAddPartButton).toHaveAttribute('title', /Archived kits cannot be edited/i);
+
+    const archivedDetail = await testData.kits.getDetail(kit.id);
+    const firstContentId = (archivedDetail.contents ?? [])[0]?.id;
+    expect(firstContentId).toBeDefined();
+
+    const row = kits.detailTableRow(firstContentId!);
+    await expect(row).toBeVisible();
+
+    const rowEditButton = kits.detailRowEditButton(firstContentId!);
+    const rowDeleteButton = kits.detailRowDeleteButton(firstContentId!);
+    await expect(rowEditButton).toBeDisabled();
+    await expect(rowEditButton).toHaveAttribute('title', /Archived kits cannot be edited/i);
+    await expect(rowDeleteButton).toBeDisabled();
+    await expect(rowDeleteButton).toHaveAttribute('title', /Archived kits cannot be edited/i);
   });
 
   test('renders linked shopping and pick list chips with navigation', async ({

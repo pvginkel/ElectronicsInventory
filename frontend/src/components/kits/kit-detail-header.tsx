@@ -22,6 +22,7 @@ export interface KitDetailHeaderOptions {
   isLoading: boolean;
   overviewStatus: KitStatus;
   overviewSearch?: string;
+  onEditMetadata?: () => void;
 }
 
 const STATUS_LABEL: Record<KitStatus, string> = {
@@ -49,7 +50,7 @@ const PICK_LIST_STATUS_ORDER: Record<string, number> = {
  * Build the header slots for the kit detail layout.
  */
 export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): KitDetailHeaderSlots {
-  const { kit, isLoading, overviewStatus, overviewSearch } = options;
+  const { kit, isLoading, overviewStatus, overviewSearch, onEditMetadata } = options;
 
   if (isLoading) {
     return {
@@ -77,7 +78,16 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
         </div>
       ),
       actions: (
-        <DisabledActionTooltip />
+        <div className="inline-flex" data-testid="kits.detail.actions.edit.wrapper">
+          <Button
+            variant="outline"
+            disabled
+            data-testid="kits.detail.actions.edit"
+            aria-disabled="true"
+          >
+            Edit kit
+          </Button>
+        </div>
       ),
     };
   }
@@ -108,6 +118,7 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
   const sortedShoppingLinks = sortShoppingLinks(kit.shoppingListLinks);
   const sortedPickLists = sortPickLists(kit.pickLists);
   const hasLinkedWork = sortedShoppingLinks.length > 0 || sortedPickLists.length > 0;
+  const isArchived = kit.status === 'archived';
 
   return {
     breadcrumbs: (
@@ -180,7 +191,22 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
         )}
       </div>
     ),
-    actions: <DisabledActionTooltip />,
+    actions: (
+      <div className="inline-flex" data-testid="kits.detail.actions.edit.wrapper">
+        {isArchived ? (
+          <ArchivedEditTooltip />
+        ) : (
+          <Button
+            variant="outline"
+            onClick={onEditMetadata}
+            data-testid="kits.detail.actions.edit"
+            disabled={!onEditMetadata}
+          >
+            Edit kit
+          </Button>
+        )}
+      </div>
+    ),
   };
 }
 
@@ -210,7 +236,7 @@ function formatPickListLabel(pickList: KitPickListSummary): string {
   return `Pick list #${pickList.id}`;
 }
 
-function DisabledActionTooltip() {
+function ArchivedEditTooltip() {
   const tooltipId = 'kits-detail-edit-tooltip';
 
   return (
@@ -218,7 +244,6 @@ function DisabledActionTooltip() {
       className="group relative inline-flex cursor-not-allowed"
       tabIndex={0}
       aria-describedby={tooltipId}
-      data-testid="kits.detail.actions.edit.wrapper"
     >
       <Button
         variant="outline"
@@ -235,7 +260,7 @@ function DisabledActionTooltip() {
         className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 hidden w-64 -translate-x-1/2 rounded-md border border-border bg-background p-2 text-xs text-muted-foreground shadow-lg group-hover:block group-focus-visible:block"
         data-testid="kits.detail.actions.edit.tooltip"
       >
-        Editing kits will be available after the metadata slice ships.
+        Archived kits are read-only. Unarchive the kit to edit metadata or BOM contents.
       </div>
     </div>
   );

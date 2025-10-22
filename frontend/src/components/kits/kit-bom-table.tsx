@@ -159,6 +159,7 @@ export function KitBOMTable({ rows, controls }: KitBOMTableProps) {
                   pendingUpdate={pendingUpdate}
                   isDeleting={isDeleting}
                   disableActions={disableMutations}
+                  readOnly={isArchived}
                   onEdit={edit.start}
                   onDelete={remove.open}
                 />
@@ -190,6 +191,7 @@ interface KitBOMDisplayRowProps {
   pendingUpdate?: PendingUpdateDraft;
   isDeleting: boolean;
   disableActions: boolean;
+  readOnly: boolean;
   onEdit: (row: KitContentRow) => void;
   onDelete: (row: KitContentRow) => void;
 }
@@ -199,6 +201,7 @@ function KitBOMDisplayRow({
   pendingUpdate,
   isDeleting,
   disableActions,
+  readOnly,
   onEdit,
   onDelete,
 }: KitBOMDisplayRowProps) {
@@ -211,6 +214,7 @@ function KitBOMDisplayRow({
   );
 
   const disableRowActions = disableActions || Boolean(pendingUpdate) || isDeleting;
+  const readOnlyTooltip = readOnly ? 'Archived kits cannot be edited' : undefined;
 
   const handleEdit = () => {
     if (!disableRowActions) {
@@ -269,11 +273,9 @@ function KitBOMDisplayRow({
         </span>
       </td>
       <td className="px-4 py-3 align-top">
-        {row.note ? (
-          <p className="text-xs text-muted-foreground">{row.note}</p>
-        ) : (
-          <span className="text-xs text-muted-foreground/70">—</span>
-        )}
+        <div className="line-clamp-2 overflow-hidden" title={row.note || ''}>
+          {row.note || '—'}
+        </div>
       </td>
       <td className="px-4 py-3 text-right align-top">
         <div className="flex items-center justify-end gap-2">
@@ -295,6 +297,8 @@ function KitBOMDisplayRow({
             className="h-8 w-8 p-0"
             onClick={handleEdit}
             disabled={disableRowActions}
+            aria-disabled={readOnly ? 'true' : undefined}
+            title={readOnlyTooltip}
             data-testid={`kits.detail.table.row.${row.id}.edit`}
           >
             <Pencil className="h-4 w-4" />
@@ -306,6 +310,8 @@ function KitBOMDisplayRow({
             className="h-8 w-8 p-0"
             onClick={handleDelete}
             disabled={disableRowActions}
+            aria-disabled={readOnly ? 'true' : undefined}
+            title={readOnlyTooltip}
             data-testid={`kits.detail.table.row.${row.id}.delete`}
           >
             <Trash className="h-4 w-4" />
