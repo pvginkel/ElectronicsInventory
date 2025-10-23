@@ -52,7 +52,7 @@ Shared selector will load shopping lists via `GET /shopping-lists` with `status[
 - Evidence: src/components/ui/searchable-select.tsx:16
 
 - Area: src/components/shopping-lists/list-create-dialog.tsx
-- Why: Reuse for inline creation; may need minor callbacks to resolve selection metadata.
+- Why: Reuse for inline creation and add `initialName` / optional `initialDescription` props so typed values flow from the selector into the dialog.
 - Evidence: src/components/shopping-lists/list-create-dialog.tsx:23
 
 - Area: tests/support/page-objects/parts-page.ts
@@ -62,6 +62,10 @@ Shared selector will load shopping lists via `GET /shopping-lists` with `status[
 - Area: tests/support/page-objects/seller-selector-harness.ts
 - Why: Mirror harness patterns (search, select, inline creation) when adding a shopping list selector harness.
 - Evidence: tests/support/page-objects/seller-selector-harness.ts:1
+
+- Area: tests/api/factories/shopping-list-factory.ts
+- Why: Add an `expectConceptMembership` helper so Playwright specs can assert backend state after inline creation.
+- Evidence: tests/api/factories/shopping-list-factory.ts:1
 
 - Area: tests/e2e/shopping-lists/parts-entrypoints.spec.ts
 - Why: Adjust scenarios to drive the searchable select, wait on new instrumentation, and cover inline creation.
@@ -85,12 +89,12 @@ Shared selector will load shopping lists via `GET /shopping-lists` with `status[
 
 - Entity / contract: ShoppingListCreateResult
 - Shape: `{ id: number; name: string }` emitted from `ListCreateDialog` on success.
-- Mapping: Inline selector consumes result to set both React Query cache (via invalidation) and `SearchableSelect` value + search term.
-- Evidence: src/components/shopping-lists/list-create-dialog.tsx:63
+- Mapping: Inline selector consumes result to set both React Query cache (via invalidation) and `SearchableSelect` value + search term; dialog accepts `initialName` / `initialDescription` props to preserve the user’s typed values.
+- Evidence: src/components/shopping-lists/list-create-dialog.tsx:23
 
 - Entity / contract: ShoppingListSelectorProps (new component API)
-- Shape: `{ value?: number; onChange(listId: number | undefined): void; statuses: ShoppingListStatus[]; enableCreate?: boolean; instrumentation?: { scope?: string; getReadyMetadata?: () => Record<string, unknown>; getErrorMetadata?: (error: unknown) => Record<string, unknown>; getAbortedMetadata?: () => Record<string, unknown> } }`.
-- Mapping: Consumers (Order Stock, future kits) pass desired statuses (e.g., `['concept']`) and optionally override instrumentation metadata; selector internally wires these into hooks and `SearchableSelect`.
+- Shape: `{ value?: number; onChange(listId: number | undefined): void; statuses: ShoppingListStatus[]; enableCreate?: boolean; enabled?: boolean; instrumentation?: { scope: string; getReadyMetadata?: () => Record<string, unknown>; getErrorMetadata?: (error: unknown) => Record<string, unknown>; getAbortedMetadata?: () => Record<string, unknown> } }`.
+- Mapping: Consumers (Order Stock, future kits) pass desired statuses (e.g., `['concept']`), drive the `enabled` flag from their own open state, and supply the instrumentation scope for `list_loading`; selector internally wires overrides into hooks and `SearchableSelect`.
 - Evidence: src/components/types/type-selector.tsx:12, src/components/sellers/seller-selector.tsx:24
 
 ### 4) API / Integration Surface
@@ -117,16 +121,16 @@ Shared selector will load shopping lists via `GET /shopping-lists` with `status[
 
 - Flow: Load searchable shopping list options
   - Steps:
-    1. On dialog open, call `useShoppingListOptions({ statuses })` that wraps `useGetShoppingLists({ query: { status: statuses } })`.
+    1. `ShoppingListSelector` calls `useShoppingListOptions({ statuses, enabled })`, wrapping `useGetShoppingLists({ query: { status: statuses } }, { enabled })` so requests only fire while the dialog is open.
     2. Memo-filter the returned lists by the selector’s `searchTerm`, mirroring the `TypeSelector` pattern, and drop any statuses not in the allowlist.
-    3. Hydrate `SearchableSelect` with filtered options; keep `searchTerm` in sync with selection and emit optional instrumentation metadata if configured.
-  - States / transitions: Query `status` (`loading` → `success`/`error`), local `searchTerm`, `isOpen` flag controlling whether fetch runs.
-  - Hotspots: Avoid unnecessary recompute by memoizing filter; propagate `isLoading` and `error` states so inline creation affordance stays responsive.
+    3. Hydrate `SearchableSelect` with filtered options; keep `searchTerm` in sync with selection and emit instrumentation metadata via the consumer-supplied scope.
+  - States / transitions: Query `status` (`loading` → `success`/`error`), local `searchTerm`, consumer-provided `enabled` flag controlling fetches.
+  - Hotspots: Avoid unnecessary recompute by memoizing filter; propagate `isLoading`/`error` states so inline creation affordance stays responsive even when disabled.
 - Evidence: src/components/types/type-selector.tsx:24
 
 - Flow: Shopping list creation modal (concept-only today)
 - Steps:
-  1. User triggers the selector’s “Create list” affordance (only rendered when `statuses` includes `'concept'` and `enableCreate` prop is true), which opens `ListCreateDialog`.
+  1. User triggers the selector’s “Create list” affordance (only rendered when `statuses` includes `'concept'` and `enableCreate` prop is true); selector opens `ListCreateDialog`, passing the current search term via `initialName` (and optional `initialDescription` when we support prefilling notes).
   2. Dialog submits via `useCreateShoppingListMutation`, invalidating caches on success.
   3. Selector receives `onCreated`, refreshes options, and selects the returned list ID.
 - States / transitions: Track dialog open state separately; selector stays mounted while modal is open.
@@ -169,7 +173,7 @@ Shared selector will load shopping lists via `GET /shopping-lists` with `status[
 
 - Source of truth: Shopping list options live in a dedicated React Query cache keyed by allowed statuses; form state lives in `useFormState`.
 - Coordination: Selector hook updates the selected list ID via `onChange`; creation dialog success handler writes the new ID back into form state.
-  - Async safeguards: Gate fetches behind `open` state and rely on client-side filtering to avoid extra backend churn.
+  - Async safeguards: The selector accepts an `enabled` flag derived from the modal’s `open` state so `useGetShoppingLists` sleeps until the dialog is visible; client-side filtering avoids extra backend churn.
   - Instrumentation: Forward optional `list_loading` scope + metadata props to the selector; keep form `track*` events for submission aligned with documented testing hooks.
 - Evidence: src/components/shopping-lists/part/add-to-shopping-list-dialog.tsx:226
 
@@ -202,9 +206,9 @@ Shared selector will load shopping lists via `GET /shopping-lists` with `status[
 - Consumer: Playwright `waitTestEvent` helper.
 - Evidence: src/components/shopping-lists/part/add-to-shopping-list-dialog.tsx:200
 
-- Signal: `list_loading` (default `parts.orderStock.lists`, overridable via selector props)
+- Signal: `list_loading` (scope supplied by each consumer via selector props)
   - Type: instrumentation event
-  - Trigger: Selector consumers pass an optional scope + metadata builders into the selector, which forwards them to `useListLoadingInstrumentation`.
+  - Trigger: Selector wiring forwards the required scope and optional metadata builders into `useListLoadingInstrumentation`.
   - Labels / fields: Include `optionCount`, `searchTerm`, and consumer-provided tags for ready metadata.
   - Consumer: Playwright `waitForListLoading`.
   - Evidence: src/lib/test/query-instrumentation.ts:200
@@ -254,7 +258,7 @@ Not applicable — dialogs reuse authenticated user flows and server-side author
   - Scenarios:
     - Given shopping lists with allowed statuses (concept) exist, When the user searches and selects an existing list, Then the selection remains after closing and submitting adds the part.
     - Given a duplicate membership on one of the allowed lists, When the user selects the same list and submits, Then a conflict banner appears and instrumentation emits validation events.
-  - Instrumentation / hooks: `waitForListLoading(page, 'parts.orderStock.lists', 'ready')`, `waitTestEvent` for `ShoppingListMembership:addFromPart`.
+  - Instrumentation / hooks: Order Stock passes `instrumentation.scope = 'parts.orderStock.lists'` into the selector so Playwright can `waitForListLoading(page, 'parts.orderStock.lists', 'ready')`; reuse existing `waitTestEvent` for `ShoppingListMembership:addFromPart`.
   - Backend hooks: `testData.parts.create` for the subject part, `testData.sellers.create` for override coverage, and `testData.shoppingLists.createWithLines` to seed concept lists + duplicate memberships.
   - Gaps: None — all scenarios will be updated.
 - Evidence: tests/e2e/shopping-lists/parts-entrypoints.spec.ts:18
@@ -263,26 +267,26 @@ Not applicable — dialogs reuse authenticated user flows and server-side author
   - Scenarios:
     - Given no matching list, When the user triggers inline creation and completes the dialog, Then the new concept list appears selected and submit succeeds.
     - Given validation errors, When the user submits empty name, Then inline dialog shows validation copy and tests capture validation event.
-  - Instrumentation / hooks: `waitTestEvent` for `ShoppingListCreate:concept`, `waitForListLoading` for selector refresh.
-  - Backend hooks: `testData.parts.create` to provision the source part and `testData.shoppingLists.expectConceptMembership` helper (to add if missing) to assert the new membership after submit.
+  - Instrumentation / hooks: `waitTestEvent` for `ShoppingListCreate:concept`, `waitForListLoading` using the selector scope for the refetch.
+  - Backend hooks: `testData.parts.create` to provision the source part and the new `testData.shoppingLists.expectConceptMembership` helper to assert the created membership after submit.
   - Gaps: None.
 - Evidence: tests/support/page-objects/seller-selector-harness.ts:34
 
 ### 14) Implementation Slices (only if large)
 
 - Slice: Selector hook & instrumentation
-  - Goal: Introduce reusable shopping list selector with optional instrumentation props, status filtering, and client-side search.
+  - Goal: Introduce reusable shopping list selector with status filtering, client-side search, and a required instrumentation scope so consumers own their `list_loading` namespace.
   - Touches: `src/hooks/use-shopping-lists.ts`, new selector component, tests harness.
 - Dependencies: None.
 
 - Slice: Modal integration & inline creation wiring
- - Goal: Replace dropdown, embed selector configured with `statuses=['concept']`, ensure form + mutation flow works, and retire legacy inline fields.
+ - Goal: Replace dropdown, embed selector configured with `statuses=['concept']` and `instrumentation.scope='parts.orderStock.lists'`, preserve the user-entered search term by passing `initialName`/`initialDescription` into `ListCreateDialog`, and retire legacy inline fields.
  - Touches: `add-to-shopping-list-dialog`, `list-create-dialog`, instrumentation metadata.
 - Dependencies: Selector slice merged.
 
 - Slice: Playwright coverage
 - Goal: Update page objects/specs to drive new UI and assert instrumentation.
-- Touches: Page objects, new harness, `parts-entrypoints.spec`.
+- Touches: Page objects, new harness, `parts-entrypoints.spec`, `tests/api/factories/shopping-list-factory.ts` (helper export).
 - Dependencies: UI slices completed.
 
 ### 15) Risks & Open Questions
@@ -297,7 +301,7 @@ Not applicable — dialogs reuse authenticated user flows and server-side author
 
 - Risk: Test timing flakiness if instrumentation scope mismatched.
 - Impact: Playwright waits hang or race with UI.
-- Mitigation: Require selector consumers to pass the desired `list_loading` scope (defaulting to `parts.orderStock.lists`) and update helpers simultaneously.
+- Mitigation: Enforce a required `scope` prop on the selector so each consumer specifies its namespace (Order Stock uses `parts.orderStock.lists`), updating helpers simultaneously.
 
 - Question: When shopping list volume grows beyond client-side comfort, what backend search/pagination contract should replace the current filter?
 - Why it matters: Prepares for future performance work without repainting the selector API.

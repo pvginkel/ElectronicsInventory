@@ -1,99 +1,94 @@
 ### 1) Summary & Decision
 **Readiness**
-The plan covers the major UI refactor and instrumentation touchpoints, but conflicting search strategy guidance and missing backend/testing scaffolding signal gaps that would block a smooth slice kickoff.
+The plan maps the component extraction, hook layering, and instrumentation touchpoints in detail (“Encapsulate the reusable searchable select with configurable status filters…” `docs/features/order_stock_modal_select/plan.md:42-44`, “Surface deterministic instrumentation…” `docs/features/order_stock_modal_select/plan.md:22-24`, `docs/features/order_stock_modal_select/plan.md:205-207`). However, three blockers remain: Playwright coverage references a non-existent helper (`testData.shoppingLists.expectConceptMembership`) (`docs/features/order_stock_modal_select/plan.md:262-268`), the shared selector hardcodes a parts-specific `list_loading` scope despite aiming for reuse (`docs/features/order_stock_modal_select/plan.md:205`, `docs/features/order_stock_modal_select/plan.md:300`), and the create-list flow would drop the user’s typed name because `ListCreateDialog` lacks any `initialName` prop (`docs/features/order_stock_modal_select/plan.md:22-24`, `docs/features/order_stock_modal_select/plan.md:129-134`; `src/components/shopping-lists/list-create-dialog.tsx:13-20`).
 
 **Decision**
-`GO-WITH-CONDITIONS` — Resolve the instrumentation scope reuse problem and nail down deterministic Playwright backend hooks / search semantics before implementation proceeds.
+`GO-WITH-CONDITIONS` — resolve instrumentation scope ownership, add the missing deterministic test helper (or adjust coverage), and preserve the inline-create prefill UX before implementation proceeds.
 
 ### 2) Conformance & Fit (with evidence)
 **Conformance to refs**
-- `docs/product_brief.md` — Pass — `docs/features/order_stock_modal_select/plan.md:21-33` — “Replace the modal’s native dropdown…Shared component will load Concept lists…” keeps the shopping-list workflow intact for the single-user brief.
-- `docs/contribute/architecture/application_overview.md` — Pass — `docs/features/order_stock_modal_select/plan.md:37-55` — Plan extends existing domain-driven folders (`components/shopping-lists`, `hooks`) and generated API hooks as required by the architecture overview.
-- `docs/contribute/testing/playwright_developer_guide.md` — Fail — `docs/features/order_stock_modal_select/plan.md:247-261` omits the backend factory hooks the guide mandates for deterministic scenarios.
+- `docs/contribute/testing/playwright_developer_guide.md` — Fail — `docs/features/order_stock_modal_select/plan.md:262-268` — “Backend hooks… `testData.shoppingLists.expectConceptMembership`… Gaps: None.” (Plan depends on an undefined helper, so deterministic backend assertions are not actually satisfied.)
+- `docs/contribute/architecture/application_overview.md` — Pass — `docs/features/order_stock_modal_select/plan.md:42-55` — “Encapsulate the reusable searchable select… Provide a shopping-list search hook backed by `useGetShoppingLists`…” (Aligns with the documented pattern of domain components wrapping generated API hooks.)
 
 **Fit with codebase**
-- `src/components/shopping-lists/concept-list-selector.tsx (new)` — `docs/features/order_stock_modal_select/plan.md:41-45` — Reuse intent is sound, but instrumentation is later hard-coded to `parts.orderStock.lists`, contradicting the reusable component goal.
-- `src/components/shopping-lists/part/add-to-shopping-list-dialog.tsx` — `docs/features/order_stock_modal_select/plan.md:37-39` — Swap aligns with existing dialog pattern, yet removal of inline creation must retire `createNewList` state to avoid dead code paths.
-- `src/hooks/use-shopping-lists.ts` — `docs/features/order_stock_modal_select/plan.md:45-47,92-95` — Hook extension is plausible, but the plan must clarify whether queries remain client-filtered or leverage backend search to keep cache keys coherent.
+- `src/components/ui/searchable-select.tsx` — `docs/features/order_stock_modal_select/plan.md:50-52` — “Ensure props cover needed hooks (e.g., wheel capture, disabled states)…” (Extends the existing shared control rather than inventing a new widget.)
+- `src/components/shopping-lists/list-create-dialog.tsx` — `docs/features/order_stock_modal_select/plan.md:22-24` — Reusing the dialog without adding `initialName` support conflicts with the existing inline-create pattern that mirrors `SellerCreateDialog` (`src/components/shopping-lists/list-create-dialog.tsx:13-20` exposes only `open`, `onOpenChange`, `onCreated`).
 
 ### 3) Open Questions & Ambiguities
-- Question: Does `/api/shopping-lists` already support `status[]=concept` + `search` query params as assumed? (`docs/features/order_stock_modal_select/plan.md:33,92-95`)
-  - Why it matters: Determines whether the new hook can rely on backend filtering or must stay client-side, impacting latency and cache design.
-  - Needed answer: Confirmation from backend docs/owners on accepted query parameters and expected search semantics.
-- Question: How will the reusable selector expose a consumer-defined list-loading instrumentation scope? (`docs/features/order_stock_modal_select/plan.md:41-45,199-203`)
-  - Why it matters: Kits will need their own deterministic waits; a hard-coded scope ties the component to the parts flow.
-  - Needed answer: Define a prop/contract for passing the scope (and default) or document a plan-specific reason it can stay parts-only.
-- Question: Should search execution stay client-side (`docs/features/order_stock_modal_select/plan.md:141-145`) or trigger backend queries on each term (`docs/features/order_stock_modal_select/plan.md:112-118,92-95`)?
-  - Why it matters: Impacts throttling, instrumentation metadata, and the number of React Query entries; conflicting statements risk divergent implementations.
-  - Needed answer: Pick one strategy and document the supporting cache/instrumentation plan.
+- Question: How will the selector gate fetches “behind `open` state” when no `open` prop is defined on `ShoppingListSelector`? (`docs/features/order_stock_modal_select/plan.md:170-173`)
+  Why it matters: Without clarity, the query may fire unnecessarily or, worse, fail to refetch when the dialog opens.
+  Needed answer: Specify whether the component receives `open`, is conditionally rendered, or uses another mechanism to control `enabled`.
+- Question: What instrumentation scope should non-parts consumers use once the selector is shared? (`docs/features/order_stock_modal_select/plan.md:205`, `docs/features/order_stock_modal_select/plan.md:300`)
+  Why it matters: Defaulting to `parts.orderStock.lists` will mislabel kit flows and break test expectations when reuse happens.
+  Needed answer: Either require consumers to pass a scope or adopt a neutral default consistent with the documentation taxonomy.
 
 ### 4) Deterministic Playwright Coverage (new/changed behavior only)
-- Behavior: Order Stock modal — select existing Concept list
+- Behavior: Part detail Order Stock modal — select existing list (`docs/features/order_stock_modal_select/plan.md:253-260`)
   - Scenarios:
-    - Given Concept lists exist, When the user searches and selects an existing list, Then the selection persists through submit (`tests/e2e/shopping-lists/parts-entrypoints.spec.ts`).
-    - Given a duplicate membership, When the user submits, Then a conflict banner surfaces and instrumentation fires validation events.
-  - Instrumentation: `waitForListLoading(page, 'parts.orderStock.lists', 'ready')`, `waitTestEvent` for `ShoppingListMembership:addFromPart` (`docs/features/order_stock_modal_select/plan.md:247-253`).
-  - Backend hooks: **Missing — plan does not specify factory calls or API helpers**, violating the Playwright guide requirement for API-first data seeding.
-  - Gaps: Major — Coverage cannot be deterministic without defined backend setup/teardown steps.
-  - Evidence: `docs/features/order_stock_modal_select/plan.md:247-253`.
-- Behavior: Inline Concept list creation within selector
+    - Given concept lists exist, When the user searches and selects one, Then the selection persists through submit (`tests/e2e/shopping-lists/parts-entrypoints.spec.ts`)
+    - Given a duplicate membership, When the user submits, Then conflict messaging and validation instrumentation fire (`tests/e2e/shopping-lists/parts-entrypoints.spec.ts`)
+  - Instrumentation: `waitForListLoading(page, 'parts.orderStock.lists', 'ready')`, `waitTestEvent('ShoppingListMembership:addFromPart')` (`docs/features/order_stock_modal_select/plan.md:257-258`)
+  - Backend hooks: `testData.parts.create`, `testData.shoppingLists.createWithLines`, `testData.sellers.create` (`docs/features/order_stock_modal_select/plan.md:258-259`)
+  - Gaps: Requires updated instrumentation scope ownership (Major).
+  - Evidence: `docs/features/order_stock_modal_select/plan.md:253-260`
+- Behavior: Inline creation from selector (`docs/features/order_stock_modal_select/plan.md:262-268`)
   - Scenarios:
-    - Given no matching list, When inline creation completes, Then the new list auto-selects and submit succeeds.
-    - Given validation errors, When the dialog submits empty fields, Then validation events emit.
-  - Instrumentation: `waitTestEvent` for `ShoppingListCreate:concept`, `waitForListLoading` for selector refresh (`docs/features/order_stock_modal_select/plan.md:255-260`).
-  - Backend hooks: **Missing — plan references seller harness but not the shopping list factories required for list creation assertions**.
-  - Gaps: Major — Need explicit factory usage / backend coordination before coverage is actionable.
-  - Evidence: `docs/features/order_stock_modal_select/plan.md:255-261`.
+    - Given no matching list, When the user creates one, Then the new list auto-selects and submit succeeds (`tests/e2e/shopping-lists/parts-entrypoints.spec.ts`)
+    - Given validation errors, When submitting empty name, Then dialog validation event surfaces
+  - Instrumentation: `waitTestEvent('ShoppingListCreate:concept')`, `waitForListLoading` refresh (`docs/features/order_stock_modal_select/plan.md:266-267`)
+  - Backend hooks: `testData.parts.create`, `testData.shoppingLists.expectConceptMembership` (`docs/features/order_stock_modal_select/plan.md:267-268`)
+  - Gaps: Major — `testData.shoppingLists.expectConceptMembership` does not exist yet, so backend verification is undefined.
+  - Evidence: `docs/features/order_stock_modal_select/plan.md:262-268`
 
-### 5) **Adversarial Sweep (must find ≥3 credible issues or declare why none exist)**
-**Major — Hard-coded list_loading scope blocks reuse**
-**Evidence:** `docs/features/order_stock_modal_select/plan.md:13,41-45,199-203` — Plan promises a reusable selector but fixes instrumentation to `'parts.orderStock.lists'`.
-**Why it matters:** Future kit consumers cannot emit distinct scopes, breaking deterministic waits or forcing duplicate components.
-**Fix suggestion:** Parameterize the scope (and metadata builders) via props/defaults so consumers supply their own instrumentation identifiers.
-**Confidence:** High.
+### 5) Adversarial Sweep
+**Major — Missing backend helper for membership assertion**
+**Evidence:** `docs/features/order_stock_modal_select/plan.md:262-268` — “Backend hooks: … `testData.shoppingLists.expectConceptMembership`… Gaps: None.”
+**Why it matters:** Playwright policy requires asserting real backend state using existing helpers; referencing a helper that is not present will stall implementation or silently skip the check.
+**Fix suggestion:** Add the helper to the plan’s file map/slices (e.g., extend `tests/support/test-data/shopping-lists.ts`) or rewrite the coverage to use an existing assertion path.
+**Confidence:** High
 
-**Major — Deterministic coverage lacks backend setup contract**
-**Evidence:** `docs/features/order_stock_modal_select/plan.md:247-261`; `docs/contribute/testing/playwright_developer_guide.md:1-118`. Plan lists scenarios but omits required factory/API hooks, conflicting with the guide’s API-first mandate.
-**Why it matters:** Without defined backend helpers, tests cannot seed lists or enforce validation states deterministically, risking flaky coverage.
-**Fix suggestion:** Enumerate the `testData.shoppingLists` / `testData.parts` factory calls (and any new helpers) each scenario will use.
-**Confidence:** High.
+**Major — Shared selector defaults to parts-specific instrumentation scope**
+**Evidence:** `docs/features/order_stock_modal_select/plan.md:205` — “`list_loading` (default `parts.orderStock.lists`, overridable via selector props)”; `docs/features/order_stock_modal_select/plan.md:300` — “Require selector consumers to pass the desired `list_loading` scope (defaulting to `parts.orderStock.lists`).”
+**Why it matters:** A reusable selector emitting `parts.*` events will misclassify kit or future consumers, breaking the taxonomy documented in `docs/contribute/architecture/test_instrumentation.md`.
+**Fix suggestion:** Make `scope` a required prop or adopt a neutral default (e.g., `shoppingLists.selector`) while requiring feature-specific overrides.
+**Confidence:** High
 
-**Major — Search strategy contradictions**
-**Evidence:** `docs/features/order_stock_modal_select/plan.md:112-118` (backend fetch per term) vs `docs/features/order_stock_modal_select/plan.md:141-145` (client-side filtering) vs `docs/features/order_stock_modal_select/plan.md:92-95` (optional search param).
-**Why it matters:** Implementers cannot derive cache keys, throttling, or instrumentation metadata with conflicting guidance, inviting race conditions or double filtering.
-**Fix suggestion:** Decide on backend vs client filtering, document the chosen cache key strategy, and adjust derived state/instrumentation notes accordingly.
-**Confidence:** Medium.
+**Major — Inline create dialog would lose typed name**
+**Evidence:** `docs/features/order_stock_modal_select/plan.md:22-24` — “Remove the inline list creation form… launch the existing `ListCreateDialog`…”; `docs/features/order_stock_modal_select/plan.md:129-134` — flow delegates to the existing dialog; `src/components/shopping-lists/list-create-dialog.tsx:13-20` — props omit any `initialName` input.
+**Why it matters:** The current dialog lets users type once; moving to `ListCreateDialog` without seeding the search term forces re-entry and degrades UX compared to `SellerSelector`, which sets `initialName`.
+**Fix suggestion:** Extend the plan to add `initialName` (and optional `initialDescription`) support on `ListCreateDialog`, seeding it from the selector’s search term before opening.
+**Confidence:** High
 
-### 6) Derived-Value & State Invariants (table)
-- Derived value: `conceptListOptions`
-  - Source dataset: React Query `useConceptShoppingListOptions` results (`docs/features/order_stock_modal_select/plan.md:112-118,141-145`)
-  - Write / cleanup triggered: Populates `SearchableSelect` options; reset on modal close.
-  - Guards: Debounce/throttle search term (needs concrete implementation).
-  - Invariant: Options must mirror backend-filtered results for current search term without stale entries.
-  - Evidence: `docs/features/order_stock_modal_select/plan.md:112-145`.
+### 6) Derived-Value & State Invariants
+- Derived value: `shoppingListOptions`
+  - Source dataset: `useGetShoppingLists` results filtered by `searchTerm` and status allowlist (`docs/features/order_stock_modal_select/plan.md:118-123`)
+  - Write / cleanup triggered: Feeds `SearchableSelect` options each render
+  - Guards: Memoized filter to avoid recompute (`docs/features/order_stock_modal_select/plan.md:118-123`)
+  - Invariant: Options reflect the latest query payload constrained by the allowlist
+  - Evidence: `docs/features/order_stock_modal_select/plan.md:118-123`
 - Derived value: `createDialogOpen`
-  - Source dataset: Local state toggled via selector action (`docs/features/order_stock_modal_select/plan.md:148-153`).
-  - Write / cleanup triggered: Mounts `ListCreateDialog`; clears on close.
-  - Guards: Disable action while selector loading to avoid overlapping dialogs.
-  - Invariant: Order Stock form should never show inline fields simultaneously with the create dialog.
-  - Evidence: `docs/features/order_stock_modal_select/plan.md:148-153`.
+  - Source dataset: Local state toggled by “Create list” affordance (`docs/features/order_stock_modal_select/plan.md:125-133`, `docs/features/order_stock_modal_select/plan.md:151-154`)
+  - Write / cleanup triggered: Controls `ListCreateDialog` mount/unmount
+  - Guards: Only set when creation is enabled for concept lists (`docs/features/order_stock_modal_select/plan.md:22-24`, `docs/features/order_stock_modal_select/plan.md:125-133`)
+  - Invariant: Inline creation UI and selector never collect fields simultaneously
+  - Evidence: `docs/features/order_stock_modal_select/plan.md:151-156`
 - Derived value: `instrumentationSnapshot`
-  - Source dataset: Form memo capturing listId, needed quantity, seller override, part key (`docs/features/order_stock_modal_select/plan.md:155-159`).
-  - Write / cleanup triggered: Feeds `trackSubmit/Success/Error`; cleaned when modal closes.
-  - Guards: Ensure listId parsed to number before emission.
-  - Invariant: Snapshot matches mutation payloads so `ShoppingListMembership:addFromPart` reflects real submissions.
-  - Evidence: `docs/features/order_stock_modal_select/plan.md:155-159,192-198`.
+  - Source dataset: Form state snapshot of part key, mode, needed quantity, list ID (`docs/features/order_stock_modal_select/plan.md:162-167`)
+  - Write / cleanup triggered: Passed into `trackSubmit/trackSuccess/trackError`
+  - Guards: Snapshot recomputed on dependency change, list ID normalized before emission (`docs/features/order_stock_modal_select/plan.md:162-167`)
+  - Invariant: Telemetry mirrors the mutation payload for deterministic waits
+  - Evidence: `docs/features/order_stock_modal_select/plan.md:162-167`
 
 ### 7) Risks & Mitigations (top 3)
-- Risk: Reusable selector ships with parts-only instrumentation scope, blocking other domains.
-  - Mitigation: Accept a configurable scope prop and document default usage.
-  - Evidence: `docs/features/order_stock_modal_select/plan.md:41-45,199-203`.
-- Risk: Undefined backend setup for Playwright scenarios leading to nondeterministic coverage.
-  - Mitigation: Enumerate required `testData` factories and any new backend helpers per scenario.
-  - Evidence: `docs/features/order_stock_modal_select/plan.md:247-261`.
-- Risk: Ambiguous search/filtering plan may double-filter or hammer the backend.
-  - Mitigation: Choose client vs server search, align throttling + cache keys, and update plan steps accordingly.
-  - Evidence: `docs/features/order_stock_modal_select/plan.md:92-145`.
+- Risk: “Client-side filtering may lag once allowed shopping lists scale” (`docs/features/order_stock_modal_select/plan.md:290-292`)
+  Mitigation: Keep filter logic isolated and plan backend search/pagination upgrade when thresholds are hit.
+  Evidence: `docs/features/order_stock_modal_select/plan.md:290-292`
+- Risk: “Newly created list may not appear in selector before submit” (`docs/features/order_stock_modal_select/plan.md:294-296`)
+  Mitigation: Await React Query refetch completion before auto-selecting, with manual fallback.
+  Evidence: `docs/features/order_stock_modal_select/plan.md:294-296`
+- Risk: “Test timing flakiness if instrumentation scope mismatched” (`docs/features/order_stock_modal_select/plan.md:298-300`)
+  Mitigation: Require consumers to pass the desired scope and update helpers in the same slice.
+  Evidence: `docs/features/order_stock_modal_select/plan.md:298-300`
 
 ### 8) Confidence
-Confidence: Medium — The plan captures most touchpoints, but unresolved instrumentation scope and deterministic-testing details leave meaningful uncertainty until clarified.
+Confidence: Medium — The plan is cohesive, but the highlighted gaps (missing helper, scope ownership, inline-create UX) must be resolved to avoid rework.
