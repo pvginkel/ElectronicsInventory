@@ -34,7 +34,7 @@ Enable kit owners to push shortages into shopping lists through a guided “Orde
 
 **Assumptions / constraints**
 
-Honor-reserved default follows the more recent breakdown specification even though the brief listed OFF; call out in tests so conflicts surface early (docs/epics/kits_brief.md:65-75; docs/epics/kits_feature_breakdown.md:194-205). The kit detail payload already carries `shoppingListLinks`, so the modal can reuse loaded contents and avoid extra fetches until submission; shopping list options continue to filter to concept lists via the existing selector (src/hooks/use-shopping-lists.ts:646-702). Archived kits remain read-only, so both the button and unlink affordance must guard against that state (docs/epics/kits_brief.md:154-158).
+Honor-reserved default is confirmed ON per the latest breakdown and product guidance; tests and preview math must assert that default (docs/epics/kits_brief.md:65-75; docs/epics/kits_feature_breakdown.md:194-205). The kit detail payload already carries `shoppingListLinks`, so the modal can reuse loaded contents and avoid extra fetches until submission; shopping list options continue to filter to concept lists via the existing selector (src/hooks/use-shopping-lists.ts:646-702). Archived kits remain read-only, so both the button and unlink affordance must guard against that state (docs/epics/kits_brief.md:154-158).
 
 ### 2) Affected Areas & File Map (with repository evidence)
 
@@ -75,8 +75,12 @@ Honor-reserved default follows the more recent breakdown specification even thou
 - Evidence: src/lib/api/generated/hooks.ts:720-1034 — generated mutations/queries to orchestrate.
 
 - Area: src/hooks/use-shopping-lists.ts
-- Why: Ensure selector instrumentation scope + status filtering align with the modal’s needs and expose helper for concept-only usage.
-- Evidence: src/hooks/use-shopping-lists.ts:646-702 — selector currently filters concept lists and emits instrumentation metadata.
+  - Why: Ensure selector instrumentation scope + status filtering align with the modal’s needs and expose helper for concept-only usage.
+  - Evidence: src/hooks/use-shopping-lists.ts:646-702 — selector currently filters concept lists and emits instrumentation metadata.
+
+- Area: src/components/shopping-lists/shopping-list-selector.tsx
+  - Why: Reuse the existing selector (with embedded `ListCreateDialog`) for Concept list creation/selection and make sure the new `kits.orderStock.lists` scope plugs into its instrumentation props.
+  - Evidence: src/components/shopping-lists/shopping-list-selector.tsx:51-215 — control already handles inline creation, instrumentation, and option filtering.
 
 - Area: src/types/kits.ts
 - Why: Extend/link helper functions (e.g., computed labels) for `KitShoppingListLink` to include requested units and honor-reserved flags.
@@ -124,8 +128,8 @@ Honor-reserved default follows the more recent breakdown specification even thou
 
 - Entity / contract: `OrderStockFormState`
   - Shape: `{ mode: 'create' | 'append'; units: number; honorReserved: boolean; targetListId?: number; notePrefix?: string }`
-  - Mapping: Local form state normalises numeric input, uses `mode` to gate selector vs create, and maps to `KitShoppingListRequestSchema` payload while snapshotting values for instrumentation.
-  - Evidence: docs/epics/kits_feature_breakdown.md:192-210; docs/epics/kits_brief.md:65-75 — dialog fields, honor-reserved logic, and merge prefix expectations.
+  - Mapping: Local form state normalises numeric input, uses `mode` to gate selector vs create, and maps to `KitShoppingListRequestSchema` payload while snapshotting values for instrumentation. Creation reuses `ShoppingListSelector`, which wraps `ListCreateDialog`; once a Concept list is created/selected the selector supplies the existing list ID to the form, so no inline `new_list_*` fields are passed from the dialog.
+  - Evidence: docs/epics/kits_feature_breakdown.md:192-210; docs/epics/kits_brief.md:65-75; src/components/shopping-lists/shopping-list-selector.tsx:51-190 — dialog fields, honor-reserved logic, selector-driven creation, and merge prefix expectations.
 
 ### 4) API / Integration Surface
 
@@ -158,16 +162,16 @@ Honor-reserved default follows the more recent breakdown specification even thou
 - Flow: Launch order stock modal from kit detail
   1. User clicks `Order Stock`; we gate on `detail.status !== 'archived'` before opening.
   2. Dialog initialises form state (`units = max(kit.buildTarget, 1)`, `honorReserved = true`) and snapshots fields for instrumentation.
-  3. Concept list selector loads via `useShoppingListOptions({ statuses: ['concept'] })`; modal shows computed preview text (`totalParts`, `totalNeeded`) based on contents.
+ 3. Concept list selector loads via `useShoppingListOptions({ statuses: ['concept'] })`; the embedded `ShoppingListSelector` handles inline Concept-list creation through its `ListCreateDialog` and returns the resulting list ID, so the form only tracks a `targetListId` once the selector resolves. Modal shows computed preview text (`totalParts`, `totalNeeded`) based on contents.
   4. Instrumentation emits `KitShoppingList:orderStock` `open` plus `kits.detail.orderStock` UI state `loading → ready` once preview resolves.
   - States / transitions: Dialog `open` boolean, `mode` toggles between create/append, React Query statuses for list options.
   - Hotspots: Avoid recomputing preview on every keystroke by memoising against `units`/`honorReserved`; ensure numeric inputs clamp to ≥1.
   - Evidence: docs/epics/kits_feature_breakdown.md:192-205; src/components/kits/kit-detail.tsx:28-169.
 
 - Flow: Submit order stock (create or append)
-  1. Form `submit` validates `units` and required concept list when in append mode; validation errors emit `validation_error` events and keep dialog open.
+  1. Form `submit` validates `units` and requires that `targetListId` be present (supplied by `ShoppingListSelector` after creating/selecting a Concept list); validation errors emit `validation_error` events and keep dialog open.
   2. On success path, call `usePostKitsShoppingListsByKitId` mutation with resolved payload, disable controls, and emit `submit` instrumentation snapshotting `units`/`mode`.
-  3. Await response, close dialog, toast success (`Created new list` vs `Updated existing list`), and invalidate kit detail query plus relevant shopping list detail if returned.
+  3. Await response, close dialog, toast success (`Created new list` vs `Updated existing list`), and invalidate kit detail query plus relevant shopping list detail and `getShoppingListsKitsByListId` entries for the affected list.
   4. Recompute instrumentation metadata (`kits.detail.links` ready event includes new counts) and restore focus to the `Order Stock` button.
   - States / transitions: Mutation pending state, toast feedback, React Query cache refresh.
   - Hotspots: `KitShoppingListLinkResponse` may omit `link` on no-op merges; guard against null when updating chips.
@@ -176,7 +180,7 @@ Honor-reserved default follows the more recent breakdown specification even thou
 - Flow: Render & manage kit detail shopping list chips
   1. Map `kit.detail.shoppingListLinks` into view models with badges for `status`, `requestedUnits`, and honor reserved indicator.
   2. Each chip renders navigation plus a visually-hidden unlink button that appears on hover/focus; clicking opens confirmation dialog.
-  3. Confirmation triggers delete mutation; upon success we optimistically remove the link, emit toast, and refetch kit detail to keep summary counts consistent.
+  3. Confirmation triggers delete mutation; upon success we optimistically remove the link, emit toast, refetch kit detail, and invalidate corresponding `getShoppingListsKitsByListId` cache entries to keep both headers in sync.
   4. UI state instrumentation updates `kits.detail.links` metadata and ensures empty-state text toggles when last link removed.
   - States / transitions: Chip hover/focus, confirmation dialog open, mutation pending.
   - Hotspots: Maintain accessibility by exposing keyboard focus to the unlink button and ensuring the link remains clickable.
@@ -184,7 +188,7 @@ Honor-reserved default follows the more recent breakdown specification even thou
 
 - Flow: Surface kit chips on shopping list detail + unlink
   1. Shopping list route fetches kit links via `useGetShoppingListsKitsByListId`; header renders chips with kit status badges and units summary.
-  2. Unlink button reuses confirmation component and delete mutation, followed by invalidating both shopping list detail and `getKitsByKitId` queries referenced in chips.
+  2. Unlink button reuses confirmation component and delete mutation, followed by invalidating shopping list detail, `getKitsByKitId`, `getKitsShoppingListsByKitId`, and `getShoppingListsKitsByListId` queries referenced in chips.
   3. UI updates instrumentation scope `shoppingLists.detail.kits` to help tests wait for ready/error states.
   4. When no linked kits remain, header shows informative empty copy or hides the section.
   - States / transitions: Query loading/pending, confirmation dialog, mutation pending.
@@ -223,10 +227,10 @@ Honor-reserved default follows the more recent breakdown specification even thou
 
 ### 7) State Consistency & Async Coordination
 
-- Source of truth: React Query caches for `getKitsByKitId`, `getKitsShoppingListsByKitId`, and `getShoppingListsByListId`.
-- Coordination: Order stock mutation invalidates kit detail + overview caches; when response includes `shopping_list`, explicitly update that list’s detail cache to keep lines in sync.
+- Source of truth: React Query caches for `getKitsByKitId`, `getKitsShoppingListsByKitId`, `getShoppingListsByListId`, and `getShoppingListsKitsByListId`.
+- Coordination: Order stock mutation invalidates kit detail + overview caches; when response includes `shopping_list`, explicitly update that list’s detail cache and invalidate `getShoppingListsKitsByListId({ list_id })` to keep both headers in sync.
 - Async safeguards: Track mutation pending state to disable controls; cancel inflight selector fetches when dialog closes; ensure unlink confirmation restores focus to chip group.
-- Instrumentation: Extend `kits.detail.links` metadata with counts/ids post-refresh and add `kits.detail.orderStock` UI state scope; shopping list side emits `shoppingLists.detail.kits` UI events for Playwright waits.
+- Instrumentation: Extend `kits.detail.links` metadata with counts/ids post-refresh and add `kits.detail.orderStock` UI state scope; shopping list side emits paired `shoppingLists.detail.kits` `list_loading` + `ui_state` events for Playwright waits.
 - Evidence: src/hooks/use-kit-detail.ts:24-120; src/lib/api/generated/hooks.ts:720-1034; src/routes/shopping-lists/$listId.tsx:529-626.
 
 ### 8) Errors & Edge Cases
@@ -279,11 +283,11 @@ Honor-reserved default follows the more recent breakdown specification even thou
   - Evidence: src/hooks/use-shopping-lists.ts:646-702.
 
 - Signal: `shoppingLists.detail.kits`
-  - Type: `ui_state`
-  - Trigger: Shopping list detail kit links query transitions.
+  - Type: `ui_state` paired with `list_loading`
+  - Trigger: Shopping list detail kit links query transitions instrumented via `useListLoadingInstrumentation({ scope: 'shoppingLists.detail.kits', ... })`.
   - Labels / fields: `{ listId, kitCount }`
-  - Consumer: E2E spec to wait for chips before assertions/unlink.
-  - Evidence: src/routes/shopping-lists/$listId.tsx:529-626; docs/contribute/testing/index.md:5-16.
+  - Consumer: E2E spec to wait for chips before assertions/unlink using both `waitForListLoading(page, 'shoppingLists.detail.kits', 'ready')` and `waitForUiState`.
+  - Evidence: src/routes/shopping-lists/$listId.tsx:529-626; docs/contribute/testing/index.md:5-16; docs/contribute/testing/playwright_developer_guide.md:80-138.
 
 ### 10) Lifecycle & Background Work
 
@@ -350,7 +354,7 @@ Honor-reserved default follows the more recent breakdown specification even thou
   - Scenarios:
     - Given a shopping list linked to a kit, When I load the detail route, Then kit chips render with status badge and units summary.
     - When I unlink from the shopping list header, Then the kit chip disappears here and on kit detail after navigation.
-  - Instrumentation / hooks: Wait for `shoppingLists.detail.kits` ready; use unlink confirmation; assert `waitForListLoading` on kit detail after navigation.
+  - Instrumentation / hooks: Wait for both `waitForListLoading(page, 'shoppingLists.detail.kits', 'ready')` and `waitForUiState(page, 'shoppingLists.detail.kits', 'ready')`; use unlink confirmation; assert `waitForListLoading` on kit detail after navigation.
   - Gaps: Not exercising ready/done shopping list permutations (covered by badge tests); ensure concept path reliable.
   - Evidence: tests/e2e/shopping-lists/shopping-lists-detail.spec.ts:1-160; tests/support/page-objects/shopping-lists-page.ts:1-200.
 
