@@ -224,47 +224,68 @@ Allow planners to generate or extend purchasing lists from a kit, while keeping 
     - `GET /shopping-lists/<int:list_id>/kits` returns reciprocal `KitChipSchema` objects (`kit_id`, `kit_name`, `status`, `requested_units`, `honor_reserved`).
     - `DELETE /kit-shopping-list-links/<int:link_id>` removes the association (cascades through FK) after user confirmation and returns 204.
 
-# Feature: Pick list workflow & deduction
+# Feature: Pick list creation entrypoint
 
-Provide a persisted pick list tool that auto-allocates stock per location, enforces availability, and lets operators finish lines with a single “Picked” action.
+Deliver the kit-detail trigger, modal, and optimistic refresh flow so planners can spin up pick lists against the already-implemented backend allocator.
 
 ## Use cases
 
-- Create pick lists
+- Launch pick list creation from kit detail
   - Features:
-    - Launch modal or routed form that prompts for **Requested units** (persisted on the pick list).
-    - For each kit content row, compute `required_total = required_per_unit × requested_units`.
-    - Gather the part’s locations sorted by ascending on-hand quantity, then by box number and location number.
-    - Allocate greedily across locations, creating immutable lines with `quantity_to_pick = min(remaining_required, location_on_hand)` and decrement the remaining requirement after each line.
-    - Abort creation with a validation error if any part cannot be fully satisfied (no partial pick lists are stored).
-    - Render generated lines as read-only entries; there is no option to add, remove, or edit allocations manually.
+    - Surface a `Create pick list` action in the kit header (mirrors `Order Stock`) that opens a modal prompting for **Requested units**.
+    - On submit, call `POST /kits/<int:kit_id>/pick-lists`, show in-flight instrumentation via `useListLoadingInstrumentation`, and route validation errors back into the modal.
+    - After a successful create, close the modal, push a success toast, and refresh kit-level pick list summaries so the new entry appears without a full page reload.
+    - Propagate deterministic instrumentation/test hooks (`kits.detail.pickLists.create`) so Playwright coverage can await completion before asserting.
   - Database / data model:
-    - Add `KitPickList` model mapped to `kit_pick_lists` with columns: `id` PK, `kit_id` FK (`kits.id`, `ondelete="CASCADE"`), `requested_units` integer not null, `status` `KitPickListStatus` enum (`open`, `completed`) stored via `SQLEnum(..., native_enum=False)` with server default `open`, `completed_at` timestamp nullable, `created_at`/`updated_at` timestamps. Apply `CheckConstraint("requested_units >= 1", name="ck_kit_pick_lists_requested_positive")`.
-    - Add `KitPickListLine` model mapped to `kit_pick_list_lines` with columns: `id` PK, `pick_list_id` FK (`kit_pick_lists.id`, `ondelete="CASCADE"`), `kit_content_id` FK (`kit_contents.id`, `ondelete="CASCADE"`), `location_id` FK (`locations.id`), `quantity_to_pick` integer not null, `status` `PickListLineStatus` enum (`open`, `completed`) stored via `SQLEnum(..., native_enum=False)` with server default `open`, `picked_at` timestamp nullable, optional `inventory_change_id` FK to quantity history for auditing, `created_at`/`updated_at` timestamps.
-    - Enforce `CheckConstraint("quantity_to_pick > 0", name="ck_pick_list_lines_quantity_positive")` and `UniqueConstraint("pick_list_id", "kit_content_id", "location_id", name="uq_pick_list_line_allocation")`. Add index `(pick_list_id, status)` for fast open-line queries.
+    - Relies on existing `KitPickList` and `KitPickListLine` persistence (`kit_pick_lists`, `kit_pick_list_lines`) and validation constraints already shipped with the backend slice.
   - API surface:
     - `POST /kits/<int:kit_id>/pick-lists`
-      - Body: `KitPickListCreateSchema` (`requested_units`).
-      - Runs the allocator and returns `KitPickListDetailSchema` with immutable lines (`quantity_to_pick`, `status`, `picked_at`, location metadata).
-    - `GET /pick-lists/<int:pick_list_id>`
-      - Returns header data (`requested_units`, `status`, timestamps) plus read-only line objects including live on-hand snapshots for display.
+      - Body: `KitPickListCreateSchema` with `requested_units`.
+      - Returns `KitPickListDetailSchema` containing immutable line allocations (`quantity_to_pick`, `status`, `picked_at`, location metadata).
+    - `GET /kits/<int:kit_id>/pick-lists`
+      - Returns `KitPickListSummarySchema` objects with `status`, `requested_units`, timestamps, and derived `is_archived_ui` flag used to render list groupings.
 
-- Execute pick lists
+# Feature: Pick list workspace (read-only)
+
+Introduce the routed pick list detail workspace so operators can review allocator output and inventory context before taking action.
+
+## Use cases
+
+- View generated allocation lines
   - Features:
-    - Display each line with a single **“Picked”** button and no quantity or location inputs.
-    - On click, call shared inventory deduction (`InventoryService.remove_stock`) for `quantity_to_pick`, mark the line `status = completed`, set `picked_at`, and remove the location from the part when quantity reaches zero (existing behavior).
-    - Completed lines keep an **“Undo”** button. Undo reverses the inventory change, resets the line to `open`, clears `picked_at`, and returns the pick list to the open state when applicable.
-    - Once the final line is marked picked (all lines completed), set pick list `status = completed`, stamp `completed_at`, and display the list in the UI’s archived grouping. Undo on any line removes the list from the archived grouping by setting status back to `open`.
+    - Add TanStack Router route `/pick-lists/$pickListId` that loads pick list detail via `GET /pick-lists/<int:pick_list_id>` and renders header metadata (`requested_units`, `status`, timestamps).
+    - Display immutable lines grouped by kit content, showing part summary, location, on-hand snapshot, and `quantity_to_pick`.
+    - Provide navigation entry from kit detail summaries (`View pick list`) and maintain breadcrumbs to return to the kit.
+    - Emit `ui_state` instrumentation scope `pickLists.detail.load` once data hydrates for deterministic Playwright waits.
   - Database / data model:
-    - Persist `inventory_change_id` per line when a pick occurs to support undo operations; clearing it on undo ensures idempotency.
-    - Maintain audit timestamps (`completed_at`, `picked_at`) for historical reporting and to drive UI state.
+    - Depends on `KitPickList` / `KitPickListLine` schemas and location metadata already exposed by the backend response.
+  - API surface:
+    - `GET /pick-lists/<int:pick_list_id>`
+      - Returns header data plus read-only line objects with location snapshots required for display.
+    - `GET /kits/<int:kit_id>/pick-lists`
+      - Continue using summaries for the kit detail surface; link entries navigate into the workspace.
+
+# Feature: Pick list execution & status transitions
+
+Enable operators to drive deduction, undo, and completion flows directly from the pick list workspace while keeping kit summaries in sync.
+
+## Use cases
+
+- Execute pick list lines
+  - Features:
+    - Render a single **Picked** button per line; clicking calls `POST /pick-lists/<id>/lines/<line_id>/pick`, disables the button during the mutation, and shows optimistic status updates with undo affordance.
+    - When a line is completed, expose an **Undo** control that invokes `POST /pick-lists/<id>/lines/<line_id>/undo`, reverses the deduction, and restores on-hand quantities in the UI.
+    - Automatically mark the pick list header `status = completed`, set `completed_at`, and move it to the archived grouping once all lines are picked. Undoing any line returns the list to open state and updates the kit detail summary.
+    - Extend instrumentation (`pickLists.detail.execution`) so tests can await state transitions without brittle delays; ensure Playwright specs cover pick, undo, and completion-to-archive flows.
+  - Database / data model:
+    - Leverages the persisted `inventory_change_id`, `picked_at`, and status fields on `KitPickListLine` and `KitPickList` to keep UI state authoritative.
   - API surface:
     - `POST /pick-lists/<int:pick_list_id>/lines/<int:line_id>/pick`
-      - No body; triggers the deduction and line completion. Returns updated `KitPickListDetailSchema`.
+      - No body; returns updated `KitPickListDetailSchema` reflecting the completed line.
     - `POST /pick-lists/<int:pick_list_id>/lines/<int:line_id>/undo`
-      - No body; reverses the deduction and reopens the line. Returns updated detail schema.
+      - No body; returns updated detail schema with the line reopened.
     - `GET /kits/<int:kit_id>/pick-lists`
-      - Returns `KitPickListSummarySchema` objects with `status`, `requested_units`, `created_at`, `completed_at`, and derived `is_archived_ui` flag (`status == completed`).
+      - Continue to refresh kit-level summaries after each mutation so the header reflects open vs completed lists.
 
 # Feature: Data integrity & reserved math
 
