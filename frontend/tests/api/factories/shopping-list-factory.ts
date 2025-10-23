@@ -1,3 +1,4 @@
+import { expect } from '@playwright/test';
 import { createApiClient, apiRequest } from '../client';
 import { makeUnique } from '../../support/helpers';
 import type { components } from '../../../src/lib/api/generated/types';
@@ -199,5 +200,21 @@ export class ShoppingListTestFactory {
         body,
       })
     );
+  }
+
+  async expectConceptMembership(options: { listId: number; partKey: string; needed?: number; noteIncludes?: string }): Promise<void> {
+    const detail = await this.getListDetail(options.listId);
+    expect(detail.status).toBe('concept');
+
+    const line = detail.lines.find(existing => existing.part.key === options.partKey);
+    expect(line, `Expected concept membership for part ${options.partKey} on list ${options.listId}`).toBeDefined();
+
+    if (options.needed !== undefined) {
+      expect(line?.needed).toBe(options.needed);
+    }
+
+    if (options.noteIncludes) {
+      expect(line?.note ?? '').toContain(options.noteIncludes);
+    }
   }
 }

@@ -64,6 +64,7 @@ import {
   type ShoppingListGroupOrderInput,
   type ShoppingListGroupOrderLineInput,
   type ShoppingListMarkReadyInput,
+  type ShoppingListOption,
   type ShoppingListOverviewSummary,
   type ShoppingListOverviewCounters,
   type ShoppingListSellerGroup,
@@ -402,6 +403,15 @@ function mapOverviewSummary(list: ShoppingListListSchemaList_a9993e3_ShoppingLis
   };
 }
 
+function mapOverviewToOption(list: ShoppingListOverviewSummary): ShoppingListOption {
+  return {
+    id: list.id,
+    name: list.name,
+    status: list.status,
+    lineCounts: list.lineCounts,
+  };
+}
+
 function mapShoppingListDetail(detail: ShoppingListResponseSchema_46f0cf6): ShoppingListDetail {
   const lines = detail.lines.map(mapConceptLine);
   const lineCounts = computeLineCountsFromLines(lines);
@@ -614,6 +624,82 @@ const selectOverviewLists = (data?: ShoppingListListSchemaList_a9993e3_ShoppingL
   }
   return data.map(mapOverviewSummary);
 };
+
+const DEFAULT_SELECTOR_STATUSES: ShoppingListStatus[] = ['concept'];
+
+export interface UseShoppingListOptionsParams {
+  statuses: ShoppingListStatus[];
+  enabled?: boolean;
+}
+
+export interface UseShoppingListOptionsResult {
+  options: ShoppingListOption[];
+  statuses: ShoppingListStatus[];
+  isLoading: boolean;
+  isFetching: boolean;
+  isError: boolean;
+  isSuccess: boolean;
+  error: unknown;
+  refetch: ReturnType<typeof useGetShoppingLists>['refetch'];
+}
+
+export function useShoppingListOptions({
+  statuses,
+  enabled = true,
+}: UseShoppingListOptionsParams): UseShoppingListOptionsResult {
+  const statusesKey = useMemo(() => {
+    if (!statuses?.length) {
+      return DEFAULT_SELECTOR_STATUSES.join('|');
+    }
+    return statuses.join('|');
+  }, [statuses]);
+
+  const normalizedStatuses = useMemo<ShoppingListStatus[]>(() => {
+    const raw = statusesKey?.length ? (statusesKey.split('|') as ShoppingListStatus[]) : [];
+    const seen = new Set<ShoppingListStatus>();
+    const deduped: ShoppingListStatus[] = [];
+
+    const source = raw.length ? raw : DEFAULT_SELECTOR_STATUSES;
+    for (const status of source) {
+      if (status && !seen.has(status)) {
+        seen.add(status);
+        deduped.push(status);
+      }
+    }
+
+    return deduped.length ? deduped : [...DEFAULT_SELECTOR_STATUSES];
+  }, [statusesKey]);
+
+  const params = useMemo(() => ({
+    query: { status: normalizedStatuses },
+  }), [normalizedStatuses]);
+
+  const query = useGetShoppingLists(params, { enabled });
+  const summaries = useMemo<ShoppingListOverviewSummary[]>(() => selectOverviewLists(query.data), [query.data]);
+  const allowedStatuses = useMemo<Set<ShoppingListStatus>>(
+    () => new Set(normalizedStatuses),
+    [normalizedStatuses],
+  );
+  const options = useMemo<ShoppingListOption[]>(() => {
+    if (!summaries.length) {
+      return [];
+    }
+    return summaries
+      .filter((summary) => allowedStatuses.has(summary.status))
+      .map(mapOverviewToOption);
+  }, [summaries, allowedStatuses]);
+
+  return {
+    options,
+    statuses: normalizedStatuses,
+    isLoading: query.isLoading,
+    isFetching: query.isFetching,
+    isError: query.isError ?? false,
+    isSuccess: query.isSuccess ?? false,
+    error: query.error,
+    refetch: query.refetch,
+  };
+}
 
 const selectShoppingListDetail = (data?: ShoppingListResponseSchema_46f0cf6): ShoppingListDetail | undefined => {
   return data ? mapShoppingListDetail(data) : undefined;

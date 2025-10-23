@@ -13,6 +13,13 @@ export interface ShoppingListLineCounts {
   done: number;
 }
 
+export interface ShoppingListOption extends Record<string, unknown> {
+  id: number;
+  name: string;
+  status: ShoppingListStatus;
+  lineCounts: ShoppingListLineCounts;
+}
+
 export interface ShoppingListOverviewSummary extends Record<string, unknown> {
   id: number;
   name: string;

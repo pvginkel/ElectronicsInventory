@@ -2,6 +2,7 @@ import { expect, Locator, Page } from '@playwright/test';
 import { waitForListLoading } from '../helpers';
 import { BasePage } from './base-page';
 import { SellerSelectorHarness } from './seller-selector-harness';
+import { ShoppingListSelectorHarness } from './shopping-list-selector-harness';
 
 export class PartsPage extends BasePage {
   readonly root: Locator;
@@ -224,15 +225,11 @@ export class PartsPage extends BasePage {
     return this.page.getByTestId('parts.shopping-list.add.form');
   }
 
-  get addToShoppingListToggle(): Locator {
-    return this.page.getByTestId('parts.shopping-list.add.toggle.create');
-  }
-
   get addToShoppingListConflictAlert(): Locator {
     return this.page.getByTestId('parts.shopping-list.add.conflict');
   }
 
-  addToShoppingListField(field: 'list' | 'new-name' | 'new-description' | 'needed' | 'seller' | 'note'): Locator {
+  addToShoppingListField(field: 'list' | 'needed' | 'seller' | 'note'): Locator {
     return this.page.getByTestId(`parts.shopping-list.add.field.${field}`);
   }
 
@@ -321,27 +318,10 @@ export class PartsPage extends BasePage {
     return new SellerSelectorHarness(this.page, this.addToShoppingListField('seller'));
   }
 
-
-  async setCreateNewConceptList(value: boolean): Promise<void> {
-    const toggle = this.addToShoppingListToggle;
-    if ((await toggle.count()) === 0) {
-      return;
-    }
-    const current = await toggle.isChecked();
-    if (current !== value) {
-      await toggle.click();
-    }
-  }
-
-  async selectConceptListById(listId: number): Promise<void> {
-    await this.addToShoppingListField('list').selectOption(String(listId));
-  }
-
-  async fillNewConceptList(details: { name: string; description?: string }): Promise<void> {
-    await this.addToShoppingListField('new-name').fill(details.name);
-    if (details.description !== undefined) {
-      await this.addToShoppingListField('new-description').fill(details.description);
-    }
+  createShoppingListSelectorHarness(scope: string = 'parts.orderStock.lists'): ShoppingListSelectorHarness {
+    const root = this.page.getByTestId('shopping-lists.selector');
+    const input = this.addToShoppingListField('list');
+    return new ShoppingListSelectorHarness(this.page, { root, input, scope });
   }
 
   async setNeededQuantity(quantity: number): Promise<void> {

@@ -96,6 +96,7 @@ export function createTestDataBundle(
       receiveLine: shoppingListFactory.receiveLine.bind(shoppingListFactory),
       completeLine: shoppingListFactory.completeLine.bind(shoppingListFactory),
       randomName: shoppingListFactory.randomListName.bind(shoppingListFactory),
+      expectConceptMembership: shoppingListFactory.expectConceptMembership.bind(shoppingListFactory),
     },
     kits: {
       create: kitFactory.create.bind(kitFactory),

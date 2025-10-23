@@ -19,11 +19,23 @@ test.describe('Shopping List Phase 3 entry points', () => {
     await parts.expectDetailHeading(part.description);
 
     await parts.openAddToShoppingListDialog();
+    const selector = parts.createShoppingListSelectorHarness();
+    await selector.waitForReady();
+
     const listName = testData.shoppingLists.randomName('Detail Concept');
     const listDescription = 'Concept list created from part detail dialog';
 
-    await parts.setCreateNewConceptList(true);
-    await parts.fillNewConceptList({ name: listName, description: listDescription });
+    const listCreateSubmit = waitTestEvent<FormTestEvent>(parts.playwrightPage, 'form', event => event.formId === 'ShoppingListCreate:concept' && event.phase === 'submit');
+    const listCreateSuccess = waitTestEvent<FormTestEvent>(parts.playwrightPage, 'form', event => event.formId === 'ShoppingListCreate:concept' && event.phase === 'success');
+
+    await selector.triggerInlineCreate(listName);
+    await selector.fillInlineCreate({ name: listName, description: listDescription });
+    await selector.submitInlineCreate();
+    await listCreateSubmit;
+    await listCreateSuccess;
+    await selector.waitForReady();
+    await selector.expectSelected(listName);
+
     await parts.setNeededQuantity(3);
     await parts.selectSellerInDialog(seller.name);
     await parts.setMembershipNote('Ensure we stock extras for QA runs');
@@ -47,6 +59,13 @@ test.describe('Shopping List Phase 3 entry points', () => {
     const listIdMatch = badgeHref?.match(/shopping-lists\/(\d+)/);
     expect(listIdMatch?.[1]).toBeDefined();
     const createdListId = Number(listIdMatch?.[1]);
+
+    await testData.shoppingLists.expectConceptMembership({
+      listId: createdListId,
+      partKey: part.key,
+      needed: 3,
+      noteIncludes: 'Ensure we stock extras',
+    });
 
     await Promise.all([
       shoppingLists.playwrightPage.waitForURL(new RegExp(`/shopping-lists/${createdListId}`)),
@@ -74,8 +93,11 @@ test.describe('Shopping List Phase 3 entry points', () => {
     await parts.expectDetailHeading(part.description);
 
     await parts.openAddToShoppingListDialog();
-    await parts.setCreateNewConceptList(false);
-    await parts.selectConceptListById(list.id);
+    const selector = parts.createShoppingListSelectorHarness();
+    await selector.waitForReady();
+    await selector.search(list.name);
+    await selector.selectOption(list.name);
+    await selector.expectSelected(list.name);
 
     await expectConsoleError(parts.playwrightPage, /Toast exception ApiError/i);
 
