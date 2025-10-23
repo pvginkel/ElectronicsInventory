@@ -168,6 +168,21 @@ Highlight shopping list and pick list relationships directly on the kit detail s
   - API surface:
     - None.
 
+# Enabler: Order Stock modal searchable select
+
+Refactor the part-level Order Stock (formerly “Add to shopping list”) modal so the kits workflow can consume a shared inline creation experience without duplicating effort.
+
+## Objectives
+
+- Replace the existing shopping list dropdown with the searchable select pattern currently used for Part Type selection, including keyboard search, empty states, and option instrumentation.
+- Port the “Add new type” affordance to an “Add new shopping list” inline action that opens the existing concept list creation flow within the searchable select.
+- Ensure the inline creation path returns the newly created concept list to the modal as the active selection so the user can submit without re-finding it.
+- Ensure the modal exposes the same TanStack Query-backed data source that will power the kits dialog (`GET /shopping-lists?status[]=concept`) so the component can be reused directly.
+- Maintain current instrumentation hooks, emitting `ui_state` scope updates for option loads and inline creation to keep the Playwright suite deterministic.
+- Update accompanying Playwright specs to cover the new select control and inline creation path before the component is shared with the kits workspace.
+
+Implementation plan: `docs/features/order_stock_modal_select/plan.md`
+
 # Feature: Shopping list flow & linking
 
 Allow planners to generate or extend purchasing lists from a kit, while keeping bidirectional traceability between kits and shopping lists.
@@ -178,8 +193,7 @@ Allow planners to generate or extend purchasing lists from a kit, while keeping 
   - Features:
     - Present dialog with Order-for-N control defaulting to kit build target and an Honor-reserved toggle rendered as a pill-style slider defaulting to ON.
     - Calculate Needed quantity per line based on selected units and reserved mode, zero-clamping negatives.
-    - Support creating a new Concept shopping list or appending to an existing Concept list, merging quantities when lines already exist.
-      - The destination selector is a searchable select populated with concept lists and includes an `Add…` option that opens the dedicated “Create shopping list” modal; the same modal is reused by the parts “Add to shopping list” entrypoint so both flows share inline creation behavior.
+    - Support creating a new Concept shopping list or appending to an existing Concept list, merging quantities when lines already exist once the shared Order Stock modal enabler lands.
     - Append `[From Kit <name>]: <BOM note>` to line notes when merging, preserving prior notes.
       - The backend generates this prefix; the UI does not expose a control to edit or override it.
     - Keep the dialog focused on high-level controls; do not render individual kit line items inside the form.
