@@ -176,11 +176,14 @@ Allow planners to generate or extend purchasing lists from a kit, while keeping 
 
 - Create or append shopping lists from a kit
   - Features:
-    - Present dialog with Order-for-N control defaulting to kit build target and Honor-reserved slider defaulting to ON.
+    - Present dialog with Order-for-N control defaulting to kit build target and an Honor-reserved toggle rendered as a pill-style slider defaulting to ON.
     - Calculate Needed quantity per line based on selected units and reserved mode, zero-clamping negatives.
     - Support creating a new Concept shopping list or appending to an existing Concept list, merging quantities when lines already exist.
+      - The destination selector is a searchable select populated with concept lists and includes an `Add…` option that opens the dedicated “Create shopping list” modal; the same modal is reused by the parts “Add to shopping list” entrypoint so both flows share inline creation behavior.
     - Append `[From Kit <name>]: <BOM note>` to line notes when merging, preserving prior notes.
+      - The backend generates this prefix; the UI does not expose a control to edit or override it.
     - Keep the dialog focused on high-level controls; do not render individual kit line items inside the form.
+    - Expose the entrypoint as an `Order Stock` button in the kit header actions.
   - Database / data model:
     - Reuse existing `ShoppingList` and `ShoppingListLine` models (status enum values `concept`, `ready`, `done`). Service enforces that kit pushes target lists in `concept` state.
     - `ShoppingListLine.note` stores provenance text; no JSON metadata column is required.
@@ -199,7 +202,7 @@ Allow planners to generate or extend purchasing lists from a kit, while keeping 
   - Features:
     - Show chips on kit detail summarizing linked lists with the existing chip visual design, omitting any staleness UI or manual refresh control.
     - Show chips on shopping list detail indicating every originating kit using the same chip styling and content treatment as on kit detail.
-    - Allow unlinking with an icon anchored on each chip and revealed on hover; clicking opens a confirmation dialog, and confirmed removals delete the association while leaving list contents untouched.
+    - Allow unlinking with a Lucide “unlink” icon anchored on each chip; the icon remains hidden until the chip is hovered or focused, then opens a confirmation dialog, and confirmed removals delete the association while leaving list contents untouched.
   - Database / data model:
     - The `KitShoppingListLink` table provides bidirectional lookups; the service may compute staleness from `kit.updated_at` vs. `snapshot_kit_updated_at`, but the UI does not expose or refresh against that signal yet.
   - API surface:
