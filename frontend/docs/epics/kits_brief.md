@@ -67,7 +67,7 @@ No “coverage states”; **Shortfall** is the signal.
 **Dialog**
 
 * **Order for N units** (default **Build target**; int ≥1).
-* **Honor reserved** (default **OFF**).
+* **Honor reserved** (default **ON**).
 
   * **ON:** `available = In stock − Reserved`
   * **OFF:** `available = In stock`
