@@ -327,7 +327,7 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
       <DialogContent>
         <Form onSubmit={handleSubmit} data-testid="parts.shopping-list.add.form">
           <DialogHeader>
-            <DialogTitle>Add to shopping list</DialogTitle>
+            <DialogTitle>Order Stock</DialogTitle>
             <p className="text-sm text-muted-foreground">
               {part.description} ({part.key})
             </p>
@@ -529,7 +529,7 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
               loading={isMutating}
               data-testid="parts.shopping-list.add.submit"
             >
-              Add to shopping list
+              Order Stock
             </Button>
           </DialogFooter>
         </Form>

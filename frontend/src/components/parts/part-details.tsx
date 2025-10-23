@@ -266,7 +266,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
             onClick={() => setShowAddToListDialog(true)}
             data-testid="parts.detail.actions.add-to-shopping-list"
           >
-            Add to shopping list
+            Order Stock
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleDuplicatePart}>Duplicate Part</DropdownMenuItem>
           <DropdownMenuItem
