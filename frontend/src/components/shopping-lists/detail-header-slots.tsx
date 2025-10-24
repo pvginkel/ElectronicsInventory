@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
+import { Layers } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/ui/dialog';
@@ -8,6 +9,10 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useFormState } from '@/hooks/use-form-state';
 import { useToast } from '@/hooks/use-toast';
+import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
+import { useGetShoppingListsKitsByListId } from '@/lib/api/generated/hooks';
+import { mapShoppingListKitLinks } from '@/types/shopping-lists';
+import { ShoppingListLinkChip } from '@/components/shopping-lists/shopping-list-link-chip';
 import { Route as ShoppingListsRoute } from '@/routes/shopping-lists/';
 import type { ShoppingListDetail } from '@/types/shopping-lists';
 import type { ConceptHeaderProps } from './concept-header';
@@ -45,6 +50,16 @@ const STATUS_LABELS: Record<ShoppingListDetail['status'], string> = {
   concept: 'Concept',
   ready: 'Ready',
   done: 'Completed',
+};
+
+const KIT_STATUS_LABELS = {
+  active: 'Active',
+  archived: 'Archived',
+} as const;
+
+const KIT_BADGE_VARIANT: Record<keyof typeof KIT_STATUS_LABELS, 'secondary' | 'outline'> = {
+  active: 'secondary',
+  archived: 'outline',
 };
 
 export function useShoppingListDetailHeaderSlots({
@@ -105,6 +120,39 @@ export function useShoppingListDetailHeaderSlots({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editOpen, list]);
+
+  const kitsQuery = useGetShoppingListsKitsByListId(
+    list ? { path: { list_id: list.id } } : undefined,
+    { enabled: Boolean(list) }
+  );
+
+  const linkedKits = useMemo(() => mapShoppingListKitLinks(kitsQuery.data), [kitsQuery.data]);
+
+  useListLoadingInstrumentation({
+    scope: 'shoppingLists.detail.kits',
+    isLoading: kitsQuery.isLoading,
+    isFetching: kitsQuery.isFetching,
+    error: kitsQuery.error,
+    getReadyMetadata: () => ({
+      listId: list?.id ?? null,
+      kitLinkCount: linkedKits.length,
+      statusCounts: linkedKits.reduce<Record<string, number>>(
+        (accumulator, kitLink) => {
+          accumulator[kitLink.kitStatus] = (accumulator[kitLink.kitStatus] ?? 0) + 1;
+          return accumulator;
+        },
+        { active: 0, archived: 0 }
+      ),
+    }),
+    getErrorMetadata: (error: unknown) => ({
+      listId: list?.id ?? null,
+      message: error instanceof Error ? error.message : String(error ?? 'Unknown error'),
+    }),
+    getAbortedMetadata: () => ({
+      listId: list?.id ?? null,
+      status: 'aborted',
+    }),
+  });
 
   if (!list) {
     return {
@@ -178,39 +226,67 @@ export function useShoppingListDetailHeaderSlots({
       </p>
     ) : null,
     metadataRow: (
-      <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="shopping-lists.concept.header.badges">
-        <Badge
-          variant="outline"
-          className="bg-slate-100 text-slate-700"
-          title="Total lines across all statuses"
-          data-testid="shopping-lists.concept.header.badge.total"
-        >
-          Total {list.totalLines}
-        </Badge>
-        <Badge
-          variant="outline"
-          className="bg-sky-100 text-sky-800"
-          title="Lines waiting to be ordered"
-          data-testid="shopping-lists.concept.header.badge.new"
-        >
-          New {newCount}
-        </Badge>
-        <Badge
-          variant="outline"
-          className="bg-amber-100 text-amber-800"
-          title="Lines in progress with sellers"
-          data-testid="shopping-lists.concept.header.badge.ordered"
-        >
-          Ordered {orderedCount}
-        </Badge>
-        <Badge
-          variant="outline"
-          className="bg-emerald-100 text-emerald-800"
-          title="Lines already received"
-          data-testid="shopping-lists.concept.header.badge.done"
-        >
-          Completed {doneCount}
-        </Badge>
+      <div className="flex flex-col gap-3" data-testid="shopping-lists.concept.header.badges">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <Badge
+            variant="outline"
+            className="bg-slate-100 text-slate-700"
+            title="Total lines across all statuses"
+            data-testid="shopping-lists.concept.header.badge.total"
+          >
+            Total {list.totalLines}
+          </Badge>
+          <Badge
+            variant="outline"
+            className="bg-sky-100 text-sky-800"
+            title="Lines waiting to be ordered"
+            data-testid="shopping-lists.concept.header.badge.new"
+          >
+            New {newCount}
+          </Badge>
+          <Badge
+            variant="outline"
+            className="bg-amber-100 text-amber-800"
+            title="Lines in progress with sellers"
+            data-testid="shopping-lists.concept.header.badge.ordered"
+          >
+            Ordered {orderedCount}
+          </Badge>
+          <Badge
+            variant="outline"
+            className="bg-emerald-100 text-emerald-800"
+            title="Lines already received"
+            data-testid="shopping-lists.concept.header.badge.done"
+          >
+            Completed {doneCount}
+          </Badge>
+        </div>
+        {kitsQuery.isLoading ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="h-6 w-32 animate-pulse rounded-full bg-muted" />
+            <div className="h-6 w-28 animate-pulse rounded-full bg-muted" />
+          </div>
+        ) : linkedKits.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2" data-testid="shopping-lists.concept.header.kits">
+            {linkedKits.map((kitLink) => (
+              <ShoppingListLinkChip
+                key={kitLink.linkId}
+                to="/kits/$kitId"
+                params={{ kitId: String(kitLink.kitId) }}
+                name={kitLink.kitName}
+                badgeLabel={KIT_STATUS_LABELS[kitLink.kitStatus]}
+                badgeVariant={KIT_BADGE_VARIANT[kitLink.kitStatus]}
+                icon={
+                  <Layers
+                    className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary"
+                    aria-hidden="true"
+                  />
+                }
+                testId={`shopping-lists.concept.header.kits.${kitLink.kitId}`}
+              />
+            ))}
+          </div>
+        ) : null}
       </div>
     ),
     actions: (

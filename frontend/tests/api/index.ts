@@ -101,6 +101,7 @@ export function createTestDataBundle(
     kits: {
       create: kitFactory.create.bind(kitFactory),
       createMany: kitFactory.createMany.bind(kitFactory),
+      createWithContents: kitFactory.createWithContents.bind(kitFactory),
       addContent: kitFactory.addContent.bind(kitFactory),
       updateContent: kitFactory.updateContent.bind(kitFactory),
       deleteContent: kitFactory.deleteContent.bind(kitFactory),

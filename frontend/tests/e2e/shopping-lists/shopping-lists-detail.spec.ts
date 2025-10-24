@@ -2,8 +2,60 @@ import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
 import { expectConsoleError, waitTestEvent, waitForListLoading } from '../../support/helpers';
 import type { FormTestEvent } from '@/types/test-events';
+import type { PartKitReservationsResponseSchema_d12d9a5 } from '@/lib/api/generated/hooks';
 
 test.describe('Shopping List Detail Phase 2', () => {
+  test('concept header surfaces linked kit chips', async ({ shoppingLists, kits, testData, apiClient }) => {
+    const { part } = await testData.parts.create({ overrides: { description: 'Attribution Flow Part' } });
+    const partMetadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+    const partId = partMetadata.part_id;
+
+    const { kit } = await testData.kits.createWithContents({
+      overrides: {
+        name: testData.kits.randomKitName('Attribution Kit'),
+        build_target: 2,
+      },
+      contents: [
+        { partId, requiredPerUnit: 5 },
+      ],
+    });
+
+    const list = await testData.shoppingLists.create({
+      name: testData.shoppingLists.randomName('Attribution Concept List'),
+      description: null,
+    });
+
+    await apiClient.POST('/api/kits/{kit_id}/shopping-lists', {
+      params: { path: { kit_id: kit.id } },
+      body: {
+        shopping_list_id: list.id,
+        units: kit.build_target,
+        honor_reserved: true,
+        note_prefix: null,
+        new_list_name: null,
+        new_list_description: null,
+      },
+    });
+
+    const kitsReady = waitForListLoading(shoppingLists.playwrightPage, 'shoppingLists.detail.kits', 'ready');
+
+    await shoppingLists.gotoConcept(list.id);
+    await kitsReady;
+
+    await expect(shoppingLists.detailKitChips).toBeVisible();
+    const kitChip = shoppingLists.kitChip(kit.id);
+    await expect(kitChip).toContainText(kit.name);
+    await expect(kitChip).toContainText(/Active/i);
+
+    await kitChip.click();
+    await expect(kits.detailLayout).toBeVisible();
+    await expect(kits.detailTitle).toHaveText(kit.name);
+  });
+
   test('concept header badges and toolbar surface Mark Ready instrumentation', async ({ shoppingLists, testData, toastHelper }) => {
     const seller = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
     const { part: partA } = await testData.parts.create({ overrides: { description: 'Concept Header Part A' } });

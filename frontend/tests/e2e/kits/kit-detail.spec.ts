@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
-import { waitForFormValidationError, waitForListLoading, waitTestEvent } from '../../support/helpers';
+import { waitForFormValidationError, waitForListLoading, waitForUiState, waitTestEvent } from '../../support/helpers';
 import type { UiStateTestEvent, FormTestEvent } from '@/types/test-events';
 import type { KitContentDetailSchema_b98797e } from '@/lib/api/generated/hooks';
 import type {
@@ -881,5 +881,131 @@ test.describe('Kit detail workspace', () => {
     await expect(kits.detailAddPartButton).toBeDisabled();
     await expect(kits.detailRowEditButton(content.id)).toBeDisabled();
     await expect(kits.detailRowDeleteButton(content.id)).toBeDisabled();
+  });
+
+  test('orders stock into a Concept list and supports unlinking from kit detail', async ({ kits, testData, toastHelper, page, apiClient }) => {
+    const { part } = await testData.parts.create({ overrides: { description: 'Shopping Flow Part' } });
+    const partMetadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+    const partId = partMetadata.part_id;
+
+    const { kit, contents } = await testData.kits.createWithContents({
+      overrides: {
+        name: testData.kits.randomKitName('Shopping Flow Kit'),
+        build_target: 3,
+        description: 'Kit used to verify shopping list linking flow',
+      },
+      contents: [
+        { partId, requiredPerUnit: 4 },
+      ],
+    });
+
+    const conceptList = await testData.shoppingLists.create({
+      name: testData.shoppingLists.randomName('Concept Link Target'),
+      description: null,
+    });
+
+    await kits.gotoOverview();
+    const overviewReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await overviewReady;
+    await kits.cardById(kit.id).waitFor({ state: 'visible' });
+
+    const detailReady = waitForListLoading(page, 'kits.detail', 'ready');
+    const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');
+    await kits.openDetailFromCard(kit.id);
+    await Promise.all([detailReady, contentsReady]);
+
+    const selectorReady = waitForListLoading(page, 'kits.detail.shoppingLists', 'ready');
+    const flowOpen = waitForUiState(page, 'kits.detail.shoppingListFlow', 'open');
+    await kits.detailOrderButton.click();
+    await Promise.all([flowOpen, selectorReady]);
+    await expect(kits.detailOrderDialog).toBeVisible();
+
+    const requestedUnits = kit.build_target + 1;
+    await kits.detailOrderUnitsField.fill(String(requestedUnits));
+    await kits.selectShoppingListInDialog(conceptList.name);
+    await expect(kits.detailOrderSelector.getByRole('combobox')).toHaveValue(conceptList.name);
+
+    const submitEventPromise = waitForUiState(page, 'kits.detail.shoppingListFlow', 'submit');
+    const successEventPromise = waitForUiState(page, 'kits.detail.shoppingListFlow', 'success');
+    const linksEventPromise = waitTestEvent<UiStateTestEvent>(
+      page,
+      'ui_state',
+      (event) => {
+        if (event.scope !== 'kits.detail.links' || event.phase !== 'ready') {
+          return false;
+        }
+        const metadata = event.metadata as { shoppingLists?: { ids?: number[] } } | undefined;
+        return Array.isArray(metadata?.shoppingLists?.ids) && metadata!.shoppingLists!.ids!.includes(conceptList.id);
+      }
+    );
+
+    await kits.detailOrderSubmit.click();
+
+    const [submitEvent, successEvent, linksEvent] = await Promise.all([
+      submitEventPromise,
+      successEventPromise,
+      linksEventPromise,
+    ]);
+
+    expect(submitEvent.metadata).toMatchObject({
+      kitId: kit.id,
+      action: 'order',
+      targetListId: conceptList.id,
+    });
+
+    expect(successEvent.metadata).toMatchObject({
+      kitId: kit.id,
+      action: 'order',
+      targetListId: conceptList.id,
+      requestedUnits,
+      honorReserved: true,
+      noop: false,
+    });
+
+    const successMetadata = successEvent.metadata as { totalNeededQuantity?: number } | undefined;
+    expect(successMetadata?.totalNeededQuantity).toBe(contents[0].required_per_unit * requestedUnits);
+
+    const linksMetadata = linksEvent.metadata as { shoppingLists?: { ids?: number[] } } | undefined;
+    expect(linksMetadata?.shoppingLists?.ids).toContain(conceptList.id);
+
+    await expect(kits.detailOrderDialog).not.toBeVisible();
+    await toastHelper.expectSuccessToast(/Queued/i);
+    await toastHelper.dismissToast({ all: true });
+
+    await expect(kits.shoppingLinkChip(conceptList.id)).toBeVisible();
+
+    const unlinkOpen = waitForUiState(page, 'kits.detail.shoppingListFlow', 'open');
+    await kits.shoppingLinkUnlinkButton(conceptList.id).click();
+    await unlinkOpen;
+    await expect(kits.unlinkConfirmDialog).toBeVisible();
+
+    const unlinkSubmit = waitForUiState(page, 'kits.detail.shoppingListFlow', 'submit');
+    const unlinkSuccess = waitForUiState(page, 'kits.detail.shoppingListFlow', 'success');
+    const linksAfterUnlink = waitTestEvent<UiStateTestEvent>(
+      page,
+      'ui_state',
+      (event) => {
+        if (event.scope !== 'kits.detail.links' || event.phase !== 'ready') {
+          return false;
+        }
+        const metadata = event.metadata as { shoppingLists?: { ids?: number[] } } | undefined;
+        const ids = metadata?.shoppingLists?.ids ?? [];
+        return Array.isArray(ids) && ids.every((id: number) => id !== conceptList.id);
+      }
+    );
+
+    await kits.unlinkConfirmDialog.getByRole('button', { name: /unlink list/i }).click();
+
+    await Promise.all([unlinkSubmit, unlinkSuccess, linksAfterUnlink]);
+    await toastHelper.expectSuccessToast(/Unlinked/i);
+    await toastHelper.dismissToast({ all: true });
+
+    await expect(kits.shoppingLinkChip(conceptList.id)).toHaveCount(0);
+    await expect(kits.detailLinksEmpty).toBeVisible();
   });
 });

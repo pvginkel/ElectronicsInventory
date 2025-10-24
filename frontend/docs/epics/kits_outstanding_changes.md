@@ -8,6 +8,7 @@ This **MUST** be ignored by LLMs. It's not yet finished and will only be picked 
   - Very large toast texts move the close button out of the toast. Specifically this text:
 
     [{"type":"greater_than_equal","loc":["build_target"],"msg":"Input should be greater than or equal to 1","input":0,"url":"https://errors.pydantic.dev/2.11/v/greater_than_equal"}]
+  - Toasts still not always auto close. Sometimes they do, but regularly I see toasts stay open indefinitely.
 - Kits list view:
   - Archive button must not be on the card. It needs to be a button in the detail screen.
   - The kit list screen does multiple queries for the shopping list and it icons instead of a batch query like the part list screen does.

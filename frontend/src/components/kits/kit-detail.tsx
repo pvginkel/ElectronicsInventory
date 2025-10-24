@@ -13,9 +13,16 @@ import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
 import { useUiStateInstrumentation } from '@/lib/test/ui-state';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { KitContentAggregates, KitContentRow, KitDetail } from '@/types/kits';
-import type { KitStatus } from '@/types/kits';
+import { ConfirmDialog, type DialogContentProps } from '@/components/ui/dialog';
 import { KitMetadataDialog } from '@/components/kits/kit-metadata-dialog';
+import { KitShoppingListDialog } from '@/components/kits/kit-shopping-list-dialog';
+import { useKitShoppingListUnlinkMutation } from '@/hooks/use-kit-shopping-list-links';
+import { useToast } from '@/hooks/use-toast';
+import { emitTestEvent } from '@/lib/test/event-emitter';
+import { ApiError } from '@/lib/api/api-error';
+import type { UiStateTestEvent } from '@/types/test-events';
+import type { KitContentAggregates, KitContentRow, KitDetail, KitShoppingListLink } from '@/types/kits';
+import type { KitStatus } from '@/types/kits';
 
 interface KitDetailProps {
   kitId: string;
@@ -24,6 +31,12 @@ interface KitDetailProps {
 }
 
 const SUMMARY_FORMATTER = new Intl.NumberFormat();
+const SHOPPING_LIST_FLOW_SCOPE = 'kits.detail.shoppingListFlow';
+type ShoppingListFlowPhase = Extract<UiStateTestEvent['phase'], 'open' | 'submit' | 'success' | 'error'>;
+
+function emitUiState(payload: Omit<UiStateTestEvent, 'timestamp'>) {
+  emitTestEvent(payload);
+}
 
 export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailProps) {
   const {
@@ -80,6 +93,11 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
   });
 
   const [isMetadataDialogOpen, setMetadataDialogOpen] = useState(false);
+  const [isShoppingListDialogOpen, setShoppingListDialogOpen] = useState(false);
+  const [linkToUnlink, setLinkToUnlink] = useState<KitShoppingListLink | null>(null);
+  const [unlinkingLinkId, setUnlinkingLinkId] = useState<number | null>(null);
+  const unlinkMutation = useKitShoppingListUnlinkMutation();
+  const { showSuccess, showWarning, showException } = useToast();
 
   const handleMetadataOpen = useCallback(() => {
     if (!detail || detail.status !== 'active') {
@@ -87,6 +105,47 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
     }
     setMetadataDialogOpen(true);
   }, [detail]);
+
+  const emitUnlinkFlowEvent = useCallback(
+    (phase: ShoppingListFlowPhase, link: KitShoppingListLink, overrides?: Record<string, unknown>) => {
+      if (!detail) {
+        return;
+      }
+      emitUiState({
+        kind: 'ui_state',
+        scope: SHOPPING_LIST_FLOW_SCOPE,
+        phase,
+        metadata: {
+          kitId: detail.id,
+          action: 'unlink',
+          targetListId: link.shoppingListId,
+          requestedUnits: link.requestedUnits,
+          honorReserved: link.honorReserved,
+          noop: false,
+          ...(overrides ?? {}),
+        },
+      });
+    },
+    [detail],
+  );
+
+  const handleShoppingListOpen = useCallback(() => {
+    if (!detail || detail.status !== 'active' || detail.contents.length === 0) {
+      return;
+    }
+    setShoppingListDialogOpen(true);
+  }, [detail]);
+
+  const handleUnlinkRequest = useCallback(
+    (link: KitShoppingListLink) => {
+      if (unlinkMutation.isPending || unlinkingLinkId !== null) {
+        return;
+      }
+      setLinkToUnlink(link);
+      emitUnlinkFlowEvent('open', link);
+    },
+    [emitUnlinkFlowEvent, unlinkMutation.isPending, unlinkingLinkId]
+  );
 
   const headerSlots = useMemo(
     () =>
@@ -96,9 +155,69 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
         overviewStatus,
         overviewSearch,
         onEditMetadata: handleMetadataOpen,
+        onOrderStock: handleShoppingListOpen,
+        canOrderStock: detail ? detail.status === 'active' && detail.contents.length > 0 : false,
+        onUnlinkShoppingList: detail && detail.status === 'active' ? handleUnlinkRequest : undefined,
+        canUnlinkShoppingList: detail ? detail.status === 'active' : false,
+      unlinkingLinkId,
       }),
-    [detail, handleMetadataOpen, isPending, overviewSearch, overviewStatus]
+    [
+      detail,
+      handleMetadataOpen,
+      handleShoppingListOpen,
+      handleUnlinkRequest,
+      isPending,
+      overviewSearch,
+      overviewStatus,
+      unlinkingLinkId,
+    ]
   );
+
+  const handleConfirmUnlink = useCallback(() => {
+    if (!detail || !linkToUnlink) {
+      return;
+    }
+    const link = linkToUnlink;
+    emitUnlinkFlowEvent('submit', link);
+    setUnlinkingLinkId(link.id);
+
+    void unlinkMutation
+      .mutateAsync({
+        kitId: detail.id,
+        linkId: link.id,
+        shoppingListId: link.shoppingListId,
+      })
+      .then(() => {
+        emitUnlinkFlowEvent('success', link);
+        showSuccess(`Unlinked "${link.name}" from this kit.`);
+        void query.refetch();
+      })
+      .catch((error: unknown) => {
+        if (error instanceof ApiError && error.status === 404) {
+          emitUnlinkFlowEvent('success', link, { status: 404, noop: true });
+          showWarning('That shopping list link was already removed. Refreshing kit detail.');
+          void query.refetch();
+          return;
+        }
+
+        const message = error instanceof Error ? error.message : 'Failed to unlink shopping list';
+        emitUnlinkFlowEvent('error', link, {
+          message,
+          status: error instanceof ApiError ? error.status : undefined,
+        });
+        showException('Failed to unlink shopping list', error);
+      })
+      .finally(() => {
+        setUnlinkingLinkId(null);
+        setLinkToUnlink(null);
+      });
+  }, [detail, emitUnlinkFlowEvent, linkToUnlink, query, showException, showSuccess, showWarning, unlinkMutation]);
+
+  const handleUnlinkDialogChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      setLinkToUnlink(null);
+    }
+  }, []);
 
   const content = (() => {
     if (isPending) {
@@ -164,6 +283,26 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
           onSuccess={() => {
             void query.refetch();
           }}
+        />
+      ) : null}
+      {detail ? (
+        <KitShoppingListDialog
+          open={isShoppingListDialogOpen}
+          onOpenChange={setShoppingListDialogOpen}
+          kit={detail}
+          contents={contents}
+        />
+      ) : null}
+      {detail && linkToUnlink ? (
+        <ConfirmDialog
+          open={Boolean(linkToUnlink)}
+          onOpenChange={handleUnlinkDialogChange}
+          title="Unlink shopping list?"
+          description={`Removing the link to "${linkToUnlink.name}" will not delete the shopping list or its lines.`}
+          confirmText="Unlink list"
+          destructive
+          onConfirm={handleConfirmUnlink}
+          contentProps={{ 'data-testid': 'kits.detail.shopping-list.unlink.dialog' } as DialogContentProps}
         />
       ) : null}
     </div>

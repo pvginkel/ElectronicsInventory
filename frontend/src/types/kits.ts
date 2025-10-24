@@ -159,6 +159,108 @@ export interface KitContentRow {
   activeReservations: KitReservationEntry[];
 }
 
+export interface KitShoppingListPreviewRow {
+  contentId: number;
+  partId: number;
+  partKey: string;
+  partDescription: string;
+  requestedUnits: number;
+  requiredPerUnit: number;
+  totalRequired: number;
+  availableHonoringReserved: number;
+  availableIgnoringReserved: number;
+  neededWithHonor: number;
+  neededWithoutHonor: number;
+}
+
+export interface KitShoppingListPreviewSummary {
+  totalNeededWithHonor: number;
+  totalNeededWithoutHonor: number;
+  linesWithNeedWithHonor: number;
+  linesWithNeedWithoutHonor: number;
+}
+
+export interface KitShoppingListPreview {
+  rows: KitShoppingListPreviewRow[];
+  summary: KitShoppingListPreviewSummary;
+}
+
+/**
+ * Derive per-part quantities for the shopping list dialog preview.
+ * Keeps both honor-reserved and ignore-reserved projections so the UI can
+ * surface the delta alongside the toggle without recomputing.
+ */
+export function buildKitShoppingListPreview(contents: KitContentRow[], requestedUnits: number): KitShoppingListPreview {
+  const normalizedUnits = Number.isFinite(requestedUnits) ? Math.max(0, Math.trunc(requestedUnits)) : 0;
+
+  if (normalizedUnits <= 0 || contents.length === 0) {
+    return {
+      rows: [],
+      summary: {
+        totalNeededWithHonor: 0,
+        totalNeededWithoutHonor: 0,
+        linesWithNeedWithHonor: 0,
+        linesWithNeedWithoutHonor: 0,
+      },
+    };
+  }
+
+  const computedRows = contents.map<KitShoppingListPreviewRow>((row) => {
+    const requiredPerUnit = clampNonNegative(row.requiredPerUnit);
+    const totalRequired = requiredPerUnit * normalizedUnits;
+    const availableHonoringReserved = clampNonNegative(row.available);
+    const availableIgnoringReserved = clampNonNegative(row.inStock);
+    const neededWithHonor = Math.max(totalRequired - availableHonoringReserved, 0);
+    const neededWithoutHonor = Math.max(totalRequired - availableIgnoringReserved, 0);
+
+    return {
+      contentId: row.id,
+      partId: row.partId,
+      partKey: row.part.key,
+      partDescription: row.part.description,
+      requestedUnits: normalizedUnits,
+      requiredPerUnit,
+      totalRequired,
+      availableHonoringReserved,
+      availableIgnoringReserved,
+      neededWithHonor,
+      neededWithoutHonor,
+    };
+  });
+
+  const summary = computedRows.reduce<KitShoppingListPreviewSummary>(
+    (totals, row) => ({
+      totalNeededWithHonor: totals.totalNeededWithHonor + row.neededWithHonor,
+      totalNeededWithoutHonor: totals.totalNeededWithoutHonor + row.neededWithoutHonor,
+      linesWithNeedWithHonor: totals.linesWithNeedWithHonor + (row.neededWithHonor > 0 ? 1 : 0),
+      linesWithNeedWithoutHonor: totals.linesWithNeedWithoutHonor + (row.neededWithoutHonor > 0 ? 1 : 0),
+    }),
+    {
+      totalNeededWithHonor: 0,
+      totalNeededWithoutHonor: 0,
+      linesWithNeedWithHonor: 0,
+      linesWithNeedWithoutHonor: 0,
+    }
+  );
+
+  const sortedRows = [...computedRows].sort((a, b) => {
+    const honorDelta = b.neededWithHonor - a.neededWithHonor;
+    if (honorDelta !== 0) {
+      return honorDelta;
+    }
+    const withoutHonorDelta = b.neededWithoutHonor - a.neededWithoutHonor;
+    if (withoutHonorDelta !== 0) {
+      return withoutHonorDelta;
+    }
+    return a.partKey.localeCompare(b.partKey);
+  });
+
+  return {
+    rows: sortedRows,
+    summary,
+  };
+}
+
 export interface KitShoppingListLink {
   id: number;
   shoppingListId: number;
@@ -329,7 +431,7 @@ function mapKitReservation(model: KitDetailResponseSchema_b98797e_KitReservation
   };
 }
 
-function mapKitShoppingListLinks(
+export function mapKitShoppingListLinks(
   links?: KitDetailResponseSchema_b98797e_KitShoppingListLinkSchema[] | null
 ): KitShoppingListLink[] {
   if (!links?.length) {
@@ -339,7 +441,7 @@ function mapKitShoppingListLinks(
   return links.map(mapKitShoppingListLink);
 }
 
-function mapKitShoppingListLink(model: KitDetailResponseSchema_b98797e_KitShoppingListLinkSchema): KitShoppingListLink {
+export function mapKitShoppingListLink(model: KitDetailResponseSchema_b98797e_KitShoppingListLinkSchema): KitShoppingListLink {
   return {
     id: model.id,
     shoppingListId: model.shopping_list_id,

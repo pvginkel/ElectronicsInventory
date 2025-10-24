@@ -23,6 +23,11 @@ export interface KitDetailHeaderOptions {
   overviewStatus: KitStatus;
   overviewSearch?: string;
   onEditMetadata?: () => void;
+  onOrderStock?: () => void;
+  canOrderStock?: boolean;
+  onUnlinkShoppingList?: (link: KitShoppingListLink) => void;
+  canUnlinkShoppingList?: boolean;
+  unlinkingLinkId?: number | null;
 }
 
 const STATUS_LABEL: Record<KitStatus, string> = {
@@ -50,7 +55,18 @@ const PICK_LIST_STATUS_ORDER: Record<string, number> = {
  * Build the header slots for the kit detail layout.
  */
 export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): KitDetailHeaderSlots {
-  const { kit, isLoading, overviewStatus, overviewSearch, onEditMetadata } = options;
+  const {
+    kit,
+    isLoading,
+    overviewStatus,
+    overviewSearch,
+    onEditMetadata,
+    onOrderStock,
+    canOrderStock,
+    onUnlinkShoppingList,
+    canUnlinkShoppingList,
+    unlinkingLinkId,
+  } = options;
 
   if (isLoading) {
     return {
@@ -78,15 +94,26 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
         </div>
       ),
       actions: (
-        <div className="inline-flex" data-testid="kits.detail.actions.edit.wrapper">
-          <Button
-            variant="outline"
-            disabled
-            data-testid="kits.detail.actions.edit"
-            aria-disabled="true"
-          >
-            Edit Kit
-          </Button>
+        <div className="flex flex-wrap gap-2" data-testid="kits.detail.actions.wrapper">
+          <div data-testid="kits.detail.actions.order-stock.wrapper">
+            <Button
+              variant="default"
+              disabled
+              data-testid="kits.detail.actions.order-stock"
+            >
+              Order Stock
+            </Button>
+          </div>
+          <div className="inline-flex" data-testid="kits.detail.actions.edit.wrapper">
+            <Button
+              variant="outline"
+              disabled
+              data-testid="kits.detail.actions.edit"
+              aria-disabled="true"
+            >
+              Edit Kit
+            </Button>
+          </div>
         </div>
       ),
     };
@@ -119,6 +146,23 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
   const sortedPickLists = sortPickLists(kit.pickLists);
   const hasLinkedWork = sortedShoppingLinks.length > 0 || sortedPickLists.length > 0;
   const isArchived = kit.status === 'archived';
+  const effectiveCanOrderStock =
+    typeof canOrderStock === 'boolean'
+      ? canOrderStock
+      : kit.status === 'active' && kit.contents.length > 0;
+  const hasKitContents = kit.contents.length > 0;
+  const orderButtonDisabled = !effectiveCanOrderStock || !onOrderStock;
+  let orderButtonTitle: string | undefined;
+  if (kit.status !== 'active') {
+    orderButtonTitle = 'Archived kits cannot order stock';
+  } else if (!hasKitContents) {
+    orderButtonTitle = 'Add parts to the kit before ordering stock';
+  }
+  if (!onOrderStock) {
+    orderButtonTitle = orderButtonTitle ?? 'Order stock is not available for this kit';
+  }
+  const canUnlink =
+    Boolean(onUnlinkShoppingList) && (canUnlinkShoppingList ?? !isArchived);
 
   return {
     breadcrumbs: (
@@ -165,15 +209,36 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
       <div className="flex flex-wrap items-center gap-2" data-testid="kits.detail.header.badges">
         {hasLinkedWork ? (
           <div className="flex flex-wrap gap-2" data-testid="kits.detail.links">
-            {sortedShoppingLinks.map((link) => (
-              <ShoppingListLinkChip
-                key={link.id}
-                listId={link.shoppingListId}
-                name={link.name}
-                status={link.status}
-                testId={`kits.detail.links.shopping.${link.shoppingListId}`}
-              />
-            ))}
+            {sortedShoppingLinks.map((link) => {
+              const unlinkBusy = unlinkingLinkId === link.id;
+              const unlinkBlocked = unlinkingLinkId !== null && unlinkingLinkId !== link.id;
+              const unlinkTooltip = unlinkBusy
+                ? 'Unlink in progress'
+                : unlinkBlocked
+                  ? 'Finish the in-progress unlink before removing another link'
+                  : 'Remove shopping list link';
+              const unlinkProps = canUnlink
+                ? {
+                    onUnlink: () => onUnlinkShoppingList?.(link),
+                    unlinkDisabled: unlinkBlocked || unlinkBusy,
+                    unlinkLoading: unlinkBusy,
+                    unlinkTestId: `kits.detail.links.shopping.unlink.${link.shoppingListId}`,
+                    unlinkTooltip,
+                    unlinkLabel: 'Unlink shopping list',
+                  }
+                : {};
+
+              return (
+                <ShoppingListLinkChip
+                  key={link.id}
+                  listId={link.shoppingListId}
+                  name={link.name}
+                  status={link.status}
+                  testId={`kits.detail.links.shopping.${link.shoppingListId}`}
+                  {...unlinkProps}
+                />
+              );
+            })}
             {sortedPickLists.map((pickList) => (
               <PickListLinkChip
                 key={pickList.id}
@@ -192,19 +257,32 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
       </div>
     ),
     actions: (
-      <div className="inline-flex" data-testid="kits.detail.actions.edit.wrapper">
-        {isArchived ? (
-          <ArchivedEditTooltip />
-        ) : (
+      <div className="flex flex-wrap gap-2" data-testid="kits.detail.actions.wrapper">
+        <div data-testid="kits.detail.actions.order-stock.wrapper">
           <Button
-            variant="outline"
-            onClick={onEditMetadata}
-            data-testid="kits.detail.actions.edit"
-            disabled={!onEditMetadata}
+            variant="default"
+            onClick={orderButtonDisabled ? undefined : onOrderStock}
+            disabled={orderButtonDisabled}
+            data-testid="kits.detail.actions.order-stock"
+            title={orderButtonDisabled ? orderButtonTitle : undefined}
           >
-            Edit Kit
+            Order Stock
           </Button>
-        )}
+        </div>
+        <div className="inline-flex" data-testid="kits.detail.actions.edit.wrapper">
+          {isArchived ? (
+            <ArchivedEditTooltip />
+          ) : (
+            <Button
+              variant="outline"
+              onClick={onEditMetadata}
+              data-testid="kits.detail.actions.edit"
+              disabled={!onEditMetadata}
+            >
+              Edit Kit
+            </Button>
+          )}
+        </div>
       </div>
     ),
   };

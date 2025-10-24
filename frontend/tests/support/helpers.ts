@@ -49,7 +49,7 @@ export async function waitTestEvent<T = TestEvent>(
 export async function waitForUiState(
   page: Page,
   scope: string,
-  phase: 'loading' | 'ready',
+  phase: UiStateTestEvent['phase'],
   timeout = 10_000
 ): Promise<UiStateTestEvent> {
   return waitTestEvent<UiStateTestEvent>(

@@ -24,6 +24,13 @@ export class KitsPage extends BasePage {
   readonly detailDescription: Locator;
   readonly detailBuildTargetBadge: Locator;
   readonly detailLinksSection: Locator;
+  readonly detailOrderButton: Locator;
+  readonly detailOrderDialog: Locator;
+  readonly detailOrderForm: Locator;
+  readonly detailOrderUnitsField: Locator;
+  readonly detailOrderSelector: Locator;
+  readonly detailOrderSubmit: Locator;
+  readonly detailOrderCancel: Locator;
   readonly detailEditButton: Locator;
   readonly detailEditWrapper: Locator;
   readonly detailEditTooltip: Locator;
@@ -44,6 +51,7 @@ export class KitsPage extends BasePage {
   readonly detailMetadataBuildTargetField: Locator;
   readonly detailMetadataSubmit: Locator;
   readonly detailMetadataCancel: Locator;
+  readonly unlinkConfirmDialog: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -66,6 +74,13 @@ export class KitsPage extends BasePage {
     this.detailDescription = page.getByTestId('kits.detail.header.description');
     this.detailBuildTargetBadge = page.getByTestId('kits.detail.badge.build-target');
     this.detailLinksSection = page.getByTestId('kits.detail.links');
+    this.detailOrderButton = page.getByTestId('kits.detail.actions.order-stock');
+    this.detailOrderDialog = page.getByTestId('kits.detail.shopping-list.dialog');
+    this.detailOrderForm = page.getByTestId('kits.detail.shopping-list.form');
+    this.detailOrderUnitsField = page.getByTestId('kits.detail.shopping-list.units');
+    this.detailOrderSelector = page.getByTestId('kits.detail.shopping-list.selector');
+    this.detailOrderSubmit = page.getByTestId('kits.detail.shopping-list.submit');
+    this.detailOrderCancel = page.getByTestId('kits.detail.shopping-list.cancel');
     this.detailEditButton = page.getByTestId('kits.detail.actions.edit');
     this.detailEditWrapper = page.getByTestId('kits.detail.actions.edit.wrapper');
     this.detailEditTooltip = page.getByTestId('kits.detail.actions.edit.tooltip');
@@ -86,6 +101,7 @@ export class KitsPage extends BasePage {
     this.detailMetadataBuildTargetField = page.getByTestId('kits.detail.metadata.field.build-target');
     this.detailMetadataSubmit = page.getByTestId('kits.detail.metadata.submit');
     this.detailMetadataCancel = page.getByTestId('kits.detail.metadata.cancel');
+    this.unlinkConfirmDialog = page.getByTestId('kits.detail.shopping-list.unlink.dialog');
   }
 
   async gotoOverview(): Promise<void> {
@@ -199,6 +215,21 @@ export class KitsPage extends BasePage {
       .first();
   }
 
+  shoppingLinkUnlinkButton(listId: number): Locator {
+    return this.page.getByTestId(`kits.detail.links.shopping.unlink.${listId}`);
+  }
+
+  async selectShoppingListInDialog(name: string | RegExp): Promise<void> {
+    const combobox = this.detailOrderSelector.getByRole('combobox');
+    await combobox.click();
+    await this.page.getByRole('option', { name }).click();
+  }
+
+  async typeShoppingListSearch(term: string): Promise<void> {
+    const combobox = this.detailOrderSelector.getByRole('combobox');
+    await combobox.click();
+    await combobox.fill(term);
+  }
   get detailLinksEmpty(): Locator {
     return this.page.getByTestId('kits.detail.links.empty');
   }

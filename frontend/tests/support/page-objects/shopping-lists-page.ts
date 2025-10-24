@@ -19,6 +19,7 @@ export class ShoppingListsPage extends BasePage {
   readonly detailContentConcept: Locator;
   readonly detailContentReady: Locator;
   readonly detailActions: Locator;
+  readonly detailKitChips: Locator;
   readonly conceptToolbar: Locator;
   readonly conceptTable: Locator;
   readonly readyToolbar: Locator;
@@ -41,6 +42,7 @@ export class ShoppingListsPage extends BasePage {
     this.detailContentConcept = page.getByTestId('shopping-lists.detail.content.concept');
     this.detailContentReady = page.getByTestId('shopping-lists.detail.content.ready');
     this.detailActions = page.getByTestId('shopping-lists.detail.actions');
+    this.detailKitChips = page.getByTestId('shopping-lists.concept.header.kits');
     this.conceptToolbar = page.getByTestId('shopping-lists.concept.toolbar');
     this.conceptTable = page.getByTestId('shopping-lists.concept.table');
     this.readyToolbar = page.getByTestId('shopping-lists.ready.toolbar');
@@ -117,6 +119,10 @@ export class ShoppingListsPage extends BasePage {
       const rect = element.getBoundingClientRect();
       return { top: rect.top, bottom: rect.bottom, height: rect.height };
     });
+  }
+
+  kitChip(kitId: number): Locator {
+    return this.page.getByTestId(`shopping-lists.concept.header.kits.${kitId}`);
   }
 
   async getToolbarRect(view: 'concept' | 'ready'): Promise<{ top: number; bottom: number; height: number }> {

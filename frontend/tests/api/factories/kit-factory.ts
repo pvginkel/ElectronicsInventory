@@ -93,6 +93,18 @@ export class KitTestFactory {
     return kits;
   }
 
+  async createWithContents(options: KitCreateOptions & {
+    contents: Array<{ partId: number; requiredPerUnit: number; note?: string | null }>;
+  }): Promise<{ kit: KitResponseSchema; contents: KitContentDetailSchema[] }> {
+    const kit = await this.create(options);
+    const createdContents: KitContentDetailSchema[] = [];
+    for (const content of options.contents) {
+      const row = await this.addContent(kit.id, content);
+      createdContents.push(row);
+    }
+    return { kit, contents: createdContents };
+  }
+
   /**
    * Add a content row to the specified kit.
    */
