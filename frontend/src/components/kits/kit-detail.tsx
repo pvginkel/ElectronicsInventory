@@ -57,6 +57,7 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
   const queryFetchStatus = query.fetchStatus;
 
   const isPending = isKitIdValid && queryStatus === 'pending';
+  const isFetching = isKitIdValid && queryFetchStatus === 'fetching';
   const hasError = isKitIdValid && queryStatus === 'error';
   const error = hasError ? query.error : undefined;
 
@@ -86,7 +87,7 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
   );
 
   useUiStateInstrumentation('kits.detail.links', {
-    isLoading: isKitIdValid ? queryStatus === 'pending' : false,
+    isLoading: isPending || isFetching,
     error,
     getReadyMetadata: getLinksReadyMetadata,
     getErrorMetadata: getDetailErrorMetadata,

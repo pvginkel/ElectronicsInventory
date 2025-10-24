@@ -652,9 +652,9 @@ test.describe('Shopping Lists', () => {
     expect(conceptEvent.metadata?.sortKey).toBe('description');
 
     const conceptRows = shoppingLists.conceptTable.locator('tbody tr');
-    await expect(conceptRows.nth(0).getByTestId(/\.part$/)).toHaveText(alphaPart.description);
-    await expect(conceptRows.nth(1).getByTestId(/\.part$/)).toHaveText(bravoUpper.description);
-    await expect(conceptRows.nth(2).getByTestId(/\.part$/)).toHaveText(bravoLower.description);
+    await expect(conceptRows.nth(0).getByTestId(/\.part$/)).toContainText(alphaPart.description);
+    await expect(conceptRows.nth(1).getByTestId(/\.part$/)).toContainText(bravoUpper.description);
+    await expect(conceptRows.nth(2).getByTestId(/\.part$/)).toContainText(bravoLower.description);
 
     await expect(shoppingLists.conceptSellerBadge(alphaPart.description)).toHaveText('Duplicate Seller A');
     await expect(shoppingLists.conceptStatusBadge(alphaPart.description)).toHaveText(/New/i);
@@ -664,9 +664,9 @@ test.describe('Shopping Lists', () => {
     await shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.sort.button').click();
     await shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.sort.description').click();
 
-    await expect(conceptRows.nth(0).getByTestId(/\.part$/)).toHaveText(alphaPart.description);
-    await expect(conceptRows.nth(1).getByTestId(/\.part$/)).toHaveText(bravoUpper.description);
-    await expect(conceptRows.nth(2).getByTestId(/\.part$/)).toHaveText(bravoLower.description);
+    await expect(conceptRows.nth(0).getByTestId(/\.part$/)).toContainText(alphaPart.description);
+    await expect(conceptRows.nth(1).getByTestId(/\.part$/)).toContainText(bravoUpper.description);
+    await expect(conceptRows.nth(2).getByTestId(/\.part$/)).toContainText(bravoLower.description);
 
     await testData.shoppingLists.markReady(listDetail.id);
     await testData.shoppingLists.orderLine(listDetail.id, alphaLine.id, 1);

@@ -195,6 +195,9 @@ export function KitShoppingListDialog({
       }
     },
   });
+  // Keep the latest form API in a ref so effects don't thrash when the wrapper object re-renders.
+  const formRef = useRef(form);
+  formRef.current = form;
 
   const parsedUnits = useMemo(() => {
     const trimmed = form.values.requestedUnits.trim();
@@ -245,10 +248,11 @@ export function KitShoppingListDialog({
   useEffect(() => {
     if (open && !lastOpenRef.current) {
       const defaultUnits = Math.max(kit.buildTarget, 1);
-      form.reset();
-      form.setValue('listId', null);
-      form.setValue('honorReserved', true);
-      form.setValue('requestedUnits', String(defaultUnits));
+      const currentForm = formRef.current;
+      currentForm.reset();
+      currentForm.setValue('listId', null);
+      currentForm.setValue('honorReserved', true);
+      currentForm.setValue('requestedUnits', String(defaultUnits));
       emitFlowEvent('open', {
         kitId: kit.id,
         action: 'order',
@@ -258,13 +262,13 @@ export function KitShoppingListDialog({
       });
     }
     lastOpenRef.current = open;
-  }, [form, kit.buildTarget, kit.id, open]);
+  }, [kit.buildTarget, kit.id, open]);
 
   useEffect(() => {
     if (!open) {
-      form.reset();
+      formRef.current.reset();
     }
-  }, [form, open]);
+  }, [open]);
 
   const handleDialogOpenChange = useCallback(
     (nextOpen: boolean) => {

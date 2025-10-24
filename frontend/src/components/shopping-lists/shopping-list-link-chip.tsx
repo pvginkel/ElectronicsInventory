@@ -1,4 +1,4 @@
-import type { ReactNode, MouseEvent } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ShoppingCart, Unlink } from 'lucide-react';
 
@@ -79,82 +79,65 @@ export function ShoppingListLinkChip({
     onUnlink?.();
   };
 
+  const containerTestId = testId ? `${testId}.wrapper` : undefined;
+
   return (
-    <Link
-      to={resolvedTo as any}
-      params={resolvedParams as any}
-      search={resolvedSearch as any}
+    <div
       className={cn(
-        'group inline-flex items-center gap-2 rounded-full border border-input bg-muted/40 px-3 py-1 text-sm transition hover:border-primary hover:text-primary',
+        'group inline-flex items-center gap-2 rounded-full border border-input bg-muted/40 px-2 py-1 text-sm transition hover:border-primary',
         className,
       )}
-      data-testid={testId}
+      data-testid={containerTestId}
       aria-label={accessibilityLabel}
       title={accessibilityLabel}
     >
-      <span className="flex items-center gap-2">
-        {icon ?? (
-          <ShoppingCart
-            className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary"
-            aria-hidden="true"
-            data-testid={iconTestId}
-          />
-        )}
-        <span>{name}</span>
-      </span>
-      {resolvedBadgeLabel ? (
-        <Badge
-          variant={resolvedBadgeVariant}
-          className="capitalize"
-          data-testid={badgeTestId}
-        >
-          {resolvedBadgeLabel}
-        </Badge>
-      ) : null}
-      {onUnlink ? (
-        <SpanUnlinkWrapper
-          loading={Boolean(unlinkLoading)}
-          data-testid={unlinkTestId ? `${unlinkTestId}.wrapper` : undefined}
-        >
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className={cn(
-              'h-6 w-6 rounded-full p-0 text-muted-foreground transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-            )}
-            onClick={handleUnlinkClick}
-            disabled={unlinkDisabled}
-            loading={unlinkLoading}
-            data-testid={unlinkTestId}
-            title={unlinkTooltip ?? unlinkLabel}
-            aria-label={unlinkLabel}
+      <Link
+        to={resolvedTo as any}
+        params={resolvedParams as any}
+        search={resolvedSearch as any}
+        className="flex min-w-0 flex-1 items-center gap-2 rounded-full px-1 py-0.5 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        data-testid={testId}
+        aria-label={accessibilityLabel}
+        title={accessibilityLabel}
+      >
+        <span className="flex items-center gap-2 min-w-0">
+          {icon ?? (
+            <ShoppingCart
+              className="h-4 w-4 flex-shrink-0 text-muted-foreground transition-colors group-hover:text-primary"
+              aria-hidden="true"
+              data-testid={iconTestId}
+            />
+          )}
+          <span className="truncate">{name}</span>
+        </span>
+        {resolvedBadgeLabel ? (
+          <Badge
+            variant={resolvedBadgeVariant}
+            className="flex-shrink-0 capitalize"
+            data-testid={badgeTestId}
           >
-            <Unlink className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        </SpanUnlinkWrapper>
+            {resolvedBadgeLabel}
+          </Badge>
+        ) : null}
+      </Link>
+      {onUnlink ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(
+            'ml-1 h-6 w-6 flex-shrink-0 rounded-full p-0 text-muted-foreground transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          )}
+          onClick={handleUnlinkClick}
+          disabled={unlinkDisabled}
+          loading={unlinkLoading}
+          data-testid={unlinkTestId}
+          title={unlinkTooltip ?? unlinkLabel}
+          aria-label={unlinkLabel}
+        >
+          <Unlink className="h-4 w-4" aria-hidden="true" />
+        </Button>
       ) : null}
-    </Link>
-  );
-}
-
-interface SpanUnlinkWrapperProps extends React.HTMLAttributes<HTMLSpanElement> {
-  loading: boolean;
-}
-
-function SpanUnlinkWrapper({ loading, className, children, ...rest }: SpanUnlinkWrapperProps) {
-  return (
-    <span
-      className={cn(
-        'flex-shrink-0 overflow-hidden transition-all duration-150',
-        loading
-          ? 'max-w-[1.75rem] opacity-100'
-          : 'max-w-0 opacity-0 group-hover:max-w-[1.75rem] group-hover:opacity-100 group-focus-visible:max-w-[1.75rem] group-focus-visible:opacity-100 focus-within:max-w-[1.75rem] focus-within:opacity-100',
-        className,
-      )}
-      {...rest}
-    >
-      {children}
-    </span>
+    </div>
   );
 }
