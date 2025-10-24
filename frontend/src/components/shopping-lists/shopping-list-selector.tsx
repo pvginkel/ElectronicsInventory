@@ -21,6 +21,7 @@ interface ShoppingListSelectorInstrumentation {
 interface ShoppingListSelectorProps extends Pick<UseShoppingListOptionsParams, 'statuses'> {
   value?: number;
   onChange: (value: number | undefined) => void;
+  onTouched?: () => void;
   enableCreate?: boolean;
   enabled?: boolean;
   instrumentation: ShoppingListSelectorInstrumentation;
@@ -63,6 +64,7 @@ export function ShoppingListSelector({
   onListCreated,
   onPopoverWheelCapture,
   emptyState,
+  onTouched,
 }: ShoppingListSelectorProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -78,6 +80,20 @@ export function ShoppingListSelector({
   } = useShoppingListOptions({ statuses, enabled });
 
   const { showException } = useToast();
+  const notifyTouched = useCallback(() => {
+    if (!onTouched) {
+      return;
+    }
+    const runner = () => {
+      onTouched();
+    };
+    setTimeout(runner, 0);
+  }, [onTouched]);
+
+  const handleValueChange = useCallback((nextValue: number | undefined) => {
+    onChange(nextValue);
+    notifyTouched();
+  }, [notifyTouched, onChange]);
 
   useEffect(() => {
     if (!enabled || !loadError) {
@@ -158,13 +174,13 @@ export function ShoppingListSelector({
     };
 
     setPendingCreatedOption(optimisticOption);
-    onChange(payload.id);
+    handleValueChange(payload.id);
     // Guidepost: delay search term sync until we confirm React Query saw the created list.
     setSearchTerm(normalizedName);
     setCreateDialogOpen(false);
     void refetch();
     onListCreated?.({ id: payload.id, name: normalizedName });
-  }, [onChange, onListCreated, refetch]);
+  }, [handleValueChange, onListCreated, refetch]);
 
   const {
     scope,
@@ -234,7 +250,7 @@ export function ShoppingListSelector({
     <div className={className} data-testid="shopping-lists.selector">
       <SearchableSelect<number, ShoppingListOption>
         value={value}
-        onChange={onChange}
+        onChange={handleValueChange}
         placeholder={placeholder}
         error={fieldError}
         options={filteredOptions}

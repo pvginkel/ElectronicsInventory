@@ -354,8 +354,8 @@ export function KitShoppingListDialog({
                 value={form.values.listId ?? undefined}
                 onChange={(value) => {
                   form.setValue('listId', typeof value === 'number' ? value : null);
-                  form.setFieldTouched('listId');
                 }}
+                onTouched={() => form.setFieldTouched('listId')}
                 statuses={SHOPPING_LIST_STATUSES}
                 enableCreate
                 enabled={open && hasBOM}
@@ -365,7 +365,6 @@ export function KitShoppingListDialog({
                 error={form.touched.listId ? form.errors.listId : undefined}
                 onListCreated={({ id }) => {
                   form.setValue('listId', id);
-                  form.setFieldTouched('listId');
                 }}
               />
             </div>

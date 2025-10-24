@@ -162,13 +162,6 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
     formApiRef.current = form;
   }, [form]);
 
-  const touchListField = useCallback(() => {
-    const applyTouch = () => {
-      formApiRef.current.setFieldTouched('listId', true);
-    };
-    setTimeout(applyTouch, 0);
-  }, []);
-
   useEffect(() => {
     const formApi = formApiRef.current;
 
@@ -205,10 +198,9 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
 
   const applyListSelection = useCallback((nextListId: number | undefined, mode: 'create' | 'select') => {
     form.setValue('listId', nextListId != null ? String(nextListId) : '');
-    touchListField();
     setSelectionMode(mode);
     setConflictError(null);
-  }, [form, touchListField]);
+  }, [form]);
 
   // Guidepost: Reset conflict banner whenever the user adjusts the target list.
   const handleListChange = useCallback((nextListId: number | undefined) => {
@@ -303,6 +295,7 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
                 <ShoppingListSelector
                   value={form.values.listId ? Number(form.values.listId) : undefined}
                   onChange={handleListChange}
+                  onTouched={() => form.setFieldTouched('listId')}
                   statuses={['concept']}
                   enableCreate
                   enabled={open}
