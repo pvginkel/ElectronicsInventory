@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { AlertTriangle, Plus } from 'lucide-react';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import type { KitContentAggregates, KitContentRow, KitDetail } from '@/types/kits';
 import type { KitStatus } from '@/types/kits';
 import { KitMetadataDialog } from '@/components/kits/kit-metadata-dialog';
+import { KitPickListCreateDialog } from '@/components/kits/kit-pick-list-create-dialog';
 
 interface KitDetailProps {
   kitId: string;
@@ -80,12 +81,20 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
   });
 
   const [isMetadataDialogOpen, setMetadataDialogOpen] = useState(false);
+  const [isCreatePickListDialogOpen, setCreatePickListDialogOpen] = useState(false);
 
   const handleMetadataOpen = useCallback(() => {
     if (!detail || detail.status !== 'active') {
       return;
     }
     setMetadataDialogOpen(true);
+  }, [detail]);
+
+  const handleCreatePickListOpen = useCallback(() => {
+    if (!detail || detail.status !== 'active') {
+      return;
+    }
+    setCreatePickListDialogOpen(true);
   }, [detail]);
 
   const headerSlots = useMemo(
@@ -96,9 +105,23 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
         overviewStatus,
         overviewSearch,
         onEditMetadata: handleMetadataOpen,
+        onCreatePickList: handleCreatePickListOpen,
       }),
-    [detail, handleMetadataOpen, isPending, overviewSearch, overviewStatus]
+    [
+      detail,
+      handleCreatePickListOpen,
+      handleMetadataOpen,
+      isPending,
+      overviewSearch,
+      overviewStatus,
+    ]
   );
+
+  useEffect(() => {
+    if (!detail || detail.status !== 'active') {
+      setCreatePickListDialogOpen(false);
+    }
+  }, [detail]);
 
   const content = (() => {
     if (isPending) {
@@ -163,6 +186,16 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
           onOpenChange={setMetadataDialogOpen}
           onSuccess={() => {
             void query.refetch();
+          }}
+        />
+      ) : null}
+      {detail ? (
+        <KitPickListCreateDialog
+          open={isCreatePickListDialogOpen}
+          kit={detail}
+          onOpenChange={setCreatePickListDialogOpen}
+          onSuccess={async () => {
+            await query.refetch();
           }}
         />
       ) : null}

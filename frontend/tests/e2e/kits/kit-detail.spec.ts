@@ -412,7 +412,7 @@ test.describe('Kit detail workspace', () => {
     await waitForListLoading(page, 'kits.detail.contents', 'ready');
 
     await expect(kits.detailEditButton).toBeDisabled();
-    await kits.detailEditWrapper.hover();
+    await kits.detailEditDisabledWrapper.hover();
     await expect(kits.detailEditTooltip).toBeVisible();
     await expect(kits.detailEditTooltip).toContainText('Archived kits are read-only');
 
@@ -468,8 +468,56 @@ test.describe('Kit detail workspace', () => {
 
     await testData.kits.addContent(kit.id, {
       partId,
-      requiredPerUnit: 2,
+      requiredPerUnit: 1,
     });
+
+    const initialStockBox = await testData.boxes.create();
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: initialStockBox.box_no, loc_no: 1, qty: 20 },
+      })
+    );
+
+    const extraStockBox = await testData.boxes.create();
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: extraStockBox.box_no, loc_no: 2, qty: 10 },
+      })
+    );
+
+    const pickListPreDetail = await testData.kits.getDetail(kit.id);
+    const pickListContentBefore = pickListPreDetail.contents?.[0];
+    const pickListAvailableBefore = pickListContentBefore?.available ?? 0;
+    const pickListShortfallBefore = pickListContentBefore?.shortfall ?? 0;
+    expect(pickListAvailableBefore).toBeGreaterThan(0);
+    expect(pickListShortfallBefore).toBe(0);
+
+    const pickListStockBox = await testData.boxes.create();
+    const pickListStockLocation = await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: pickListStockBox.box_no, loc_no: 5, qty: 100 },
+      })
+    );
+    expect(pickListStockLocation.qty).toBeGreaterThanOrEqual(100);
+
+
+    const stockBox = await testData.boxes.create();
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: stockBox.box_no, loc_no: 1, qty: 10 },
+      })
+    );
+
+    const preDetail = await testData.kits.getDetail(kit.id);
+    const contentBefore = preDetail.contents?.[0];
+    const availableBefore = contentBefore?.available ?? 0;
+    const shortfallBefore = contentBefore?.shortfall ?? 0;
+    expect(availableBefore).toBeGreaterThan(0);
+    expect(shortfallBefore).toBe(0);
 
     const conceptLinkResponse = await apiClient.apiRequest(() =>
       apiClient.POST('/api/kits/{kit_id}/shopping-lists', {
@@ -575,6 +623,154 @@ test.describe('Kit detail workspace', () => {
     const pickNavigation = page.waitForURL(new RegExp(`/pick-lists/${pickList.id}`));
     await Promise.all([pickNavigation, pickChip.click()]);
     await expect(page).toHaveURL(new RegExp(`/pick-lists/${pickList.id}`));
+  });
+
+  test('creates a pick list from the kit header action with instrumentation coverage', async ({
+    kits,
+    page,
+    apiClient,
+    testData,
+    toastHelper,
+  }) => {
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Pick List Entry Part' },
+    });
+    await testData.parts.getDetail(part.key);
+    const partReservationMetadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+    const partId = partReservationMetadata.part_id;
+
+  const kit = await testData.kits.create({
+    overrides: {
+      name: testData.kits.randomKitName('Create Pick List Kit'),
+      build_target: 5,
+    },
+  });
+
+  await testData.kits.addContent(kit.id, {
+    partId,
+    requiredPerUnit: 2,
+  });
+
+  const pickListStockBox = await testData.boxes.create();
+  await apiClient.apiRequest(() =>
+    apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+      params: { path: { part_key: part.key } },
+      body: { box_no: pickListStockBox.box_no, loc_no: 1, qty: 25 },
+    })
+  );
+
+    const detailReady = waitForListLoading(page, 'kits.detail', 'ready');
+    const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');
+    const linksReady = waitTestEvent<UiStateTestEvent>(
+      page,
+      'ui_state',
+      event =>
+        event.scope === 'kits.detail.links' &&
+        event.phase === 'ready' &&
+        event.metadata?.kitId === kit.id,
+    );
+
+    await kits.gotoOverview();
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await expect(kits.cardById(kit.id)).toBeVisible();
+    await kits.openDetailFromCard(kit.id);
+
+    await detailReady;
+    await contentsReady;
+    await linksReady;
+
+    await expect(kits.detailCreatePickListButton).toBeEnabled();
+    await kits.detailCreatePickListButton.click();
+    const pickListDialog = page.getByRole('dialog', { name: 'Create pick list' });
+    await expect(pickListDialog).toBeVisible();
+
+    const validationEvent = waitTestEvent<FormTestEvent>(
+      page,
+      'form',
+      event => event.formId === 'KitPickList:create' && event.phase === 'validation_error',
+    );
+    await kits.detailCreatePickListSubmit.click();
+    const validationPayload = await validationEvent;
+    expect(validationPayload.metadata?.field).toBe('requestedUnits');
+    await expect(kits.detailCreatePickListRequestedUnits).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+
+    await kits.detailCreatePickListRequestedUnits.fill('1');
+
+    const submitEvent = waitTestEvent<FormTestEvent>(
+      page,
+      'form',
+      event => event.formId === 'KitPickList:create' && event.phase === 'submit',
+    );
+    const successEvent = waitTestEvent<FormTestEvent>(
+      page,
+      'form',
+      event => event.formId === 'KitPickList:create' && event.phase === 'success',
+    );
+    const loadingReady = waitForListLoading(page, 'kits.detail.pickLists.create', 'ready');
+    const linksReload = waitTestEvent<UiStateTestEvent>(
+      page,
+      'ui_state',
+      event =>
+        event.scope === 'kits.detail.links' &&
+        event.phase === 'ready' &&
+        event.metadata?.kitId === kit.id,
+    );
+
+    await kits.detailCreatePickListSubmit.click();
+
+    const submitPayload = await submitEvent;
+    expect(submitPayload.fields).toMatchObject({
+      kitId: kit.id,
+      requestedUnits: 1,
+    });
+
+    const successPayload = await successEvent;
+    expect(successPayload.fields).toMatchObject({
+      kitId: kit.id,
+      requestedUnits: 1,
+      pickListId: expect.any(Number),
+    });
+
+    const loadingEvent = await loadingReady;
+    expect(loadingEvent.metadata).toMatchObject({
+      kitId: kit.id,
+      requestedUnits: 1,
+      pickListId: expect.any(Number),
+    });
+
+    await toastHelper.expectSuccessToast(/Created pick list/i);
+    await expect(pickListDialog).not.toBeVisible();
+    await linksReload;
+
+    const refreshed = await apiClient.apiRequest<KitDetailResponseSchema_b98797e>(() =>
+      apiClient.GET('/api/kits/{kit_id}', {
+        params: { path: { kit_id: kit.id } },
+      }),
+    );
+
+    const createdPickList = refreshed.pick_lists?.[0];
+    expect(createdPickList).toBeDefined();
+    expect(createdPickList?.requested_units).toBe(1);
+
+    const createdPickListId = createdPickList?.id;
+    expect(typeof createdPickListId).toBe('number');
+    if (typeof createdPickListId !== 'number') {
+      throw new Error('Failed to read created pick list id for assertions');
+    }
+
+    await expect(kits.pickListChip(createdPickListId)).toBeVisible();
+    await expect(kits.pickListChip(createdPickListId)).toContainText(
+      `Pick list #${createdPickListId}`,
+    );
   });
 
   test('shows empty state when kit has no contents', async ({ kits, testData, page }) => {

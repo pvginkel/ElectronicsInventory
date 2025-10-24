@@ -23,6 +23,7 @@ export interface KitDetailHeaderOptions {
   overviewStatus: KitStatus;
   overviewSearch?: string;
   onEditMetadata?: () => void;
+  onCreatePickList?: () => void;
 }
 
 const STATUS_LABEL: Record<KitStatus, string> = {
@@ -50,7 +51,14 @@ const PICK_LIST_STATUS_ORDER: Record<string, number> = {
  * Build the header slots for the kit detail layout.
  */
 export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): KitDetailHeaderSlots {
-  const { kit, isLoading, overviewStatus, overviewSearch, onEditMetadata } = options;
+  const {
+    kit,
+    isLoading,
+    overviewStatus,
+    overviewSearch,
+    onEditMetadata,
+    onCreatePickList,
+  } = options;
 
   if (isLoading) {
     return {
@@ -78,7 +86,18 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
         </div>
       ),
       actions: (
-        <div className="inline-flex" data-testid="kits.detail.actions.edit.wrapper">
+        <div
+          className="inline-flex flex-wrap gap-2"
+          data-testid="kits.detail.actions.edit.wrapper"
+        >
+          <Button
+            variant="secondary"
+            disabled
+            data-testid="kits.detail.actions.create-pick-list"
+            aria-disabled="true"
+          >
+            Create pick list
+          </Button>
           <Button
             variant="outline"
             disabled
@@ -192,7 +211,19 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
       </div>
     ),
     actions: (
-      <div className="inline-flex" data-testid="kits.detail.actions.edit.wrapper">
+      <div
+        className="inline-flex flex-wrap gap-2"
+        data-testid="kits.detail.actions.edit.wrapper"
+      >
+        <Button
+          variant="secondary"
+          onClick={onCreatePickList}
+          data-testid="kits.detail.actions.create-pick-list"
+          disabled={isArchived || !onCreatePickList}
+          title={isArchived ? 'Archived kits cannot create pick lists' : undefined}
+        >
+          Create pick list
+        </Button>
         {isArchived ? (
           <ArchivedEditTooltip />
         ) : (
@@ -244,6 +275,7 @@ function ArchivedEditTooltip() {
       className="group relative inline-flex cursor-not-allowed"
       tabIndex={0}
       aria-describedby={tooltipId}
+      data-testid="kits.detail.actions.edit.disabled-wrapper"
     >
       <Button
         variant="outline"
