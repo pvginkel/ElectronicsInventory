@@ -1,5 +1,10 @@
 # Feature Plan — Shopping List Flow & Linking
 
+The following changes were made after the initial version was delivered:
+
+- The line preview panel was removed as there was a lot of complexity to it and no perceived value.
+- The note prefix was removed since the backend forces a note prefix. The note prefix provided in the UI is appended to the backend provided note prefix. As such, it does not have value.
+
 ### 0) Research Log & Findings
 - src/components/kits/kit-detail.tsx:28-355 — kit detail screen already drives list/loading instrumentation and overlays, clarifying where the shopping-list CTA and dialog state need to live.
 - src/components/kits/kit-detail-header.tsx:165-233 — header metadata currently renders passive shopping list chips and a lone edit action, so navigation and unlink affordances must extend this block.
