@@ -180,11 +180,6 @@ export function KitPickListCreateDialog({
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     await form.handleSubmit(event);
-    const snapshot = instrumentationSnapshot();
-    const message = validateRequestedUnits(form.values.requestedUnits);
-    if (message) {
-      instrumentationRef.current?.trackValidationError('requestedUnits', message, snapshot);
-    }
   };
 
   const handleDialogOpenChange = (nextOpen: boolean) => {
