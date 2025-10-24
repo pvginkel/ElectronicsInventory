@@ -105,6 +105,8 @@ export function createTestDataBundle(
       updateContent: kitFactory.updateContent.bind(kitFactory),
       deleteContent: kitFactory.deleteContent.bind(kitFactory),
       getDetail: kitFactory.getDetail.bind(kitFactory),
+      createPickList: kitFactory.createPickList.bind(kitFactory),
+      getPickListDetail: kitFactory.getPickListDetail.bind(kitFactory),
       archive: kitFactory.archive.bind(kitFactory),
       unarchive: kitFactory.unarchive.bind(kitFactory),
       randomKitName: kitFactory.randomKitName.bind(kitFactory),

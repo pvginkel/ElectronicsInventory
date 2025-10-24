@@ -18,6 +18,7 @@ import { AppShellPage } from './page-objects/app-shell-page';
 import { AboutPage } from './page-objects/about-page';
 import { ShoppingListsPage } from './page-objects/shopping-lists-page';
 import { KitsPage } from './page-objects/kits-page';
+import { PickListsPage } from './page-objects/pick-lists-page';
 import {
   TestEventCapture,
   createTestEventCapture,
@@ -73,6 +74,7 @@ type TestFixtures = {
   about: AboutPage;
   shoppingLists: ShoppingListsPage;
   kits: KitsPage;
+  pickLists: PickListsPage;
   testEvents: TestEventCapture;
   toastHelper: ToastHelper;
   sseMocker: SSEMocker;
@@ -233,6 +235,10 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
 
     kits: async ({ page }, use) => {
       await use(new KitsPage(page));
+    },
+
+    pickLists: async ({ page }, use) => {
+      await use(new PickListsPage(page));
     },
 
     partsAI: async ({ page }, use) => {

@@ -199,6 +199,9 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
                 pickListId={pickList.id}
                 label={formatPickListLabel(pickList)}
                 status={pickList.status}
+                kitId={kit.id}
+                kitStatus={overviewStatus}
+                kitSearch={overviewSearch}
                 testId={`kits.detail.links.pick-lists.${pickList.id}`}
               />
             ))}
