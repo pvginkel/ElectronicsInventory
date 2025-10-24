@@ -96,7 +96,7 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
             data-testid="kits.detail.actions.create-pick-list"
             aria-disabled="true"
           >
-            Create pick list
+            Create Pick List
           </Button>
           <Button
             variant="outline"
@@ -225,7 +225,7 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
           disabled={isArchived || !onCreatePickList}
           title={isArchived ? 'Archived kits cannot create pick lists' : undefined}
         >
-          Create pick list
+          Create Pick List
         </Button>
         {isArchived ? (
           <ArchivedEditTooltip />

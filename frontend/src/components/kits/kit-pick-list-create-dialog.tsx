@@ -212,7 +212,7 @@ export function KitPickListCreateDialog({
       <DialogContent>
         <Form onSubmit={handleSubmit} data-testid="kits.detail.pick-list.create.form">
           <DialogHeader>
-            <DialogTitle>Create pick list</DialogTitle>
+            <DialogTitle>Create Pick List</DialogTitle>
             <DialogDescription>
               Enter the number of kit builds to fulfill. A pick list line is created for each
               component.
@@ -264,7 +264,7 @@ export function KitPickListCreateDialog({
               disabled={isSubmitDisabled}
               data-testid="kits.detail.pick-list.create.submit"
             >
-              Create pick list
+              Create Pick List
             </Button>
           </DialogFooter>
         </Form>

@@ -687,7 +687,7 @@ test.describe('Kit detail workspace', () => {
 
     await expect(kits.detailCreatePickListButton).toBeEnabled();
     await kits.detailCreatePickListButton.click();
-    const pickListDialog = page.getByRole('dialog', { name: 'Create pick list' });
+    const pickListDialog = page.getByRole('dialog', { name: 'Create Pick List' });
     await expect(pickListDialog).toBeVisible();
 
     const validationEvent = waitTestEvent<FormTestEvent>(

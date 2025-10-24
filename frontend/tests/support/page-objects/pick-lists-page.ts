@@ -69,7 +69,7 @@ export class PickListsPage extends BasePage {
     return this.page.getByTestId('pick-lists.detail.breadcrumbs.root');
   }
 
-  breadcrumbKit(): Locator {
-    return this.page.getByTestId('pick-lists.detail.breadcrumbs.kit');
+  breadcrumbCurrent(): Locator {
+    return this.page.getByTestId('pick-lists.detail.breadcrumbs.current');
   }
 }

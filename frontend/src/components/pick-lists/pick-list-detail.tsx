@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { Link } from '@tanstack/react-router';
 import { AlertTriangle } from 'lucide-react';
 
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
@@ -110,42 +109,20 @@ export function PickListDetail({
   });
 
   const breadcrumbs = useMemo(() => {
+    const pickListLabel = detail ? `Pick List ${detail.id}` : 'Pick List';
+    const stateLabel = isPending ? 'Loading…' : hasError ? 'Error' : pickListLabel;
+
     return (
       <div
         className="flex items-center gap-2 text-sm text-muted-foreground"
         data-testid="pick-lists.detail.breadcrumbs"
       >
         <span data-testid="pick-lists.detail.breadcrumbs.root">Pick Lists</span>
-        {detail ? (
-          <>
-            <span>/</span>
-            <Link
-              to="/kits/$kitId"
-              params={{ kitId: String(detail.kitId) }}
-              search={{
-                status: kitOverviewStatus ?? 'active',
-                ...(kitOverviewSearch ? { search: kitOverviewSearch } : {}),
-              }}
-              className="hover:text-foreground"
-              data-testid="pick-lists.detail.breadcrumbs.kit"
-            >
-              {detail.kitName}
-            </Link>
-          </>
-        ) : isPending ? (
-          <>
-            <span>/</span>
-            <span data-testid="pick-lists.detail.breadcrumbs.state">Loading…</span>
-          </>
-        ) : hasError ? (
-          <>
-            <span>/</span>
-            <span data-testid="pick-lists.detail.breadcrumbs.state">Error</span>
-          </>
-        ) : null}
+        <span>/</span>
+        <span data-testid="pick-lists.detail.breadcrumbs.current">{stateLabel}</span>
       </div>
     );
-  }, [detail, hasError, isPending, kitOverviewStatus, kitOverviewSearch]);
+  }, [detail, hasError, isPending]);
 
   const title = detail ? (
     <span data-testid="pick-lists.detail.title">Pick List {detail.id}</span>
@@ -178,41 +155,36 @@ export function PickListDetail({
 
   const metadataRow = detail ? (
     <div className="flex flex-wrap items-center gap-2" data-testid="pick-lists.detail.metadata">
-      <MetadataPill
+      <DetailBadge
         label="Requested units"
         value={NUMBER_FORMATTER.format(detail.requestedUnits)}
         testId="pick-lists.detail.badge.requested-units"
+        className="bg-slate-100 text-slate-700"
       />
-      <MetadataPill
+      <DetailBadge
         label="Total lines"
         value={NUMBER_FORMATTER.format(detail.lineCount)}
         testId="pick-lists.detail.badge.total-lines"
+        className="bg-slate-100 text-slate-700"
       />
-      <MetadataPill
+      <DetailBadge
         label="Open lines"
         value={NUMBER_FORMATTER.format(detail.openLineCount)}
         testId="pick-lists.detail.badge.open-lines"
+        className="bg-amber-100 text-amber-800"
       />
-      <MetadataPill
+      <DetailBadge
         label="Remaining quantity"
         value={NUMBER_FORMATTER.format(detail.remainingQuantity)}
         testId="pick-lists.detail.badge.remaining-quantity"
-      />
-      <MetadataPill
-        label="Created"
-        value={formatTimestamp(detail.createdAt)}
-        testId="pick-lists.detail.badge.created-at"
-      />
-      <MetadataPill
-        label="Updated"
-        value={formatTimestamp(detail.updatedAt)}
-        testId="pick-lists.detail.badge.updated-at"
+        className="bg-slate-100 text-slate-700"
       />
       {detail.completedAt ? (
-        <MetadataPill
+        <DetailBadge
           label="Completed"
           value={formatTimestamp(detail.completedAt)}
           testId="pick-lists.detail.badge.completed-at"
+          className="bg-emerald-100 text-emerald-800"
         />
       ) : null}
     </div>
@@ -358,21 +330,22 @@ function PickListDetailLoadingState() {
   );
 }
 
-interface MetadataPillProps {
+interface DetailBadgeProps {
   label: string;
   value: string;
+  className?: string;
   testId: string;
 }
 
-function MetadataPill({ label, value, testId }: MetadataPillProps) {
+function DetailBadge({ label, value, className, testId }: DetailBadgeProps) {
   return (
-    <span
-      className="inline-flex items-center gap-2 rounded-full border border-border bg-background/80 px-3 py-1 text-sm font-medium text-foreground shadow-sm"
+    <Badge
+      variant="outline"
+      className={cn('text-xs', className)}
       data-testid={testId}
     >
-      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
-      <span>{value}</span>
-    </span>
+      {label}: {value}
+    </Badge>
   );
 }
 

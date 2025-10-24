@@ -1,10 +1,9 @@
-import type { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { getLineAvailabilityQuantity } from '@/hooks/use-pick-list-availability';
-import { cn } from '@/lib/utils';
 import { formatLocation } from '@/lib/utils/locations';
 import type {
   PickListAvailabilityErrorDetail,
@@ -17,11 +16,6 @@ const NUMBER_FORMATTER = new Intl.NumberFormat();
 const LINE_STATUS_LABEL: Record<'open' | 'completed', string> = {
   open: 'Open',
   completed: 'Completed',
-};
-
-const LINE_STATUS_BADGE_CLASS: Record<'open' | 'completed', string> = {
-  open: 'bg-amber-100 text-amber-800 border-amber-200',
-  completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
 };
 
 interface PickListLinesProps {
@@ -74,169 +68,139 @@ export function PickListLines({
         </div>
       ) : null}
 
-      {groups.map(group => (
-        <section
-          key={group.kitContentId}
-          className="overflow-hidden rounded-lg border border-border bg-card shadow-sm"
-          data-testid={`pick-lists.detail.group.${group.kitContentId}`}
-        >
-          <header className="border-b border-border bg-muted/30 px-5 py-4">
-            <PartInlineSummary
-              partKey={group.partKey}
-              description={group.description}
-              manufacturerCode={group.manufacturerCode}
-              testId={`pick-lists.detail.group.${group.kitContentId}.summary`}
-            />
+      {groups.map(group => {
+        const groupId = group.kitContentId;
+        return (
+          <Card key={groupId} className="p-0" data-testid={`pick-lists.detail.group.${groupId}`}>
+            <CardHeader className="flex flex-col gap-3 border-b border-border/70 px-4 py-3 md:flex-row md:items-center md:justify-between space-y-0">
+              <div>
+                <CardTitle data-testid={`pick-lists.detail.group.${groupId}.title`}>
+                  {group.description}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Part key {group.partKey}
+                  {group.manufacturerCode ? ` · MPN ${group.manufacturerCode}` : ''}
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-5">
+                <div
+                  className="flex flex-wrap gap-2"
+                  data-testid={`pick-lists.detail.group.${groupId}.metrics`}
+                >
+                  <GroupSummaryBadge
+                    label="Lines"
+                    value={`${NUMBER_FORMATTER.format(group.lineCount)} (${NUMBER_FORMATTER.format(group.openLineCount)} open)`}
+                    className="bg-slate-100 text-slate-700"
+                    testId={`pick-lists.detail.group.${groupId}.metrics.lines`}
+                  />
+                  <GroupSummaryBadge
+                    label="Quantity to pick"
+                    value={NUMBER_FORMATTER.format(group.totalQuantityToPick)}
+                    className="bg-slate-100 text-slate-700"
+                    testId={`pick-lists.detail.group.${groupId}.metrics.total-quantity`}
+                  />
+                  <GroupSummaryBadge
+                    label="Remaining"
+                    value={NUMBER_FORMATTER.format(group.openQuantityToPick)}
+                    className="bg-amber-100 text-amber-800"
+                    testId={`pick-lists.detail.group.${groupId}.metrics.remaining`}
+                  />
+                </div>
+                <div
+                  className="flex items-center gap-2"
+                  data-testid={`pick-lists.detail.group.${groupId}.actions`}
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="px-0 py-0">
+              <div className="overflow-x-auto">
+                <table
+                  className="min-w-full divide-y divide-border/70"
+                  data-testid={`pick-lists.detail.group.${groupId}.table`}
+                >
+                  <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium">Location</th>
+                      <th className="px-4 py-3 text-left font-medium">Status</th>
+                      <th className="px-4 py-3 text-right font-medium">Quantity to pick</th>
+                      <th className="px-4 py-3 text-right font-medium">Current in stock</th>
+                      <th className="px-4 py-3 text-left font-medium">Picked at</th>
+                      <th className="px-4 py-3 text-left font-medium">Shortfall</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/70" data-testid={`pick-lists.detail.group.${groupId}.lines`}>
+                    {group.lines.map(line => {
+                      const lineId = line.id;
+                      const locationLabel = formatLocation(line.location.boxNo, line.location.locNo);
+                      const statusLabel = LINE_STATUS_LABEL[line.status];
+                      const inStockQuantity = availabilityEnabled
+                        ? getLineAvailabilityQuantity(
+                            availability,
+                            group.partKey,
+                            line.location.boxNo,
+                            line.location.locNo,
+                          )
+                        : null;
+                      const availabilityContent = resolveAvailabilityContent({
+                        availabilityEnabled,
+                        availabilityHasError,
+                        availabilityLoading,
+                        availabilityFetching,
+                        availabilityHasData,
+                        inStockQuantity,
+                      });
+                      const shortfall = computeShortfall(line.quantityToPick, inStockQuantity, line.status);
 
-            <div
-              className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground"
-              data-testid={`pick-lists.detail.group.${group.kitContentId}.metrics`}
-            >
-              <MetricPill
-                label="Lines"
-                value={`${NUMBER_FORMATTER.format(group.lineCount)} (${NUMBER_FORMATTER.format(group.openLineCount)} open)`}
-                testId={`pick-lists.detail.group.${group.kitContentId}.metrics.lines`}
-              />
-              <MetricPill
-                label="Quantity to pick"
-                value={NUMBER_FORMATTER.format(group.totalQuantityToPick)}
-                testId={`pick-lists.detail.group.${group.kitContentId}.metrics.total-quantity`}
-              />
-              <MetricPill
-                label="Remaining"
-                value={NUMBER_FORMATTER.format(group.openQuantityToPick)}
-                testId={`pick-lists.detail.group.${group.kitContentId}.metrics.remaining`}
-              />
-            </div>
-          </header>
-
-          <div className="divide-y divide-border" data-testid={`pick-lists.detail.group.${group.kitContentId}.lines`}>
-            {group.lines.map(line => (
-              <LineRow
-                key={line.id}
-                lineId={line.id}
-                partKey={group.partKey}
-                availability={availability}
-                availabilityEnabled={availabilityEnabled}
-                availabilityLoading={availabilityLoading}
-                availabilityFetching={availabilityFetching}
-                availabilityHasError={availabilityHasError}
-                availabilityHasData={availabilityHasData}
-                status={line.status}
-                quantityToPick={line.quantityToPick}
-                pickedAt={line.pickedAt}
-                locationBoxNo={line.location.boxNo}
-                locationLocNo={line.location.locNo}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
-    </div>
-  );
-}
-
-interface LineRowProps {
-  lineId: number;
-  partKey: string;
-  availability: Map<string, PickListPartLocationAvailability>;
-  availabilityEnabled: boolean;
-  availabilityLoading: boolean;
-  availabilityFetching: boolean;
-  availabilityHasError: boolean;
-  availabilityHasData: boolean;
-  status: 'open' | 'completed';
-  quantityToPick: number;
-  pickedAt: string | null;
-  locationBoxNo: number;
-  locationLocNo: number;
-}
-
-function LineRow(props: LineRowProps) {
-  const {
-    lineId,
-    partKey,
-    availability,
-    availabilityEnabled,
-    availabilityLoading,
-    availabilityFetching,
-    availabilityHasError,
-    availabilityHasData,
-    status,
-    quantityToPick,
-    pickedAt,
-    locationBoxNo,
-    locationLocNo,
-  } = props;
-
-  const locationLabel = formatLocation(locationBoxNo, locationLocNo);
-  const statusLabel = LINE_STATUS_LABEL[status];
-  const statusBadgeClass = LINE_STATUS_BADGE_CLASS[status];
-  const inStockQuantity = availabilityEnabled
-    ? getLineAvailabilityQuantity(availability, partKey, locationBoxNo, locationLocNo)
-    : null;
-
-  const availabilityContent = resolveAvailabilityContent({
-    availabilityEnabled,
-    availabilityHasError,
-    availabilityLoading,
-    availabilityFetching,
-    availabilityHasData,
-    inStockQuantity,
-  });
-
-  const shortfall = computeShortfall(quantityToPick, inStockQuantity, status);
-
-  return (
-    <div className="px-5 py-4" data-testid={`pick-lists.detail.line.${lineId}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Location</div>
-          <div className="mt-1 font-semibold text-foreground" data-testid={`pick-lists.detail.line.${lineId}.location`}>
-            {locationLabel}
-          </div>
-        </div>
-
-        <Badge
-          className={cn('border px-2 py-1 text-xs font-semibold uppercase tracking-wide', statusBadgeClass)}
-          data-testid={`pick-lists.detail.line.${lineId}.status`}
-        >
-          {statusLabel}
-        </Badge>
-      </div>
-
-      <div className="mt-4 grid gap-4 text-sm text-muted-foreground sm:grid-cols-3">
-        <MetricBlock
-          label="Quantity to pick"
-          value={NUMBER_FORMATTER.format(quantityToPick)}
-          testId={`pick-lists.detail.line.${lineId}.quantity`}
-        />
-
-        <MetricBlock
-          label="Current in stock"
-          value={availabilityContent}
-          testId={`pick-lists.detail.line.${lineId}.availability`}
-        />
-
-        <MetricBlock
-          label="Picked at"
-          value={pickedAt ?? '—'}
-          testId={`pick-lists.detail.line.${lineId}.picked-at`}
-        />
-      </div>
-
-      {shortfall > 0 ? (
-        <div
-          className="mt-4 flex items-start gap-2 rounded-md border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-900"
-          data-testid={`pick-lists.detail.line.${lineId}.shortfall`}
-        >
-          <AlertTriangle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-          <span>
-            Shortfall of {NUMBER_FORMATTER.format(shortfall)} unit{shortfall === 1 ? '' : 's'} — current stock is&nbsp;
-            {inStockQuantity !== null ? NUMBER_FORMATTER.format(inStockQuantity) : 'unavailable'}.
-          </span>
-        </div>
-      ) : null}
+                      return (
+                        <tr key={lineId} data-testid={`pick-lists.detail.line.${lineId}`} className="bg-background">
+                          <td className="px-4 py-3 text-sm font-medium text-foreground">
+                            <span data-testid={`pick-lists.detail.line.${lineId}.location`}>
+                              {locationLabel}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">
+                            <span data-testid={`pick-lists.detail.line.${lineId}.status`}>
+                              {statusLabel}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-foreground">
+                            <span data-testid={`pick-lists.detail.line.${lineId}.quantity`}>
+                              {NUMBER_FORMATTER.format(line.quantityToPick)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-foreground">
+                            <span data-testid={`pick-lists.detail.line.${lineId}.availability`}>
+                              {availabilityContent}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">
+                            <span data-testid={`pick-lists.detail.line.${lineId}.picked-at`}>
+                              {line.pickedAt ?? '—'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">
+                            {shortfall > 0 ? (
+                              <span
+                                className="inline-flex items-center gap-2 rounded border border-amber-400 bg-amber-50 px-2 py-1 text-amber-900"
+                                data-testid={`pick-lists.detail.line.${lineId}.shortfall`}
+                              >
+                                <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                                Shortfall {NUMBER_FORMATTER.format(shortfall)}
+                              </span>
+                            ) : (
+                              <span data-testid={`pick-lists.detail.line.${lineId}.shortfall`}>—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }
@@ -299,36 +263,18 @@ function computeShortfall(
   return quantityToPick > inStockQuantity ? quantityToPick - inStockQuantity : 0;
 }
 
-interface MetricBlockProps {
-  label: string;
-  value: ReactNode;
-  testId: string;
-}
-
-function MetricBlock({ label, value, testId }: MetricBlockProps) {
-  return (
-    <div className="flex flex-col gap-1" data-testid={testId}>
-      <span className="text-xs uppercase tracking-wide text-muted-foreground">{label}</span>
-      <span className="font-medium text-foreground">{value}</span>
-    </div>
-  );
-}
-
-interface MetricPillProps {
+interface GroupSummaryBadgeProps {
   label: string;
   value: string;
+  className?: string;
   testId: string;
 }
 
-function MetricPill({ label, value, testId }: MetricPillProps) {
+function GroupSummaryBadge({ label, value, className, testId }: GroupSummaryBadgeProps) {
   return (
-    <span
-      className="inline-flex items-center gap-2 rounded-full border border-border bg-background/80 px-3 py-1 font-medium text-foreground shadow-sm"
-      data-testid={testId}
-    >
-      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
-      <span className="text-sm">{value}</span>
-    </span>
+    <Badge variant="outline" className={`text-xs ${className ?? ''}`} data-testid={testId}>
+      {label}: {value}
+    </Badge>
   );
 }
 

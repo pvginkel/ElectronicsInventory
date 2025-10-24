@@ -96,7 +96,7 @@ test.describe('Pick list detail workspace', () => {
     await expect(pickLists.statusBadge).toContainText(/Open/i);
     await expect(pickLists.kitChip).toBeVisible();
     await expect(pickLists.breadcrumbRoot()).toHaveText('Pick Lists');
-    await expect(pickLists.breadcrumbKit()).toHaveText(kit.name);
+    await expect(pickLists.breadcrumbCurrent()).toHaveText(`Pick List ${pickList.id}`);
     await expect(pickLists.metadata).toContainText('Requested units');
     await expect(pickLists.metadata).toContainText('Total lines');
 
@@ -178,12 +178,9 @@ test.describe('Pick list detail workspace', () => {
 
     await expect(pickLists.title).toHaveText(`Pick List ${pickList.id}`);
     await expect(pickLists.breadcrumbRoot()).toHaveText('Pick Lists');
-    await expect(pickLists.breadcrumbKit()).toHaveText(kit.name);
-
-    const crumbHref = await pickLists.breadcrumbKit().getAttribute('href');
-    const crumbParams = new URLSearchParams(crumbHref?.split('?')[1] ?? '');
-    expect(crumbParams.get('status')).toBe('active');
-    expect(crumbParams.get('search')).toBe(kit.name);
+    const breadcrumbCurrent = pickLists.breadcrumbCurrent();
+    await expect(breadcrumbCurrent).toHaveText(`Pick List ${pickList.id}`);
+    expect(await breadcrumbCurrent.getAttribute('href')).toBeNull();
 
     const chipHref = await pickLists.kitChip.getAttribute('href');
     const chipParams = new URLSearchParams(chipHref?.split('?')[1] ?? '');
