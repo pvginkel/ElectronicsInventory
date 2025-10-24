@@ -27,7 +27,7 @@ Deliver a routed, read-only pick list workspace that lets operators review alloc
 **In scope**
 
 - Replace the placeholder route with a data-driven screen using `useGetPickListsByPickListId` and mapped domain types.
-- Render header metadata, grouped line items, live location availability, breadcrumbs with a non-clickable `Pick Lists` label (kit crumb optional), and deterministic instrumentation (`pickLists.detail` / `pickLists.detail.load`).
+- Render header metadata, grouped line items, live location availability, breadcrumbs with a non-clickable `Pick Lists` label plus a kit crumb derived from the detail payload, and deterministic instrumentation (`pickLists.detail` / `pickLists.detail.load`).
 - Update kit link chips/navigation so users arrive with preserved kit search context and tests have stable selectors.
 
 **Out of scope**
@@ -38,7 +38,7 @@ Deliver a routed, read-only pick list workspace that lets operators review alloc
 
 **Assumptions / constraints**
 
-Pick list detail responses do not include inventory snapshots; the UI must call `useGetPartsLocationsByPartKey` for each unique part to compute current in-stock quantities. Given the hobbyist single-user target, the additional requests are acceptable, but we should batch by unique part key per detail load. Breadcrumbs rely on kit detail search parameters, so `PickListLinkChip` must pass status/search context while supporting deep links with no prior kit navigation; until a Pick Lists index exists, the root crumb remains a label rather than a link.
+Pick list detail responses do not include inventory snapshots; the UI must call `useGetPartsLocationsByPartKey` for each unique part to compute current in-stock quantities. Given the hobbyist single-user target, the additional requests are acceptable, but we should batch by unique part key per detail load. Breadcrumbs rely on kit detail search parameters, so `PickListLinkChip` must pass status/search context while supporting deep links with no prior kit navigation; the API always returns `kitId`/`kitName`, so the detail screen can construct the kit crumb even for direct visits. Until a Pick Lists index exists, the root crumb remains a label rather than a link.
 
 ### 2) Affected Areas & File Map
 
@@ -71,7 +71,7 @@ Pick list detail responses do not include inventory snapshots; the UI must call 
   Evidence: `src/components/kits/pick-list-link-chip.tsx:33-58` — current link casts the route type and omits context.
 
 - Area: `src/components/kits/kit-detail-header.tsx`  
-  Why: Supply kit identifiers/status/search to `PickListLinkChip` and expose context for optional kit linking in the pick list workspace.  
+  Why: Supply kit identifiers/status/search to `PickListLinkChip` and ensure consistent kit linking in the pick list workspace.  
   Evidence: `src/components/kits/kit-detail-header.tsx:197-227` — renders pick list chips without contextual parameters today.
 
 - Area: `tests/api/factories/kit-factory.ts`  
@@ -140,12 +140,12 @@ Pick list detail responses do not include inventory snapshots; the UI must call 
 
 - Flow: Pick list detail load  
   - Steps:  
-    1. Validate route params/search, derive `pickListId` and optional kit context.  
+    1. Validate route params/search, derive `pickListId`, and capture any preserved kit search filters; kit metadata comes from the detail response.  
     2. Invoke `usePickListDetail(pickListId)`; handle invalid IDs by short-circuiting to "not found".  
     3. Emit `useListLoadingInstrumentation` (`pickLists.detail`) and `useUiStateInstrumentation` (`pickLists.detail.load`) based on query status.  
     4. Once detail data resolves, derive the unique set of part keys and trigger `useGetPartsLocationsByPartKey` queries (batched via `useQueries`) to hydrate live in-stock counts per part/location.  
     5. Render skeleton/error/loaded states inside `DetailScreenLayout` while inventory queries resolve; show optimistic placeholders for availability until data arrives.  
-    6. Populate header slots (always including `KitLinkChip` fed by `detail.kitId`/`detail.kitName`), line groups, and breadcrumbs (root label + optional kit crumb) once both the detail and inventory data complete.  
+    6. Populate header slots (always including `KitLinkChip` fed by `detail.kitId`/`detail.kitName`), line groups, and breadcrumbs (root label + kit crumb derived from the detail) once both the detail and inventory data complete.  
   - States / transitions: Query `status` (`pending` → `success`/`error`), secondary inventory queries with independent loading/error phases, UI state phases `loading` → `ready`/`error`, navigation search preserved on remount.  
   - Hotspots: Guard against duplicate inventory fetches when multiple lines share a part; ensure instrumentation cleans up on unmount and inventory queries cancel on param change.  
   - Evidence: `src/routes/pick-lists/$pickListId.tsx:1-13`, `src/hooks/use-kit-detail.ts:21-117`, `src/lib/test/query-instrumentation.ts:146-235`.
@@ -164,11 +164,11 @@ Pick list detail responses do not include inventory snapshots; the UI must call 
 - Flow: Breadcrumb & back-navigation context  
   - Steps:  
     1. When rendering header, read `kitId`, `status`, `search` from search params or detail payload.  
-    2. Build breadcrumbs with a non-clickable `Pick Lists` label and append a kit-specific crumb derived from `detail.kitId` when available.  
+    2. Build breadcrumbs with a non-clickable `Pick Lists` label and append a kit-specific crumb derived from `detail.kitId`/`detail.kitName`.  
     3. Render `KitLinkChip` pointing to `/kits/$kitId` with preserved `status`/`search` query for quick return navigation using response data rather than navigation state.  
     4. Optionally prefetch `buildKitDetailQueryKey(kitId)` to make return navigation instant.  
-  - States / transitions: Breadcrumb recalculates whenever detail or search changes; kit crumb hides only if the response omits `kitId` (future-proofing).  
-  - Hotspots: Ensure deep links still render the Pick Lists breadcrumb even if the kit crumb is suppressed for edge cases; avoid broken navigation when kit archived.  
+  - States / transitions: Breadcrumb recalculates whenever detail or search changes; once detail is ready the kit crumb and chip always render because the API guarantees kit context.  
+  - Hotspots: Ensure deep links build breadcrumbs from the detail response and keep the Pick Lists label for loading/error states; avoid broken navigation when kit archived.  
   - Evidence: `docs/epics/kits_feature_breakdown.md:256-258`, `src/components/kits/kit-detail-header.tsx:153-204`, `src/hooks/use-kit-detail.ts:19-36`.
 
 ### 6) Derived State & Invariants
@@ -190,7 +190,7 @@ Pick list detail responses do not include inventory snapshots; the UI must call 
 - Derived value: `kitLinkChipProps`  
   - Source: `detail.kitId`, `detail.kitName`, and validated search params (`status`, `search`).  
   - Writes / cleanup: Supplies props to `KitLinkChip` and breadcrumb links; recomputed whenever the response or search params change.  
-  - Guards: Provide fallback status/search defaults; hide chip only if `kitId` is missing from the response.  
+  - Guards: Provide fallback status/search defaults; hide the chip only while detail data is loading or in error, since the API guarantees kit context.  
   - Invariant: Chip navigation always points to an existing kit route when rendered.  
   - Evidence: `src/lib/api/generated/types.ts:3376-3438`, `src/components/shopping-lists/shopping-list-link-chip.tsx:1-64`.
 
@@ -213,7 +213,7 @@ Pick list detail responses do not include inventory snapshots; the UI must call 
 - Source of truth: React Query cache keyed by `['getPickListsByPickListId', { path: { pick_list_id } }]` drives detail state; no local duplication.  
 - Query syncing: When kit context present, prefetch `buildKitDetailQueryKey(kitId)` to keep kit summaries warm; invalidate on navigation back if needed.  
 - Instrumentation: `useListLoadingInstrumentation` and `useUiStateInstrumentation` track query lifecycle; ensure cleanup on unmount to emit `aborted` when needed.  
-- Navigation context: `PickListLinkChip` injects search parameters for kit detail chips, while `KitLinkChip` in the detail header uses `detail.kitId`/`kitName` plus search params to preserve status when linking back; if `kitId` were absent the chip hides and breadcrumbs fall back to `Pick Lists → Detail`.  
+- Navigation context: `PickListLinkChip` injects search parameters for kit detail chips, while `KitLinkChip` in the detail header uses `detail.kitId`/`kitName` plus search params to preserve status when linking back; once detail is ready the crumb and chip always render because the backend supplies the kit metadata.  
 - Evidence: `src/hooks/use-kit-detail.ts:19-117`, `src/lib/test/query-instrumentation.ts:146-235`, `src/lib/test/ui-state.ts:25-84`.
 
 ### 8) Errors & Edge Cases
@@ -308,7 +308,7 @@ Pick list detail responses do not include inventory snapshots; the UI must call 
     - Given a seeded pick list with multiple lines, When navigating directly to `/pick-lists/<id>`, Then the header shows requested units/status and `pickLists.detail.load` emits ready with `lineCount`.  
     - Given grouped lines with different statuses, When the detail loads, Then each group renders part summary, location badge, current in-stock quantity, and `quantity_to_pick` without mutation controls.  
     - Given the API response includes `kit_id`, When the detail loads, Then a kit link chip appears and navigates back to the originating kit while preserving status/search parameters.  
-    - Given the response omits `kit_id` (future-proof scenario), When landing via deep link, Then breadcrumbs show `Pick Lists → Pick list` without a kit crumb and the chip remains hidden.  
+    - Given a user deep links to `/pick-lists/<id>` without prior kit navigation, When the detail loads, Then breadcrumbs render `Pick Lists → <kit name>` using the response kit context and the kit link chip remains enabled.  
     - Given an open line where `quantity_to_pick` exceeds current stock, When availability loads, Then a shortfall alert appears with the deficit.  
   - Instrumentation / hooks: `waitForListLoading(page, 'pickLists.detail', 'ready')`, `waitForUiState(page, 'pickLists.detail.load', 'ready')`, `waitForUiState(page, 'pickLists.detail.availability', 'ready')`, page object locators `pick-lists.detail.*`.  
   - Gaps: Need representative fixtures for both sufficient stock and shortfall cases to assert alert behavior.  
@@ -347,7 +347,7 @@ Pick list detail responses do not include inventory snapshots; the UI must call 
 
 - Risk: Breadcrumb context lost when navigating from sources other than kit detail.  
   Impact: Users may lack direct return path to the originating surface.  
-  Mitigation: Default breadcrumbs to the Pick Lists label and only append kit context when available; hide `KitLinkChip` when context missing.
+  Mitigation: Always derive the kit crumb and link from the detail response, with the Pick Lists label as the temporary fallback while data loads.
 
 - Risk: Large pick lists could impact render performance.  
   Impact: UI lag when grouping many lines.  
