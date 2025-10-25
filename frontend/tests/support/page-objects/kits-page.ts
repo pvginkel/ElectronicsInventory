@@ -61,7 +61,6 @@ export class KitsPage extends BasePage {
   readonly pickListPanel: Locator;
   readonly pickListPanelAddButton: Locator;
   readonly pickListPanelOpenSection: Locator;
-  readonly pickListPanelEmpty: Locator;
   readonly pickListPanelCompletedToggle: Locator;
 
   constructor(page: Page) {
@@ -122,7 +121,6 @@ export class KitsPage extends BasePage {
     this.pickListPanel = page.getByTestId('kits.detail.pick-lists.panel');
     this.pickListPanelAddButton = page.getByTestId('kits.detail.pick-lists.add');
     this.pickListPanelOpenSection = page.getByTestId('kits.detail.pick-lists.open');
-    this.pickListPanelEmpty = page.getByTestId('kits.detail.pick-lists.empty');
     this.pickListPanelCompletedToggle = page.getByTestId('kits.detail.pick-lists.completed.toggle');
   }
 
@@ -251,10 +249,6 @@ export class KitsPage extends BasePage {
 
   pickListPanelOpenItem(pickListId: number): Locator {
     return this.page.getByTestId(`kits.detail.pick-lists.open.item.${pickListId}`);
-  }
-
-  pickListPanelOpenResume(pickListId: number): Locator {
-    return this.page.getByTestId(`kits.detail.pick-lists.open.item.${pickListId}.resume`);
   }
 
   pickListPanelCompletedSection(): Locator {

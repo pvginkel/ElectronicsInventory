@@ -642,7 +642,7 @@ test.describe('Kit detail workspace', () => {
     const pickAvailabilityReady = waitForUiState(page, 'pickLists.detail.availability', 'ready');
     const navigateEvent = waitForUiState(page, 'kits.detail.pickLists.navigate', 'ready');
 
-    await kits.pickListPanelOpenResume(pickList.id).click();
+    await kits.pickListPanelOpenItem(pickList.id).click();
     const navigatePayload = await navigateEvent;
     expect(navigatePayload.metadata).toMatchObject({
       kitId: kit.id,

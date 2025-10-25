@@ -283,7 +283,7 @@ test.describe('Pick list detail workspace', () => {
     await expect(kits.pickListPanelOpenItem(pickList.id)).toBeVisible();
 
     const navigateEvent = waitForUiState(page, 'kits.detail.pickLists.navigate', 'ready');
-    await kits.pickListPanelOpenResume(pickList.id).click();
+    await kits.pickListPanelOpenItem(pickList.id).click();
     const navigatePayload = await navigateEvent;
     expect(navigatePayload.metadata).toMatchObject({
       kitId: kit.id,
@@ -364,6 +364,11 @@ test.describe('Pick list detail workspace', () => {
     await expect(pickLists.statusBadge).toContainText(/Open/i);
 
     await expect(pickLists.breadcrumbKitLink).toBeVisible();
+    await expect.poll(async () => {
+      const href = await pickLists.breadcrumbKitLink.getAttribute('href');
+      return href ?? '';
+    }).not.toBe('');
+
     const chipHref = await pickLists.breadcrumbKitLink.getAttribute('href');
     const params = new URLSearchParams(chipHref?.split('?')[1] ?? '');
     expect(params.get('status')).toBe('archived');
