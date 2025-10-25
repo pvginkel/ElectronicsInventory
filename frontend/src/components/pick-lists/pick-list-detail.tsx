@@ -149,7 +149,7 @@ export function PickListDetail({
             <span>/</span>
             {kitNavigationReady && kitNavigationSearch ? (
               <Link
-                to="/kits/$kitId/"
+                to="/kits/$kitId"
                 params={{ kitId: String(detail.kitId) }}
                 search={kitNavigationSearch}
                 className="hover:text-foreground"

@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { getLineAvailabilityQuantity } from '@/hooks/use-pick-list-availability';
