@@ -58,6 +58,10 @@ function pickMembershipQueryKey(kitIds: number[], includeDone: boolean): PickMem
   return [PICK_MEMBERSHIP_QUERY_KEY[0], { kitIds, includeDone }] as const;
 }
 
+export function buildPickMembershipQueryKey(kitIds: number[], includeDone: boolean): PickMembershipQueryKey {
+  return pickMembershipQueryKey(kitIds, includeDone);
+}
+
 async function fetchKitShoppingListMemberships(
   kitIds: number[],
   includeDone: boolean

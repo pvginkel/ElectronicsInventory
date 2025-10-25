@@ -280,3 +280,130 @@ export function buildPickListDetailSearch(params: PickListDetailSearchParams): P
 
   return result;
 }
+
+export interface PickListDetailMetrics {
+  lineCount: number;
+  openLineCount: number;
+  completedLineCount: number;
+  totalQuantityToPick: number;
+  pickedQuantity: number;
+  remainingQuantity: number;
+}
+
+export interface PickListLineStatusPatchOptions {
+  pickedAt?: string | null;
+  inventoryChangeId?: number | null;
+  updatedAt?: string;
+  completedAt?: string | null;
+}
+
+export function computePickListDetailMetrics(
+  lines: KitPickListDetailSchema_b247181_KitPickListLineSchema[] | null | undefined,
+): PickListDetailMetrics {
+  if (!lines?.length) {
+    return {
+      lineCount: 0,
+      openLineCount: 0,
+      completedLineCount: 0,
+      totalQuantityToPick: 0,
+      pickedQuantity: 0,
+      remainingQuantity: 0,
+    };
+  }
+
+  let openLineCount = 0;
+  let pickedQuantity = 0;
+  let totalQuantityToPick = 0;
+
+  for (const line of lines) {
+    const quantity = typeof line.quantity_to_pick === 'number' && Number.isFinite(line.quantity_to_pick)
+      ? line.quantity_to_pick
+      : 0;
+    totalQuantityToPick += quantity;
+
+    if (line.status === 'completed') {
+      pickedQuantity += quantity;
+    } else {
+      openLineCount += 1;
+    }
+  }
+
+  const lineCount = lines.length;
+  const completedLineCount = lineCount - openLineCount;
+  const remainingQuantity = totalQuantityToPick - pickedQuantity;
+
+  return {
+    lineCount,
+    openLineCount,
+    completedLineCount,
+    totalQuantityToPick,
+    pickedQuantity,
+    remainingQuantity,
+  };
+}
+
+export function applyPickListLineStatusPatch(
+  detail: KitPickListDetailSchema_b247181,
+  lineId: number,
+  nextStatus: PickListLineStatus,
+  options?: PickListLineStatusPatchOptions,
+): KitPickListDetailSchema_b247181 {
+  if (!detail.lines?.length) {
+    return detail;
+  }
+
+  const updatedAt = options?.updatedAt ?? new Date().toISOString();
+  let lineMatched = false;
+  const nextLines = detail.lines.map(line => {
+    if (line.id !== lineId) {
+      return line;
+    }
+    lineMatched = true;
+
+    const pickedAt =
+      options && 'pickedAt' in options
+        ? options.pickedAt ?? null
+        : nextStatus === 'completed'
+          ? updatedAt
+          : null;
+
+    const inventoryChangeId =
+      options && 'inventoryChangeId' in options
+        ? options.inventoryChangeId ?? null
+        : nextStatus === 'completed'
+          ? line.inventory_change_id ?? null
+          : null;
+
+    return {
+      ...line,
+      status: nextStatus,
+      picked_at: pickedAt,
+      inventory_change_id: inventoryChangeId,
+    };
+  });
+
+  if (!lineMatched) {
+    return detail;
+  }
+
+  const metrics = computePickListDetailMetrics(nextLines);
+  const nextStatusSummary: PickListStatus = metrics.openLineCount === 0 ? 'completed' : 'open';
+  const completedAt =
+    nextStatusSummary === 'completed'
+      ? options?.completedAt ?? detail.completed_at ?? updatedAt
+      : null;
+
+  return {
+    ...detail,
+    lines: nextLines,
+    line_count: metrics.lineCount,
+    open_line_count: metrics.openLineCount,
+    completed_line_count: metrics.completedLineCount,
+    total_quantity_to_pick: metrics.totalQuantityToPick,
+    picked_quantity: metrics.pickedQuantity,
+    remaining_quantity: metrics.remainingQuantity,
+    status: nextStatusSummary,
+    completed_at: completedAt,
+    updated_at: updatedAt,
+  };
+}

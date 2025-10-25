@@ -121,6 +121,114 @@ test.describe('Pick list detail workspace', () => {
     await expect(pickLists.lineShortfall(lineForPartB!.id)).toContainText('Shortfall 6');
   });
 
+  test('allows operators to pick and undo lines with instrumentation', async ({
+    pickLists,
+    testData,
+    apiClient,
+    page,
+    toastHelper,
+  }) => {
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Execution Flow Part' },
+    });
+    const stockBox = await testData.boxes.create({
+      overrides: { description: 'Execution Flow Box' },
+    });
+
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: stockBox.box_no, loc_no: 1, qty: 10 },
+      })
+    );
+
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Execution Kit'),
+        build_target: 3,
+      },
+    });
+
+    const reservations = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+
+    await testData.kits.addContent(kit.id, {
+      partId: reservations.part_id,
+      requiredPerUnit: 2,
+    });
+
+    const pickList = await testData.kits.createPickList(kit.id, { requestedUnits: 1 });
+    const [line] = pickList.lines ?? [];
+    expect(line).toBeDefined();
+    const lineId = line!.id;
+
+    const listReady = waitForListLoading(page, 'pickLists.detail', 'ready');
+    const linesReady = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
+    const uiReady = waitForUiState(page, 'pickLists.detail.load', 'ready');
+    const availabilityReady = waitForUiState(page, 'pickLists.detail.availability', 'ready');
+
+    await pickLists.gotoDetail(pickList.id);
+    await Promise.all([listReady, linesReady, uiReady, availabilityReady]);
+
+    await expect(pickLists.statusBadge).toContainText(/Open/i);
+    await expect(pickLists.lineStatus(lineId)).toHaveText(/Open/i);
+    await expect(pickLists.pickButton(lineId)).toBeVisible();
+    await expect(pickLists.undoButton(lineId)).toBeHidden();
+
+    const pickLoading = waitForUiState(page, 'pickLists.detail.execution', 'loading');
+    const pickReady = waitForUiState(page, 'pickLists.detail.execution', 'ready');
+    const pickListReload = waitForListLoading(page, 'pickLists.detail', 'ready');
+    const pickLinesReload = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
+
+    await pickLists.pickButton(lineId).click();
+
+    await pickLoading;
+    const pickEvent = await pickReady;
+    await Promise.all([pickListReload, pickLinesReload]);
+
+    expect(pickEvent.metadata).toMatchObject({
+      action: 'pick',
+      pickListId: pickList.id,
+      lineId,
+      kitId: kit.id,
+      status: 'completed',
+    });
+
+    await toastHelper.expectSuccessToast(/Pick list completed/i);
+
+    await expect(pickLists.statusBadge).toHaveText(/Completed/i);
+    await expect(pickLists.lineStatus(lineId)).toHaveText(/Completed/i);
+    await expect(pickLists.linePickedAt(lineId)).not.toHaveText('—');
+    await expect(pickLists.undoButton(lineId)).toBeVisible();
+
+    const undoLoading = waitForUiState(page, 'pickLists.detail.execution', 'loading');
+    const undoReady = waitForUiState(page, 'pickLists.detail.execution', 'ready');
+    const undoListReload = waitForListLoading(page, 'pickLists.detail', 'ready');
+    const undoLinesReload = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
+
+    await pickLists.undoButton(lineId).click();
+
+    await undoLoading;
+    const undoEvent = await undoReady;
+    await Promise.all([undoListReload, undoLinesReload]);
+
+    expect(undoEvent.metadata).toMatchObject({
+      action: 'undo',
+      pickListId: pickList.id,
+      lineId,
+      kitId: kit.id,
+      status: 'open',
+    });
+
+    await expect(pickLists.statusBadge).toHaveText(/Open/i);
+    await expect(pickLists.lineStatus(lineId)).toHaveText(/Open/i);
+    await expect(pickLists.linePickedAt(lineId)).toHaveText('—');
+    await expect(pickLists.pickButton(lineId)).toBeVisible();
+  });
+
   test('preserves kit search context when navigating from kit detail', async ({
     kits,
     pickLists,

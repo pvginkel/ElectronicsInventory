@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { getLineAvailabilityQuantity } from '@/hooks/use-pick-list-availability';
@@ -28,6 +29,11 @@ interface PickListLinesProps {
   availabilityHasError: boolean;
   availabilityHasData: boolean;
   availabilityErrors: PickListAvailabilityErrorDetail[];
+  onPickLine: (lineId: number) => Promise<void> | void;
+  onUndoLine: (lineId: number) => Promise<void> | void;
+  executionPending: boolean;
+  executionPendingLineId: number | null;
+  executionPendingAction: 'pick' | 'undo' | null;
 }
 
 export function PickListLines({
@@ -39,6 +45,11 @@ export function PickListLines({
   availabilityHasError,
   availabilityHasData,
   availabilityErrors,
+  onPickLine,
+  onUndoLine,
+  executionPending,
+  executionPendingLineId,
+  executionPendingAction,
 }: PickListLinesProps) {
   if (groups.length === 0) {
     return (
@@ -122,16 +133,17 @@ export function PickListLines({
                   <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3 text-left font-medium">Location</th>
-                      <th className="px-4 py-3 text-left font-medium">Status</th>
-                      <th className="px-4 py-3 text-right font-medium">Quantity to pick</th>
-                      <th className="px-4 py-3 text-right font-medium">Current in stock</th>
-                      <th className="px-4 py-3 text-left font-medium">Picked at</th>
-                      <th className="px-4 py-3 text-left font-medium">Shortfall</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/70" data-testid={`pick-lists.detail.group.${groupId}.lines`}>
-                    {group.lines.map(line => {
-                      const lineId = line.id;
+                  <th className="px-4 py-3 text-left font-medium">Status</th>
+                  <th className="px-4 py-3 text-right font-medium">Quantity to pick</th>
+                  <th className="px-4 py-3 text-right font-medium">Current in stock</th>
+                  <th className="px-4 py-3 text-left font-medium">Picked at</th>
+                  <th className="px-4 py-3 text-left font-medium">Shortfall</th>
+                  <th className="px-4 py-3 text-right font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/70" data-testid={`pick-lists.detail.group.${groupId}.lines`}>
+                {group.lines.map(line => {
+                  const lineId = line.id;
                       const locationLabel = formatLocation(line.location.boxNo, line.location.locNo);
                       const statusLabel = LINE_STATUS_LABEL[line.status];
                       const inStockQuantity = availabilityEnabled
@@ -151,6 +163,12 @@ export function PickListLines({
                         inStockQuantity,
                       });
                       const shortfall = computeShortfall(line.quantityToPick, inStockQuantity, line.status);
+                      const isCompleted = line.status === 'completed';
+                      const isPending = executionPendingLineId === lineId;
+                      const isPickPending = isPending && executionPendingAction === 'pick';
+                      const isUndoPending = isPending && executionPendingAction === 'undo';
+                      const disablePick = executionPending || isCompleted;
+                      const disableUndo = executionPending || !isCompleted;
 
                       return (
                         <tr key={lineId} data-testid={`pick-lists.detail.line.${lineId}`}>
@@ -191,6 +209,45 @@ export function PickListLines({
                             ) : (
                               <span data-testid={`pick-lists.detail.line.${lineId}.shortfall`}>—</span>
                             )}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right text-foreground">
+                            <div
+                              className="flex justify-end"
+                              data-testid={`pick-lists.detail.line.${lineId}.actions`}
+                            >
+                              {isCompleted ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    void onUndoLine(lineId);
+                                  }}
+                                  disabled={disableUndo}
+                                  data-testid={`pick-lists.detail.line.${lineId}.action.undo`}
+                                >
+                                  {isUndoPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                                  ) : (
+                                    'Undo'
+                                  )}
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    void onPickLine(lineId);
+                                  }}
+                                  disabled={disablePick}
+                                  data-testid={`pick-lists.detail.line.${lineId}.action.pick`}
+                                >
+                                  {isPickPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                                  ) : (
+                                    'Pick'
+                                  )}
+                                </Button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );

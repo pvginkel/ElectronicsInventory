@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { KitLinkChip } from '@/components/kits/kit-link-chip';
 import { PickListLines } from '@/components/pick-lists/pick-list-lines';
 import { usePickListDetail } from '@/hooks/use-pick-list-detail';
+import { usePickListExecution } from '@/hooks/use-pick-list-execution';
 import { usePickListAvailability } from '@/hooks/use-pick-list-availability';
 import { useGetKitsByKitId } from '@/lib/api/generated/hooks';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
@@ -45,6 +46,7 @@ export function PickListDetail({
   kitOverviewSearch,
 }: PickListDetailProps) {
   const {
+    pickListId: normalizedPickListId,
     isPickListIdValid,
     detail,
     lineGroups,
@@ -57,6 +59,17 @@ export function PickListDetail({
     getLinesErrorMetadata,
     getLinesAbortedMetadata,
   } = usePickListDetail(pickListId);
+
+  const {
+    isExecuting: isExecutionPending,
+    pickLine,
+    undoLine,
+    pendingLineId,
+    pendingAction,
+  } = usePickListExecution({
+    pickListId: normalizedPickListId,
+    kitId: detail?.kitId,
+  });
 
   const queryStatus = query.status;
   const queryFetchStatus = query.fetchStatus;
@@ -245,6 +258,11 @@ export function PickListDetail({
     availabilityEnabled,
     availability,
     availabilityIsLoading,
+    onPickLine: pickLine,
+    onUndoLine: undoLine,
+    executionPending: isExecutionPending,
+    executionPendingLineId: pendingLineId,
+    executionPendingAction: pendingAction,
   });
 
   return (
@@ -276,6 +294,11 @@ interface RenderContentOptions {
   availabilityEnabled: boolean;
   availability: ReturnType<typeof usePickListAvailability>;
   availabilityIsLoading: boolean;
+  onPickLine: (lineId: number) => Promise<void>;
+  onUndoLine: (lineId: number) => Promise<void>;
+  executionPending: boolean;
+  executionPendingLineId: number | null;
+  executionPendingAction: 'pick' | 'undo' | null;
 }
 
 function renderContent(options: RenderContentOptions) {
@@ -290,6 +313,11 @@ function renderContent(options: RenderContentOptions) {
     availabilityEnabled,
     availability,
     availabilityIsLoading,
+    onPickLine,
+    onUndoLine,
+    executionPending,
+    executionPendingLineId,
+    executionPendingAction,
   } = options;
 
   if (!isPickListIdValid) {
@@ -348,6 +376,11 @@ function renderContent(options: RenderContentOptions) {
         availabilityHasError={availability.hasError}
         availabilityHasData={availability.hasData}
         availabilityErrors={availability.errorDetails}
+        onPickLine={onPickLine}
+        onUndoLine={onUndoLine}
+        executionPending={executionPending}
+        executionPendingLineId={executionPendingLineId}
+        executionPendingAction={executionPendingAction}
       />
     </div>
   );

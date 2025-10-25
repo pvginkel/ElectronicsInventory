@@ -8,6 +8,16 @@ import {
   type PickListStatus,
 } from '@/types/pick-lists';
 
+export function createPickListDetailParams(pickListId: number) {
+  return {
+    path: { pick_list_id: pickListId },
+  } as const;
+}
+
+export function buildPickListDetailQueryKey(pickListId: number) {
+  return ['getPickListsByPickListId', createPickListDetailParams(pickListId)] as const;
+}
+
 export interface UsePickListDetailResult {
   pickListId: number | null;
   isPickListIdValid: boolean;
@@ -46,7 +56,7 @@ export function usePickListDetail(pickListIdParam: number | string | undefined):
   const query = useGetPickListsByPickListId(
     isPickListIdValid
       ? {
-          path: { pick_list_id: normalizedPickListId },
+          ...createPickListDetailParams(normalizedPickListId),
         }
       : undefined,
     {

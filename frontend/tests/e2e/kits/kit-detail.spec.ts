@@ -436,6 +436,7 @@ test.describe('Kit detail workspace', () => {
 
   test('renders linked shopping and pick list chips with navigation', async ({
     kits,
+    pickLists,
     shoppingLists,
     testData,
     apiClient,
@@ -540,6 +541,9 @@ test.describe('Kit detail workspace', () => {
         body: { requested_units: 1 },
       })
     );
+    const pickListLines = pickList.lines ?? [];
+    const [pickListLine] = pickListLines;
+    expect(pickListLine).toBeDefined();
 
     const detailReady = waitForListLoading(page, 'kits.detail', 'ready');
     const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');
@@ -620,9 +624,59 @@ test.describe('Kit detail workspace', () => {
     await expect(pickChip).toContainText(`Pick list #${pickList.id}`);
     await expect(pickChip).toContainText(/Open/i);
 
-    const pickNavigation = page.waitForURL(new RegExp(`/pick-lists/${pickList.id}`));
-    await Promise.all([pickNavigation, pickChip.click()]);
-    await expect(page).toHaveURL(new RegExp(`/pick-lists/${pickList.id}`));
+    const pickDetailReady = waitForListLoading(page, 'pickLists.detail', 'ready');
+    const pickLinesReady = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
+    const pickUiReady = waitForUiState(page, 'pickLists.detail.load', 'ready');
+    const pickAvailabilityReady = waitForUiState(page, 'pickLists.detail.availability', 'ready');
+
+    await pickChip.click();
+    await Promise.all([pickDetailReady, pickLinesReady, pickUiReady, pickAvailabilityReady]);
+
+    const executionLoading = waitForUiState(page, 'pickLists.detail.execution', 'loading');
+    const executionReady = waitForUiState(page, 'pickLists.detail.execution', 'ready');
+    const detailReload = waitForListLoading(page, 'pickLists.detail', 'ready');
+    const linesReload = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
+
+    await pickLists.pickButton(pickListLine!.id).click();
+
+    await executionLoading;
+    const executionEvent = await executionReady;
+    await Promise.all([detailReload, linesReload]);
+
+    expect(executionEvent.metadata).toMatchObject({
+      action: 'pick',
+      pickListId: pickList.id,
+      lineId: pickListLine!.id,
+      kitId: kit.id,
+      status: 'completed',
+    });
+
+    await expect(pickLists.statusBadge).toHaveText(/Completed/i);
+
+    const returnDetail = waitForListLoading(page, 'kits.detail', 'ready');
+    const returnContents = waitForListLoading(page, 'kits.detail.contents', 'ready');
+    const returnLinks = waitForUiState(page, 'kits.detail.links', 'ready');
+
+    await pickLists.kitChip.click();
+    await Promise.all([returnDetail, returnContents, returnLinks]);
+
+    const completedPickChip = kits.pickListChip(pickList.id);
+    await expect(completedPickChip).toContainText(/Completed/i);
+
+    const overviewReady = waitForListLoading(page, 'kits.overview', 'ready');
+    const pickMembershipReady = waitForListLoading(page, 'kits.list.memberships.pick', 'ready');
+    await kits.goto('/kits');
+    await expect(kits.overviewRoot).toBeVisible();
+    await Promise.all([overviewReady, pickMembershipReady]);
+
+    const searchOverviewReady = waitForListLoading(page, 'kits.overview', 'ready');
+    const searchMembershipReady = waitForListLoading(page, 'kits.list.memberships.pick', 'ready');
+    await kits.search(kit.name);
+    await Promise.all([searchOverviewReady, searchMembershipReady]);
+
+    await expect(kits.cardById(kit.id)).toBeVisible();
+    await expect(kits.pickIndicator(kit.id)).toBeHidden();
+    await expect(kits.cardById(kit.id)).not.toContainText(/open pick list/i);
   });
 
   test('creates a pick list from the kit header action with instrumentation coverage', async ({
