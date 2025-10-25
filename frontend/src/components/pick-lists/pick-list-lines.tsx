@@ -180,8 +180,9 @@ export function PickListLines({
                       const isPending = executionPendingLineId === lineId;
                       const isPickPending = isPending && executionPendingAction === 'pick';
                       const isUndoPending = isPending && executionPendingAction === 'undo';
-                      const disablePick = executionPending || isCompleted;
-                      const disableUndo = executionPending || !isCompleted;
+                      const isLineExecuting = executionPending && isPending;
+                      const disablePick = isCompleted || isLineExecuting;
+                      const disableUndo = !isCompleted || isLineExecuting;
 
                       return (
                         <tr key={lineId} data-testid={`pick-lists.detail.line.${lineId}`}>

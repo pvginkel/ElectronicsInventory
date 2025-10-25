@@ -82,6 +82,7 @@ export function usePickListExecution({ pickListId, kitId }: UsePickListExecution
   const toast = useToast();
 
   const [progress, setProgress] = useState<ExecutionProgress | null>(null);
+  const executionQueueRef = useRef<Promise<void>>(Promise.resolve());
   const readyMetadataRef = useRef<ExecutionReadyMetadata | null>(null);
   const errorMetadataRef = useRef<ExecutionErrorMetadata | null>(null);
 
@@ -119,6 +120,15 @@ export function usePickListExecution({ pickListId, kitId }: UsePickListExecution
   const markError = useCallback((metadata: ExecutionErrorMetadata | null) => {
     errorMetadataRef.current = metadata;
     readyMetadataRef.current = null;
+  }, []);
+
+  const enqueueExecution = useCallback((task: () => Promise<void>) => {
+    const start = executionQueueRef.current.catch(() => undefined);
+    const next = start.then(async () => {
+      await task();
+    });
+    executionQueueRef.current = next.catch(() => undefined);
+    return next;
   }, []);
 
   const invalidateMembershipQueries = useCallback(
@@ -482,14 +492,23 @@ export function usePickListExecution({ pickListId, kitId }: UsePickListExecution
         return;
       }
 
-      await pickMutation.mutateAsync({
-        path: {
-          pick_list_id: pickListId,
-          line_id: lineId,
-        },
+      if (progress && progress.lineId === lineId) {
+        return;
+      }
+
+      await enqueueExecution(async () => {
+        if (typeof pickListId !== 'number' || !Number.isFinite(pickListId)) {
+          return;
+        }
+        await pickMutation.mutateAsync({
+          path: {
+            pick_list_id: pickListId,
+            line_id: lineId,
+          },
+        });
       });
     },
-    [pickListId, pickMutation],
+    [pickListId, pickMutation, enqueueExecution, progress],
   );
 
   const undoLine = useCallback(
@@ -498,14 +517,23 @@ export function usePickListExecution({ pickListId, kitId }: UsePickListExecution
         return;
       }
 
-      await undoMutation.mutateAsync({
-        path: {
-          pick_list_id: pickListId,
-          line_id: lineId,
-        },
+      if (progress && progress.lineId === lineId) {
+        return;
+      }
+
+      await enqueueExecution(async () => {
+        if (typeof pickListId !== 'number' || !Number.isFinite(pickListId)) {
+          return;
+        }
+        await undoMutation.mutateAsync({
+          path: {
+            pick_list_id: pickListId,
+            line_id: lineId,
+          },
+        });
       });
     },
-    [pickListId, undoMutation],
+    [pickListId, undoMutation, enqueueExecution, progress],
   );
 
   const isExecuting = pickMutation.isPending || undoMutation.isPending || Boolean(progress);
