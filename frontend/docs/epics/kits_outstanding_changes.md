@@ -13,7 +13,9 @@ This **MUST** be ignored by LLMs. It's not yet finished and will only be picked 
   - All action bars in all DetailScreenLayout usages need to be reviewed. I don't ever want the buttons to wrap. All wrapper divs seem to have the class flex-wrap. If I remove that, the labels of the buttons wrap. Neither the buttons nor the labels on the buttons must wrap.
   - The bottom rounded corners of the tables on the pick list detail view and the kit detail view are not visible. This doesn't happen on the shopping list. It's caused I believe by the "bg-background" class on the row. I get the feeling the reason for the classes is to draw divider lines. The pick list however uses the "divide-y divide-border/70" classes for this. If I remove the bg-background there the issue goes away.
   - There are a number of wrappers around Badge. They basically all just manage formatting of the badge. This should be abstracted into a reusable component. Examples are: DetailBadge in src/components/pick-lists/pick-list-detail.tsx, SummaryBadge in src/components/kits/kit-detail.tsx, GroupSummaryBadge in src/components/pick-lists/pick-list-lines.tsx. I would prefer a few helper components next to the Badge component in src/components/ui, or extension to the Badge component to support these use cases.4
-  - I want all button labels in the app reviewed. They should all have the format "<verb> <noun>" like "Order Stock" and "Edit List". They should describe the business function (so not "Create Shopping List" but "Order Stock") and they should be upper case first on all words. The contributor documentation or AGENTS.md also need to be updated with this rule.
+  - I want all button labels in the app reviewed. They should all have the format "<verb> <noun>" like "Order Stock" and "Edit List". They should describe the business function (so not "Create Shopping List" but "Order Stock") and they should be upper case first on all words. This include buttons like the "+ Add Part" button on the kit BOM table. The contributor documentation or AGENTS.md also need to be updated with this rule.
+  - If I click on the anchor of something that has a tooltip (at least on the pick list icon on the kit card on the kit list screen), the tooltip stays open after I move the mouse off of the icon. Possibly this is to support mobile devices, but I would like the mouse click to be excluded from this behavior.
+  - There's missing contributor guidance that states that no tooltip should ever have navigation components or otherwise anything that we can interact with.
 - Kits list view:
   - Archive button must not be on the card. It needs to be a button in the detail screen.
   - The kit list screen does multiple queries for the shopping list and it icons instead of a batch query like the part list screen does.
@@ -25,3 +27,5 @@ This **MUST** be ignored by LLMs. It's not yet finished and will only be picked 
   - The kit link chip must have an unlink feature like the shopping cart chip on the kit detail view.
 - Pick list detail view:
   - It must be possible to delete pick lists.
+- Part detail view:
+  - The "Refresh" menu option in the actions panel needs to be removed.
