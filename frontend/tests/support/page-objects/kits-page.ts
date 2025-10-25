@@ -34,7 +34,6 @@ export class KitsPage extends BasePage {
   readonly detailEditButton: Locator;
   readonly detailEditWrapper: Locator;
   readonly detailEditTooltip: Locator;
-  readonly detailCreatePickListButton: Locator;
   readonly detailCreatePickListDialog: Locator;
   readonly detailCreatePickListForm: Locator;
   readonly detailCreatePickListRequestedUnits: Locator;
@@ -59,6 +58,11 @@ export class KitsPage extends BasePage {
   readonly detailMetadataSubmit: Locator;
   readonly detailMetadataCancel: Locator;
   readonly unlinkConfirmDialog: Locator;
+  readonly pickListPanel: Locator;
+  readonly pickListPanelAddButton: Locator;
+  readonly pickListPanelOpenSection: Locator;
+  readonly pickListPanelEmpty: Locator;
+  readonly pickListPanelCompletedToggle: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -91,7 +95,6 @@ export class KitsPage extends BasePage {
     this.detailEditButton = page.getByTestId('kits.detail.actions.edit');
     this.detailEditWrapper = page.getByTestId('kits.detail.actions.edit.wrapper');
     this.detailEditTooltip = page.getByTestId('kits.detail.actions.edit.tooltip');
-    this.detailCreatePickListButton = page.getByTestId('kits.detail.actions.create-pick-list');
     this.detailCreatePickListDialog = page.getByTestId('kits.detail.pick-list.create.dialog');
     this.detailCreatePickListForm = page.getByTestId('kits.detail.pick-list.create.form');
     this.detailCreatePickListRequestedUnits = page.getByTestId('kits.detail.pick-list.create.field.requested-units');
@@ -116,6 +119,11 @@ export class KitsPage extends BasePage {
     this.detailMetadataSubmit = page.getByTestId('kits.detail.metadata.submit');
     this.detailMetadataCancel = page.getByTestId('kits.detail.metadata.cancel');
     this.unlinkConfirmDialog = page.getByTestId('kits.detail.shopping-list.unlink.dialog');
+    this.pickListPanel = page.getByTestId('kits.detail.pick-lists.panel');
+    this.pickListPanelAddButton = page.getByTestId('kits.detail.pick-lists.add');
+    this.pickListPanelOpenSection = page.getByTestId('kits.detail.pick-lists.open');
+    this.pickListPanelEmpty = page.getByTestId('kits.detail.pick-lists.empty');
+    this.pickListPanelCompletedToggle = page.getByTestId('kits.detail.pick-lists.completed.toggle');
   }
 
   async gotoOverview(): Promise<void> {
@@ -218,17 +226,6 @@ export class KitsPage extends BasePage {
       .first();
   }
 
-  pickListChip(pickListId: number): Locator {
-    return this.page.getByTestId(`kits.detail.links.pick-lists.${pickListId}`);
-  }
-
-  pickListChipByLabel(label: string | RegExp): Locator {
-    return this.page
-      .locator('[data-testid^="kits.detail.links.pick-lists."]')
-      .filter({ hasText: label })
-      .first();
-  }
-
   shoppingLinkUnlinkButton(listId: number): Locator {
     return this.page.getByTestId(`kits.detail.links.shopping.unlink.${listId}`);
   }
@@ -250,6 +247,22 @@ export class KitsPage extends BasePage {
 
   detailSummaryBadge(kind: 'total' | 'shortfall'): Locator {
     return this.page.getByTestId(`kits.detail.table.summary.${kind}`);
+  }
+
+  pickListPanelOpenItem(pickListId: number): Locator {
+    return this.page.getByTestId(`kits.detail.pick-lists.open.item.${pickListId}`);
+  }
+
+  pickListPanelOpenResume(pickListId: number): Locator {
+    return this.page.getByTestId(`kits.detail.pick-lists.open.item.${pickListId}.resume`);
+  }
+
+  pickListPanelCompletedSection(): Locator {
+    return this.page.getByTestId('kits.detail.pick-lists.completed');
+  }
+
+  pickListPanelCompletedItem(pickListId: number): Locator {
+    return this.page.getByTestId(`kits.detail.pick-lists.completed.item.${pickListId}`);
   }
 
   detailTableRow(contentId: number): Locator {

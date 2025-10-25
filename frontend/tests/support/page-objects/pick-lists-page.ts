@@ -13,7 +13,6 @@ export class PickListsPage extends BasePage {
   readonly content: Locator;
   readonly title: Locator;
   readonly statusBadge: Locator;
-  readonly kitChip: Locator;
   readonly metadata: Locator;
   readonly availabilityError: Locator;
   readonly breadcrumbKitLink: Locator;
@@ -25,7 +24,6 @@ export class PickListsPage extends BasePage {
     this.content = page.getByTestId('pick-lists.detail.content');
     this.title = page.getByTestId('pick-lists.detail.title');
     this.statusBadge = page.getByTestId('pick-lists.detail.status');
-    this.kitChip = page.getByTestId('pick-lists.detail.kit-chip.link');
     this.metadata = page.getByTestId('pick-lists.detail.metadata');
     this.availabilityError = page.getByTestId('pick-lists.detail.availability.error');
     this.breadcrumbKitLink = page.getByTestId('pick-lists.detail.breadcrumbs.kit');

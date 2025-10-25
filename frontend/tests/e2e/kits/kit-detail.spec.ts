@@ -125,7 +125,8 @@ test.describe('Kit detail workspace', () => {
       event =>
         event.scope === 'kits.detail.links' &&
         event.phase === 'ready' &&
-        event.metadata?.status !== 'aborted',
+        event.metadata?.status !== 'aborted' &&
+        event.metadata?.kitId === targetKit.id,
     );
 
     await kits.gotoOverview();
@@ -159,11 +160,8 @@ test.describe('Kit detail workspace', () => {
         count: 0,
         ids: [],
       },
-      pickLists: {
-        count: 0,
-        ids: [],
-      },
     });
+    expect((linksEvent.metadata as Record<string, unknown> | undefined)?.pickLists).toBeUndefined();
 
     await expect(kits.detailTitle).toHaveText(targetKit.name);
     await expect(kits.detailStatusBadge).toHaveText(new RegExp(kitDetail.status, 'i'));
@@ -434,7 +432,7 @@ test.describe('Kit detail workspace', () => {
     await expect(rowDeleteButton).toHaveAttribute('title', /Archived kits cannot be edited/i);
   });
 
-  test('renders linked shopping and pick list chips with navigation', async ({
+  test('renders pick list panel with navigation', async ({
     kits,
     pickLists,
     shoppingLists,
@@ -448,10 +446,12 @@ test.describe('Kit detail workspace', () => {
     await testData.parts.getDetail(part.key);
 
     const box = await testData.boxes.create();
-    await apiClient.POST('/api/inventory/parts/{part_key}/stock', {
-      params: { path: { part_key: part.key } },
-      body: { box_no: box.box_no, loc_no: 1, qty: 20 },
-    });
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: box.box_no, loc_no: 1, qty: 20 },
+      })
+    );
 
     const partReservationMetadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
       apiClient.GET('/api/parts/{part_key}/kit-reservations', {
@@ -504,7 +504,6 @@ test.describe('Kit detail workspace', () => {
     );
     expect(pickListStockLocation.qty).toBeGreaterThanOrEqual(100);
 
-
     const stockBox = await testData.boxes.create();
     await apiClient.apiRequest(() =>
       apiClient.POST('/api/inventory/parts/{part_key}/stock', {
@@ -555,6 +554,7 @@ test.describe('Kit detail workspace', () => {
         event.phase === 'ready' &&
         event.metadata?.status !== 'aborted',
     );
+    const panelReady = waitForUiState(page, 'kits.detail.pickLists.panel', 'ready');
 
     await kits.gotoOverview();
     const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
@@ -566,19 +566,16 @@ test.describe('Kit detail workspace', () => {
     await detailReady;
     await contentsReady;
     const linksEvent = await linksReady;
+    const panelEvent = await panelReady;
 
     expect(linksEvent.metadata).toMatchObject({
       kitId: kit.id,
-      hasLinkedWork: true,
+      hasLinkedWork: Boolean(conceptLink),
       shoppingLists: {
         count: conceptLink ? 1 : 0,
       },
-      pickLists: {
-        count: 1,
-        ids: expect.arrayContaining([pickList.id]),
-        statusCounts: expect.objectContaining({ open: 1, completed: 0 }),
-      },
     });
+    expect((linksEvent.metadata as Record<string, unknown> | undefined)?.pickLists).toBeUndefined();
     if (conceptLink) {
       const shoppingMetadata = (linksEvent.metadata as Record<string, unknown> | undefined)
         ?.shoppingLists as { ids?: number[] } | undefined;
@@ -587,7 +584,20 @@ test.describe('Kit detail workspace', () => {
       );
     }
 
-    await expect(kits.detailLinksSection).toBeVisible();
+    expect(panelEvent.metadata).toMatchObject({
+      kitId: kit.id,
+      openCount: 1,
+      completedCount: 0,
+      hasOpenWork: true,
+    });
+
+    if (conceptLink) {
+      await expect(kits.detailLinksSection).toBeVisible();
+    } else {
+      await expect(kits.detailLinksEmpty).toBeVisible();
+    }
+    await expect(page.getByTestId('kits.detail.actions.create-pick-list')).toHaveCount(0);
+    await expect(kits.pickListPanel).toBeVisible();
 
     const kitDetailPath = `/kits/${kit.id}`;
 
@@ -613,23 +623,32 @@ test.describe('Kit detail workspace', () => {
           event.phase === 'ready' &&
           event.metadata?.status !== 'aborted',
       );
+      const panelReload = waitForUiState(page, 'kits.detail.pickLists.panel', 'ready');
       await kits.goto(kitDetailPath);
       await detailReload;
       await contentsReload;
       await linksReload;
+      await panelReload;
     }
 
-    const pickChip = kits.pickListChip(pickList.id);
-    await expect(pickChip).toBeVisible();
-    await expect(pickChip).toContainText(`Pick list #${pickList.id}`);
-    await expect(pickChip).toContainText(/Open/i);
+    const openTile = kits.pickListPanelOpenItem(pickList.id);
+    await expect(openTile).toBeVisible();
+    await expect(openTile).toContainText(`Pick list #${pickList.id}`);
+    await expect(openTile).toContainText('Requested units');
 
     const pickDetailReady = waitForListLoading(page, 'pickLists.detail', 'ready');
     const pickLinesReady = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
     const pickUiReady = waitForUiState(page, 'pickLists.detail.load', 'ready');
     const pickAvailabilityReady = waitForUiState(page, 'pickLists.detail.availability', 'ready');
+    const navigateEvent = waitForUiState(page, 'kits.detail.pickLists.navigate', 'ready');
 
-    await pickChip.click();
+    await kits.pickListPanelOpenResume(pickList.id).click();
+    const navigatePayload = await navigateEvent;
+    expect(navigatePayload.metadata).toMatchObject({
+      kitId: kit.id,
+      pickListId: pickList.id,
+      origin: 'open',
+    });
     await Promise.all([pickDetailReady, pickLinesReady, pickUiReady, pickAvailabilityReady]);
 
     const executionLoading = waitForUiState(page, 'pickLists.detail.execution', 'loading');
@@ -655,13 +674,52 @@ test.describe('Kit detail workspace', () => {
 
     const returnDetail = waitForListLoading(page, 'kits.detail', 'ready');
     const returnContents = waitForListLoading(page, 'kits.detail.contents', 'ready');
-    const returnLinks = waitForUiState(page, 'kits.detail.links', 'ready');
+    const returnLinks = waitTestEvent<UiStateTestEvent>(
+      page,
+      'ui_state',
+      event =>
+        event.scope === 'kits.detail.links' &&
+        event.phase === 'ready' &&
+        event.metadata?.status !== 'aborted' &&
+        event.metadata?.kitId === kit.id,
+    );
+    const panelRefresh = waitTestEvent<UiStateTestEvent>(
+      page,
+      'ui_state',
+      event =>
+        event.scope === 'kits.detail.pickLists.panel' &&
+        event.phase === 'ready' &&
+        event.metadata?.kitId === kit.id &&
+        event.metadata?.status !== 'aborted' &&
+        event.metadata?.openCount === 0,
+    );
 
-    await pickLists.kitChip.click();
-    await Promise.all([returnDetail, returnContents, returnLinks]);
+    await pickLists.breadcrumbKitLink.click();
+    await Promise.all([returnDetail, returnContents, returnLinks, panelRefresh]);
+    const panelRefreshEvent = await panelRefresh;
 
-    const completedPickChip = kits.pickListChip(pickList.id);
-    await expect(completedPickChip).toContainText(/Completed/i);
+    expect(panelRefreshEvent.metadata).toMatchObject({
+      kitId: kit.id,
+      openCount: 0,
+      completedCount: 1,
+      hasOpenWork: false,
+    });
+
+    const toggleEvent = waitForUiState(page, 'kits.detail.pickLists.toggle', 'ready');
+    await kits.pickListPanelCompletedToggle.click();
+    const togglePayload = await toggleEvent;
+    expect(togglePayload.metadata).toMatchObject({
+      kitId: kit.id,
+      completedCount: 1,
+      expanded: true,
+    });
+
+    const completedSection = kits.pickListPanelCompletedSection();
+    await expect(completedSection).toBeVisible();
+    const completedItem = kits.pickListPanelCompletedItem(pickList.id);
+    await expect(completedItem).toBeVisible();
+    await expect(completedItem).toContainText(`Pick list #${pickList.id}`);
+    await expect(completedItem).toContainText('Requested units');
 
     const overviewReady = waitForListLoading(page, 'kits.overview', 'ready');
     const pickMembershipReady = waitForListLoading(page, 'kits.list.memberships.pick', 'ready');
@@ -679,7 +737,7 @@ test.describe('Kit detail workspace', () => {
     await expect(kits.cardById(kit.id)).not.toContainText(/open pick list/i);
   });
 
-  test('creates a pick list from the kit header action with instrumentation coverage', async ({
+  test('create pick list from panel add button with instrumentation coverage', async ({
     kits,
     page,
     apiClient,
@@ -697,25 +755,25 @@ test.describe('Kit detail workspace', () => {
     );
     const partId = partReservationMetadata.part_id;
 
-  const kit = await testData.kits.create({
-    overrides: {
-      name: testData.kits.randomKitName('Create Pick List Kit'),
-      build_target: 5,
-    },
-  });
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Create Pick List Kit'),
+        build_target: 5,
+      },
+    });
 
-  await testData.kits.addContent(kit.id, {
-    partId,
-    requiredPerUnit: 2,
-  });
+    await testData.kits.addContent(kit.id, {
+      partId,
+      requiredPerUnit: 2,
+    });
 
-  const pickListStockBox = await testData.boxes.create();
-  await apiClient.apiRequest(() =>
-    apiClient.POST('/api/inventory/parts/{part_key}/stock', {
-      params: { path: { part_key: part.key } },
-      body: { box_no: pickListStockBox.box_no, loc_no: 1, qty: 25 },
-    })
-  );
+    const pickListStockBox = await testData.boxes.create();
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: pickListStockBox.box_no, loc_no: 1, qty: 25 },
+      })
+    );
 
     const detailReady = waitForListLoading(page, 'kits.detail', 'ready');
     const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');
@@ -725,8 +783,10 @@ test.describe('Kit detail workspace', () => {
       event =>
         event.scope === 'kits.detail.links' &&
         event.phase === 'ready' &&
-        event.metadata?.kitId === kit.id,
+        event.metadata?.kitId === kit.id &&
+        event.metadata?.status !== 'aborted',
     );
+    const panelReady = waitForUiState(page, 'kits.detail.pickLists.panel', 'ready');
 
     await kits.gotoOverview();
     const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
@@ -737,10 +797,25 @@ test.describe('Kit detail workspace', () => {
 
     await detailReady;
     await contentsReady;
-    await linksReady;
+    const linksEvent = await linksReady;
+    const panelEvent = await panelReady;
 
-    await expect(kits.detailCreatePickListButton).toBeEnabled();
-    await kits.detailCreatePickListButton.click();
+    expect(linksEvent.metadata).toMatchObject({
+      kitId: kit.id,
+      hasLinkedWork: false,
+      shoppingLists: { count: 0 },
+    });
+    expect(panelEvent.metadata).toMatchObject({
+      kitId: kit.id,
+      openCount: 0,
+      completedCount: 0,
+      hasOpenWork: false,
+    });
+
+    await expect(page.getByTestId('kits.detail.actions.create-pick-list')).toHaveCount(0);
+    await expect(kits.pickListPanelAddButton).toBeEnabled();
+
+    await kits.pickListPanelAddButton.click();
     const pickListDialog = page.getByRole('dialog', { name: 'Create Pick List' });
     await expect(pickListDialog).toBeVisible();
 
@@ -752,10 +827,7 @@ test.describe('Kit detail workspace', () => {
     await kits.detailCreatePickListSubmit.click();
     const validationPayload = await validationEvent;
     expect(validationPayload.metadata?.field).toBe('requestedUnits');
-    await expect(kits.detailCreatePickListRequestedUnits).toHaveAttribute(
-      'aria-invalid',
-      'true',
-    );
+    await expect(kits.detailCreatePickListRequestedUnits).toHaveAttribute('aria-invalid', 'true');
 
     await kits.detailCreatePickListRequestedUnits.fill('1');
 
@@ -777,6 +849,16 @@ test.describe('Kit detail workspace', () => {
         event.scope === 'kits.detail.links' &&
         event.phase === 'ready' &&
         event.metadata?.kitId === kit.id,
+    );
+    const panelReload = waitTestEvent<UiStateTestEvent>(
+      page,
+      'ui_state',
+      event =>
+        event.scope === 'kits.detail.pickLists.panel' &&
+        event.phase === 'ready' &&
+        event.metadata?.status !== 'aborted' &&
+        event.metadata?.kitId === kit.id &&
+        event.metadata?.openCount === 1,
     );
 
     await kits.detailCreatePickListSubmit.click();
@@ -804,6 +886,13 @@ test.describe('Kit detail workspace', () => {
     await toastHelper.expectSuccessToast(/Created pick list/i);
     await expect(pickListDialog).not.toBeVisible();
     await linksReload;
+    const panelPayload = await panelReload;
+    expect(panelPayload.metadata).toMatchObject({
+      kitId: kit.id,
+      openCount: 1,
+      completedCount: 0,
+      hasOpenWork: true,
+    });
 
     const refreshed = await apiClient.apiRequest<KitDetailResponseSchema_b98797e>(() =>
       apiClient.GET('/api/kits/{kit_id}', {
@@ -821,10 +910,7 @@ test.describe('Kit detail workspace', () => {
       throw new Error('Failed to read created pick list id for assertions');
     }
 
-    await expect(kits.pickListChip(createdPickListId)).toBeVisible();
-    await expect(kits.pickListChip(createdPickListId)).toContainText(
-      `Pick list #${createdPickListId}`,
-    );
+    await expect(kits.pickListPanelOpenItem(createdPickListId)).toBeVisible();
   });
 
   test('shows empty state when kit has no contents', async ({ kits, testData, page }) => {

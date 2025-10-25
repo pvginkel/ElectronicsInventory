@@ -94,7 +94,6 @@ test.describe('Pick list detail workspace', () => {
     await expect(pickLists.layout).toBeVisible();
     await expect(pickLists.title).toHaveText(`Pick List ${pickList.id}`);
     await expect(pickLists.statusBadge).toContainText(/Open/i);
-    await expect(pickLists.kitChip).toBeVisible();
     await expect(pickLists.breadcrumbRoot()).toHaveText('Pick Lists');
     await expect(pickLists.breadcrumbKit()).toHaveText(kit.name);
     await expect(pickLists.breadcrumbCurrent()).toHaveText(`Pick List ${pickList.id}`);
@@ -275,14 +274,22 @@ test.describe('Pick list detail workspace', () => {
     const detailReady = waitForListLoading(page, 'kits.detail', 'ready');
     const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');
     const linksReady = waitForUiState(page, 'kits.detail.links', 'ready');
+    const panelReady = waitForUiState(page, 'kits.detail.pickLists.panel', 'ready');
 
     await kits.openDetailFromCard(kit.id);
     await Promise.all([detailReady, contentsReady, linksReady]);
+    await panelReady;
 
-    const pickListChip = kits.pickListChip(pickList.id);
-    await expect(pickListChip).toBeVisible();
+    await expect(kits.pickListPanelOpenItem(pickList.id)).toBeVisible();
 
-    await pickListChip.click();
+    const navigateEvent = waitForUiState(page, 'kits.detail.pickLists.navigate', 'ready');
+    await kits.pickListPanelOpenResume(pickList.id).click();
+    const navigatePayload = await navigateEvent;
+    expect(navigatePayload.metadata).toMatchObject({
+      kitId: kit.id,
+      pickListId: pickList.id,
+      origin: 'open',
+    });
     await expect(pickLists.layout).toBeVisible();
 
     await expect(pickLists.title).toHaveText(`Pick List ${pickList.id}`);
@@ -293,12 +300,12 @@ test.describe('Pick list detail workspace', () => {
     await expect(breadcrumbCurrent).toHaveText(`Pick List ${pickList.id}`);
     expect(await breadcrumbCurrent.getAttribute('href')).toBeNull();
 
-    const chipHref = await pickLists.kitChip.getAttribute('href');
+    const chipHref = await pickLists.breadcrumbKitLink.getAttribute('href');
     const chipParams = new URLSearchParams(chipHref?.split('?')[1] ?? '');
     expect(chipParams.get('status')).toBe('active');
     expect(chipParams.get('search')).toBe(kit.name);
 
-    await pickLists.kitChip.click();
+    await pickLists.breadcrumbKitLink.click();
     await expect(kits.detailLayout).toBeVisible();
 
     await expect(page).toHaveURL(new RegExp(`/kits/${kit.id}`));
@@ -356,12 +363,12 @@ test.describe('Pick list detail workspace', () => {
     await expect(pickLists.title).toHaveText(`Pick List ${pickList.id}`);
     await expect(pickLists.statusBadge).toContainText(/Open/i);
 
-    await expect(pickLists.kitChip).toBeVisible();
-    const chipHref = await pickLists.kitChip.getAttribute('href');
+    await expect(pickLists.breadcrumbKitLink).toBeVisible();
+    const chipHref = await pickLists.breadcrumbKitLink.getAttribute('href');
     const params = new URLSearchParams(chipHref?.split('?')[1] ?? '');
     expect(params.get('status')).toBe('archived');
 
-    await pickLists.kitChip.click();
+    await pickLists.breadcrumbKitLink.click();
     await expect(kits.detailLayout).toBeVisible();
 
     await expect(page).toHaveURL(new RegExp(`/kits/${kit.id}`));

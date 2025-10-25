@@ -6,7 +6,6 @@ import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { KitLinkChip } from '@/components/kits/kit-link-chip';
 import { PickListLines } from '@/components/pick-lists/pick-list-lines';
 import { usePickListDetail } from '@/hooks/use-pick-list-detail';
 import { usePickListExecution } from '@/hooks/use-pick-list-execution';
@@ -192,19 +191,6 @@ export function PickListDetail({
     </Badge>
   ) : null;
 
-  const supplementary = detail && kitNavigationReady && kitNavigationSearch ? (
-    <div className="flex flex-wrap gap-2" data-testid="pick-lists.detail.kit-chip">
-      <KitLinkChip
-        kitId={detail.kitId}
-        name={detail.kitName}
-        status={resolvedKitStatus}
-        returnStatus={resolvedKitStatus}
-        returnSearch={kitOverviewSearch}
-        testId="pick-lists.detail.kit-chip.link"
-      />
-    </div>
-  ) : null;
-
   const metadataRow = detail ? (
     <div className="flex flex-wrap items-center gap-2" data-testid="pick-lists.detail.metadata">
       <DetailBadge
@@ -261,7 +247,6 @@ export function PickListDetail({
         breadcrumbs={breadcrumbs}
         title={title}
         titleMetadata={titleMetadata}
-        supplementary={supplementary}
         metadataRow={metadataRow}
       >
         {content}

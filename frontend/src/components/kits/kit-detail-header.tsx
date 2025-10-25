@@ -5,8 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ShoppingListLinkChip } from '@/components/shopping-lists/shopping-list-link-chip';
-import { PickListLinkChip } from '@/components/kits/pick-list-link-chip';
-import type { KitDetail, KitPickListSummary, KitShoppingListLink, KitStatus } from '@/types/kits';
+import type { KitDetail, KitShoppingListLink, KitStatus } from '@/types/kits';
 
 export interface KitDetailHeaderSlots {
   breadcrumbs: ReactNode;
@@ -28,7 +27,6 @@ export interface KitDetailHeaderOptions {
   onUnlinkShoppingList?: (link: KitShoppingListLink) => void;
   canUnlinkShoppingList?: boolean;
   unlinkingLinkId?: number | null;
-  onCreatePickList?: () => void;
 }
 
 const STATUS_LABEL: Record<KitStatus, string> = {
@@ -47,11 +45,6 @@ const SHOPPING_STATUS_ORDER: Record<string, number> = {
   done: 2,
 };
 
-const PICK_LIST_STATUS_ORDER: Record<string, number> = {
-  open: 0,
-  completed: 1,
-};
-
 /**
  * Build the header slots for the kit detail layout.
  */
@@ -67,7 +60,6 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
     onUnlinkShoppingList,
     canUnlinkShoppingList,
     unlinkingLinkId,
-    onCreatePickList,
   } = options;
 
   if (isLoading) {
@@ -97,14 +89,6 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
       ),
       actions: (
         <div className="flex flex-wrap gap-2" data-testid="kits.detail.actions.wrapper">
-          <Button
-            variant="secondary"
-            disabled
-            data-testid="kits.detail.actions.create-pick-list"
-            aria-disabled="true"
-          >
-            Create Pick List
-          </Button>
           <div data-testid="kits.detail.actions.order-stock.wrapper">
             <Button
               variant="default"
@@ -153,8 +137,7 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
   const statusLabel = STATUS_LABEL[kit.status];
   const statusBadgeClassName = STATUS_BADGE_CLASSNAME[kit.status];
   const sortedShoppingLinks = sortShoppingLinks(kit.shoppingListLinks);
-  const sortedPickLists = sortPickLists(kit.pickLists);
-  const hasLinkedWork = sortedShoppingLinks.length > 0 || sortedPickLists.length > 0;
+  const hasShoppingLists = sortedShoppingLinks.length > 0;
   const isArchived = kit.status === 'archived';
   const effectiveCanOrderStock =
     typeof canOrderStock === 'boolean'
@@ -173,7 +156,6 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
   }
   const canUnlink =
     Boolean(onUnlinkShoppingList) && (canUnlinkShoppingList ?? !isArchived);
-  const createPickListDisabled = isArchived || !onCreatePickList;
 
   return {
     breadcrumbs: (
@@ -218,7 +200,7 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
     ) : null,
     metadataRow: (
       <div className="flex flex-wrap items-center gap-2" data-testid="kits.detail.header.badges">
-        {hasLinkedWork ? (
+        {hasShoppingLists ? (
           <div className="flex flex-wrap gap-2" data-testid="kits.detail.links">
             {sortedShoppingLinks.map((link) => {
               const unlinkBusy = unlinkingLinkId === link.id;
@@ -250,37 +232,16 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
                 />
               );
             })}
-            {sortedPickLists.map((pickList) => (
-              <PickListLinkChip
-                key={pickList.id}
-                pickListId={pickList.id}
-                label={formatPickListLabel(pickList)}
-                status={pickList.status}
-                kitId={kit.id}
-                kitStatus={overviewStatus}
-                kitSearch={overviewSearch}
-                testId={`kits.detail.links.pick-lists.${pickList.id}`}
-              />
-            ))}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground" data-testid="kits.detail.links.empty">
-            This kit is not linked to any shopping lists or pick lists yet.
+            Link a shopping list to reserve parts. Pick lists now live in the panel below.
           </p>
         )}
       </div>
     ),
     actions: (
       <div className="flex flex-wrap gap-2" data-testid="kits.detail.actions.wrapper">
-        <Button
-          variant="secondary"
-          onClick={createPickListDisabled ? undefined : onCreatePickList}
-          data-testid="kits.detail.actions.create-pick-list"
-          disabled={createPickListDisabled}
-          title={isArchived ? 'Archived kits cannot create pick lists' : undefined}
-        >
-          Create Pick List
-        </Button>
         <div data-testid="kits.detail.actions.order-stock.wrapper">
           <Button
             variant="default"
@@ -320,21 +281,6 @@ function sortShoppingLinks(links: KitShoppingListLink[]): KitShoppingListLink[] 
     }
     return a.name.localeCompare(b.name);
   });
-}
-
-function sortPickLists(pickLists: KitPickListSummary[]): KitPickListSummary[] {
-  return [...pickLists].sort((a, b) => {
-    const statusOrderA = PICK_LIST_STATUS_ORDER[a.status] ?? Number.MAX_SAFE_INTEGER;
-    const statusOrderB = PICK_LIST_STATUS_ORDER[b.status] ?? Number.MAX_SAFE_INTEGER;
-    if (statusOrderA !== statusOrderB) {
-      return statusOrderA - statusOrderB;
-    }
-    return a.id - b.id;
-  });
-}
-
-function formatPickListLabel(pickList: KitPickListSummary): string {
-  return `Pick list #${pickList.id}`;
 }
 
 function ArchivedEditTooltip() {

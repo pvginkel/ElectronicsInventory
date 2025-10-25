@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { createKitDetailHeaderSlots } from '@/components/kits/kit-detail-header';
 import { KitBOMTable } from '@/components/kits/kit-bom-table';
+import { KitPickListPanel } from '@/components/kits/kit-pick-list-panel';
 import { useKitDetail } from '@/hooks/use-kit-detail';
 import type { UseKitDetailResult } from '@/hooks/use-kit-detail';
 import { useKitContents } from '@/hooks/use-kit-contents';
@@ -165,7 +166,6 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
 
   const canOrderStock = detail ? detail.status === 'active' && detail.contents.length > 0 : false;
   const canUnlinkShoppingList = detail ? detail.status === 'active' : false;
-  const canCreatePickList = detail ? detail.status === 'active' : false;
 
   const headerSlots = useMemo(
     () =>
@@ -180,14 +180,11 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
         onUnlinkShoppingList: canUnlinkShoppingList ? handleUnlinkRequest : undefined,
         canUnlinkShoppingList,
         unlinkingLinkId,
-        onCreatePickList: canCreatePickList ? handleCreatePickListOpen : undefined,
       }),
     [
-      canCreatePickList,
       canOrderStock,
       canUnlinkShoppingList,
       detail,
-      handleCreatePickListOpen,
       handleMetadataOpen,
       handleShoppingListOpen,
       handleUnlinkRequest,
@@ -286,6 +283,9 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
         contents={contents}
         aggregates={aggregates}
         query={query}
+        overviewStatus={overviewStatus}
+        overviewSearch={overviewSearch}
+        onCreatePickList={handleCreatePickListOpen}
       />
     );
   })();
@@ -355,10 +355,21 @@ interface KitDetailLoadedProps {
   contents: KitContentRow[];
   aggregates: KitContentAggregates;
   query: UseKitDetailResult['query'];
+  overviewStatus: KitStatus;
+  overviewSearch?: string;
+  onCreatePickList: () => void;
 }
 
 // Renders the BOM card with inline editing controls once kit data is ready.
-function KitDetailLoaded({ detail, contents, aggregates, query }: KitDetailLoadedProps) {
+function KitDetailLoaded({
+  detail,
+  contents,
+  aggregates,
+  query,
+  overviewStatus,
+  overviewSearch,
+  onCreatePickList,
+}: KitDetailLoadedProps) {
   const kitContents = useKitContents({
     detail,
     contents,
@@ -380,6 +391,12 @@ function KitDetailLoaded({ detail, contents, aggregates, query }: KitDetailLoade
 
   return (
     <div className="space-y-6" data-testid="kits.detail.body">
+      <KitPickListPanel
+        kit={detail}
+        overviewStatus={overviewStatus}
+        overviewSearch={overviewSearch}
+        onCreatePickList={onCreatePickList}
+      />
       <Card className="p-0">
         <CardHeader className="flex flex-col gap-3 border-b border-border/70 px-4 py-3 md:flex-row md:items-center md:justify-between space-y-0">
           <div>
@@ -508,29 +525,13 @@ function buildLinkReadyMetadata(detail: KitDetail | undefined) {
     shoppingStatusCounts[link.status] = (shoppingStatusCounts[link.status] ?? 0) + 1;
   }
 
-  const pickListStatusCounts: Record<string, number> = {
-    open: 0,
-    completed: 0,
-  };
-
-  for (const pickList of detail.pickLists) {
-    pickListStatusCounts[pickList.status] =
-      (pickListStatusCounts[pickList.status] ?? 0) + 1;
-  }
-
   return {
     kitId: detail.id,
-    hasLinkedWork:
-      detail.shoppingListLinks.length > 0 || detail.pickLists.length > 0,
+    hasLinkedWork: detail.shoppingListLinks.length > 0,
     shoppingLists: {
       count: detail.shoppingListLinks.length,
       ids: detail.shoppingListLinks.map((link) => link.shoppingListId),
       statusCounts: shoppingStatusCounts,
-    },
-    pickLists: {
-      count: detail.pickLists.length,
-      ids: detail.pickLists.map((pickList) => pickList.id),
-      statusCounts: pickListStatusCounts,
     },
   };
 }

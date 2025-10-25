@@ -68,6 +68,12 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       onClick?.(e)
     }
 
+    const prefix = loading ? (
+      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+    ) : icon ? (
+      <span className="mr-2">{icon}</span>
+    ) : null
+
     return (
       <Comp
         ref={ref}
@@ -83,11 +89,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           className
         )}
       >
-        {loading ? (
-          <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-        ) : icon ? (
-          <span className="mr-2">{icon}</span>
-        ) : null}
+        {!asChild ? prefix : null}
         {variant === 'ai_assisted' ? (
           <span className="bg-gradient-to-r from-[#1982a4] to-[#bd3cb9] bg-clip-text text-transparent relative z-10">
             {children}
