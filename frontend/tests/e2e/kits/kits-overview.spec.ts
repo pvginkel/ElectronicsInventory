@@ -2,38 +2,54 @@ import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
 import { waitForListLoading, waitTestEvent } from '../../support/helpers';
 import type { FormTestEvent, ToastTestEvent } from '@/types/test-events';
+import type { PartKitReservationsResponseSchema_d12d9a5 } from '@/lib/api/generated/hooks';
 
 test.describe('Kits overview', () => {
   test('shows shopping and pick list indicators with tooltip details', async ({ kits, apiClient, page, testData }) => {
-    const activeKits = await apiClient.apiRequest(() =>
-      apiClient.GET('/api/kits', {
-        params: { query: { status: 'active' } },
+    // Seed a dedicated kit with predictable stock so indicator flows never race existing data.
+    const indicatorPartDescription = testData.parts.randomPartDescription('Indicator Part');
+    const { part } = await testData.parts.create({
+      overrides: { description: indicatorPartDescription },
+    });
+
+    const partReservations = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+    const partId = partReservations.part_id;
+    if (typeof partId !== 'number') {
+      throw new Error('Failed to resolve part id for indicator kit seeding');
+    }
+
+    const stockBox = await testData.boxes.create({
+      overrides: { description: 'Indicator Kit Box' },
+    });
+    const stockQuantity = 4;
+
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: stockBox.box_no, loc_no: 1, qty: stockQuantity },
       })
     );
 
-    if (activeKits.length === 0) {
-      throw new Error('Expected at least one active kit to seed memberships');
-    }
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Indicator Kit'),
+        build_target: 1,
+      },
+    });
 
-    let kitId: number | null = null;
+    await testData.kits.addContent(kit.id, {
+      partId,
+      requiredPerUnit: 1,
+    });
 
-    for (const summary of activeKits) {
-      const detail = await apiClient.apiRequest(() =>
-        apiClient.GET('/api/kits/{kit_id}', {
-          params: { path: { kit_id: summary.id } },
-        })
-      );
-      if ((detail.contents?.length ?? 0) > 0) {
-        kitId = summary.id;
-        break;
-      }
-    }
-
-    if (kitId === null) {
-      throw new Error('Expected at least one kit with contents to seed memberships');
-    }
+    const kitId = kit.id;
 
     const shoppingListName = testData.shoppingLists.randomName('Indicator Shopping');
+    const requestedShoppingUnits = 6;
     await apiClient.apiRequest(() =>
       apiClient.POST('/api/kits/{kit_id}/shopping-lists', {
         params: { path: { kit_id: kitId } },
@@ -43,7 +59,7 @@ test.describe('Kits overview', () => {
           new_list_description: null,
           honor_reserved: false,
           note_prefix: null,
-          units: 1,
+          units: requestedShoppingUnits,
         },
       })
     );

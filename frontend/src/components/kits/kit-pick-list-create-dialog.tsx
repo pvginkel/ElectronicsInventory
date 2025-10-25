@@ -179,6 +179,21 @@ export function KitPickListCreateDialog({
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    const validationMessage = validateRequestedUnits(form.values.requestedUnits);
+    const validationSnapshot = instrumentationSnapshot();
+
+    setRequestedUnitsError(validationMessage);
+    if (validationMessage) {
+      instrumentationRef.current?.trackValidationError(
+        'requestedUnits',
+        validationMessage,
+        validationSnapshot,
+      );
+      pendingSnapshotRef.current = null;
+      successSnapshotRef.current = null;
+    }
+
     await form.handleSubmit(event);
   };
 
