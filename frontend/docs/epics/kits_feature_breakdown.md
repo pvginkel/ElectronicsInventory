@@ -254,14 +254,14 @@ Introduce the routed pick list detail workspace so operators can review allocato
 - View generated allocation lines
   - Features:
     - Add TanStack Router route `/pick-lists/$pickListId` that loads pick list detail via `GET /pick-lists/<int:pick_list_id>` and renders header metadata (`requested_units`, `status`, timestamps).
-    - Display immutable lines grouped by kit content, showing part summary, location, on-hand snapshot, and `quantity_to_pick`.
+    - Display immutable lines grouped by kit content, showing part summary, location, the **current in-stock quantity** calculated at view time, and `quantity_to_pick`; surface an inline alert when an unpicked line requests more than is available.
     - Provide navigation entry from kit detail summaries (`View pick list`) and maintain breadcrumbs to return to the kit.
     - Emit `ui_state` instrumentation scope `pickLists.detail.load` once data hydrates for deterministic Playwright waits.
   - Database / data model:
-    - Depends on `KitPickList` / `KitPickListLine` schemas and location metadata already exposed by the backend response.
+    - Depends on `KitPickList` / `KitPickListLine` schemas plus location metadata already exposed by the backend response; the frontend queries live inventory counts (e.g., `GET /parts/<part_key>/locations`) to derive the in-stock value on demand.
   - API surface:
     - `GET /pick-lists/<int:pick_list_id>`
-      - Returns header data plus read-only line objects with location snapshots required for display.
+      - Returns header data plus read-only line objects; the frontend performs follow-up inventory queries to hydrate in-stock counts.
     - `GET /kits/<int:kit_id>/pick-lists`
       - Continue using summaries for the kit detail surface; link entries navigate into the workspace.
 
@@ -274,7 +274,7 @@ Enable operators to drive deduction, undo, and completion flows directly from th
 - Execute pick list lines
   - Features:
     - Render a single **Picked** button per line; clicking calls `POST /pick-lists/<id>/lines/<line_id>/pick`, disables the button during the mutation, and shows optimistic status updates with undo affordance.
-    - When a line is completed, expose an **Undo** control that invokes `POST /pick-lists/<id>/lines/<line_id>/undo`, reverses the deduction, and restores on-hand quantities in the UI.
+    - When a line is completed, expose an **Undo** control that invokes `POST /pick-lists/<id>/lines/<line_id>/undo`, reverses the deduction, and refreshes the live in-stock calculation in the UI.
     - Automatically mark the pick list header `status = completed`, set `completed_at`, and move it to the archived grouping once all lines are picked. Undoing any line returns the list to open state and updates the kit detail summary.
     - Extend instrumentation (`pickLists.detail.execution`) so tests can await state transitions without brittle delays; ensure Playwright specs cover pick, undo, and completion-to-archive flows.
   - Database / data model:

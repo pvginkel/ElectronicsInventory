@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { AlertTriangle, Plus } from 'lucide-react';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
@@ -16,13 +16,19 @@ import { cn } from '@/lib/utils';
 import { ConfirmDialog, type DialogContentProps } from '@/components/ui/dialog';
 import { KitMetadataDialog } from '@/components/kits/kit-metadata-dialog';
 import { KitShoppingListDialog } from '@/components/kits/kit-shopping-list-dialog';
+import { KitPickListCreateDialog } from '@/components/kits/kit-pick-list-create-dialog';
 import { useKitShoppingListUnlinkMutation } from '@/hooks/use-kit-shopping-list-links';
 import { useToast } from '@/hooks/use-toast';
 import { emitTestEvent } from '@/lib/test/event-emitter';
 import { ApiError } from '@/lib/api/api-error';
 import type { UiStateTestEvent } from '@/types/test-events';
-import type { KitContentAggregates, KitContentRow, KitDetail, KitShoppingListLink } from '@/types/kits';
-import type { KitStatus } from '@/types/kits';
+import type {
+  KitContentAggregates,
+  KitContentRow,
+  KitDetail,
+  KitShoppingListLink,
+  KitStatus,
+} from '@/types/kits';
 
 interface KitDetailProps {
   kitId: string;
@@ -58,6 +64,7 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
 
   const isPending = isKitIdValid && queryStatus === 'pending';
   const isFetching = isKitIdValid && queryFetchStatus === 'fetching';
+  const isLinksLoading = isPending || isFetching;
   const hasError = isKitIdValid && queryStatus === 'error';
   const error = hasError ? query.error : undefined;
 
@@ -87,7 +94,7 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
   );
 
   useUiStateInstrumentation('kits.detail.links', {
-    isLoading: isPending || isFetching,
+    isLoading: isLinksLoading,
     error,
     getReadyMetadata: getLinksReadyMetadata,
     getErrorMetadata: getDetailErrorMetadata,
@@ -99,6 +106,7 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
   const [unlinkingLinkId, setUnlinkingLinkId] = useState<number | null>(null);
   const unlinkMutation = useKitShoppingListUnlinkMutation();
   const { showSuccess, showWarning, showException } = useToast();
+  const [isCreatePickListDialogOpen, setCreatePickListDialogOpen] = useState(false);
 
   const handleMetadataOpen = useCallback(() => {
     if (!detail || detail.status !== 'active') {
@@ -145,8 +153,19 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
       setLinkToUnlink(link);
       emitUnlinkFlowEvent('open', link);
     },
-    [emitUnlinkFlowEvent, unlinkMutation.isPending, unlinkingLinkId]
+    [emitUnlinkFlowEvent, unlinkMutation.isPending, unlinkingLinkId],
   );
+
+  const handleCreatePickListOpen = useCallback(() => {
+    if (!detail || detail.status !== 'active') {
+      return;
+    }
+    setCreatePickListDialogOpen(true);
+  }, [detail]);
+
+  const canOrderStock = detail ? detail.status === 'active' && detail.contents.length > 0 : false;
+  const canUnlinkShoppingList = detail ? detail.status === 'active' : false;
+  const canCreatePickList = detail ? detail.status === 'active' : false;
 
   const headerSlots = useMemo(
     () =>
@@ -157,13 +176,18 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
         overviewSearch,
         onEditMetadata: handleMetadataOpen,
         onOrderStock: handleShoppingListOpen,
-        canOrderStock: detail ? detail.status === 'active' && detail.contents.length > 0 : false,
-        onUnlinkShoppingList: detail && detail.status === 'active' ? handleUnlinkRequest : undefined,
-        canUnlinkShoppingList: detail ? detail.status === 'active' : false,
-      unlinkingLinkId,
+        canOrderStock,
+        onUnlinkShoppingList: canUnlinkShoppingList ? handleUnlinkRequest : undefined,
+        canUnlinkShoppingList,
+        unlinkingLinkId,
+        onCreatePickList: canCreatePickList ? handleCreatePickListOpen : undefined,
       }),
     [
+      canCreatePickList,
+      canOrderStock,
+      canUnlinkShoppingList,
       detail,
+      handleCreatePickListOpen,
       handleMetadataOpen,
       handleShoppingListOpen,
       handleUnlinkRequest,
@@ -171,8 +195,14 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
       overviewSearch,
       overviewStatus,
       unlinkingLinkId,
-    ]
+    ],
   );
+
+  useEffect(() => {
+    if (!detail || detail.status !== 'active') {
+      setCreatePickListDialogOpen(false);
+    }
+  }, [detail]);
 
   const handleConfirmUnlink = useCallback(() => {
     if (!detail || !linkToUnlink) {
@@ -306,6 +336,16 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
           contentProps={{ 'data-testid': 'kits.detail.shopping-list.unlink.dialog' } as DialogContentProps}
         />
       ) : null}
+      {detail ? (
+        <KitPickListCreateDialog
+          open={isCreatePickListDialogOpen}
+          kit={detail}
+          onOpenChange={setCreatePickListDialogOpen}
+          onSuccess={async () => {
+            await query.refetch();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -436,7 +476,7 @@ function KitDetailErrorState({
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          We couldn&rsquo;t load kit &ldquo;{kitId}&rdquo;. Error: {message}
+          We couldn’t load kit “{kitId}”. Error: {message}
         </p>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={onRetry} data-testid="kits.detail.error.retry">

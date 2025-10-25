@@ -2093,9 +2093,9 @@
         "properties": {
           "build_target": {
             "default": 1,
-            "description": "Number of complete kits to maintain in stock",
+            "description": "Number of complete kits to maintain in stock; must be zero or greater",
             "example": 5,
-            "minimum": 1,
+            "minimum": 0,
             "title": "Build Target",
             "type": "integer"
           },
@@ -4605,7 +4605,7 @@
           "build_target": {
             "anyOf": [
               {
-                "minimum": 1,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -4613,7 +4613,7 @@
               }
             ],
             "default": null,
-            "description": "Updated build target for inventory planning",
+            "description": "Updated build target for inventory planning; must be zero or greater",
             "example": 3,
             "title": "Build Target"
           },

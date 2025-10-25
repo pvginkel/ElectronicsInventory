@@ -8,6 +8,8 @@ type KitContentCreateSchema = components['schemas']['KitContentCreateSchema.b987
 type KitContentDetailSchema = components['schemas']['KitContentDetailSchema.b98797e'];
 type KitContentUpdateSchema = components['schemas']['KitContentUpdateSchema.b98797e'];
 type KitDetailResponseSchema = components['schemas']['KitDetailResponseSchema.b98797e'];
+type KitPickListCreateSchema = components['schemas']['KitPickListCreateSchema.b247181'];
+type KitPickListDetailSchema = components['schemas']['KitPickListDetailSchema.b247181'];
 
 interface KitCreateOptions {
   overrides?: Partial<KitCreateSchema>;
@@ -177,6 +179,36 @@ export class KitTestFactory {
     return apiRequest(() =>
       this.client.GET('/api/kits/{kit_id}', {
         params: { path: { kit_id: kitId } },
+      })
+    );
+  }
+
+  /**
+   * Create a pick list for the specified kit and return the detail payload.
+   */
+  async createPickList(
+    kitId: number,
+    options?: { requestedUnits?: number }
+  ): Promise<KitPickListDetailSchema> {
+    const payload: KitPickListCreateSchema = {
+      requested_units: options?.requestedUnits ?? 1,
+    };
+
+    return apiRequest(() =>
+      this.client.POST('/api/kits/{kit_id}/pick-lists', {
+        params: { path: { kit_id: kitId } },
+        body: payload,
+      })
+    );
+  }
+
+  /**
+   * Fetch pick list detail by identifier.
+   */
+  async getPickListDetail(pickListId: number): Promise<KitPickListDetailSchema> {
+    return apiRequest(() =>
+      this.client.GET('/api/pick-lists/{pick_list_id}', {
+        params: { path: { pick_list_id: pickListId } },
       })
     );
   }

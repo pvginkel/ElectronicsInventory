@@ -34,6 +34,13 @@ export class KitsPage extends BasePage {
   readonly detailEditButton: Locator;
   readonly detailEditWrapper: Locator;
   readonly detailEditTooltip: Locator;
+  readonly detailCreatePickListButton: Locator;
+  readonly detailCreatePickListDialog: Locator;
+  readonly detailCreatePickListForm: Locator;
+  readonly detailCreatePickListRequestedUnits: Locator;
+  readonly detailCreatePickListSubmit: Locator;
+  readonly detailCreatePickListCancel: Locator;
+  readonly detailEditDisabledWrapper: Locator;
   readonly detailSummary: Locator;
   readonly detailTable: Locator;
   readonly detailEmptyState: Locator;
@@ -84,6 +91,13 @@ export class KitsPage extends BasePage {
     this.detailEditButton = page.getByTestId('kits.detail.actions.edit');
     this.detailEditWrapper = page.getByTestId('kits.detail.actions.edit.wrapper');
     this.detailEditTooltip = page.getByTestId('kits.detail.actions.edit.tooltip');
+    this.detailCreatePickListButton = page.getByTestId('kits.detail.actions.create-pick-list');
+    this.detailCreatePickListDialog = page.getByTestId('kits.detail.pick-list.create.dialog');
+    this.detailCreatePickListForm = page.getByTestId('kits.detail.pick-list.create.form');
+    this.detailCreatePickListRequestedUnits = page.getByTestId('kits.detail.pick-list.create.field.requested-units');
+    this.detailCreatePickListSubmit = page.getByTestId('kits.detail.pick-list.create.submit');
+    this.detailCreatePickListCancel = page.getByTestId('kits.detail.pick-list.create.cancel');
+    this.detailEditDisabledWrapper = page.getByTestId('kits.detail.actions.edit.disabled-wrapper');
     this.detailSummary = page.getByTestId('kits.detail.table.summary');
     this.detailTable = page.getByTestId('kits.detail.table');
     this.detailEmptyState = page.getByTestId('kits.detail.table.empty');

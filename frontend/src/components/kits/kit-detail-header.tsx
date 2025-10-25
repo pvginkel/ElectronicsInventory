@@ -28,6 +28,7 @@ export interface KitDetailHeaderOptions {
   onUnlinkShoppingList?: (link: KitShoppingListLink) => void;
   canUnlinkShoppingList?: boolean;
   unlinkingLinkId?: number | null;
+  onCreatePickList?: () => void;
 }
 
 const STATUS_LABEL: Record<KitStatus, string> = {
@@ -66,6 +67,7 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
     onUnlinkShoppingList,
     canUnlinkShoppingList,
     unlinkingLinkId,
+    onCreatePickList,
   } = options;
 
   if (isLoading) {
@@ -76,7 +78,7 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
             Kits
           </Link>
           <span>/</span>
-          <span>Loading…</span>
+          <span>Loading...</span>
         </div>
       ),
       title: <div className="h-8 w-64 animate-pulse rounded bg-muted" />,
@@ -95,6 +97,14 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
       ),
       actions: (
         <div className="flex flex-wrap gap-2" data-testid="kits.detail.actions.wrapper">
+          <Button
+            variant="secondary"
+            disabled
+            data-testid="kits.detail.actions.create-pick-list"
+            aria-disabled="true"
+          >
+            Create Pick List
+          </Button>
           <div data-testid="kits.detail.actions.order-stock.wrapper">
             <Button
               variant="default"
@@ -163,6 +173,7 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
   }
   const canUnlink =
     Boolean(onUnlinkShoppingList) && (canUnlinkShoppingList ?? !isArchived);
+  const createPickListDisabled = isArchived || !onCreatePickList;
 
   return {
     breadcrumbs: (
@@ -245,6 +256,9 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
                 pickListId={pickList.id}
                 label={formatPickListLabel(pickList)}
                 status={pickList.status}
+                kitId={kit.id}
+                kitStatus={overviewStatus}
+                kitSearch={overviewSearch}
                 testId={`kits.detail.links.pick-lists.${pickList.id}`}
               />
             ))}
@@ -258,6 +272,15 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
     ),
     actions: (
       <div className="flex flex-wrap gap-2" data-testid="kits.detail.actions.wrapper">
+        <Button
+          variant="secondary"
+          onClick={createPickListDisabled ? undefined : onCreatePickList}
+          data-testid="kits.detail.actions.create-pick-list"
+          disabled={createPickListDisabled}
+          title={isArchived ? 'Archived kits cannot create pick lists' : undefined}
+        >
+          Create Pick List
+        </Button>
         <div data-testid="kits.detail.actions.order-stock.wrapper">
           <Button
             variant="default"
@@ -322,6 +345,7 @@ function ArchivedEditTooltip() {
       className="group relative inline-flex cursor-not-allowed"
       tabIndex={0}
       aria-describedby={tooltipId}
+      data-testid="kits.detail.actions.edit.disabled-wrapper"
     >
       <Button
         variant="outline"
