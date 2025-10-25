@@ -11,10 +11,10 @@ import {
   type PickListPartLocationAvailability,
 } from '@/types/pick-lists';
 
-const AVAILABILITY_QUERY_PREFIX = ['pickLists', 'availability'] as const;
+export const PICK_LIST_AVAILABILITY_QUERY_KEY_PREFIX = ['pickLists', 'availability'] as const;
 
-function availabilityQueryKey(partKey: string) {
-  return [...AVAILABILITY_QUERY_PREFIX, partKey] as const;
+export function buildPickListAvailabilityQueryKey(partKey: string) {
+  return [...PICK_LIST_AVAILABILITY_QUERY_KEY_PREFIX, partKey] as const;
 }
 
 async function fetchPartLocations(partKey: string): Promise<PickListAvailabilityResponse> {
@@ -61,7 +61,7 @@ export function usePickListAvailability(
 
   const queries = useQueries({
     queries: uniquePartKeys.map(partKey => ({
-      queryKey: availabilityQueryKey(partKey),
+      queryKey: buildPickListAvailabilityQueryKey(partKey),
       queryFn: () => fetchPartLocations(partKey),
       enabled: queriesEnabled,
       staleTime: 30_000,

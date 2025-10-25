@@ -63,10 +63,6 @@ export class PickListsPage extends BasePage {
     return this.page.getByTestId(`pick-lists.detail.line.${lineId}.status`);
   }
 
-  linePickedAt(lineId: number): Locator {
-    return this.page.getByTestId(`pick-lists.detail.line.${lineId}.picked-at`);
-  }
-
   lineActions(lineId: number): Locator {
     return this.page.getByTestId(`pick-lists.detail.line.${lineId}.actions`);
   }

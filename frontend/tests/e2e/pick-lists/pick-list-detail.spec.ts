@@ -201,7 +201,7 @@ test.describe('Pick list detail workspace', () => {
 
     await expect(pickLists.statusBadge).toHaveText(/Completed/i);
     await expect(pickLists.lineStatus(lineId)).toHaveText(/Completed/i);
-    await expect(pickLists.linePickedAt(lineId)).not.toHaveText('—');
+    await expect(pickLists.lineShortfall(lineId)).toHaveText('—');
     await expect(pickLists.undoButton(lineId)).toBeVisible();
 
     const undoLoading = waitForUiState(page, 'pickLists.detail.execution', 'loading');
@@ -225,7 +225,7 @@ test.describe('Pick list detail workspace', () => {
 
     await expect(pickLists.statusBadge).toHaveText(/Open/i);
     await expect(pickLists.lineStatus(lineId)).toHaveText(/Open/i);
-    await expect(pickLists.linePickedAt(lineId)).toHaveText('—');
+    await expect(pickLists.lineShortfall(lineId)).toHaveText('—');
     await expect(pickLists.pickButton(lineId)).toBeVisible();
   });
 

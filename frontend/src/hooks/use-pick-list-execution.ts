@@ -11,11 +11,19 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { buildPickListDetailQueryKey } from '@/hooks/use-pick-list-detail';
 import {
+  buildPickListAvailabilityQueryKey,
+  PICK_LIST_AVAILABILITY_QUERY_KEY_PREFIX,
+} from '@/hooks/use-pick-list-availability';
+import {
   applyPickListLineStatusPatch,
   mapPickListDetail,
+  buildLocationKey,
   type PickListStatus,
+  type PickListAvailabilityResponse,
 } from '@/types/pick-lists';
 import { useUiStateInstrumentation } from '@/lib/test/ui-state';
+
+type RawPickListLine = NonNullable<KitPickListDetailSchema_b247181['lines']>[number];
 
 type ExecutionAction = 'pick' | 'undo';
 
@@ -174,6 +182,101 @@ export function usePickListExecution({ pickListId, kitId }: UsePickListExecution
     });
   }, [queryClient]);
 
+  const invalidateAvailabilityQueries = useCallback(
+    (lines?: KitPickListDetailSchema_b247181['lines']) => {
+      if (!lines || lines.length === 0) {
+        queryClient.invalidateQueries({
+          queryKey: PICK_LIST_AVAILABILITY_QUERY_KEY_PREFIX,
+          exact: false,
+        });
+        return;
+      }
+
+      const partKeys = new Set<string>();
+      for (const line of lines) {
+        const partKey = line?.kit_content?.part_key;
+        if (typeof partKey === 'string' && partKey.trim().length > 0) {
+          partKeys.add(partKey);
+        }
+      }
+
+      if (partKeys.size === 0) {
+        queryClient.invalidateQueries({
+          queryKey: PICK_LIST_AVAILABILITY_QUERY_KEY_PREFIX,
+          exact: false,
+        });
+        return;
+      }
+
+      partKeys.forEach(partKey => {
+        queryClient.invalidateQueries({
+          queryKey: buildPickListAvailabilityQueryKey(partKey),
+        });
+      });
+    },
+    [queryClient],
+  );
+
+  const updateAvailabilityCacheForLine = useCallback(
+    (line: RawPickListLine | undefined, direction: ExecutionAction) => {
+      if (!line) {
+        return;
+      }
+
+      const partKey = line.kit_content?.part_key;
+      const boxNo = line.location?.box_no;
+      const locNo = line.location?.loc_no;
+      const quantity = line.quantity_to_pick;
+
+      if (
+        typeof partKey !== 'string' ||
+        partKey.trim().length === 0 ||
+        typeof boxNo !== 'number' ||
+        typeof locNo !== 'number' ||
+        typeof quantity !== 'number' ||
+        !Number.isFinite(quantity)
+      ) {
+        return;
+      }
+
+      const delta = direction === 'pick' ? -quantity : quantity;
+      if (!Number.isFinite(delta) || delta === 0) {
+        return;
+      }
+
+      const queryKey = buildPickListAvailabilityQueryKey(partKey);
+      const current = queryClient.getQueryData<PickListAvailabilityResponse>(queryKey);
+      if (!current) {
+        return;
+      }
+
+      let locationMatched = false;
+      const next = current.map(location => {
+        if (location.box_no === boxNo && location.loc_no === locNo) {
+          locationMatched = true;
+          const nextQty = Math.max(location.qty + delta, 0);
+          return {
+            ...location,
+            qty: nextQty,
+          };
+        }
+        return location;
+      });
+
+      if (!locationMatched && delta > 0) {
+        next.push({
+          box_no: boxNo,
+          loc_no: locNo,
+          qty: delta,
+          key: buildLocationKey(boxNo, locNo),
+        });
+      }
+
+      queryClient.setQueryData<PickListAvailabilityResponse>(queryKey, next);
+    },
+    [queryClient],
+  );
+
   useUiStateInstrumentation('pickLists.detail.execution', {
     isLoading: Boolean(progress),
     getReadyMetadata: () => readyMetadataRef.current ?? undefined,
@@ -205,6 +308,9 @@ export function usePickListExecution({ pickListId, kitId }: UsePickListExecution
           updatedAt: metadata.timestamp,
         });
         queryClient.setQueryData(queryKey, optimisticDetail);
+
+        const targetLine = previousDetail.lines?.find(candidate => candidate.id === lineId);
+        updateAvailabilityCacheForLine(targetLine, 'pick');
       }
 
       return {
@@ -242,6 +348,7 @@ export function usePickListExecution({ pickListId, kitId }: UsePickListExecution
       invalidateMembershipQueries(resolvedKitId);
       invalidateKitDetailQueries(resolvedKitId);
       invalidateKitOverviewQueries();
+      invalidateAvailabilityQueries(detailResponse.lines);
 
       setProgress(null);
     },
@@ -301,6 +408,9 @@ export function usePickListExecution({ pickListId, kitId }: UsePickListExecution
           completedAt: null,
         });
         queryClient.setQueryData(queryKey, optimisticDetail);
+
+        const targetLine = previousDetail.lines?.find(candidate => candidate.id === lineId);
+        updateAvailabilityCacheForLine(targetLine, 'undo');
       }
 
       return {
@@ -334,6 +444,7 @@ export function usePickListExecution({ pickListId, kitId }: UsePickListExecution
       invalidateMembershipQueries(resolvedKitId);
       invalidateKitDetailQueries(resolvedKitId);
       invalidateKitOverviewQueries();
+      invalidateAvailabilityQueries(detailResponse.lines);
 
       setProgress(null);
     },

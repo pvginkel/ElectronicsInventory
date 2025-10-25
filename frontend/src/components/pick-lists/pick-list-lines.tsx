@@ -20,6 +20,20 @@ const LINE_STATUS_LABEL: Record<'open' | 'completed', string> = {
   completed: 'Completed',
 };
 
+const LINE_STATUS_BADGE_CLASS: Record<'open' | 'completed', string> = {
+  open: 'border border-amber-200 bg-amber-100 text-amber-800',
+  completed: 'border border-emerald-200 bg-emerald-100 text-emerald-800',
+};
+
+const COLUMN_WIDTHS = {
+  location: 'w-[20%] min-w-[180px]',
+  status: 'w-[12%] min-w-[110px]',
+  quantity: 'w-[14%] min-w-[120px]',
+  stock: 'w-[16%] min-w-[140px]',
+  shortfall: 'w-[28%] min-w-[200px]',
+  actions: 'w-[10%] min-w-[120px]',
+} as const;
+
 interface PickListLinesProps {
   groups: PickListLineGroup[];
   availability: Map<string, PickListPartLocationAvailability>;
@@ -127,23 +141,22 @@ export function PickListLines({
             <CardContent className="px-0 py-0">
               <div className="overflow-x-auto">
                 <table
-                  className="min-w-full divide-y divide-border/70"
+                  className="min-w-full table-fixed divide-y divide-border/70"
                   data-testid={`pick-lists.detail.group.${groupId}.table`}
                 >
                   <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <th className="px-4 py-3 text-left font-medium">Location</th>
-                  <th className="px-4 py-3 text-left font-medium">Status</th>
-                  <th className="px-4 py-3 text-right font-medium">Quantity to pick</th>
-                  <th className="px-4 py-3 text-right font-medium">Current in stock</th>
-                  <th className="px-4 py-3 text-left font-medium">Picked at</th>
-                  <th className="px-4 py-3 text-left font-medium">Shortfall</th>
-                  <th className="px-4 py-3 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70" data-testid={`pick-lists.detail.group.${groupId}.lines`}>
-                {group.lines.map(line => {
-                  const lineId = line.id;
+                      <th className={`${COLUMN_WIDTHS.location} px-4 py-3 text-left font-medium`}>Location</th>
+                      <th className={`${COLUMN_WIDTHS.status} px-4 py-3 text-left font-medium`}>Status</th>
+                      <th className={`${COLUMN_WIDTHS.quantity} px-4 py-3 text-right font-medium`}>Quantity to pick</th>
+                      <th className={`${COLUMN_WIDTHS.stock} px-4 py-3 text-right font-medium`}>Current in stock</th>
+                      <th className={`${COLUMN_WIDTHS.shortfall} px-4 py-3 text-left font-medium`}>Shortfall</th>
+                      <th className={`${COLUMN_WIDTHS.actions} px-4 py-3 text-right font-medium`}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/70" data-testid={`pick-lists.detail.group.${groupId}.lines`}>
+                    {group.lines.map(line => {
+                      const lineId = line.id;
                       const locationLabel = formatLocation(line.location.boxNo, line.location.locNo);
                       const statusLabel = LINE_STATUS_LABEL[line.status];
                       const inStockQuantity = availabilityEnabled
@@ -172,32 +185,31 @@ export function PickListLines({
 
                       return (
                         <tr key={lineId} data-testid={`pick-lists.detail.line.${lineId}`}>
-                          <td className="px-4 py-3 text-sm font-medium text-foreground">
+                          <td className={`${COLUMN_WIDTHS.location} px-4 py-3 text-sm font-medium text-foreground`}>
                             <span data-testid={`pick-lists.detail.line.${lineId}.location`}>
                               {locationLabel}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground">
-                            <span data-testid={`pick-lists.detail.line.${lineId}.status`}>
+                          <td className={`${COLUMN_WIDTHS.status} px-4 py-3 text-sm text-muted-foreground`}>
+                            <Badge
+                              variant="outline"
+                              className={`inline-flex items-center px-2 py-1 text-xs font-semibold capitalize ${LINE_STATUS_BADGE_CLASS[line.status]}`}
+                              data-testid={`pick-lists.detail.line.${lineId}.status`}
+                            >
                               {statusLabel}
-                            </span>
+                            </Badge>
                           </td>
-                          <td className="px-4 py-3 text-sm text-right text-foreground">
+                          <td className={`${COLUMN_WIDTHS.quantity} px-4 py-3 text-sm text-right text-foreground`}>
                             <span data-testid={`pick-lists.detail.line.${lineId}.quantity`}>
                               {NUMBER_FORMATTER.format(line.quantityToPick)}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-right text-foreground">
+                          <td className={`${COLUMN_WIDTHS.stock} px-4 py-3 text-sm text-right text-foreground`}>
                             <span data-testid={`pick-lists.detail.line.${lineId}.availability`}>
                               {availabilityContent}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground">
-                            <span data-testid={`pick-lists.detail.line.${lineId}.picked-at`}>
-                              {line.pickedAt ?? '—'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground">
+                          <td className={`${COLUMN_WIDTHS.shortfall} px-4 py-3 text-sm text-muted-foreground`}>
                             {shortfall > 0 ? (
                               <span
                                 className="inline-flex items-center gap-2 rounded border border-amber-400 bg-amber-50 px-2 py-1 text-amber-900"
@@ -210,7 +222,7 @@ export function PickListLines({
                               <span data-testid={`pick-lists.detail.line.${lineId}.shortfall`}>—</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm text-right text-foreground">
+                          <td className={`${COLUMN_WIDTHS.actions} px-4 py-3 text-sm text-right text-foreground`}>
                             <div
                               className="flex justify-end"
                               data-testid={`pick-lists.detail.line.${lineId}.actions`}
@@ -287,7 +299,9 @@ function resolveAvailabilityContent(options: AvailabilityContentOptions): ReactN
   }
 
   if (typeof inStockQuantity === 'number') {
-    return NUMBER_FORMATTER.format(inStockQuantity);
+    const formatted = NUMBER_FORMATTER.format(inStockQuantity);
+    const className = inStockQuantity > 0 ? 'text-emerald-600' : 'text-muted-foreground';
+    return <span className={className}>{formatted}</span>;
   }
 
   if (availabilityHasError) {
@@ -302,7 +316,7 @@ function resolveAvailabilityContent(options: AvailabilityContentOptions): ReactN
     return <LoadingIndicator />;
   }
 
-  return 'Not tracked';
+  return <span className="text-muted-foreground">Not tracked</span>;
 }
 
 function computeShortfall(

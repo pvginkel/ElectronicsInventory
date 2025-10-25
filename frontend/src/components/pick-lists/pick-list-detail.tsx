@@ -19,11 +19,6 @@ import type { KitStatus } from '@/types/kits';
 import type { PickListDetail as PickListDetailModel, PickListLineGroup } from '@/types/pick-lists';
 
 const NUMBER_FORMATTER = new Intl.NumberFormat();
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-});
-
 const STATUS_LABEL: Record<'open' | 'completed', string> = {
   open: 'Open',
   completed: 'Completed',
@@ -236,14 +231,6 @@ export function PickListDetail({
         testId="pick-lists.detail.badge.remaining-quantity"
         className="bg-slate-100 text-slate-700"
       />
-      {detail.completedAt ? (
-        <DetailBadge
-          label="Completed"
-          value={formatTimestamp(detail.completedAt)}
-          testId="pick-lists.detail.badge.completed-at"
-          className="bg-emerald-100 text-emerald-800"
-        />
-      ) : null}
     </div>
   ) : null;
 
@@ -424,12 +411,4 @@ function DetailBadge({ label, value, className, testId }: DetailBadgeProps) {
       {label}: {value}
     </Badge>
   );
-}
-
-function formatTimestamp(timestamp: string | null): string {
-  if (!timestamp) {
-    return '—';
-  }
-
-  return DATE_TIME_FORMATTER.format(new Date(timestamp));
 }
