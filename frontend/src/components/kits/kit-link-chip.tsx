@@ -33,20 +33,24 @@ export function KitLinkChip({
   iconTestId,
   badgeTestId,
 }: KitLinkChipProps) {
-  const searchState = {
-    status: returnStatus ?? 'active',
-    ...(returnSearch ? { search: returnSearch } : {}),
-  };
+  const resolvedStatus: KitStatus | undefined = status ?? returnStatus;
+  const searchState =
+    resolvedStatus !== undefined
+      ? {
+          status: returnStatus ?? resolvedStatus,
+          ...(returnSearch ? { search: returnSearch } : {}),
+        }
+      : undefined;
 
-  const chipStatus = status ?? 'active';
+  const chipStatus = resolvedStatus ?? 'active';
   const statusLabel = STATUS_LABEL[chipStatus];
-  const accessibilityLabel = `Kit ${name} (${statusLabel})`;
+  const accessibilityLabel = resolvedStatus ? `Kit ${name} (${statusLabel})` : `Kit ${name}`;
 
   return (
     <Link
       to="/kits/$kitId"
       params={{ kitId: String(kitId) }}
-      search={searchState}
+      search={searchState ?? { status: 'active' }}
       className={cn(
         'group inline-flex items-center gap-2 rounded-full border border-input bg-muted/40 px-3 py-1 text-sm transition hover:border-primary hover:text-primary',
         className,

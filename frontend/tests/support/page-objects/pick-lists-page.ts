@@ -16,6 +16,7 @@ export class PickListsPage extends BasePage {
   readonly kitChip: Locator;
   readonly metadata: Locator;
   readonly availabilityError: Locator;
+  readonly breadcrumbKitLink: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -27,6 +28,7 @@ export class PickListsPage extends BasePage {
     this.kitChip = page.getByTestId('pick-lists.detail.kit-chip.link');
     this.metadata = page.getByTestId('pick-lists.detail.metadata');
     this.availabilityError = page.getByTestId('pick-lists.detail.availability.error');
+    this.breadcrumbKitLink = page.getByTestId('pick-lists.detail.breadcrumbs.kit');
   }
 
   async gotoDetail(pickListId: number, search?: PickListDetailSearchParams): Promise<void> {
@@ -67,6 +69,10 @@ export class PickListsPage extends BasePage {
 
   breadcrumbRoot(): Locator {
     return this.page.getByTestId('pick-lists.detail.breadcrumbs.root');
+  }
+
+  breadcrumbKit(): Locator {
+    return this.breadcrumbKitLink;
   }
 
   breadcrumbCurrent(): Locator {

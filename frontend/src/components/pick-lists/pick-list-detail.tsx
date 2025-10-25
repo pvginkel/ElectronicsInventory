@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Link } from '@tanstack/react-router';
 import { AlertTriangle } from 'lucide-react';
 
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
@@ -9,6 +10,7 @@ import { KitLinkChip } from '@/components/kits/kit-link-chip';
 import { PickListLines } from '@/components/pick-lists/pick-list-lines';
 import { usePickListDetail } from '@/hooks/use-pick-list-detail';
 import { usePickListAvailability } from '@/hooks/use-pick-list-availability';
+import { useGetKitsByKitId } from '@/lib/api/generated/hooks';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { useUiStateInstrumentation } from '@/lib/test/ui-state';
 import { cn } from '@/lib/utils';
@@ -108,6 +110,30 @@ export function PickListDetail({
     getErrorMetadata: availability.getErrorMetadata,
   });
 
+  const shouldFetchKitStatus = detail !== undefined && !kitOverviewStatus;
+  const kitStatusQuery = useGetKitsByKitId(
+    shouldFetchKitStatus && detail
+      ? {
+          path: { kit_id: detail.kitId },
+        }
+      : undefined,
+    {
+      enabled: shouldFetchKitStatus && detail !== undefined,
+    }
+  );
+
+  const resolvedKitStatus: KitStatus | undefined = kitOverviewStatus ?? kitStatusQuery.data?.status ?? undefined;
+  const kitNavigationReady = detail !== undefined && resolvedKitStatus !== undefined;
+
+  const kitNavigationSearch = useMemo(() => {
+    if (!resolvedKitStatus) {
+      return undefined;
+    }
+    return kitOverviewSearch
+      ? { status: resolvedKitStatus, search: kitOverviewSearch }
+      : { status: resolvedKitStatus };
+  }, [resolvedKitStatus, kitOverviewSearch]);
+
   const breadcrumbs = useMemo(() => {
     const pickListLabel = detail ? `Pick List ${detail.id}` : 'Pick List';
     const stateLabel = isPending ? 'Loading…' : hasError ? 'Error' : pickListLabel;
@@ -118,11 +144,29 @@ export function PickListDetail({
         data-testid="pick-lists.detail.breadcrumbs"
       >
         <span data-testid="pick-lists.detail.breadcrumbs.root">Pick Lists</span>
+        {detail ? (
+          <>
+            <span>/</span>
+            {kitNavigationReady && kitNavigationSearch ? (
+              <Link
+                to="/kits/$kitId/"
+                params={{ kitId: String(detail.kitId) }}
+                search={kitNavigationSearch}
+                className="hover:text-foreground"
+                data-testid="pick-lists.detail.breadcrumbs.kit"
+              >
+                {detail.kitName}
+              </Link>
+            ) : (
+              <span data-testid="pick-lists.detail.breadcrumbs.kit">{detail.kitName}</span>
+            )}
+          </>
+        ) : null}
         <span>/</span>
         <span data-testid="pick-lists.detail.breadcrumbs.current">{stateLabel}</span>
       </div>
     );
-  }, [detail, hasError, isPending]);
+  }, [detail, hasError, isPending, kitNavigationReady, kitNavigationSearch]);
 
   const title = detail ? (
     <span data-testid="pick-lists.detail.title">Pick List {detail.id}</span>
@@ -140,13 +184,13 @@ export function PickListDetail({
     </Badge>
   ) : null;
 
-  const supplementary = detail ? (
+  const supplementary = detail && kitNavigationReady && kitNavigationSearch ? (
     <div className="flex flex-wrap gap-2" data-testid="pick-lists.detail.kit-chip">
       <KitLinkChip
         kitId={detail.kitId}
         name={detail.kitName}
-        status={kitOverviewStatus}
-        returnStatus={kitOverviewStatus}
+        status={resolvedKitStatus}
+        returnStatus={resolvedKitStatus}
         returnSearch={kitOverviewSearch}
         testId="pick-lists.detail.kit-chip.link"
       />

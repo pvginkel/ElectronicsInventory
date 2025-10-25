@@ -3,6 +3,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { getLineAvailabilityQuantity } from '@/hooks/use-pick-list-availability';
 import { formatLocation } from '@/lib/utils/locations';
 import type {
@@ -73,14 +74,14 @@ export function PickListLines({
         return (
           <Card key={groupId} className="p-0" data-testid={`pick-lists.detail.group.${groupId}`}>
             <CardHeader className="flex flex-col gap-3 border-b border-border/70 px-4 py-3 md:flex-row md:items-center md:justify-between space-y-0">
-              <div>
-                <CardTitle data-testid={`pick-lists.detail.group.${groupId}.title`}>
-                  {group.description}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Part key {group.partKey}
-                  {group.manufacturerCode ? ` · MPN ${group.manufacturerCode}` : ''}
-                </p>
+              <div className="w-full md:max-w-2xl">
+                <PartInlineSummary
+                  partKey={group.partKey}
+                  description={group.description}
+                  manufacturerCode={group.manufacturerCode}
+                  testId={`pick-lists.detail.group.${groupId}.summary`}
+                  link={true}
+                />
               </div>
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-5">
                 <div
@@ -152,7 +153,7 @@ export function PickListLines({
                       const shortfall = computeShortfall(line.quantityToPick, inStockQuantity, line.status);
 
                       return (
-                        <tr key={lineId} data-testid={`pick-lists.detail.line.${lineId}`} className="bg-background">
+                        <tr key={lineId} data-testid={`pick-lists.detail.line.${lineId}`}>
                           <td className="px-4 py-3 text-sm font-medium text-foreground">
                             <span data-testid={`pick-lists.detail.line.${lineId}.location`}>
                               {locationLabel}

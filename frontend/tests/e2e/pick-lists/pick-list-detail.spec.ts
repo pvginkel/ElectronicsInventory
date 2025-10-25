@@ -68,7 +68,7 @@ test.describe('Pick list detail workspace', () => {
     await apiClient.apiRequest(() =>
       apiClient.DELETE('/api/inventory/parts/{part_key}/stock', {
         params: { path: { part_key: partB.key } },
-        body: { box_no: stockBoxB.box_no, loc_no: 1, qty: 4 },
+        body: { box_no: stockBoxB.box_no, loc_no: 1, qty: 6 },
       })
     );
 
@@ -96,6 +96,7 @@ test.describe('Pick list detail workspace', () => {
     await expect(pickLists.statusBadge).toContainText(/Open/i);
     await expect(pickLists.kitChip).toBeVisible();
     await expect(pickLists.breadcrumbRoot()).toHaveText('Pick Lists');
+    await expect(pickLists.breadcrumbKit()).toHaveText(kit.name);
     await expect(pickLists.breadcrumbCurrent()).toHaveText(`Pick List ${pickList.id}`);
     await expect(pickLists.metadata).toContainText('Requested units');
     await expect(pickLists.metadata).toContainText('Total lines');
@@ -116,8 +117,8 @@ test.describe('Pick list detail workspace', () => {
     const lineBLocator = pickLists.line(lineForPartB!.id);
     await expect(lineBLocator).toBeVisible();
     await expect(lineBLocator).toContainText(partBLocationLabel);
-    await expect(pickLists.lineAvailability(lineForPartB!.id)).toContainText('2');
-    await expect(pickLists.lineShortfall(lineForPartB!.id)).toContainText('Shortfall');
+    await expect(pickLists.lineAvailability(lineForPartB!.id)).toHaveText(/0\b/);
+    await expect(pickLists.lineShortfall(lineForPartB!.id)).toContainText('Shortfall 6');
   });
 
   test('preserves kit search context when navigating from kit detail', async ({
@@ -178,6 +179,8 @@ test.describe('Pick list detail workspace', () => {
 
     await expect(pickLists.title).toHaveText(`Pick List ${pickList.id}`);
     await expect(pickLists.breadcrumbRoot()).toHaveText('Pick Lists');
+    const breadcrumbKit = pickLists.breadcrumbKit();
+    await expect(breadcrumbKit).toHaveText(kit.name);
     const breadcrumbCurrent = pickLists.breadcrumbCurrent();
     await expect(breadcrumbCurrent).toHaveText(`Pick List ${pickList.id}`);
     expect(await breadcrumbCurrent.getAttribute('href')).toBeNull();
@@ -194,5 +197,67 @@ test.describe('Pick list detail workspace', () => {
     const returnUrl = new URL(page.url());
     expect(returnUrl.searchParams.get('status')).toBe('active');
     expect(returnUrl.searchParams.get('search')).toBe(kit.name);
+  });
+
+  test('deep linking to archived pick list preserves archived kit context', async ({
+    pickLists,
+    kits,
+    testData,
+    apiClient,
+    page,
+  }) => {
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Archived Kit Part' },
+    });
+
+    const stockBox = await testData.boxes.create({
+      overrides: { description: 'Archived Stock Box' },
+    });
+
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: stockBox.box_no, loc_no: 1, qty: 5 },
+      })
+    );
+
+    const kit = await testData.kits.create();
+
+    const partReservations = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+
+    await testData.kits.addContent(kit.id, {
+      partId: partReservations.part_id,
+      requiredPerUnit: 1,
+    });
+
+    const pickList = await testData.kits.createPickList(kit.id, { requestedUnits: 1 });
+
+    await testData.kits.archive(kit.id);
+
+    const listReady = waitForListLoading(page, 'pickLists.detail', 'ready');
+    const linesReady = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
+    const uiReady = waitForUiState(page, 'pickLists.detail.load', 'ready');
+
+    await pickLists.gotoDetail(pickList.id);
+    await Promise.all([listReady, linesReady, uiReady]);
+
+    await expect(pickLists.title).toHaveText(`Pick List ${pickList.id}`);
+    await expect(pickLists.statusBadge).toContainText(/Open/i);
+
+    await expect(pickLists.kitChip).toBeVisible();
+    const chipHref = await pickLists.kitChip.getAttribute('href');
+    const params = new URLSearchParams(chipHref?.split('?')[1] ?? '');
+    expect(params.get('status')).toBe('archived');
+
+    await pickLists.kitChip.click();
+    await expect(kits.detailLayout).toBeVisible();
+
+    await expect(page).toHaveURL(new RegExp(`/kits/${kit.id}`));
+    const detailUrl = new URL(page.url());
+    expect(detailUrl.searchParams.get('status')).toBe('archived');
   });
 });

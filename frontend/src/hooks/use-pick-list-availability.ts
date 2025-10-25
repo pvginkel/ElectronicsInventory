@@ -159,5 +159,9 @@ export function getLineAvailabilityQuantity(
   }
 
   const quantity = partAvailability.byLocationKey.get(buildLocationKey(boxNo, locNo));
-  return typeof quantity === 'number' ? quantity : null;
+  if (typeof quantity === 'number') {
+    return quantity;
+  }
+
+  return 0;
 }
