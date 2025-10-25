@@ -318,6 +318,8 @@ Centralize validation, reservation math, and invariants so every surface reflect
     - All endpoints leverage existing exceptions (`InvalidOperationException`, `RecordNotFoundException`, `ConflictException`); `@handle_api_errors` standardizes responses.
     - No separate validation endpoint is required; callers rely on standard 400/409 errors.
 
+**Frontend status:** No additional UI work required — kits detail, shopping flows, and instrumentation already consume the centralized reservation math and validation rules introduced with this backend slice.
+
 # Feature: Part detail cross-navigation
 
 Surface kit usage context on the part detail page so planners can trace where a part is consumed and jump to the relevant kits.
