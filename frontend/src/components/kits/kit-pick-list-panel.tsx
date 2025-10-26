@@ -9,6 +9,7 @@ import type { KitDetail, KitPickListSummary, KitStatus } from '@/types/kits';
 import type { UiStateTestEvent } from '@/types/test-events';
 import { ClipboardList, ChevronDown, ChevronRight, CheckCircle2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { buildKitPickListPanelMetadata } from '@/components/kits/kit-pick-list-panel-metadata';
 
 const NUMBER_FORMATTER = new Intl.NumberFormat();
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
@@ -25,19 +26,6 @@ interface KitPickListPanelProps {
 
 function emitUiState(payload: Omit<UiStateTestEvent, 'timestamp'>) {
   emitTestEvent(payload);
-}
-
-function getLatestUpdatedAt(pickLists: KitPickListSummary[]): string | null {
-  let latest = Number.NEGATIVE_INFINITY;
-
-  for (const pickList of pickLists) {
-    const parsed = Date.parse(pickList.updatedAt);
-    if (!Number.isNaN(parsed) && parsed > latest) {
-      latest = parsed;
-    }
-  }
-
-  return Number.isFinite(latest) && latest > 0 ? new Date(latest).toISOString() : null;
 }
 
 function formatCompletedLabel(pickList: KitPickListSummary): string | null {
@@ -71,16 +59,9 @@ export function KitPickListPanel({
     [kit.pickLists],
   );
   const [isCompletedExpanded, setCompletedExpanded] = useState(false);
-
   const panelMetadata = useMemo(
-    () => ({
-      kitId: kit.id,
-      openCount: openPickLists.length,
-      completedCount: completedPickLists.length,
-      hasOpenWork: openPickLists.length > 0,
-      latestUpdatedAt: getLatestUpdatedAt(kit.pickLists),
-    }),
-    [kit.id, kit.pickLists, openPickLists.length, completedPickLists.length],
+    () => buildKitPickListPanelMetadata(kit),
+    [kit],
   );
 
   useEffect(() => {
