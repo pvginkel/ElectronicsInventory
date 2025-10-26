@@ -8,6 +8,23 @@
 - The related plan (`plan.md`) at the same revision (if available).
 - The exact code changes (diff or commit range). Refuse to review if this information is missing.
 
+**LLM instructions**
+Output snippets are marked by XML brackets. The XML brackets are not to be included in the end result.
+
+Assuming the template <output_template>:
+
+```
+<output_template>
+The answer is <value>
+</output_template>
+```
+
+The final document will contain the following output only:
+
+```
+The answer is 42
+```
+
 **Ignore (out of scope)**
 Minor cosmetic nits a competent developer would auto-fix: copy tweaks, import reshuffles, formatting, purely stylistic class name changes.
 
@@ -162,3 +179,6 @@ State your confidence level and rationale, using `<confidence_template>` to keep
 
 ## Stop condition
 If **Blocker/Major** is empty and tests/coverage are adequate, recommend **GO**; otherwise `GO-WITH-CONDITIONS` or `NO-GO` with the minimal changes needed for `GO`.
+
+## Final check
+All XML template demarcation tags have been removed and all XML tags inside template output has been replaced with an actual value.

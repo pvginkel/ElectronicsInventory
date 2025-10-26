@@ -5,6 +5,23 @@
 
 **Keep it project-agnostic.** Learn stack details from the repository and canonical docs (e.g., `AGENTS.md`, `docs/contribute/architecture/application_overview.md`, `docs/contribute/testing/playwright_developer_guide.md`) and reference them explicitly in the plan instead of restating guidance here.
 
+**LLM instructions**
+Output snippets are marked by XML brackets. The XML brackets are not to be included in the end result.
+
+Assuming the template <output_template>:
+
+```
+<output_template>
+The answer is <value>
+</output_template>
+```
+
+The final document will contain the following output only:
+
+```
+The answer is 42
+```
+
 ---
 
 ## Inputs you must use
@@ -305,3 +322,6 @@ Use `<confidence_template>`:
 3. **No code.** Use pseudocode or structured bullets only; keep the plan implementable by a competent frontend developer.
 4. **Name the feature folder well.** Use `<FEATURE>` that’s short, descriptive, and snake_case.
 5. **Stop condition.** The plan is done when all sections above contain enough precision that another developer can implement without guessing and Playwright scenarios are deterministic.
+
+## Final check
+All XML template demarcation tags have been removed and all XML tags inside template output has been replaced with an actual value.
