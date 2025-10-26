@@ -17,7 +17,8 @@
         "showReuseMessage": false
       },
       "runOptions": {
-        "reevaluateOnRerun": true
+        "reevaluateOnRerun": true,
+        "instanceLimit": 999
       },
       "isBackground": true
     },
