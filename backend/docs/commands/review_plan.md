@@ -13,6 +13,23 @@
 
 **Ignore**: minor implementation nits (imports, exact message text, small style, variable names). Assume a competent developer will handle those.
 
+**LLM instructions**
+Output snippets are marked by XML brackets. The XML brackets are not to be included in the end result.
+
+Assuming the template <output_template>:
+
+```
+<output_template>
+The answer is <value>
+</output_template>
+```
+
+The final document will contain the following output only:
+
+```
+The answer is 42
+```
+
 ---
 
 ## What to produce (write to `plan_review.md`)
@@ -128,3 +145,6 @@ State your confidence in the plan and the reasoning behind it, using `<confidenc
 2. **Quote evidence**: every claim or closure needs file:line quotes from the plan (and refs). Flag when refs contradict plan assumptions.
 3. **Focus on invariants**: ensure filtering, batching, or async work doesn’t corrupt inventory state, leave hanging migrations, or orphan S3 blobs/test data.
 4. **Coverage is explicit**: if behavior is new/changed, require pytest scenarios, metrics instrumentation, and persistence hooks; reject “we’ll test later”.
+
+## Final check
+All XML template demarcation tags have been removed and all XML tags inside template output has been replaced with an actual value.
