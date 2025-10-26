@@ -279,7 +279,7 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
               <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" data-testid="parts.shopping-list.add.conflict">
                 {conflictError}{' '}
                 <a
-                  href="#parts.detail.shopping-list.badges"
+                  href="#parts.detail.link.badges"
                   className="underline underline-offset-2"
                 >
                   View existing lists

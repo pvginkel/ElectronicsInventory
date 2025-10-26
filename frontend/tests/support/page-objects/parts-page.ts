@@ -205,8 +205,8 @@ export class PartsPage extends BasePage {
     return this.page.getByTestId('parts.detail.actions.add-to-shopping-list');
   }
 
-  get shoppingListBadgeContainer(): Locator {
-    return this.page.getByTestId('parts.detail.shopping-list.badges');
+  get linkBadgeContainer(): Locator {
+    return this.page.getByTestId('parts.detail.link.badges');
   }
 
   shoppingListBadgeByName(name: string | RegExp): Locator {
@@ -215,6 +215,30 @@ export class PartsPage extends BasePage {
       .locator('[data-testid="parts.detail.shopping-list.badge"]')
       .filter({ hasText: pattern })
       .first();
+  }
+
+  kitBadgeByName(name: string | RegExp): Locator {
+    const pattern = typeof name === 'string' ? new RegExp(name, 'i') : name;
+    return this.page
+      .locator('[data-testid="parts.detail.kit.badge"]')
+      .filter({ hasText: pattern })
+      .first();
+  }
+
+  get linkBadgeContent(): Locator {
+    return this.page.getByTestId('parts.detail.link.badges.content');
+  }
+
+  get linkBadgeLoading(): Locator {
+    return this.page.getByTestId('parts.detail.link.badges.loading');
+  }
+
+  get linkBadgeError(): Locator {
+    return this.page.getByTestId('parts.detail.link.badges.error');
+  }
+
+  get linkBadgeEmpty(): Locator {
+    return this.page.getByTestId('parts.detail.link.badges.empty');
   }
 
   get addToShoppingListDialog(): Locator {
@@ -247,6 +271,18 @@ export class PartsPage extends BasePage {
 
   shoppingListIndicatorTooltip(partKey: string): Locator {
     return this.cardByKey(partKey).getByTestId('parts.list.card.shopping-list-indicator.tooltip');
+  }
+
+  kitIndicator(partKey: string): Locator {
+    return this.cardByKey(partKey).getByTestId('parts.list.card.kit-indicator');
+  }
+
+  kitIndicatorLoading(partKey: string): Locator {
+    return this.cardByKey(partKey).getByTestId('parts.list.card.kit-indicator.loading');
+  }
+
+  kitIndicatorTooltip(partKey: string): Locator {
+    return this.cardByKey(partKey).getByTestId('parts.list.card.kit-indicator.tooltip');
   }
 
   get editPartButton(): Locator {
@@ -344,7 +380,11 @@ export class PartsPage extends BasePage {
   }
 
   get detailShoppingListBadges(): Locator {
-    return this.shoppingListBadgeContainer.getByTestId('parts.detail.shopping-list.badge');
+    return this.linkBadgeContainer.getByTestId('parts.detail.shopping-list.badge');
+  }
+
+  get detailKitBadges(): Locator {
+    return this.linkBadgeContainer.getByTestId('parts.detail.kit.badge');
   }
   // Form helpers (create/edit)
   get formRoot(): Locator {

@@ -1,5 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { useCallback, useState } from 'react';
 import { KitOverviewList } from '@/components/kits/kit-overview-list';
+import { KitCreateDialog } from '@/components/kits/kit-create-dialog';
+import type { KitResponseSchema_b98797e } from '@/lib/api/generated/hooks';
 import type { KitStatus } from '@/types/kits';
 
 interface KitsSearchState {
@@ -24,11 +27,12 @@ export const Route = createFileRoute('/kits/')({
 function KitsOverviewRoute() {
   const navigate = Route.useNavigate();
   const searchState = Route.useSearch();
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const status = searchState.status;
   const search = typeof searchState.search === 'string' ? searchState.search : '';
 
-  const handleStatusChange = (nextStatus: KitStatus) => {
+  const handleStatusChange = useCallback((nextStatus: KitStatus) => {
     navigate({
       to: '/kits',
       search: (prev) => {
@@ -40,9 +44,9 @@ function KitsOverviewRoute() {
       },
       replace: true,
     });
-  };
+  }, [navigate]);
 
-  const handleSearchChange = (nextSearch: string) => {
+  const handleSearchChange = useCallback((nextSearch: string) => {
     if (nextSearch) {
       navigate({
         to: '/kits',
@@ -60,28 +64,54 @@ function KitsOverviewRoute() {
       search: () => ({ status }),
       replace: true,
     });
-  };
+  }, [navigate, status]);
 
-  const handleCreateKit = () => {
-    navigate({ to: '/kits/new' });
-  };
+  const handleCreateKit = useCallback(() => {
+    setIsCreateDialogOpen(true);
+  }, []);
 
-  const handleOpenDetail = (kitId: number) => {
-    navigate({
-      to: '/kits/$kitId',
-      params: { kitId: kitId.toString() },
-      search: () => (search ? { status, search } : { status }),
-    });
-  };
+  const handleOpenDetail = useCallback(
+    (kitId: number) => {
+      navigate({
+        to: '/kits/$kitId',
+        params: { kitId: kitId.toString() },
+        search: () => (search ? { status, search } : { status }),
+      });
+    },
+    [navigate, search, status],
+  );
+
+  const handleCreateSuccess = useCallback(
+    (kit: KitResponseSchema_b98797e) => {
+      setIsCreateDialogOpen(false);
+      navigate({
+        to: '/kits/$kitId',
+        params: { kitId: kit.id.toString() },
+        search: () => (search ? { status, search } : { status }),
+      });
+    },
+    [navigate, search, status],
+  );
+
+  const handleCreateOpenChange = useCallback((open: boolean) => {
+    setIsCreateDialogOpen(open);
+  }, []);
 
   return (
-    <KitOverviewList
-      status={status}
-      searchTerm={search}
-      onStatusChange={handleStatusChange}
-      onSearchChange={handleSearchChange}
-      onCreateKit={handleCreateKit}
-      onOpenDetail={handleOpenDetail}
-    />
+    <>
+      <KitOverviewList
+        status={status}
+        searchTerm={search}
+        onStatusChange={handleStatusChange}
+        onSearchChange={handleSearchChange}
+        onCreateKit={handleCreateKit}
+        onOpenDetail={handleOpenDetail}
+      />
+      <KitCreateDialog
+        open={isCreateDialogOpen}
+        onOpenChange={handleCreateOpenChange}
+        onSuccess={handleCreateSuccess}
+      />
+    </>
   );
 }

@@ -19,6 +19,7 @@ import { AddDocumentModal } from '@/components/documents/add-document-modal';
 import { ShoppingListLinkChip } from '@/components/shopping-lists/shopping-list-link-chip';
 import { MoreVerticalIcon } from '@/components/icons/MoreVerticalIcon';
 import { AddToShoppingListDialog } from '@/components/shopping-lists/part/add-to-shopping-list-dialog';
+import { KitLinkChip } from '@/components/kits/kit-link-chip';
 import {
   useGetPartsByPartKey,
   useDeletePartsByPartKey,
@@ -30,6 +31,10 @@ import {
   invalidatePartMemberships,
   usePartShoppingListMemberships,
 } from '@/hooks/use-part-shopping-list-memberships';
+import {
+  invalidatePartKitMemberships,
+  usePartKitMemberships,
+} from '@/hooks/use-part-kit-memberships';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 
 interface PartDetailsProps {
@@ -49,6 +54,17 @@ export function PartDetails({ partId }: PartDetailsProps) {
 
   const membershipQuery = usePartShoppingListMemberships(partId);
   const memberships = membershipQuery.summary.memberships;
+
+  const kitMembershipQuery = usePartKitMemberships(partId);
+  const kitMemberships = kitMembershipQuery.summary.kits;
+  const activeKitMemberships = useMemo(
+    () => kitMemberships.filter((kit) => kit.status === 'active'),
+    [kitMemberships],
+  );
+  const archivedKitMemberships = useMemo(
+    () => kitMemberships.filter((kit) => kit.status === 'archived'),
+    [kitMemberships],
+  );
 
   const {
     data: part,
@@ -121,7 +137,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
     };
   }, [part]);
 
-  const activeMemberships = useMemo(() => {
+  const activeShoppingMemberships = useMemo(() => {
     const seen = new Set<number>();
     const unique = [] as typeof memberships;
 
@@ -141,6 +157,12 @@ export function PartDetails({ partId }: PartDetailsProps) {
   const showMembershipSkeleton =
     isMembershipPending ||
     (isMembershipFetching && membershipQuery.status === 'success');
+
+  const isKitPending = kitMembershipQuery.status === 'pending';
+  const isKitFetching = kitMembershipQuery.fetchStatus === 'fetching';
+  const kitMembershipError = kitMembershipQuery.error;
+  const showKitMembershipSkeleton =
+    isKitPending || (isKitFetching && kitMembershipQuery.status === 'success');
 
   useListLoadingInstrumentation({
     scope: 'parts.detail',
@@ -176,7 +198,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
       status: 'success',
       partKey: part?.key ?? partId,
       memberships: memberships.length,
-      activeMemberships: activeMemberships.length,
+      activeMemberships: activeShoppingMemberships.length,
     }),
     getErrorMetadata: (error) => ({
       status: 'error',
@@ -281,65 +303,114 @@ export function PartDetails({ partId }: PartDetailsProps) {
     </>
   ) : null;
 
-  const renderMembershipBadges = () => {
-    if (showMembershipSkeleton) {
+  const showLinkBadgeSkeleton = showMembershipSkeleton || showKitMembershipSkeleton;
+
+  const handleLinkBadgeRetry = () => {
+    if (membershipError) {
+      invalidatePartMemberships(queryClient, partId);
+      void membershipQuery.refetch();
+    }
+    if (kitMembershipError) {
+      invalidatePartKitMemberships(queryClient, partId);
+      void kitMembershipQuery.refetch();
+    }
+  };
+
+  const renderLinkBadges = () => {
+    if (showLinkBadgeSkeleton) {
       return (
         <div
           className="flex flex-wrap gap-2"
-          data-testid="parts.detail.shopping-list.badges.loading"
+          data-testid="parts.detail.link.badges.loading"
         >
           <div className="h-6 w-32 animate-pulse rounded-full bg-muted" />
           <div className="h-6 w-24 animate-pulse rounded-full bg-muted" />
+          <div className="h-6 w-28 animate-pulse rounded-full bg-muted" />
         </div>
       );
     }
 
-    if (membershipError) {
+    if (membershipError || kitMembershipError) {
+      const shoppingMessage = membershipError instanceof Error
+        ? membershipError.message
+        : membershipError
+          ? String(membershipError)
+          : null;
+      const kitMessage = kitMembershipError instanceof Error
+        ? kitMembershipError.message
+        : kitMembershipError
+          ? String(kitMembershipError)
+          : null;
+
       return (
         <div
-          className="flex flex-wrap items-center gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-          data-testid="parts.detail.shopping-list.badges.error"
+          className="flex flex-wrap items-start gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          data-testid="parts.detail.link.badges.error"
         >
-          <span>Failed to load shopping list memberships.</span>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              invalidatePartMemberships(queryClient, partId);
-              void membershipQuery.refetch();
-            }}
-          >
+          <div className="space-y-1">
+            <span>Failed to load linked list and kit data.</span>
+            <ul className="list-disc pl-4 text-xs text-muted-foreground">
+              {shoppingMessage ? <li>Shopping lists: {shoppingMessage}</li> : null}
+              {kitMessage ? <li>Kits: {kitMessage}</li> : null}
+            </ul>
+          </div>
+          <Button type="button" size="sm" variant="outline" onClick={handleLinkBadgeRetry}>
             Retry
           </Button>
         </div>
       );
     }
 
-    if (membershipQuery.summary.hasActiveMembership) {
+    const hasShoppingMemberships = activeShoppingMemberships.length > 0;
+    const hasKitMemberships = kitMemberships.length > 0;
+
+    if (!hasShoppingMemberships && !hasKitMemberships) {
       return (
-        <div className="flex flex-wrap gap-2" data-testid="parts.detail.shopping-list.badges">
-          {activeMemberships.map((membership) => (
-            <ShoppingListLinkChip
-              key={membership.listId}
-              listId={membership.listId}
-              name={membership.listName}
-              status={membership.listStatus}
-              testId="parts.detail.shopping-list.badge"
-              iconTestId="parts.detail.shopping-list.badge.icon"
-            />
-          ))}
-        </div>
+        <p
+          className="text-sm text-muted-foreground"
+          data-testid="parts.detail.link.badges.empty"
+        >
+          This part is not on Concept or Ready shopping lists and is not used in any kits.
+        </p>
       );
     }
 
     return (
-      <p
-        className="text-sm text-muted-foreground"
-        data-testid="parts.detail.shopping-list.badges.empty"
+      <div
+        className="flex flex-wrap gap-2"
+        data-testid="parts.detail.link.badges.content"
       >
-        This part is not on any Concept or Ready shopping lists.
-      </p>
+        {activeShoppingMemberships.map((membership) => (
+          <ShoppingListLinkChip
+            key={membership.listId}
+            listId={membership.listId}
+            name={membership.listName}
+            status={membership.listStatus}
+            testId="parts.detail.shopping-list.badge"
+            iconTestId="parts.detail.shopping-list.badge.icon"
+          />
+        ))}
+        {activeKitMemberships.map((kit) => (
+          <KitLinkChip
+            key={`kit-active-${kit.kitId}`}
+            kitId={kit.kitId}
+            name={kit.kitName}
+            status={kit.status}
+            testId="parts.detail.kit.badge"
+            iconTestId="parts.detail.kit.badge.icon"
+          />
+        ))}
+        {archivedKitMemberships.map((kit) => (
+          <KitLinkChip
+            key={`kit-archived-${kit.kitId}`}
+            kitId={kit.kitId}
+            name={kit.kitName}
+            status={kit.status}
+            testId="parts.detail.kit.badge"
+            iconTestId="parts.detail.kit.badge.icon"
+          />
+        ))}
+      </div>
     );
   };
 
@@ -381,11 +452,11 @@ export function PartDetails({ partId }: PartDetailsProps) {
     return (
       <div className="space-y-6">
         <div
-          id="parts.detail.shopping-list.badges"
-          data-testid="parts.detail.shopping-list.badges"
+          id="parts.detail.link.badges"
+          data-testid="parts.detail.link.badges"
           className="min-h-[32px]"
         >
-          {renderMembershipBadges()}
+          {renderLinkBadges()}
         </div>
 
         <div

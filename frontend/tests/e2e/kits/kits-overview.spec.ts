@@ -195,9 +195,49 @@ test.describe('Kits overview', () => {
     await expect(kits.cardById(kit.id)).toBeVisible();
   });
 
-  test('new kit CTA navigates to creation route', async ({ kits, page }) => {
+  test('creates a kit through the overview modal', async ({ kits, testData, page, toastHelper }) => {
     await kits.gotoOverview();
-    await kits.newKitButton.click();
-    await expect(page).toHaveURL(/\/kits\/new$/);
+
+    const openEvent = waitTestEvent<FormTestEvent>(page, 'form', (event) =>
+      event.formId === 'KitOverview:create' && event.phase === 'open'
+    );
+
+    await kits.openCreateDialog();
+    await openEvent;
+
+    const validationEvent = waitTestEvent<FormTestEvent>(page, 'form', (event) =>
+      event.formId === 'KitOverview:create' && event.phase === 'validation_error'
+    );
+    await kits.submitCreateForm();
+    await validationEvent;
+    await expect(kits.createForm.getByText('Name is required')).toBeVisible();
+
+    const name = testData.kits.randomKitName('Modal Kit');
+    const description = 'Created from kits overview modal';
+    const buildTarget = 3;
+
+    const submitEvent = waitTestEvent<FormTestEvent>(page, 'form', (event) =>
+      event.formId === 'KitOverview:create' && event.phase === 'submit'
+    );
+    const successEventPromise = waitTestEvent<FormTestEvent>(page, 'form', (event) =>
+      event.formId === 'KitOverview:create' && event.phase === 'success'
+    );
+    const toastEventPromise = waitTestEvent<ToastTestEvent>(page, 'toast', (event) =>
+      event.message.includes(`Created kit "${name}"`)
+    );
+
+    await kits.fillCreateForm({ name, description, buildTarget });
+    await kits.submitCreateForm();
+
+    await submitEvent;
+    const successEvent = await successEventPromise;
+    await toastEventPromise;
+    await toastHelper.expectSuccessToast(new RegExp(`Created kit "${name}"`));
+
+    const createdKitId = Number(successEvent.metadata?.kitId);
+    expect(createdKitId).toBeGreaterThan(0);
+
+    await expect(kits.createDialog).toBeHidden();
+    await expect(page).toHaveURL(new RegExp(`/kits/${createdKitId}(\\?.*)?$`));
   });
 });

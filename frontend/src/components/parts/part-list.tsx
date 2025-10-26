@@ -15,8 +15,9 @@ import { LocationSummary } from './location-summary';
 import { VendorInfo } from './vendor-info';
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
-import { ShoppingCart } from 'lucide-react';
+import { CircuitBoard, ShoppingCart } from 'lucide-react';
 import { useShoppingListMembershipIndicators } from '@/hooks/use-part-shopping-list-memberships';
+import { usePartKitMembershipIndicators, type PartKitMembershipSummary } from '@/hooks/use-part-kit-memberships';
 import type { ShoppingListMembershipSummary } from '@/types/shopping-lists';
 import { Badge } from '@/components/ui/badge';
 import { MembershipIndicator } from '@/components/common/membership-indicator';
@@ -139,8 +140,10 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
     () => filteredParts.map((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => part.key),
     [filteredParts],
   );
-  const membershipIndicators = useShoppingListMembershipIndicators(partKeys);
-  const indicatorMap = membershipIndicators.summaryByPartKey;
+  const shoppingIndicators = useShoppingListMembershipIndicators(partKeys);
+  const shoppingIndicatorMap = shoppingIndicators.summaryByPartKey;
+  const kitIndicators = usePartKitMembershipIndicators(partKeys);
+  const kitIndicatorMap = kitIndicators.summaryByPartKey;
 
   useListLoadingInstrumentation({
     scope: 'parts.list',
@@ -334,10 +337,14 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
           part={part}
           typeMap={typeMap}
           onClick={() => onSelectPart?.(part.key)}
-          indicatorSummary={indicatorMap.get(part.key)}
-          indicatorStatus={membershipIndicators.status}
-          indicatorFetchStatus={membershipIndicators.fetchStatus}
-          indicatorError={membershipIndicators.error}
+          shoppingIndicatorSummary={shoppingIndicatorMap.get(part.key)}
+          shoppingIndicatorStatus={shoppingIndicators.status}
+          shoppingIndicatorFetchStatus={shoppingIndicators.fetchStatus}
+          shoppingIndicatorError={shoppingIndicators.error}
+          kitIndicatorSummary={kitIndicatorMap.get(part.key)}
+          kitIndicatorStatus={kitIndicators.status}
+          kitIndicatorFetchStatus={kitIndicators.fetchStatus}
+          kitIndicatorError={kitIndicators.error}
         />
       ))}
     </div>
@@ -376,20 +383,28 @@ interface PartListItemProps {
   part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema;
   typeMap: Map<number, string>;
   onClick?: () => void;
-  indicatorSummary?: ShoppingListMembershipSummary;
-  indicatorStatus: 'pending' | 'error' | 'success';
-  indicatorFetchStatus: 'idle' | 'fetching' | 'paused';
-  indicatorError: unknown;
+  shoppingIndicatorSummary?: ShoppingListMembershipSummary;
+  shoppingIndicatorStatus: 'pending' | 'error' | 'success';
+  shoppingIndicatorFetchStatus: 'idle' | 'fetching' | 'paused';
+  shoppingIndicatorError: unknown;
+  kitIndicatorSummary?: PartKitMembershipSummary;
+  kitIndicatorStatus: 'pending' | 'error' | 'success';
+  kitIndicatorFetchStatus: 'idle' | 'fetching' | 'paused';
+  kitIndicatorError: unknown;
 }
 
 function PartListItem({
   part,
   typeMap,
   onClick,
-  indicatorSummary,
-  indicatorStatus,
-  indicatorFetchStatus,
-  indicatorError,
+  shoppingIndicatorSummary,
+  shoppingIndicatorStatus,
+  shoppingIndicatorFetchStatus,
+  shoppingIndicatorError,
+  kitIndicatorSummary,
+  kitIndicatorStatus,
+  kitIndicatorFetchStatus,
+  kitIndicatorError,
 }: PartListItemProps) {
   const { displayId, displayDescription, displayManufacturerCode } = formatPartForDisplay(part);
 
@@ -433,16 +448,28 @@ function PartListItem({
         <div className="flex flex-col items-end gap-2">
           <QuantityBadge quantity={part.total_quantity} />
           <MembershipIndicator<ShoppingListMembershipSummary>
-            summary={indicatorSummary}
-            status={indicatorStatus}
-            fetchStatus={indicatorFetchStatus}
-            error={indicatorError}
+            summary={shoppingIndicatorSummary}
+            status={shoppingIndicatorStatus}
+            fetchStatus={shoppingIndicatorFetchStatus}
+            error={shoppingIndicatorError}
             testId="parts.list.card.shopping-list-indicator"
             icon={ShoppingCart}
             ariaLabel={getPartShoppingIndicatorLabel}
             hasMembership={partHasShoppingMembership}
             renderTooltip={renderPartShoppingTooltip}
             errorMessage="Failed to load shopping list data."
+          />
+          <MembershipIndicator<PartKitMembershipSummary>
+            summary={kitIndicatorSummary}
+            status={kitIndicatorStatus}
+            fetchStatus={kitIndicatorFetchStatus}
+            error={kitIndicatorError}
+            testId="parts.list.card.kit-indicator"
+            icon={CircuitBoard}
+            ariaLabel={getPartKitIndicatorLabel}
+            hasMembership={partHasKitMembership}
+            renderTooltip={renderPartKitTooltip}
+            errorMessage="Failed to load kit data."
           />
         </div>
       </div>
@@ -538,6 +565,63 @@ function renderPartShoppingTooltip(summary: ShoppingListMembershipSummary) {
                 {membership.listStatus}
               </Badge>
             </Link>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function getPartKitIndicatorLabel(summary: PartKitMembershipSummary): string {
+  const active = summary.activeCount;
+  const archived = summary.archivedCount;
+  if (active > 0 && archived > 0) {
+    return `Part used in ${active} active kits and ${archived} archived kits`;
+  }
+  if (active > 0) {
+    const noun = active === 1 ? 'kit' : 'kits';
+    return `Part used in ${active} active ${noun}`;
+  }
+  if (archived > 0) {
+    const noun = archived === 1 ? 'kit' : 'kits';
+    return `Part used in ${archived} archived ${noun}`;
+  }
+  return 'Part not used in any kits';
+}
+
+function partHasKitMembership(summary: PartKitMembershipSummary): boolean {
+  return summary.hasMembership;
+}
+
+function renderPartKitTooltip(summary: PartKitMembershipSummary) {
+  if (summary.kits.length === 0) {
+    return <p className="text-sm text-muted-foreground">Not used in any kits.</p>;
+  }
+
+  return (
+    <>
+      <p className="mb-2 text-xs font-medium text-muted-foreground">Used in kits</p>
+      <ul className="space-y-2">
+        {summary.kits.map((kit) => (
+          <li key={kit.kitId} className="space-y-1">
+            <Link
+              to="/kits/$kitId"
+              params={{ kitId: String(kit.kitId) }}
+              search={{ status: kit.status }}
+              className="flex items-center justify-between gap-2 truncate text-sm hover:text-primary"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <span className="truncate">{kit.kitName}</span>
+              <Badge
+                variant={kit.status === 'active' ? 'default' : 'secondary'}
+                className="shrink-0 capitalize"
+              >
+                {kit.status}
+              </Badge>
+            </Link>
+            <p className="text-xs text-muted-foreground">
+              {kit.requiredPerUnit} per kit • reserved {kit.reservedQuantity}
+            </p>
           </li>
         ))}
       </ul>

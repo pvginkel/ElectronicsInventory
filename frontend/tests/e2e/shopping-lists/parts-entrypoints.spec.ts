@@ -49,6 +49,7 @@ test.describe('Shopping List Phase 3 entry points', () => {
 
     await toastHelper.expectSuccessToast(/added part to concept list/i);
     await waitForListLoading(parts.playwrightPage, 'parts.detail.shoppingLists', 'ready');
+    await waitForListLoading(parts.playwrightPage, 'parts.detail.kits', 'ready');
     await expect(parts.addToShoppingListDialog).toBeHidden();
 
     const badge = parts.shoppingListBadgeByName(listName);
@@ -113,6 +114,24 @@ test.describe('Shopping List Phase 3 entry points', () => {
       overrides: { description: 'Badge rendering part' },
     });
 
+    const partReservations = await apiClient.apiRequest(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+    const partId = partReservations.part_id;
+    if (typeof partId !== 'number') {
+      throw new Error('Failed to resolve part id for badge kit seeding');
+    }
+
+    const kit = await testData.kits.create({
+      overrides: { name: testData.kits.randomKitName('Badge Kit') },
+    });
+    await testData.kits.addContent(kit.id, {
+      partId,
+      requiredPerUnit: 1,
+    });
+
     const conceptList = await testData.shoppingLists.createWithLines({
       listOverrides: { name: testData.shoppingLists.randomName('Concept Badge') },
       lines: [{ partKey: part.key, needed: 4 }],
@@ -132,10 +151,15 @@ test.describe('Shopping List Phase 3 entry points', () => {
     await parts.openCardByKey(part.key);
     await parts.expectDetailHeading(part.description);
     await waitForListLoading(parts.playwrightPage, 'parts.detail.shoppingLists', 'ready');
+    await waitForListLoading(parts.playwrightPage, 'parts.detail.kits', 'ready');
 
     await expect(parts.detailShoppingListBadges).toHaveCount(2);
     await expect(parts.shoppingListBadgeByName(conceptList.name)).toContainText('Concept');
     await expect(parts.shoppingListBadgeByName(readyList.name)).toContainText('Ready');
+    await expect(parts.detailKitBadges).toHaveCount(1);
+    const kitBadge = parts.kitBadgeByName(kit.name);
+    await expect(kitBadge).toBeVisible();
+    await expect(kitBadge).toContainText('Active');
 
     await Promise.all([
       shoppingLists.playwrightPage.waitForURL(new RegExp(`/shopping-lists/${conceptList.id}`)),
@@ -146,6 +170,7 @@ test.describe('Shopping List Phase 3 entry points', () => {
     await parts.goto(`/parts/${part.key}`);
     await parts.expectDetailHeading(part.description);
     await waitForListLoading(parts.playwrightPage, 'parts.detail.shoppingLists', 'ready');
+    await waitForListLoading(parts.playwrightPage, 'parts.detail.kits', 'ready');
     await Promise.all([
       shoppingLists.playwrightPage.waitForURL(new RegExp(`/shopping-lists/${readyList.id}`)),
       parts.shoppingListBadgeByName(readyList.name).click(),
@@ -166,6 +191,24 @@ test.describe('Shopping List Phase 3 entry points', () => {
       lines: [{ partKey: activePart.key, needed: 2 }],
     });
 
+    const activePartReservations = await apiClient.apiRequest(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: activePart.key } },
+      })
+    );
+    const activePartId = activePartReservations.part_id;
+    if (typeof activePartId !== 'number') {
+      throw new Error('Failed to resolve part id for indicator kit seeding');
+    }
+
+    const kit = await testData.kits.create({
+      overrides: { name: testData.kits.randomKitName('Indicator Kit') },
+    });
+    await testData.kits.addContent(kit.id, {
+      partId: activePartId,
+      requiredPerUnit: 1,
+    });
+
     const doneList = await testData.shoppingLists.createWithLines({
       listOverrides: { name: testData.shoppingLists.randomName('Indicator Done') },
       lines: [{ partKey: donePart.key, needed: 1 }],
@@ -182,6 +225,7 @@ test.describe('Shopping List Phase 3 entry points', () => {
     await parts.gotoList();
     await parts.waitForCards();
     await waitForListLoading(parts.playwrightPage, 'parts.list.shoppingListIndicators', 'ready');
+    await waitForListLoading(parts.playwrightPage, 'parts.list.kitIndicators', 'ready');
 
     const activeIndicator = parts.shoppingListIndicator(activePart.key);
     await expect(activeIndicator).toBeVisible();
@@ -191,5 +235,13 @@ test.describe('Shopping List Phase 3 entry points', () => {
     await expect(activeTooltip).toContainText('Indicator Concept');
 
     await expect(parts.shoppingListIndicator(donePart.key)).toHaveCount(0);
+
+    const kitIndicator = parts.kitIndicator(activePart.key);
+    await expect(kitIndicator).toBeVisible();
+    await kitIndicator.hover();
+    const kitTooltip = parts.kitIndicatorTooltip(activePart.key);
+    await expect(kitTooltip).toBeVisible();
+    await expect(kitTooltip).toContainText(kit.name);
+    await expect(parts.kitIndicator(donePart.key)).toHaveCount(0);
   });
 });

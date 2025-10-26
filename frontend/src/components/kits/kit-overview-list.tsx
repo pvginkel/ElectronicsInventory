@@ -230,7 +230,7 @@ export function KitOverviewList({
           Create your first kit to start planning builds and tracking sourcing work.
         </p>
         <Button className="mt-4" onClick={onCreateKit} data-testid="kits.overview.empty.cta">
-          Create a kit
+          Add Kit
         </Button>
       </div>
     );
@@ -294,7 +294,7 @@ export function KitOverviewList({
       title={<span data-testid="kits.overview.title">Kits</span>}
       actions={
         <Button onClick={onCreateKit} data-testid="kits.overview.new">
-          New Kit
+          Add Kit
         </Button>
       }
       search={searchNode}

@@ -16,6 +16,13 @@ export class KitsPage extends BasePage {
   readonly overviewArchivedTab: Locator;
   readonly overviewCounts: Locator;
   readonly newKitButton: Locator;
+  readonly createDialog: Locator;
+  readonly createForm: Locator;
+  readonly createNameField: Locator;
+  readonly createDescriptionField: Locator;
+  readonly createBuildTargetField: Locator;
+  readonly createSubmitButton: Locator;
+  readonly createCancelButton: Locator;
   readonly detailLayout: Locator;
   readonly detailHeader: Locator;
   readonly detailContent: Locator;
@@ -76,6 +83,13 @@ export class KitsPage extends BasePage {
     this.overviewArchivedTab = page.getByTestId('kits.overview.tabs.archived');
     this.overviewCounts = page.getByTestId('list-screen.counts');
     this.newKitButton = page.getByTestId('kits.overview.new');
+    this.createDialog = page.getByTestId('kits.overview.create.dialog');
+    this.createForm = page.getByTestId('kits.overview.create.form');
+    this.createNameField = page.getByTestId('kits.overview.create.field.name');
+    this.createDescriptionField = page.getByTestId('kits.overview.create.field.description');
+    this.createBuildTargetField = page.getByTestId('kits.overview.create.field.build-target');
+    this.createSubmitButton = page.getByTestId('kits.overview.create.submit');
+    this.createCancelButton = page.getByTestId('kits.overview.create.cancel');
     this.detailLayout = page.getByTestId('kits.detail.layout');
     this.detailHeader = page.getByTestId('kits.detail.header');
     this.detailContent = page.getByTestId('kits.detail.content');
@@ -132,6 +146,27 @@ export class KitsPage extends BasePage {
 
   async waitForOverviewReady(): Promise<void> {
     await waitForListLoading(this.page, 'kits.overview', 'ready');
+  }
+
+  async openCreateDialog(): Promise<void> {
+    await this.newKitButton.click();
+    await expect(this.createDialog).toBeVisible();
+  }
+
+  async fillCreateForm(fields: { name?: string; description?: string; buildTarget?: number | string }): Promise<void> {
+    if (fields.name !== undefined) {
+      await this.createNameField.fill(fields.name);
+    }
+    if (fields.description !== undefined) {
+      await this.createDescriptionField.fill(fields.description);
+    }
+    if (fields.buildTarget !== undefined) {
+      await this.createBuildTargetField.fill(String(fields.buildTarget));
+    }
+  }
+
+  async submitCreateForm(): Promise<void> {
+    await this.createSubmitButton.click();
   }
 
   tabLocator(tab: KitTab): Locator {
