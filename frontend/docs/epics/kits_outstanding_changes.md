@@ -16,12 +16,24 @@ This **MUST** be ignored by LLMs. It's not yet finished and will only be picked 
   - I want all button labels in the app reviewed. They should all have the format "<verb> <noun>" like "Order Stock" and "Edit List". They should describe the business function (so not "Create Shopping List" but "Order Stock") and they should be upper case first on all words. This include buttons like the "+ Add Part" button on the kit BOM table. The contributor documentation or AGENTS.md also need to be updated with this rule.
   - If I click on the anchor of something that has a tooltip (at least on the pick list icon on the kit card on the kit list screen), the tooltip stays open after I move the mouse off of the icon. Possibly this is to support mobile devices, but I would like the mouse click to be excluded from this behavior.
   - There's missing contributor guidance that states that no tooltip should ever have navigation components or otherwise anything that we can interact with.
+- Sidebar:
+  - I want the icons replaced with the following Lucide icons:
+    - Site icon: use the favicon at public/favicon.png
+    - Dashboard: LayoutDashboard
+    - Parts: Cpu
+    - Kits: CircuitBoard (note that the Layers icon in src/components/shopping-lists/detail-header-slots.tsx:280 needs to be replaced also)
+    - Shopping Lists: ShoppingCart
+    - Storage: Package
+    - Types: Tags
+    - Sellers: Store
+    - About: Info
 - Kits list view:
-  - Archive button must not be on the card. It needs to be a button in the detail screen.
   - The kit list screen does multiple queries for the shopping list and it icons instead of a batch query like the part list screen does.
   - The tooltip of the shopping list indicator on the kit show "Refresh needed" for shopping lists where the kit was modified after it was linked to the shopping list. Has such a refresh function been implemented? Otherwise, I appreciate this information is being tracked, but it has no value showing this in the tooltip.
   - There's a bug in the screen. If the content of the DetailScreenLayout component grows large enough to cause a scrollbar to appear, a scrollbar also appears at the top level of the HTML page. The sizes are related. It only happens on the kit detail view, not on the part detail view for example.
 - Kit detail view:
+  - Archive button must not be on the card in the list view. It needs to be a button in the detail screen behind an ellipsis menu option.
+  - A delete option for kit is missing. Needs to be added to the ellipsis menu also.
   - The unlink icon must only be shown when the mouse is over the shopping cart link chip or when it has focus.
 - Shopping cart detail view:
   - The kit link chip must have an unlink feature like the shopping cart chip on the kit detail view.
@@ -29,3 +41,5 @@ This **MUST** be ignored by LLMs. It's not yet finished and will only be picked 
   - It must be possible to delete pick lists.
 - Part detail view:
   - The "Refresh" menu option in the actions panel needs to be removed.
+- Shopping list view:
+  - The skeleton page doesn't have the same padding as the final frame. This issues only seems to appear in the shopping list. The kits list view e.g. is fine.
