@@ -30,6 +30,7 @@ export interface ShoppingListDetailHeaderSlots {
   supplementary?: ReactNode;
   metadataRow?: ReactNode;
   actions?: ReactNode;
+  linkChips?: ReactNode;
 }
 
 export interface ShoppingListDetailHeaderRender {
@@ -48,7 +49,7 @@ function getShoppingListStatusBadgeProps(status: ShoppingListDetail['status']): 
     case 'ready':
       return { color: 'active', label: 'Ready' };
     case 'done':
-      return { color: 'inactive', label: 'Done' };
+      return { color: 'inactive', label: 'Completed' };
   }
 }
 
@@ -143,6 +144,7 @@ export function useShoppingListDetailHeaderSlots({
         },
         { active: 0, archived: 0 }
       ),
+      renderLocation: 'body' as const,
     }),
     getErrorMetadata: (error: unknown) => ({
       listId: list?.id ?? null,
@@ -222,61 +224,59 @@ export function useShoppingListDetailHeaderSlots({
       </p>
     ) : null,
     metadataRow: (
-      <div className="flex flex-col gap-3" data-testid="shopping-lists.concept.header.badges">
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <KeyValueBadge
-            label="Total"
-            value={list.totalLines}
-            color="neutral"
-            testId="shopping-lists.concept.header.badge.total"
-          />
-          <KeyValueBadge
-            label="New"
-            value={newCount}
-            color="info"
-            testId="shopping-lists.concept.header.badge.new"
-          />
-          <KeyValueBadge
-            label="Ordered"
-            value={orderedCount}
-            color="warning"
-            testId="shopping-lists.concept.header.badge.ordered"
-          />
-          <KeyValueBadge
-            label="Completed"
-            value={doneCount}
-            color="success"
-            testId="shopping-lists.concept.header.badge.done"
-          />
-        </div>
-        {kitsQuery.isLoading ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="h-6 w-32 animate-pulse rounded-full bg-muted" />
-            <div className="h-6 w-28 animate-pulse rounded-full bg-muted" />
-          </div>
-        ) : linkedKits.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2" data-testid="shopping-lists.concept.header.kits">
-            {linkedKits.map((kitLink) => (
-              <ShoppingListLinkChip
-                key={kitLink.linkId}
-                to="/kits/$kitId"
-                params={{ kitId: String(kitLink.kitId) }}
-                name={kitLink.kitName}
-                badgeLabel={KIT_STATUS_LABELS[kitLink.kitStatus]}
-                badgeVariant={KIT_BADGE_VARIANT[kitLink.kitStatus]}
-                icon={
-                  <Layers
-                    className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary"
-                    aria-hidden="true"
-                  />
-                }
-                testId={`shopping-lists.concept.header.kits.${kitLink.kitId}`}
-              />
-            ))}
-          </div>
-        ) : null}
+      <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="shopping-lists.concept.header.badges">
+        <KeyValueBadge
+          label="Total"
+          value={list.totalLines}
+          color="neutral"
+          testId="shopping-lists.concept.header.badge.total"
+        />
+        <KeyValueBadge
+          label="New"
+          value={newCount}
+          color="info"
+          testId="shopping-lists.concept.header.badge.new"
+        />
+        <KeyValueBadge
+          label="Ordered"
+          value={orderedCount}
+          color="warning"
+          testId="shopping-lists.concept.header.badge.ordered"
+        />
+        <KeyValueBadge
+          label="Completed"
+          value={doneCount}
+          color="success"
+          testId="shopping-lists.concept.header.badge.done"
+        />
       </div>
     ),
+    linkChips: kitsQuery.isLoading ? (
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="h-6 w-32 animate-pulse rounded-full bg-muted" />
+        <div className="h-6 w-28 animate-pulse rounded-full bg-muted" />
+      </div>
+    ) : linkedKits.length > 0 ? (
+      <div className="flex flex-wrap items-center gap-2" data-testid="shopping-lists.concept.body.kits">
+        {linkedKits.map((kitLink) => (
+          <ShoppingListLinkChip
+            key={kitLink.linkId}
+            to="/kits/$kitId"
+            params={{ kitId: String(kitLink.kitId) }}
+            name={kitLink.kitName}
+            badgeLabel={KIT_STATUS_LABELS[kitLink.kitStatus]}
+            badgeVariant={KIT_BADGE_VARIANT[kitLink.kitStatus]}
+            icon={
+              <Layers
+                className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary"
+                aria-hidden="true"
+              />
+            }
+            testId={`shopping-lists.concept.body.kits.${kitLink.kitId}`}
+          />
+        ))}
+      </div>
+    ) : null,
     actions: (
       <div className="flex flex-wrap gap-2">
         <Button

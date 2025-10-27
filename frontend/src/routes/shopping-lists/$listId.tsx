@@ -571,6 +571,7 @@ function ShoppingListDetailRoute() {
 
   const conceptContent = (
     <div className="space-y-6" data-testid="shopping-lists.concept.content">
+      {detailHeaderSlots.linkChips}
       <ConceptTable
         lines={sortedLines}
         sortKey={sortKey}
@@ -588,6 +589,7 @@ function ShoppingListDetailRoute() {
 
   const readyContent = (
     <div className="space-y-6" data-testid="shopping-lists.ready.content">
+      {detailHeaderSlots.linkChips}
       <SellerGroupList
         listId={shoppingList?.id ?? normalizedListId}
         groups={sellerGroups}

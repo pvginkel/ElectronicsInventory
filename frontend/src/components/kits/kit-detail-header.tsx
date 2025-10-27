@@ -15,6 +15,7 @@ export interface KitDetailHeaderSlots {
   description?: ReactNode;
   metadataRow?: ReactNode;
   actions?: ReactNode;
+  linkChips?: ReactNode;
 }
 
 export interface KitDetailHeaderOptions {
@@ -195,46 +196,42 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
         >
           Build target {kit.buildTarget}
         </Badge>
-        {hasShoppingLists ? (
-          <div className="flex flex-wrap gap-2" data-testid="kits.detail.links">
-            {sortedShoppingLinks.map((link) => {
-              const unlinkBusy = unlinkingLinkId === link.id;
-              const unlinkBlocked = unlinkingLinkId !== null && unlinkingLinkId !== link.id;
-              const unlinkTooltip = unlinkBusy
-                ? 'Unlink in progress'
-                : unlinkBlocked
-                  ? 'Finish the in-progress unlink before removing another link'
-                  : 'Remove shopping list link';
-              const unlinkProps = canUnlink
-                ? {
-                    onUnlink: () => onUnlinkShoppingList?.(link),
-                    unlinkDisabled: unlinkBlocked || unlinkBusy,
-                    unlinkLoading: unlinkBusy,
-                    unlinkTestId: `kits.detail.links.shopping.unlink.${link.shoppingListId}`,
-                    unlinkTooltip,
-                    unlinkLabel: 'Unlink shopping list',
-                  }
-                : {};
-
-              return (
-                <ShoppingListLinkChip
-                  key={link.id}
-                  listId={link.shoppingListId}
-                  name={link.name}
-                  status={link.status}
-                  testId={`kits.detail.links.shopping.${link.shoppingListId}`}
-                  {...unlinkProps}
-                />
-              );
-            })}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground" data-testid="kits.detail.links.empty">
-            Link a shopping list to reserve parts. Pick lists now live in the panel below.
-          </p>
-        )}
       </div>
     ),
+    linkChips: hasShoppingLists ? (
+      <div className="flex flex-wrap gap-2" data-testid="kits.detail.body.links">
+        {sortedShoppingLinks.map((link) => {
+          const unlinkBusy = unlinkingLinkId === link.id;
+          const unlinkBlocked = unlinkingLinkId !== null && unlinkingLinkId !== link.id;
+          const unlinkTooltip = unlinkBusy
+            ? 'Unlink in progress'
+            : unlinkBlocked
+              ? 'Finish the in-progress unlink before removing another link'
+              : 'Remove shopping list link';
+          const unlinkProps = canUnlink
+            ? {
+                onUnlink: () => onUnlinkShoppingList?.(link),
+                unlinkDisabled: unlinkBlocked || unlinkBusy,
+                unlinkLoading: unlinkBusy,
+                unlinkTestId: `kits.detail.links.shopping.unlink.${link.shoppingListId}`,
+                unlinkTooltip,
+                unlinkLabel: 'Unlink shopping list',
+              }
+            : {};
+
+          return (
+            <ShoppingListLinkChip
+              key={link.id}
+              listId={link.shoppingListId}
+              name={link.name}
+              status={link.status}
+              testId={`kits.detail.links.shopping.${link.shoppingListId}`}
+              {...unlinkProps}
+            />
+          );
+        })}
+      </div>
+    ) : null,
     actions: (
       <div className="flex flex-wrap gap-2" data-testid="kits.detail.actions.wrapper">
         <div data-testid="kits.detail.actions.order-stock.wrapper">

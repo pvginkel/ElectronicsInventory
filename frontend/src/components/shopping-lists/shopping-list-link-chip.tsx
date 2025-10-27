@@ -2,7 +2,7 @@ import type { MouseEvent, ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { ShoppingCart, Unlink } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ShoppingListStatus } from '@/types/shopping-lists';
@@ -19,8 +19,8 @@ interface ShoppingListLinkChipProps {
   search?: Record<string, unknown>;
   name: string;
   status?: ShoppingListStatus;
-  badgeLabel?: string;
-  badgeVariant?: 'default' | 'secondary' | 'outline' | 'destructive';
+  badgeLabel: string;
+  badgeVariant: 'default' | 'secondary' | 'outline' | 'destructive';
   className?: string;
   testId?: string;
   icon?: ReactNode;
@@ -64,14 +64,13 @@ export function ShoppingListLinkChip({
     throw new Error('ShoppingListLinkChip requires either a listId or explicit params');
   }
 
-  const resolvedBadgeLabel =
-    badgeLabel ??
-    (status ? `${status.charAt(0).toUpperCase()}${status.slice(1)}` : undefined);
-  const resolvedBadgeVariant =
-    badgeVariant ?? (status === 'ready' ? 'default' : 'secondary');
-  const accessibilityLabel = resolvedBadgeLabel
-    ? `${name} (${resolvedBadgeLabel})`
-    : name;
+  // Map old badge variant to StatusBadge color
+  const badgeColor: 'inactive' | 'active' | 'success' =
+    badgeVariant === 'default' ? 'active' :
+    badgeVariant === 'secondary' ? 'active' :
+    'inactive';
+
+  const accessibilityLabel = `${name} (${badgeLabel})`;
 
   const handleUnlinkClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -110,15 +109,12 @@ export function ShoppingListLinkChip({
           )}
           <span className="truncate">{name}</span>
         </span>
-        {resolvedBadgeLabel ? (
-          <Badge
-            variant={resolvedBadgeVariant}
-            className="flex-shrink-0 capitalize"
-            data-testid={badgeTestId}
-          >
-            {resolvedBadgeLabel}
-          </Badge>
-        ) : null}
+        <StatusBadge
+          color={badgeColor}
+          label={badgeLabel}
+          size="default"
+          testId={badgeTestId ?? ''}
+        />
       </Link>
       {onUnlink ? (
         <Button

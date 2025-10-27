@@ -9,6 +9,8 @@ type ShoppingListLineResponseSchema = components['schemas']['ShoppingListLineRes
 type PartShoppingListMembershipSchema = components['schemas']['PartShoppingListMembershipSchema.d085feb'];
 type ShoppingListLineReceiveSchema = components['schemas']['ShoppingListLineReceiveSchema.d9ccce0'];
 type ShoppingListLineCompleteSchema = components['schemas']['ShoppingListLineCompleteSchema.d9ccce0'];
+type KitShoppingListRequestSchema = components['schemas']['KitShoppingListRequestSchema.b98797e'];
+type KitShoppingListLinkResponseSchema = components['schemas']['KitShoppingListLinkResponseSchema.b98797e'];
 
 interface CreateListWithLinesOptions {
   listOverrides?: Partial<ShoppingListCreateSchema>;
@@ -198,6 +200,29 @@ export class ShoppingListTestFactory {
       this.client.POST('/api/shopping-list-lines/{line_id}/complete', {
         params: { path: { line_id: lineId } },
         body,
+      })
+    );
+  }
+
+  /**
+   * Link this shopping list to a kit by pushing kit contents to the list.
+   * Convenience wrapper for the kit→shopping list linking endpoint.
+   * Returns the link response containing list details and link metadata.
+   */
+  async linkToKit(listId: number, kitId: number): Promise<KitShoppingListLinkResponseSchema> {
+    const payload: KitShoppingListRequestSchema = {
+      shopping_list_id: listId,
+      honor_reserved: false,
+      new_list_name: null,
+      new_list_description: null,
+      note_prefix: null,
+      units: null,
+    };
+
+    return await apiRequest(() =>
+      this.client.POST('/api/kits/{kit_id}/shopping-lists', {
+        params: { path: { kit_id: kitId } },
+        body: payload,
       })
     );
   }

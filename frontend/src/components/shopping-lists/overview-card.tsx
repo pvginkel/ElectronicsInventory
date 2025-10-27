@@ -1,5 +1,5 @@
 import type { KeyboardEvent } from 'react';
-import { Badge } from '@/components/ui/badge';
+import { KeyValueBadge, StatusBadge } from '@/components/ui';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ShoppingListOverviewSummary } from '@/types/shopping-lists';
 
@@ -9,25 +9,24 @@ interface ShoppingListOverviewCardProps {
   disabled?: boolean;
 }
 
-const STATUS_LABELS: Record<ShoppingListOverviewSummary['status'], string> = {
-  concept: 'Concept',
-  ready: 'Ready',
-  done: 'Completed',
-};
-
-const STATUS_BADGE_VARIANT: Record<ShoppingListOverviewSummary['status'], 'default' | 'secondary' | 'outline'> = {
-  concept: 'default',
-  ready: 'secondary',
-  done: 'outline',
-};
+// Map shopping list status to badge props
+function getShoppingListStatusBadgeProps(status: ShoppingListOverviewSummary['status']): { color: 'inactive' | 'active'; label: string } {
+  switch (status) {
+    case 'concept':
+      return { color: 'inactive', label: 'Concept' };
+    case 'ready':
+      return { color: 'active', label: 'Ready' };
+    case 'done':
+      return { color: 'inactive', label: 'Completed' };
+  }
+}
 
 export function ShoppingListOverviewCard({
   list,
   onOpen,
   disabled = false,
 }: ShoppingListOverviewCardProps) {
-  const statusLabel = STATUS_LABELS[list.status] ?? list.status;
-  const statusVariant = STATUS_BADGE_VARIANT[list.status] ?? 'secondary';
+  const statusBadgeProps = getShoppingListStatusBadgeProps(list.status);
   const interactiveClasses = disabled ? 'pointer-events-none opacity-60' : 'cursor-pointer';
   const tabIndex = disabled ? -1 : 0;
 
@@ -75,42 +74,33 @@ export function ShoppingListOverviewCard({
               </p>
             )}
           </div>
-          <Badge
-            variant={statusVariant}
-            title={`List status: ${statusLabel}`}
-            data-testid={`shopping-lists.overview.card.${list.id}.status`}
-          >
-            {statusLabel}
-          </Badge>
+          <StatusBadge
+            {...statusBadgeProps}
+            testId={`shopping-lists.overview.card.${list.id}.status`}
+          />
         </div>
       </CardHeader>
 
       <CardContent className="space-y-3">
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <Badge
-            variant="outline"
-            className="bg-slate-100 text-slate-700"
-            title="New lines still in planning"
-            data-testid={`shopping-lists.overview.card.${list.id}.lines-new`}
-          >
-            New {list.lineCounts.new}
-          </Badge>
-          <Badge
-            variant="outline"
-            className="bg-amber-100 text-amber-800"
-            title="Ordered lines awaiting receipt"
-            data-testid={`shopping-lists.overview.card.${list.id}.lines-ordered`}
-          >
-            Ordered {list.lineCounts.ordered}
-          </Badge>
-          <Badge
-            variant="outline"
-            className="bg-emerald-100 text-emerald-800"
-            title="Completed lines already received"
-            data-testid={`shopping-lists.overview.card.${list.id}.lines-done`}
-          >
-            Completed {list.lineCounts.done}
-          </Badge>
+          <KeyValueBadge
+            label="New"
+            value={list.lineCounts.new}
+            color="info"
+            testId={`shopping-lists.overview.card.${list.id}.lines-new`}
+          />
+          <KeyValueBadge
+            label="Ordered"
+            value={list.lineCounts.ordered}
+            color="warning"
+            testId={`shopping-lists.overview.card.${list.id}.lines-ordered`}
+          />
+          <KeyValueBadge
+            label="Completed"
+            value={list.lineCounts.done}
+            color="success"
+            testId={`shopping-lists.overview.card.${list.id}.lines-done`}
+          />
         </div>
         {list.totalLines === 0 && (
           <p className="text-xs text-muted-foreground" data-testid={`shopping-lists.overview.card.${list.id}.empty-hint`}>

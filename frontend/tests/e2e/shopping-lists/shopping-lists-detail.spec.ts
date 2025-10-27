@@ -76,10 +76,10 @@ test.describe('Shopping List Detail Phase 2', () => {
     );
 
     await expect(shoppingLists.conceptToolbar).toBeVisible();
-    await expect(shoppingLists.conceptBadge('total')).toHaveText(/Total 2/i);
-    await expect(shoppingLists.conceptBadge('new')).toHaveText(/New 2/i);
-    await expect(shoppingLists.conceptBadge('ordered')).toHaveText(/Ordered 0/i);
-    await expect(shoppingLists.conceptBadge('done')).toHaveText(/Completed 0/i);
+    await expect(shoppingLists.conceptBadge('total')).toHaveText(/Total: 2/i);
+    await expect(shoppingLists.conceptBadge('new')).toHaveText(/New: 2/i);
+    await expect(shoppingLists.conceptBadge('ordered')).toHaveText(/Ordered: 0/i);
+    await expect(shoppingLists.conceptBadge('done')).toHaveText(/Completed: 0/i);
     await expect(shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.header.edit')).toHaveText(/edit list/i);
 
     const markReadySubmit = waitTestEvent<FormTestEvent>(

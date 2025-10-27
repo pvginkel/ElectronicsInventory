@@ -42,7 +42,7 @@ export class ShoppingListsPage extends BasePage {
     this.detailContentConcept = page.getByTestId('shopping-lists.detail.content.concept');
     this.detailContentReady = page.getByTestId('shopping-lists.detail.content.ready');
     this.detailActions = page.getByTestId('shopping-lists.detail.actions');
-    this.detailKitChips = page.getByTestId('shopping-lists.concept.header.kits');
+    this.detailKitChips = page.getByTestId('shopping-lists.concept.body.kits');
     this.conceptToolbar = page.getByTestId('shopping-lists.concept.toolbar');
     this.conceptTable = page.getByTestId('shopping-lists.concept.table');
     this.readyToolbar = page.getByTestId('shopping-lists.ready.toolbar');
@@ -122,7 +122,7 @@ export class ShoppingListsPage extends BasePage {
   }
 
   kitChip(kitId: number): Locator {
-    return this.page.getByTestId(`shopping-lists.concept.header.kits.${kitId}`);
+    return this.page.getByTestId(`shopping-lists.concept.body.kits.${kitId}`);
   }
 
   async getToolbarRect(view: 'concept' | 'ready'): Promise<{ top: number; bottom: number; height: number }> {

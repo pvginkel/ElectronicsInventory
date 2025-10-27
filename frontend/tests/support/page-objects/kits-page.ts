@@ -97,7 +97,7 @@ export class KitsPage extends BasePage {
     this.detailStatusBadge = page.getByTestId('kits.detail.header.status');
     this.detailDescription = page.getByTestId('kits.detail.header.description');
     this.detailBuildTargetBadge = page.getByTestId('kits.detail.badge.build-target');
-    this.detailLinksSection = page.getByTestId('kits.detail.links');
+    this.detailLinksSection = page.getByTestId('kits.detail.body.links');
     this.detailOrderButton = page.getByTestId('kits.detail.actions.order-stock');
     this.detailOrderDialog = page.getByTestId('kits.detail.shopping-list.dialog');
     this.detailOrderForm = page.getByTestId('kits.detail.shopping-list.form');

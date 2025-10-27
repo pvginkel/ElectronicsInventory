@@ -10,6 +10,8 @@ type KitContentUpdateSchema = components['schemas']['KitContentUpdateSchema.b987
 type KitDetailResponseSchema = components['schemas']['KitDetailResponseSchema.b98797e'];
 type KitPickListCreateSchema = components['schemas']['KitPickListCreateSchema.b247181'];
 type KitPickListDetailSchema = components['schemas']['KitPickListDetailSchema.b247181'];
+type KitShoppingListRequestSchema = components['schemas']['KitShoppingListRequestSchema.b98797e'];
+type KitShoppingListLinkResponseSchema = components['schemas']['KitShoppingListLinkResponseSchema.b98797e'];
 
 interface KitCreateOptions {
   overrides?: Partial<KitCreateSchema>;
@@ -211,6 +213,44 @@ export class KitTestFactory {
         params: { path: { pick_list_id: pickListId } },
       })
     );
+  }
+
+  /**
+   * Link a kit to an existing shopping list by pushing kit contents to the list.
+   * Returns the link response containing shopping list details and link metadata.
+   */
+  async linkShoppingList(kitId: number, listId: number): Promise<KitShoppingListLinkResponseSchema> {
+    const payload: KitShoppingListRequestSchema = {
+      shopping_list_id: listId,
+      honor_reserved: false,
+      new_list_name: null,
+      new_list_description: null,
+      note_prefix: null,
+      units: null,
+    };
+
+    return apiRequest(() =>
+      this.client.POST('/api/kits/{kit_id}/shopping-lists', {
+        params: { path: { kit_id: kitId } },
+        body: payload,
+      })
+    );
+  }
+
+  /**
+   * Create a kit and link it to the specified shopping lists in one call.
+   * Useful for deterministic test setup when you need a kit with shopping list associations.
+   */
+  async createWithShoppingListLinks(
+    options: KitCreateOptions & { shoppingListIds: number[] }
+  ): Promise<KitResponseSchema> {
+    const kit = await this.create(options);
+
+    for (const listId of options.shoppingListIds) {
+      await this.linkShoppingList(kit.id, listId);
+    }
+
+    return kit;
   }
 
   randomKitName(prefix = 'Test Kit'): string {

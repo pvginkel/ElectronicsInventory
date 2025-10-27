@@ -170,7 +170,6 @@ test.describe('Kit detail workspace', () => {
     );
 
     await expect(kits.detailHeader).toContainText(targetKitDescription);
-    await expect(kits.detailLinksEmpty).toBeVisible();
 
     await expect(kits.detailEditButton).toBeEnabled();
     await kits.detailEditButton.click();
@@ -593,8 +592,6 @@ test.describe('Kit detail workspace', () => {
 
     if (conceptLink) {
       await expect(kits.detailLinksSection).toBeVisible();
-    } else {
-      await expect(kits.detailLinksEmpty).toBeVisible();
     }
     await expect(page.getByTestId('kits.detail.actions.create-pick-list')).toHaveCount(0);
     await expect(kits.pickListPanel).toBeVisible();
@@ -1342,6 +1339,5 @@ test.describe('Kit detail workspace', () => {
     await toastHelper.dismissToast({ all: true });
 
     await expect(kits.shoppingLinkChip(conceptList.id)).toHaveCount(0);
-    await expect(kits.detailLinksEmpty).toBeVisible();
   });
 });

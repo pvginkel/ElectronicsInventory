@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { Package } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import type { KitStatus } from '@/types/kits';
 
@@ -18,12 +18,14 @@ interface KitLinkChipProps {
   badgeTestId?: string;
 }
 
-function formatStatusLabel(status: KitStatus): string {
-  return status.charAt(0).toUpperCase() + status.slice(1);
-}
-
-function resolveBadgeVariant(status: KitStatus): 'default' | 'secondary' | 'outline' {
-  return status === 'archived' ? 'secondary' : 'default';
+// Map kit status to badge props
+function getKitStatusBadgeProps(status: KitStatus): { color: 'active' | 'inactive'; label: string } {
+  switch (status) {
+    case 'active':
+      return { color: 'active', label: 'Active' };
+    case 'archived':
+      return { color: 'inactive', label: 'Archived' };
+  }
 }
 
 export function KitLinkChip({
@@ -37,7 +39,8 @@ export function KitLinkChip({
   iconTestId,
   badgeTestId,
 }: KitLinkChipProps) {
-  const accessibilityLabel = `${name} (${formatStatusLabel(status)})`;
+  const statusBadgeProps = getKitStatusBadgeProps(status);
+  const accessibilityLabel = `${name} (${statusBadgeProps.label})`;
   const resolvedSearch = search ?? { status };
   const wrapperTestId = testId ? `${testId}.wrapper` : undefined;
 
@@ -71,13 +74,11 @@ export function KitLinkChip({
           )}
           <span className="truncate">{name}</span>
         </span>
-        <Badge
-          variant={resolveBadgeVariant(status)}
-          className="flex-shrink-0 capitalize"
-          data-testid={badgeTestId}
-        >
-          {formatStatusLabel(status)}
-        </Badge>
+        <StatusBadge
+          {...statusBadgeProps}
+          size="default"
+          testId={badgeTestId ?? ''}
+        />
       </Link>
     </div>
   );

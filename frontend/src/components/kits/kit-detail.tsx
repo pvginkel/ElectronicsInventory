@@ -285,6 +285,7 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
         overviewStatus={overviewStatus}
         overviewSearch={overviewSearch}
         onCreatePickList={handleCreatePickListOpen}
+        linkChips={headerSlots.linkChips}
       />
     );
   })();
@@ -357,6 +358,7 @@ interface KitDetailLoadedProps {
   overviewStatus: KitStatus;
   overviewSearch?: string;
   onCreatePickList: () => void;
+  linkChips?: React.ReactNode;
 }
 
 // Renders the BOM card with inline editing controls once kit data is ready.
@@ -368,6 +370,7 @@ function KitDetailLoaded({
   overviewStatus,
   overviewSearch,
   onCreatePickList,
+  linkChips,
 }: KitDetailLoadedProps) {
   const kitContents = useKitContents({
     detail,
@@ -390,6 +393,7 @@ function KitDetailLoaded({
 
   return (
     <div className="space-y-6" data-testid="kits.detail.body">
+      {linkChips}
       <KitPickListPanel
         kit={detail}
         overviewStatus={overviewStatus}
@@ -531,6 +535,7 @@ function buildLinkReadyMetadata(detail: KitDetail | undefined) {
       count: detail.shoppingListLinks.length,
       ids: detail.shoppingListLinks.map((link) => link.shoppingListId),
       statusCounts: shoppingStatusCounts,
+      renderLocation: 'body' as const,
     },
   };
 }
