@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ShoppingListOverviewSummary } from '@/types/shopping-lists';
 
 interface ShoppingListOverviewCardProps {
@@ -21,47 +21,6 @@ const STATUS_BADGE_VARIANT: Record<ShoppingListOverviewSummary['status'], 'defau
   done: 'outline',
 };
 
-function formatRelativeUpdated(updatedAt: string): string {
-  const parsed = new Date(updatedAt);
-  if (Number.isNaN(parsed.getTime())) {
-    return 'recently';
-  }
-
-  const diffMs = new Date().getTime() - parsed.getTime();
-  const diffMinutes = Math.max(Math.round(diffMs / 60000), 0);
-
-  if (diffMinutes < 1) {
-    return 'just now';
-  }
-
-  if (diffMinutes < 60) {
-    return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
-  }
-
-  const diffHours = Math.round(diffMinutes / 60);
-  if (diffHours < 24) {
-    return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
-  }
-
-  const diffDays = Math.round(diffHours / 24);
-  if (diffDays < 7) {
-    return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
-  }
-
-  const diffWeeks = Math.round(diffDays / 7);
-  if (diffWeeks < 5) {
-    return `${diffWeeks} week${diffWeeks === 1 ? '' : 's'} ago`;
-  }
-
-  const diffMonths = Math.round(diffDays / 30);
-  if (diffMonths < 12) {
-    return `${diffMonths} month${diffMonths === 1 ? '' : 's'} ago`;
-  }
-
-  const diffYears = Math.round(diffDays / 365);
-  return `${diffYears} year${diffYears === 1 ? '' : 's'} ago`;
-}
-
 export function ShoppingListOverviewCard({
   list,
   onOpen,
@@ -69,8 +28,6 @@ export function ShoppingListOverviewCard({
 }: ShoppingListOverviewCardProps) {
   const statusLabel = STATUS_LABELS[list.status] ?? list.status;
   const statusVariant = STATUS_BADGE_VARIANT[list.status] ?? 'secondary';
-  const relativeUpdated = formatRelativeUpdated(list.updatedAt);
-  const updatedTooltip = new Date(list.updatedAt).toLocaleString();
   const interactiveClasses = disabled ? 'pointer-events-none opacity-60' : 'cursor-pointer';
   const tabIndex = disabled ? -1 : 0;
 
@@ -161,16 +118,6 @@ export function ShoppingListOverviewCard({
           </p>
         )}
       </CardContent>
-
-      <CardFooter className="pt-3">
-        <span
-          className="text-xs text-muted-foreground"
-          title={updatedTooltip}
-          data-testid={`shopping-lists.overview.card.${list.id}.updated`}
-        >
-          Updated {relativeUpdated}
-        </span>
-      </CardFooter>
     </Card>
   );
 }
