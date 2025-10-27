@@ -759,7 +759,7 @@ export function UpdateStockDialog({
                   onClick={() => handleSubmitMode('save')}
                   data-testid="shopping-lists.ready.update-stock.submit"
                 >
-                  Save
+                  Save Stock
                 </Button>
                 <Button
                   type="submit"
@@ -769,7 +769,7 @@ export function UpdateStockDialog({
                   onClick={() => handleSubmitMode('saveAndNext')}
                   data-testid="shopping-lists.ready.update-stock.submit-next"
                 >
-                  Save &amp; next
+                  Save &amp; Next
                 </Button>
               </div>
               <Button
@@ -781,7 +781,7 @@ export function UpdateStockDialog({
                 onClick={handleMarkDone}
                 data-testid="shopping-lists.ready.update-stock.mark-done"
               >
-                Mark Done
+                Complete Item
               </Button>
             </DialogFooter>
           </Form>

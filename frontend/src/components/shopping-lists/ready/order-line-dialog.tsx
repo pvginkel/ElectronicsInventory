@@ -177,7 +177,7 @@ export function OrderLineDialog({
               disabled={isSubmitting || !form.isValid}
               data-testid="shopping-lists.ready.order-line.submit"
             >
-              Save ordered quantity
+              Save Quantity
             </Button>
           </DialogFooter>
         </Form>

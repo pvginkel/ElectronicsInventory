@@ -122,7 +122,7 @@ function UndocumentedPartItem({ partKey, partDescription, onAddDocumentation, on
           className="h-8 px-3 text-xs"
           data-testid="dashboard.documentation.item.add"
         >
-          📄 Add Docs
+          Add Documentation
         </Button>
         <Button
           variant="ghost"
@@ -130,6 +130,7 @@ function UndocumentedPartItem({ partKey, partDescription, onAddDocumentation, on
           onClick={onViewPart}
           className="h-8 px-2"
           data-testid="dashboard.documentation.item.view"
+          aria-label="View Part"
         >
           →
         </Button>

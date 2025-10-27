@@ -239,7 +239,7 @@ test.describe('Shopping List Detail Phase 2', () => {
 
     const textarea = dialog.getByTestId(`ShoppingListSellerOrderNote:${seller.id}.field.note`);
     await textarea.fill('Bundle with power supply order');
-    await dialog.getByRole('button', { name: /save changes/i }).click();
+    await dialog.getByRole('button', { name: /save notes/i }).click();
 
     await Promise.all([submitEvent, successEvent]);
     await toastHelper.expectSuccessToast(/saved order note/i);
@@ -251,7 +251,7 @@ test.describe('Shopping List Detail Phase 2', () => {
     await shoppingLists.readyGroupEditButton(seller.name).click();
     const dialogAgain = shoppingLists.playwrightPage.getByTestId('shopping-lists.ready.group.note-dialog');
     await dialogAgain.getByTestId(`ShoppingListSellerOrderNote:${seller.id}.field.note`).fill('   ');
-    await dialogAgain.getByRole('button', { name: /save changes/i }).click();
+    await dialogAgain.getByRole('button', { name: /save notes/i }).click();
 
     await toastHelper.expectSuccessToast(/cleared order note/i);
     await toastHelper.dismissToast({ all: true });

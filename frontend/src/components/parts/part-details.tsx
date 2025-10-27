@@ -279,7 +279,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" data-testid="parts.detail.actions.menu">
+          <Button variant="outline" data-testid="parts.detail.actions.menu" aria-label="More Actions">
             <MoreVerticalIcon className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>

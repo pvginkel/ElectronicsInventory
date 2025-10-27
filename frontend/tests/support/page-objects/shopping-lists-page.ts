@@ -360,7 +360,7 @@ export class ShoppingListsPage extends BasePage {
 
     const confirmDialog = this.page.getByTestId('shopping-lists.ready.archive-dialog');
     await expect(confirmDialog).toBeVisible();
-    await confirmDialog.getByRole('button', { name: /mark done/i }).click();
+    await confirmDialog.getByRole('button', { name: /complete list|mark done/i }).click();
   }
 
   async addConceptLine(options: {

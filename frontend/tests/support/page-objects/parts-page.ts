@@ -31,7 +31,7 @@ export class PartsPage extends BasePage {
     this.noResultsState = page.getByTestId('parts.list.no-results');
     this.errorState = page.getByTestId('parts.list.error');
     this.addPartButton = page.getByRole('button', { name: /add part/i });
-    this.addWithAIButton = page.getByRole('button', { name: /add with ai/i });
+    this.addWithAIButton = page.getByRole('button', { name: /add part with ai/i });
   }
 
   async gotoList(): Promise<void> {

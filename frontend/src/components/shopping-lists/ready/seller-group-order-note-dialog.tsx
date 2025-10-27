@@ -178,7 +178,7 @@ export function SellerGroupOrderNoteDialog({
               loading={updateNoteMutation.isPending}
               disabled={disableSave}
             >
-              Save changes
+              Save Notes
             </Button>
           </DialogFooter>
         </Form>

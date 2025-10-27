@@ -319,7 +319,7 @@ function renderContent(options: RenderContentOptions) {
         </div>
         <div>
           <Button onClick={onRetry} data-testid="pick-lists.detail.retry">
-            Retry
+            Reload List
           </Button>
         </div>
       </Card>

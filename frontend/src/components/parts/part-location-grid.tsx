@@ -285,7 +285,7 @@ function LocationRow({
               onClick={handleSave}
               disabled={removeStockMutation.isPending || addStockMutation.isPending}
             >
-              Save
+              Save Quantity
             </Button>
             <Button
               size="sm"
@@ -293,7 +293,7 @@ function LocationRow({
               onClick={handleCancel}
               disabled={removeStockMutation.isPending || addStockMutation.isPending}
             >
-              Cancel
+              Cancel Edit
             </Button>
           </>
         ) : (
@@ -326,7 +326,7 @@ function LocationRow({
           className="text-destructive hover:text-destructive"
           data-testid="parts.locations.remove"
         >
-          Remove
+          Remove Location
         </Button>
           </>
         )}
@@ -441,7 +441,7 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
         loading={addStockMutation.isPending}
         data-testid="parts.locations.add-save"
       >
-        Add
+        Add Location
       </Button>
       <Button
         size="sm"

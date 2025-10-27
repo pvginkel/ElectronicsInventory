@@ -211,7 +211,7 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
             {error instanceof Error ? error.message : String(error ?? 'Box not found')}
           </p>
           <Link to="/boxes">
-            <Button variant="outline">Back to Boxes</Button>
+            <Button variant="outline">View All Boxes</Button>
           </Link>
         </div>
       );

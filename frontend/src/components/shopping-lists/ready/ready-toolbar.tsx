@@ -47,7 +47,7 @@ export function ReadyToolbar({
             title="Archive this Ready list once all lines are complete"
             data-testid="shopping-lists.ready.toolbar.mark-done"
           >
-            Mark Done
+            Complete List
           </Button>
         )}
         {canReturnToConcept && !isCompleted ? (
@@ -60,7 +60,7 @@ export function ReadyToolbar({
             title="Return lines to Concept planning without marking the list done"
             data-testid="shopping-lists.ready.toolbar.back-to-concept"
           >
-            Back to Concept
+            Revert to Concept
           </Button>
         ) : null}
       </div>
