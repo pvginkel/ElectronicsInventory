@@ -30,7 +30,14 @@ Searched across all detail view components (kit, pick list, shopping list, part,
 - `SummaryBadge` in src/components/kits/kit-detail.tsx:569-579
 - `GroupSummaryBadge` in src/components/pick-lists/pick-list-lines.tsx:346-352
 
-All three accept `{ label, value, className, testId }` and render `<Badge variant="outline">`. This duplication confirms the need for abstraction.
+**Badge wrapper signature verification:**
+- `DetailBadge` (pick-list-detail.tsx:389-399): `{ label: string; value: string | number; className?: string; testId: string }`
+- `SummaryBadge` (kit-detail.tsx:569-579): `{ label: string; value: number; className?: string; testId: string }`
+- `GroupSummaryBadge` (pick-list-lines.tsx:346-352): `{ label: string; value: string; className?: string; testId: string }`
+
+All three have identical prop signatures (value type varies but KeyValueBadge will accept `string | number`). All render `<Badge variant="outline">` with `{label}: {value}` format. Grep confirmed no external imports (`rg 'import.*DetailBadge|import.*SummaryBadge|import.*GroupSummaryBadge' src/` returned no matches). Wrappers are local utility functions safe to remove.
+
+This duplication confirms the need for abstraction.
 
 ### Current Badge Placement Patterns
 
@@ -69,6 +76,18 @@ Both use consistent styling with rounded-full borders, hover states, and interna
 - Kit and shopping list detail views currently place chips in header metadataRow
 - Pick list detail has no link chips (no misplacement issue)
 - Build target badge in kit detail header needs to move to metadataRow
+
+### Grep Verification Results
+
+**Empty state message removal (kit detail):**
+- Searched: `rg -i "link a shopping list" tests/`
+- Result: No matches found
+- Conclusion: Safe to remove empty state message in kit-detail-header.tsx lines 237-239 without breaking tests
+
+**Shopping list chip testid prefix change:**
+- Searched: `rg 'shopping-lists\..*\.header\.kits' tests/e2e/`
+- Result: No matches found
+- Conclusion: No existing specs use `.header.kits.` testids; testid prefix change from `.header.` to `.body.` will not break existing tests
 
 ---
 
@@ -118,7 +137,7 @@ Standardize badge and link chip visualization across all detail views to create 
 
 **Additional Work:**
 - Remove empty state messages for missing link chips (render nothing when no chips exist)
-- Extend StatusBadge to support additional status values: 'new', 'ordered', 'received' (for shopping list line statuses)
+- Implement call-site mapping functions/logic to convert domain status values to StatusBadge props (color + label) in each component
 - Update all Playwright specs to reflect new badge components and chip placement
 - Remove custom className styling (e.g., uppercase on kit card archived badge) to enforce consistency
 
@@ -165,29 +184,48 @@ The following color scheme will be applied to metric/attribute badges:
 
 **StatusBadge Palette (Bold):**
 
-Entity status badges use saturated, high-contrast colors. The palette uses **3 colors** mapped from **7 status values**:
+Entity status badges use saturated, high-contrast colors. StatusBadge provides **3 semantic color options**:
 
-| Color Name | Tailwind Classes | Status Values | Semantic Meaning |
-|------------|-----------------|---------------|------------------|
-| **inactive** | `bg-slate-400 text-slate-700` | concept, done, archived | Planning phase, finished work, soft-deleted entities |
-| **active** | `bg-blue-600 text-white` | ready, active, open | Work in progress, approved for action, current working set |
-| **success** | `bg-emerald-600 text-white` | completed | Successfully finished tasks |
+| Color Name | Tailwind Classes | Semantic Meaning |
+|------------|-----------------|------------------|
+| **inactive** | `bg-slate-400 text-slate-700` | Planning phase, finished work, soft-deleted entities |
+| **active** | `bg-blue-600 text-white` | Work in progress, approved for action, current working set |
+| **success** | `bg-emerald-600 text-white` | Successfully finished tasks |
 
-**Status-to-Color Mapping:**
+**Design Principle — Pure Presentational Component:**
 
-| Status | Entity Types | Color | Usage |
-|--------|-------------|-------|-------|
-| **concept** | Shopping lists | inactive | Planning phase, not yet approved |
-| **ready** | Shopping lists | active | Approved and ready to order |
-| **active** | Kits | active | Current production kit |
-| **open** | Pick lists | active | Pick task in progress |
-| **done** | Shopping lists | inactive | Finished, no longer active |
-| **archived** | Kits | inactive | Soft-deleted, hidden behind filter |
-| **completed** | Pick lists | success | Successfully picked all parts |
+StatusBadge is a dumb component that accepts `color` and `label` props. It does not know about domain-specific status values (e.g., "concept", "ready", "done"). Each call site maps its own domain status to one of the 3 badge colors. This decouples the badge component from business logic and prevents the component from needing updates every time a new status value is discovered.
 
-**Design Note — StatusBadge Intentionally Removes Multi-Variant Approach:**
+**Example call-site mapping:**
+- Kit "active" status → `color="active" label="Active"`
+- Kit "archived" status → `color="inactive" label="Archived"`
+- Shopping list "concept" status → `color="inactive" label="Concept"`
+- Shopping list "ready" status → `color="active" label="Ready"`
+- Pick list "open" status → `color="active" label="Open"`
+- Pick list "completed" status → `color="success" label="Completed"`
+
+**Design Note — Intentionally Removes Multi-Variant Approach:**
 
 Current status badge implementations use different Badge `variant` props per status (e.g., shopping list statuses use `concept: 'default'`, `ready: 'secondary'`, `done: 'outline'` as documented in detail-header-slots.tsx:43-47). StatusBadge intentionally replaces this multi-variant approach with a unified bold color palette using a single Badge variant (relying on color classes for distinction). This is a deliberate visual standardization: current visual distinctions (e.g., outline variant for 'done' status showing border-only, lower visual weight) are replaced with color-based semantics. The bold, saturated background colors (`bg-blue-600 text-white` for active, `bg-slate-400 text-slate-700` for inactive, `bg-emerald-600 text-white` for success) provide clear visual hierarchy without requiring variant diversity.
+
+**Accessibility Validation:**
+
+StatusBadge's 3-color palette must meet WCAG 2.1 Level AA requirements before implementation:
+
+1. **Contrast ratios** (minimum 4.5:1 for text, 3:1 for UI components):
+   - `bg-blue-600` (#2563eb) on white background: 9.4:1 (Pass AA)
+   - `bg-slate-400` (#94a3b8) with `text-slate-700` (#334155): 4.7:1 (Pass AA)
+   - `bg-emerald-600` (#059669) on white background: 7.3:1 (Pass AA)
+
+2. **Color-blind simulation testing**:
+   - Use Sim Daltonism or Chrome DevTools to verify 3 colors remain distinguishable for protanopia (red-blind), deuteranopia (green-blind), and tritanopia (blue-blind) users
+   - Blue-600 (active) must be distinguishable from emerald-600 (success) and slate-400 (inactive) across all color vision deficiencies
+
+3. **Fallback mechanisms** (if colors not distinguishable):
+   - Option A: Add optional `icon` prop to StatusBadge (checkmark for success, dot for inactive, arrow for active)
+   - Option B: Reintroduce variant diversity for structural distinction (outline for inactive, filled for active/success)
+
+**Validation requirement:** Accessibility testing must be completed in Slice 1 before StatusBadge is used in later slices. Document findings in implementation PR.
 
 **Color Migration Map:**
 
@@ -238,7 +276,7 @@ Current status badge implementations use different Badge `variant` props per sta
 **Area:** src/components/shopping-lists/overview-card.tsx
 **Why:** Migrate status badge and line count badges to standardized components
 **Evidence:**
-- **Status badge** (line 78-84): Currently uses Badge with variant mapping → migrate to `StatusBadge` with `status` prop
+- **Status badge** (line 78-84): Currently uses Badge with variant mapping → migrate to `StatusBadge` with call-site mapping (e.g., `concept` → `color="inactive" label="Concept"`)
 - **New lines badge** (line 90-96): "New {count}" with custom classes → migrate to `KeyValueBadge` with `label="New"`, `value={lineCounts.new}`, `color="info"`
 - **Ordered lines badge** (line 98-104): "Ordered {count}" with amber colors → migrate to `KeyValueBadge` with `label="Ordered"`, `value={lineCounts.ordered}`, `color="warning"`
 - **Completed lines badge** (line 106-112): "Completed {count}" with emerald colors → migrate to `KeyValueBadge` with `label="Completed"`, `value={lineCounts.done}`, `color="success"`
@@ -246,48 +284,48 @@ Current status badge implementations use different Badge `variant` props per sta
 #### Shopping List Line Rows
 
 **Area:** src/components/shopping-lists/concept-line-row.tsx
-**Why:** Migrate status badge to StatusBadge component
+**Why:** Migrate status badge to StatusBadge component with call-site mapping
 **Evidence:**
-- **Status badge** (line 74-81): Currently uses Badge with variant mapping for "new", "ordered", "done" → migrate to `StatusBadge`
+- **Status badge** (line 74-81): Currently uses Badge with variant mapping for "new", "ordered", "done" → migrate to `StatusBadge` with call-site mapping (`new` → `color="inactive" label="New"`, `ordered` → `color="active" label="Ordered"`, `done` → `color="inactive" label="Done"`)
 - **Seller badge** (line 53-60): Informational label, keep as plain Badge (not a metric or status)
 
 **Area:** src/components/shopping-lists/ready/ready-line-row.tsx
-**Why:** Migrate status badge to StatusBadge component
+**Why:** Migrate status badge to StatusBadge component with call-site mapping
 **Evidence:**
-- **Status badge** (line 147-154): Currently uses Badge with variant mapping for "new", "ordered", "completed" → migrate to `StatusBadge`
+- **Status badge** (line 147-154): Currently uses Badge with variant mapping for "new", "ordered", "completed" → migrate to `StatusBadge` with call-site mapping
 
 **Area:** src/components/shopping-lists/ready/update-stock-dialog.tsx
-**Why:** Migrate status badge to StatusBadge component
+**Why:** Migrate status badge to StatusBadge component with call-site mapping
 **Evidence:**
-- **Status badge** (line 571-573): Shows "Ordered" or "Received" with conditional variant → migrate to `StatusBadge`
+- **Status badge** (line 571-573): Shows "Ordered" or "Received" with conditional variant → migrate to `StatusBadge` with call-site mapping (`ordered` → `color="active" label="Ordered"`, `received` → `color="success" label="Received"`)
 
 #### Link Chips – Internal Status Badges
 
 **Area:** src/components/shopping-lists/shopping-list-link-chip.tsx
-**Why:** Migrate internal status badge to StatusBadge component
+**Why:** Migrate internal status badge to StatusBadge component with call-site mapping
 **Evidence:**
-- **Status badge** (line 114-122): Shopping list status badge inside chip → migrate to `StatusBadge` with `status` prop
+- **Status badge** (line 114-122): Shopping list status badge inside chip → migrate to `StatusBadge` with call-site mapping (shopping list status → `color` + `label`)
 
 **Area:** src/components/kits/kit-link-chip.tsx
-**Why:** Migrate internal status badge to StatusBadge component
+**Why:** Migrate internal status badge to StatusBadge component with call-site mapping
 **Evidence:**
-- **Status badge** (line 67-73): Kit status badge inside chip → migrate to `StatusBadge` with `status` prop
+- **Status badge** (line 67-73): Kit status badge inside chip → migrate to `StatusBadge` with call-site mapping (`active` → `color="active" label="Active"`, `archived` → `color="inactive" label="Archived"`)
 
 #### Kit Card
 
 **Area:** src/components/kits/kit-card.tsx
-**Why:** Migrate status badges in card and tooltips to StatusBadge component
+**Why:** Migrate status badges in card and tooltips to StatusBadge component with call-site mapping
 **Evidence:**
-- **Archived badge** (line 119-121): "Archived" with outline variant and **custom uppercase styling** → migrate to `StatusBadge` with `status="archived"`. **NOTE:** Current uppercase styling (`className="uppercase tracking-wide text-xs"`) will be removed; StatusBadge uses standard capitalization only.
-- **Shopping list status badges in tooltip** (line 114-119): Conditional variant based on status → migrate to `StatusBadge`
-- **Pick list status badges in tooltip** (line 172-174): Secondary variant → migrate to `StatusBadge`
+- **Archived badge** (line 119-121): "Archived" with outline variant and **custom uppercase styling** → migrate to `StatusBadge` with `color="inactive" label="Archived"`. **NOTE:** Current uppercase styling (`className="uppercase tracking-wide text-xs"`) will be removed; StatusBadge uses standard capitalization only.
+- **Shopping list status badges in tooltip** (line 114-119): Conditional variant based on status → migrate to `StatusBadge` with call-site mapping
+- **Pick list status badges in tooltip** (line 172-174): Secondary variant → migrate to `StatusBadge` with call-site mapping (`open` → `color="active" label="Open"`, `completed` → `color="success" label="Completed"`)
 
 #### Kit Pick List Panel
 
 **Area:** src/components/kits/kit-pick-list-panel.tsx
-**Why:** Migrate "Open" status badge to StatusBadge component
+**Why:** Migrate "Open" status badge to StatusBadge component with call-site mapping
 **Evidence:**
-- **Open badge** (line 171-173): "Open" with custom amber colors → migrate to `StatusBadge` with `status="open"`
+- **Open badge** (line 171-173): "Open" with custom amber colors → migrate to `StatusBadge` with `color="active" label="Open"`
 
 #### Part Detail
 
@@ -355,35 +393,51 @@ interface KeyValueBadgeProps {
   label: string;
   value: string | number;
   color?: 'neutral' | 'info' | 'warning' | 'success' | 'danger';
-  variant?: 'default' | 'outline' | 'secondary';
   testId: string;
 }
 ```
-**Mapping:** Component accepts semantic color names and maps them to the canonical palette (Section 2). The `color` prop is optional; when omitted, the badge defaults to neutral color (`bg-slate-100 text-slate-700`). This allows informational badges (Total lines, Capacity) to remain visually quiet while badges conveying state (Open lines, Shortfall) use explicit semantic colors. The `variant` prop controls Badge visual style (outline, filled, etc.). **No className prop**—color abstraction is enforced to prevent Tailwind class soup at call sites.
+**Mapping:** Component accepts semantic color names and maps them to the canonical palette (Section 2). The `color` prop is optional; when omitted, the badge defaults to neutral color (`bg-slate-100 text-slate-700`). This allows informational badges (Total lines, Capacity) to remain visually quiet while badges conveying state (Open lines, Shortfall) use explicit semantic colors. KeyValueBadge uses a single Badge variant (`outline`) with color-only variation to maintain consistency. **No className prop** and **no variant prop**—color abstraction is enforced to prevent Tailwind class soup at call sites.
 **Evidence:** Pattern exists in three existing wrappers: pick-list-detail.tsx:389-399, kit-detail.tsx:569-579, pick-list-lines.tsx:346-352
 
 **Entity / contract:** StatusBadge Props
 **Shape:**
 ```typescript
 interface StatusBadgeProps {
-  status: 'active' | 'concept' | 'ready' | 'done' | 'archived' | 'open' | 'completed' | 'new' | 'ordered' | 'received';
+  color: 'inactive' | 'active' | 'success';
+  label: string;
   size?: 'default' | 'large';
   testId: string;
 }
 ```
-**Mapping:** Component accepts entity status values and internally maps them to **3 colors** (inactive, active, success) from the bold palette (Section 2). The component centralizes the status-to-color mapping logic, so callers only need to pass the semantic status value. Status badges use saturated background colors with high contrast (e.g., `bg-blue-600 text-white` for active states, `bg-slate-400 text-slate-700` for inactive states) to emphasize entity state and distinguish from KeyValueBadge's subtle palette. The `size` prop allows larger badges for prominent placement (e.g., detail view title areas). **No className prop**—enforces the 3-color abstraction and prevents mixing status and metric badge styles.
+**Mapping:** Component accepts a **color** value (one of 3 semantic colors from the bold palette) and a **label** string. StatusBadge is a pure presentational component—it does not know about domain-specific status values. Call sites are responsible for mapping domain status to badge color and label.
 
-**Internal color mapping**:
-- concept, done, archived, new (planning phase) → **inactive** color
-- ready, active, open, ordered (in progress) → **active** color
-- completed, received (finished successfully) → **success** color
+**Color classes:**
+- `inactive`: `bg-slate-400 text-slate-700` — Planning phase, finished work, soft-deleted entities
+- `active`: `bg-blue-600 text-white` — Work in progress, approved for action, current working set
+- `success`: `bg-emerald-600 text-white` — Successfully finished tasks
 
-**Status value additions for Phase 2:**
-- **new**: Shopping list line status, maps to inactive (planning/concept phase)
-- **ordered**: Shopping list line status, maps to active (work in progress)
-- **received**: Stock dialog status, maps to success (completed receipt)
+The `size` prop allows larger badges for prominent placement (e.g., detail view title areas). **No className prop**—enforces the 3-color abstraction and prevents mixing status and metric badge styles.
 
-**Evidence:** Current status badge implementations:
+**Call-site responsibility:** Each domain context (kits, shopping lists, pick lists) maps its own status values to badge color and label. This decouples StatusBadge from business logic and allows each domain to evolve independently. Examples of call-site mapping:
+
+```typescript
+// Kit status mapping (kit-detail-header.tsx)
+const { color, label } = kit.status === 'active'
+  ? { color: 'active' as const, label: 'Active' }
+  : { color: 'inactive' as const, label: 'Archived' };
+
+// Shopping list status mapping (detail-header-slots.tsx)
+function getShoppingListBadgeProps(status: string): { color: StatusBadgeProps['color']; label: string } {
+  switch (status) {
+    case 'concept': return { color: 'inactive', label: 'Concept' };
+    case 'ready': return { color: 'active', label: 'Ready' };
+    case 'done': return { color: 'inactive', label: 'Done' };
+    default: return { color: 'inactive', label: status };
+  }
+}
+```
+
+**Evidence:** Current status badge implementations that will be refactored:
 - Kit: src/components/kits/kit-detail-header.tsx:188-192
 - Shopping list: src/components/shopping-lists/detail-header-slots.tsx:214-222
 - Pick list: src/components/pick-lists/pick-list-detail.tsx:185-192
@@ -402,6 +456,38 @@ interface StatusBadgeProps {
 **Shape:** `{ slots: ShoppingListDetailHeaderSlots, overlays: ReactNode | null }`
 **Mapping:** Will extend `slots` with `linkChips` field for body rendering.
 **Evidence:** src/components/shopping-lists/detail-header-slots.tsx:25-38
+
+**Entity / contract:** UiState metadata extension for chip relocation (Kit Links)
+**Shape:**
+```typescript
+// src/types/test-events.ts (or instrumentation hook types)
+interface KitLinksMetadata {
+  kitId: number;
+  hasLinkedWork: boolean;
+  shoppingLists: {
+    count: number;
+    ids: number[];
+    statusCounts: Record<string, number>;
+    renderLocation?: 'header' | 'body'; // NEW FIELD (optional to avoid breaking existing emitters)
+  };
+}
+```
+**Mapping:** Optional `renderLocation` field added to existing metadata structure to document chip placement. Slice 4 updates `kit-detail.tsx:92-102` (`getLinksReadyMetadata` callback) to emit `renderLocation: 'body'`. Field is optional to avoid breaking existing metadata emitters in other contexts.
+**Evidence:** plan.md:621-622 (instrumentation update requirement for Slice 4)
+
+**Entity / contract:** ListLoading metadata extension for chip relocation (Shopping List Kits)
+**Shape:**
+```typescript
+// Extends existing metadata returned by useListLoadingInstrumentation
+interface ShoppingListKitsMetadata {
+  listId: number;
+  kitLinkCount: number;
+  statusCounts: { active: number; archived: number };
+  renderLocation?: 'header' | 'body'; // NEW FIELD (optional to avoid breaking existing emitters)
+}
+```
+**Mapping:** Optional `renderLocation` field added to existing `shoppingLists.detail.kits` scope metadata. Slice 5 updates `detail-header-slots.tsx:136-146` (`getReadyMetadata` callback) to emit `renderLocation: 'body'`.
+**Evidence:** plan.md:631-632 (instrumentation update requirement for Slice 5)
 
 ---
 
@@ -487,41 +573,114 @@ Only factory wrapper helpers need to be implemented before Slices 4-5 Playwright
 
 **Steps:**
 1. Parent component imports KeyValueBadge from src/components/ui
-2. Parent passes `{ label, value, variant?, color?, testId }` where color is optional semantic value ('neutral' | 'info' | 'warning' | 'success' | 'danger')
-3. KeyValueBadge maps color prop to standardized Tailwind classes from canonical palette (Section 2). If color is omitted, component applies subtle default styling.
-4. KeyValueBadge renders `<Badge variant={variant ?? 'outline'}>{label}: {value}</Badge>` with color classes applied via internal mapping
+2. Parent passes `{ label, value, color?, testId }` where color is optional semantic value ('neutral' | 'info' | 'warning' | 'success' | 'danger')
+3. KeyValueBadge maps color prop to standardized Tailwind classes from canonical palette (Section 2). If color is omitted, component defaults to neutral (`bg-slate-100 text-slate-700`).
+4. KeyValueBadge renders `<Badge variant="outline" className={colorClasses}>{label}: {value}</Badge>` with color classes applied via internal mapping
 5. Badge displays with consistent `<key>: <value>` format and standardized color
-6. **No className prop**—color abstraction enforces semantic palette usage and prevents Tailwind class soup at call sites
+6. **No className prop and no variant prop**—color abstraction enforces semantic palette usage and prevents Tailwind class soup at call sites
 
-**States / transitions:** No internal state; pure presentational component
+**States / transitions:** No internal state; pure presentational component. Color prop is reactive (component re-renders with new classes on prop change).
 
 **Hotspots:** Color mapping must be centralized in KeyValueBadge component; default styling must be subtle enough for informational badges (Total lines, Capacity) while semantic colors (warning, danger) remain visually distinct
 
 **Evidence:** Pattern exists in three wrapper components at pick-list-detail.tsx:389-399, kit-detail.tsx:569-579, pick-list-lines.tsx:346-352
 
+### Flow: KeyValueBadge with Conditional Color (Box Usage Threshold Example)
+
+**Steps:**
+1. Parent component computes color value based on runtime data:
+   ```tsx
+   const color = usagePercentage >= 90 ? 'danger' : 'neutral';
+   ```
+2. Parent passes computed color value to KeyValueBadge:
+   ```tsx
+   <KeyValueBadge
+     label="Usage"
+     value=`${usagePercentage}%`
+     color={color}
+     testId="boxes.detail.badge.usage"
+   />
+   ```
+3. KeyValueBadge maps color string ('danger' or 'neutral') to Tailwind classes via internal COLOR_CLASSES mapping
+4. Badge renders with appropriate color: red (`bg-rose-100 text-rose-800`) if ≥90%, slate (`bg-slate-100 text-slate-700`) otherwise
+5. When usagePercentage changes and crosses 90% threshold, React re-renders component with new color prop
+6. KeyValueBadge reactively applies new Tailwind classes (React standard component behavior)
+
+**States / transitions:** Color changes when data crosses threshold; component re-renders with new classes. No internal state.
+
+**Hotspots:** Ensure call sites compute color value *before* passing to KeyValueBadge (color is derived from data, not computed inside badge component). Conditional logic remains at call site for flexibility.
+
+**Evidence:** Box detail Usage badge requirement at plan.md:306-307; Playwright test scenario required at plan.md:987
+
 ### Flow: StatusBadge Component Render
 
 **Steps:**
 1. Parent component imports StatusBadge from src/components/ui
-2. Parent passes `{ status, size?, testId }` where status is entity state ('active' | 'concept' | 'ready' | 'done' | 'archived' | 'open' | 'completed')
-3. StatusBadge internally maps status to one of **3 color names** (inactive, active, success) using centralized mapping:
-   - concept, done, archived → inactive
-   - ready, active, open → active
-   - completed → success
-4. StatusBadge maps color name to Tailwind classes (inactive = `bg-slate-400 text-slate-700`, active = `bg-blue-600 text-white`, success = `bg-emerald-600 text-white`)
+2. Parent maps domain status to badge color and label (this happens at call site)
+3. Parent passes `{ color, label, size?, testId }` where color is one of 3 semantic colors ('inactive' | 'active' | 'success')
+4. StatusBadge maps color to Tailwind classes:
+   - `inactive` → `bg-slate-400 text-slate-700`
+   - `active` → `bg-blue-600 text-white`
+   - `success` → `bg-emerald-600 text-white`
 5. StatusBadge maps size prop to text size and padding classes ('default' vs 'large')
-6. StatusBadge renders `<Badge className={colorClasses + sizeClasses}>{statusLabel}</Badge>` where statusLabel is human-readable text (e.g., 'active' → 'Active', 'concept' → 'Concept')
+6. StatusBadge renders `<Badge className={colorClasses + sizeClasses}>{label}</Badge>` with provided label
 7. Badge displays with bold background color for maximum visibility
-8. **No className prop**—status abstraction enforces 3-color palette and prevents mixing status and metric badge styles
+8. **No className prop**—color abstraction enforces 3-color palette and prevents mixing status and metric badge styles
 
 **States / transitions:** No internal state; pure presentational component
 
-**Hotspots:** Status-to-color mapping must be centralized in StatusBadge component (7 statuses → 3 colors); bold palette must visually distinguish status badges from KeyValueBadge metric badges; size prop must provide meaningful scaling for title vs inline usage
+**Hotspots:** Call sites must map domain status to badge props consistently; bold palette must visually distinguish status badges from KeyValueBadge metric badges; size prop must provide meaningful scaling for title vs inline usage
 
-**Evidence:** Current status badge implementations:
+**Evidence:** Current status badge implementations that will be refactored:
 - Kit: src/components/kits/kit-detail-header.tsx:188-192
 - Shopping list: src/components/shopping-lists/detail-header-slots.tsx:214-222
 - Pick list: src/components/pick-lists/pick-list-detail.tsx:185-192
+
+### Flow: Call-Site Status Mapping (Shopping List Example)
+
+**Steps:**
+1. Component has domain status value from API (e.g., shopping list status: "concept" | "ready" | "done")
+2. Component creates helper function or inline mapping to convert domain status to badge props:
+   ```typescript
+   function getShoppingListBadgeProps(status: string): { color: StatusBadgeProps['color']; label: string } {
+     switch (status) {
+       case 'concept':
+         return { color: 'inactive', label: 'Concept' };
+       case 'ready':
+         return { color: 'active', label: 'Ready' };
+       case 'done':
+         return { color: 'inactive', label: 'Done' };
+       default:
+         // Fallback for unexpected status values
+         return { color: 'inactive', label: status };
+     }
+   }
+   ```
+3. Component calls mapping function: `const { color, label } = getShoppingListBadgeProps(list.status);`
+4. Component passes mapped props to StatusBadge:
+   ```tsx
+   <StatusBadge
+     color={color}
+     label={label}
+     testId="shopping-lists.detail.header.status"
+   />
+   ```
+5. StatusBadge renders with appropriate color and label
+
+**States / transitions:** No shared state; each domain manages its own mapping
+
+**Hotspots:**
+- Mapping functions can be created per-domain (kits, shopping lists, pick lists) or inline at call site
+- Adding new status values only requires updating the call-site mapping—StatusBadge component never changes
+- TypeScript exhaustiveness checks can be applied at call sites if desired (switch statement with no default case)
+- Consider extracting mapping functions to domain utility files for reuse across components
+
+**Alternative patterns:**
+- **Inline conditional**: `const { color, label } = kit.status === 'active' ? { color: 'active' as const, label: 'Active' } : { color: 'inactive' as const, label: 'Archived' };`
+- **Object lookup**: `const STATUS_MAP = { concept: { color: 'inactive', label: 'Concept' }, ... } as const;`
+- **Helper hook**: `const badgeProps = useShoppingListBadgeProps(list.status);`
+
+**Evidence:** All status badge call sites will use this pattern after migration (15+ locations across kit, shopping list, pick list components)
 
 ---
 
@@ -792,13 +951,18 @@ No security or permission changes. Link chips navigate to existing routes with s
 
 **Goal:** Replace DetailBadge, SummaryBadge, GroupSummaryBadge with KeyValueBadge; replace inline status badges with StatusBadge; apply standardized colors
 **Touches:**
-- src/components/pick-lists/pick-list-detail.tsx (migrate to KeyValueBadge for metrics, migrate to StatusBadge for status badge)
+- src/components/pick-lists/pick-list-detail.tsx (migrate to KeyValueBadge for metrics; add call-site mapping for pick list status → StatusBadge `color` + `label`)
 - src/components/kits/kit-detail.tsx (migrate to KeyValueBadge for metrics)
-- src/components/kits/kit-detail-header.tsx (migrate to StatusBadge for kit status badge)
-- src/components/pick-lists/pick-list-lines.tsx (migrate to KeyValueBadge for group metrics)
-- src/components/shopping-lists/detail-header-slots.tsx (migrate to StatusBadge for list status badge; update "New" badge from sky to blue using KeyValueBadge)
+- src/components/kits/kit-detail-header.tsx (add call-site mapping for kit status → StatusBadge `color` + `label`)
+- src/components/pick-lists/pick-list-lines.tsx (migrate to KeyValueBadge for group metrics; add call-site mapping for line status → StatusBadge `color` + `label`)
+- src/components/shopping-lists/detail-header-slots.tsx (add call-site mapping for shopping list status → StatusBadge `color` + `label`; update "New" badge from sky to blue using KeyValueBadge)
 
 **Dependencies:** Slice 1 complete; KeyValueBadge and StatusBadge components available
+
+**Call-site mapping examples:**
+- Kit status: `active` → `{ color: 'active', label: 'Active' }`, `archived` → `{ color: 'inactive', label: 'Archived' }`
+- Shopping list status: `concept` → `{ color: 'inactive', label: 'Concept' }`, `ready` → `{ color: 'active', label: 'Ready' }`, `done` → `{ color: 'inactive', label: 'Done' }`
+- Pick list status: `open` → `{ color: 'active', label: 'Open' }`, `completed` → `{ color: 'success', label: 'Completed' }`
 
 ### Slice 3: Move Kit Detail Build Target Badge
 
@@ -811,19 +975,36 @@ No security or permission changes. Link chips navigate to existing routes with s
 
 **Playwright verification:** Add or update scenario: "Given active kit loaded, When viewing header, Then `data-testid='kits.detail.header.status'` exists in titleMetadata and `data-testid='kits.detail.badge.build-target'` exists in metadataRow (not in titleMetadata)"
 
+### Slice 3.5: Extend Test Factories for Link Chip Coverage
+
+**Goal:** Implement factory helpers for kit↔shopping list linking to unblock Slices 4-5 Playwright specs
+**Touches:**
+- tests/api/factories/kit-factory.ts (add `linkShoppingList(kitId, listId)` and `createWithShoppingListLinks({ shoppingListIds })` helpers wrapping `POST /api/kits/{kit_id}/shopping-lists`)
+- tests/api/factories/shopping-list-factory.ts (add `linkToKit(listId, kitId)` helper wrapping backend API)
+- (Optional) Unit tests for factory helpers if time permits
+
+**Dependencies:** None; backend endpoints confirmed to exist (openapi.json:12522, 11673, 12472, 15145); no backend work required
+
+**Deliverables:**
+- Kit factory extension with `linkShoppingList(kitId: number, listId: number): Promise<void>` — Creates kit → shopping list link via `POST /api/kits/{kit_id}/shopping-lists` endpoint
+- Kit factory extension with `createWithShoppingListLinks(options: { ...KitCreateOptions, shoppingListIds: number[] }): Promise<KitResponseSchema>` — Creates a kit and links specified shopping list IDs in one call
+- Shopping list factory extension with `linkToKit(listId: number, kitId: number): Promise<void>` — Creates shopping list → kit link via backend API
+- All factory helpers throw descriptive errors on API failures
+- Factory helpers return strongly-typed responses matching OpenAPI schema
+
+**Validation:** Run existing factory tests to ensure no regressions; optionally add unit tests for new helpers
+
 ### Slice 4: Move Kit Detail Link Chips to Body & Remove Empty State
 
 **Goal:** Relocate shopping list chips from header to body content; remove empty state message; update instrumentation metadata
 **Touches:**
 - src/components/kits/kit-detail-header.tsx (return linkChips slot; remove empty state message at lines 237-239)
 - src/components/kits/kit-detail.tsx (render linkChips slot in body before BOM card; update `getLinksReadyMetadata` callback at lines 92-94 to include `renderLocation: 'body'` field in metadata)
-- tests/api/factories/kit-factory.ts (add `linkShoppingList(kitId, listId)` and `createWithShoppingListLinks({ shoppingListIds })` helpers wrapping `POST /api/kits/{kit_id}/shopping-lists`)
+- src/types/test-events.ts (extend KitLinksMetadata interface with optional `renderLocation` field)
 - tests/e2e/kits/kit-detail.spec.ts (update selectors; verify no empty state message; add scenario asserting `metadata.shoppingLists.renderLocation === 'body'` in UiState event)
 - tests/support/page-objects/kits-page.ts (update locators)
 
-**Dependencies:**
-- Slices 1-3 complete; ensures header is fully standardized before chip relocation
-- **Test setup prerequisite:** Implement factory helpers (`linkShoppingList`, `createWithShoppingListLinks`) in `tests/api/factories/kit-factory.ts` before writing Playwright specs. Backend endpoints confirmed to exist at openapi.json:12522, 11673, 12472.
+**Dependencies:** Slices 1-3.5 complete; ensures header is fully standardized before chip relocation and factory helpers are available for Playwright specs
 
 ### Slice 5: Move Shopping List Detail Link Chips to Body & Remove Empty State
 
@@ -831,59 +1012,66 @@ No security or permission changes. Link chips navigate to existing routes with s
 **Touches:**
 - src/components/shopping-lists/detail-header-slots.tsx (return linkChips slot; ensure conditional rendering omits empty state; update `getReadyMetadata` callback at lines 136-146 to include `renderLocation: 'body'` field in metadata)
 - src/routes/shopping-lists/$listId.tsx (render linkChips in body)
-- tests/api/factories/shopping-list-factory.ts (add `linkToKit(listId, kitId)` helper wrapping backend API)
+- src/types/test-events.ts (extend ShoppingListKitsMetadata interface with optional `renderLocation` field)
 - Playwright specs for shopping list detail (update selectors; verify no empty state; add scenario asserting `metadata.renderLocation === 'body'` in ListLoading event for 'shoppingLists.detail.kits' scope)
 
-**Dependencies:**
-- Slice 4 complete; follows same pattern as kit detail
-- **Test setup prerequisite:** Implement `testData.shoppingLists.linkToKit(listId, kitId)` factory helper in `tests/api/factories/shopping-list-factory.ts` before writing Playwright specs. Backend endpoint confirmed to exist at openapi.json:15145.
+**Dependencies:** Slices 1-4 complete (includes Slice 3.5 factory helpers); follows same pattern as kit detail
 
 ### Slice 6: Migrate Shopping List Overview and Line View Badges
 
 **Goal:** Migrate all shopping list overview cards and line row badges to standardized components
 **Touches:**
-- src/components/ui/status-badge.tsx (extend status mapping to include 'new', 'ordered', 'received')
 - src/components/shopping-lists/overview-card.tsx:
-  - Migrate status badge (line 78-84) to StatusBadge
+  - Add call-site mapping for shopping list status → StatusBadge (status badge at line 78-84)
   - Migrate "New" line count badge (line 90-96) to KeyValueBadge with color="info"
   - Migrate "Ordered" line count badge (line 98-104) to KeyValueBadge with color="warning"
   - Migrate "Completed" line count badge (line 106-112) to KeyValueBadge with color="success"
 - src/components/shopping-lists/concept-line-row.tsx:
-  - Migrate status badge (line 74-81) to StatusBadge
+  - Add call-site mapping for line status → StatusBadge (status badge at line 74-81; includes 'new', 'ordered', 'done' values)
   - Keep seller badge as plain Badge (informational, not metric)
 - src/components/shopping-lists/ready/ready-line-row.tsx:
-  - Migrate status badge (line 147-154) to StatusBadge
+  - Add call-site mapping for line status → StatusBadge (status badge at line 147-154)
 - src/components/shopping-lists/ready/update-stock-dialog.tsx:
-  - Migrate status badge (line 571-573) to StatusBadge
+  - Add call-site mapping for stock status → StatusBadge (status badge at line 571-573; includes 'ordered', 'received' values)
 - tests/e2e/shopping-lists/*.spec.ts (update assertions for new badge components)
 
-**Dependencies:** Slices 1-5 complete; StatusBadge and KeyValueBadge components available; extends StatusBadge with 3 new status values
+**Dependencies:** Slices 1-5 complete; StatusBadge and KeyValueBadge components available
+
+**Call-site mapping for shopping list line statuses:**
+- `new` → `{ color: 'inactive', label: 'New' }`
+- `ordered` → `{ color: 'active', label: 'Ordered' }`
+- `done` / `completed` → `{ color: 'success', label: 'Completed' }` or `{ color: 'inactive', label: 'Done' }` depending on context
+- `received` → `{ color: 'success', label: 'Received' }`
 
 **Playwright verification:** Verify status badges render with correct colors and labels; verify line count badges follow `<key>: <value>` format
 
 ### Slice 7: Migrate Link Chip Internal Status Badges
 
-**Goal:** Migrate status badges inside link chip components to StatusBadge
+**Goal:** Migrate status badges inside link chip components to StatusBadge with call-site mapping
 **Touches:**
-- src/components/shopping-lists/shopping-list-link-chip.tsx (migrate status badge at line 114-122 to StatusBadge)
-- src/components/kits/kit-link-chip.tsx (migrate status badge at line 67-73 to StatusBadge)
+- src/components/shopping-lists/shopping-list-link-chip.tsx (add call-site mapping for shopping list status; migrate status badge at line 114-122 to StatusBadge)
+- src/components/kits/kit-link-chip.tsx (add call-site mapping for kit status; migrate status badge at line 67-73 to StatusBadge)
 - tests/e2e/kits/kit-detail.spec.ts (verify link chip status badges)
 - tests/e2e/parts/*.spec.ts (verify link chip status badges in part detail)
 
-**Dependencies:** Slice 6 complete; StatusBadge extended with all status values
+**Dependencies:** Slice 6 complete
+
+**Call-site mapping:**
+- Kit status: `active` → `{ color: 'active', label: 'Active' }`, `archived` → `{ color: 'inactive', label: 'Archived' }`
+- Shopping list status: reuse mapping from Slice 2/6
 
 **Playwright verification:** Verify link chips render with StatusBadge components; ensure status colors match expectations
 
 ### Slice 8: Migrate Kit Card and Pick List Panel Badges
 
-**Goal:** Migrate kit card and pick list panel status badges to StatusBadge
+**Goal:** Migrate kit card and pick list panel status badges to StatusBadge with call-site mapping
 **Touches:**
 - src/components/kits/kit-card.tsx:
-  - Migrate archived badge (line 119-121) to StatusBadge (remove uppercase styling)
-  - Migrate shopping list tooltip status badges (line 114-119) to StatusBadge
-  - Migrate pick list tooltip status badges (line 172-174) to StatusBadge
+  - Add call-site mapping for kit status (archived badge at line 119-121; remove uppercase styling)
+  - Add call-site mapping for shopping list tooltip status badges (line 114-119)
+  - Add call-site mapping for pick list tooltip status badges (line 172-174)
 - src/components/kits/kit-pick-list-panel.tsx:
-  - Migrate "Open" badge (line 171-173) to StatusBadge with status="open"
+  - Add call-site mapping for pick list status; migrate "Open" badge (line 171-173) to StatusBadge with `color="active" label="Open"`
 - tests/e2e/kits/*.spec.ts (update assertions for kit card badges)
 
 **Dependencies:** Slice 7 complete
@@ -908,7 +1096,13 @@ No security or permission changes. Link chips navigate to existing routes with s
 
 **Dependencies:** Slice 8 complete
 
-**Playwright verification:** Verify all badges follow `<key>: <value>` format; verify date badges render with formatted dates; verify Usage badge color changes at 90% threshold
+**Date formatting requirement:** Use deterministic date formatting for Playwright test stability. Replace locale-dependent `toLocaleDateString()` with fixed format:
+- **Option A (Recommended)**: `new Intl.DateTimeFormat('en-US', { dateStyle: 'short' }).format(new Date(date))` — Produces consistent "M/D/YYYY" format regardless of user's browser locale
+- **Option B**: ISO format `new Date(date).toISOString().split('T')[0]` — Produces "YYYY-MM-DD" format
+
+Both options ensure Playwright assertions on date badge text remain stable across different test environments and locales. Current `toLocaleDateString()` calls produce locale-dependent output (e.g., "10/27/2025" in en-US vs "27/10/2025" in en-GB), breaking deterministic test expectations.
+
+**Playwright verification:** Verify all badges follow `<key>: <value>` format; verify date badges render with formatted dates using fixed format; verify Usage badge color changes at 90% threshold; assert date badge values match expected deterministic format
 
 ---
 
@@ -945,11 +1139,11 @@ No security or permission changes. Link chips navigate to existing routes with s
 - **Mitigation:** Intentional standardization to enforce consistent visual language; app not yet in production so safe to change; all other status badges use standard capitalization; no className prop support ensures consistency
 - **Evidence:** src/components/kits/kit-card.tsx:119-121 (current implementation with custom styling)
 
-### Risk: Additional status values require StatusBadge extension
+### Risk: Inconsistent call-site mapping across components
 
-- **Impact:** StatusBadge originally designed for 7 status values; Phase 2 adds 'new', 'ordered', 'received' for shopping list line statuses
-- **Mitigation:** Status-to-color mapping is centralized in StatusBadge component; new statuses map cleanly to existing 3-color palette (new → inactive, ordered → active, received → success); no new colors required
-- **Evidence:** Shopping list line row components use these statuses; gaps.md documents mapping
+- **Impact:** Different components may map the same domain status to different badge colors or labels, creating visual inconsistency
+- **Mitigation:** Document canonical status-to-color mappings in plan (Section 2 and slice deliverables); use helper functions or constants to centralize mapping logic per domain (e.g., `getShoppingListBadgeProps` function); code review to verify mapping consistency
+- **Benefit of design:** StatusBadge remains a pure presentational component—discovering new status values never requires changing StatusBadge component, only updating call-site mapping logic
 
 ### Risk: Date formatting inconsistency
 
