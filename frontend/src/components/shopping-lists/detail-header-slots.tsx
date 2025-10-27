@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { useGetShoppingListsKitsByListId } from '@/lib/api/generated/hooks';
 import { mapShoppingListKitLinks } from '@/types/shopping-lists';
-import { ShoppingListLinkChip } from '@/components/shopping-lists/shopping-list-link-chip';
+import { KitLinkChip } from '@/components/kits/kit-link-chip';
 import { Route as ShoppingListsRoute } from '@/routes/shopping-lists/';
 import type { ShoppingListDetail } from '@/types/shopping-lists';
 import type { ConceptHeaderProps } from './concept-header';
@@ -52,16 +52,6 @@ function getShoppingListStatusBadgeProps(status: ShoppingListDetail['status']): 
       return { color: 'inactive', label: 'Completed' };
   }
 }
-
-const KIT_STATUS_LABELS = {
-  active: 'Active',
-  archived: 'Archived',
-} as const;
-
-const KIT_BADGE_VARIANT: Record<keyof typeof KIT_STATUS_LABELS, 'secondary' | 'outline'> = {
-  active: 'secondary',
-  archived: 'outline',
-};
 
 export function useShoppingListDetailHeaderSlots({
   list,
@@ -259,13 +249,11 @@ export function useShoppingListDetailHeaderSlots({
     ) : linkedKits.length > 0 ? (
       <div className="flex flex-wrap items-center gap-2" data-testid="shopping-lists.concept.body.kits">
         {linkedKits.map((kitLink) => (
-          <ShoppingListLinkChip
+          <KitLinkChip
             key={kitLink.linkId}
-            to="/kits/$kitId"
-            params={{ kitId: String(kitLink.kitId) }}
+            kitId={kitLink.kitId}
             name={kitLink.kitName}
-            badgeLabel={KIT_STATUS_LABELS[kitLink.kitStatus]}
-            badgeVariant={KIT_BADGE_VARIANT[kitLink.kitStatus]}
+            status={kitLink.kitStatus}
             icon={
               <Layers
                 className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary"

@@ -210,7 +210,7 @@ test.describe('Shopping List Phase 3 entry points', () => {
     });
 
     const doneList = await testData.shoppingLists.createWithLines({
-      listOverrides: { name: testData.shoppingLists.randomName('Indicator Done') },
+      listOverrides: { name: testData.shoppingLists.randomName('Indicator Completed') },
       lines: [{ partKey: donePart.key, needed: 1 }],
     });
     await apiClient.PUT('/api/shopping-lists/{list_id}/status', {

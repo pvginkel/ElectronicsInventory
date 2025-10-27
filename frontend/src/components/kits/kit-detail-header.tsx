@@ -1,9 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
 import { type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { StatusBadge } from '@/components/ui';
+import { StatusBadge, KeyValueBadge } from '@/components/ui';
 import { ShoppingListLinkChip } from '@/components/shopping-lists/shopping-list-link-chip';
 import type { KitDetail, KitShoppingListLink, KitStatus } from '@/types/kits';
 
@@ -37,20 +36,6 @@ function getKitStatusBadgeProps(status: KitStatus): { color: 'active' | 'inactiv
       return { color: 'active', label: 'Active' };
     case 'archived':
       return { color: 'inactive', label: 'Archived' };
-  }
-}
-
-// Map shopping list status to badge variant for chip display
-function getShoppingListBadgeProps(status: string): { label: string; variant: 'default' | 'secondary' | 'outline' } {
-  switch (status) {
-    case 'concept':
-      return { label: 'Concept', variant: 'secondary' };
-    case 'ready':
-      return { label: 'Ready', variant: 'default' };
-    case 'done':
-      return { label: 'Completed', variant: 'outline' };
-    default:
-      return { label: status, variant: 'outline' };
   }
 }
 
@@ -201,14 +186,12 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
     ) : null,
     metadataRow: (
       <div className="flex flex-wrap items-center gap-2" data-testid="kits.detail.header.badges">
-        <Badge
-          variant="outline"
-          className="bg-slate-100 text-slate-700"
-          title="Target quantity to maintain in stock"
-          data-testid="kits.detail.badge.build-target"
-        >
-          Build target {kit.buildTarget}
-        </Badge>
+        <KeyValueBadge
+          label="Build target"
+          value={kit.buildTarget}
+          color="neutral"
+          testId="kits.detail.badge.build-target"
+        />
       </div>
     ),
     linkChips: hasShoppingLists ? (
@@ -232,14 +215,12 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
               }
             : {};
 
-          const badgeProps = getShoppingListBadgeProps(link.status);
           return (
             <ShoppingListLinkChip
               key={link.id}
               listId={link.shoppingListId}
               name={link.name}
-              badgeLabel={badgeProps.label}
-              badgeVariant={badgeProps.variant}
+              status={link.status}
               testId={`kits.detail.links.shopping.${link.shoppingListId}`}
               {...unlinkProps}
             />

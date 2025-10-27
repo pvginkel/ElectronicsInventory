@@ -185,9 +185,12 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
         color={usageStats.usagePercentage >= 90 ? 'danger' : 'neutral'}
         testId="boxes.detail.metadata.usage"
       />
-      <span className="text-muted-foreground">
-        Updated {new Date(box.updated_at).toLocaleDateString()}
-      </span>
+      <KeyValueBadge
+        label="Updated"
+        value={new Date(box.updated_at).toLocaleDateString()}
+        color="neutral"
+        testId="boxes.detail.metadata.updated"
+      />
     </>
   ) : null;
 

@@ -837,7 +837,7 @@ export function UpdateStockDialog({
               onClick={handleConfirmMismatch}
               data-testid="shopping-lists.ready.update-stock.mismatch-confirm"
             >
-              Mark Done
+              Mark as Completed
             </Button>
           </DialogFooter>
         </DialogContent>

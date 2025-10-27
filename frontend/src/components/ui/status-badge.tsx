@@ -46,7 +46,7 @@ export interface StatusBadgeProps {
  *   ? { color: 'inactive' as const, label: 'Concept' }
  *   : status === 'ready'
  *   ? { color: 'active' as const, label: 'Ready' }
- *   : { color: 'inactive' as const, label: 'Done' };
+ *   : { color: 'inactive' as const, label: 'Completed' };
  *
  * <StatusBadge color={color} label={label} testId="shopping-lists.detail.header.status" />
  */

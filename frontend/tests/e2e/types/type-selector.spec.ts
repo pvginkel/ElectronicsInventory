@@ -90,7 +90,7 @@ test.describe('TypeSelector - AI review flow', () => {
 
     await page.goto('/parts');
 
-    await page.getByRole('button', { name: /add with ai/i }).click();
+    await page.getByRole('button', { name: /add part with ai/i }).click();
 
     const input = page.getByLabel('Part Number or Description');
     await input.fill('AI powered component');

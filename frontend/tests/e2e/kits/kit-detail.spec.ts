@@ -166,7 +166,7 @@ test.describe('Kit detail workspace', () => {
     await expect(kits.detailTitle).toHaveText(targetKit.name);
     await expect(kits.detailStatusBadge).toHaveText(new RegExp(kitDetail.status, 'i'));
     await expect(kits.detailBuildTargetBadge).toHaveText(
-      new RegExp(`Build target\\s+${kitDetail.build_target}`)
+      new RegExp(`Build target:\\s+${kitDetail.build_target}`)
     );
 
     await expect(kits.detailHeader).toContainText(targetKitDescription);

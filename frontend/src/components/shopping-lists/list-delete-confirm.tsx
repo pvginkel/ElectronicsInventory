@@ -97,9 +97,9 @@ export function useListArchiveConfirm(options: UseListArchiveConfirmOptions = {}
   const confirmArchive = useCallback(async (list: ShoppingListOverviewSummary) => {
     pendingListRef.current = list;
     const confirmed = await confirm({
-      title: 'Mark list as Done',
-      description: `Mark "${list.name}" as Done? This operation is irreversible and removes it from Active lists.`,
-      confirmText: 'Mark Done',
+      title: 'Mark list as Completed',
+      description: `Mark "${list.name}" as Completed? This operation is irreversible and removes it from Active lists.`,
+      confirmText: 'Mark as Completed',
       destructive: true,
     });
 
@@ -114,12 +114,12 @@ export function useListArchiveConfirm(options: UseListArchiveConfirmOptions = {}
     try {
       await archiveMutation.mutateAsync(payload);
       instrumentation.trackSuccess(payload);
-      showSuccess(`Marked shopping list "${list.name}" as Done`);
+      showSuccess(`Marked shopping list "${list.name}" as Completed`);
       onArchived?.(list);
       return true;
     } catch (error) {
       instrumentation.trackError(payload);
-      const message = error instanceof Error ? error.message : 'Failed to mark shopping list as Done';
+      const message = error instanceof Error ? error.message : 'Failed to mark shopping list as Completed';
       showException(message, error);
       return false;
     } finally {

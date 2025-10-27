@@ -79,11 +79,11 @@ test.describe('Shopping Lists', () => {
     await expect(shoppingLists.overviewCreateButton).toBeEnabled();
   });
 
-  test('marks a ready list without ordered lines as done from the detail view', async ({ shoppingLists, testData, toastHelper }) => {
+  test('marks a ready list without ordered lines as completed from the detail view', async ({ shoppingLists, testData, toastHelper }) => {
     const seller = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
-    const { part } = await testData.parts.create({ overrides: { description: 'Ready mark-done part' } });
+    const { part } = await testData.parts.create({ overrides: { description: 'Ready mark-completed part' } });
     const listDetail = await testData.shoppingLists.createWithLines({
-      listOverrides: { name: testData.shoppingLists.randomName('Ready Done Flow') },
+      listOverrides: { name: testData.shoppingLists.randomName('Ready Completed Flow') },
       lines: [{ partKey: part.key, needed: 4, sellerId: seller.id }],
     });
 
@@ -119,13 +119,13 @@ test.describe('Shopping Lists', () => {
     expect(successEvent.metadata).toMatchObject({ status: 'done' });
     expect(readyEvent.metadata).toMatchObject({ status: 'done', view: 'completed', filteredDiff: 0 });
     if (!Array.isArray(readyEvent.metadata?.groupTotals)) {
-      throw new Error('Expected groupTotals metadata after marking list done');
+      throw new Error('Expected groupTotals metadata after marking list completed');
     }
     for (const group of readyEvent.metadata.groupTotals) {
       expect(group.visibleTotals).toEqual(group.totals);
     }
 
-    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listDetail.name}" as Done`, 'i'));
+    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listDetail.name}" as Completed`, 'i'));
     await toastHelper.dismissToast({ all: true });
     await expect(shoppingLists.detailLayout).toBeVisible();
     await expect(shoppingLists.detailContentReady).toBeVisible();
@@ -138,7 +138,7 @@ test.describe('Shopping Lists', () => {
     expect(completedCount).toBeGreaterThan(0);
   });
 
-  test('marks a ready list with ordered lines as done and keeps rows visible', async ({ shoppingLists, testData, toastHelper }) => {
+  test('marks a ready list with ordered lines as completed and keeps rows visible', async ({ shoppingLists, testData, toastHelper }) => {
     const sellerPrimary = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
     const sellerSecondary = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
     const { part: orderedPart } = await testData.parts.create({ overrides: { description: 'Ordered retention part' } });
@@ -154,7 +154,7 @@ test.describe('Shopping Lists', () => {
 
     const orderedLine = listDetail.lines.find(line => line.part.key === orderedPart.key);
     if (!orderedLine) {
-      throw new Error('Failed to resolve ordered line for mark-done test');
+      throw new Error('Failed to resolve ordered line for mark-completed test');
     }
 
     await testData.shoppingLists.markReady(listDetail.id);
@@ -207,7 +207,7 @@ test.describe('Shopping Lists', () => {
       expect(group.visibleTotals).toEqual(group.totals);
     }
 
-    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listDetail.name}" as Done`, 'i'));
+    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listDetail.name}" as Completed`, 'i'));
     await toastHelper.dismissToast({ all: true });
 
     await expect(shoppingLists.detailLayout).toBeVisible();
@@ -284,7 +284,7 @@ test.describe('Shopping Lists', () => {
     expect(successEvent.metadata).toMatchObject({ status: 'done' });
     expect(readyEvent.metadata).toMatchObject({ status: 'done', view: 'completed' });
 
-    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listName}" as Done`, 'i'));
+    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listName}" as Completed`, 'i'));
     await toastHelper.dismissToast({ all: true });
 
     await shoppingLists.gotoOverview();

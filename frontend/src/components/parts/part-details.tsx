@@ -42,20 +42,6 @@ interface PartDetailsProps {
   partId: string;
 }
 
-// Map shopping list status to badge variant for chip display
-function getShoppingListBadgeProps(status: string): { label: string; variant: 'default' | 'secondary' | 'outline' } {
-  switch (status) {
-    case 'concept':
-      return { label: 'Concept', variant: 'secondary' };
-    case 'ready':
-      return { label: 'Ready', variant: 'default' };
-    case 'done':
-      return { label: 'Completed', variant: 'outline' };
-    default:
-      return { label: status, variant: 'outline' };
-  }
-}
-
 export function PartDetails({ partId }: PartDetailsProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -278,9 +264,12 @@ export function PartDetails({ partId }: PartDetailsProps) {
         color="neutral"
         testId="parts.detail.metadata.type"
       />
-      <span className="text-muted-foreground">
-        Created {new Date(part.created_at).toLocaleDateString()}
-      </span>
+      <KeyValueBadge
+        label="Created"
+        value={new Date(part.created_at).toLocaleDateString()}
+        color="neutral"
+        testId="parts.detail.metadata.created"
+      />
     </>
   ) : null;
 
@@ -400,20 +389,16 @@ export function PartDetails({ partId }: PartDetailsProps) {
         className="flex flex-wrap gap-2"
         data-testid="parts.detail.link.badges.content"
       >
-        {activeShoppingMemberships.map((membership) => {
-          const badgeProps = getShoppingListBadgeProps(membership.listStatus);
-          return (
-            <ShoppingListLinkChip
-              key={membership.listId}
-              listId={membership.listId}
-              name={membership.listName}
-              badgeLabel={badgeProps.label}
-              badgeVariant={badgeProps.variant}
-              testId="parts.detail.shopping-list.badge"
-              iconTestId="parts.detail.shopping-list.badge.icon"
-            />
-          );
-        })}
+        {activeShoppingMemberships.map((membership) => (
+          <ShoppingListLinkChip
+            key={membership.listId}
+            listId={membership.listId}
+            name={membership.listName}
+            status={membership.listStatus}
+            testId="parts.detail.shopping-list.badge"
+            iconTestId="parts.detail.shopping-list.badge.icon"
+          />
+        ))}
         {activeKitMemberships.map((kit) => (
           <KitLinkChip
             key={`kit-active-${kit.kitId}`}
@@ -776,7 +761,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
         title={detailTitle}
         titleMetadata={
           formattedPart?.displayId ? (
-            <Badge variant="outline">#{formattedPart.displayId}</Badge>
+            <Badge variant="outline" className="text-sm px-3 py-1">#{formattedPart.displayId}</Badge>
           ) : null
         }
         supplementary={

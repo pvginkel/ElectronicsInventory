@@ -12,15 +12,25 @@ const DEFAULT_SHOPPING_LIST_SEARCH = {
   originSearch: undefined,
 } as const;
 
+// Map shopping list status to badge props
+function getShoppingListBadgeProps(status: ShoppingListStatus): { label: string; color: 'inactive' | 'active' } {
+  switch (status) {
+    case 'concept':
+      return { label: 'Concept', color: 'inactive' };
+    case 'ready':
+      return { label: 'Ready', color: 'active' };
+    case 'done':
+      return { label: 'Completed', color: 'inactive' };
+  }
+}
+
 interface ShoppingListLinkChipProps {
   listId?: number;
   to?: string;
   params?: Record<string, string>;
   search?: Record<string, unknown>;
   name: string;
-  status?: ShoppingListStatus;
-  badgeLabel: string;
-  badgeVariant: 'default' | 'secondary' | 'outline' | 'destructive';
+  status: ShoppingListStatus;
   className?: string;
   testId?: string;
   icon?: ReactNode;
@@ -37,11 +47,10 @@ interface ShoppingListLinkChipProps {
 export function ShoppingListLinkChip({
   listId,
   name,
+  status,
   to,
   params,
   search,
-  badgeLabel,
-  badgeVariant,
   className,
   testId,
   icon,
@@ -63,13 +72,8 @@ export function ShoppingListLinkChip({
     throw new Error('ShoppingListLinkChip requires either a listId or explicit params');
   }
 
-  // Map old badge variant to StatusBadge color
-  const badgeColor: 'inactive' | 'active' | 'success' =
-    badgeVariant === 'default' ? 'active' :
-    badgeVariant === 'secondary' ? 'active' :
-    'inactive';
-
-  const accessibilityLabel = `${name} (${badgeLabel})`;
+  const badgeProps = getShoppingListBadgeProps(status);
+  const accessibilityLabel = `${name} (${badgeProps.label})`;
 
   const handleUnlinkClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -109,8 +113,8 @@ export function ShoppingListLinkChip({
           <span className="truncate">{name}</span>
         </span>
         <StatusBadge
-          color={badgeColor}
-          label={badgeLabel}
+          color={badgeProps.color}
+          label={badgeProps.label}
           size="default"
           testId={badgeTestId ?? ''}
         />
