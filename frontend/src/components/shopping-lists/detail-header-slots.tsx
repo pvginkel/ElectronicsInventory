@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { Layers } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { KeyValueBadge, StatusBadge } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/ui/dialog';
 import { Form, FormField, FormLabel } from '@/components/ui/form';
@@ -40,17 +40,17 @@ export interface ShoppingListDetailHeaderRender {
 const NAME_LIMIT = 120;
 const DESCRIPTION_LIMIT = 280;
 
-const STATUS_BADGE_VARIANT: Record<ShoppingListDetail['status'], 'default' | 'secondary' | 'outline'> = {
-  concept: 'default',
-  ready: 'secondary',
-  done: 'outline',
-};
-
-const STATUS_LABELS: Record<ShoppingListDetail['status'], string> = {
-  concept: 'Concept',
-  ready: 'Ready',
-  done: 'Completed',
-};
+// Map shopping list status to badge props
+function getShoppingListStatusBadgeProps(status: ShoppingListDetail['status']): { color: 'inactive' | 'active'; label: string } {
+  switch (status) {
+    case 'concept':
+      return { color: 'inactive', label: 'Concept' };
+    case 'ready':
+      return { color: 'active', label: 'Ready' };
+    case 'done':
+      return { color: 'inactive', label: 'Done' };
+  }
+}
 
 const KIT_STATUS_LABELS = {
   active: 'Active',
@@ -188,8 +188,6 @@ export function useShoppingListDetailHeaderSlots({
     };
   }
 
-  const statusLabel = STATUS_LABELS[list.status] ?? list.status;
-  const statusVariant = STATUS_BADGE_VARIANT[list.status] ?? 'secondary';
   const isCompleted = list.status === 'done';
 
   const newCount = list.lineCounts.new;
@@ -212,13 +210,11 @@ export function useShoppingListDetailHeaderSlots({
       </span>
     ),
     titleMetadata: (
-      <Badge
-        variant={statusVariant}
-        title={`List status: ${statusLabel}`}
-        data-testid="shopping-lists.concept.header.status"
-      >
-        {statusLabel}
-      </Badge>
+      <StatusBadge
+        {...getShoppingListStatusBadgeProps(list.status)}
+        size="large"
+        testId="shopping-lists.concept.header.status"
+      />
     ),
     description: list.description ? (
       <p className="max-w-2xl text-sm text-muted-foreground" data-testid="shopping-lists.concept.header.description">
@@ -228,38 +224,30 @@ export function useShoppingListDetailHeaderSlots({
     metadataRow: (
       <div className="flex flex-col gap-3" data-testid="shopping-lists.concept.header.badges">
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <Badge
-            variant="outline"
-            className="bg-slate-100 text-slate-700"
-            title="Total lines across all statuses"
-            data-testid="shopping-lists.concept.header.badge.total"
-          >
-            Total {list.totalLines}
-          </Badge>
-          <Badge
-            variant="outline"
-            className="bg-sky-100 text-sky-800"
-            title="Lines waiting to be ordered"
-            data-testid="shopping-lists.concept.header.badge.new"
-          >
-            New {newCount}
-          </Badge>
-          <Badge
-            variant="outline"
-            className="bg-amber-100 text-amber-800"
-            title="Lines in progress with sellers"
-            data-testid="shopping-lists.concept.header.badge.ordered"
-          >
-            Ordered {orderedCount}
-          </Badge>
-          <Badge
-            variant="outline"
-            className="bg-emerald-100 text-emerald-800"
-            title="Lines already received"
-            data-testid="shopping-lists.concept.header.badge.done"
-          >
-            Completed {doneCount}
-          </Badge>
+          <KeyValueBadge
+            label="Total"
+            value={list.totalLines}
+            color="neutral"
+            testId="shopping-lists.concept.header.badge.total"
+          />
+          <KeyValueBadge
+            label="New"
+            value={newCount}
+            color="info"
+            testId="shopping-lists.concept.header.badge.new"
+          />
+          <KeyValueBadge
+            label="Ordered"
+            value={orderedCount}
+            color="warning"
+            testId="shopping-lists.concept.header.badge.ordered"
+          />
+          <KeyValueBadge
+            label="Completed"
+            value={doneCount}
+            color="success"
+            testId="shopping-lists.concept.header.badge.done"
+          />
         </div>
         {kitsQuery.isLoading ? (
           <div className="flex flex-wrap items-center gap-2">

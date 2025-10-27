@@ -3,6 +3,7 @@ import { type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { StatusBadge } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { ShoppingListLinkChip } from '@/components/shopping-lists/shopping-list-link-chip';
 import type { KitDetail, KitShoppingListLink, KitStatus } from '@/types/kits';
@@ -29,15 +30,15 @@ export interface KitDetailHeaderOptions {
   unlinkingLinkId?: number | null;
 }
 
-const STATUS_LABEL: Record<KitStatus, string> = {
-  active: 'Active',
-  archived: 'Archived',
-};
-
-const STATUS_BADGE_CLASSNAME: Record<KitStatus, string> = {
-  active: 'bg-emerald-100 text-emerald-800',
-  archived: 'bg-slate-100 text-slate-700',
-};
+// Map kit status to badge props
+function getKitStatusBadgeProps(status: KitStatus): { color: 'active' | 'inactive'; label: string } {
+  switch (status) {
+    case 'active':
+      return { color: 'active', label: 'Active' };
+    case 'archived':
+      return { color: 'inactive', label: 'Archived' };
+  }
+}
 
 const SHOPPING_STATUS_ORDER: Record<string, number> = {
   concept: 0,
@@ -134,8 +135,6 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
   }
 
   const searchState = overviewSearch ? { search: overviewSearch, status: overviewStatus } : { status: overviewStatus };
-  const statusLabel = STATUS_LABEL[kit.status];
-  const statusBadgeClassName = STATUS_BADGE_CLASSNAME[kit.status];
   const sortedShoppingLinks = sortShoppingLinks(kit.shoppingListLinks);
   const hasShoppingLists = sortedShoppingLinks.length > 0;
   const isArchived = kit.status === 'archived';
@@ -175,23 +174,11 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
       </span>
     ),
     titleMetadata: (
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge
-          variant="outline"
-          className={cn('capitalize', statusBadgeClassName)}
-          data-testid="kits.detail.header.status"
-        >
-          {statusLabel}
-        </Badge>
-        <Badge
-          variant="outline"
-          className="bg-slate-100 text-slate-700"
-          title="Target quantity to maintain in stock"
-          data-testid="kits.detail.badge.build-target"
-        >
-          Build target {kit.buildTarget}
-        </Badge>
-      </div>
+      <StatusBadge
+        {...getKitStatusBadgeProps(kit.status)}
+        size="large"
+        testId="kits.detail.header.status"
+      />
     ),
     description: kit.description ? (
       <p className="max-w-2xl text-sm text-muted-foreground" data-testid="kits.detail.header.description">
@@ -200,6 +187,14 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
     ) : null,
     metadataRow: (
       <div className="flex flex-wrap items-center gap-2" data-testid="kits.detail.header.badges">
+        <Badge
+          variant="outline"
+          className="bg-slate-100 text-slate-700"
+          title="Target quantity to maintain in stock"
+          data-testid="kits.detail.badge.build-target"
+        >
+          Build target {kit.buildTarget}
+        </Badge>
         {hasShoppingLists ? (
           <div className="flex flex-wrap gap-2" data-testid="kits.detail.links">
             {sortedShoppingLinks.map((link) => {

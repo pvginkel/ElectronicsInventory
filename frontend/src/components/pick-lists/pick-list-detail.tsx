@@ -5,7 +5,7 @@ import { AlertTriangle } from 'lucide-react';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { KeyValueBadge, StatusBadge } from '@/components/ui';
 import { PickListLines } from '@/components/pick-lists/pick-list-lines';
 import { usePickListDetail } from '@/hooks/use-pick-list-detail';
 import { usePickListExecution } from '@/hooks/use-pick-list-execution';
@@ -13,20 +13,20 @@ import { usePickListAvailability } from '@/hooks/use-pick-list-availability';
 import { useGetKitsByKitId } from '@/lib/api/generated/hooks';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { useUiStateInstrumentation } from '@/lib/test/ui-state';
-import { cn } from '@/lib/utils';
 import type { KitStatus } from '@/types/kits';
 import type { PickListDetail as PickListDetailModel, PickListLineGroup } from '@/types/pick-lists';
 
 const NUMBER_FORMATTER = new Intl.NumberFormat();
-const STATUS_LABEL: Record<'open' | 'completed', string> = {
-  open: 'Open',
-  completed: 'Completed',
-};
 
-const STATUS_BADGE_CLASS: Record<'open' | 'completed', string> = {
-  open: 'bg-amber-100 text-amber-800 border-amber-200',
-  completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-};
+// Map pick list status to badge props
+function getPickListStatusBadgeProps(status: 'open' | 'completed'): { color: 'active' | 'success'; label: string } {
+  switch (status) {
+    case 'open':
+      return { color: 'active', label: 'Open' };
+    case 'completed':
+      return { color: 'success', label: 'Completed' };
+  }
+}
 
 interface PickListDetailProps {
   pickListId: string;
@@ -182,40 +182,38 @@ export function PickListDetail({
   );
 
   const titleMetadata = detail ? (
-    <Badge
-      variant="outline"
-      className={cn('border px-3 py-1 text-sm font-semibold capitalize', STATUS_BADGE_CLASS[detail.status])}
-      data-testid="pick-lists.detail.status"
-    >
-      {STATUS_LABEL[detail.status]}
-    </Badge>
+    <StatusBadge
+      {...getPickListStatusBadgeProps(detail.status)}
+      size="large"
+      testId="pick-lists.detail.status"
+    />
   ) : null;
 
   const metadataRow = detail ? (
     <div className="flex flex-wrap items-center gap-2" data-testid="pick-lists.detail.metadata">
-      <DetailBadge
+      <KeyValueBadge
         label="Requested units"
         value={NUMBER_FORMATTER.format(detail.requestedUnits)}
+        color="neutral"
         testId="pick-lists.detail.badge.requested-units"
-        className="bg-slate-100 text-slate-700"
       />
-      <DetailBadge
+      <KeyValueBadge
         label="Total lines"
         value={NUMBER_FORMATTER.format(detail.lineCount)}
+        color="neutral"
         testId="pick-lists.detail.badge.total-lines"
-        className="bg-slate-100 text-slate-700"
       />
-      <DetailBadge
+      <KeyValueBadge
         label="Open lines"
         value={NUMBER_FORMATTER.format(detail.openLineCount)}
+        color="warning"
         testId="pick-lists.detail.badge.open-lines"
-        className="bg-amber-100 text-amber-800"
       />
-      <DetailBadge
+      <KeyValueBadge
         label="Remaining quantity"
         value={NUMBER_FORMATTER.format(detail.remainingQuantity)}
+        color="neutral"
         testId="pick-lists.detail.badge.remaining-quantity"
-        className="bg-slate-100 text-slate-700"
       />
     </div>
   ) : null;
@@ -376,24 +374,5 @@ function PickListDetailLoadingState() {
         <div className="h-4 w-4/6 animate-pulse rounded bg-muted" />
       </div>
     </div>
-  );
-}
-
-interface DetailBadgeProps {
-  label: string;
-  value: string;
-  className?: string;
-  testId: string;
-}
-
-function DetailBadge({ label, value, className, testId }: DetailBadgeProps) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn('text-xs', className)}
-      data-testid={testId}
-    >
-      {label}: {value}
-    </Badge>
   );
 }

@@ -3,7 +3,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { KeyValueBadge, StatusBadge } from '@/components/ui';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { getLineAvailabilityQuantity } from '@/hooks/use-pick-list-availability';
 import { formatLocation } from '@/lib/utils/locations';
@@ -15,15 +15,15 @@ import type {
 
 const NUMBER_FORMATTER = new Intl.NumberFormat();
 
-const LINE_STATUS_LABEL: Record<'open' | 'completed', string> = {
-  open: 'Open',
-  completed: 'Completed',
-};
-
-const LINE_STATUS_BADGE_CLASS: Record<'open' | 'completed', string> = {
-  open: 'border border-amber-200 bg-amber-100 text-amber-800',
-  completed: 'border border-emerald-200 bg-emerald-100 text-emerald-800',
-};
+// Map pick list line status to badge props
+function getLineStatusBadgeProps(status: 'open' | 'completed'): { color: 'active' | 'success'; label: string } {
+  switch (status) {
+    case 'open':
+      return { color: 'active', label: 'Open' };
+    case 'completed':
+      return { color: 'success', label: 'Completed' };
+  }
+}
 
 const COLUMN_WIDTHS = {
   location: 'w-[20%] min-w-[180px]',
@@ -113,22 +113,22 @@ export function PickListLines({
                   className="flex flex-wrap gap-2"
                   data-testid={`pick-lists.detail.group.${groupId}.metrics`}
                 >
-                  <GroupSummaryBadge
+                  <KeyValueBadge
                     label="Lines"
                     value={`${NUMBER_FORMATTER.format(group.lineCount)} (${NUMBER_FORMATTER.format(group.openLineCount)} open)`}
-                    className="bg-slate-100 text-slate-700"
+                    color="neutral"
                     testId={`pick-lists.detail.group.${groupId}.metrics.lines`}
                   />
-                  <GroupSummaryBadge
+                  <KeyValueBadge
                     label="Quantity to pick"
                     value={NUMBER_FORMATTER.format(group.totalQuantityToPick)}
-                    className="bg-slate-100 text-slate-700"
+                    color="neutral"
                     testId={`pick-lists.detail.group.${groupId}.metrics.total-quantity`}
                   />
-                  <GroupSummaryBadge
+                  <KeyValueBadge
                     label="Remaining"
                     value={NUMBER_FORMATTER.format(group.openQuantityToPick)}
-                    className="bg-amber-100 text-amber-800"
+                    color="warning"
                     testId={`pick-lists.detail.group.${groupId}.metrics.remaining`}
                   />
                 </div>
@@ -158,7 +158,6 @@ export function PickListLines({
                     {group.lines.map(line => {
                       const lineId = line.id;
                       const locationLabel = formatLocation(line.location.boxNo, line.location.locNo);
-                      const statusLabel = LINE_STATUS_LABEL[line.status];
                       const inStockQuantity = availabilityEnabled
                         ? getLineAvailabilityQuantity(
                             availability,
@@ -192,13 +191,10 @@ export function PickListLines({
                             </span>
                           </td>
                           <td className={`${COLUMN_WIDTHS.status} px-4 py-3 text-sm text-muted-foreground`}>
-                            <Badge
-                              variant="outline"
-                              className={`inline-flex items-center px-2 py-1 text-xs font-semibold capitalize ${LINE_STATUS_BADGE_CLASS[line.status]}`}
-                              data-testid={`pick-lists.detail.line.${lineId}.status`}
-                            >
-                              {statusLabel}
-                            </Badge>
+                            <StatusBadge
+                              {...getLineStatusBadgeProps(line.status)}
+                              testId={`pick-lists.detail.line.${lineId}.status`}
+                            />
                           </td>
                           <td className={`${COLUMN_WIDTHS.quantity} px-4 py-3 text-sm text-right text-foreground`}>
                             <span data-testid={`pick-lists.detail.line.${lineId}.quantity`}>
@@ -334,21 +330,6 @@ function computeShortfall(
   }
 
   return quantityToPick > inStockQuantity ? quantityToPick - inStockQuantity : 0;
-}
-
-interface GroupSummaryBadgeProps {
-  label: string;
-  value: string;
-  className?: string;
-  testId: string;
-}
-
-function GroupSummaryBadge({ label, value, className, testId }: GroupSummaryBadgeProps) {
-  return (
-    <Badge variant="outline" className={`text-xs ${className ?? ''}`} data-testid={testId}>
-      {label}: {value}
-    </Badge>
-  );
 }
 
 function LoadingIndicator() {

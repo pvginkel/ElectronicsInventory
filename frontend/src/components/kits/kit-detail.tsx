@@ -12,8 +12,7 @@ import type { UseKitDetailResult } from '@/hooks/use-kit-detail';
 import { useKitContents } from '@/hooks/use-kit-contents';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { useUiStateInstrumentation } from '@/lib/test/ui-state';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { KeyValueBadge } from '@/components/ui';
 import { ConfirmDialog, type DialogContentProps } from '@/components/ui/dialog';
 import { KitMetadataDialog } from '@/components/kits/kit-metadata-dialog';
 import { KitShoppingListDialog } from '@/components/kits/kit-shopping-list-dialog';
@@ -543,37 +542,18 @@ interface KitBOMSummaryProps {
 function KitBOMSummary({ aggregates }: KitBOMSummaryProps) {
   return (
     <div className="flex flex-wrap gap-2" data-testid="kits.detail.table.summary">
-      <SummaryBadge
+      <KeyValueBadge
         label="Total required"
-        value={aggregates.totalRequired}
-        className="bg-slate-100 text-slate-700"
+        value={SUMMARY_FORMATTER.format(aggregates.totalRequired)}
+        color="neutral"
         testId="kits.detail.table.summary.total"
       />
-      <SummaryBadge
+      <KeyValueBadge
         label="Shortfall"
-        value={aggregates.totalShortfall}
-        className="bg-rose-100 text-rose-800"
+        value={SUMMARY_FORMATTER.format(aggregates.totalShortfall)}
+        color="danger"
         testId="kits.detail.table.summary.shortfall"
       />
     </div>
-  );
-}
-
-interface SummaryBadgeProps {
-  label: string;
-  value: number;
-  className?: string;
-  testId: string;
-}
-
-function SummaryBadge({ label, value, className, testId }: SummaryBadgeProps) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn('text-xs', className)}
-      data-testid={testId}
-    >
-      {label}: {SUMMARY_FORMATTER.format(value)}
-    </Badge>
   );
 }
