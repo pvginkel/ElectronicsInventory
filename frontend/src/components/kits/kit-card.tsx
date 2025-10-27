@@ -28,21 +28,6 @@ interface KitCardProps {
   onOpenDetail?: (kitId: number) => void;
 }
 
-function formatUpdatedAt(timestamp: string): string {
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) {
-    return 'Unknown';
-  }
-
-  return date.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 export function KitCard({
   kit,
   controls,
@@ -52,15 +37,6 @@ export function KitCard({
   onOpenDetail,
 }: KitCardProps) {
   const hasDescription = Boolean(kit.description && kit.description.trim().length > 0);
-  const updatedLabel = formatUpdatedAt(kit.updatedAt);
-  const shoppingBadgeLabel =
-    kit.shoppingListBadgeCount === 1
-      ? '1 linked shopping list'
-      : `${kit.shoppingListBadgeCount} linked shopping lists`;
-  const pickListBadgeLabel =
-    kit.pickListBadgeCount === 1
-      ? '1 open pick list'
-      : `${kit.pickListBadgeCount} open pick lists`;
 
   const showShoppingIndicator = shouldShowIndicator(shoppingIndicator, kitHasShoppingMembership);
   const showPickIndicator = shouldShowIndicator(pickIndicator, kitHasOpenPickList);
@@ -152,25 +128,6 @@ export function KitCard({
             {kit.description}
           </CardDescription>
         ) : null}
-
-        <div className="flex flex-col gap-3 pt-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {kit.shoppingListBadgeCount > 0 && (
-              <Badge variant="secondary" data-testid={`kits.overview.card.${kit.id}.shopping`}>
-                {shoppingBadgeLabel}
-              </Badge>
-            )}
-            {kit.pickListBadgeCount > 0 && (
-              <Badge variant="secondary" data-testid={`kits.overview.card.${kit.id}.pick-lists`}>
-                {pickListBadgeLabel}
-              </Badge>
-            )}
-          </div>
-
-          <div className="text-xs text-muted-foreground">
-            Updated <span data-testid={`kits.overview.card.${kit.id}.updated`}>{updatedLabel}</span>
-          </div>
-        </div>
       </div>
 
       {controls && (
