@@ -96,7 +96,15 @@ test.describe('Kits overview', () => {
     expect(pickMemberships.length, 'pick list memberships seeded for indicator').toBeGreaterThan(0);
 
     const expectedShoppingNames = shoppingMemberships.map((membership) => membership.shopping_list_name);
-    const expectedShoppingStatuses = new Set(shoppingMemberships.map((membership) => membership.status));
+    const expectedShoppingStatuses = new Set(
+      shoppingMemberships.map((membership) => {
+        // Map API status to display label
+        if (membership.status === 'concept') return 'Concept';
+        if (membership.status === 'ready') return 'Ready';
+        if (membership.status === 'done') return 'Completed';
+        return membership.status;
+      })
+    );
     const expectedPickLabels = pickMemberships.map((membership) => `Pick list #${membership.id}`);
 
     await kits.gotoOverview();
@@ -125,7 +133,7 @@ test.describe('Kits overview', () => {
     for (const label of expectedPickLabels) {
       await expect(pickTooltip).toContainText(label);
     }
-    await expect(pickTooltip).toContainText('open');
+    await expect(pickTooltip).toContainText('Open');
     await expect(pickTooltip).toContainText('remaining');
   });
 

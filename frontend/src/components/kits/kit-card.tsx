@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { Card, CardDescription, CardFooter, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { MembershipIndicator } from '@/components/common/membership-indicator';
 import type {
@@ -116,9 +116,11 @@ export function KitCard({
               ) : null}
             </div>
             {kit.status === 'archived' && (
-              <Badge variant="outline" className="uppercase tracking-wide text-xs">
-                Archived
-              </Badge>
+              <StatusBadge
+                color="inactive"
+                label="Archived"
+                testId={`kits.overview.card.${kit.id}.status`}
+              />
             )}
           </div>
         </div>
@@ -220,12 +222,12 @@ function renderKitShoppingTooltip(summary: KitShoppingListMembershipSummary): Re
                 onClick={(event) => event.stopPropagation()}
               >
                 <span className="truncate">{membership.listName}</span>
-                <Badge
-                  variant={membership.status === 'ready' ? 'default' : 'secondary'}
-                  className="shrink-0 capitalize"
-                >
-                  {membership.status}
-                </Badge>
+                <StatusBadge
+                  color={membership.status === 'ready' ? 'active' : membership.status === 'done' ? 'success' : 'inactive'}
+                  label={membership.status === 'concept' ? 'Concept' : membership.status === 'ready' ? 'Ready' : 'Completed'}
+                  size="default"
+                  testId=""
+                />
               </Link>
               {detailItems.length > 0 ? (
                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
@@ -278,9 +280,12 @@ function renderKitPickTooltip(summary: KitPickListMembershipSummary): ReactNode 
             <li key={membership.id} className="space-y-1">
               <div className="flex items-center justify-between gap-2 text-sm">
                 <span className="truncate font-medium">Pick list #{membership.id}</span>
-                <Badge variant="secondary" className="shrink-0 capitalize">
-                  {membership.status}
-                </Badge>
+                <StatusBadge
+                  color="active"
+                  label={membership.status === 'open' ? 'Open' : 'Closed'}
+                  size="default"
+                  testId=""
+                />
               </div>
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                 {detailItems}

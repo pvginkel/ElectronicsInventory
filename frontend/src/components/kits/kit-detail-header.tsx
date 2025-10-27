@@ -4,7 +4,6 @@ import { Link } from '@tanstack/react-router';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui';
-import { cn } from '@/lib/utils';
 import { ShoppingListLinkChip } from '@/components/shopping-lists/shopping-list-link-chip';
 import type { KitDetail, KitShoppingListLink, KitStatus } from '@/types/kits';
 
@@ -38,6 +37,20 @@ function getKitStatusBadgeProps(status: KitStatus): { color: 'active' | 'inactiv
       return { color: 'active', label: 'Active' };
     case 'archived':
       return { color: 'inactive', label: 'Archived' };
+  }
+}
+
+// Map shopping list status to badge variant for chip display
+function getShoppingListBadgeProps(status: string): { label: string; variant: 'default' | 'secondary' | 'outline' } {
+  switch (status) {
+    case 'concept':
+      return { label: 'Concept', variant: 'secondary' };
+    case 'ready':
+      return { label: 'Ready', variant: 'default' };
+    case 'done':
+      return { label: 'Completed', variant: 'outline' };
+    default:
+      return { label: status, variant: 'outline' };
   }
 }
 
@@ -219,12 +232,14 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
               }
             : {};
 
+          const badgeProps = getShoppingListBadgeProps(link.status);
           return (
             <ShoppingListLinkChip
               key={link.id}
               listId={link.shoppingListId}
               name={link.name}
-              status={link.status}
+              badgeLabel={badgeProps.label}
+              badgeVariant={badgeProps.variant}
               testId={`kits.detail.links.shopping.${link.shoppingListId}`}
               {...unlinkProps}
             />

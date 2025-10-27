@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { emitTestEvent } from '@/lib/test/event-emitter';
@@ -168,9 +168,11 @@ export function KitPickListPanel({
                         <span className="font-medium text-sm md:text-base">
                           Pick list #{pickList.id}
                         </span>
-                        <Badge variant="secondary" className="capitalize bg-amber-100 text-amber-800">
-                          Open
-                        </Badge>
+                        <StatusBadge
+                          color="active"
+                          label="Open"
+                          testId=""
+                        />
                       </div>
                       <p className="text-sm text-muted-foreground">
                         Requested units {NUMBER_FORMATTER.format(pickList.requestedUnits)}, open

@@ -16,7 +16,7 @@ import { useConfirm } from '@/hooks/use-confirm';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
-import { Badge } from '@/components/ui/badge';
+import { KeyValueBadge } from '@/components/ui';
 
 interface BoxDetailsProps {
   boxNo: number;
@@ -173,10 +173,18 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
 
   const metadataRow = ready && box ? (
     <>
-      <Badge variant="secondary">Capacity: {box.capacity}</Badge>
-      <Badge variant={usageStats.usagePercentage >= 90 ? 'destructive' : 'outline'}>
-        Usage: {usageStats.usagePercentage}%
-      </Badge>
+      <KeyValueBadge
+        label="Capacity"
+        value={box.capacity}
+        color="neutral"
+        testId="boxes.detail.metadata.capacity"
+      />
+      <KeyValueBadge
+        label="Usage"
+        value={`${usageStats.usagePercentage}%`}
+        color={usageStats.usagePercentage >= 90 ? 'danger' : 'neutral'}
+        testId="boxes.detail.metadata.usage"
+      />
       <span className="text-muted-foreground">
         Updated {new Date(box.updated_at).toLocaleDateString()}
       </span>

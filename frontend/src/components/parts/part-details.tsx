@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { KeyValueBadge } from '@/components/ui';
 import { Badge } from '@/components/ui/badge';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { PartLocationGrid } from './part-location-grid';
@@ -39,6 +40,20 @@ import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
 
 interface PartDetailsProps {
   partId: string;
+}
+
+// Map shopping list status to badge variant for chip display
+function getShoppingListBadgeProps(status: string): { label: string; variant: 'default' | 'secondary' | 'outline' } {
+  switch (status) {
+    case 'concept':
+      return { label: 'Concept', variant: 'secondary' };
+    case 'ready':
+      return { label: 'Ready', variant: 'default' };
+    case 'done':
+      return { label: 'Completed', variant: 'outline' };
+    default:
+      return { label: status, variant: 'outline' };
+  }
 }
 
 export function PartDetails({ partId }: PartDetailsProps) {
@@ -257,7 +272,12 @@ export function PartDetails({ partId }: PartDetailsProps) {
 
   const metadataRow = part ? (
     <>
-      <Badge variant="secondary">Type: {part.type?.name ?? 'Unassigned'}</Badge>
+      <KeyValueBadge
+        label="Type"
+        value={part.type?.name ?? 'Unassigned'}
+        color="neutral"
+        testId="parts.detail.metadata.type"
+      />
       <span className="text-muted-foreground">
         Created {new Date(part.created_at).toLocaleDateString()}
       </span>
@@ -380,16 +400,20 @@ export function PartDetails({ partId }: PartDetailsProps) {
         className="flex flex-wrap gap-2"
         data-testid="parts.detail.link.badges.content"
       >
-        {activeShoppingMemberships.map((membership) => (
-          <ShoppingListLinkChip
-            key={membership.listId}
-            listId={membership.listId}
-            name={membership.listName}
-            status={membership.listStatus}
-            testId="parts.detail.shopping-list.badge"
-            iconTestId="parts.detail.shopping-list.badge.icon"
-          />
-        ))}
+        {activeShoppingMemberships.map((membership) => {
+          const badgeProps = getShoppingListBadgeProps(membership.listStatus);
+          return (
+            <ShoppingListLinkChip
+              key={membership.listId}
+              listId={membership.listId}
+              name={membership.listName}
+              badgeLabel={badgeProps.label}
+              badgeVariant={badgeProps.variant}
+              testId="parts.detail.shopping-list.badge"
+              iconTestId="parts.detail.shopping-list.badge.icon"
+            />
+          );
+        })}
         {activeKitMemberships.map((kit) => (
           <KitLinkChip
             key={`kit-active-${kit.kitId}`}

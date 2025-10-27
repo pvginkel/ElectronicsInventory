@@ -37,7 +37,6 @@ interface ShoppingListLinkChipProps {
 export function ShoppingListLinkChip({
   listId,
   name,
-  status,
   to,
   params,
   search,
