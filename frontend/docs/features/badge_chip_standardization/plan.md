@@ -1,5 +1,25 @@
 # Badge and Chip Standardization – Technical Plan
 
+**Document Status:** Updated with comprehensive badge migration (2025-10-27)
+
+**Implementation Status:** 📋 NOT STARTED — Complete plan ready for implementation
+
+**Scope Summary:**
+This plan covers comprehensive badge standardization across the entire application, including:
+- **Core infrastructure:** Create reusable KeyValueBadge and StatusBadge components
+- **Detail view migrations:** Kit, shopping list, pick list, part, and box detail badges
+- **Link chip relocation:** Move chips from headers to body content (kit and shopping list views)
+- **Overview and card migrations:** Shopping list overview cards, kit cards
+- **Line row migrations:** Shopping list concept and ready line row badges
+- **Date badge migrations:** Convert plain text dates to badges (part and box details)
+- **Link chip internals:** Status badges inside ShoppingListLinkChip and KitLinkChip components
+
+**Badge Inventory:** ~35-40 badge instances across 15+ component files requiring migration or standardization.
+
+This document provides a complete, coherent implementation plan covering all badge instances identified through systematic codebase analysis.
+
+---
+
 ## 0) Research Log & Findings
 
 ### Discovery Summary
@@ -68,15 +88,39 @@ Standardize badge and link chip visualization across all detail views to create 
 
 ### In scope
 
+**Core Infrastructure:**
+- Create reusable `KeyValueBadge` component in src/components/ui to replace DetailBadge, SummaryBadge, GroupSummaryBadge
+- Create reusable `StatusBadge` component for entity status badges
+- Define and implement standardized color palette (neutral, info, warning, success, danger for KeyValueBadge; 3-color bold palette for StatusBadge)
+- Ensure all attribute badges follow `<key>: <value>` format with consistent semantic color names (NO custom className support)
+
+**Detail View Migrations:**
 - Move kit detail shopping list link chips from header metadataRow to body content section
 - Move shopping list detail kit link chips from header metadataRow to body content section
 - Move kit detail "Build target" badge from titleMetadata to metadataRow
-- Create reusable `KeyValueBadge` component in src/components/ui to replace DetailBadge, SummaryBadge, GroupSummaryBadge
-- Update all existing badge wrapper call sites to use the new unified component
-- Ensure all attribute badges follow `<key>: <value>` format with consistent Tailwind color classes
-- Define and implement standardized color palette for all badges (neutral, info, warning, success, danger)
+- Migrate pick list detail metric badges (Requested units, Total lines, Open lines, Remaining quantity) to KeyValueBadge
+- Migrate kit detail BOM summary badges (Total required, Shortfall) to KeyValueBadge
+- Migrate pick list line group badges (Lines, Quantity to pick, Remaining) to KeyValueBadge
+- Migrate shopping list detail metric badges (Total, New, Ordered, Completed) to KeyValueBadge
+- Migrate part detail Type badge and Created date (currently plain text) to KeyValueBadge
+- Migrate box detail Capacity, Usage badges and Updated date (currently plain text) to KeyValueBadge
+
+**Status Badge Migrations:**
+- Kit detail header status badge → StatusBadge
+- Shopping list detail header status badge → StatusBadge
+- Pick list detail header status badge → StatusBadge
+- Shopping list overview card status badge → StatusBadge
+- Shopping list line row status badges (concept and ready views) → StatusBadge
+- Update stock dialog status badges → StatusBadge
+- Link chip internal status badges (ShoppingListLinkChip, KitLinkChip) → StatusBadge
+- Kit card status badges (archived badge, tooltip badges) → StatusBadge
+- Kit pick list panel "Open" badge → StatusBadge
+
+**Additional Work:**
 - Remove empty state messages for missing link chips (render nothing when no chips exist)
-- Update Playwright specs to reflect new chip placement outside headers and removed empty states
+- Extend StatusBadge to support additional status values: 'new', 'ordered', 'received' (for shopping list line statuses)
+- Update all Playwright specs to reflect new badge components and chip placement
+- Remove custom className styling (e.g., uppercase on kit card archived badge) to enforce consistency
 
 ### Out of scope
 
@@ -185,6 +229,83 @@ Current status badge implementations use different Badge `variant` props per sta
 **Why:** Replace GroupSummaryBadge (lines 346-352) with KeyValueBadge; update group metric badges (lines 116-133)
 **Evidence:** Lines 116-133 render three GroupSummaryBadge instances per pick list group
 
+### UI Components – Additional Badge Migrations (Phase 2)
+
+**IMPORTANT CONSTRAINT:** All badge components (`KeyValueBadge` and `StatusBadge`) do NOT support custom `className` props. Badges must use only the defined semantic colors. No uppercase styling, no className pass-through, no custom Tailwind classes at call sites. This enforces consistent visual language across the application.
+
+#### Shopping List Overview Card
+
+**Area:** src/components/shopping-lists/overview-card.tsx
+**Why:** Migrate status badge and line count badges to standardized components
+**Evidence:**
+- **Status badge** (line 78-84): Currently uses Badge with variant mapping → migrate to `StatusBadge` with `status` prop
+- **New lines badge** (line 90-96): "New {count}" with custom classes → migrate to `KeyValueBadge` with `label="New"`, `value={lineCounts.new}`, `color="info"`
+- **Ordered lines badge** (line 98-104): "Ordered {count}" with amber colors → migrate to `KeyValueBadge` with `label="Ordered"`, `value={lineCounts.ordered}`, `color="warning"`
+- **Completed lines badge** (line 106-112): "Completed {count}" with emerald colors → migrate to `KeyValueBadge` with `label="Completed"`, `value={lineCounts.done}`, `color="success"`
+
+#### Shopping List Line Rows
+
+**Area:** src/components/shopping-lists/concept-line-row.tsx
+**Why:** Migrate status badge to StatusBadge component
+**Evidence:**
+- **Status badge** (line 74-81): Currently uses Badge with variant mapping for "new", "ordered", "done" → migrate to `StatusBadge`
+- **Seller badge** (line 53-60): Informational label, keep as plain Badge (not a metric or status)
+
+**Area:** src/components/shopping-lists/ready/ready-line-row.tsx
+**Why:** Migrate status badge to StatusBadge component
+**Evidence:**
+- **Status badge** (line 147-154): Currently uses Badge with variant mapping for "new", "ordered", "completed" → migrate to `StatusBadge`
+
+**Area:** src/components/shopping-lists/ready/update-stock-dialog.tsx
+**Why:** Migrate status badge to StatusBadge component
+**Evidence:**
+- **Status badge** (line 571-573): Shows "Ordered" or "Received" with conditional variant → migrate to `StatusBadge`
+
+#### Link Chips – Internal Status Badges
+
+**Area:** src/components/shopping-lists/shopping-list-link-chip.tsx
+**Why:** Migrate internal status badge to StatusBadge component
+**Evidence:**
+- **Status badge** (line 114-122): Shopping list status badge inside chip → migrate to `StatusBadge` with `status` prop
+
+**Area:** src/components/kits/kit-link-chip.tsx
+**Why:** Migrate internal status badge to StatusBadge component
+**Evidence:**
+- **Status badge** (line 67-73): Kit status badge inside chip → migrate to `StatusBadge` with `status` prop
+
+#### Kit Card
+
+**Area:** src/components/kits/kit-card.tsx
+**Why:** Migrate status badges in card and tooltips to StatusBadge component
+**Evidence:**
+- **Archived badge** (line 119-121): "Archived" with outline variant and **custom uppercase styling** → migrate to `StatusBadge` with `status="archived"`. **NOTE:** Current uppercase styling (`className="uppercase tracking-wide text-xs"`) will be removed; StatusBadge uses standard capitalization only.
+- **Shopping list status badges in tooltip** (line 114-119): Conditional variant based on status → migrate to `StatusBadge`
+- **Pick list status badges in tooltip** (line 172-174): Secondary variant → migrate to `StatusBadge`
+
+#### Kit Pick List Panel
+
+**Area:** src/components/kits/kit-pick-list-panel.tsx
+**Why:** Migrate "Open" status badge to StatusBadge component
+**Evidence:**
+- **Open badge** (line 171-173): "Open" with custom amber colors → migrate to `StatusBadge` with `status="open"`
+
+#### Part Detail
+
+**Area:** src/components/parts/part-details.tsx
+**Why:** Migrate Type badge and Created date to KeyValueBadge; date currently plain text
+**Evidence:**
+- **Type badge** (line 260): "Type: {typename}" with secondary variant → migrate to `KeyValueBadge` with `label="Type"`, `value={part.type?.name ?? 'Unassigned'}`, `color="neutral"`
+- **Created date** (line 261-263): **Plain text** "Created {date}" → migrate to `KeyValueBadge` with `label="Created"`, `value={new Date(part.created_at).toLocaleDateString()}`, `color="neutral"`
+
+#### Box Detail
+
+**Area:** src/components/boxes/box-details.tsx
+**Why:** Migrate Updated date to KeyValueBadge; currently plain text
+**Evidence:**
+- **Capacity badge** (line 176): Already follows `<key>: <value>` format → migrate to `KeyValueBadge` with `label="Capacity"`, `value={box.capacity}`, `color="neutral"`
+- **Usage badge** (line 177-179): Conditional color based on threshold → migrate to `KeyValueBadge` with `label="Usage"`, `value="{usageStats.usagePercentage}%"`, `color` conditional (danger if ≥90%, neutral otherwise)
+- **Updated date** (line 180-182): **Plain text** "Updated {date}" → migrate to `KeyValueBadge` with `label="Updated"`, `value={new Date(box.updated_at).toLocaleDateString()}`, `color="neutral"`
+
 ### UI Components – Kit Detail Header
 
 **Area:** src/components/kits/kit-detail-header.tsx
@@ -245,7 +366,7 @@ interface KeyValueBadgeProps {
 **Shape:**
 ```typescript
 interface StatusBadgeProps {
-  status: 'active' | 'concept' | 'ready' | 'done' | 'archived' | 'open' | 'completed';
+  status: 'active' | 'concept' | 'ready' | 'done' | 'archived' | 'open' | 'completed' | 'new' | 'ordered' | 'received';
   size?: 'default' | 'large';
   testId: string;
 }
@@ -253,9 +374,14 @@ interface StatusBadgeProps {
 **Mapping:** Component accepts entity status values and internally maps them to **3 colors** (inactive, active, success) from the bold palette (Section 2). The component centralizes the status-to-color mapping logic, so callers only need to pass the semantic status value. Status badges use saturated background colors with high contrast (e.g., `bg-blue-600 text-white` for active states, `bg-slate-400 text-slate-700` for inactive states) to emphasize entity state and distinguish from KeyValueBadge's subtle palette. The `size` prop allows larger badges for prominent placement (e.g., detail view title areas). **No className prop**—enforces the 3-color abstraction and prevents mixing status and metric badge styles.
 
 **Internal color mapping**:
-- concept, done, archived → **inactive** color
-- ready, active, open → **active** color
-- completed → **success** color
+- concept, done, archived, new (planning phase) → **inactive** color
+- ready, active, open, ordered (in progress) → **active** color
+- completed, received (finished successfully) → **success** color
+
+**Status value additions for Phase 2:**
+- **new**: Shopping list line status, maps to inactive (planning/concept phase)
+- **ordered**: Shopping list line status, maps to active (work in progress)
+- **received**: Stock dialog status, maps to success (completed receipt)
 
 **Evidence:** Current status badge implementations:
 - Kit: src/components/kits/kit-detail-header.tsx:188-192
@@ -712,6 +838,78 @@ No security or permission changes. Link chips navigate to existing routes with s
 - Slice 4 complete; follows same pattern as kit detail
 - **Test setup prerequisite:** Implement `testData.shoppingLists.linkToKit(listId, kitId)` factory helper in `tests/api/factories/shopping-list-factory.ts` before writing Playwright specs. Backend endpoint confirmed to exist at openapi.json:15145.
 
+### Slice 6: Migrate Shopping List Overview and Line View Badges
+
+**Goal:** Migrate all shopping list overview cards and line row badges to standardized components
+**Touches:**
+- src/components/ui/status-badge.tsx (extend status mapping to include 'new', 'ordered', 'received')
+- src/components/shopping-lists/overview-card.tsx:
+  - Migrate status badge (line 78-84) to StatusBadge
+  - Migrate "New" line count badge (line 90-96) to KeyValueBadge with color="info"
+  - Migrate "Ordered" line count badge (line 98-104) to KeyValueBadge with color="warning"
+  - Migrate "Completed" line count badge (line 106-112) to KeyValueBadge with color="success"
+- src/components/shopping-lists/concept-line-row.tsx:
+  - Migrate status badge (line 74-81) to StatusBadge
+  - Keep seller badge as plain Badge (informational, not metric)
+- src/components/shopping-lists/ready/ready-line-row.tsx:
+  - Migrate status badge (line 147-154) to StatusBadge
+- src/components/shopping-lists/ready/update-stock-dialog.tsx:
+  - Migrate status badge (line 571-573) to StatusBadge
+- tests/e2e/shopping-lists/*.spec.ts (update assertions for new badge components)
+
+**Dependencies:** Slices 1-5 complete; StatusBadge and KeyValueBadge components available; extends StatusBadge with 3 new status values
+
+**Playwright verification:** Verify status badges render with correct colors and labels; verify line count badges follow `<key>: <value>` format
+
+### Slice 7: Migrate Link Chip Internal Status Badges
+
+**Goal:** Migrate status badges inside link chip components to StatusBadge
+**Touches:**
+- src/components/shopping-lists/shopping-list-link-chip.tsx (migrate status badge at line 114-122 to StatusBadge)
+- src/components/kits/kit-link-chip.tsx (migrate status badge at line 67-73 to StatusBadge)
+- tests/e2e/kits/kit-detail.spec.ts (verify link chip status badges)
+- tests/e2e/parts/*.spec.ts (verify link chip status badges in part detail)
+
+**Dependencies:** Slice 6 complete; StatusBadge extended with all status values
+
+**Playwright verification:** Verify link chips render with StatusBadge components; ensure status colors match expectations
+
+### Slice 8: Migrate Kit Card and Pick List Panel Badges
+
+**Goal:** Migrate kit card and pick list panel status badges to StatusBadge
+**Touches:**
+- src/components/kits/kit-card.tsx:
+  - Migrate archived badge (line 119-121) to StatusBadge (remove uppercase styling)
+  - Migrate shopping list tooltip status badges (line 114-119) to StatusBadge
+  - Migrate pick list tooltip status badges (line 172-174) to StatusBadge
+- src/components/kits/kit-pick-list-panel.tsx:
+  - Migrate "Open" badge (line 171-173) to StatusBadge with status="open"
+- tests/e2e/kits/*.spec.ts (update assertions for kit card badges)
+
+**Dependencies:** Slice 7 complete
+
+**Important note:** Removal of uppercase styling on archived badge changes visual appearance. StatusBadge uses standard capitalization ("Archived" not "ARCHIVED"). This is an intentional standardization.
+
+**Playwright verification:** Verify kit card archived badge renders without uppercase; verify pick list panel "Open" badge uses StatusBadge
+
+### Slice 9: Migrate Part and Box Detail Badges (Dates and Attributes)
+
+**Goal:** Migrate remaining detail view badges including dates (currently plain text)
+**Touches:**
+- src/components/parts/part-details.tsx:
+  - Migrate Type badge (line 260) to KeyValueBadge with color="neutral"
+  - **NEW:** Migrate "Created" date (line 261-263) from plain text to KeyValueBadge with label="Created", value formatted date
+- src/components/boxes/box-details.tsx:
+  - Migrate Capacity badge (line 176) to KeyValueBadge with color="neutral"
+  - Migrate Usage badge (line 177-179) to KeyValueBadge with conditional color (danger if ≥90%, neutral otherwise)
+  - **NEW:** Migrate "Updated" date (line 180-182) from plain text to KeyValueBadge with label="Updated", value formatted date
+- tests/e2e/parts/part-detail.spec.ts (verify Type and Created badges)
+- tests/e2e/boxes/box-detail.spec.ts (verify Capacity, Usage, and Updated badges)
+
+**Dependencies:** Slice 8 complete
+
+**Playwright verification:** Verify all badges follow `<key>: <value>` format; verify date badges render with formatted dates; verify Usage badge color changes at 90% threshold
+
 ---
 
 ## 15) Risks & Open Questions
@@ -741,8 +939,58 @@ No security or permission changes. Link chips navigate to existing routes with s
 - **Impact:** Users may wonder if data failed to load when no chips appear
 - **Mitigation:** Part detail already demonstrates this pattern successfully; absence of chips in detail views is normal state; loading states still show skeletons; error states still show error UI
 
+### Risk: Removing uppercase styling from archived badge changes visual appearance
+
+- **Impact:** Kit card archived badge currently uses uppercase styling (`className="uppercase tracking-wide text-xs"`); StatusBadge uses standard capitalization, changing "ARCHIVED" → "Archived"
+- **Mitigation:** Intentional standardization to enforce consistent visual language; app not yet in production so safe to change; all other status badges use standard capitalization; no className prop support ensures consistency
+- **Evidence:** src/components/kits/kit-card.tsx:119-121 (current implementation with custom styling)
+
+### Risk: Additional status values require StatusBadge extension
+
+- **Impact:** StatusBadge originally designed for 7 status values; Phase 2 adds 'new', 'ordered', 'received' for shopping list line statuses
+- **Mitigation:** Status-to-color mapping is centralized in StatusBadge component; new statuses map cleanly to existing 3-color palette (new → inactive, ordered → active, received → success); no new colors required
+- **Evidence:** Shopping list line row components use these statuses; gaps.md documents mapping
+
+### Risk: Date formatting inconsistency
+
+- **Impact:** Part detail "Created" date and box detail "Updated" date currently use `toLocaleDateString()` formatting; migrating to KeyValueBadge preserves this but doesn't standardize date format across app
+- **Mitigation:** KeyValueBadge accepts formatted string as `value` prop; date formatting logic remains at call site; future date standardization can be implemented separately without changing KeyValueBadge API
+- **Evidence:** part-details.tsx:262, box-details.tsx:181
+
 ---
 
 ## 16) Confidence
 
-**Confidence: High** — Research identified all affected files, badge wrappers follow identical patterns making abstraction straightforward, link chip relocation mirrors existing part detail implementation, no API or data model changes reduce risk. Color standardization improves consistency without breaking semantics. Empty state removal aligns with part detail pattern. Primary concerns are Playwright test updates and color migration verification, both deterministic and testable. App not yet in production reduces risk of user confusion from UI changes.
+**Confidence: High** —
+
+This plan provides comprehensive coverage of all badge instances across the application (~35-40 instances across 15+ component files). Systematic codebase scan identified all status badges, key-value metric badges, and plain text dates requiring migration.
+
+**Strengths:**
+- **Clear patterns:** Status badges consistently use variant mapping; key-value badges use inline color classes; all follow predictable patterns
+- **Clean abstraction:** Two component types (KeyValueBadge, StatusBadge) cover all use cases without complexity
+- **Centralized color mapping:** Status-to-color mapping (10 status values → 3 colors) is centralized in StatusBadge; no duplication
+- **No breaking changes:** All migrations are UI-only; no API or data model changes required
+- **Deterministic testing:** All changes have clear Playwright verification criteria
+
+**Badge inventory confirmed:**
+- **Detail views:** Kit, shopping list, pick list, part, box (all covered)
+- **Overview/cards:** Shopping list overview cards, kit cards (all covered)
+- **Line rows:** Shopping list concept and ready line rows (all covered)
+- **Link chips:** Internal status badges in ShoppingListLinkChip and KitLinkChip (all covered)
+- **Dates:** Part detail Created date, box detail Updated date (both identified and included)
+
+**Risk factors (all low-medium risk):**
+- Uppercase styling removal on kit card archived badge is intentional visual change (low risk - app not in production)
+- Date badge migration converts plain text to badges (low risk - semantic change only, no functional impact)
+- Additional status values ('new', 'ordered', 'received') map cleanly to existing 3-color palette (low risk - centralized mapping)
+- Playwright test updates required for all migrated components (medium effort - deterministic and testable)
+- Conditional color logic (e.g., Usage badge ≥90% threshold) requires careful testing (low risk - straightforward conditional)
+
+**Mitigations:**
+- No className prop support enforces consistent styling and prevents Tailwind class soup
+- All badge call sites use semantic color names instead of direct Tailwind classes
+- Centralized color mapping in badge components ensures visual consistency
+- App not in production allows safe visual standardization changes
+- Systematic slice-by-slice approach allows incremental testing and rollback if needed
+
+**Primary concerns:** Playwright test coverage for all migrated components (deterministic); ensuring conditional color logic works correctly (testable); verifying status badge color mappings render correctly across all contexts (visual QA). All concerns are addressable through systematic testing.
