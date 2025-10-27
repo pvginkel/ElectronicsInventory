@@ -4,11 +4,11 @@
 
 **Readiness**
 
-The plan is well-researched and demonstrates strong repository knowledge, with comprehensive evidence citations covering all affected components. The abstraction of three identical badge wrapper components is justified, the color palette standardization is sensible, and the link chip relocation aligns with the part detail pattern. However, the plan contains critical gaps in Playwright test coordination, instrumentation metadata updates, and deterministic test coverage for badge relocation. The adversarial sweep surfaced missing backend factory extensions, ambiguous component API contracts for color semantics, and undocumented testid requirements for body-rendered chip containers. These gaps elevate risk for CI failures and make the implementation less deterministic than required by project policy.
+The plan establishes a clear path for standardizing badge and chip visualization across detail views, with solid research backing the affected areas and well-structured implementation slices. The component abstraction (KeyValueBadge, StatusBadge) is justified by code duplication evidence and follows React patterns. However, the plan contains three **blocking gaps**: (1) factory extensions for deterministic Playwright coverage are documented as "required" but not flagged as pre-implementation blockers, (2) instrumentation metadata updates (`renderLocation: 'body'`) are referenced in test scenarios but never shown being added to the codebase, and (3) the StatusBadge component design conflicts with the existing status badge implementations which use varied Tailwind classes rather than a centralized mapping. The color migration from scattered inline classes to a 3-color abstraction needs explicit call-site evidence showing current Badge usage will map cleanly to the new palette.
 
 **Decision**
 
-`GO-WITH-CONDITIONS` — The plan is implementable but requires clarification and extension in four areas: (1) explicit Playwright backend factory requirements for seeding kit-shopping-list links and shopping-list-kit links, (2) instrumentation metadata updates to reflect chip placement changes, (3) deterministic test scenarios for build target badge relocation, and (4) component API contract for KeyValueBadge color prop vs className. Addressing these conditions will elevate confidence to High and ensure Slice 4 and Slice 5 ship with complete test coverage.
+`GO-WITH-CONDITIONS` — Plan is implementable after resolving one condition: (A) document exact instrumentation hook updates to emit `renderLocation: 'body'` metadata (plan:484-496) and add these updates to implementation slices. Backend endpoints confirmed to exist (`POST /api/kits/{kit_id}/shopping-lists`, `DELETE /api/kit-shopping-list-links/{link_id}`, `GET /api/kits/{kit_id}/shopping-lists`, `GET /api/shopping-lists/{list_id}/kits`), and color/variant design confirmed: KeyValueBadge defaults to neutral (`bg-slate-100 text-slate-700`), StatusBadge uses status-to-color mapping only (no variant prop exposure).
 
 ---
 
@@ -16,276 +16,252 @@ The plan is well-researched and demonstrates strong repository knowledge, with c
 
 **Conformance to refs**
 
-- `docs/commands/plan_feature.md` — **Pass** — `plan.md:1-612` — Plan follows all required sections (0-16) with evidence citations, derived state documentation, and implementation slices.
-- `docs/product_brief.md` — **Pass** — `plan.md:55-98` — Scope aligns with UI standardization goals; no new data model or workflow changes proposed that would conflict with product brief.
-- `AGENTS.md` (via CLAUDE.md) — **Pass** — `plan.md:176-185, 463-523` — Plan references Playwright developer guide and instrumentation requirements; commits to updating specs alongside UI changes (line 79).
-- `docs/contribute/architecture/application_overview.md` — **Pass** — `plan.md:101-175` — Plan correctly identifies domain-driven component structure (`src/components/kits`, `src/components/shopping-lists`, `src/components/ui`) and TanStack Query cache invalidation patterns (line 314).
-- `docs/contribute/testing/playwright_developer_guide.md` — **Conditional Pass** — `plan.md:463-523` — Plan acknowledges Playwright spec updates (lines 179-185, 479-480, 492-494) but does not specify backend factory extensions or data-testid additions for body-rendered chip containers. Missing explicit backend coordination violates "API-first data setup" principle (playwright_developer_guide.md:14).
+- **AGENTS.md (lines 42-46: "Ship instrumentation changes and matching Playwright coverage in the same slice")** — **Fail** — `plan.md:642-676` (Slices 1-3) — Slice 2 migrates badge wrappers and status badges but does not mention adding or updating instrumentation events. The plan only discusses instrumentation metadata updates in Section 9 (lines 470-508) for *existing* scopes, but doesn't specify whether new `data-testid` attributes are added to KeyValueBadge/StatusBadge components or how test coverage for the color migration gets verified.
+
+- **playwright_developer_guide.md (lines 14: "API-first data setup... factories")** — **Pass** — `plan.md:300-314` — Plan explicitly documents required factory extensions (`linkShoppingList`, `createWithShoppingListLinks`, `linkToKit`) and notes backend API dependency. However, this is buried in Section 4 rather than flagged as a blocking dependency in Section 15 (Risks).
+
+- **plan_feature.md (lines 186-188: "data attributes (`data-testid`) added")** — **Partial Pass** — `plan.md:159-171, 165-171` — Plan creates KeyValueBadge and StatusBadge components but doesn't explicitly show `data-testid` prop being passed through or document the testid naming convention for these new components. Evidence at plan:234 shows KeyValueBadge accepts `testId` prop, but StatusBadge schema (plan:240-260) also has `testId` yet the implementation flow (plan:366-388) doesn't mention emitting it to the DOM.
+
+- **test_instrumentation.md (lines 22-24: `list_loading` event taxonomy)** — **Pass** — `plan.md:473-497, 489-508` — Plan correctly references existing `ListLoading` and `UiState` event scopes and proposes adding `renderLocation: 'body'` metadata to `kits.detail.links` and `shoppingLists.detail.kits` scopes. However, it never shows WHERE in the codebase this metadata field gets added (missing code location for the instrumentation hook update).
 
 **Fit with codebase**
 
-- `DetailScreenLayout` component — `plan.md:192-195` — Plan correctly assumes `metadataRow` accepts ReactNode and that chips will move to `children` (body content). Evidence: `src/components/layout/detail-screen-layout.tsx:4-26` (cited but not shown in plan; assumption holds per standard layout patterns).
-- `createKitDetailHeaderSlots` return shape — `plan.md:197-200` — Plan proposes adding `linkChips` slot to return object but does not show updated TypeScript interface. Fit concern: existing consumers spread `{...headerSlots}` into `DetailScreenLayout` props (kit-detail.tsx:300-308), so adding a new slot field will not break spreads but requires explicit body rendering logic.
-- `useShoppingListDetailHeaderSlots` return shape — `plan.md:202-205` — Similar to kit header; plan proposes `linkChips` in slots object but does not document whether route file (`src/routes/shopping-lists/$listId.tsx`) currently has body content rendering section or if one must be added.
-- `KeyValueBadge` color API — `plan.md:266-277` — Plan states "color is semantic ('neutral' | 'info' | 'warning' | 'success' | 'danger')" (line 269) but also shows "color mapping should be centralized in KeyValueBadge component" (line 277). **Ambiguity**: Does the component accept a `color` prop with semantic names, or does it accept `className` and expect callers to know the canonical palette? Current badge wrappers use `className` (pick-list-detail.tsx:389-399, kit-detail.tsx:569-579), so plan needs to clarify API contract.
+- **DetailScreenLayout (src/components/layout/detail-screen-layout.tsx)** — `plan.md:261-264` — Plan assumes metadataRow slot accepts ReactNode and that chips can be moved to body children without structural changes. Evidence at plan:262-263 confirms this, but the plan doesn't address how chip relocation affects responsive layout, focus management, or keyboard navigation (DetailScreenLayout might apply different styling to metadataRow vs children).
+
+- **createKitDetailHeaderSlots (src/components/kits/kit-detail-header.tsx)** — `plan.md:266-270` — Plan proposes returning a new `linkChips` slot from the header creation function, but doesn't show how this gets consumed in kit-detail.tsx. Evidence at plan:191-192 says "extract chips for body rendering" but the current function signature (confirmed at file read lines 10-30) only returns `KitDetailHeaderSlots`, which would need to be extended with a `linkChips?: ReactNode` field.
+
+- **ShoppingListDetailHeaderSlots (src/components/shopping-lists/detail-header-slots.tsx:25-38)** — `plan.md:271-274` — Plan correctly identifies the return shape but doesn't show the updated interface definition. Current interface (confirmed at file read lines 25-33) only includes standard header slots; adding `linkChips` field requires interface update.
+
+- **Existing badge wrapper call sites** — `plan.md:172-182` — Plan references DetailBadge, SummaryBadge, GroupSummaryBadge migrations with specific line numbers. Spot-checked DetailBadge at pick-list-detail.tsx:389-399 (confirmed accurate), but the plan doesn't verify that all three wrappers use the same prop signature. If any wrapper has additional props (e.g., onClick, variant overrides), the migration to KeyValueBadge might need prop mapping logic.
 
 ---
 
 ## 3) Open Questions & Ambiguities
 
-- **Question:** Does `KeyValueBadge` accept a `color` prop with semantic values ('neutral', 'info', 'warning', 'success', 'danger'), or does it accept `className` and expect callers to pass the full Tailwind color classes?
-  - **Why it matters:** If the API uses `className`, color standardization is not enforceable at compile time; callers can pass arbitrary classes. If the API uses a `color` enum, the component can map to the canonical palette (plan.md:105-115) and TypeScript will enforce semantic consistency.
-  - **Needed answer:** Specify the component props interface: `{ label: string; value: string | number; color?: 'neutral' | 'info' | 'warning' | 'success' | 'danger'; className?: string; testId: string }` and document whether `color` overrides or is overridden by `className`.
+- **Question:** ~~Do the backend kit ↔ shopping list linking endpoints already exist?~~
+  - **RESOLVED:** Backend endpoints confirmed to exist in openapi-cache/openapi.json:
+    - `POST /api/kits/{kit_id}/shopping-lists` (create/link shopping list to kit)
+    - `DELETE /api/kit-shopping-list-links/{link_id}` (unlink)
+    - `GET /api/kits/{kit_id}/shopping-lists` (fetch kit's shopping lists)
+    - `GET /api/shopping-lists/{list_id}/kits` (fetch shopping list's kits)
+  - Slices 4-5 can proceed with Playwright coverage once factory helpers (`linkShoppingList`, `createWithShoppingListLinks`, `linkToKit`) are implemented in test suite.
 
-- **Question:** When link chips move from header `metadataRow` to body content, what `data-testid` will the body container use?
-  - **Why it matters:** Existing Playwright specs likely wait for `data-testid="kits.detail.links"` or similar, which is currently the metadataRow testid (kit-detail-header.tsx:204). If chips move to body without a documented container testid, specs will break or require ad hoc locators.
-  - **Needed answer:** Document the body container testid convention (e.g., `kits.detail.body.links` for kit detail, `shopping-lists.detail.body.kits` for shopping list detail) and add to Section 13 (Deterministic Test Plan) instrumentation hooks.
+- **Question:** ~~What is the "subtle default style" for KeyValueBadge when `color` prop is omitted?~~
+  - **RESOLVED:** Default is neutral (`bg-slate-100 text-slate-700`), matching the neutral semantic role from plan:116. No 6th color option needed. Plan:236-237 should be clarified to state "defaults to neutral color" rather than listing ambiguous classes.
 
-- **Question:** Do existing Playwright specs assert on the empty state message "Link a shopping list to reserve parts" (kit-detail-header.tsx:237-239)?
-  - **Why it matters:** If specs assert on that text, Slice 4 will break CI. Plan states empty state removal (line 78, 236-239) but does not list affected specs.
-  - **Needed answer:** Grep `tests/e2e/kits/kit-detail.spec.ts` for "Link a shopping list" or equivalent selector and document in Section 13 which assertions must be removed alongside the empty state.
-
-- **Question:** Does the shopping list detail route file (`src/routes/shopping-lists/$listId.tsx`) currently render body content below `DetailScreenLayout`, or will Slice 5 need to add a body section?
-  - **Why it matters:** If the route file only passes header slots to the layout and has no body rendering logic, Slice 5 scope expands to include structural changes. Plan assumes body rendering exists (line 167) but does not cite evidence from the route file.
-  - **Needed answer:** Read `src/routes/shopping-lists/$listId.tsx` to confirm body rendering pattern and document the integration point in Section 2 (Affected Areas).
+- **Question:** ~~How does the plan handle status badges that currently use **variant** props?~~
+  - **RESOLVED:** StatusBadge will NOT expose a variant prop. Status-to-color mapping is the leading design principle. The bold palette (plan:122-131) with saturated background colors (`bg-blue-600 text-white`, `bg-slate-400 text-slate-700`, `bg-emerald-600 text-white`) will use a single Badge variant (likely `default` or no variant, relying on color classes). Current multi-variant approach (shopping list using default/secondary/outline per status) is intentionally replaced with unified bold color palette. This is a deliberate design change, not a regression.
 
 ---
 
 ## 4) Deterministic Playwright Coverage (new/changed behavior only)
 
-### Behavior: Kit detail – shopping list link chips in body
+### Behavior: Kit detail – shopping list link chips relocated to body
 
 - **Scenarios:**
-  - Given kit with shopping list links, When viewing kit detail, Then chips appear in body content below header (`tests/e2e/kits/kit-detail.spec.ts` — to be updated)
-  - Given kit with no shopping lists, When viewing kit detail, Then no chip section renders and no empty state message appears
-  - Given kit detail loading, When rendering, Then no skeleton chips render in header metadataRow
+  - Given kit with 2 shopping list links (statuses: concept, ready), When viewing kit detail, Then chips render in body content (not in header metadataRow) with correct order (concept before ready) and testids `kits.detail.links.shopping.{listId}` (`tests/e2e/kits/kit-detail.spec.ts`)
+  - Given kit with no shopping lists, When viewing kit detail, Then no chip section renders and no empty state message appears (verify absence of `data-testid="kits.detail.links.empty"`)
 - **Instrumentation:**
-  - `data-testid="kits.detail.body"` for body container (plan.md:474)
-  - **Missing:** `data-testid` for body link chips container (e.g., `kits.detail.body.links`)
-  - `data-testid="kits.detail.links.shopping.{listId}"` for each chip (plan.md:475) — chip testid itself does not change
-  - Wait for `UiState` event with scope `'kits.detail.links'` phase `'ready'` (plan.md:476) — **Gap:** instrumentation metadata may need update to include "renderLocation: 'body'" field to distinguish from header rendering
+  - `data-testid="kits.detail.body.links"` for body container (plan:586 — **new testid**, must be added in Slice 4)
+  - `data-testid="kits.detail.links.shopping.{listId}"` for each chip (existing testid, chips relocated from header to body)
+  - Wait for `UiState` event with scope `kits.detail.links`, phase `ready`, and assert `metadata.shoppingLists.renderLocation === 'body'` (plan:588)
 - **Backend hooks:**
-  - **Missing:** Plan does not specify whether `testData.kits` factory needs a `createWithShoppingListLinks()` helper or similar. Existing factory may only create isolated kits; linking shopping lists may require multi-step API calls (create kit → create shopping list → link via POST endpoint).
-  - **Missing:** Plan does not specify whether `testData.shoppingLists` factory needs `linkToKit(kitId)` helper.
+  - `testData.kits.createWithShoppingListLinks({ shoppingListIds: [list1.id, list2.id] })` — plan:589 — **BLOCKER**: Factory extension not confirmed to exist. Plan:304-306 says "If the backend does not yet expose kit ↔ shopping list linking endpoints... those endpoints must be added before Slices 4-5 can ship complete Playwright coverage."
 - **Gaps:**
-  - No explicit backend factory extension documented for deterministic link seeding
-  - No testid for body link chips container
-  - No clarification on whether instrumentation metadata reflects chip placement
-- **Evidence:** `plan.md:466-480`
+  - **Major**: Instrumentation metadata update (`renderLocation: 'body'`) is referenced at plan:486-487 but never shown being implemented. Plan says "add `renderLocation: 'body'` field to metadata returned by `getLinksReadyMetadata`" but doesn't provide file location or code snippet for this update.
+  - **Major**: No coverage scenario for unlink action on relocated chips (plan mentions verifying event handler binding at plan:709-711 but doesn't translate to a Playwright scenario)
+- **Evidence:** `plan.md:577-594`
 
-### Behavior: Shopping list detail – kit link chips in body
+### Behavior: Shopping list detail – kit link chips relocated to body
 
 - **Scenarios:**
-  - Given shopping list with kit links, When viewing list detail, Then chips appear in body below header (`tests/e2e/shopping-lists/shopping-list-detail.spec.ts` — may not exist; plan states "No existing spec file found" line 494)
+  - Given shopping list with linked kits, When viewing list detail, Then chips appear in body below header (not in metadataRow) with testid pattern `shopping-lists.concept.body.kits.{kitId}`
   - Given shopping list with no kits, When viewing list detail, Then no chip section rendered in body
 - **Instrumentation:**
-  - **Missing:** `data-testid` for body container in shopping list detail route
-  - Wait for `ListLoading` event with scope `'shoppingLists.detail.kits'` phase `'ready'` (plan.md:490)
+  - `data-testid="shopping-lists.detail.body.kits"` (plan:602 — **new testid**, must be added in Slice 5)
+  - Wait for `ListLoading` event with scope `shoppingLists.detail.kits`, phase `ready`, and assert `metadata.renderLocation === 'body'` (plan:604)
 - **Backend hooks:**
-  - **Missing:** Similar factory gap as kit detail; no documented helper to seed shopping list → kit links
+  - `testData.shoppingLists.linkToKit(listId, kitId)` — plan:605 — **BLOCKER**: Factory extension not confirmed to exist (same backend dependency as kit detail chips)
 - **Gaps:**
-  - No existing Playwright spec file (plan acknowledges this line 494); plan does not propose whether to create `tests/e2e/shopping-lists/shopping-list-detail.spec.ts` or extend an existing suite
-  - Missing backend coordination for kit link seeding
-- **Evidence:** `plan.md:482-494`
+  - **Major**: Plan:608 states "No existing spec file `tests/e2e/shopping-lists/shopping-list-detail.spec.ts` found." If no spec exists, Slice 5 must CREATE a new spec file, but the slice description (plan:689-696) only says "update selectors" (implying existing specs). This is contradictory.
+  - **Major**: Testid prefix changes from `.header.` to `.body.` for consistency (plan:603), but plan doesn't specify whether existing specs use the old testid and need updating or if shopping list chips were never tested before.
+- **Evidence:** `plan.md:595-610`
 
-### Behavior: KeyValueBadge component
+### Behavior: KeyValueBadge component with semantic color mapping
 
 - **Scenarios:**
-  - Given component receives label, value, className, testId, When rendered, Then displays `{label}: {value}` in Badge with custom classes
-  - Given component receives variant prop, When rendered, Then Badge uses specified variant
-- **Instrumentation:**
-  - `data-testid={testId}` passed through to Badge (plan.md:503)
-- **Backend hooks:** None required (presentational component)
+  - Given KeyValueBadge with `color="warning"`, When rendered, Then Badge displays with `bg-amber-100 text-amber-800` classes
+  - Given KeyValueBadge with omitted color prop, When rendered, Then Badge displays with default subtle style (classes TBD per Open Question)
+- **Instrumentation:** `data-testid={testId}` prop passed through (plan:619)
+- **Backend hooks:** None (pure UI component)
 - **Gaps:**
-  - No dedicated test file; plan states "covered by parent component specs" (line 504), which aligns with project patterns but reduces isolation
-  - **Missing scenario:** Given component receives `color` prop (if API uses semantic colors), When rendered, Then correct Tailwind classes are applied
-- **Evidence:** `plan.md:496-508`
+  - **Minor**: Plan:622 says "No dedicated test file needed; covered by parent component specs." This violates the component testing pattern (new reusable UI component typically gets a Storybook story or unit test for color variants). Without explicit coverage, color mapping bugs could slip through.
+- **Evidence:** `plan.md:612-624`
 
-### Behavior: Kit detail – Build target badge moved to metadataRow
+### Behavior: StatusBadge component with 7-status-to-3-color mapping
 
 - **Scenarios:**
-  - Given kit detail loaded, When viewing header, Then titleMetadata contains only status badge
-  - Given kit detail loaded, When viewing header, Then metadataRow contains Build target badge
-- **Instrumentation:**
-  - `data-testid="kits.detail.header.status"` for status badge (plan.md:517)
-  - `data-testid="kits.detail.badge.build-target"` for Build target badge (plan.md:518)
-- **Backend hooks:** Existing `testData.kits.create()` should suffice (badge uses `kit.buildTarget` field)
+  - Given StatusBadge with `status="active"`, When rendered, Then Badge displays with `bg-blue-600 text-white` (active color)
+  - Given StatusBadge with `status="concept"`, When rendered, Then Badge displays with `bg-slate-400 text-slate-700` (inactive color)
+  - Given StatusBadge with `status="completed"`, When rendered, Then Badge displays with `bg-emerald-600 text-white` (success color)
+- **Instrumentation:** `data-testid={testId}` prop
+- **Backend hooks:** None
 - **Gaps:**
-  - **Critical:** Plan lists these scenarios in Section 13 (lines 510-522) but does not reference any Playwright spec file. Section 14 (Implementation Slices) lists Slice 3 as "Move Kit Detail Build Target Badge" but does not include "Update Playwright specs" in the touches list (plan.md:549-555). This suggests the badge relocation may ship without test coverage, violating AGENTS.md policy "Ship instrumentation changes and matching Playwright coverage in the same slice" (CLAUDE.md:43-44).
-- **Evidence:** `plan.md:510-522`
+  - **Major**: No test coverage documented for StatusBadge. The component centralizes status-to-color logic (7 statuses → 3 colors, plan:251-254) but the plan doesn't specify how regressions get caught if the mapping breaks.
+  - **Minor**: Plan doesn't verify that all 7 status values are tested (concept, ready, active, open, done, archived, completed). If a status value is missing from the internal mapping, the component might throw or render with undefined classes.
+- **Evidence:** Not documented in Section 13 (Deterministic Test Plan)
 
 ---
 
-## 5) Adversarial Sweep (must find ≥3 credible issues or declare why none exist)
+## 5) Adversarial Sweep (≥3 credible issues)
 
-### **Major — Missing Backend Factory Extensions for Link Chip Seeding**
+### **Major — Factory Extensions Required for Slices 4-5 Playwright Coverage** *(previously marked Blocker, downgraded)*
 
-**Evidence:** `plan.md:209-229` (API / Integration Surface section) — No backend API changes listed; plan states "All data fetching hooks remain unchanged" (line 211). Section 13 (Deterministic Test Plan) references backend hooks only generically ("wait for ListLoading event") without specifying factory helpers.
+**Evidence:** `plan.md:302-314` — Plan documents required factory helpers (`linkShoppingList`, `createWithShoppingListLinks`, `linkToKit`) but doesn't flag them as explicit Slice 4/5 dependencies. Backend endpoints confirmed to exist in openapi-cache/openapi.json:
+- `POST /api/kits/{kit_id}/shopping-lists` (line 12522)
+- `DELETE /api/kit-shopping-list-links/{link_id}` (line 11673)
+- `GET /api/kits/{kit_id}/shopping-lists` (line 12472)
+- `GET /api/shopping-lists/{list_id}/kits` (line 15145)
 
-**Why it matters:** Playwright tests must create kits with shopping list links and shopping lists with kit links deterministically. The plan does not specify whether existing factories (`testData.kits.create()`, `testData.shoppingLists.create()`) support linking entities, or whether new helpers like `testData.kits.createWithShoppingListLinks({ linkIds: [1, 2] })` or `testData.shoppingLists.linkToKit(kitId)` must be added to `tests/api/factories/`. Without documented factory extensions, Slice 4 and Slice 5 cannot ship with complete Playwright coverage per AGENTS.md "API-first data setup" policy (playwright_developer_guide.md:14).
+**Why it matters:** Endpoints exist but test factories need wrapper helpers for deterministic Playwright data setup per `playwright_developer_guide.md:14`. Without factory extensions, Slices 4-5 specs must use raw API calls or ship without Playwright coverage.
 
-**Fix suggestion:** Add a subsection to Section 4 (API / Integration Surface) titled "Playwright Factory Extensions" that documents:
-- `testData.kits.createWithShoppingListLinks({ shoppingListIds: number[], kit?: Partial<KitDetail> }): Promise<KitDetail>`
-- `testData.shoppingLists.linkToKit(listId: number, kitId: number): Promise<void>`
-- Evidence from `tests/api/factories/kits.ts` and `tests/api/factories/shopping-lists.ts` (if helpers already exist) or mark as "TODO: extend factories in Slice 4/5"
+**Fix suggestion:** Add to Slice 4 dependencies: "**Test setup prerequisite:** Implement `testData.kits.linkShoppingList(kitId, listId)` and `testData.kits.createWithShoppingListLinks({ shoppingListIds })` factory helpers in `tests/api/factories/kit-factory.ts` before writing Playwright specs. Similarly add `testData.shoppingLists.linkToKit(listId, kitId)` to shopping-list-factory.ts for Slice 5."
 
-**Confidence:** High — This is a deterministic gap; no implementation can achieve "complete Playwright coverage" without explicit backend coordination.
-
----
-
-### **Major — Instrumentation Metadata Does Not Reflect Chip Placement**
-
-**Evidence:** `plan.md:361-397` (Observability / Instrumentation section, lines 371-377) — `UiState` event for `kits.detail.links` scope emits metadata `{ kitId, hasLinkedWork, shoppingLists: { count, ids, statusCounts } }`. Plan does not propose adding a `renderLocation` or `placement` field to distinguish whether chips are in header vs body.
-
-**Why it matters:** When chips move from header metadataRow to body content, Playwright specs that assert on instrumentation metadata will not detect the placement change. If a future refactor accidentally moves chips back to the header, tests relying solely on metadata will not catch the regression. The plan states "After chip relocation, verify test events still emit with correct metadata" (line 318), but "correct metadata" is not defined beyond link counts and IDs.
-
-**Fix suggestion:** Extend Section 9 (Observability / Instrumentation) to propose a metadata field update:
-- Before: `{ kitId, hasLinkedWork, shoppingLists: { count, ids, statusCounts } }`
-- After: `{ kitId, hasLinkedWork, shoppingLists: { count, ids, statusCounts, renderLocation: 'body' } }`
-- Add corresponding metadata update to `getLinksReadyMetadata` in `kit-detail.tsx:92-102` and document in Section 13 that Playwright specs should assert `metadata.shoppingLists.renderLocation === 'body'` to lock in the pattern.
-
-**Confidence:** High — The plan explicitly commits to instrumentation as "part of the UI contract" (CLAUDE.md:40), so omitting placement metadata creates a testability gap.
+**Confidence:** High — Endpoints exist, only factory wrappers are missing.
 
 ---
 
-### **Major — Slice 3 (Build Target Badge Relocation) Has No Playwright Coverage**
+### **Major — Instrumentation Metadata Updates Are Referenced But Never Implemented**
 
-**Evidence:** `plan.md:549-555` (Implementation Slices, Slice 3) — "Move Kit Detail Build Target Badge" lists `src/components/kits/kit-detail-header.tsx` as the only touched file. No Playwright spec update listed. Section 13 (Deterministic Test Plan, lines 510-522) defines scenarios for build target badge but does not cite a spec file or state "will add to `tests/e2e/kits/kit-detail.spec.ts`".
+**Evidence:** `plan.md:486-487` — "After Slice 4 implementation, add `renderLocation: 'body'` field to metadata returned by `getLinksReadyMetadata` (kit-detail.tsx:92-94)." Plan:494-496 repeats this for shopping list detail. However, Section 2 (Affected Areas) does not list `kit-detail.tsx` or `detail-header-slots.tsx` as files requiring instrumentation updates, and the implementation slices don't mention updating these hooks.
 
-**Why it matters:** AGENTS.md policy requires "Ship instrumentation changes and matching Playwright coverage in the same slice" (CLAUDE.md:43-44). If Slice 3 moves the badge without updating specs, the change is incomplete. Additionally, Section 15 (Risks & Open Questions) lists "Playwright specs break due to chip relocation" (line 582) but does not mention badge relocation risk, suggesting the plan may underestimate scope.
+**Why it matters:** The Playwright scenarios (plan:588, 604) explicitly wait for `metadata.renderLocation === 'body'` in test events. If the instrumentation hooks never emit this field, the tests will fail. This is a missing step in the implementation plan.
 
-**Fix suggestion:** Extend Slice 3 "Touches" list to include:
-- `tests/e2e/kits/kit-detail.spec.ts` (update badge selector assertions)
-- Add explicit scenario to Section 13: "Given active kit loaded, When viewing header, Then `data-testid='kits.detail.header.status'` exists in `titleMetadata` and `data-testid='kits.detail.badge.build-target'` exists in `metadataRow` (not in `titleMetadata`)"
+**Fix suggestion:** Add to Section 2 (Affected Areas):
+- **Area:** src/components/kits/kit-detail.tsx (lines 92-102)
+  - **Why:** Update `getLinksReadyMetadata` callback in `useUiStateInstrumentation` to include `renderLocation: 'body'` field
+  - **Evidence:** plan.md:486-487 requires this metadata for Playwright assertions
 
-**Confidence:** High — The plan's own structure (Section 13 + Slice 3) reveals this gap.
+Add to Slice 4 (plan:678-687):
+- **Touches:** src/components/kits/kit-detail.tsx (update instrumentation metadata at lines 92-102 to emit `renderLocation: 'body'`)
+
+Repeat for shopping list detail in Slice 5.
+
+**Confidence:** High — The test plan explicitly asserts on this metadata field, but no implementation slice adds it.
 
 ---
 
-### **Major — KeyValueBadge Color API Ambiguity Prevents Compile-Time Enforcement**
+### **Minor — StatusBadge Design Intentionally Removes Multi-Variant Approach** *(previously marked Major, downgraded to Minor with design confirmation)*
 
-**Evidence:** `plan.md:266-277` (Algorithms & UI Flows, lines 269-277) — Plan states component will accept `color` prop with semantic values but Flow description shows "Additional Tailwind classes from className prop can override if needed" (line 272). Section 2 (Affected Areas) shows existing badge wrappers accept `className` prop (pick-list-detail.tsx:385, kit-detail.tsx:565).
+**Evidence:** `plan.md:240-260` defines StatusBadge with `status` prop mapping to 3 colors (inactive, active, success). Current status badges use dynamic variant props (shopping list: `concept='default', ready='secondary', done='outline'` per detail-header-slots.tsx:43-47).
 
-**Why it matters:** If KeyValueBadge accepts both `color` and `className`, and `className` can override `color`, then the canonical palette (plan.md:105-115) is a soft guideline, not an enforceable contract. Callers can pass `className="bg-purple-500 text-white"` and bypass standardization. TypeScript will not catch palette violations.
+**Design decision confirmed:** StatusBadge will NOT expose variant prop. Status colors are the leading design principle. Bold palette (`bg-blue-600 text-white` for active, `bg-slate-400 text-slate-700` for inactive, `bg-emerald-600 text-white` for success) uses a single Badge variant, replacing the current multi-variant approach. This is an intentional visual standardization, not a regression.
 
-**Fix suggestion:** Add a subsection to Section 3 (Data Model / Contracts) titled "KeyValueBadge Props Contract":
-```typescript
-interface KeyValueBadgeProps {
-  label: string;
-  value: string | number;
-  color?: 'neutral' | 'info' | 'warning' | 'success' | 'danger';
-  variant?: 'default' | 'outline' | 'secondary';
-  className?: string; // Additional classes; does NOT override color mapping
-  testId: string;
-}
+**Why it matters:** Current shopping list "done" status uses outline variant (border-only) for visual weight reduction. StatusBadge replaces this with filled badge in inactive color. This changes the visual hierarchy but aligns with the plan's goal of "consistent visual language" (plan:58).
+
+**Fix suggestion:** Document the intentional design change in plan Section 2 (Badge Color Standardization). Add note: "StatusBadge intentionally replaces multi-variant status badges (default/secondary/outline) with unified bold color palette using a single Badge variant. Current visual distinctions (e.g., outline variant for 'done' status) are replaced with color-based semantics."
+
+**Confidence:** High — Design decision confirmed by user; variant removal is intentional.
+
+---
+
+### **Major — Empty State Message Removal Breaks Existing Playwright Assertions**
+
+**Evidence:** `plan.md:78, 461-466` — Plan removes empty state message "Link a shopping list to reserve parts..." from kit detail header (lines 237-239 in kit-detail-header.tsx, confirmed in file read). Plan:591 states "No existing Playwright assertions on empty state message... found (grep result: no matches in tests/e2e/kits/). Safe to remove empty state without breaking tests."
+
+However, the grep search only checked `tests/e2e/kits/` and may have missed:
+1. Assertions in page objects (`tests/support/page-objects/kits-page.ts` — plan:216-218 says this file has GroupSummaryBadge references, implying it tests header content)
+2. Assertions using text matchers like `page.getByText(/Link a shopping list/)` (grep for testid `kits.detail.links.empty` wouldn't find these)
+
+**Why it matters:** If Playwright specs do assert on the empty state message (either via text matcher or visual snapshot), removing it will cause test failures. The plan should verify ALL assertion types, not just testid-based selectors.
+
+**Fix suggestion:** Before Slice 4, run comprehensive grep across entire `tests/` directory:
+```bash
+rg -i "link a shopping list" tests/
+rg "kits\.detail\.links\.empty" tests/
+rg "no shopping lists" tests/e2e/kits/
 ```
-Document that `color` prop maps to the canonical palette (plan.md:105-115) and that `className` is merged *after* color classes via `cn()` utility, so semantic color takes precedence unless a consumer explicitly overrides with `!important` (which should be flagged in code review).
+If any matches are found, update plan to document which specs need assertion removal.
 
-**Confidence:** Medium — This is an API design ambiguity rather than a functional defect, but it affects long-term maintainability.
-
----
-
-### **Major — Derived Value `hasShoppingLists` Uses Filtered View Without Documented Filter Logic**
-
-**Evidence:** `plan.md:285-290` (Derived State & Invariants) — `hasShoppingLists` is derived from `sortedShoppingLinks.length > 0` (kit-detail-header.tsx:140). Plan cites `sortShoppingLinks` helper but does not document whether it filters by status or other criteria.
-
-**Why it matters:** If `sortShoppingLinks` filters out certain link statuses (e.g., excludes archived shopping lists), the filtered view will determine whether to render chips in the body. This is a **filtered view driving a persistent render decision**, which the plan template flags for explicit callout (plan_feature.md:156). If the filter logic changes in the future (e.g., "show archived links in a separate section"), the chip rendering logic may break unexpectedly.
-
-**Fix suggestion:** Add a derived value entry to Section 6 (Derived State & Invariants) titled "sortedShoppingLinks filter logic":
-- **Source:** `kit.shoppingListLinks` array (unfiltered from API)
-- **Writes / cleanup:** Determines `hasShoppingLists` boolean, which gates rendering of body link chips section
-- **Guards:** Current implementation sorts by status and name but does not filter by status. If future requirements add status-based filtering (e.g., hide 'done' lists), this will affect chip visibility.
-- **Invariant:** `hasShoppingLists` must remain true if *any* shopping list links exist, regardless of status, otherwise links may be hidden unexpectedly.
-- **Evidence:** `kit-detail-header.tsx:106-115` (sortShoppingLinks implementation should be cited)
-
-**Confidence:** Medium — This is a documentation gap; the code may already handle it correctly, but the plan does not surface the invariant explicitly.
+**Confidence:** Medium — The plan's grep evidence may be incomplete, but it's possible no assertions exist if the empty state was never tested.
 
 ---
 
-### **Minor — Empty State Removal May Break Existing Playwright Assertions**
+### **Minor — KeyValueBadge Default Color Semantics Clarified** *(resolved)*
 
-**Evidence:** `plan.md:78, 236-239, 288-289` — Plan states "Remove empty state messages for missing link chips" (line 78) and cites kit-detail-header.tsx:237-239 which renders "Link a shopping list to reserve parts. Pick lists now live in the panel below." when `hasShoppingLists` is false. Section 8 (Errors & Edge Cases, line 355) references this text but does not list which Playwright specs assert on it.
+**Evidence:** `plan.md:232-237` — KeyValueBadge accepts optional `color` prop. When omitted, plan says "subtle default style (`bg-slate-50 text-slate-700` or outline-only)" but canonical palette (plan:114-120) shows "neutral" = `bg-slate-100 text-slate-700`.
 
-**Why it matters:** If `tests/e2e/kits/kit-detail.spec.ts` includes an assertion like `await expect(page.getByTestId('kits.detail.links.empty')).toBeVisible()`, Slice 4 will break CI. Plan acknowledges the empty state removal (line 78) but does not document affected specs or propose updating them in the same slice.
+**Resolution confirmed:** Default is neutral (`bg-slate-100 text-slate-700`), matching the neutral semantic role. No distinct 6th color needed. Call sites migrating from DetailBadge can omit `color` prop and receive neutral styling by default.
 
-**Fix suggestion:** Add to Section 3 (Open Questions & Ambiguities):
-- **Question:** Do existing Playwright specs assert on the empty state message testid `kits.detail.links.empty` or the text "Link a shopping list to reserve parts"?
-- **Why it matters:** If yes, Slice 4 must remove those assertions in the same commit to avoid CI failures.
-- **Needed answer:** Grep `tests/e2e/kits/` for `kits.detail.links.empty` and document findings in Section 13 (Deterministic Test Plan, line 478).
+**Fix suggestion:** Update plan:236-237 to remove ambiguous wording. Replace "subtle default style (`bg-slate-50 text-slate-700` or outline-only)" with "defaults to neutral color (`bg-slate-100 text-slate-700`)". Update KeyValueBadge component documentation to state: "When `color` prop is omitted, badge defaults to neutral semantic role."
 
-**Confidence:** Medium — This is a likely edge case; many specs do not assert on empty states, but the risk is non-zero.
+**Confidence:** High — Confirmed by user.
 
 ---
 
-### **Minor — Part Detail Pattern Inconsistency Creates Misleading Target**
+### **Minor — Plan Doesn't Verify All Three Badge Wrappers Have Identical Prop Signatures**
 
-**Evidence:** `plan.md:29-32, 357` — Plan states "Part detail already follows the target pattern (chips below header in body content)" (line 32) and "Part: keeps existing empty state; not changed in this standardization" (line 357). However, part-details.tsx:367-375 renders an empty state message "This part is not on Concept or Ready shopping lists and is not used in any kits."
+**Evidence:** `plan.md:6-13, 172-182` — Plan states "three nearly-identical badge wrapper components" (DetailBadge, SummaryBadge, GroupSummaryBadge) and proposes replacing them with KeyValueBadge. Evidence shows DetailBadge at `pick-list-detail.tsx:389-399` (confirmed in file read) has signature `{ label, value, className, testId }`.
 
-**Why it matters:** The plan uses part detail as the "target pattern" for kit and shopping list detail, but part detail *does* render an empty state, contradicting the plan's goal of "Remove empty state messages for missing link chips" (line 78). This creates ambiguity: should kit/shopping list detail render nothing (as the plan states) or render an empty message (as part detail does)?
+However, the plan doesn't provide evidence for SummaryBadge and GroupSummaryBadge signatures. If they have **different** props (e.g., SummaryBadge accepts `variant` or `onClick`), the migration to KeyValueBadge will lose functionality unless KeyValueBadge supports those props.
 
-**Fix suggestion:** Add a clarification to Section 1 (Intent & Scope):
-- **In scope:** Remove empty state messages for kit and shopping list detail views when no link chips exist (render nothing, per lines 78, 288-289).
-- **Out of scope:** Part detail empty state message remains unchanged (line 357) because it provides user guidance. Kit and shopping list detail omit empty states because the absence of chips is normal and requires no affordance.
+**Fix suggestion:** Add to Section 0 (Research Log):
+- Quote SummaryBadge signature from `kit-detail.tsx:569-579`
+- Quote GroupSummaryBadge signature from `pick-list-lines.tsx:346-352`
+- Confirm all three have `{ label, value, className?, testId }` and no additional props
+- If any wrapper has extra props, document how KeyValueBadge will support them (e.g., add `variant` prop to KeyValueBadge or migrate call sites to drop unsupported props)
 
-**Confidence:** Low — This is a documentation consistency issue; the implementation intent is likely correct, but the plan's phrasing is misleading.
+**Confidence:** Low — The plan may have already verified this during research but didn't document it. This is a due diligence check.
 
 ---
 
 ## 6) Derived-Value & State Invariants (table)
 
-### Derived value: hasShoppingLists (kit detail)
+### Derived value: hasShoppingLists (Kit detail)
 
-- **Source dataset:** Filtered from `kit.shoppingListLinks` array via `sortedShoppingLinks` helper (kit-detail-header.tsx:139-140). The helper sorts by status and name but **does not filter by status** (based on plan evidence; actual implementation not cited).
-- **Write / cleanup triggered:** Determines whether to render link chips section in body content (kit-detail.tsx:280-290, body rendering logic to be added in Slice 4). When false, no chips section renders and no empty state message renders.
-- **Guards:** Conditional rendering in body: `if (hasShoppingLists) { render chips } else { render nothing }` (plan.md:288-289). No feature flags or optimistic update rollbacks mentioned.
-- **Invariant:** When `kit.shoppingListLinks.length > 0`, `hasShoppingLists` must be true and chip section must render in body. When `kit.shoppingListLinks.length === 0`, `hasShoppingLists` must be false and no chip section (and no empty state) must render. If `sortShoppingLinks` introduces status-based filtering in the future, this invariant could break.
-- **Evidence:** `plan.md:285-290` (Derived State & Invariants, kit detail)
+- **Source dataset:** Derived from `sortedShoppingLinks.length > 0` where `sortedShoppingLinks = sortShoppingLinks(kit.shoppingListLinks)`. The `sortShoppingLinks` helper (plan:176-185, confirmed in file read at kit-detail-header.tsx:106-115) **sorts** by status then name but **does not filter**. Source is the full, unfiltered `kit.shoppingListLinks` array.
+- **Write / cleanup triggered:** Controls rendering of link chips section in body content (Slice 4). When `false`, no chips container renders in body. No cache writes, navigation, or storage mutations triggered.
+- **Guards:** Conditional rendering: `if (hasShoppingLists) { render chips container }`. No feature flags or status-based filtering.
+- **Invariant:** `hasShoppingLists` must equal `kit.shoppingListLinks.length > 0` (unfiltered source). The plan's invariant statement (plan:398) warns "If future requirements add status-based filtering to `sortShoppingLinks`... this invariant will break" — but this is a **hypothetical** concern. The current invariant is sound: `hasShoppingLists` reflects the unfiltered source because `sortShoppingLinks` only sorts, never filters. **HOWEVER**, there's a subtle bug: the derived value uses `sortedShoppingLinks.length` (the sorted array) rather than `kit.shoppingListLinks.length` (the source). While functionally equivalent today (sort doesn't change length), this creates unnecessary coupling to the sorting function. If `sortShoppingLinks` is ever refactored to return a subset, the invariant breaks silently.
+- **Evidence:** `plan.md:394-399`, `kit-detail-header.tsx:139-140, 176-185` (confirmed in file read)
 
-### Derived value: linkedKits (shopping list detail)
+### Derived value: linkedKits (Shopping list detail)
 
-- **Source dataset:** Mapped from `kitsQuery.data` via `mapShoppingListKitLinks` (detail-header-slots.tsx:129). The mapping extracts `{ linkId, kitId, kitName, kitStatus }` from the API response.
-- **Write / cleanup triggered:** Drives conditional rendering of kit chips in body content (shopping list detail route, body rendering to be added in Slice 5). Triggers instrumentation metadata updates via `useListLoadingInstrumentation` (detail-header-slots.tsx:131-155).
-- **Guards:** `linkedKits.length > 0` determines chip section visibility (plan.md:295). No guards on status filtering (e.g., active vs archived kits both render).
-- **Invariant:** Kit link count in instrumentation metadata (line 138) must match rendered chip count in body. If `mapShoppingListKitLinks` filters out certain statuses (not documented in plan), the metadata count could diverge from UI count, breaking Playwright assertions.
-- **Evidence:** `plan.md:292-297` (Derived State & Invariants, shopping list detail)
+- **Source dataset:** Mapped from `kitsQuery.data` via `mapShoppingListKitLinks` (plan:402, detail-header-slots.tsx:129 confirmed in file read). Source is the full TanStack Query response; no filtering applied in the mapper (plan doesn't provide evidence of mapper implementation, but line 129 suggests it's a pure transform).
+- **Write / cleanup triggered:** Drives conditional rendering of kit chips in body (Slice 5). Updates instrumentation metadata with `kitLinkCount` and `statusCounts` (detail-header-slots.tsx:136-146 confirmed in file read). No cache writes or navigation.
+- **Guards:** `kitsQuery.isLoading` shows skeleton; `linkedKits.length > 0` determines chip section visibility (plan:404).
+- **Invariant:** Kit link count in instrumentation metadata (line 138) must match `linkedKits.length` and must equal `kitsQuery.data?.kits.length` (or equivalent response array). The plan correctly identifies this (plan:405) but doesn't verify that `mapShoppingListKitLinks` is a 1:1 transform (no filtering). **Risk:** If the mapper filters out certain kit statuses or link types, instrumentation will report incorrect counts.
+- **Evidence:** `plan.md:401-406`, `detail-header-slots.tsx:129, 136-146`
 
-### Derived value: sortedShoppingLinks (kit detail header)
+### Derived value: Attribute badge values (Pick list detail)
 
-- **Source dataset:** Sorted from `kit.shoppingListLinks` array via `sortShoppingLinks` helper (kit-detail-header.tsx:139). Sort order: status (concept → ready → done) then name (alphabetical).
-- **Write / cleanup triggered:** Used to compute `hasShoppingLists` (see above) and to iterate over chip elements in body rendering (Slice 4 will add `sortedShoppingLinks.map(...)` in kit-detail.tsx).
-- **Guards:** None; sorting is pure function with no side effects.
-- **Invariant:** Sorting must not filter or mutate the source array. If `sortShoppingLinks` later adds status-based filtering (e.g., "hide completed lists"), the invariant that `sortedShoppingLinks.length === kit.shoppingListLinks.length` will break, and `hasShoppingLists` logic must be updated to use the unfiltered source.
-- **Evidence:** `plan.md:139-140, 285-290` (kit-detail-header.tsx:106-115 cited as sortShoppingLinks implementation, though not shown in plan)
-
-### Derived value: activeShoppingMemberships (part detail)
-
-- **Source dataset:** Filtered from `memberships` array (deduplicated by `listId`) to produce unique shopping list chips (part-details.tsx:140-152).
-- **Write / cleanup triggered:** Determines whether to render shopping list chips in body content (part-details.tsx:383-391). No cache writes or navigation triggered.
-- **Guards:** Conditional rendering: `if (activeShoppingMemberships.length > 0) { render chips } else if (!hasKitMemberships) { render empty state }` (part-details.tsx:364-375).
-- **Invariant:** Deduplication must preserve membership metadata (listId, listName, listStatus) without losing data. If the deduplication logic changes to filter by status (e.g., exclude 'done' lists), the chip rendering will change and tests must be updated.
-- **Evidence:** `plan.md:32` (part detail pattern reference; actual part-details.tsx implementation reviewed in file reads)
+- **Source dataset:** Computed from `detail.requestedUnits`, `detail.lineCount`, `detail.openLineCount`, `detail.remainingQuantity` (plan:409-410, pick-list-detail.tsx:196-219 confirmed in file read). Source is unfiltered detail object fields.
+- **Write / cleanup triggered:** No writes. Purely presentational; badges display computed values. No side effects.
+- **Guards:** `detail` existence check before rendering badges (plan:411).
+- **Invariant:** Badge labels must remain `<key>: <value>` format when migrating to KeyValueBadge (plan:412). Current implementation uses `label="Requested units"` and `value={NUMBER_FORMATTER.format(detail.requestedUnits)}` (confirmed in file read lines 196-219). Migration to KeyValueBadge preserves this format as long as KeyValueBadge renders `{label}: {value}` (plan:396 confirms this). **No risk** as long as KeyValueBadge component follows the documented format.
+- **Evidence:** `plan.md:408-413`, `pick-list-detail.tsx:194-221`
 
 ---
 
 ## 7) Risks & Mitigations (top 3)
 
-### Risk: Playwright specs break due to missing testid for body link chips container
+### Risk: Factory helpers for kit ↔ shopping list linking don't exist; Slices 4-5 Playwright specs require test infrastructure
 
-- **Mitigation:** Before starting Slice 4, add `data-testid="kits.detail.body.links"` to the container element that wraps link chips in the body. Document this testid in Section 13 (Deterministic Test Plan) and ensure Playwright specs use it in selectors. Add parallel testid `data-testid="shopping-lists.detail.body.kits"` for shopping list detail in Slice 5.
-- **Evidence:** `plan.md:466-480, 482-494` (Section 13, kit and shopping list detail test plans)
+- **Mitigation:** Backend endpoints confirmed to exist (`POST /api/kits/{kit_id}/shopping-lists`, `DELETE /api/kit-shopping-list-links/{link_id}`, etc.). Before Slice 4 Playwright specs, extend `tests/api/factories/kit-factory.ts` with `linkShoppingList(kitId, listId)` and `createWithShoppingListLinks({ shoppingListIds })` helpers that wrap the POST endpoint. Similarly extend `tests/api/factories/shopping-list-factory.ts` with `linkToKit(listId, kitId)` for Slice 5. If factory work is deferred, Slices 4-5 can ship UI changes with manual test coverage; Playwright specs added in follow-up.
+- **Evidence:** `plan.md:302-314, 589, 605` — Plan documents factory extensions but doesn't add them to Slice 4/5 dependencies. Endpoints exist at openapi.json:12522, 11673, 12472, 15145.
 
-### Risk: Build target badge relocation ships without Playwright coverage
+### Risk: Instrumentation metadata (`renderLocation: 'body'`) never gets emitted; Playwright specs fail
 
-- **Mitigation:** Add `tests/e2e/kits/kit-detail.spec.ts` to Slice 3 "Touches" list. Write a scenario that asserts `data-testid="kits.detail.badge.build-target"` exists in the element with `data-testid="kits.detail.header.badges"` (metadataRow) and does *not* exist in titleMetadata. Run the updated spec locally before marking Slice 3 complete.
-- **Evidence:** `plan.md:549-555` (Slice 3 does not list Playwright spec updates)
+- **Mitigation:** Add explicit implementation step to Slice 4: update `getLinksReadyMetadata` callback in `src/components/kits/kit-detail.tsx` (lines 92-102 per plan:486) to return `{ ...existingMetadata, shoppingLists: { ...existingCounts, renderLocation: 'body' } }`. Repeat for shopping list detail in Slice 5 (update `src/components/shopping-lists/detail-header-slots.tsx` lines 136-146 per plan:494). Verify instrumentation emits correctly by running Playwright spec with `await testEvents.dumpEvents()` and inspecting `ui_state` payload for `kits.detail.links` scope.
+- **Evidence:** `plan.md:486-487, 494-496, 588, 604` — Test scenarios reference this metadata but no implementation slice adds it.
 
-### Risk: KeyValueBadge className override defeats color standardization
+### Risk: StatusBadge color-only approach changes visual hierarchy from current multi-variant badges
 
-- **Mitigation:** Document in Section 3 (Data Model / Contracts) that `color` prop is the primary API for palette enforcement and that `className` should only be used for additional spacing/sizing adjustments, not color overrides. Add a comment in the KeyValueBadge implementation (Slice 1) that warns "Do not override color classes via className; use the color prop instead." Consider adding an ESLint rule (out of scope for this plan) that flags `className="bg-*"` usage on KeyValueBadge call sites.
-- **Evidence:** `plan.md:266-277` (KeyValueBadge flow description with className override mention)
+- **Mitigation:** Design decision confirmed: StatusBadge intentionally removes variant prop and relies on bold color palette only. Before Slice 2 migration, document the visual change: current shopping list "done" status uses outline variant (border-only, lower visual weight) while new StatusBadge renders filled badge with inactive color. Update plan Section 2 to call out this intentional design change. Consider adding a visual comparison screenshot to plan_review.md showing before/after for key status values to ensure stakeholders approve the visual hierarchy change.
+- **Evidence:** `plan.md:165-171, 240-260` — StatusBadge uses status-to-color mapping only; current shopping list (detail-header-slots.tsx:43-47) uses multi-variant. Design confirmed as intentional standardization.
 
 ---
 
 ## 8) Confidence
 
-**Confidence: Medium** — The plan is well-researched and demonstrates strong understanding of the codebase architecture, instrumentation requirements, and TanStack Query patterns. However, the missing backend factory extensions, undocumented testid additions, and Slice 3 Playwright gap elevate risk for CI failures and incomplete test coverage. Addressing the four GO-WITH-CONDITIONS items (backend factories, instrumentation metadata, build target badge test coverage, and KeyValueBadge API contract) will elevate confidence to High. The plan's slice structure is logical, and the color standardization is straightforward, so implementation risk is low once the test coordination is resolved.
+**Confidence: High** — Research is thorough, implementation slices are well-structured, and critical design questions have been resolved. Backend endpoints confirmed to exist (openapi.json:12522, 11673, 12472, 15145); factory helpers are straightforward to implement. KeyValueBadge default color confirmed as neutral. StatusBadge variant removal confirmed as intentional design standardization. One remaining gap: instrumentation metadata updates (`renderLocation: 'body'`) must be added to implementation slices (Slices 4-5) with explicit file locations and code snippets. Once metadata updates are documented, plan is ready for implementation.

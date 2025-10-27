@@ -141,6 +141,10 @@ Entity status badges use saturated, high-contrast colors. The palette uses **3 c
 | **archived** | Kits | inactive | Soft-deleted, hidden behind filter |
 | **completed** | Pick lists | success | Successfully picked all parts |
 
+**Design Note — StatusBadge Intentionally Removes Multi-Variant Approach:**
+
+Current status badge implementations use different Badge `variant` props per status (e.g., shopping list statuses use `concept: 'default'`, `ready: 'secondary'`, `done: 'outline'` as documented in detail-header-slots.tsx:43-47). StatusBadge intentionally replaces this multi-variant approach with a unified bold color palette using a single Badge variant (relying on color classes for distinction). This is a deliberate visual standardization: current visual distinctions (e.g., outline variant for 'done' status showing border-only, lower visual weight) are replaced with color-based semantics. The bold, saturated background colors (`bg-blue-600 text-white` for active, `bg-slate-400 text-slate-700` for inactive, `bg-emerald-600 text-white` for success) provide clear visual hierarchy without requiring variant diversity.
+
 **Color Migration Map:**
 
 - **sky-100/sky-800** (shopping list "New" badge) → **blue-100/blue-800** (info) for KeyValueBadge
@@ -188,14 +192,14 @@ Entity status badges use saturated, high-contrast colors. The palette uses **3 c
 **Evidence:** Lines 186-193 show Build target badge in titleMetadata; lines 203-236 render shopping list chips in metadataRow slot; lines 237-239 render empty state text
 
 **Area:** src/components/kits/kit-detail.tsx
-**Why:** Accept new `linkChips` slot from header and render below DetailScreenLayout in body content (similar to part detail pattern)
-**Evidence:** Lines 170-196 call createKitDetailHeaderSlots and spread slots into DetailScreenLayout (lines 300-308). Need to extract chips for body rendering.
+**Why:** Accept new `linkChips` slot from header and render below DetailScreenLayout in body content (similar to part detail pattern); update instrumentation metadata to emit `renderLocation: 'body'` field
+**Evidence:** Lines 170-196 call createKitDetailHeaderSlots and spread slots into DetailScreenLayout (lines 300-308). Need to extract chips for body rendering. Instrumentation at lines 92-102 uses `useUiStateInstrumentation` with `getLinksReadyMetadata` callback that needs `renderLocation: 'body'` field added.
 
 ### UI Components – Shopping List Detail Header
 
 **Area:** src/components/shopping-lists/detail-header-slots.tsx
-**Why:** Move kit link chips from metadataRow (lines 269-288) to separate slot for body rendering; update "New" badge color from sky to blue (line 241); remove any empty state handling for missing kit chips
-**Evidence:** Lines 269-288 conditionally render kit chips inside metadataRow when linkedKits.length > 0; line 241 uses sky-100/sky-800 colors
+**Why:** Move kit link chips from metadataRow (lines 269-288) to separate slot for body rendering; update "New" badge color from sky to blue (line 241); remove any empty state handling for missing kit chips; update instrumentation metadata to emit `renderLocation: 'body'` field
+**Evidence:** Lines 269-288 conditionally render kit chips inside metadataRow when linkedKits.length > 0; line 241 uses sky-100/sky-800 colors. Instrumentation at lines 136-146 uses `getReadyMetadata` callback in `useListLoadingInstrumentation` that needs `renderLocation: 'body'` field added.
 
 **Area:** src/routes/shopping-lists/$listId.tsx
 **Why:** Accept new `linkChips` slot from header hook and render in body content below DetailScreenLayout
@@ -234,7 +238,7 @@ interface KeyValueBadgeProps {
   testId: string;
 }
 ```
-**Mapping:** Component accepts semantic color names and maps them to the canonical palette (Section 2). The `color` prop is optional; when omitted, the badge renders with a subtle default style (`bg-slate-50 text-slate-700` or outline-only). This allows informational badges (Total lines, Capacity) to remain visually quiet while badges conveying state (Open lines, Shortfall) use explicit semantic colors. The `variant` prop controls Badge visual style (outline, filled, etc.). **No className prop**—color abstraction is enforced to prevent Tailwind class soup at call sites.
+**Mapping:** Component accepts semantic color names and maps them to the canonical palette (Section 2). The `color` prop is optional; when omitted, the badge defaults to neutral color (`bg-slate-100 text-slate-700`). This allows informational badges (Total lines, Capacity) to remain visually quiet while badges conveying state (Open lines, Shortfall) use explicit semantic colors. The `variant` prop controls Badge visual style (outline, filled, etc.). **No className prop**—color abstraction is enforced to prevent Tailwind class soup at call sites.
 **Evidence:** Pattern exists in three existing wrappers: pick-list-detail.tsx:389-399, kit-detail.tsx:569-579, pick-list-lines.tsx:346-352
 
 **Entity / contract:** StatusBadge Props
@@ -302,16 +306,22 @@ No backend API changes. All data fetching hooks remain unchanged:
 **Required for deterministic test coverage:** Existing kit and shopping list factories (**tests/api/factories/kit-factory.ts** and **tests/api/factories/shopping-list-factory.ts**) do not currently expose helpers for linking kits ↔ shopping lists. Slices 4 and 5 require the following backend coordination:
 
 **Kit Factory Extension (tests/api/factories/kit-factory.ts):**
-- `linkShoppingList(kitId: number, listId: number): Promise<void>` — Creates kit → shopping list link via `POST /api/kits/{kit_id}/shopping-lists/{list_id}/link` (or equivalent backend endpoint)
+- `linkShoppingList(kitId: number, listId: number): Promise<void>` — Creates kit → shopping list link via `POST /api/kits/{kit_id}/shopping-lists` endpoint (confirmed to exist in openapi-cache/openapi.json:12522)
 - `createWithShoppingListLinks(options: { ...KitCreateOptions, shoppingListIds: number[] }): Promise<KitResponseSchema>` — Helper that creates a kit and links the specified shopping list IDs in one call
 
 **Shopping List Factory Extension (tests/api/factories/shopping-list-factory.ts):**
 - Current factory supports `createListWithLines` but no kit linking helper. Add:
 - `linkToKit(listId: number, kitId: number): Promise<void>` — Creates shopping list → kit link via backend API
 
-**Backend API Requirement:** If the backend does not yet expose kit ↔ shopping list linking endpoints for test setup (POST /api/kits/{kit_id}/shopping-lists/{list_id}/link or similar), those endpoints must be added before Slices 4-5 can ship complete Playwright coverage per AGENTS.md policy (playwright_developer_guide.md:14 "API-first data setup")
+**Backend API Status:** Backend endpoints confirmed to exist:
+- `POST /api/kits/{kit_id}/shopping-lists` (create/link shopping list to kit) — openapi.json:12522
+- `DELETE /api/kit-shopping-list-links/{link_id}` (unlink) — openapi.json:11673
+- `GET /api/kits/{kit_id}/shopping-lists` (fetch kit's shopping lists) — openapi.json:12472
+- `GET /api/shopping-lists/{list_id}/kits` (fetch shopping list's kits) — openapi.json:15145
 
-**Evidence:** tests/api/factories/kit-factory.ts:1-224 (no linkShoppingList helper), tests/api/factories/shopping-list-factory.ts:1-220 (no linkToKit helper)
+Only factory wrapper helpers need to be implemented before Slices 4-5 Playwright specs can be written.
+
+**Evidence:** tests/api/factories/kit-factory.ts:1-224 (no linkShoppingList helper), tests/api/factories/shopping-list-factory.ts:1-220 (no linkToKit helper), openapi-cache/openapi.json (endpoints confirmed)
 
 ---
 
@@ -677,24 +687,30 @@ No security or permission changes. Link chips navigate to existing routes with s
 
 ### Slice 4: Move Kit Detail Link Chips to Body & Remove Empty State
 
-**Goal:** Relocate shopping list chips from header to body content; remove empty state message
+**Goal:** Relocate shopping list chips from header to body content; remove empty state message; update instrumentation metadata
 **Touches:**
 - src/components/kits/kit-detail-header.tsx (return linkChips slot; remove empty state message at lines 237-239)
-- src/components/kits/kit-detail.tsx (render linkChips slot in body before BOM card)
-- tests/e2e/kits/kit-detail.spec.ts (update selectors; verify no empty state message)
+- src/components/kits/kit-detail.tsx (render linkChips slot in body before BOM card; update `getLinksReadyMetadata` callback at lines 92-94 to include `renderLocation: 'body'` field in metadata)
+- tests/api/factories/kit-factory.ts (add `linkShoppingList(kitId, listId)` and `createWithShoppingListLinks({ shoppingListIds })` helpers wrapping `POST /api/kits/{kit_id}/shopping-lists`)
+- tests/e2e/kits/kit-detail.spec.ts (update selectors; verify no empty state message; add scenario asserting `metadata.shoppingLists.renderLocation === 'body'` in UiState event)
 - tests/support/page-objects/kits-page.ts (update locators)
 
-**Dependencies:** Slices 1-3 complete; ensures header is fully standardized before chip relocation
+**Dependencies:**
+- Slices 1-3 complete; ensures header is fully standardized before chip relocation
+- **Test setup prerequisite:** Implement factory helpers (`linkShoppingList`, `createWithShoppingListLinks`) in `tests/api/factories/kit-factory.ts` before writing Playwright specs. Backend endpoints confirmed to exist at openapi.json:12522, 11673, 12472.
 
 ### Slice 5: Move Shopping List Detail Link Chips to Body & Remove Empty State
 
-**Goal:** Relocate kit chips from header to body content; ensure no empty state renders
+**Goal:** Relocate kit chips from header to body content; ensure no empty state renders; update instrumentation metadata
 **Touches:**
-- src/components/shopping-lists/detail-header-slots.tsx (return linkChips slot; ensure conditional rendering omits empty state)
+- src/components/shopping-lists/detail-header-slots.tsx (return linkChips slot; ensure conditional rendering omits empty state; update `getReadyMetadata` callback at lines 136-146 to include `renderLocation: 'body'` field in metadata)
 - src/routes/shopping-lists/$listId.tsx (render linkChips in body)
-- Playwright specs for shopping list detail (update selectors; verify no empty state)
+- tests/api/factories/shopping-list-factory.ts (add `linkToKit(listId, kitId)` helper wrapping backend API)
+- Playwright specs for shopping list detail (update selectors; verify no empty state; add scenario asserting `metadata.renderLocation === 'body'` in ListLoading event for 'shoppingLists.detail.kits' scope)
 
-**Dependencies:** Slice 4 complete; follows same pattern as kit detail
+**Dependencies:**
+- Slice 4 complete; follows same pattern as kit detail
+- **Test setup prerequisite:** Implement `testData.shoppingLists.linkToKit(listId, kitId)` factory helper in `tests/api/factories/shopping-list-factory.ts` before writing Playwright specs. Backend endpoint confirmed to exist at openapi.json:15145.
 
 ---
 
