@@ -355,7 +355,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
             </ul>
           </div>
           <Button type="button" size="sm" variant="outline" onClick={handleLinkBadgeRetry}>
-            Retry
+            Reload Data
           </Button>
         </div>
       );

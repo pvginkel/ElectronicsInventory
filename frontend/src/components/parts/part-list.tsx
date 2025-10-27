@@ -217,7 +217,7 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
     <div className="flex flex-wrap gap-2">
       {onCreateWithAI && (
         <Button onClick={onCreateWithAI} variant="ai_assisted">
-          Add with AI
+          Add Part with AI
         </Button>
       )}
       {onCreatePart && (

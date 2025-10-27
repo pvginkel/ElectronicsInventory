@@ -14,6 +14,7 @@ This section of the contributor docs captures the UI conventions that every feat
 - [Part Management Pattern](./patterns/part_management.md) – captures the richer workflow that spans list, detail, AI-assisted creation, attachments, and inventory actions.
 
 ## Shared Building Blocks
+- [Button Labeling Standards](./button_standards.md) – defines the `<verb> <noun>` pattern, business-function naming, accessibility requirements, and acceptable exceptions for all button labels.
 - [Form Conventions](./forms.md) – outlines how to compose dialogs, forms, validation, and instrumentation with `useFormState`, `useFormInstrumentation`, and the UI kit.
 - [Data Display Conventions](./data_display.md) – explains list/detail expectations, skeletons, empty states, and `useListLoadingInstrumentation` usage.
 

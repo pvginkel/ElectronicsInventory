@@ -30,7 +30,7 @@ export class PartsPage extends BasePage {
     this.emptyState = page.getByTestId('parts.list.empty');
     this.noResultsState = page.getByTestId('parts.list.no-results');
     this.errorState = page.getByTestId('parts.list.error');
-    this.addPartButton = page.getByRole('button', { name: /add part/i });
+    this.addPartButton = page.getByTestId('parts.list.add');
     this.addWithAIButton = page.getByRole('button', { name: /add part with ai/i });
   }
 
