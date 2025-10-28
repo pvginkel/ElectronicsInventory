@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from '@tanstack/react-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { AlertTriangle, Plus } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,12 @@ import { useKitShoppingListUnlinkMutation } from '@/hooks/use-kit-shopping-list-
 import { useToast } from '@/hooks/use-toast';
 import { emitTestEvent } from '@/lib/test/event-emitter';
 import { ApiError } from '@/lib/api/api-error';
+import { trackFormError, trackFormSubmit, trackFormSuccess } from '@/lib/test/form-instrumentation';
+import {
+  usePostKitsArchiveByKitId,
+  usePostKitsUnarchiveByKitId,
+  useDeleteKitsByKitId,
+} from '@/lib/api/generated/hooks';
 import type { UiStateTestEvent } from '@/types/test-events';
 import type {
   KitContentAggregates,
@@ -40,11 +47,17 @@ const SUMMARY_FORMATTER = new Intl.NumberFormat();
 const SHOPPING_LIST_FLOW_SCOPE = 'kits.detail.shoppingListFlow';
 type ShoppingListFlowPhase = Extract<UiStateTestEvent['phase'], 'open' | 'submit' | 'success' | 'error'>;
 
+const ARCHIVE_FORM_ID = 'KitLifecycle:archive';
+const UNARCHIVE_FORM_ID = 'KitLifecycle:unarchive';
+const DELETE_FORM_ID = 'KitLifecycle:delete';
+
 function emitUiState(payload: Omit<UiStateTestEvent, 'timestamp'>) {
   emitTestEvent(payload);
 }
 
 export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailProps) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const {
     isKitIdValid,
     detail,
@@ -108,6 +121,117 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
   const { showSuccess, showWarning, showException } = useToast();
   const [isCreatePickListDialogOpen, setCreatePickListDialogOpen] = useState(false);
 
+  const isMountedRef = useRef(true);
+  const undoInFlightRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Archive/unarchive/delete mutations
+  const unarchiveMutation = usePostKitsUnarchiveByKitId({
+    onSuccess: async () => {
+      if (!detail) return;
+      const undoTriggered = undoInFlightRef.current;
+      trackFormSuccess(UNARCHIVE_FORM_ID, { kitId: detail.id, targetStatus: 'active', ...(undoTriggered ? { undo: true } : {}) });
+
+      // Invalidate queries and wait for refetch to complete
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['getKits'] }),
+        queryClient.invalidateQueries({ queryKey: ['getKitById', detail.id] }),
+        queryClient.invalidateQueries({ queryKey: ['kits.shoppingListMemberships'] }),
+        queryClient.invalidateQueries({ queryKey: ['kits.pickListMemberships'] }),
+      ]);
+
+      if (undoTriggered) {
+        showSuccess(`Restored "${detail.name}" to Active`);
+      } else {
+        showSuccess(`Unarchived "${detail.name}"`);
+      }
+      undoInFlightRef.current = false;
+    },
+    onError: (error) => {
+      if (!detail) return;
+      trackFormError(UNARCHIVE_FORM_ID, { kitId: detail.id, targetStatus: 'active', undo: undoInFlightRef.current });
+      showException(`Failed to unarchive "${detail.name}"`, error);
+      undoInFlightRef.current = false;
+    },
+  });
+
+  const handleUndo = useCallback(() => {
+    if (!detail || undoInFlightRef.current) return;
+    undoInFlightRef.current = true;
+    trackFormSubmit(UNARCHIVE_FORM_ID, { kitId: detail.id, targetStatus: 'active', undo: true });
+    unarchiveMutation.mutateAsync({ path: { kit_id: detail.id } }).catch(() => {
+      // onError handles feedback
+    });
+  }, [detail, unarchiveMutation]);
+
+  const archiveMutation = usePostKitsArchiveByKitId({
+    onSuccess: async () => {
+      if (!detail) return;
+      trackFormSuccess(ARCHIVE_FORM_ID, { kitId: detail.id, targetStatus: 'archived' });
+
+      // Invalidate queries and wait for refetch to complete
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['getKits'] }),
+        queryClient.invalidateQueries({ queryKey: ['getKitById', detail.id] }),
+        queryClient.invalidateQueries({ queryKey: ['kits.shoppingListMemberships'] }),
+        queryClient.invalidateQueries({ queryKey: ['kits.pickListMemberships'] }),
+      ]);
+
+      showSuccess(`Archived "${detail.name}"`, {
+        action: {
+          id: 'undo',
+          label: 'Undo',
+          testId: `kits.overview.toast.undo.${detail.id}`,
+          onClick: handleUndo,
+        },
+      });
+    },
+    onError: (error) => {
+      if (!detail) return;
+      trackFormError(ARCHIVE_FORM_ID, { kitId: detail.id, targetStatus: 'archived' });
+      showException(`Failed to archive "${detail.name}"`, error);
+    },
+  });
+
+  const deleteKitMutation = useDeleteKitsByKitId({
+    onSuccess: async () => {
+      if (!detail) return;
+      const kitId = detail.id;
+      const kitName = detail.name;
+
+      trackFormSuccess(DELETE_FORM_ID, { kitId });
+
+      // Cancel and remove the deleted kit's query to prevent refetch attempts
+      await queryClient.cancelQueries({ queryKey: ['getKitById', kitId] });
+      queryClient.removeQueries({ queryKey: ['getKitById', kitId] });
+
+      // Invalidate list queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['getKits'] }),
+        queryClient.invalidateQueries({ queryKey: ['kits.shoppingListMemberships'] }),
+        queryClient.invalidateQueries({ queryKey: ['kits.pickListMemberships'] }),
+      ]);
+
+      showSuccess(`Deleted kit "${kitName}"`);
+      navigate({ to: '/kits', search: { status: overviewStatus } });
+    },
+    onError: (error) => {
+      if (!detail) return;
+      trackFormError(DELETE_FORM_ID, { kitId: detail.id });
+      if (error instanceof ApiError && error.status === 404) {
+        showWarning('Kit was already deleted. Returning to kit list.');
+        navigate({ to: '/kits', search: { status: overviewStatus } });
+        return;
+      }
+      showException('Failed to delete kit', error);
+    },
+  });
+
   const handleMetadataOpen = useCallback(() => {
     if (!detail || detail.status !== 'active') {
       return;
@@ -163,8 +287,39 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
     setCreatePickListDialogOpen(true);
   }, [detail]);
 
+  const handleArchiveClick = useCallback(() => {
+    if (!detail || archiveMutation.isPending || unarchiveMutation.isPending || deleteKitMutation.isPending) return;
+    trackFormSubmit(ARCHIVE_FORM_ID, { kitId: detail.id, targetStatus: 'archived' });
+    archiveMutation.mutateAsync({ path: { kit_id: detail.id } }).catch(() => {
+      // onError handles feedback
+    });
+  }, [detail, archiveMutation, unarchiveMutation, deleteKitMutation]);
+
+  const handleUnarchiveClick = useCallback(() => {
+    if (!detail || archiveMutation.isPending || unarchiveMutation.isPending || deleteKitMutation.isPending) return;
+    trackFormSubmit(UNARCHIVE_FORM_ID, { kitId: detail.id, targetStatus: 'active' });
+    unarchiveMutation.mutateAsync({ path: { kit_id: detail.id } }).catch(() => {
+      // onError handles feedback
+    });
+  }, [detail, archiveMutation, unarchiveMutation, deleteKitMutation]);
+
+  const handleDeleteClick = useCallback(async () => {
+    if (!detail || archiveMutation.isPending || unarchiveMutation.isPending || deleteKitMutation.isPending) return;
+
+    // Note: Using window.confirm for simplicity, matching parts pattern
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${detail.name}"? This action cannot be undone and will only succeed if the kit has no dependencies.`
+    );
+
+    if (!confirmed) return;
+
+    trackFormSubmit(DELETE_FORM_ID, { kitId: detail.id });
+    deleteKitMutation.mutate({ path: { kit_id: detail.id } });
+  }, [detail, archiveMutation, unarchiveMutation, deleteKitMutation]);
+
   const canOrderStock = detail ? detail.status === 'active' && detail.contents.length > 0 : false;
   const canUnlinkShoppingList = detail ? detail.status === 'active' : false;
+  const isMutationPending = archiveMutation.isPending || unarchiveMutation.isPending || deleteKitMutation.isPending;
 
   const headerSlots = useMemo(
     () =>
@@ -179,6 +334,10 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
         onUnlinkShoppingList: canUnlinkShoppingList ? handleUnlinkRequest : undefined,
         canUnlinkShoppingList,
         unlinkingLinkId,
+        onArchive: handleArchiveClick,
+        onUnarchive: handleUnarchiveClick,
+        onDelete: handleDeleteClick,
+        menuPending: isMutationPending,
       }),
     [
       canOrderStock,
@@ -187,10 +346,14 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
       handleMetadataOpen,
       handleShoppingListOpen,
       handleUnlinkRequest,
-      isPending,
+      handleArchiveClick,
+      handleUnarchiveClick,
+      handleDeleteClick,
+      isMutationPending,
       overviewSearch,
       overviewStatus,
       unlinkingLinkId,
+      isPending,
     ],
   );
 

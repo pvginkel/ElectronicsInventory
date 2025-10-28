@@ -7,7 +7,6 @@ import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 import { KitCard } from '@/components/kits/kit-card';
-import { KitArchiveControls } from '@/components/kits/kit-archive-controls';
 import { useKitsOverview } from '@/hooks/use-kits';
 import { useKitPickListMemberships, useKitShoppingListMemberships } from '@/hooks/use-kit-memberships';
 import { useDebouncedValue } from '@/lib/utils/debounce';
@@ -265,7 +264,6 @@ export function KitOverviewList({
           <KitCard
             key={kit.id}
             kit={kit}
-            controls={<KitArchiveControls kit={kit} search={debouncedSearch} />}
             shoppingIndicator={{
               summary: shoppingMemberships.summaryByKitId.get(kit.id),
               status: shoppingMemberships.status,

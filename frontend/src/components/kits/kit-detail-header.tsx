@@ -2,8 +2,15 @@
 import { type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { StatusBadge, KeyValueBadge } from '@/components/ui';
 import { ShoppingListLinkChip } from '@/components/shopping-lists/shopping-list-link-chip';
+import { MoreVerticalIcon } from '@/components/icons/MoreVerticalIcon';
 import type { KitDetail, KitShoppingListLink, KitStatus } from '@/types/kits';
 
 export interface KitDetailHeaderSlots {
@@ -27,6 +34,10 @@ export interface KitDetailHeaderOptions {
   onUnlinkShoppingList?: (link: KitShoppingListLink) => void;
   canUnlinkShoppingList?: boolean;
   unlinkingLinkId?: number | null;
+  onArchive?: () => void;
+  onUnarchive?: () => void;
+  onDelete?: () => void;
+  menuPending?: boolean;
 }
 
 // Map kit status to badge props
@@ -60,6 +71,10 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
     onUnlinkShoppingList,
     canUnlinkShoppingList,
     unlinkingLinkId,
+    onArchive,
+    onUnarchive,
+    onDelete,
+    menuPending = false,
   } = options;
 
   if (isLoading) {
@@ -255,6 +270,47 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
             </Button>
           )}
         </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              data-testid="kits.detail.actions.menu"
+              aria-label="More Actions"
+              disabled={menuPending}
+            >
+              <MoreVerticalIcon className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {kit.status === 'active' && onArchive ? (
+              <DropdownMenuItem
+                onClick={onArchive}
+                disabled={menuPending}
+                data-testid="kits.detail.actions.archive"
+              >
+                Archive
+              </DropdownMenuItem>
+            ) : null}
+            {kit.status === 'archived' && onUnarchive ? (
+              <DropdownMenuItem
+                onClick={onUnarchive}
+                disabled={menuPending}
+                data-testid="kits.detail.actions.unarchive"
+              >
+                Unarchive
+              </DropdownMenuItem>
+            ) : null}
+            {onDelete ? (
+              <DropdownMenuItem
+                onClick={onDelete}
+                disabled={menuPending}
+                data-testid="kits.detail.actions.delete"
+              >
+                Delete Kit
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     ),
   };

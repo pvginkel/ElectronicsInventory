@@ -102,7 +102,6 @@ function mapKitShoppingMembership(raw: ShoppingMembershipSchema): KitShoppingLis
     status: raw.status,
     requestedUnits: raw.requested_units ?? 0,
     honorReserved: raw.honor_reserved ?? false,
-    isStale: raw.is_stale ?? false,
     snapshotKitUpdatedAt: raw.snapshot_kit_updated_at,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,

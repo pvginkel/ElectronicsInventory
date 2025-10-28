@@ -82,7 +82,6 @@ export interface KitShoppingListMembership {
   status: ShoppingListStatus;
   requestedUnits: number;
   honorReserved: boolean;
-  isStale: boolean;
   snapshotKitUpdatedAt: string;
   createdAt: string;
   updatedAt: string;
@@ -266,7 +265,6 @@ export interface KitShoppingListLink {
   shoppingListId: number;
   name: string;
   status: ShoppingListStatus;
-  isStale: boolean;
   honorReserved: boolean;
   requestedUnits: number;
   snapshotKitUpdatedAt: string;
@@ -447,7 +445,6 @@ export function mapKitShoppingListLink(model: KitDetailResponseSchema_b98797e_Ki
     shoppingListId: model.shopping_list_id,
     name: model.shopping_list_name,
     status: model.status,
-    isStale: model.is_stale,
     honorReserved: model.honor_reserved,
     requestedUnits: clampNonNegative(model.requested_units),
     snapshotKitUpdatedAt: model.snapshot_kit_updated_at,

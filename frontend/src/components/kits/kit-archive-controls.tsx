@@ -91,7 +91,12 @@ export function KitArchiveControls({ kit, search }: KitArchiveControlsProps) {
       undoInFlightRef.current = false;
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ['getKits'] });
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['getKits'] }),
+        queryClient.invalidateQueries({ queryKey: ['getKitById', kit.id] }),
+        queryClient.invalidateQueries({ queryKey: ['kits.shoppingListMemberships'] }),
+        queryClient.invalidateQueries({ queryKey: ['kits.pickListMemberships'] }),
+      ]);
     },
   });
 
@@ -138,7 +143,12 @@ export function KitArchiveControls({ kit, search }: KitArchiveControlsProps) {
       });
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ['getKits'] });
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['getKits'] }),
+        queryClient.invalidateQueries({ queryKey: ['getKitById', kit.id] }),
+        queryClient.invalidateQueries({ queryKey: ['kits.shoppingListMemberships'] }),
+        queryClient.invalidateQueries({ queryKey: ['kits.pickListMemberships'] }),
+      ]);
     },
   });
 

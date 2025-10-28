@@ -125,7 +125,8 @@ export function ShoppingListLinkChip({
           variant="ghost"
           size="sm"
           className={cn(
-            'ml-1 h-6 w-6 flex-shrink-0 rounded-full p-0 text-muted-foreground transition-colors hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            'ml-1 h-6 w-6 flex-shrink-0 rounded-full p-0 text-muted-foreground transition-all hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100',
           )}
           onClick={handleUnlinkClick}
           disabled={unlinkDisabled}

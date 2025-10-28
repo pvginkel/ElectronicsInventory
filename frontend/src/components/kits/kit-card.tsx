@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Card, CardDescription, CardFooter, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { MembershipIndicator } from '@/components/common/membership-indicator';
@@ -21,7 +21,6 @@ interface MembershipIndicatorState<TSummary> {
 
 interface KitCardProps {
   kit: KitSummary;
-  controls?: ReactNode;
   className?: string;
   shoppingIndicator: MembershipIndicatorState<KitShoppingListMembershipSummary>;
   pickIndicator: MembershipIndicatorState<KitPickListMembershipSummary>;
@@ -30,7 +29,6 @@ interface KitCardProps {
 
 export function KitCard({
   kit,
-  controls,
   className,
   shoppingIndicator,
   pickIndicator,
@@ -131,12 +129,6 @@ export function KitCard({
           </CardDescription>
         ) : null}
       </div>
-
-      {controls && (
-        <CardFooter className="mt-auto flex items-center justify-end gap-2 p-0">
-          {controls}
-        </CardFooter>
-      )}
     </Card>
   );
 }
@@ -201,13 +193,6 @@ function renderKitShoppingTooltip(summary: KitShoppingListMembershipSummary): Re
             detailItems.push(
               <span key="reserved" className="font-medium text-muted-foreground/80">
                 Honors reservations
-              </span>
-            );
-          }
-          if (membership.isStale) {
-            detailItems.push(
-              <span key="stale" className="font-medium text-amber-600">
-                Needs refresh
               </span>
             );
           }

@@ -161,6 +161,9 @@ test.describe('Kits overview', () => {
   test('archives a kit with undo toast flow', async ({ kits, testData, toastHelper, page }) => {
     const kit = await testData.kits.create({ overrides: { name: 'Undo Flow Kit' } });
     await kits.gotoOverview();
+    await expect(kits.cardById(kit.id)).toBeVisible();
+    await kits.openDetailFromCard(kit.id);
+    await waitForListLoading(page, 'kits.detail', 'ready');
 
     const submitEventPromise = waitTestEvent<FormTestEvent>(page, 'form', (event) =>
       event.formId === 'KitLifecycle:archive' && event.phase === 'submit' && Number(event.metadata?.kitId) === kit.id,
@@ -172,18 +175,16 @@ test.describe('Kits overview', () => {
       event.message.includes(kit.name) && event.action === 'undo',
     );
 
-    await kits.archiveButton(kit.id).click();
+    await kits.detailMenuButton.click();
+    await kits.detailArchiveMenuItem.click();
     await submitEventPromise;
     await successEventPromise;
     await toastEventPromise;
 
-    const undoToast = await toastHelper.waitForToastWithText(new RegExp(`Archived "${kit.name}"`));
-    await expect(kits.cardById(kit.id)).toHaveCount(0);
-    const archivedReady = waitForListLoading(page, 'kits.overview', 'ready');
-    await kits.selectTab('archived');
-    await archivedReady;
-    await expect(kits.cardById(kit.id, 'archived')).toBeVisible();
+    // Wait for toast to be visible
+    await toastHelper.expectSuccessToast(/Archived/i);
 
+    // Set up undo event listeners BEFORE clicking undo
     const undoSubmit = waitTestEvent<FormTestEvent>(page, 'form', (event) =>
       event.formId === 'KitLifecycle:unarchive' && event.phase === 'submit' && Number(event.metadata?.kitId) === kit.id && event.metadata?.undo === true,
     );
@@ -194,8 +195,15 @@ test.describe('Kits overview', () => {
       event.message.includes('Restored') && !event.action,
     );
 
-    await undoToast.getByTestId(`kits.overview.toast.undo.${kit.id}`).click();
+    // Find and click undo button immediately while toast is still visible
+    const undoButton = page.getByTestId(`kits.overview.toast.undo.${kit.id}`);
+    await undoButton.click();
+
     await Promise.all([undoSubmit, undoSuccess, undoToastEvent]);
+
+    // Navigate back to overview to verify kit is back in active tab
+    await kits.goto('/kits');
+    await expect(kits.overviewRoot).toBeVisible();
 
     const returnReady = waitForListLoading(page, 'kits.overview', 'ready');
     await kits.selectTab('active');

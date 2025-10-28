@@ -1221,6 +1221,143 @@ test.describe('Kit detail workspace', () => {
     await expect(kits.detailRowDeleteButton(content.id)).toBeDisabled();
   });
 
+  test('unarchives a kit from detail screen ellipsis menu', async ({
+    kits,
+    testData,
+    toastHelper,
+    page,
+    apiClient,
+  }) => {
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Unarchive Test Kit'),
+        build_target: 2,
+      },
+    });
+    await apiClient.POST('/api/kits/{kit_id}/archive', {
+      params: { path: { kit_id: kit.id } },
+    });
+
+    await kits.gotoOverview();
+    await kits.selectTab('archived');
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await kits.openDetailFromCard(kit.id, 'archived');
+    await waitForListLoading(page, 'kits.detail', 'ready');
+
+    await expect(kits.detailStatusBadge).toContainText(/Archived/i);
+
+    const submitEventPromise = waitTestEvent<FormTestEvent>(
+      page,
+      'form',
+      (event) =>
+        event.formId === 'KitLifecycle:unarchive' &&
+        event.phase === 'submit' &&
+        Number(event.metadata?.kitId) === kit.id
+    );
+    const successEventPromise = waitTestEvent<FormTestEvent>(
+      page,
+      'form',
+      (event) =>
+        event.formId === 'KitLifecycle:unarchive' &&
+        event.phase === 'success' &&
+        Number(event.metadata?.kitId) === kit.id
+    );
+
+    await kits.detailMenuButton.click();
+    await kits.detailUnarchiveMenuItem.click();
+
+    await submitEventPromise;
+    await successEventPromise;
+
+    // Wait for toast to appear
+    await toastHelper.expectSuccessToast(/Unarchived/i);
+
+    // Verify backend was updated
+    await expect(async () => {
+      const backendDetail = await testData.kits.getDetail(kit.id);
+      expect(backendDetail.status).toBe('active');
+    }).toPass({ timeout: 5000 });
+
+    // Status badge should update after backend confirms the change
+    await expect(kits.detailStatusBadge).toContainText(/Active/i, { timeout: 15000 });
+  });
+
+  test('deletes a kit from detail screen ellipsis menu', async ({
+    kits,
+    testData,
+    toastHelper,
+    page,
+  }) => {
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Delete Test Kit'),
+        build_target: 1,
+      },
+    });
+
+    await kits.gotoOverview();
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await kits.openDetailFromCard(kit.id);
+    await waitForListLoading(page, 'kits.detail', 'ready');
+
+    const submitEventPromise = waitTestEvent<FormTestEvent>(
+      page,
+      'form',
+      (event) =>
+        event.formId === 'KitLifecycle:delete' &&
+        event.phase === 'submit' &&
+        Number(event.metadata?.kitId) === kit.id
+    );
+    const successEventPromise = waitTestEvent<FormTestEvent>(
+      page,
+      'form',
+      (event) =>
+        event.formId === 'KitLifecycle:delete' &&
+        event.phase === 'success' &&
+        Number(event.metadata?.kitId) === kit.id
+    );
+
+    // Set up dialog handler BEFORE opening menu
+    page.once('dialog', async dialog => {
+      expect(dialog.type()).toBe('confirm');
+      expect(dialog.message()).toContain('Are you sure you want to delete');
+      await dialog.accept();
+    });
+
+    await kits.detailMenuButton.click();
+    await kits.detailDeleteMenuItem.click();
+
+    await submitEventPromise;
+    await successEventPromise;
+
+    await toastHelper.expectSuccessToast(/Deleted/i);
+
+    // Should navigate back to overview after delete
+    await expect(kits.overviewRoot).toBeVisible({ timeout: 10000 });
+    await waitForListLoading(page, 'kits.overview', 'ready');
+
+    // Wait for all queries to settle after navigation
+    await page.waitForTimeout(1000);
+
+    // Verify kit is not in backend
+    await expect(async () => {
+      try {
+        await testData.kits.getDetail(kit.id);
+        throw new Error('Kit should have been deleted but still exists');
+      } catch (error: unknown) {
+        // Expected: kit should not be found (404 or other error)
+        if (error instanceof Error && error.message.includes('still exists')) {
+          throw error;
+        }
+        // Any other error is expected (404, etc)
+      }
+    }).toPass({ timeout: 5000 });
+  });
+
   test('orders stock into a Concept list and supports unlinking from kit detail', async ({ kits, testData, toastHelper, page, apiClient }) => {
     const { part } = await testData.parts.create({ overrides: { description: 'Shopping Flow Part' } });
     const partMetadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>

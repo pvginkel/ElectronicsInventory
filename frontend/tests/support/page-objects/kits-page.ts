@@ -41,6 +41,10 @@ export class KitsPage extends BasePage {
   readonly detailEditButton: Locator;
   readonly detailEditWrapper: Locator;
   readonly detailEditTooltip: Locator;
+  readonly detailMenuButton: Locator;
+  readonly detailArchiveMenuItem: Locator;
+  readonly detailUnarchiveMenuItem: Locator;
+  readonly detailDeleteMenuItem: Locator;
   readonly detailCreatePickListDialog: Locator;
   readonly detailCreatePickListForm: Locator;
   readonly detailCreatePickListRequestedUnits: Locator;
@@ -108,6 +112,10 @@ export class KitsPage extends BasePage {
     this.detailEditButton = page.getByTestId('kits.detail.actions.edit');
     this.detailEditWrapper = page.getByTestId('kits.detail.actions.edit.wrapper');
     this.detailEditTooltip = page.getByTestId('kits.detail.actions.edit.tooltip');
+    this.detailMenuButton = page.getByTestId('kits.detail.actions.menu');
+    this.detailArchiveMenuItem = page.getByTestId('kits.detail.actions.archive');
+    this.detailUnarchiveMenuItem = page.getByTestId('kits.detail.actions.unarchive');
+    this.detailDeleteMenuItem = page.getByTestId('kits.detail.actions.delete');
     this.detailCreatePickListDialog = page.getByTestId('kits.detail.pick-list.create.dialog');
     this.detailCreatePickListForm = page.getByTestId('kits.detail.pick-list.create.form');
     this.detailCreatePickListRequestedUnits = page.getByTestId('kits.detail.pick-list.create.field.requested-units');
