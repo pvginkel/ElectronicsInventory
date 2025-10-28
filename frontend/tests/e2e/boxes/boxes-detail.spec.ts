@@ -74,4 +74,35 @@ test('shows usage metrics, location assignments, and supports deletion from deta
     await expect(boxes.detailRoot).toBeVisible()
     await toastHelper.dismissToast({ all: true })
   })
+
+  test('Usage badge displays danger color when usage reaches 90% threshold', async ({ boxes, parts, partsLocations, testData }) => {
+    const description = makeUnique('High Usage Box')
+    const capacity = 10
+    const box = await createBoxWithRetry(testData, { description, capacity })
+
+    // Create 9 parts and allocate them to reach 90% usage
+    for (let i = 1; i <= 9; i++) {
+      const { part } = await testData.parts.create({
+        overrides: { description: makeUnique(`High Usage Part ${i}`) }
+      })
+
+      await parts.gotoList()
+      await parts.waitForCards()
+      await parts.openCardByKey(part.key)
+
+      await partsLocations.expectEmpty()
+      await parts.detailRoot.getByRole('button', { name: /add stock/i }).click()
+      await partsLocations.fillAddLocation({ boxNo: box.box_no, locNo: i, quantity: 1 })
+      await partsLocations.saveNewLocation(part.key)
+      await partsLocations.waitForTotal(1)
+    }
+
+    await boxes.gotoList()
+    await boxes.openDetail(box.box_no)
+
+    const usageBadge = boxes.playwrightPage.getByTestId('boxes.detail.metadata.usage')
+    await expect(usageBadge).toBeVisible()
+    await expect(usageBadge).toContainText('Usage: 90%')
+    await expect(usageBadge).toHaveClass(/text-rose-800/)
+  })
 })

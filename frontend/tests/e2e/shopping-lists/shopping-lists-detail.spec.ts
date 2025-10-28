@@ -44,7 +44,10 @@ test.describe('Shopping List Detail Phase 2', () => {
     const kitsReady = waitForListLoading(shoppingLists.playwrightPage, 'shoppingLists.detail.kits', 'ready');
 
     await shoppingLists.gotoConcept(list.id);
-    await kitsReady;
+    const kitsEvent = await kitsReady;
+    expect(kitsEvent.metadata).toMatchObject({
+      renderLocation: 'body',
+    });
 
     await expect(shoppingLists.detailKitChips).toBeVisible();
     const kitChip = shoppingLists.kitChip(kit.id);

@@ -159,6 +159,7 @@ test.describe('Kit detail workspace', () => {
       shoppingLists: {
         count: 0,
         ids: [],
+        renderLocation: 'body',
       },
     });
     expect((linksEvent.metadata as Record<string, unknown> | undefined)?.pickLists).toBeUndefined();
@@ -572,6 +573,7 @@ test.describe('Kit detail workspace', () => {
       hasLinkedWork: Boolean(conceptLink),
       shoppingLists: {
         count: conceptLink ? 1 : 0,
+        renderLocation: 'body',
       },
     });
     expect((linksEvent.metadata as Record<string, unknown> | undefined)?.pickLists).toBeUndefined();
@@ -800,7 +802,10 @@ test.describe('Kit detail workspace', () => {
     expect(linksEvent.metadata).toMatchObject({
       kitId: kit.id,
       hasLinkedWork: false,
-      shoppingLists: { count: 0 },
+      shoppingLists: {
+        count: 0,
+        renderLocation: 'body',
+      },
     });
     expect(panelEvent.metadata).toMatchObject({
       kitId: kit.id,
