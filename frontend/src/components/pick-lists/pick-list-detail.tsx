@@ -174,15 +174,16 @@ export function PickListDetail({
         path: { pick_list_id: normalizedPickListId },
       });
 
-      // Navigate back to kit detail page FIRST, before invalidating caches
-      // This prevents the component from re-rendering before navigation completes
+      // Navigate immediately to prevent component re-render on deleted pick list.
+      // If we invalidated caches first, the detail query would refetch and return 404,
+      // causing the "not found" UI to briefly flash before navigation completes.
       navigate({
         to: '/kits/$kitId',
         params: { kitId: String(detail.kitId) },
         search: kitNavigationSearch ?? { status: 'active' },
       });
 
-      // Invalidate caches after navigation to update the kit detail page
+      // Invalidate caches after navigation so the kit detail page shows updated state
       await queryClient.invalidateQueries({
         queryKey: buildPickListDetailQueryKey(normalizedPickListId),
       });
@@ -205,7 +206,7 @@ export function PickListDetail({
         errorMessage: error instanceof Error ? error.message : String(error),
       });
       // Error toast is shown automatically by the mutation hook
-      throw error;
+      // No need to re-throw; error is already handled
     }
   };
 
