@@ -66,8 +66,8 @@ Add bidirectional unlinking between kits and shopping lists by extending kit lin
 - **Evidence:** src/components/kits/kit-link-chip.tsx:31-85 — current implementation has no unlink props; ShoppingListLinkChip pattern at src/components/shopping-lists/shopping-list-link-chip.tsx:39-140 provides reference
 
 - **Area:** Shopping list detail header slots
-- **Why:** Accept onUnlinkKit callback from route and thread it down to KitLinkChip components. Hook does not own unlink state or emit instrumentation.
-- **Evidence:** src/components/shopping-lists/detail-header-slots.tsx:244-267 — kit chips rendered without unlink props; needs onUnlinkKit callback prop added to ConceptHeaderProps interface; kit detail pattern at src/components/kits/kit-detail.tsx:338 shows callback passed to header slots
+- **Why:** Accept onUnlinkKit callback from route and thread it down to KitLinkChip components. Hook does not own unlink state or emit instrumentation. **Architectural decision:** Hook must return kitsQuery object to route so route can call explicit refetch after successful unlink (matches kit-detail pattern where useKitDetail returns query).
+- **Evidence:** src/components/shopping-lists/detail-header-slots.tsx:244-267 — kit chips rendered without unlink props; needs onUnlinkKit callback prop added to ConceptHeaderProps interface; kit detail pattern at src/components/kits/kit-detail.tsx:338 shows callback passed to header slots; kit-detail.tsx:62-72 shows route receives query object from hook
 
 - **Area:** Shopping list detail route
 - **Why:** Own all unlink state (linkToUnlink, unlinkingLinkId), mutation hook, confirmation dialog, instrumentation, and handlers. Pass onUnlinkKit callback to header slots hook.
@@ -218,7 +218,7 @@ Add bidirectional unlinking between kits and shopping lists by extending kit lin
   - Shopping list kits query (for list ID involved in unlink)
   - Global kit membership queries
 
-  **Explicit refetch required:** After cache invalidation, route must call `void kitsQuery.refetch()` to reload kit links immediately (matches codebase pattern at kit-detail.tsx:387, part-details.tsx:312). Invalidation alone does not trigger immediate UI update. Route needs access to kitsQuery (from hook return or by calling useGetShoppingListsKitsByListId directly).
+  **Explicit refetch required:** After cache invalidation, route must call `void kitsQuery.refetch()` to reload kit links immediately (matches codebase pattern at kit-detail.tsx:387, part-details.tsx:312). Invalidation alone does not trigger immediate UI update. **Architectural decision:** Hook returns kitsQuery object to route (extending return signature to `{ slots, overlays, kitsQuery }`) so route can call refetch without duplicating query. This matches kit-detail architecture where useKitDetail returns query (kit-detail.tsx:62-72) and avoids double-fetching on mount.
 - **Async safeguards:**
   - Confirmation dialog prevents accidental clicks
   - `unlinkingLinkId` state prevents concurrent unlink operations
@@ -394,8 +394,9 @@ Add bidirectional unlinking between kits and shopping lists by extending kit lin
   - Wait for `ui_state` scope 'shoppingLists.detail.kitUnlinkFlow' phase 'success' before asserting chip removed
   - Use `data-testid="shopping-lists.concept.body.kits.{kitId}.unlink"` to locate unlink buttons
   - Use `data-testid="shopping-lists.detail.kit-unlink.dialog"` to locate confirmation dialog
-- **Gaps:** None — unlink flow mirrors existing kit detail unlink pattern which has full Playwright coverage
-- **Evidence:** tests/e2e/kits/kit-detail.spec.ts — reference spec for kit side unlink; tests/e2e/shopping-lists/shopping-lists-detail.spec.ts — target spec file for shopping list side unlink
+- **Backend hooks:** **Factory support confirmed.** Use `testData.kits.create()` to create kit (tests/api/factories/kit-factory.ts), `testData.shoppingLists.create()` to create shopping list (tests/api/factories/shopping-list-factory.ts), and `KitTestFactory.linkShoppingList(kitId, listId)` (kit-factory.ts:222-238) or `ShoppingListTestFactory.linkToKit(listId, kitId)` (shopping-list-factory.ts:212-228) to create kit-shopping-list link. Both factories exposed in testData bundle (tests/api/index.ts:101-115 for kits, lines 87-100 for shoppingLists).
+- **Gaps:** None — unlink flow mirrors existing kit detail unlink pattern which has full Playwright coverage; chip collapse animation not covered in automated tests (visual verification acceptable)
+- **Evidence:** tests/e2e/kits/kit-detail.spec.ts — reference spec for kit side unlink; tests/e2e/shopping-lists/shopping-lists-detail.spec.ts — target spec file for shopping list side unlink; tests/api/factories/kit-factory.ts:222-238, shopping-list-factory.ts:212-228 — link creation methods
 
 - **Surface:** Shopping list detail page — skeleton loading state padding
 - **Scenarios:**
@@ -417,8 +418,8 @@ Add bidirectional unlinking between kits and shopping lists by extending kit lin
 - **Slice:** Wire unlink handler in shopping list detail page
 - **Goal:** Kit chips in shopping list detail page call unlink mutation, show confirmation dialog, emit instrumentation events. Route owns all state/mutation/dialog/instrumentation; hook receives callback and threads to chips.
 - **Touches:**
-  - src/components/shopping-lists/detail-header-slots.tsx — add `onUnlinkKit?: (link: ShoppingListKitLink) => void` prop to ConceptHeaderProps interface; thread callback to KitLinkChip components as `onUnlink={() => onUnlinkKit?.(kitLink)}`. Hook does NOT manage unlink state or emit instrumentation.
-  - src/routes/shopping-lists/$listId.tsx — declare linkToUnlink state, unlinkingLinkId state, unlinkMutation hook, handleUnlinkRequest function, handleConfirmUnlink function (with explicit `void kitsQuery.refetch()` call in .then() block after success toast), confirmation dialog, all instrumentation (emitUnlinkFlowEvent). Route needs access to kitsQuery for refetch (from hook return or direct call to useGetShoppingListsKitsByListId). Pass handleUnlinkRequest as onUnlinkKit prop to useShoppingListDetailHeaderSlots.
+  - src/components/shopping-lists/detail-header-slots.tsx — add `onUnlinkKit?: (link: ShoppingListKitLink) => void` prop to ConceptHeaderProps interface; thread callback to KitLinkChip components as `onUnlink={() => onUnlinkKit?.(kitLink)}`. Hook does NOT manage unlink state or emit instrumentation. **Extend hook return type** from `{ slots, overlays }` to `{ slots, overlays, kitsQuery }` so route can access kitsQuery.refetch() without duplicating query.
+  - src/routes/shopping-lists/$listId.tsx — destructure `kitsQuery` from `useShoppingListDetailHeaderSlots` return value; declare linkToUnlink state, unlinkingLinkId state, unlinkMutation hook, handleUnlinkRequest function, handleConfirmUnlink function (with explicit `void kitsQuery.refetch()` call in .then() block after success toast), confirmation dialog, all instrumentation (emitUnlinkFlowEvent). Pass handleUnlinkRequest as onUnlinkKit prop to useShoppingListDetailHeaderSlots.
 - **Dependencies:** Slice 1 complete (KitLinkChip supports unlink); feature flag: none
 
 - **Slice:** Fix skeleton loading state padding in shopping list detail
@@ -435,8 +436,8 @@ Add bidirectional unlinking between kits and shopping lists by extending kit lin
 - **Slice:** Fix link chip layout to collapse when unlink button hidden
 - **Goal:** Chips expand only when unlink button is visible (on hover/focus), no empty space reserved when button is hidden. Applies to both KitLinkChip and ShoppingListLinkChip components.
 - **Touches:**
-  - src/components/kits/kit-link-chip.tsx — adjust unlink button layout to not reserve space when opacity-0; options include: (a) absolute positioning with right offset, (b) conditional rendering based on hover state, (c) CSS grid/flexbox with width:0 when hidden
-  - src/components/shopping-lists/shopping-list-link-chip.tsx — apply same layout fix to existing unlink button (lines 122-140)
+  - src/components/kits/kit-link-chip.tsx — **Architectural decision: Use absolute positioning approach.** Position chip container as `position: relative`, unlink button as `position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%)`. Transition opacity only (no width/position animation to avoid layout reflow). Add `@media (prefers-reduced-motion: reduce)` to disable transition for accessibility. Test with keyboard navigation to ensure focus ring visible.
+  - src/components/shopping-lists/shopping-list-link-chip.tsx — apply same absolute positioning layout fix to existing unlink button (lines 122-140)
 - **Dependencies:** Slice 1 complete (KitLinkChip unlink button added); should be implemented alongside or immediately after to avoid shipping layout issue
 
 - **Slice:** Standardize kit icon to CircuitBoard across application
