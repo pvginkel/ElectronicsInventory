@@ -140,7 +140,7 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
       // Invalidate queries and wait for refetch to complete
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['getKits'] }),
-        queryClient.invalidateQueries({ queryKey: ['getKitById', detail.id] }),
+        queryClient.invalidateQueries({ queryKey: ['getKitsByKitId', { path: { kit_id: detail.id } }] }),
         queryClient.invalidateQueries({ queryKey: ['kits.shoppingListMemberships'] }),
         queryClient.invalidateQueries({ queryKey: ['kits.pickListMemberships'] }),
       ]);
@@ -177,7 +177,7 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
       // Invalidate queries and wait for refetch to complete
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['getKits'] }),
-        queryClient.invalidateQueries({ queryKey: ['getKitById', detail.id] }),
+        queryClient.invalidateQueries({ queryKey: ['getKitsByKitId', { path: { kit_id: detail.id } }] }),
         queryClient.invalidateQueries({ queryKey: ['kits.shoppingListMemberships'] }),
         queryClient.invalidateQueries({ queryKey: ['kits.pickListMemberships'] }),
       ]);
@@ -206,11 +206,13 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
 
       trackFormSuccess(DELETE_FORM_ID, { kitId });
 
-      // Cancel and remove the deleted kit's query to prevent refetch attempts
-      await queryClient.cancelQueries({ queryKey: ['getKitById', kitId] });
-      queryClient.removeQueries({ queryKey: ['getKitById', kitId] });
+      // Cancel all in-flight queries first
+      await queryClient.cancelQueries();
 
-      // Invalidate list queries
+      // Remove the deleted kit's query completely
+      queryClient.removeQueries({ queryKey: ['getKitsByKitId', { path: { kit_id: kitId } }] });
+
+      // Invalidate list and membership queries
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['getKits'] }),
         queryClient.invalidateQueries({ queryKey: ['kits.shoppingListMemberships'] }),
@@ -218,6 +220,8 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
       ]);
 
       showSuccess(`Deleted kit "${kitName}"`);
+
+      // Navigate away to unmount the detail component
       navigate({ to: '/kits', search: { status: overviewStatus } });
     },
     onError: (error) => {

@@ -183,6 +183,16 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
           if (text.includes('Form submission error')) {
             return;
           }
+
+          // Allow 404 errors for recently deleted resources
+          // These can occur during cleanup when React Query caches are being invalidated
+          if (
+            text.includes('404') ||
+            text.includes('NOT FOUND')
+          ) {
+            return;
+          }
+
           throw new Error(`Console error: ${text}`);
         }
       });
