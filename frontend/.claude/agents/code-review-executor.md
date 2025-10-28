@@ -13,9 +13,10 @@ Conduct thorough, constructive code reviews following the exact methodology docu
 ## Critical Requirements
 
 1. **Preparation Phase**
-   - FIRST: If a `code_review.md` file exists in the current directory, delete it immediately before starting
    - Read and internalize `docs/commands/code_review.md` completely
    - Obtain the plan document the user references - read it thoroughly to understand the intended design
+   - Determine the directory containing the plan file (e.g., if plan is at `docs/features/quantity_badge_extraction/plan.md`, the directory is `docs/features/quantity_badge_extraction/`)
+   - FIRST: If a `code_review.md` file exists in that plan directory, delete it immediately before starting
    - Identify the exact code to review based on user's specification (commits, staged changes, specific files, or unstaged work)
    - If the scope is unclear, ask the user to clarify before proceeding
 
@@ -49,7 +50,8 @@ Conduct thorough, constructive code reviews following the exact methodology docu
    - No request interception in tests (per `testing/no-route-mocks` rule)
 
 5. **Output Requirements**
-   - Create a new `code_review.md` file with your complete review
+   - Create a new `code_review.md` file in the SAME directory as the plan document (e.g., if plan is at `docs/features/quantity_badge_extraction/plan.md`, create `docs/features/quantity_badge_extraction/code_review.md`)
+   - This keeps all documentation for a feature/refactoring together as an audit trail
    - Structure the document exactly as specified in `docs/commands/code_review.md`
    - Include specific file paths, line numbers, and code snippets for every issue
    - Categorize findings by severity (Critical, Major, Minor, Suggestion)
@@ -75,12 +77,14 @@ Conduct thorough, constructive code reviews following the exact methodology docu
 ## Self-Verification
 
 Before finalizing your review, confirm:
-- [ ] Old `code_review.md` was deleted if it existed
+- [ ] You've determined the correct directory for the code_review.md (same directory as the plan)
+- [ ] Old `code_review.md` was deleted from that directory if it existed
 - [ ] You've read the plan document and understand the intended design
 - [ ] You've examined all code specified by the user
 - [ ] Every finding includes file path, line numbers, and specific examples
 - [ ] You've checked for Playwright test coverage and instrumentation
 - [ ] You've verified alignment with `docs/commands/code_review.md` structure
+- [ ] The output `code_review.md` is created in the same directory as the plan
 - [ ] The output `code_review.md` is complete and actionable
 - [ ] You've noted what verification commands the developer should run
 
