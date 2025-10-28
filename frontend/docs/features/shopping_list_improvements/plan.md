@@ -37,6 +37,8 @@ Add bidirectional unlinking between kits and shopping lists by extending kit lin
 - Implement confirmation dialog for kit unlink action
 - Add instrumentation events for unlink flow from shopping list perspective
 - Fix skeleton loading state wrapper padding in shopping list detail content body
+- Fix chip layout to collapse when unlink button is hidden (no empty space reserved for hidden button)
+- Standardize kit icon to CircuitBoard across all kit link chips, sidebar, and kit-related UI elements
 - Update existing Playwright specs for kit chip unlink coverage
 
 **Out of scope**
@@ -82,6 +84,14 @@ Add bidirectional unlinking between kits and shopping lists by extending kit lin
 - **Area:** Test events instrumentation
 - **Why:** Emit ui_state events for unlink flow (open, submit, success, error) from shopping list perspective
 - **Evidence:** src/components/kits/kit-detail.tsx:246-267,375-407 — emitUnlinkFlowEvent pattern for tracking unlink lifecycle
+
+- **Area:** Link chip layout (KitLinkChip and ShoppingListLinkChip)
+- **Why:** Fix chip layout to collapse when unlink button is hidden, preventing empty space reservation for hidden button
+- **Evidence:** src/components/shopping-lists/shopping-list-link-chip.tsx:122-140 — unlink button uses opacity-0 but still reserves space (ml-1 h-6 w-6 flex-shrink-0); src/components/kits/kit-link-chip.tsx — will have same issue after unlink button added
+
+- **Area:** Kit icon consistency across application
+- **Why:** Standardize all kit icons to CircuitBoard (lucide-react) to replace inconsistent usage of Package, Layers, and CircuitBoard icons
+- **Evidence:** Multiple locations use different icons for kits — sidebar navigation, part detail kit link chips, shopping list kit link chips (currently uses Layers per plan), part cards (uses CircuitBoard, the correct one)
 
 ## 3) Data Model / Contracts
 
@@ -180,10 +190,10 @@ Add bidirectional unlinking between kits and shopping lists by extending kit lin
 
 - **Derived value:** linkedKits (array of ShoppingListKitLink)
   - **Source:** Mapped from `kitsQuery.data` via `mapShoppingListKitLinks` (src/components/shopping-lists/detail-header-slots.tsx:120); unfiltered query response
-  - **Writes / cleanup:** After successful unlink mutation, `invalidateKitShoppingListCaches` fires (src/hooks/use-kit-shopping-list-links.ts:202,225), triggering refetch of shopping list kits query; linkedKits array updates via TanStack Query reactivity
+  - **Writes / cleanup:** After successful unlink mutation, `invalidateKitShoppingListCaches` fires (src/hooks/use-kit-shopping-list-links.ts:202,225), marking query stale; explicit `void kitsQuery.refetch()` call in success handler reloads kit links immediately (matches codebase pattern at kit-detail.tsx:387); linkedKits array updates via TanStack Query reactivity
   - **Guards:** Unlink button disabled if `shoppingList.status === 'done'` (read-only constraint); unlink button disabled if `unlinkingLinkId !== null` (prevents concurrent unlink operations)
-  - **Invariant:** `linkedKits.length` must equal count emitted in instrumentation metadata (src/components/shopping-lists/detail-header-slots.tsx:129); must equal number of rendered `KitLinkChip` components in content body
-  - **Evidence:** src/components/shopping-lists/detail-header-slots.tsx:120,129 — derived from query and used in instrumentation
+  - **Invariant:** `linkedKits.length` must equal count emitted in instrumentation metadata (src/components/shopping-lists/detail-header-slots.tsx:129); must equal number of rendered `KitLinkChip` components in content body; after successful unlink, linkedKits.length must decrease by 1 (unless 404 noop)
+  - **Evidence:** src/components/shopping-lists/detail-header-slots.tsx:120,129 — derived from query and used in instrumentation; kit-detail.tsx:387 — explicit refetch pattern
 
 - **Derived value:** unlinkingLinkId (number | null)
   - **Source:** Set to `link.linkId` when unlink mutation starts (submit phase); cleared to null when mutation settles (success/error/finally)
@@ -202,15 +212,17 @@ Add bidirectional unlinking between kits and shopping lists by extending kit lin
 ## 7) State Consistency & Async Coordination
 
 - **Source of truth:** TanStack Query cache for shopping list kits query (`getShoppingListsKitsByListId`)
-- **Coordination:** After unlink mutation success, `invalidateKitShoppingListCaches` (src/hooks/use-kit-shopping-list-links.ts:23-39) invalidates:
+- **Coordination:** After unlink mutation success, `invalidateKitShoppingListCaches` (src/hooks/use-kit-shopping-list-links.ts:23-39) marks queries stale by invalidating:
   - Kit detail query (for kit ID involved in unlink)
   - Shopping list detail query (for list ID involved in unlink)
   - Shopping list kits query (for list ID involved in unlink)
   - Global kit membership queries
+
+  **Explicit refetch required:** After cache invalidation, route must call `void kitsQuery.refetch()` to reload kit links immediately (matches codebase pattern at kit-detail.tsx:387, part-details.tsx:312). Invalidation alone does not trigger immediate UI update. Route needs access to kitsQuery (from hook return or by calling useGetShoppingListsKitsByListId directly).
 - **Async safeguards:**
   - Confirmation dialog prevents accidental clicks
   - `unlinkingLinkId` state prevents concurrent unlink operations
-  - 404 handling (link already deleted) prevents error noise and triggers refetch
+  - 404 handling (link already deleted) prevents error noise and triggers explicit refetch
   - `.finally()` block ensures `unlinkingLinkId` cleared even on error
   - Dialog `onOpenChange` handler clears `linkToUnlink` when closed without confirm
 - **Instrumentation:** Emit `ui_state` events at scope 'shoppingLists.detail.kitUnlinkFlow' with phases:
@@ -347,6 +359,21 @@ Add bidirectional unlinking between kits and shopping lists by extending kit lin
 - **Dependencies:** Skeleton kit chips wrapper in `detail-header-slots.tsx` linkChips slot
 - **Evidence:** docs/outstanding_changes.md:46 — padding issue description; src/components/shopping-lists/detail-header-slots.tsx:244-248 — skeleton kit chips pattern
 
+- **Entry point:** All link chips with unlink buttons (KitLinkChip, ShoppingListLinkChip)
+- **Change:** Chips collapse to natural width when unlink button is hidden (no reserved space for hidden button)
+- **User interaction:**
+  1. User views chip without hovering → chip is compact, no empty space visible
+  2. User hovers over chip → unlink button appears and chip expands smoothly to accommodate button
+  3. User moves mouse away → unlink button fades out and chip collapses back to compact size
+- **Dependencies:** CSS layout changes to both KitLinkChip and ShoppingListLinkChip components; may require absolute positioning or conditional rendering approach
+- **Evidence:** src/components/shopping-lists/shopping-list-link-chip.tsx:122-140 — current implementation reserves space even when opacity-0
+
+- **Entry point:** All kit-related UI elements (sidebar, chips, cards)
+- **Change:** Replace all kit icons with CircuitBoard (lucide-react) for visual consistency
+- **User interaction:** User sees consistent CircuitBoard icon wherever kits are represented (sidebar navigation, kit link chips in part detail, kit link chips in shopping list detail, part cards showing kit membership)
+- **Dependencies:** Update icon imports and usage across multiple components
+- **Evidence:** Current inconsistency: Package icon in sidebar/part-detail chips, Layers in shopping list kit chips (per plan), CircuitBoard in part cards (correct baseline)
+
 ## 13) Deterministic Test Plan
 
 - **Surface:** Shopping list detail page — kit chip unlink flow
@@ -388,23 +415,39 @@ Add bidirectional unlinking between kits and shopping lists by extending kit lin
 - **Dependencies:** None; isolated component change
 
 - **Slice:** Wire unlink handler in shopping list detail page
-- **Goal:** Kit chips in shopping list detail page call unlink mutation, show confirmation dialog, emit instrumentation events
+- **Goal:** Kit chips in shopping list detail page call unlink mutation, show confirmation dialog, emit instrumentation events. Route owns all state/mutation/dialog/instrumentation; hook receives callback and threads to chips.
 - **Touches:**
-  - src/components/shopping-lists/detail-header-slots.tsx — pass onUnlink prop to KitLinkChip components
-  - src/routes/shopping-lists/$listId.tsx — add unlink state, mutation hook, confirmation dialog, handlers
+  - src/components/shopping-lists/detail-header-slots.tsx — add `onUnlinkKit?: (link: ShoppingListKitLink) => void` prop to ConceptHeaderProps interface; thread callback to KitLinkChip components as `onUnlink={() => onUnlinkKit?.(kitLink)}`. Hook does NOT manage unlink state or emit instrumentation.
+  - src/routes/shopping-lists/$listId.tsx — declare linkToUnlink state, unlinkingLinkId state, unlinkMutation hook, handleUnlinkRequest function, handleConfirmUnlink function (with explicit `void kitsQuery.refetch()` call in .then() block after success toast), confirmation dialog, all instrumentation (emitUnlinkFlowEvent). Route needs access to kitsQuery for refetch (from hook return or direct call to useGetShoppingListsKitsByListId). Pass handleUnlinkRequest as onUnlinkKit prop to useShoppingListDetailHeaderSlots.
 - **Dependencies:** Slice 1 complete (KitLinkChip supports unlink); feature flag: none
 
 - **Slice:** Fix skeleton loading state padding in shopping list detail
-- **Goal:** Kit chips skeleton renders in content body during loading to maintain consistent spacing
+- **Goal:** Kit chips skeleton renders during initial page load (shoppingList===null state) to maintain consistent spacing. Existing skeleton at lines 244-248 handles kitsQuery.isLoading (after list loads); new skeleton handles list query loading.
 - **Touches:**
-  - src/components/shopping-lists/detail-header-slots.tsx — ensure linkChips slot returns skeleton wrapper even when kitsQuery.isLoading (currently returns skeleton, verify it's rendered in body)
-  - src/routes/shopping-lists/$listId.tsx — verify linkChips slot rendered in content body regardless of loading state
+  - src/components/shopping-lists/detail-header-slots.tsx — add linkChips slot to early return (lines 149-180) when `list === null`. Skeleton structure should match lines 244-248: `linkChips: <div className="flex flex-wrap items-center gap-2"><div className="h-6 w-32 animate-pulse rounded-full bg-muted" /><div className="h-6 w-28 animate-pulse rounded-full bg-muted" /></div>`
 - **Dependencies:** None; isolated layout change
 
 - **Slice:** Add Playwright coverage for kit chip unlink flow
 - **Goal:** Automated tests verify unlink button interaction, confirmation dialog, success/error states, instrumentation events
 - **Touches:** tests/e2e/shopping-lists/shopping-lists-detail.spec.ts — add test cases for unlink flow
 - **Dependencies:** Slices 1-2 complete (UI and handlers implemented)
+
+- **Slice:** Fix link chip layout to collapse when unlink button hidden
+- **Goal:** Chips expand only when unlink button is visible (on hover/focus), no empty space reserved when button is hidden. Applies to both KitLinkChip and ShoppingListLinkChip components.
+- **Touches:**
+  - src/components/kits/kit-link-chip.tsx — adjust unlink button layout to not reserve space when opacity-0; options include: (a) absolute positioning with right offset, (b) conditional rendering based on hover state, (c) CSS grid/flexbox with width:0 when hidden
+  - src/components/shopping-lists/shopping-list-link-chip.tsx — apply same layout fix to existing unlink button (lines 122-140)
+- **Dependencies:** Slice 1 complete (KitLinkChip unlink button added); should be implemented alongside or immediately after to avoid shipping layout issue
+
+- **Slice:** Standardize kit icon to CircuitBoard across application
+- **Goal:** All kit icons use CircuitBoard (lucide-react) for visual consistency. Replace Package and Layers icons currently in use.
+- **Touches:**
+  - src/components/layout/sidebar.tsx (or equivalent sidebar navigation component) — change kit navigation icon from Package to CircuitBoard
+  - src/components/kits/kit-link-chip.tsx — ensure default icon is CircuitBoard (not Package)
+  - src/components/parts/part-details.tsx (or equivalent) — change kit link chip icon from Package to CircuitBoard in part detail kit membership section
+  - src/components/shopping-lists/detail-header-slots.tsx — change kit link chip icon from Layers to CircuitBoard when rendering kit chips (may need to pass icon prop to KitLinkChip or update default)
+  - Verify part cards already use CircuitBoard (baseline reference)
+- **Dependencies:** None; can be implemented independently as visual consistency fix
 
 ## 15) Risks & Open Questions
 
@@ -419,6 +462,14 @@ Add bidirectional unlinking between kits and shopping lists by extending kit lin
 - **Risk:** Unlink button on kit chips may be too subtle (hover-only) for users to discover
 - **Impact:** Users don't realize they can unlink kits from shopping list side
 - **Mitigation:** Follow exact pattern from shopping list chips on kit detail view (same hover behavior, same opacity transition); @media(pointer:coarse) makes button always visible on touch devices
+
+- **Risk:** Chip collapse animation may feel jarring or cause layout shift during hover transitions
+- **Impact:** Poor UX if chips jump around when hovering; accessibility issues if focus causes unexpected layout changes
+- **Mitigation:** Use CSS transitions for smooth expansion/collapse; test with keyboard navigation and screen readers; consider using transform instead of width changes to avoid layout reflow; may need reduced-motion media query support
+
+- **Risk:** Icon replacement may miss some locations or break existing visual hierarchy
+- **Impact:** Inconsistent kit icons persist; UI elements may lose intended visual distinction if Package/Layers icons were semantically meaningful
+- **Mitigation:** Perform comprehensive grep for Package, Layers, and CircuitBoard imports to find all kit-related usage; verify icon change doesn't conflict with other entity types that use similar icons; review with designer if Package/Layers had specific semantic meaning beyond "generic kit icon"
 
 **Decisions confirmed:**
 
