@@ -378,6 +378,15 @@ class KitPickListService(BaseService):
         self.metrics_service.record_pick_list_line_undo("success", duration)
         return line
 
+    def delete_pick_list(self, pick_list_id: int) -> None:
+        """Delete a pick list and all its lines."""
+        pick_list = self.db.get(KitPickList, pick_list_id)
+        if pick_list is None:
+            raise RecordNotFoundException("Pick list", pick_list_id)
+
+        self.db.delete(pick_list)
+        self.db.flush()
+
     def _get_active_kit_with_contents(self, kit_id: int) -> Kit:
         """Fetch kit with contents ensuring it is active."""
         stmt = (

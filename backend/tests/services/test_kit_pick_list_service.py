@@ -12,7 +12,7 @@ from app.models.box import Box
 from app.models.kit import Kit, KitStatus
 from app.models.kit_content import KitContent
 from app.models.kit_pick_list import KitPickList, KitPickListStatus
-from app.models.kit_pick_list_line import PickListLineStatus
+from app.models.kit_pick_list_line import KitPickListLine, PickListLineStatus
 from app.models.location import Location
 from app.models.part import Part
 from app.models.part_location import PartLocation
@@ -521,3 +521,118 @@ class TestKitPickListService:
         session.refresh(pick_list)
 
         assert pick_list.updated_at != post_pick_updated_at
+
+    def test_delete_pick_list_removes_open_pick_list_and_lines(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        kit = _create_active_kit(session)
+        part = _create_part(session, "DEL1", "Delete Part")
+        _attach_content(session, kit, part, required_per_unit=1)
+        location = _create_location(session, box_no=110, loc_no=1)
+        _attach_location(session, part, location, qty=5)
+
+        pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=2)
+        session.flush()
+        pick_list_id = pick_list.id
+        line_ids = [line.id for line in pick_list.lines]
+
+        kit_pick_list_service.delete_pick_list(pick_list_id)
+        session.flush()
+
+        assert session.get(KitPickList, pick_list_id) is None
+        for line_id in line_ids:
+            assert session.execute(
+                select(KitPickListLine).where(KitPickListLine.id == line_id)
+            ).scalar_one_or_none() is None
+
+    def test_delete_pick_list_removes_completed_pick_list_preserves_history(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        kit = _create_active_kit(session)
+        part = _create_part(session, "DEL2", "Delete Completed Part")
+        _attach_content(session, kit, part, required_per_unit=1)
+        location = _create_location(session, box_no=111, loc_no=1)
+        _attach_location(session, part, location, qty=3)
+
+        pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        line = pick_list.lines[0]
+        kit_pick_list_service.pick_line(pick_list.id, line.id)
+        session.flush()
+
+        pick_list_id = pick_list.id
+        inventory_change_id = line.inventory_change_id
+
+        kit_pick_list_service.delete_pick_list(pick_list_id)
+        session.flush()
+
+        assert session.get(KitPickList, pick_list_id) is None
+        assert session.execute(
+            select(KitPickListLine).where(KitPickListLine.id == line.id)
+        ).scalar_one_or_none() is None
+
+        from app.models.quantity_history import QuantityHistory
+        history_record = session.get(QuantityHistory, inventory_change_id)
+        assert history_record is not None
+
+    def test_delete_pick_list_removes_mixed_status_lines(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        kit = _create_active_kit(session)
+        part = _create_part(session, "DEL3", "Delete Mixed Part")
+        _attach_content(session, kit, part, required_per_unit=1)
+        location_a = _create_location(session, box_no=112, loc_no=1)
+        _attach_location(session, part, location_a, qty=1)
+        location_b = _create_location(session, box_no=113, loc_no=1)
+        _attach_location(session, part, location_b, qty=1)
+
+        pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=2)
+        first_line = pick_list.lines[0]
+        kit_pick_list_service.pick_line(pick_list.id, first_line.id)
+        session.flush()
+
+        pick_list_id = pick_list.id
+        line_ids = [line.id for line in pick_list.lines]
+
+        kit_pick_list_service.delete_pick_list(pick_list_id)
+        session.flush()
+
+        assert session.get(KitPickList, pick_list_id) is None
+        for line_id in line_ids:
+            assert session.execute(
+                select(KitPickListLine).where(KitPickListLine.id == line_id)
+            ).scalar_one_or_none() is None
+
+    def test_delete_pick_list_raises_for_nonexistent_id(
+        self,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        with pytest.raises(RecordNotFoundException):
+            kit_pick_list_service.delete_pick_list(9999)
+
+    def test_delete_pick_list_removes_from_list_results(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        kit = _create_active_kit(session)
+        part = _create_part(session, "DEL4", "Delete List Part")
+        _attach_content(session, kit, part, required_per_unit=1)
+        location = _create_location(session, box_no=114, loc_no=1)
+        _attach_location(session, part, location, qty=10)
+
+        first = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        second = kit_pick_list_service.create_pick_list(kit.id, requested_units=2)
+        session.flush()
+
+        kit_pick_list_service.delete_pick_list(first.id)
+        session.flush()
+
+        remaining = kit_pick_list_service.list_pick_lists_for_kit(kit.id)
+        assert len(remaining) == 1
+        assert remaining[0].id == second.id
