@@ -4,244 +4,225 @@
 
 **Readiness**
 
-The plan addresses two housekeeping tasks: adding pick list deletion and removing the part detail refresh button. Research is thorough, evidence is well-cited, and the deletion pattern follows established CRUD conventions from shopping lists. However, the plan contains several gaps that would surface during implementation: incomplete instrumentation specification for the deletion mutation, missing navigation context details, absent confirmation dialog specification for test selectors, and no blocking issues section documenting the backend dependency per testing policy. Additionally, Slice 4 (remove part detail refresh) has already been completed, making the implementation slices partially stale.
+The plan is thorough and well-researched, following established CRUD patterns from shopping lists and parts deletion. Both features (pick list deletion and part detail refresh removal) are scoped appropriately as housekeeping tasks. The research log demonstrates comprehensive investigation of backend endpoints, generated hooks, and test patterns. The instrumentation strategy follows documented patterns, cache invalidation is targeted correctly, and navigation preserves context. However, there are minor gaps in test scenario coverage and documentation of search parameter contracts that should be addressed before implementation.
 
 **Decision**
 
-`GO-WITH-CONDITIONS` — The plan provides a solid foundation and follows established patterns, but requires clarification on instrumentation scope, navigation context handling, confirmation dialog specification, and backend coordination tracking before implementation begins. The part detail refresh removal is already complete and should be verified rather than re-implemented.
-
----
+`GO-WITH-CONDITIONS` — The plan is implementation-ready with three conditions: (1) add explicit Playwright test scenario verifying part detail refresh option is absent, (2) document search parameter contracts (kitOverviewStatus, kitOverviewSearch) in the Data Model section, and (3) clarify acceptance criteria for Slice 5 verification.
 
 ## 2) Conformance & Fit (with evidence)
 
 **Conformance to refs**
 
-- `docs/contribute/testing/index.md` — **Fail** — `plan.md:442-447` — Plan states "Backend DELETE endpoint (dependency) ... must complete before frontend integration" but does not include a **Blocking Issues** section at the top of the plan as required: "If a feature cannot currently be exercised without interception, treat that as a backend gap. Before any Playwright work begins, add a **Blocking Issues** section at the top of the feature plan that calls out the missing backend support."
+- `plan_feature.md` — Pass — `plan.md:1-541` — All 16 required sections present with evidence-backed entries. Research log (plan.md:3-36), file map with evidence (plan.md:77-114), data contracts (plan.md:117-145), deterministic test plan (plan.md:415-450) all conform to template structure.
 
-- `docs/contribute/architecture/application_overview.md` — **Pass** — `plan.md:32-46, 76-95` — Plan correctly identifies TanStack Query patterns, generated hooks usage, and cache invalidation via `queryClient.invalidateQueries()` matching the architecture's server state management approach.
+- `application_overview.md` — Pass — `plan.md:86-87, 324-327` — Plan correctly references TanStack Query for cache management, generated hooks (`useDeletePickListsByPickListId` at hooks.ts:1617), and instrumentation via `isTestMode()` guard pattern (application_overview.md:44-46).
 
-- `docs/contribute/testing/playwright_developer_guide.md` — **Partial Pass** — `plan.md:401-423` — Deterministic test scenarios are documented with Given/When/Then structure and backend verification, but instrumentation specification lacks the exact scope/phase pattern required for `waitForUiState` helpers (see section 4 for details).
+- `playwright_developer_guide.md` — Pass with gaps — `plan.md:427-431` — Instrumentation events specified correctly (ui_state scope, loading/ready/error phases), confirmation dialog uses semantic selection pattern (`getByRole('button', { name: /delete/i })`), backend factory exists (`testData.kits.createPickList`). However, test scenarios (plan.md:420-425) don't cover all edge cases documented in section 8 (plan.md:273-313), specifically cross-tab deletion (plan.md:301-305) lacks corresponding test scenario.
 
-- `AGENTS.md` (CLAUDE.md) — **Pass** — `plan.md:47-50` — Plan correctly specifies Playwright coverage must ship with UI changes: "Testing: Add Playwright spec for pick list deletion workflow."
+- `product_brief.md` — Pass — `plan.md:70-72` — Pick list deletion aligns with product brief section 5 "Projects (kits)" (product_brief.md:70-76) which documents pick lists as ephemeral workflow aids. Deletion is appropriate housekeeping and doesn't violate any product constraints.
 
-- `docs/product_brief.md` — **Pass** — `plan.md:32-36, 70-106` — Pick list deletion aligns with kits workflow (product_brief.md:149-155) where operators create and complete pick lists. Removal of manual refresh aligns with modern React Query patterns without conflicting with product requirements.
+- `AGENTS.md` — Pass — `plan.md:471-475` — Plan references `isTestMode()` guard (AGENTS.md:38) and instrumentation coupling requirement (AGENTS.md:44-46). Implementation notes correctly defer to existing patterns rather than introducing new abstractions (AGENTS.md:35).
 
 **Fit with codebase**
 
-- `src/components/kits/kit-pick-list-panel.tsx` — `plan.md:82-84, 156-189` — Alignment confirmed. Panel renders open and completed pick lists with link items; adding delete button next to each item follows established UI patterns. Existing instrumentation (`kits.detail.pickLists.panel`, `kits.detail.pickLists.navigate`) demonstrates the component already emits ui_state events.
+- `src/components/pick-lists/pick-list-detail.tsx` — `plan.md:89-92` — Component already receives `kitOverviewStatus` and `kitOverviewSearch` props (pick-list-detail.tsx:33-34), confirming navigation context availability. DetailScreenLayout pattern matches part-details.tsx:455-477 structure, providing consistent location for action buttons.
 
-- `src/hooks/use-pick-list-detail.ts` — `plan.md:85-88` — Alignment confirmed. Hook exports `buildPickListDetailQueryKey` (line 17-19 in actual file) which can be used for targeted cache invalidation after deletion, though plan should specify this over the broad `invalidateQueries()` pattern.
+- `src/hooks/use-pick-list-detail.ts` — `plan.md:93-96` — Hook already exports `buildPickListDetailQueryKey` (plan.md:95), confirming targeted cache invalidation is achievable without modification.
 
-- `src/components/parts/part-details.tsx` — `plan.md:99-106` — **Already implemented**. System reminder shows lines 303-309 were removed (Refresh dropdown item). Slices 4-5 are complete; verification pass needed instead of re-implementation.
+- `src/components/parts/part-details.tsx` — `plan.md:106-114` — Refresh option removal verified via system reminder showing lines 303-309 removed. Remaining dropdown menu structure (part-details.tsx:289-312) intact with "Order Stock" and "Duplicate Part" options preserved.
 
-- `src/lib/api/generated/hooks.ts` — `plan.md:76-80, 143-147` — Pattern match confirmed. Shopping list deletion hook (hooks.ts:1910-1926) provides template: mutation wraps `api.DELETE`, returns void on 204, invalidates queries in `onSuccess`. Pick list deletion will follow identical structure once backend endpoint exists.
-
----
+- `tests/e2e/pick-lists/pick-list-detail.spec.ts` — `plan.md:99-100` — Existing spec demonstrates instrumentation patterns (pick-list-detail.spec.ts:85-92, 180-189) and search param preservation (pick-list-detail.spec.ts:303-314), providing reference implementation for deletion scenarios.
 
 ## 3) Open Questions & Ambiguities
 
-- **Question**: How does the delete mutation access `kitId` for navigation when deletion is triggered from the pick list detail page?
-  - **Why it matters**: Plan specifies navigation to `{ to: '/kits/$kitId', params: { kitId: String(kitId) } }` (plan.md:182) but the mutation context only receives `pickListId`. If deleting from the kit detail panel, `kit.id` is available in scope. If deleting from the pick list detail page, the mutation needs `detail.kitId` passed through—this must be explicit.
-  - **Needed answer**: Specify whether delete action will be added to both kit panel AND pick list detail page, or only kit panel. If both, document how kitId propagates from pick list detail context to the mutation's onSuccess callback for navigation.
+**Question:** Should a new Playwright test be added to explicitly assert the part detail refresh option is absent, or is running existing tests sufficient verification?
 
-- **Question**: What is the exact confirmation dialog message and button labels for test selectors?
-  - **Why it matters**: Plan mentions "Confirm dialog appears: 'Delete pick list #X? This action cannot be undone.'" (plan.md:175) and references `useConfirm` hook and `ConfirmDialog` component (plan.md:388), but Playwright tests require `data-testid` attributes for the confirm/cancel buttons. The part delete pattern (part-details.tsx:220-235) shows the confirm dialog structure but doesn't surface button test IDs.
-  - **Needed answer**: Specify exact button labels ("Delete" / "Cancel"?) and whether `ConfirmDialog` component already exposes testable button selectors, or if the implementation must add them.
+**Why it matters:** The test plan section (plan.md:438-450) describes scenarios but doesn't specify adding a new test. Slice 5 (plan.md:496-502) says "Verification needed" without defining acceptance criteria. If existing tests don't reference the refresh button, they won't fail when it's present, leaving a coverage gap for regression.
 
-- **Question**: Should cache invalidation use targeted keys or the broad `invalidateQueries()` pattern?
-  - **Why it matters**: Shopping list deletion (hooks.ts:1920-1922) calls `queryClient.invalidateQueries()` without arguments, which invalidates all queries. Plan specifies invalidating specific keys (plan.md:127-136, 180-181) but doesn't clarify which pattern to follow. Over-invalidation causes unnecessary refetches; targeted invalidation is more efficient but requires explicit key construction.
-  - **Needed answer**: Confirm whether to follow shopping list pattern (broad invalidation, simpler code) or use targeted invalidation (efficient, matches plan's cache section). If targeted, specify the exact TanStack Query keys: `['getPickListsByPickListId', { path: { pick_list_id: number } }]` and `['getKitsPickListsByKitId', { path: { kit_id: number } }]`.
+**Needed answer:** Confirm whether Slice 5 should include adding a test scenario like "Given part detail page open, When user opens actions dropdown, Then refresh option is not present" or document why existing coverage is sufficient.
 
 ---
+
+**Question:** Are `kitOverviewStatus` and `kitOverviewSearch` search parameters part of the formal contract between pick list detail and kit detail pages?
+
+**Why it matters:** These parameters appear in multiple places (plan.md:33-34, 191, 425, 436, 475) but are not documented in the Data Model / Contracts section (plan.md:117-145). The plan should clarify whether these are optional convenience parameters or required for correct navigation behavior.
+
+**Needed answer:** Document search parameter shape, optionality, and validation rules in section 3 to establish the navigation contract clearly.
 
 ## 4) Deterministic Playwright Coverage (new/changed behavior only)
 
-### Pick list deletion from kit detail panel
+**Behavior:** Pick list deletion from detail page
 
-- **Behavior**: Kit detail page → pick list panel → delete icon → confirm → pick list removed
-- **Scenarios**:
-  - **Given** a kit with an open pick list, **When** user clicks delete icon (testid: `kits.detail.pick-lists.delete.{pickListId}`) and confirms, **Then** pick list is removed from backend (verified via API factory GET returning 404), panel refetches and item disappears, success toast appears, and `ui_state` event (scope: `kits.detail.pickLists.delete`, phase: `ready`) is emitted (`tests/e2e/kits/kit-detail.spec.ts` or new `tests/e2e/pick-lists/pick-list-deletion.spec.ts`)
-  - **Given** a kit with a completed pick list, **When** user clicks delete icon in completed section and confirms, **Then** pick list is removed from backend and completed section (same assertions as open)
-  - **Given** a pick list that another user deleted, **When** user attempts to delete it, **Then** backend returns 404, error toast shows "Pick list not found", and panel refetches to remove stale item
-- **Instrumentation**:
-  - Delete button: `data-testid="kits.detail.pick-lists.delete.{pickListId}"` (not specified in plan)
-  - Wait for `ui_state` event: `scope: 'kits.detail.pickLists.delete'`, `phase: 'loading' | 'ready' | 'error'`
-  - Toast assertion: success message includes pick list ID
-  - **Gap**: Plan does not specify who emits the `kits.detail.pickLists.delete` event or where in the mutation lifecycle (plan.md:177-187 describes flow but not implementation detail)
-- **Backend hooks**:
-  - `testData.kits.createPickList()` factory to seed pick lists (assume exists or extend `testData.kits`)
-  - API DELETE call via factory to verify 404 after deletion
-  - **Gap**: Plan does not confirm pick list factory exists or specify creation pattern
-- **Evidence**: `plan.md:401-423, 413-418`
+**Scenarios:**
+- Given open pick list detail page, When user clicks delete action and confirms, Then pick list is removed from backend, user navigates to kit detail, success toast appears, ui_state event (scope: `pickLists.detail.delete`, phase: `ready`) emitted (`plan.md:421`)
+- Given completed pick list detail page, When user clicks delete action and confirms, Then pick list is removed and user navigates to kit detail (`plan.md:422`)
+- Given pick list deleted by another user, When current user attempts delete, Then backend returns 404, error toast shows, user remains on detail page showing "not found" after cache invalidation (`plan.md:423-424`)
+- Given pick list detail page with kit overview search params, When user deletes pick list, Then user navigates to kit detail with search params preserved (`plan.md:425`)
 
-### Pick list deletion while viewing detail page
+**Instrumentation:**
+- Delete button: `data-testid="pick-lists.detail.actions.delete"` (`plan.md:427`)
+- Confirm dialog: `getByRole('dialog')` and `getByRole('button', { name: /delete/i })` (`plan.md:428`)
+- Wait for `ui_state` event with scope `pickLists.detail.delete`, phase `ready` (`plan.md:429`)
+- Backend verification: `testData.kits.createPickList(kitId, options)` factory seeds pick lists, assert absence via GET returning 404 or missing from kit detail (`plan.md:430`)
+- Navigation verification: Assert URL changes to `/kits/{kitId}` with optional search params (`plan.md:431`)
 
-- **Behavior**: Pick list detail page → user deletes pick list → navigated back to kit detail
-- **Scenarios**:
-  - **Given** user is viewing a pick list detail page, **When** user deletes the pick list (from that page or another tab), **Then** user is navigated to `/kits/{kitId}` with success toast
-  - **Gap**: Plan does not specify whether delete action exists on pick list detail page or if this scenario only occurs via kit panel in another tab (plan.md:181-182 mentions navigation but not trigger location)
-- **Instrumentation**: Same as above
-- **Backend hooks**: Same as above
-- **Evidence**: `plan.md:224-231, 291-295, 411`
+**Backend hooks:** Existing factory `testData.kits.createPickList` supports deletion testing (plan.md:26, 530). Generated hook `useDeletePickListsByPickListId` at hooks.ts:1617 (plan.md:53, 86-87).
 
-### Part detail refresh removal (already complete)
+**Gaps:**
+- Missing scenario for disabled button state during mutation (plan.md:201 mentions "Delete button disabled while mutation is pending" but no test scenario verifies this)
+- Cross-tab deletion edge case documented (plan.md:301-305) but not included in test scenarios (plan.md:420-436)
 
-- **Behavior**: Part detail page → actions dropdown → no "Refresh" option
-- **Scenarios**:
-  - **Given** part detail page is open, **When** user opens actions dropdown (testid: `parts.detail.actions.menu`), **Then** "Refresh" option is not present
-- **Instrumentation**: Existing `parts.detail` loading instrumentation continues to work (part-details.tsx:168-191)
-- **Backend hooks**: None required
-- **Gaps**: None
-- **Evidence**: `plan.md:425-436`; **Implementation status**: Complete (system reminder shows lines 303-309 removed from part-details.tsx)
+**Evidence:** `plan.md:415-450`, references existing pick list detail spec structure (`tests/e2e/pick-lists/pick-list-detail.spec.ts`), part delete pattern (`part-details.tsx:215-236`), confirmation dialog pattern (`tests/e2e/boxes/boxes-detail.spec.ts:71`, `tests/e2e/types/types-crud.spec.ts:53`)
 
 ---
+
+**Behavior:** Part detail refresh option removal
+
+**Scenarios:**
+- Given part detail page open, When user opens actions dropdown, Then "Refresh" option is not present (`plan.md:442`)
+- Given part detail loaded data, When backend data changes and user refocuses window, Then TanStack Query refetches automatically (`plan.md:443`)
+
+**Instrumentation:**
+- Actions dropdown: `data-testid="parts.detail.actions.menu"` (`plan.md:445`)
+- Verify "Refresh" item does not exist in dropdown (`plan.md:446`)
+- Existing `parts.detail` loading instrumentation continues (`plan.md:447`)
+
+**Backend hooks:** None required (removal only)
+
+**Gaps:**
+- Test plan describes scenarios but Slice 5 (plan.md:496-502) doesn't specify whether to add a new test or just run existing tests. Acceptance criteria unclear.
+
+**Evidence:** `plan.md:438-450`, existing part detail tests (`tests/e2e/parts/part-crud.spec.ts`), system reminder confirms removal at part-details.tsx:303-309
 
 ## 5) Adversarial Sweep
 
-### Major — Instrumentation scope and lifecycle not fully specified
+**Major — Search parameters not documented as formal contract**
 
-**Evidence:** `plan.md:177-187, 310-316` — Flow describes emitting `ui_state` event with scope `kits.detail.pickLists.delete` and phases `loading/ready/error`, but does not specify where these events are emitted in the implementation. The kit pick list panel currently emits events (kit-pick-list-panel.tsx:68-73, 82-91) but only for panel ready state and navigation.
+**Evidence:** `plan.md:33-34, 191, 198, 425, 436, 475` — Search params (`kitOverviewStatus`, `kitOverviewSearch`) referenced throughout but absent from section 3 "Data Model / Contracts" (plan.md:117-145).
 
-**Why it matters:** Playwright tests cannot wait for deterministic signals without knowing which component emits the event. If the deletion mutation is defined in the panel component, the mutation's onMutate/onSuccess/onError callbacks must emit the events. If defined elsewhere (e.g., a custom hook wrapping `useDeletePickListsByPickListId`), that location must be specified. Without this, the implementation will either miss instrumentation or add it inconsistently.
+**Why it matters:** Navigation behavior depends on these parameters to preserve kit overview context when returning from pick list detail. Without formal documentation, their shape, optionality, and validation rules are ambiguous. The plan shows they're passed as props (plan.md:33-34) and used in navigation (plan.md:191) but doesn't define the contract. This could lead to implementation inconsistencies if developers aren't sure whether `undefined` vs missing param has different semantics.
 
-**Fix suggestion:** Add a subsection to section 9 (Observability / Instrumentation) specifying: "Deletion mutation defined in `kit-pick-list-panel.tsx` wraps the generated `useDeletePickListsByPickListId` hook. Emit `ui_state` events in mutation callbacks: `onMutate` → phase `loading`, `onSuccess` → phase `ready` with `{ kitId, pickListId, status: 'deleted' }`, `onError` → phase `error` with `{ kitId, pickListId, errorMessage }`. Guard emission with `isTestMode()`."
-
-**Confidence:** High — Pattern established in other mutations; missing specification is a documentation gap, not a design flaw.
-
----
-
-### Major — Navigation context (kitId) not explicitly passed through mutation variables
-
-**Evidence:** `plan.md:179-182` — Mutation `onSuccess` callback navigates to `/kits/{kitId}`, but plan does not show `kitId` in mutation variables. The panel component has `kit.id` in scope (kit-pick-list-panel.tsx:47-52), but if deletion is added to pick list detail page (implied by plan.md:411), the mutation must receive `kitId` as a parameter.
-
-**Why it matters:** If the mutation only receives `{ path: { pick_list_id: pickListId } }` (standard DELETE signature), the `onSuccess` callback cannot construct the navigation target without additional context. The plan's flow (plan.md:182) assumes `kitId` is available but doesn't specify how it gets there. This will cause runtime errors or force developers to query the pick list detail cache to extract `kitId`, adding unnecessary complexity.
-
-**Fix suggestion:** Update section 4 (API / Integration Surface) to specify mutation variables: `{ path: { pick_list_id: number }, context: { kitId: number } }` where `context` is passed via mutation options. Update section 5 (Algorithms & UI Flows) step 6 to show: `deletePickListMutation.mutateAsync({ path: { pick_list_id: pickListId }, context: { kitId: kit.id } })`. In `onSuccess`, use `variables.context.kitId` for navigation.
-
-**Confidence:** High — Standard TanStack Mutation pattern; missing specification will cause implementation confusion.
-
----
-
-### Major — Backend dependency not tracked as blocking issue
-
-**Evidence:** `docs/contribute/testing/index.md:49-51` requires: "If a feature cannot currently be exercised without interception, treat that as a backend gap. Before any Playwright work begins, add a **Blocking Issues** section at the top of the feature plan." Plan.md:442-447 (Slice 1) acknowledges backend dependency but does not include a blocking issues section.
-
-**Why it matters:** Without a blocking issues section at the plan's top, developers may start frontend work before the backend endpoint is ready, forcing them to stub the DELETE call or skip tests—both violate the no-route-mocks policy. The testing documentation explicitly requires surfacing backend dependencies upfront so coordination happens before implementation begins.
-
-**Fix suggestion:** Add a new section immediately after section 1 (Intent & Scope):
-```markdown
-## Blocking Issues
-
-### Backend DELETE endpoint for pick lists
-
-**Status:** Not yet implemented
-**Required for:** Slices 2-3 (frontend deletion UI and Playwright tests)
-**Specification:** `DELETE /api/pick-lists/{pick_list_id}` returning 204 No Content on success, following the pattern of `DELETE /api/shopping-lists/{list_id}` (openapi.json:14949-14950)
-**Coordination:** Backend team must implement and deploy endpoint before frontend work begins on Slice 2
+**Fix suggestion:** Add entry to section 3 documenting search parameter contract:
+```
+- Entity / contract: Pick list detail navigation search params
+- Shape: { kitOverviewStatus?: KitStatus, kitOverviewSearch?: string }
+- Mapping: Passed from kit detail route search state to pick list detail, preserved on navigation back
+- Evidence: pick-list-detail.tsx:33-34, navigation at plan.md:191
 ```
 
-**Confidence:** High — Testing documentation explicitly mandates this pattern; omission is a conformance gap.
+**Confidence:** High — Parameters appear in 6 locations but lack formal specification. Standard practice per plan_feature.md:93-104 requires documenting all contract changes.
 
 ---
 
-### Major — Confirmation dialog button test IDs not specified
+**Major — Test scenario for part refresh removal lacks specificity**
 
-**Evidence:** `plan.md:175, 388, 414-415` — Plan mentions confirm dialog with message "Delete pick list #X? This action cannot be undone" and references `ConfirmDialog` component (part-details.tsx:796), but does not specify button `data-testid` attributes. Playwright coverage requires asserting dialog appearance and clicking confirm/cancel buttons deterministically.
+**Evidence:** `plan.md:496-502` — Slice 5 says "Verification needed" and "Run pnpm playwright test tests/e2e/parts/ and verify all pass" without specifying new coverage.
 
-**Why it matters:** Without button test IDs, the implementation may rely on button labels ("Delete", "Cancel") which are fragile to copy changes, or use generic role queries that conflict with other buttons on the page. The plan's test instrumentation section (plan.md:414-415) mentions "reuse existing `ConfirmDialog` component with testid" but doesn't specify the IDs or verify the component supports them.
+**Why it matters:** Behavioral changes require explicit test coverage per AGENTS.md:44-46 ("Ship instrumentation changes and matching Playwright coverage in the same slice"). The removal of the refresh option is a user-visible change. If existing tests don't assert the absence of the refresh button, there's no regression protection. The test plan section (plan.md:442) describes a scenario but doesn't tie it to Slice 5's acceptance criteria.
 
-**Fix suggestion:** Verify `ConfirmDialog` component (part-details.tsx line 6, 796) already exposes `data-testid` for confirm/cancel buttons. If not, update section 12 (UX / UI Impact) to specify: "ConfirmDialog must expose `confirmButtonTestId` and `cancelButtonTestId` props, passed as `data-testid=\"kits.detail.pick-lists.delete.confirm\"` and `data-testid=\"kits.detail.pick-lists.delete.cancel\"`." Update section 13 test plan to include: "Assert confirm dialog visible via `data-testid=\"confirm-dialog\"`, click confirm button via `kits.detail.pick-lists.delete.confirm`."
+**Fix suggestion:** Update Slice 5 to specify either: (A) "Add test scenario to existing part detail spec asserting actions dropdown does not contain 'Refresh' option when opened" or (B) "Verify existing tests pass without modification; no new test needed because refresh button was never tested and removal doesn't affect existing assertions" with justification for (B).
 
-**Confidence:** High — Test determinism requires explicit selectors; omission will force implementation guesswork.
-
----
-
-### Minor — Cache invalidation pattern inconsistent with plan specification
-
-**Evidence:** `plan.md:127-136, 149-155, 180-181` — Plan specifies targeted cache invalidation using specific query keys, but the reference pattern (shopping list deletion, hooks.ts:1920-1922) calls `queryClient.invalidateQueries()` without arguments, invalidating all queries. Section 3 (Data Model / Contracts) and section 5 (Algorithms & UI Flows) show specific keys but don't mandate them.
-
-**Why it matters:** Broad invalidation (no arguments) causes all queries to refetch, creating unnecessary network traffic and UI flicker. Targeted invalidation (specific keys) is more efficient but requires explicit key construction. The plan should either commit to one pattern or justify the inconsistency. Given that `use-pick-list-detail.ts` already exports `buildPickListDetailQueryKey` (line 17-19), targeted invalidation is feasible and preferred.
-
-**Fix suggestion:** Update section 5 step 7 (onSuccess) to specify exact invalidation calls:
-```typescript
-queryClient.invalidateQueries({
-  queryKey: ['getPickListsByPickListId', { path: { pick_list_id: pickListId } }]
-});
-queryClient.invalidateQueries({
-  queryKey: ['getKitsPickListsByKitId', { path: { kit_id: kitId } }]
-});
-```
-Add rationale: "Use targeted invalidation (vs. shopping list's broad `invalidateQueries()`) to avoid refetching unrelated queries and reduce UI flicker."
-
-**Confidence:** Medium — Functional impact is low (broad invalidation works, just inefficient), but targeted invalidation is a better long-term pattern.
+**Confidence:** High — AGENTS.md:44-46 and playwright_developer_guide.md:185-188 require test coverage for UI changes. Slice 5's vagueness creates ambiguity about definition of done.
 
 ---
 
-### Minor — Implementation slices 4-5 (part detail refresh removal) already complete
+**Minor — Cross-tab deletion edge case lacks test coverage**
 
-**Evidence:** System reminder shows `part-details.tsx` was modified; lines 303-309 (Refresh dropdown item) were removed. Plan.md:466-478 (Slices 4-5) still list refresh removal as pending work.
+**Evidence:** `plan.md:301-305` documents edge case ("User is on pick list detail page in one tab, views or deletes list from another tab/session") but `plan.md:420-436` test scenarios don't include it. Plan says "navigation only occurs when deletion initiated from that specific tab" (plan.md:303) but no test verifies this behavior.
 
-**Why it matters:** Developers following the plan will attempt to remove code that's already gone, causing confusion. Slice 5 (verify part detail tests pass) is still valid work, but the removal itself is complete.
+**Why it matters:** Cross-tab behavior is a potential source of user confusion. The plan correctly identifies that the stale tab should show "not found" UI without automatic navigation (plan.md:303), but without a test scenario, this invariant isn't verified. While this may be acceptable to defer, the plan should explicitly acknowledge the gap in section 13 "Gaps" (plan.md:432-435) and justify deferral.
 
-**Fix suggestion:** Update section 14 (Implementation Slices):
-- Slice 4: Change status to "**Already complete** — Refresh option removed from part-details.tsx (lines 303-309 deleted). Verify the component still compiles and renders correctly."
-- Slice 5: Retitle to "Verify part detail tests and manual QA" — "Run `pnpm playwright test tests/e2e/parts/` and manually test the actions dropdown to confirm no regressions. Check that TanStack Query refetch behavior still works (window refocus, etc.)."
+**Fix suggestion:** Either add test scenario: "Given pick list detail page open in Tab A, When pick list deleted in Tab B, Then Tab A shows 'Pick list not found' after cache invalidation without navigation" or add to Gaps: "Cross-tab deletion notification deferred (acceptable; showing 'not found' UI is correct behavior per plan.md:303)".
 
-**Confidence:** High — Evidence from system reminder is conclusive; plan should reflect current state.
+**Confidence:** Medium — Edge case is documented and handling is correct (show not found UI), but lack of explicit test coverage means behavior relies on TanStack Query's cross-tab invalidation without verification.
 
 ---
 
-## 6) Derived-Value & State Invariants
+**Minor — Mutation loading state not covered in test scenarios**
 
-### Derived value: `openPickLists` and `completedPickLists` in kit pick list panel
+**Evidence:** `plan.md:201` states "Delete button disabled while mutation is pending" but test scenarios (plan.md:420-425) don't verify this behavior. The plan specifies testid `pick-lists.detail.actions.delete` (plan.md:427) but doesn't include a scenario asserting the button's disabled state during mutation.
 
-- **Source dataset**: Filtered from `kit.pickLists` array: `openPickLists = kit.pickLists.filter(item => item.status === 'open')`, `completedPickLists = kit.pickLists.filter(item => item.status === 'completed')` (kit-pick-list-panel.tsx:53-60)
-- **Write / cleanup triggered**: After deletion mutation succeeds, `queryClient.invalidateQueries` refetches `getKitsPickListsByKitId`, updating `kit.pickLists` and triggering React re-render with new filtered arrays
-- **Guards**: Confirm dialog prevents accidental deletion; mutation `onError` prevents cache invalidation if backend rejects (plan.md:219)
-- **Invariant**: After successful deletion, deleted pick list must not appear in either `openPickLists` or `completedPickLists` arrays on next render
-- **Evidence**: `plan.md:214-221, kit-pick-list-panel.tsx:53-60`
+**Why it matters:** Disabled state prevents duplicate mutation requests and provides user feedback. While the implementation will likely disable the button correctly (following part delete pattern at part-details.tsx:284), the test plan should include a scenario verifying this guard works, especially since the plan emphasizes deterministic coverage (plan.md:415-417).
 
-### Derived value: `detail` (PickListDetail | undefined) in pick list detail hook
+**Fix suggestion:** Add scenario: "Given pick list deletion in progress, When mutation is pending, Then delete button is disabled and ui_state event shows phase 'loading'". This aligns with the instrumentation plan at plan.md:324-327 (onMutate emits loading phase).
 
-- **Source dataset**: `useGetPickListsByPickListId` query result mapped via `mapPickListDetail()` (use-pick-list-detail.ts:67-70)
-- **Write / cleanup triggered**: When pick list is deleted (by current user or another session), mutation invalidates cache (`['getPickListsByPickListId', { path: { pick_list_id } }]`), triggering query refetch. If deletion occurred in same tab, mutation's `onSuccess` navigates user to `/kits/{kitId}` before 404 renders. If deletion occurred in another tab, query returns 404 and detail page shows "Pick list not found" UI (pick-list-detail.tsx:328-335 fallback).
-- **Guards**: Navigation in mutation `onSuccess` happens before 404 can surface (plan.md:228). Cross-tab deletions show "not found" UI instead of navigating (plan.md:292-295)
-- **Invariant**: After deletion mutation succeeds in active tab, user must be navigated to kit detail before pick list detail query refetches and returns 404. After deletion in another tab, pick list detail query refetch must return 404 and render "not found" UI.
-- **Evidence**: `plan.md:223-231, use-pick-list-detail.ts:67-70`
-- **Risk**: If navigation is omitted or delayed, user sees "Pick list not found" UI briefly—this is acceptable for cross-tab deletions but must be avoided for same-tab deletions via proper `onSuccess` ordering.
-
-### Derived value: `part` data freshness in part detail component (unchanged)
-
-- **Source dataset**: `useGetPartsByPartKey` query result with TanStack Query automatic refetch policies (part-details.tsx:70-79)
-- **Write / cleanup triggered**: None from refresh removal. Mutations elsewhere (edit part, add stock, delete part) continue to invalidate part cache as before.
-- **Guards**: TanStack Query `staleTime` and `refetchOnWindowFocus` policies (application_overview.md:37-38)
-- **Invariant**: Part data freshness maintained by TanStack Query without manual intervention (plan.md:232-239)
-- **Evidence**: `plan.md:232-239, part-details.tsx:70-79, application_overview.md:37-38`
+**Confidence:** Medium — Implementation likely correct by pattern reuse, but explicit coverage would strengthen determinism. Less critical than data contract gaps.
 
 ---
 
-## 7) Risks & Mitigations
+**Checks attempted:** Instrumentation completeness, cache invalidation key correctness, navigation race conditions, derived state invariants, test scenario coverage against documented edge cases.
 
-### Risk: Backend DELETE endpoint rejects deletion due to business constraints
+**Evidence:** Instrumentation events specified with scope/phase/metadata (plan.md:324-328), cache invalidation uses correct query keys (plan.md:188-190 matches hooks.ts:1617 structure), navigation happens in onSuccess after invalidation (plan.md:191), derived state section documents kitId availability (plan.md:235-240).
 
-- **Description**: Backend may enforce constraints (e.g., cannot delete completed pick lists with audit trail dependencies) that frontend does not anticipate. Plan assumes both open and completed pick lists are deletable (plan.md:502) but does not confirm backend validation rules.
-- **Mitigation**: Coordinate with backend team before Slice 1 to confirm deletion constraints. If constraints exist, update plan's error handling (plan.md:273-277) to surface constraint violation messages (e.g., "Cannot delete pick list with completed picks"). Frontend should trust backend error messages and display them in error toast without duplicating validation logic.
-- **Evidence**: `plan.md:485-489, 273-277, 502`
+**Why the plan holds:** Core deletion flow follows established patterns (shopping lists, parts), instrumentation is guarded by isTestMode(), navigation preserves context, and edge case handling is documented even if not all scenarios have explicit test coverage. The identified gaps are documentation and test specificity issues rather than fundamental design flaws.
 
-### Risk: Cross-tab deletion causes confusing UX when user is viewing pick list detail
+## 6) Derived-Value & State Invariants (table)
 
-- **Description**: If user views pick list detail in Tab A and deletes it from kit panel in Tab B, Tab A's cache invalidation triggers 404 and shows "Pick list not found" UI without automatic navigation. Plan acknowledges this (plan.md:291-295, 492) but accepts it as "reasonable behavior." Users may not understand why the page suddenly shows an error.
-- **Mitigation**: Plan accepts this as residual risk (plan.md:492). To improve UX, consider adding a broadcast channel listener that navigates user to kit detail when the *same browser* deletes a pick list in another tab (distinguish from deletions by other users/devices). Alternatively, document this behavior in user help docs and ensure "not found" message is clear: "This pick list was deleted. Return to [kit detail]."
-- **Evidence**: `plan.md:291-295, 410-412, 491-493`
+**Derived value:** `openPickLists` and `completedPickLists` arrays in kit pick list panel
 
-### Risk: Implementation diverges from plan due to unclear mutation context propagation
-
-- **Description**: Plan's flow (plan.md:177-187) shows navigation using `kitId` but doesn't specify how `kitId` reaches the mutation's `onSuccess` callback. If developers follow the shopping list deletion pattern (hooks.ts:1916-1919) which only passes `{ path: { list_id } }`, the mutation won't have access to `kitId` for navigation. This will force last-minute design changes or workarounds (e.g., querying cache for `kitId` from `pickListId`).
-- **Mitigation**: Resolve open question #1 (section 3) before implementation begins. Update plan to show mutation variables include `context: { kitId }`. Review the `useMutation` options structure in generated hooks to confirm `variables` can carry extra context fields without breaking type safety.
-- **Evidence**: `plan.md:179-182, hooks.ts:1915-1919, section 3 open questions`
+- **Source dataset:** Filtered from `kit.pickLists` (kit-pick-list-panel.tsx:53-60)
+- **Write / cleanup triggered:** After deletion, `invalidateQueries` refetches kit pick lists query using key `['getKitsPickListsByKitId', { path: { kit_id: detail.kitId } }]` (plan.md:190); panel re-renders with updated arrays
+- **Guards:** Confirm dialog prevents accidental deletion (plan.md:183); mutation `onError` prevents cache invalidation if backend rejects deletion (plan.md:229)
+- **Invariant:** Deleted pick list must not appear in either open or completed sections after mutation succeeds
+- **Evidence:** `plan.md:224-231`, kit-pick-list-panel.tsx:53-60
 
 ---
+
+**Derived value:** Pick list detail data (`detail: PickListDetail | undefined`)
+
+- **Source dataset:** Unfiltered query result from `useGetPickListsByPickListId` (use-pick-list-detail.ts:67-70)
+- **Write / cleanup triggered:** When pick list is deleted (by current user or another session), mutation invalidates cache using `buildPickListDetailQueryKey(pickListId)` (plan.md:189) and navigates user to kit detail page (plan.md:191) before 404 can render
+- **Guards:** Navigation occurs in deletion mutation's `onSuccess` callback before stale data can render "not found" state (plan.md:238); prevents showing error UI for user-initiated deletion
+- **Invariant:** After deletion by current user, user must be navigated away from pick list detail page to kit detail page using `detail.kitId` before cache invalidation completes; user should never see "not found" UI for their own deletion action
+- **Evidence:** `plan.md:233-240`, pick-list-detail.tsx:328-335 (not found fallback), navigation pattern part-details.tsx:235
+
+---
+
+**Derived value:** Part data freshness after refresh removal
+
+- **Source dataset:** Unfiltered query cache from `useGetPartsByPartKey` with TanStack Query staleTime and refetch policies
+- **Write / cleanup triggered:** None triggered by refresh removal; automatic refetch on window focus and network reconnect continues per TanStack Query defaults (application_overview.md:37-38)
+- **Guards:** Query continues to refetch on window focus and network reconnect; mutations that update parts (edit, delete, add stock) continue to invalidate cache as before (plan.md:267)
+- **Invariant:** Part data freshness is maintained by TanStack Query's built-in policies without manual intervention; removing refresh option does not degrade data consistency
+- **Evidence:** `plan.md:242-249`, part-details.tsx:70-79, application_overview.md:37-38
+
+---
+
+**Derived value:** Kit navigation search parameters (`kitOverviewStatus`, `kitOverviewSearch`)
+
+- **Source dataset:** Passed from kit detail route search state to pick list detail as props (plan.md:33-34), or fetched from kit status query if not provided (plan.md:120-133 in system reminder)
+- **Write / cleanup triggered:** Preserved in navigation back to kit detail after deletion (plan.md:191); mutation `onSuccess` navigates with search params: `{ to: '/kits/$kitId', params: { kitId: String(detail.kitId) }, search: kitNavigationSearch }`
+- **Guards:** Optional parameters (plan.md:191 says "with optional search params if available"); if unavailable, navigation still succeeds to kit detail without search params
+- **Invariant:** Search params must be preserved when present to maintain user's kit overview filter context; navigation must not fail if params are absent
+- **Evidence:** `plan.md:191, 198, 425, 436`, pick-list-detail.tsx:33-34, 135-142 (system reminder shows search param resolution logic)
+
+> **Note:** This derived value lacks formal documentation in section 3 "Data Model / Contracts" (plan.md:117-145) — flagged as Major finding above.
+
+## 7) Risks & Mitigations (top 3)
+
+**Risk:** Backend DELETE endpoint rejects deletion if pick list has associated audit trail or completed picks
+
+**Mitigation:** Coordinate with backend team on deletion constraints; ensure error messages are descriptive (e.g., "Cannot delete pick list with completed history"); frontend shows error toast and does not navigate user away; backend validates before allowing deletion per OpenAPI spec (plan.md:128, 510-513)
+
+**Evidence:** `plan.md:510-513`, DELETE endpoint returns 204 (success), 400 (validation), 404 (not found) per plan.md:128
+
+---
+
+**Risk:** User in one tab deletes pick list while viewing it in another tab; active tab shows "not found" UI after cache invalidation
+
+**Mitigation:** Cross-tab deletions show "not found" state without automatic navigation (plan.md:303, 515-516); this accurately reflects deleted state; users can navigate back manually; TanStack Query cross-tab invalidation ensures UI reflects deletion even when not initiated by current tab (plan.md:304)
+
+**Evidence:** `plan.md:301-305, 515-517`, TanStack Query cross-tab behavior documented at pick-list-detail.tsx:328-335
+
+---
+
+**Risk:** Removing part detail refresh breaks undocumented user workflows where users relied on manual refresh to see updated data
+
+**Mitigation:** Monitor feedback after release; document TanStack Query's automatic refetch behavior in user help docs if needed; existing automatic refetch on focus/reconnect (application_overview.md:37-38) should satisfy most use cases; users can navigate away/back as workaround (plan.md:215, 518-520)
+
+**Evidence:** `plan.md:518-520`, part detail query lifecycle (plan.md:361-366), TanStack Query refetch behavior (application_overview.md:37-38)
 
 ## 8) Confidence
 
-**Confidence: Medium** — The plan follows established patterns and provides thorough research, but contains specification gaps (instrumentation lifecycle, navigation context, confirmation dialog test IDs, backend dependency tracking) that must be resolved before implementation begins. The part detail refresh removal is already complete, making slices 4-5 partially obsolete. With the identified conditions addressed, confidence rises to High.
+Confidence: High — Both changes are isolated, low-risk housekeeping tasks with clear implementation paths following established CRUD patterns (shopping lists for deletion, TanStack Query defaults for refresh removal). The plan is comprehensive with detailed evidence and documented edge cases. The identified gaps are minor (missing test scenarios, search param documentation) and can be addressed during implementation without design changes. The instrumentation strategy, cache invalidation approach, and navigation flow are all sound and follow documented patterns.
