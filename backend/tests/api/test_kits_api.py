@@ -587,3 +587,64 @@ class TestKitsApi:
             json={"part_id": 99999, "required_per_unit": 1},
         )
         assert response.status_code == 404
+
+    def test_delete_kit_endpoint_success(self, client, session):
+        """Delete kit returns HTTP 204 and removes kit from database."""
+        kit = Kit(name="Kit To Delete", build_target=1)
+        session.add(kit)
+        session.commit()
+
+        kit_id = kit.id
+        response = client.delete(f"/api/kits/{kit_id}")
+        assert response.status_code == 204
+        assert response.data == b""
+        assert session.get(Kit, kit_id) is None
+
+    def test_delete_kit_endpoint_not_found(self, client, session):
+        """Delete nonexistent kit returns HTTP 404."""
+        response = client.delete("/api/kits/99999")
+        assert response.status_code == 404
+        payload = response.get_json()
+        assert "error" in payload
+
+    def test_delete_kit_endpoint_cascades_child_records(self, client, session):
+        """Delete kit with child records removes all related data."""
+        kit = Kit(name="Kit With Children", build_target=1)
+        part = Part(key="DK01", description="Delete test part")
+        shopping_list = ShoppingList(name="Delete List", status=ShoppingListStatus.CONCEPT)
+        session.add_all([kit, part, shopping_list])
+        session.flush()
+
+        content = KitContent(kit=kit, part=part, required_per_unit=2)
+        pick_list = KitPickList(
+            kit_id=kit.id,
+            requested_units=1,
+            status=KitPickListStatus.OPEN,
+        )
+        link = KitShoppingListLink(
+            kit_id=kit.id,
+            shopping_list_id=shopping_list.id,
+            requested_units=1,
+            honor_reserved=False,
+            snapshot_kit_updated_at=datetime.now(UTC),
+        )
+        session.add_all([content, pick_list, link])
+        session.commit()
+
+        kit_id = kit.id
+        content_id = content.id
+        pick_list_id = pick_list.id
+        link_id = link.id
+
+        response = client.delete(f"/api/kits/{kit_id}")
+        assert response.status_code == 204
+
+        # Verify kit and all child records are deleted
+        assert session.get(Kit, kit_id) is None
+        assert session.get(KitContent, content_id) is None
+        assert session.get(KitPickList, pick_list_id) is None
+        assert session.get(KitShoppingListLink, link_id) is None
+
+        # Verify part and shopping list still exist
+        assert session.get(Part, part.id) is not None
+        assert session.get(ShoppingList, shopping_list.id) is not None

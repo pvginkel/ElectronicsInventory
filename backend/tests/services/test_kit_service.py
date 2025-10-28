@@ -576,3 +576,149 @@ class TestKitService:
         session.refresh(kit)
         assert not kit.contents
         assert metrics_stub.content_deleted[-1] == (kit.id, part.id)
+
+    def test_delete_kit_removes_kit_from_database(
+        self,
+        session,
+        kit_service: KitService,
+    ):
+        """Delete a kit with no child records."""
+        kit = Kit(name="Simple Kit", build_target=1)
+        session.add(kit)
+        session.commit()
+
+        kit_id = kit.id
+        kit_service.delete_kit(kit_id)
+
+        assert session.get(Kit, kit_id) is None
+
+    def test_delete_kit_cascades_contents(
+        self,
+        session,
+        kit_service: KitService,
+    ):
+        """Delete a kit with contents removes all content records."""
+        kit = Kit(name="Kit With Contents", build_target=1)
+        part_a = Part(key="KDC1", description="Resistor")
+        part_b = Part(key="KDC2", description="Capacitor")
+        session.add_all([kit, part_a, part_b])
+        session.flush()
+
+        content_a = KitContent(kit=kit, part=part_a, required_per_unit=2)
+        content_b = KitContent(kit=kit, part=part_b, required_per_unit=3)
+        session.add_all([content_a, content_b])
+        session.commit()
+
+        kit_id = kit.id
+        content_a_id = content_a.id
+        content_b_id = content_b.id
+
+        kit_service.delete_kit(kit_id)
+
+        assert session.get(Kit, kit_id) is None
+        assert session.get(KitContent, content_a_id) is None
+        assert session.get(KitContent, content_b_id) is None
+
+    def test_delete_kit_cascades_pick_lists_and_lines(
+        self,
+        session,
+        kit_service: KitService,
+    ):
+        """Delete a kit with pick lists removes all pick list records and lines."""
+        kit = Kit(name="Kit With Pick Lists", build_target=1)
+        session.add(kit)
+        session.flush()
+
+        pick_list = KitPickList(
+            kit_id=kit.id,
+            requested_units=1,
+            status=KitPickListStatus.OPEN,
+        )
+        session.add(pick_list)
+        session.commit()
+
+        kit_id = kit.id
+        pick_list_id = pick_list.id
+
+        kit_service.delete_kit(kit_id)
+
+        assert session.get(Kit, kit_id) is None
+        assert session.get(KitPickList, pick_list_id) is None
+
+    def test_delete_kit_cascades_shopping_list_links(
+        self,
+        session,
+        kit_service: KitService,
+    ):
+        """Delete a kit with shopping list links removes all link records."""
+        kit = Kit(name="Kit With Links", build_target=1)
+        shopping_list = ShoppingList(
+            name="Test List",
+            status=ShoppingListStatus.CONCEPT,
+        )
+        session.add_all([kit, shopping_list])
+        session.flush()
+
+        link = KitShoppingListLink(
+            kit_id=kit.id,
+            shopping_list_id=shopping_list.id,
+            requested_units=1,
+            honor_reserved=False,
+            snapshot_kit_updated_at=datetime.now(UTC),
+        )
+        session.add(link)
+        session.commit()
+
+        kit_id = kit.id
+        link_id = link.id
+
+        kit_service.delete_kit(kit_id)
+
+        assert session.get(Kit, kit_id) is None
+        assert session.get(KitShoppingListLink, link_id) is None
+        # Shopping list should still exist
+        assert session.get(ShoppingList, shopping_list.id) is not None
+
+    def test_delete_active_kit_succeeds(
+        self,
+        session,
+        kit_service: KitService,
+    ):
+        """Delete an active kit without status restriction."""
+        kit = Kit(name="Active Kit", build_target=1, status=KitStatus.ACTIVE)
+        session.add(kit)
+        session.commit()
+
+        kit_id = kit.id
+        kit_service.delete_kit(kit_id)
+
+        assert session.get(Kit, kit_id) is None
+
+    def test_delete_archived_kit_succeeds(
+        self,
+        session,
+        kit_service: KitService,
+    ):
+        """Delete an archived kit without status restriction."""
+        kit = Kit(
+            name="Archived Kit",
+            build_target=1,
+            status=KitStatus.ARCHIVED,
+            archived_at=datetime.now(UTC),
+        )
+        session.add(kit)
+        session.commit()
+
+        kit_id = kit.id
+        kit_service.delete_kit(kit_id)
+
+        assert session.get(Kit, kit_id) is None
+
+    def test_delete_nonexistent_kit_raises_not_found(
+        self,
+        session,
+        kit_service: KitService,
+    ):
+        """Delete a nonexistent kit raises RecordNotFoundException."""
+        with pytest.raises(RecordNotFoundException):
+            kit_service.delete_kit(99999)

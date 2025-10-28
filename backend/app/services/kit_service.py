@@ -515,6 +515,15 @@ class KitService(BaseService):
         self._record_unarchived_metric()
         return kit
 
+    def delete_kit(self, kit_id: int) -> None:
+        """Delete a kit and cascade to all child records."""
+        kit = self.db.get(Kit, kit_id)
+        if kit is None:
+            raise RecordNotFoundException("Kit", kit_id)
+
+        self.db.delete(kit)
+        self.db.flush()
+
     # Internal helpers -----------------------------------------------------
 
     def _touch_kit(self, kit: Kit) -> None:
