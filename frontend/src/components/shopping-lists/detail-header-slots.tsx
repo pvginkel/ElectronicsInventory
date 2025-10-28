@@ -62,6 +62,7 @@ export function useShoppingListDetailHeaderSlots({
   isDeletingList,
   overviewSearchTerm = '',
   onUnlinkKit,
+  unlinkingLinkId,
 }: ConceptHeaderProps): ShoppingListDetailHeaderRender {
   const { showSuccess, showException } = useToast();
   const [editOpen, setEditOpen] = useState(false);
@@ -271,6 +272,7 @@ export function useShoppingListDetailHeaderSlots({
             }
             testId={`shopping-lists.concept.body.kits.${kitLink.kitId}`}
             onUnlink={onUnlinkKit ? () => onUnlinkKit(kitLink) : undefined}
+            unlinkLoading={unlinkingLinkId === kitLink.linkId}
             unlinkTestId={`shopping-lists.concept.body.kits.${kitLink.kitId}.unlink`}
           />
         ))}

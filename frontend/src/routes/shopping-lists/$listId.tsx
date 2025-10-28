@@ -556,8 +556,33 @@ function ShoppingListDetailRoute() {
     [detailIsCompleted, emitUnlinkFlowEvent, unlinkMutation.isPending, unlinkingLinkId],
   );
 
+  const handleUnlinkDialogChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      setLinkToUnlink(null);
+    }
+  }, []);
+
+  const nextReceivableLine = useMemo(() => {
+    if (!updateStockState.line) {
+      return undefined;
+    }
+    return findNextReceivableLine(updateStockState.line.id, sellerGroups);
+  }, [sellerGroups, updateStockState.line]);
+
+  const { slots: detailHeaderSlots, overlays: headerOverlays, kitsQuery } = useShoppingListDetailHeaderSlots({
+    list: shoppingList,
+    onUpdateMetadata: handleUpdateMetadata,
+    isUpdating: updateMetadataMutation.isPending,
+    onDeleteList: handleDeleteList,
+    isDeletingList,
+    overviewSearchTerm: search.originSearch ?? '',
+    onUnlinkKit: detailIsCompleted ? undefined : handleUnlinkRequest,
+    unlinkingLinkId,
+  });
+
+  // handleConfirmUnlink must come after the hook call because it uses kitsQuery.refetch()
   const handleConfirmUnlink = useCallback(() => {
-    if (!shoppingList || !linkToUnlink) {
+    if (!shoppingList || !linkToUnlink || unlinkMutation.isPending) {
       return;
     }
     const link = linkToUnlink;
@@ -594,31 +619,7 @@ function ShoppingListDetailRoute() {
         setUnlinkingLinkId(null);
         setLinkToUnlink(null);
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shoppingList, linkToUnlink, emitUnlinkFlowEvent, unlinkMutation, showSuccess, showWarning, showException]);
-
-  const handleUnlinkDialogChange = useCallback((nextOpen: boolean) => {
-    if (!nextOpen) {
-      setLinkToUnlink(null);
-    }
-  }, []);
-
-  const nextReceivableLine = useMemo(() => {
-    if (!updateStockState.line) {
-      return undefined;
-    }
-    return findNextReceivableLine(updateStockState.line.id, sellerGroups);
-  }, [sellerGroups, updateStockState.line]);
-
-  const { slots: detailHeaderSlots, overlays: headerOverlays, kitsQuery } = useShoppingListDetailHeaderSlots({
-    list: shoppingList,
-    onUpdateMetadata: handleUpdateMetadata,
-    isUpdating: updateMetadataMutation.isPending,
-    onDeleteList: handleDeleteList,
-    isDeletingList,
-    overviewSearchTerm: search.originSearch ?? '',
-    onUnlinkKit: detailIsCompleted ? undefined : handleUnlinkRequest,
-  });
+  }, [shoppingList, linkToUnlink, emitUnlinkFlowEvent, unlinkMutation, showSuccess, showWarning, showException, kitsQuery]);
 
   const listLoaded = shoppingList != null;
   const status = shoppingList?.status ?? 'concept';

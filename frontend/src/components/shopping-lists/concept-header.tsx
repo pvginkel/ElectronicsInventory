@@ -9,6 +9,7 @@ export interface ConceptHeaderProps {
   isDeletingList?: boolean;
   overviewSearchTerm?: string;
   onUnlinkKit?: (link: ShoppingListKitLink) => void;
+  unlinkingLinkId?: number | null;
 }
 
 export function ConceptHeader(props: ConceptHeaderProps) {
