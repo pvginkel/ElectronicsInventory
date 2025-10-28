@@ -13996,6 +13996,49 @@
       }
     },
     "/api/pick-lists/{pick_list_id}": {
+      "delete": {
+        "description": "",
+        "operationId": "delete__api_pick-lists_{pick_list_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "pick_list_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Delete a pick list.",
+        "tags": []
+      },
       "get": {
         "description": "",
         "operationId": "get__api_pick-lists_{pick_list_id}",
