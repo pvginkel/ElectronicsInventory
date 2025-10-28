@@ -185,3 +185,67 @@ class TestPickListsApi:
     def test_pick_list_routes_handle_missing_pick_list(self, client) -> None:
         response = client.get("/api/pick-lists/9999")
         assert response.status_code == 404
+
+    def test_delete_pick_list_returns_204(self, client, session) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=1, initial_qty=3)
+        creation = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={"requested_units": 1},
+        )
+        pick_list_id = creation.get_json()["id"]
+
+        response = client.delete(f"/api/pick-lists/{pick_list_id}")
+        assert response.status_code == 204
+
+        get_response = client.get(f"/api/pick-lists/{pick_list_id}")
+        assert get_response.status_code == 404
+
+    def test_delete_pick_list_nonexistent_returns_404(self, client) -> None:
+        response = client.delete("/api/pick-lists/9999")
+        assert response.status_code == 404
+        payload = response.get_json()
+        assert "error" in payload
+
+    def test_delete_pick_list_removes_all_lines(self, client, session) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=1, initial_qty=5)
+        creation = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={"requested_units": 2},
+        )
+        pick_list_data = creation.get_json()
+        pick_list_id = pick_list_data["id"]
+        line_ids = [line["id"] for line in pick_list_data["lines"]]
+
+        response = client.delete(f"/api/pick-lists/{pick_list_id}")
+        assert response.status_code == 204
+
+        from app.models.kit_pick_list import KitPickList
+        assert session.get(KitPickList, pick_list_id) is None
+        for line_id in line_ids:
+            assert session.execute(
+                select(KitPickListLine).where(KitPickListLine.id == line_id)
+            ).scalar_one_or_none() is None
+
+    def test_delete_pick_list_completed_preserves_inventory_history(self, client, session) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=1, initial_qty=3)
+        creation = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={"requested_units": 1},
+        )
+        pick_list_data = creation.get_json()
+        pick_list_id = pick_list_data["id"]
+        line_id = pick_list_data["lines"][0]["id"]
+
+        client.post(f"/api/pick-lists/{pick_list_id}/lines/{line_id}/pick")
+
+        line = session.execute(
+            select(KitPickListLine).where(KitPickListLine.id == line_id)
+        ).scalar_one()
+        inventory_change_id = line.inventory_change_id
+
+        response = client.delete(f"/api/pick-lists/{pick_list_id}")
+        assert response.status_code == 204
+
+        from app.models.quantity_history import QuantityHistory
+        history_record = session.get(QuantityHistory, inventory_change_id)
+        assert history_record is not None

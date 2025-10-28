@@ -87,6 +87,24 @@ def get_pick_list_detail(
     return KitPickListDetailSchema.model_validate(pick_list).model_dump()
 
 
+@pick_lists_bp.route("/pick-lists/<int:pick_list_id>", methods=["DELETE"])
+@api.validate(
+    resp=SpectreeResponse(
+        HTTP_204=None,
+        HTTP_404=ErrorResponseSchema,
+    ),
+)
+@handle_api_errors
+@inject
+def delete_pick_list(
+    pick_list_id: int,
+    kit_pick_list_service=Provide[ServiceContainer.kit_pick_list_service],
+):
+    """Delete a pick list."""
+    kit_pick_list_service.delete_pick_list(pick_list_id)
+    return "", 204
+
+
 @pick_lists_bp.route(
     "/pick-lists/<int:pick_list_id>/lines/<int:line_id>/pick",
     methods=["POST"],
