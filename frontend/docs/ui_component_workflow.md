@@ -91,19 +91,20 @@ Apply the output to improve the plan. If significant changes are needed, run the
 
 ### 4. Execute the Plan
 
-Implement the plan step by step:
-- Create the new UI component in `src/components/ui/` **without** a `className` prop
-- Refactor domain-specific wrappers to delegate to the new component
-- **Remove `className` props entirely** from wrapper interfaces—do not keep them as deprecated or ignored parameters
-- Remove old styling classes from domain components
-- Run `pnpm check` to find all type errors caused by breaking changes
-- Fix each call site identified by TypeScript errors
-- Update tests if applicable
-- Ensure TypeScript strict mode passes with zero errors
+Use the `code-writer` agent to execute the plan:
 
-Follow the existing patterns in `components/ui/` for component structure and naming.
+```
+Use the Task tool with the code-writer agent to execute the plan at docs/features/<FEATURE_NAME>/plan.md.
 
-**Breaking Changes Are Expected**: Type errors are your discovery mechanism. Each error points to a call site that needs updating. Work through them systematically.
+The agent should:
+- Execute the plan in full, fully tested.
+- Report on what was implemented and what was left out, and why.
+- Report on problems it encountered during implementation.
+
+Breaking Changes Are Expected, Type errors are your discovery mechanism. Each error points to a call site that needs updating. Work through them systematically.
+```
+
+**Important**: Provide explicit full paths to the plan file in your agent prompt (e.g., `docs/features/link_chip_extraction/plan.md`).
 
 ### 5. Perform Code Review
 
@@ -123,7 +124,7 @@ The agent should verify:
 - The component is generic and domain-agnostic
 - Tests are updated appropriately
 
-Apply any suggested improvements. If substantial issues are found, run the code-reviewer again after fixes.
+Apply any suggested improvements using the code-writer agent. If substantial issues are found, run the code-reviewer again after fixes.
 ```
 
 **Important**: Provide explicit full paths to both the plan and code review files in your agent prompt (e.g., `docs/features/link_chip_extraction/plan.md` and `docs/features/link_chip_extraction/code_review.md`).
