@@ -21,8 +21,8 @@ from app.schemas.kit import (
     KitMembershipBulkQueryRequestSchema,
     KitResponseSchema,
     KitShoppingListChipSchema,
-    KitShoppingListLinkSchema,
     KitShoppingListLinkResponseSchema,
+    KitShoppingListLinkSchema,
     KitShoppingListMembershipQueryResponseSchema,
     KitShoppingListRequestSchema,
     KitSummarySchema,
@@ -451,3 +451,21 @@ def unarchive_kit(
     kit = kit_service.unarchive_kit(kit_id)
     _ensure_badge_attributes(kit)
     return KitResponseSchema.model_validate(kit).model_dump()
+
+
+@kits_bp.route("/<int:kit_id>", methods=["DELETE"])
+@api.validate(
+    resp=SpectreeResponse(
+        HTTP_204=None,
+        HTTP_404=ErrorResponseSchema,
+    ),
+)
+@handle_api_errors
+@inject
+def delete_kit(
+    kit_id: int,
+    kit_service=Provide[ServiceContainer.kit_service],
+):
+    """Permanently delete a kit and all child records."""
+    kit_service.delete_kit(kit_id)
+    return "", 204
