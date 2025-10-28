@@ -171,14 +171,14 @@ Polish kit list and detail views with functional and visual improvements to enha
   ```typescript
   {
     kitId: number;
-    memberships: KitShoppingListMembership[];  // includes isStale field
+    memberships: KitShoppingListMembership[];  // isStale field EXCLUDED from mapping
     hasActiveMembership: boolean;
     activeCount: number;
     // ... counts
   }
   ```
-- **Mapping**: Backend returns `is_stale` (snake_case), mapped to `isStale` (camelCase) at hook layer
-- **Evidence**: `src/hooks/use-kit-memberships.ts:97-110`
+- **Mapping**: Backend returns `is_stale` (snake_case) but frontend **excludes it from camelCase mapping** since refresh functionality is not implemented. Remove `isStale: raw.is_stale ?? false` from `mapKitShoppingMembership` function and remove `isStale` field from `KitShoppingListMembership` type definition in `src/types/kits.ts`
+- **Evidence**: `src/hooks/use-kit-memberships.ts:97-110` (line 105 to be removed)
 
 ---
 
@@ -242,6 +242,37 @@ Polish kit list and detail views with functional and visual improvements to enha
 
 ## 5) Algorithms & UI Flows (step-by-step)
 
+### Flow 0: Ellipsis Menu Mutation Coordination
+
+**Flow**: Detail screen ellipsis menu contains three mutually exclusive actions
+**Context**: Archive (shown when kit.status === 'active'), Unarchive (shown when kit.status === 'archived'), and Delete (always shown)
+
+**Coordination strategy**:
+1. Derive unified `isPending` state from all mutations:
+   ```typescript
+   const isPending = archiveMutation.isPending || unarchiveMutation.isPending || deleteKitMutation.isPending;
+   ```
+2. Disable all menu items when `isPending === true`
+3. Close menu immediately when any action starts (onClick handlers call menu close before mutation)
+4. Show loading state on the specific action clicked (e.g., "Archiving…", "Deleting…")
+
+**States / transitions**:
+- Default → menu closed, no mutations pending
+- User opens menu → menu visible, all actions enabled (except mutually exclusive archive/unarchive)
+- User clicks action → menu closes, mutation starts, `isPending === true`
+- Mutation succeeds → `isPending === false`, toast shows feedback
+- Mutation fails → `isPending === false`, toast shows error, menu remains closed
+
+**Hotspots**:
+- Do not allow concurrent mutations (e.g., archive + delete)
+- Form instrumentation events (`FormSubmit`, `FormSuccess`) must use distinct `formId` values
+- Archive/unarchive use existing `ARCHIVE_FORM_ID` and `UNARCHIVE_FORM_ID` constants
+- Delete uses new `DELETE_FORM_ID = 'KitLifecycle:delete'` constant
+
+**Evidence**: `src/components/kits/kit-archive-controls.tsx:36` (pendingAction state); parts detail menu pattern (if exists)
+
+---
+
 ### Flow 1: Batch Membership Query on Kit List Load
 
 **Flow**: Kit list initial render with membership indicators
@@ -275,16 +306,18 @@ Polish kit list and detail views with functional and visual improvements to enha
 3. `handleArchiveClick` calls `archiveMutation.mutateAsync({ path: { kit_id } })`
 4. Optimistic update moves kit to archived status in query cache
 5. Backend confirms; toast shows success with undo action
-6. If undo clicked within toast lifetime, `unarchiveMutation` immediately fires
+6. **User stays on detail screen** — status badge updates to "Archived", actions menu shows "Unarchive"
+7. If undo clicked within toast lifetime, `unarchiveMutation` immediately fires and detail screen updates back to "Active"
 
 **States / transitions**:
-- `pendingAction === 'archive'` → menu item shows "Archiving…" (or disabled)
-- Success → navigate back to kits overview (or stay on detail with updated status badge)
+- `isPending === true` (derived from all mutations) → all menu items disabled
+- Success → stay on detail; status badge shows "Archived"; "Order Stock" and "Edit Details" disabled; menu shows "Unarchive"
 - Error → rollback cache; show toast error
 
 **Hotspots**:
-- Avoid race conditions if user navigates away mid-archive
-- Ensure ellipsis menu closes after action starts
+- Detail query must refetch after archive (handled by cache invalidation)
+- Menu closes immediately when action starts (before mutation)
+- Coordinate pending state across archive/unarchive/delete mutations to prevent concurrent actions
 
 **Evidence**: `src/components/kits/kit-archive-controls.tsx:111-143`
 
@@ -298,20 +331,23 @@ Polish kit list and detail views with functional and visual improvements to enha
 2. User clicks "Delete Kit"
 3. Confirm dialog appears: "Are you sure? This action cannot be undone and will only succeed if the kit has no dependencies."
 4. User confirms
-5. `handleDeleteKit` calls `deleteKitMutation.mutateAsync({ path: { kit_id } })`
+5. `handleDeleteKit` calls `deleteKitMutation.mutate({ path: { kit_id } }, { onSuccess: () => navigate('/kits') })`
 6. Backend validates (no shopping lists, no pick lists, etc.)
-7. On success: navigate to `/kits` overview; invalidate kit queries
-8. On 400 error: show toast explaining dependencies prevent deletion
+7. On 204 success: `onSuccess` callback navigates to `/kits` overview; invalidation triggers list refetch
+8. On 400 error: show toast with backend error message; stay on detail view
+9. On 404 error: show toast "Kit was already deleted"; navigate to `/kits` overview
 
 **States / transitions**:
 - Waiting for confirm → dialog open
-- `deleteKitMutation.isPending` → menu item disabled; delete button shows spinner
-- Success → immediate navigation
-- Error → stay on detail; show error toast
+- `deleteKitMutation.isPending` → all menu items disabled; delete button shows spinner
+- Success (204) → navigation to `/kits` via `onSuccess` callback
+- Error (400) → stay on detail; show backend error message in toast
+- Error (404) → navigate to `/kits`; show "already deleted" warning
 
 **Hotspots**:
-- Backend validation must return clear error message
-- Confirm dialog must clearly state deletion requirements
+- Use `onSuccess` callback for navigation to ensure it fires even if component unmounts mid-mutation
+- Backend error messages shown directly; no custom error mapping needed
+- Mutation completes in background even if component unmounts (TanStack Query behavior)
 
 **Evidence**: Similar pattern at `src/components/parts/part-details.tsx:215-236`
 
@@ -319,21 +355,24 @@ Polish kit list and detail views with functional and visual improvements to enha
 
 ### Flow 4: Unlink Icon Hover State on Shopping List Chip
 
-**Flow**: User hovers over shopping list chip in kit detail
+**Flow**: User hovers over shopping list chip in kit detail (desktop) or taps chip (mobile)
 **Steps**:
 1. Chip renders with link to shopping list and unlink button
-2. By default, unlink button hidden (`opacity-0` or `hidden`)
-3. On `.group:hover` or `.group:focus-within`, unlink button fades in (`opacity-100` with transition)
-4. User clicks unlink icon → confirm dialog → unlink mutation fires
+2. **Desktop**: By default, unlink button hidden (`opacity-0`); on hover/focus, fades in (`opacity-100`)
+3. **Mobile/touch**: Unlink button always visible (detected via `@media (pointer: coarse)`)
+4. **Keyboard**: Focus-within reveals unlink button for accessibility
+5. User clicks unlink icon → confirm dialog → unlink mutation fires
 
 **States / transitions**:
-- Default → icon invisible
-- Hover/focus → icon visible with smooth transition
+- Desktop default → icon invisible
+- Desktop hover/focus → icon visible with smooth transition
+- Mobile/touch → icon always visible
 - Click → icon disabled; loading spinner
 
 **Hotspots**:
-- Must work with keyboard navigation (focus-within)
-- Touch devices need alternate pattern (always show, or show on tap)
+- CSS: Use `group` and `group-hover:opacity-100 group-focus-within:opacity-100` for desktop
+- CSS: Add `@media (pointer: coarse)` rule to set `opacity-100` for touch devices
+- Implementation: `[@media(pointer:coarse)]:opacity-100` in Tailwind className
 
 **Evidence**: `src/components/shopping-lists/shopping-list-link-chip.tsx:122-139`
 
@@ -375,11 +414,27 @@ Polish kit list and detail views with functional and visual improvements to enha
 
 ### Query Invalidation Strategy
 
-- **Source of truth**: TanStack Query cache for kit list (`['getKits', status, search]`) and detail (`['getKitById', kitId]`)
-- **Coordination**: Archive mutations invalidate `{ queryKey: ['getKits'] }` on settle; detail screen refetches after archive
+- **Source of truth**: TanStack Query cache for kit list (`['getKits', status, search]`), detail (`['getKitById', kitId]`), and membership queries (`['kits.shoppingListMemberships']`, `['kits.pickListMemberships']`)
+- **Coordination**: All mutations (archive, unarchive, delete) invalidate **four query keys** on settle:
+  1. `{ queryKey: ['getKits'] }` — triggers list refetch
+  2. `{ queryKey: ['getKitById', kitId] }` — triggers detail refetch when user stays on detail screen after archive
+  3. `{ queryKey: ['kits.shoppingListMemberships'] }` — triggers shopping list membership indicator refetch on list view
+  4. `{ queryKey: ['kits.pickListMemberships'] }` — triggers pick list membership indicator refetch on list view
+- **Implementation**: Replace `onSettled` in `kit-archive-controls.tsx:93-95, 140-142` with:
+  ```typescript
+  onSettled: () => {
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['getKits'] }),
+      queryClient.invalidateQueries({ queryKey: ['getKitById', kit.id] }),
+      queryClient.invalidateQueries({ queryKey: ['kits.shoppingListMemberships'] }),
+      queryClient.invalidateQueries({ queryKey: ['kits.pickListMemberships'] }),
+    ]);
+  },
+  ```
+- **Detail screen behavior**: When archive/unarchive completes on detail screen, `useGetKitsByKitId` hook auto-refetches due to invalidation, updating status badge and actions menu without manual refetch
 - **Async safeguards**: `cancelQueries` before optimistic update to avoid race with in-flight refetch
 - **Instrumentation**: `useListLoadingInstrumentation` emits `ListLoading` events for kits.overview and kits.detail.memberships scopes
-- **Evidence**: `src/components/kits/kit-archive-controls.tsx:54-59, 94-95, 140-142`
+- **Evidence**: `src/components/kits/kit-archive-controls.tsx:54-59, 94-95, 140-142` (current implementation to be updated)
 
 ---
 
@@ -398,9 +453,13 @@ Polish kit list and detail views with functional and visual improvements to enha
 ### Failure: Kit delete fails due to dependencies
 
 - **Surface**: Kit detail ellipsis menu → Delete action
-- **Handling**: Backend returns 400 with message "Cannot delete kit with active shopping lists"; toast shows error; stay on detail view
-- **Guardrails**: Confirm dialog warns deletion only succeeds for clean kits
-- **Evidence**: Similar pattern at `src/components/parts/part-details.tsx:215-236`
+- **Handling**:
+  - Backend returns 400 with error message (e.g., "Cannot delete kit with active dependencies")
+  - Frontend displays backend error message in toast via centralized error handler
+  - **No custom error mapping required** — rely on backend to provide user-friendly messages
+  - Stay on detail view after error
+- **Guardrails**: Confirm dialog warns "deletion only succeeds if the kit has no dependencies"
+- **Evidence**: Standard ApiError handling pattern; similar pattern at `src/components/parts/part-details.tsx:215-236`
 
 ---
 
@@ -422,12 +481,15 @@ Polish kit list and detail views with functional and visual improvements to enha
 
 ---
 
-### Edge case: "Needs refresh" label removed but isStale still in data
+### Edge case: "Needs refresh" label removed and isStale excluded from mapping
 
 - **Surface**: Kit card shopping list tooltip
-- **Handling**: `isStale` field ignored in tooltip rendering; label removed from `renderKitShoppingTooltip`
-- **Guardrails**: Backend may still return `is_stale: true`; UI simply doesn't display it
-- **Evidence**: `src/components/kits/kit-card.tsx:207-213`
+- **Handling**:
+  - Remove `isStale` field from `KitShoppingListMembership` type in `src/types/kits.ts`
+  - Remove `isStale: raw.is_stale ?? false` from `mapKitShoppingMembership` function in `src/hooks/use-kit-memberships.ts:105`
+  - Backend may still return `is_stale: true` but frontend excludes it from camelCase mapping
+- **Guardrails**: Field removed from type prevents accidental usage; refresh functionality not implemented
+- **Evidence**: `src/hooks/use-kit-memberships.ts:97-110`; `src/components/kits/kit-card.tsx:207-213`
 
 ---
 
@@ -454,11 +516,15 @@ Polish kit list and detail views with functional and visual improvements to enha
 
 ### Signal: Delete kit form events (new)
 
-- **Type**: Form instrumentation
+- **Type**: Form instrumentation (`trackFormSubmit`, `trackFormSuccess`, `trackFormError`)
 - **Trigger**: On delete button click; on mutation success/error
 - **Labels / fields**: `{ kitId, formId: 'KitLifecycle:delete' }`
-- **Consumer**: Playwright specs for delete action
-- **Evidence**: N/A – new instrumentation required
+- **Constants**:
+  - Archive: `ARCHIVE_FORM_ID = 'KitLifecycle:archive'` (already exists in `kit-archive-controls.tsx:11`)
+  - Unarchive: `UNARCHIVE_FORM_ID = 'KitLifecycle:unarchive'` (already exists in `kit-archive-controls.tsx:12`)
+  - Delete: `DELETE_FORM_ID = 'KitLifecycle:delete'` (new constant to add in `kit-detail.tsx` or shared constants file)
+- **Consumer**: Playwright specs for delete action wait on `formId: 'KitLifecycle:delete'`
+- **Evidence**: Existing constants at `kit-archive-controls.tsx:11-12`; consistent naming pattern
 
 ---
 
@@ -502,6 +568,29 @@ Polish kit list and detail views with functional and visual improvements to enha
 
 ---
 
+### Hook / effect: Delete mutation navigation guard
+
+- **Trigger cadence**: On delete button click → confirm dialog → mutation
+- **Responsibilities**:
+  - Use `deleteKitMutation.mutate()` with `onSuccess` callback to await mutation completion
+  - Navigate to `/kits` only after 204 response received (via `onSuccess` callback)
+  - If component unmounts mid-mutation, mutation completes but navigation may not fire
+- **Cleanup**: TanStack Query does not abort mutations on unmount; mutation will complete in background
+- **Guard**: Use mutation `onSuccess` callback for navigation to ensure it fires even if component unmounts:
+  ```typescript
+  deleteKitMutation.mutate(
+    { path: { kit_id: kitId } },
+    {
+      onSuccess: () => {
+        navigate('/kits');
+      },
+    }
+  );
+  ```
+- **Evidence**: Standard TanStack Query mutation lifecycle; similar pattern in parts detail delete (if exists)
+
+---
+
 ## 11) Security & Permissions (if applicable)
 
 ### Concern: Delete authorization
@@ -527,17 +616,46 @@ Polish kit list and detail views with functional and visual improvements to enha
 ### Entry point: Kit detail header actions
 
 - **Change**: Add ellipsis menu (three-dot icon) with Archive, Unarchive, and Delete options
-- **User interaction**: User clicks ellipsis → dropdown menu appears → click action → confirm dialog (for delete) → mutation fires
+- **User interaction**: User clicks ellipsis → dropdown menu appears → click action → confirm dialog (for delete) → mutation fires → menu closes
+- **State coordination**:
+  - All menu items disabled when any mutation is pending (`isPending = archiveMutation.isPending || unarchiveMutation.isPending || deleteKitMutation.isPending`)
+  - Archive action shown only when `kit.status === 'active'`
+  - Unarchive action shown only when `kit.status === 'archived'`
+  - Delete action always shown
+  - Menu closes immediately when action starts (before mutation completes)
 - **Dependencies**: Follows parts detail menu pattern
 - **Evidence**: `src/components/kits/kit-detail-header.tsx:231-259`
 
 ---
 
+### Entry point: Archive action on kit detail screen
+
+- **Change**: After archive completes, user stays on detail screen (does not navigate away)
+- **User interaction**:
+  - Status badge updates to "Archived"
+  - Actions menu updates to show "Unarchive" option (Archive option hidden)
+  - "Order Stock" and "Edit Details" actions become disabled
+  - Toast shows "Archived {kitName}" with Undo action
+  - If undo clicked, status immediately reverts to "Active" and actions re-enable
+- **Dependencies**: Cache invalidation for `['getKitById', kitId]` ensures detail query refetches and UI updates
+- **Evidence**: Product decision; similar to parts detail archive behavior
+
+---
+
 ### Entry point: Shopping list link chips in kit detail
 
-- **Change**: Unlink icon hidden by default; appears on hover/focus
-- **User interaction**: Cleaner chip appearance; hover reveals unlink option
-- **Dependencies**: CSS group-hover utility
+- **Change**: Unlink icon hidden by default on desktop; appears on hover/focus. **Always visible on touch devices.**
+- **User interaction**:
+  - Desktop: Hover over chip reveals unlink icon with smooth transition
+  - Mobile/touch: Unlink icon always visible (no hover required)
+  - Keyboard: Focus-within reveals unlink icon for accessibility
+  - Click unlink → confirm dialog → unlink mutation fires
+- **Implementation**:
+  - Add CSS `@media (pointer: coarse)` rule to show icon on touch devices
+  - Use `group` and `group-hover` Tailwind utilities for desktop hover
+  - Use `group-focus-within` for keyboard navigation
+  - Example: `className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100 transition-opacity"`
+- **Dependencies**: CSS group-hover utility; Tailwind arbitrary variant for media query
 - **Evidence**: `src/components/shopping-lists/shopping-list-link-chip.tsx:122-139`
 
 ---
@@ -626,23 +744,20 @@ Polish kit list and detail views with functional and visual improvements to enha
 ### Surface: Shopping list link chip unlink icon
 
 **Scenarios**:
-- **Given** kit detail with linked shopping list
-- **When** page loads
-- **Then** chip visible but unlink icon hidden
-- **When** user hovers over chip
-- **Then** unlink icon fades in
-- **When** user clicks unlink icon
-- **Then** confirm dialog appears
-- **And** unlink mutation fires on confirm
+- **Given** kit detail with linked shopping list, **When** page loads on desktop, **Then** chip visible but unlink icon hidden
+- **When** user hovers over chip on desktop, **Then** unlink icon fades in
+- **Given** mobile viewport (width 375px, touch device), **When** page loads, **Then** unlink icon visible immediately
+- **When** user clicks unlink icon, **Then** confirm dialog appears, **And** unlink mutation fires on confirm
 
 **Instrumentation / hooks**:
 - `data-testid="kits.detail.links.shopping.{listId}"`
-- Playwright `.hover()` to trigger CSS state
+- Playwright `.hover()` to trigger CSS state on desktop
+- Playwright `.setViewportSize({ width: 375, height: 812 })` for mobile test
 - Assert icon visibility via computed styles or bounding box
 
 **Gaps**: None
 
-**Evidence**: Existing unlink tests in `tests/specs/kits/kit-shopping-list-links.spec.ts`
+**Evidence**: Existing unlink tests in `tests/specs/kits/kit-shopping-list-links.spec.ts` (to be extended for mobile)
 
 ---
 
@@ -665,10 +780,12 @@ Polish kit list and detail views with functional and visual improvements to enha
 
 ## 14) Implementation Slices (only if large)
 
-### Slice 1: Optimize kit list membership queries
+### Slice 1: Verify kit list membership query batching
 
-- **Goal**: Improve performance by ensuring batch queries fire efficiently
-- **Touches**: `kit-overview-list.tsx` (move ID extraction earlier if needed)
+- **Goal**: Confirm existing batch query implementation works correctly
+- **Touches**: `kit-overview-list.tsx` (verify `allKitIds` memoization at lines 55-64), `use-kit-memberships.ts` (confirm batch POST behavior)
+- **Action**: **Verification only** — manual testing with 10+ kits to verify single batch POST to `/api/kits/shopping-list-memberships/query`
+- **Finding**: Current implementation already correct — `useMemo` at lines 55-64 includes both active and archived kits; hooks at lines 66-67 pass complete array; `useMembershipLookup` performs batch POST
 - **Dependencies**: None
 
 ---
@@ -681,10 +798,19 @@ Polish kit list and detail views with functional and visual improvements to enha
 
 ---
 
-### Slice 3: Fix kit detail scrollbar bug
+### Slice 3: Verify kit detail scrollbar behavior
 
-- **Goal**: Ensure only content scrolls, not entire page
-- **Touches**: `kit-detail.tsx` (verify flex container hierarchy), `detail-screen-layout.tsx` (if needed)
+- **Goal**: Confirm only main content scrolls, not entire page
+- **Touches**: `kit-detail.tsx`, `detail-screen-layout.tsx` (verify current implementation)
+- **Action**: **Verification/testing only** — manual testing with kit containing 20+ BOM rows
+  - Scroll to bottom of BOM table
+  - Verify header stays fixed (doesn't scroll out of view)
+  - Verify no page-level scrollbar appears (only content area scrolls)
+- **Finding**: Current flex hierarchy already correct:
+  - `kit-detail.tsx:294` — root has `flex h-full min-h-0 flex-col`
+  - `detail-screen-layout.tsx:66` — layout root has `flex h-full min-h-0 flex-col`
+  - `detail-screen-layout.tsx:130` — main content has `flex-1 min-h-0 overflow-auto`
+- **If issue persists**: Investigate whether `KitDetailLoaded` root div (kit-detail.tsx:395) needs height constraints
 - **Dependencies**: None
 
 ---
@@ -692,7 +818,12 @@ Polish kit list and detail views with functional and visual improvements to enha
 ### Slice 4: Move archive button to detail screen ellipsis menu
 
 - **Goal**: Improve action organization and reduce list card clutter
-- **Touches**: `kit-detail-header.tsx` (add ellipsis menu), `kit-overview-list.tsx` (remove controls prop), `kit-card.tsx` (remove controls footer)
+- **Touches**:
+  - `kit-detail-header.tsx` (add ellipsis menu with archive/unarchive actions)
+  - `kit-overview-list.tsx` (remove controls prop from KitCard at line 268)
+  - `kit-card.tsx` (remove controls footer rendering)
+  - `kit-archive-controls.tsx` (update `onSettled` to invalidate all 4 query keys: `['getKits']`, `['getKitById', kitId]`, `['kits.shoppingListMemberships']`, `['kits.pickListMemberships']`)
+- **Coordination**: Implement unified `isPending` state across archive/unarchive/delete mutations to prevent concurrent actions
 - **Dependencies**: Slice 1-3 can be done independently
 
 ---
@@ -705,10 +836,20 @@ Polish kit list and detail views with functional and visual improvements to enha
 
 ---
 
-### Slice 6: Show unlink icon only on hover/focus
+### Slice 6: Show unlink icon on hover/focus (desktop) and always visible (touch)
 
-- **Goal**: Cleaner chip UI with progressive disclosure
-- **Touches**: `shopping-list-link-chip.tsx` (add CSS classes for hover state)
+- **Goal**: Cleaner chip UI with progressive disclosure on desktop; accessible on all devices
+- **Touches**: `shopping-list-link-chip.tsx` (add CSS classes for hover state and touch media query)
+- **Implementation**:
+  - Wrap chip in element with `group` class
+  - Add `opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity` to unlink button
+  - Add `@media (pointer: coarse)` rule to set `opacity-100` on touch devices:
+    ```typescript
+    className={cn(
+      "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity",
+      "[@media(pointer:coarse)]:opacity-100" // Always show on touch
+    )}
+    ```
 - **Dependencies**: None
 
 ---
@@ -726,41 +867,56 @@ Polish kit list and detail views with functional and visual improvements to enha
 ### Risk: Backend delete validation may be strict
 
 - **Impact**: User cannot delete kits with any dependencies (shopping lists, pick lists, BOM contents)
-- **Mitigation**: Ensure clear error messages in toast when 400 validation errors occur; confirm dialog warns about requirements
+- **Mitigation**: Backend returns clear error messages; frontend displays them directly in toast; confirm dialog warns deletion requires no dependencies
+- **Resolution**: Show backend error message directly; no custom error mapping needed (user decision)
 
 ---
 
-### Risk: Hover-only unlink icon may not work on touch devices
+### Risk: Archive/delete mutations may leave stale cache entries
 
-- **Impact**: Mobile users cannot access unlink action
-- **Mitigation**: Use `:focus-within` in addition to `:hover`; consider showing icon on any tap/click
+- **Impact**: Detail screen and membership indicators show outdated data after mutations
+- **Mitigation**: All mutations invalidate 4 query keys: `['getKits']`, `['getKitById', kitId]`, `['kits.shoppingListMemberships']`, `['kits.pickListMemberships']`
+- **Resolution**: Update `onSettled` in `kit-archive-controls.tsx:93-95, 140-142` to invalidate all query keys; apply same pattern to delete mutation
 
 ---
 
-### Risk: Membership batch query refactor may introduce cache inconsistencies
+### Risk: Delete mutation navigation race
 
-- **Impact**: Stale data shown in indicators
-- **Mitigation**: Reuse existing `useMembershipLookup` hook; test cache invalidation after mutations
+- **Impact**: User navigates away mid-mutation; navigation or toast may not fire
+- **Mitigation**: Use `onSuccess` callback for navigation to ensure it fires even if component unmounts; TanStack Query completes mutation in background
+- **Resolution**: Implement `deleteKitMutation.mutate(..., { onSuccess: () => navigate('/kits') })`
 
 ---
 
 ### Open question: Should archive action on detail screen stay on page or navigate away?
 
-- **Why it matters**: UX consistency; current list card behavior doesn't navigate
-- **Owner / follow-up**: Product decision; default to staying on page with updated status badge
+- **Why it matters**: UX consistency; affects cache invalidation and mutation cleanup
+- **Owner / follow-up**: Product decision
+- **Resolution**: **Stay on page** — status badge updates, actions menu shows "Unarchive", disabled actions
 
 ---
 
 ### Open question: Should "Needs refresh" functionality be implemented in future?
 
 - **Why it matters**: Determines if `isStale` field is removed from types or just hidden in UI
-- **Owner / follow-up**: Product roadmap; for now, keep field but don't display it
+- **Owner / follow-up**: Product roadmap
+- **Resolution**: **Remove field from mapping** — exclude from `mapKitShoppingMembership` and type definition; field never used
 
 ---
 
 ## 16) Confidence
 
-**Confidence: High** — All affected components identified with evidence; existing patterns (parts detail menu, membership indicators) provide clear templates; backend delete endpoint confirmed available with clear contract (204/400/404 responses).
+**Confidence: High** — All affected components identified with evidence; all ambiguities from initial review resolved with specific code changes and verification steps. Key updates:
+
+- Slice 1 & 3 clarified as **verification only** — current implementation already correct
+- Cache invalidation expanded to include all 4 query keys (list, detail, both memberships)
+- Delete mutation navigation guard specified using `onSuccess` callback pattern
+- Archive action stays on detail screen with status badge and menu updates
+- Touch interaction resolved using `@media (pointer: coarse)` to always show unlink icon
+- `isStale` field removed from mapping (line 105 in use-kit-memberships.ts)
+- Backend error messages shown directly with no custom mapping
+
+Existing patterns (parts detail menu, membership indicators) provide clear templates; backend delete endpoint confirmed available with clear contract (204/400/404 responses). Plan is implementation-ready per adversarial review criteria.
 
 ---
 
