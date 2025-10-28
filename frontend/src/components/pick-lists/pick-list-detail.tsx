@@ -1,18 +1,21 @@
 import { useMemo } from 'react';
-import { Link } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle } from 'lucide-react';
 
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/dialog';
 import { KeyValueBadge, StatusBadge } from '@/components/ui';
 import { PickListLines } from '@/components/pick-lists/pick-list-lines';
-import { usePickListDetail } from '@/hooks/use-pick-list-detail';
+import { usePickListDetail, buildPickListDetailQueryKey } from '@/hooks/use-pick-list-detail';
 import { usePickListExecution } from '@/hooks/use-pick-list-execution';
 import { usePickListAvailability } from '@/hooks/use-pick-list-availability';
-import { useGetKitsByKitId } from '@/lib/api/generated/hooks';
+import { useGetKitsByKitId, useDeletePickListsByPickListId } from '@/lib/api/generated/hooks';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
-import { useUiStateInstrumentation } from '@/lib/test/ui-state';
+import { useUiStateInstrumentation, beginUiState, endUiState } from '@/lib/test/ui-state';
+import { useConfirm } from '@/hooks/use-confirm';
 import type { KitStatus } from '@/types/kits';
 import type { PickListDetail as PickListDetailModel, PickListLineGroup } from '@/types/pick-lists';
 
@@ -39,6 +42,10 @@ export function PickListDetail({
   kitOverviewStatus,
   kitOverviewSearch,
 }: PickListDetailProps) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { confirm, confirmProps } = useConfirm();
+
   const {
     pickListId: normalizedPickListId,
     isPickListIdValid,
@@ -53,6 +60,8 @@ export function PickListDetail({
     getLinesErrorMetadata,
     getLinesAbortedMetadata,
   } = usePickListDetail(pickListId);
+
+  const deletePickListMutation = useDeletePickListsByPickListId();
 
   const {
     isExecuting: isExecutionPending,
@@ -141,6 +150,65 @@ export function PickListDetail({
       : { status: resolvedKitStatus };
   }, [resolvedKitStatus, kitOverviewSearch]);
 
+  const handleDeletePickList = async () => {
+    if (!detail || !normalizedPickListId) {
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: 'Delete Pick List',
+      description: `Are you sure you want to delete pick list #${detail.id}? This action cannot be undone.`,
+      confirmText: 'Delete',
+      destructive: true,
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    // Emit loading event for test instrumentation
+    beginUiState('pickLists.detail.delete');
+
+    try {
+      await deletePickListMutation.mutateAsync({
+        path: { pick_list_id: normalizedPickListId },
+      });
+
+      // Navigate back to kit detail page FIRST, before invalidating caches
+      // This prevents the component from re-rendering before navigation completes
+      navigate({
+        to: '/kits/$kitId',
+        params: { kitId: String(detail.kitId) },
+        search: kitNavigationSearch ?? { status: 'active' },
+      });
+
+      // Invalidate caches after navigation to update the kit detail page
+      await queryClient.invalidateQueries({
+        queryKey: buildPickListDetailQueryKey(normalizedPickListId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['getKitsPickListsByKitId', { path: { kit_id: detail.kitId } }],
+      });
+
+      // Emit success event for test instrumentation
+      endUiState('pickLists.detail.delete', {
+        pickListId: normalizedPickListId,
+        kitId: detail.kitId,
+        status: 'deleted',
+      });
+    } catch (error) {
+      // Emit error event for test instrumentation
+      endUiState('pickLists.detail.delete', {
+        pickListId: normalizedPickListId,
+        kitId: detail.kitId,
+        status: 'error',
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+      // Error toast is shown automatically by the mutation hook
+      throw error;
+    }
+  };
+
   const breadcrumbs = useMemo(() => {
     const pickListLabel = detail ? `Pick List ${detail.id}` : 'Pick List';
     const stateLabel = isPending ? 'Loading…' : hasError ? 'Error' : pickListLabel;
@@ -218,6 +286,17 @@ export function PickListDetail({
     </div>
   ) : null;
 
+  const actions = detail ? (
+    <Button
+      variant="outline"
+      onClick={handleDeletePickList}
+      disabled={deletePickListMutation.isPending}
+      data-testid="pick-lists.detail.actions.delete"
+    >
+      Delete Pick List
+    </Button>
+  ) : null;
+
   const content = renderContent({
     isPickListIdValid,
     isPending,
@@ -246,9 +325,11 @@ export function PickListDetail({
         title={title}
         titleMetadata={titleMetadata}
         metadataRow={metadataRow}
+        actions={actions}
       >
         {content}
       </DetailScreenLayout>
+      <ConfirmDialog {...confirmProps} />
     </div>
   );
 }

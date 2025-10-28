@@ -72,7 +72,6 @@ export function PartDetails({ partId }: PartDetailsProps) {
     isLoading: isPartLoading,
     isFetching: isPartFetching,
     error: partError,
-    refetch: refetchPart,
   } = useGetPartsByPartKey(
     { path: { part_key: partId } },
     { enabled: Boolean(partId) },
@@ -300,13 +299,6 @@ export function PartDetails({ partId }: PartDetailsProps) {
             Order Stock
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleDuplicatePart}>Duplicate Part</DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => {
-              refetchPart();
-            }}
-          >
-            Refresh
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </>

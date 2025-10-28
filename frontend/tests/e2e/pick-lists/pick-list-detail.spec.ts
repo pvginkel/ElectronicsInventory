@@ -380,4 +380,249 @@ test.describe('Pick list detail workspace', () => {
     const detailUrl = new URL(page.url());
     expect(detailUrl.searchParams.get('status')).toBe('archived');
   });
+
+  test('allows deletion of open pick list and navigates to kit detail', async ({
+    pickLists,
+    kits,
+    testData,
+    apiClient,
+    page,
+  }) => {
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Deletion Test Part' },
+    });
+
+    const stockBox = await testData.boxes.create({
+      overrides: { description: 'Deletion Box' },
+    });
+
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: stockBox.box_no, loc_no: 1, qty: 10 },
+      })
+    );
+
+    const kit = await testData.kits.create({
+      overrides: { name: testData.kits.randomKitName('Deletion Kit') },
+    });
+
+    const partReservations = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+
+    await testData.kits.addContent(kit.id, {
+      partId: partReservations.part_id,
+      requiredPerUnit: 2,
+    });
+
+    const pickList = await testData.kits.createPickList(kit.id, { requestedUnits: 1 });
+
+    const listReady = waitForListLoading(page, 'pickLists.detail', 'ready');
+    const linesReady = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
+    const uiReady = waitForUiState(page, 'pickLists.detail.load', 'ready');
+
+    await pickLists.gotoDetail(pickList.id);
+    await Promise.all([listReady, linesReady, uiReady]);
+
+    await expect(pickLists.title).toHaveText(`Pick List ${pickList.id}`);
+    await expect(pickLists.statusBadge).toContainText(/Open/i);
+    await expect(pickLists.deleteButton).toBeVisible();
+
+    const deleteReady = waitForUiState(page, 'pickLists.detail.delete', 'ready');
+
+    await pickLists.deleteButton.click();
+
+    // Confirm deletion in dialog
+    const confirmDialog = page.getByRole('dialog');
+    await expect(confirmDialog).toBeVisible();
+    await expect(confirmDialog).toContainText(/delete pick list/i);
+
+    const confirmButton = confirmDialog.getByRole('button', { name: /delete/i });
+    await confirmButton.click();
+
+    const deleteEvent = await deleteReady;
+    expect(deleteEvent.metadata).toMatchObject({
+      pickListId: pickList.id,
+      kitId: kit.id,
+      status: 'deleted',
+    });
+
+    // Should navigate to kit detail page
+    await expect(kits.detailLayout).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/kits/${kit.id}`));
+
+    // Verify pick list no longer exists in backend
+    const response = await apiClient.GET('/api/pick-lists/{pick_list_id}', {
+      params: { path: { pick_list_id: pickList.id } },
+    });
+    expect(response.response.status).toBe(404);
+  });
+
+  test('allows deletion of completed pick list', async ({
+    pickLists,
+    kits,
+    testData,
+    apiClient,
+    page,
+  }) => {
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Completed Pick Deletion Part' },
+    });
+
+    const stockBox = await testData.boxes.create({
+      overrides: { description: 'Completed Deletion Box' },
+    });
+
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: stockBox.box_no, loc_no: 1, qty: 10 },
+      })
+    );
+
+    const kit = await testData.kits.create({
+      overrides: { name: testData.kits.randomKitName('Completed Deletion Kit') },
+    });
+
+    const partReservations = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+
+    await testData.kits.addContent(kit.id, {
+      partId: partReservations.part_id,
+      requiredPerUnit: 1,
+    });
+
+    const pickList = await testData.kits.createPickList(kit.id, { requestedUnits: 1 });
+    const [line] = pickList.lines ?? [];
+    expect(line).toBeDefined();
+
+    // Complete the pick list by picking the line
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/pick-lists/{pick_list_id}/lines/{line_id}/pick', {
+        params: { path: { pick_list_id: pickList.id, line_id: line!.id } },
+      })
+    );
+
+    const listReady = waitForListLoading(page, 'pickLists.detail', 'ready');
+    const linesReady = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
+    const uiReady = waitForUiState(page, 'pickLists.detail.load', 'ready');
+
+    await pickLists.gotoDetail(pickList.id);
+    await Promise.all([listReady, linesReady, uiReady]);
+
+    await expect(pickLists.title).toHaveText(`Pick List ${pickList.id}`);
+    await expect(pickLists.statusBadge).toContainText(/Completed/i);
+    await expect(pickLists.deleteButton).toBeVisible();
+
+    const deleteReady = waitForUiState(page, 'pickLists.detail.delete', 'ready');
+
+    await pickLists.deleteButton.click();
+
+    const confirmDialog = page.getByRole('dialog');
+    await expect(confirmDialog).toBeVisible();
+
+    const confirmButton = confirmDialog.getByRole('button', { name: /delete/i });
+    await confirmButton.click();
+
+    const deleteEvent = await deleteReady;
+    expect(deleteEvent.metadata).toMatchObject({
+      pickListId: pickList.id,
+      kitId: kit.id,
+      status: 'deleted',
+    });
+
+    await expect(kits.detailLayout).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/kits/${kit.id}`));
+
+    // Verify pick list no longer exists
+    const response = await apiClient.GET('/api/pick-lists/{pick_list_id}', {
+      params: { path: { pick_list_id: pickList.id } },
+    });
+    expect(response.response.status).toBe(404);
+  });
+
+  test('preserves kit search params when deleting pick list', async ({
+    pickLists,
+    kits,
+    testData,
+    apiClient,
+    page,
+  }) => {
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Search Param Deletion Part' },
+    });
+
+    const stockBox = await testData.boxes.create({
+      overrides: { description: 'Search Param Box' },
+    });
+
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: stockBox.box_no, loc_no: 1, qty: 10 },
+      })
+    );
+
+    const kit = await testData.kits.create({
+      overrides: { name: testData.kits.randomKitName('Search Param Kit') },
+    });
+
+    const partReservations = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+
+    await testData.kits.addContent(kit.id, {
+      partId: partReservations.part_id,
+      requiredPerUnit: 1,
+    });
+
+    const pickList = await testData.kits.createPickList(kit.id, { requestedUnits: 1 });
+
+    // Navigate to kit detail with search params first
+    await kits.gotoOverview();
+    await kits.search(kit.name);
+    await kits.waitForOverviewReady();
+
+    const detailReady = waitForListLoading(page, 'kits.detail', 'ready');
+    const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');
+
+    await kits.openDetailFromCard(kit.id);
+    await Promise.all([detailReady, contentsReady]);
+
+    // Navigate to pick list detail (preserving search params)
+    const listReady = waitForListLoading(page, 'pickLists.detail', 'ready');
+    const linesReady = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
+    const uiReady = waitForUiState(page, 'pickLists.detail.load', 'ready');
+
+    await pickLists.gotoDetail(pickList.id, { status: 'active', search: kit.name });
+    await Promise.all([listReady, linesReady, uiReady]);
+
+    const deleteReady = waitForUiState(page, 'pickLists.detail.delete', 'ready');
+
+    await pickLists.deleteButton.click();
+
+    const confirmDialog = page.getByRole('dialog');
+    await expect(confirmDialog).toBeVisible();
+
+    const confirmButton = confirmDialog.getByRole('button', { name: /delete/i });
+    await confirmButton.click();
+
+    await deleteReady;
+
+    // Should navigate back with search params preserved
+    await expect(kits.detailLayout).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/kits/${kit.id}`));
+
+    const returnUrl = new URL(page.url());
+    expect(returnUrl.searchParams.get('status')).toBe('active');
+    expect(returnUrl.searchParams.get('search')).toBe(kit.name);
+  });
 });

@@ -16,6 +16,7 @@ export class PickListsPage extends BasePage {
   readonly metadata: Locator;
   readonly availabilityError: Locator;
   readonly breadcrumbKitLink: Locator;
+  readonly deleteButton: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -27,6 +28,7 @@ export class PickListsPage extends BasePage {
     this.metadata = page.getByTestId('pick-lists.detail.metadata');
     this.availabilityError = page.getByTestId('pick-lists.detail.availability.error');
     this.breadcrumbKitLink = page.getByTestId('pick-lists.detail.breadcrumbs.kit');
+    this.deleteButton = page.getByTestId('pick-lists.detail.actions.delete');
   }
 
   async gotoDetail(pickListId: number, search?: PickListDetailSearchParams): Promise<void> {
