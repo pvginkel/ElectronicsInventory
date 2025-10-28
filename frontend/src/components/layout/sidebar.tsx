@@ -1,9 +1,10 @@
 import { Link } from '@tanstack/react-router'
+import { LayoutDashboard, Wrench, Package, ShoppingCart, Archive, Tag, Store, Info, type LucideIcon } from 'lucide-react'
 
 interface SidebarItem {
   to: string
   label: string
-  icon: string
+  icon: LucideIcon
   testId: string
 }
 
@@ -15,14 +16,14 @@ interface SidebarProps {
 }
 
 const navigationItems: SidebarItem[] = [
-  { to: '/', label: 'Dashboard', icon: '📊', testId: 'dashboard' },
-  { to: '/parts', label: 'Parts', icon: '🔧', testId: 'parts' },
-  { to: '/kits', label: 'Kits', icon: '🧰', testId: 'kits' },
-  { to: '/shopping-lists', label: 'Shopping Lists', icon: '🛒', testId: 'shopping-lists' },
-  { to: '/boxes', label: 'Storage', icon: '📦', testId: 'boxes' },
-  { to: '/types', label: 'Types', icon: '🏷️', testId: 'types' },
-  { to: '/sellers', label: 'Sellers', icon: '🏪', testId: 'sellers' },
-  { to: '/about', label: 'About', icon: 'ℹ️', testId: 'about' }
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, testId: 'dashboard' },
+  { to: '/parts', label: 'Parts', icon: Wrench, testId: 'parts' },
+  { to: '/kits', label: 'Kits', icon: Package, testId: 'kits' },
+  { to: '/shopping-lists', label: 'Shopping Lists', icon: ShoppingCart, testId: 'shopping-lists' },
+  { to: '/boxes', label: 'Storage', icon: Archive, testId: 'boxes' },
+  { to: '/types', label: 'Types', icon: Tag, testId: 'types' },
+  { to: '/sellers', label: 'Sellers', icon: Store, testId: 'sellers' },
+  { to: '/about', label: 'About', icon: Info, testId: 'about' }
 ]
 
 export function Sidebar({
@@ -42,10 +43,10 @@ export function Sidebar({
     >
       <div className="flex h-full flex-col">
         {/* Logo/Header */}
-        <div className="flex h-16 items-center border-b border-border px-4" data-testid="app-shell.sidebar.header">
+        <div className="flex h-16 items-center border-b border-border px-3" data-testid="app-shell.sidebar.header">
           {!isCollapsed && (
-            <div className="flex items-center gap-2">
-              <span className="text-3xl">⚡</span>
+            <div className="flex items-center gap-2 px-2">
+              <img src="/favicon.png" alt="" className="h-7 w-7" aria-hidden="true" />
               <span className="font-semibold text-foreground">Electronics</span>
             </div>
           )}
@@ -86,7 +87,7 @@ export function Sidebar({
                   inactiveProps={{ 'data-active': 'false' }}
                   onClick={() => onNavigate?.()}
                 >
-                  <span className="text-xl">{item.icon}</span>
+                  <item.icon className="h-5 w-5" aria-hidden="true" />
                   {!isCollapsed && <span>{item.label}</span>}
                 </Link>
               </li>

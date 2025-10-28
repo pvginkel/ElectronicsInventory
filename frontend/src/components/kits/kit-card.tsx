@@ -64,7 +64,7 @@ export function KitCard({
 
   return (
     <Card
-      className={cn('flex h-full flex-col gap-4', className)}
+      className={cn('flex h-full flex-col gap-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover:border-primary/50 active:scale-[0.98]', className)}
       data-testid={`kits.overview.card.${kit.id}`}
     >
       <div

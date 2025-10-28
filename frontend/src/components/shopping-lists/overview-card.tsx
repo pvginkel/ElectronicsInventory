@@ -48,7 +48,7 @@ export function ShoppingListOverviewCard({
   return (
     <Card
       variant="content"
-      className={`group transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${interactiveClasses}`}
+      className={`group transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover:border-primary/50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${interactiveClasses}`}
       data-testid={`shopping-lists.overview.card.${list.id}`}
       tabIndex={tabIndex}
       role="button"

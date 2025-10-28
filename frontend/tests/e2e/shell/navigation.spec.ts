@@ -60,4 +60,18 @@ test.describe('App shell - desktop navigation', () => {
     await dashboard.waitForMetricsReady();
     await appShell.expectActiveNav('dashboard');
   });
+
+  test('renders Lucide icons for all navigation items', async ({ appShell, page }) => {
+    await appShell.gotoHome();
+
+    // Verify that each navigation link contains an SVG element (Lucide icons render as SVG)
+    const navigationItems = ['dashboard', 'parts', 'kits', 'shopping-lists', 'boxes', 'types', 'sellers', 'about'];
+
+    for (const item of navigationItems) {
+      const link = page.getByTestId(`app-shell.sidebar.link.${item}`);
+      await expect(link).toBeVisible();
+      const icon = link.locator('svg').first();
+      await expect(icon).toBeVisible();
+    }
+  });
 });

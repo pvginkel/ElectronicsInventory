@@ -1232,4 +1232,23 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     expect(completedLine?.completion_mismatch).toBe(true);
     expect(completedLine?.completion_note).toContain('Supplier short shipped');
   });
+
+  test('shopping list cards include animation classes', async ({ shoppingLists, testData }) => {
+    const list = await testData.shoppingLists.create({
+      name: testData.shoppingLists.randomName('Animation Test List'),
+    });
+
+    await shoppingLists.gotoOverview();
+    const card = shoppingLists.overviewCardByName(list.name);
+    await expect(card).toBeVisible();
+
+    // Verify that the card includes the animation classes
+    const classList = await card.getAttribute('class');
+    expect(classList).toContain('transition-all');
+    expect(classList).toContain('duration-200');
+    expect(classList).toMatch(/hover:shadow-md/);
+    expect(classList).toMatch(/hover:scale-\[1\.02\]/);
+    expect(classList).toMatch(/hover:border-primary\/50/);
+    expect(classList).toMatch(/active:scale-\[0\.98\]/);
+  });
 });
