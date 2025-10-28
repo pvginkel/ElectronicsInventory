@@ -262,11 +262,11 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-6 py-6">
           {Array.from({ length: 6 }).map((_, index) => (
             <div
               key={index}
-              className="h-40 rounded-lg border border-dashed border-muted bg-muted/40 animate-pulse"
+              className="h-28 rounded-lg border border-dashed border-muted bg-muted/40 animate-pulse"
               data-testid="shopping-lists.overview.skeleton"
             />
           ))}

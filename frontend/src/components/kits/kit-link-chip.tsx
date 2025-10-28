@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Package } from 'lucide-react';
+import { CircuitBoard, Unlink } from 'lucide-react';
 
 import { StatusBadge } from '@/components/ui';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { KitStatus } from '@/types/kits';
 
@@ -16,6 +17,12 @@ interface KitLinkChipProps {
   icon?: ReactNode;
   iconTestId?: string;
   badgeTestId?: string;
+  onUnlink?: () => void;
+  unlinkDisabled?: boolean;
+  unlinkLoading?: boolean;
+  unlinkTestId?: string;
+  unlinkTooltip?: string;
+  unlinkLabel?: string;
 }
 
 // Map kit status to badge props
@@ -38,16 +45,29 @@ export function KitLinkChip({
   icon,
   iconTestId,
   badgeTestId,
+  onUnlink,
+  unlinkDisabled,
+  unlinkLoading,
+  unlinkTestId,
+  unlinkTooltip,
+  unlinkLabel = 'Unlink kit',
 }: KitLinkChipProps) {
   const statusBadgeProps = getKitStatusBadgeProps(status);
   const accessibilityLabel = `${name} (${statusBadgeProps.label})`;
   const resolvedSearch = search ?? { status };
   const wrapperTestId = testId ? `${testId}.wrapper` : undefined;
 
+  const handleUnlinkClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onUnlink?.();
+  };
+
   return (
     <div
       className={cn(
-        'group inline-flex items-center gap-2 rounded-full border border-input bg-muted/40 px-2 py-1 text-sm transition hover:border-primary',
+        'group relative inline-flex items-center gap-2 rounded-full border border-input bg-muted/40 px-2 py-1 text-sm transition-all hover:border-primary',
+        onUnlink && 'hover:pr-9 focus-within:pr-9 [@media(pointer:coarse)]:pr-9',
         className,
       )}
       data-testid={wrapperTestId}
@@ -66,7 +86,7 @@ export function KitLinkChip({
       >
         <span className="flex items-center gap-2 min-w-0">
           {icon ?? (
-            <Package
+            <CircuitBoard
               className="h-4 w-4 flex-shrink-0 text-muted-foreground transition-colors group-hover:text-primary"
               aria-hidden="true"
               data-testid={iconTestId}
@@ -80,6 +100,26 @@ export function KitLinkChip({
           testId={badgeTestId ?? ''}
         />
       </Link>
+      {onUnlink ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(
+            'absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full p-0 text-muted-foreground hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            'opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100',
+            '@media(prefers-reduced-motion:reduce):transition-none',
+          )}
+          onClick={handleUnlinkClick}
+          disabled={unlinkDisabled}
+          loading={unlinkLoading}
+          data-testid={unlinkTestId}
+          title={unlinkTooltip ?? unlinkLabel}
+          aria-label={unlinkLabel}
+        >
+          <Unlink className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      ) : null}
     </div>
   );
 }

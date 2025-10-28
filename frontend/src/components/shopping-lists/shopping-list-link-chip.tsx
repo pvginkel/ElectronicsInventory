@@ -86,7 +86,8 @@ export function ShoppingListLinkChip({
   return (
     <div
       className={cn(
-        'group inline-flex items-center gap-2 rounded-full border border-input bg-muted/40 px-2 py-1 text-sm transition hover:border-primary',
+        'group relative inline-flex items-center gap-2 rounded-full border border-input bg-muted/40 px-2 py-1 text-sm transition-all hover:border-primary',
+        onUnlink && 'hover:pr-9 focus-within:pr-9 [@media(pointer:coarse)]:pr-9',
         className,
       )}
       data-testid={containerTestId}
@@ -125,8 +126,9 @@ export function ShoppingListLinkChip({
           variant="ghost"
           size="sm"
           className={cn(
-            'ml-1 h-6 w-6 flex-shrink-0 rounded-full p-0 text-muted-foreground transition-all hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-            'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100',
+            'absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full p-0 text-muted-foreground hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            'opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100',
+            '@media(prefers-reduced-motion:reduce):transition-none',
           )}
           onClick={handleUnlinkClick}
           disabled={unlinkDisabled}

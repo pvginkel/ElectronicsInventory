@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Layers } from 'lucide-react';
+import { CircuitBoard } from 'lucide-react';
 import { KeyValueBadge, StatusBadge } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/ui/dialog';
@@ -36,6 +36,7 @@ export interface ShoppingListDetailHeaderSlots {
 export interface ShoppingListDetailHeaderRender {
   slots: ShoppingListDetailHeaderSlots;
   overlays: ReactNode | null;
+  kitsQuery: ReturnType<typeof useGetShoppingListsKitsByListId>;
 }
 
 const NAME_LIMIT = 120;
@@ -60,6 +61,7 @@ export function useShoppingListDetailHeaderSlots({
   onDeleteList,
   isDeletingList,
   overviewSearchTerm = '',
+  onUnlinkKit,
 }: ConceptHeaderProps): ShoppingListDetailHeaderRender {
   const { showSuccess, showException } = useToast();
   const [editOpen, setEditOpen] = useState(false);
@@ -175,8 +177,15 @@ export function useShoppingListDetailHeaderSlots({
             <div className="h-6 w-24 animate-pulse rounded bg-muted" />
           </div>
         ),
+        linkChips: (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="h-6 w-32 animate-pulse rounded-full bg-muted" />
+            <div className="h-6 w-28 animate-pulse rounded-full bg-muted" />
+          </div>
+        ),
       },
       overlays: null,
+      kitsQuery,
     };
   }
 
@@ -255,12 +264,14 @@ export function useShoppingListDetailHeaderSlots({
             name={kitLink.kitName}
             status={kitLink.kitStatus}
             icon={
-              <Layers
+              <CircuitBoard
                 className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary"
                 aria-hidden="true"
               />
             }
             testId={`shopping-lists.concept.body.kits.${kitLink.kitId}`}
+            onUnlink={onUnlinkKit ? () => onUnlinkKit(kitLink) : undefined}
+            unlinkTestId={`shopping-lists.concept.body.kits.${kitLink.kitId}.unlink`}
           />
         ))}
       </div>
@@ -367,5 +378,5 @@ export function useShoppingListDetailHeaderSlots({
     </Dialog>
   );
 
-  return { slots, overlays };
+  return { slots, overlays, kitsQuery };
 }

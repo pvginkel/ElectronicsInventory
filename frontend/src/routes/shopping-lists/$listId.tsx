@@ -30,16 +30,27 @@ import type {
   ShoppingListSellerGroup,
   ShoppingListLineReceiveAllocationInput,
   ShoppingListOverviewSummary,
+  ShoppingListKitLink,
 } from '@/types/shopping-lists';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { useConfirm } from '@/hooks/use-confirm';
-import { ConfirmDialog } from '@/components/ui/dialog';
+import { ConfirmDialog, type DialogContentProps } from '@/components/ui/dialog';
 import { Route as ShoppingListsRoute } from '@/routes/shopping-lists/index';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { useShoppingListDetailHeaderSlots } from '@/components/shopping-lists/detail-header-slots';
+import { useKitShoppingListUnlinkMutation } from '@/hooks/use-kit-shopping-list-links';
+import { emitTestEvent } from '@/lib/test/event-emitter';
+import { ApiError } from '@/lib/api/api-error';
+import type { UiStateTestEvent } from '@/types/test-events';
 
 const SORT_KEYS: ShoppingListLineSortKey[] = ['description', 'mpn', 'createdAt'];
+const KIT_UNLINK_FLOW_SCOPE = 'shoppingLists.detail.kitUnlinkFlow';
+type KitUnlinkFlowPhase = Extract<UiStateTestEvent['phase'], 'open' | 'submit' | 'success' | 'error'>;
+
+function emitUiState(payload: Omit<UiStateTestEvent, 'timestamp'>) {
+  emitTestEvent(payload);
+}
 
 export const Route = createFileRoute('/shopping-lists/$listId')({
   validateSearch: (search: Record<string, unknown>) => {
@@ -75,7 +86,7 @@ function ShoppingListDetailRoute() {
   const params = Route.useParams();
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const { showSuccess, showException } = useToast();
+  const { showSuccess, showException, showWarning } = useToast();
   const { confirm, confirmProps } = useConfirm();
 
   const listId = Number(params.listId);
@@ -114,6 +125,8 @@ function ShoppingListDetailRoute() {
   const [orderGroupState, setOrderGroupState] = useState<OrderGroupState>({ open: false, group: null, trigger: null });
   const [updateStockState, setUpdateStockState] = useState<UpdateStockState>({ open: false, line: null, trigger: null });
   const [pendingLineIds, setPendingLineIds] = useState<Set<number>>(new Set());
+  const [linkToUnlink, setLinkToUnlink] = useState<ShoppingListKitLink | null>(null);
+  const [unlinkingLinkId, setUnlinkingLinkId] = useState<number | null>(null);
   const {
     confirmArchive: confirmReadyArchive,
     dialog: markDoneDialog,
@@ -137,6 +150,7 @@ function ShoppingListDetailRoute() {
   const updateStatusMutation = useUpdateShoppingListStatusMutation();
   const receiveLineMutation = useReceiveShoppingListLineMutation();
   const completeLineMutation = useCompleteShoppingListLineMutation();
+  const unlinkMutation = useKitShoppingListUnlinkMutation();
 
   useEffect(() => {
     if (highlightedLineId == null) {
@@ -512,12 +526,82 @@ function ShoppingListDetailRoute() {
     setHighlightedLineId(line.id);
   }, [detailIsCompleted]);
 
-  const listLoaded = shoppingList != null;
-  const status = shoppingList?.status ?? 'concept';
-  const isCompleted = detailIsCompleted || status === 'done';
-  const isReadyView = status === 'ready' || isCompleted;
-  const canReturnToConcept = Boolean(shoppingList?.canReturnToConcept && !isCompleted);
-  const canMarkListDone = Boolean(shoppingList && !isCompleted && status !== 'concept');
+  const emitUnlinkFlowEvent = useCallback(
+    (phase: KitUnlinkFlowPhase, link: ShoppingListKitLink, overrides?: Record<string, unknown>) => {
+      emitUiState({
+        kind: 'ui_state',
+        scope: KIT_UNLINK_FLOW_SCOPE,
+        phase,
+        metadata: {
+          listId: normalizedListId,
+          action: 'unlink',
+          targetKitId: link.kitId,
+          linkId: link.linkId,
+          noop: false,
+          ...(overrides ?? {}),
+        },
+      });
+    },
+    [normalizedListId],
+  );
+
+  const handleUnlinkRequest = useCallback(
+    (link: ShoppingListKitLink) => {
+      if (detailIsCompleted || unlinkMutation.isPending || unlinkingLinkId !== null) {
+        return;
+      }
+      setLinkToUnlink(link);
+      emitUnlinkFlowEvent('open', link);
+    },
+    [detailIsCompleted, emitUnlinkFlowEvent, unlinkMutation.isPending, unlinkingLinkId],
+  );
+
+  const handleConfirmUnlink = useCallback(() => {
+    if (!shoppingList || !linkToUnlink) {
+      return;
+    }
+    const link = linkToUnlink;
+    emitUnlinkFlowEvent('submit', link);
+    setUnlinkingLinkId(link.linkId);
+
+    void unlinkMutation
+      .mutateAsync({
+        kitId: link.kitId,
+        linkId: link.linkId,
+        shoppingListId: shoppingList.id,
+      })
+      .then(() => {
+        emitUnlinkFlowEvent('success', link);
+        showSuccess(`Unlinked "${link.kitName}" from this shopping list.`);
+        void kitsQuery.refetch();
+      })
+      .catch((error: unknown) => {
+        if (error instanceof ApiError && error.status === 404) {
+          emitUnlinkFlowEvent('success', link, { status: 404, noop: true });
+          showWarning('That kit link was already removed. Refreshing shopping list detail.');
+          void kitsQuery.refetch();
+          return;
+        }
+
+        const message = error instanceof Error ? error.message : 'Failed to unlink kit';
+        emitUnlinkFlowEvent('error', link, {
+          message,
+          status: error instanceof ApiError ? error.status : undefined,
+        });
+        showException('Failed to unlink kit', error);
+      })
+      .finally(() => {
+        setUnlinkingLinkId(null);
+        setLinkToUnlink(null);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shoppingList, linkToUnlink, emitUnlinkFlowEvent, unlinkMutation, showSuccess, showWarning, showException]);
+
+  const handleUnlinkDialogChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      setLinkToUnlink(null);
+    }
+  }, []);
 
   const nextReceivableLine = useMemo(() => {
     if (!updateStockState.line) {
@@ -526,14 +610,22 @@ function ShoppingListDetailRoute() {
     return findNextReceivableLine(updateStockState.line.id, sellerGroups);
   }, [sellerGroups, updateStockState.line]);
 
-  const { slots: detailHeaderSlots, overlays: headerOverlays } = useShoppingListDetailHeaderSlots({
+  const { slots: detailHeaderSlots, overlays: headerOverlays, kitsQuery } = useShoppingListDetailHeaderSlots({
     list: shoppingList,
     onUpdateMetadata: handleUpdateMetadata,
     isUpdating: updateMetadataMutation.isPending,
     onDeleteList: handleDeleteList,
     isDeletingList,
     overviewSearchTerm: search.originSearch ?? '',
+    onUnlinkKit: detailIsCompleted ? undefined : handleUnlinkRequest,
   });
+
+  const listLoaded = shoppingList != null;
+  const status = shoppingList?.status ?? 'concept';
+  const isCompleted = detailIsCompleted || status === 'done';
+  const isReadyView = status === 'ready' || isCompleted;
+  const canReturnToConcept = Boolean(shoppingList?.canReturnToConcept && !isCompleted);
+  const canMarkListDone = Boolean(shoppingList && !isCompleted && status !== 'concept');
 
   if (!hasValidListId) {
     return (
@@ -687,6 +779,18 @@ function ShoppingListDetailRoute() {
       {deleteListDialog}
       {markDoneDialog}
       <ConfirmDialog {...confirmProps} />
+      {linkToUnlink ? (
+        <ConfirmDialog
+          open={Boolean(linkToUnlink)}
+          onOpenChange={handleUnlinkDialogChange}
+          title="Unlink kit?"
+          description={`Removing the link to "${linkToUnlink.kitName}" will not delete the kit or its contents.`}
+          confirmText="Unlink kit"
+          destructive
+          onConfirm={handleConfirmUnlink}
+          contentProps={{ 'data-testid': 'shopping-lists.detail.kit-unlink.dialog' } as DialogContentProps}
+        />
+      ) : null}
     </>
   );
 }

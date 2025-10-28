@@ -1,4 +1,4 @@
-import type { ShoppingListDetail } from '@/types/shopping-lists';
+import type { ShoppingListDetail, ShoppingListKitLink } from '@/types/shopping-lists';
 import { useShoppingListDetailHeaderSlots } from './detail-header-slots';
 
 export interface ConceptHeaderProps {
@@ -8,6 +8,7 @@ export interface ConceptHeaderProps {
   onDeleteList?: () => void;
   isDeletingList?: boolean;
   overviewSearchTerm?: string;
+  onUnlinkKit?: (link: ShoppingListKitLink) => void;
 }
 
 export function ConceptHeader(props: ConceptHeaderProps) {
