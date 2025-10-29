@@ -1,14 +1,23 @@
-# Table and List Refinements – Plan Summary
+# List Refinements – Plan Summary
 
 ## Overview
-Fix table styling and implement search debounce app-wide.
+Implement search debounce app-wide through a centralized, reusable component.
 
 ## Scope
-- Fix bottom rounded corners on pick list and kit detail view tables by removing bg-background class and using divide-y classes
-- Refactor search debounce (introduced for kits) throughout the app, preferably by embedding it in the list view template
+- Refactor search debounce (introduced for kits) throughout the app by creating a reusable search component
+- The solution must centralize the debounce logic, NOT duplicate it across multiple list components
+- Preferably embed the search component in the list view template (ListScreenLayout) or create a standalone component that can be easily dropped into each list
+- Apply to all list views: parts, boxes, sellers, shopping lists
 
 ## User Impact
-Consistent table styling with proper rounded corners. Improved search performance across all list views.
+Improved search performance across all list views with consistent behavior.
 
 ## Complexity
-Medium – table fix is straightforward, search debounce requires architectural consideration for list view template integration.
+Medium – requires architectural consideration for:
+- Creating a reusable component that manages debounced search state
+- Integrating with URL-based search parameters (search must update URL query string)
+- Maintaining browser back/forward compatibility
+- Ensuring clear button bypasses debounce for instant feedback
+
+## Key Architectural Requirement
+The implementation MUST avoid duplicating search state management, useEffects, and handlers across multiple list components. All debounce logic should be centralized in a single reusable component or hook.
