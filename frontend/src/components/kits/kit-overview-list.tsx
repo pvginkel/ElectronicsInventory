@@ -1,15 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ChangeEvent, ReactNode } from 'react';
-import { Input } from '@/components/ui/input';
+import { useCallback, useMemo } from 'react';
+import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
-import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
+import { DebouncedSearchInput } from '@/components/common/debounced-search-input';
 import { KitCard } from '@/components/kits/kit-card';
 import { useKitsOverview } from '@/hooks/use-kits';
 import { useKitPickListMemberships, useKitShoppingListMemberships } from '@/hooks/use-kit-memberships';
-import { useDebouncedValue } from '@/lib/utils/debounce';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import type { KitStatus } from '@/types/kits';
 
@@ -17,7 +15,6 @@ interface KitOverviewListProps {
   status: KitStatus;
   searchTerm: string;
   onStatusChange: (status: KitStatus) => void;
-  onSearchChange: (search: string) => void;
   onCreateKit: () => void;
   onOpenDetail: (kitId: number) => void;
 }
@@ -31,25 +28,10 @@ export function KitOverviewList({
   status,
   searchTerm,
   onStatusChange,
-  onSearchChange,
   onCreateKit,
   onOpenDetail,
 }: KitOverviewListProps) {
-  const [searchInput, setSearchInput] = useState(searchTerm);
-  const debouncedSearch = useDebouncedValue(searchInput, 300);
-
-  useEffect(() => {
-    setSearchInput(searchTerm);
-  }, [searchTerm]);
-
-  useEffect(() => {
-    if (debouncedSearch === searchTerm) {
-      return;
-    }
-    onSearchChange(debouncedSearch);
-  }, [debouncedSearch, onSearchChange, searchTerm]);
-
-  const { queries, buckets, counts } = useKitsOverview(debouncedSearch);
+  const { queries, buckets, counts } = useKitsOverview(searchTerm);
 
   const allKitIds = useMemo(() => {
     const ids = new Set<number>();
@@ -66,7 +48,7 @@ export function KitOverviewList({
   const pickMemberships = useKitPickListMemberships(allKitIds);
 
   const activeKits = status === 'archived' ? buckets.archived : buckets.active;
-  const searchActive = debouncedSearch.trim().length > 0;
+  const searchActive = searchTerm.trim().length > 0;
   const hasAnyKits = buckets.active.length + buckets.archived.length > 0;
   const isLoading = queries.active.isLoading || queries.archived.isLoading;
   const isFetching = queries.active.isFetching || queries.archived.isFetching;
@@ -84,30 +66,21 @@ export function KitOverviewList({
       totals: counts,
       visible: activeKits.length,
       ...(searchActive ? { filtered: activeKits.length } : {}),
-      searchTerm: searchActive ? debouncedSearch : null,
+      searchTerm: searchActive ? searchTerm : null,
     }),
     getErrorMetadata: (err) => ({
       status,
       totals: counts,
       visible: activeKits.length,
-      searchTerm: searchActive ? debouncedSearch : null,
+      searchTerm: searchActive ? searchTerm : null,
       message: err instanceof Error ? err.message : String(err),
     }),
     getAbortedMetadata: () => ({
       status,
       totals: counts,
-      searchTerm: searchActive ? debouncedSearch : null,
+      searchTerm: searchActive ? searchTerm : null,
     }),
   });
-
-  const handleSearchInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setSearchInput(event.target.value);
-  }, []);
-
-  const handleClearSearch = useCallback(() => {
-    setSearchInput('');
-    onSearchChange('');
-  }, [onSearchChange]);
 
   const handleTabChange = useCallback(
     (next: string) => {
@@ -156,27 +129,15 @@ export function KitOverviewList({
   );
 
   const searchNode = (
-    <div className="relative" data-testid="kits.overview.search">
-      <Input
-        value={searchInput}
-        onChange={handleSearchInputChange}
-        placeholder="Search kits..."
-        className="w-full pr-9"
-        data-testid="kits.overview.search.input"
-        aria-label="Search kits"
-      />
-      {searchInput && (
-        <button
-          type="button"
-          onClick={handleClearSearch}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors hover:bg-muted"
-          aria-label="Clear search"
-          data-testid="kits.overview.search.clear"
-        >
-          <ClearButtonIcon className="h-4 w-4" />
-        </button>
-      )}
-    </div>
+    <DebouncedSearchInput
+      searchTerm={searchTerm}
+      routePath="/kits"
+      placeholder="Search kits..."
+      testIdPrefix="kits.overview"
+      preserveSearchParams={(current) => ({
+        status: current.status as KitStatus,
+      })}
+    />
   );
 
   const segmentedTabs = (
@@ -239,7 +200,7 @@ export function KitOverviewList({
         className="rounded-lg border border-dashed border-muted py-16 text-center"
         data-testid="kits.overview.no-results"
       >
-        <h2 className="text-lg font-semibold">No kits match “{debouncedSearch}”</h2>
+        <h2 className="text-lg font-semibold">No kits match "{searchTerm}"</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           Try adjusting the search term or creating a new kit for the build you need.
         </p>

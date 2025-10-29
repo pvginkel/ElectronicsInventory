@@ -3,8 +3,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
+import { DebouncedSearchInput } from '@/components/common/debounced-search-input';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import {
@@ -112,26 +111,6 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
     navigate({ to: '/boxes/$boxNo', params: { boxNo: boxNo.toString() } });
   };
 
-  const handleSearchChange = (value: string) => {
-    if (value) {
-      navigate({
-        to: '/boxes',
-        search: { search: value },
-        replace: true,
-      });
-      return;
-    }
-
-    navigate({
-      to: '/boxes',
-      replace: true,
-    });
-  };
-
-  const handleClearSearch = () => {
-    handleSearchChange('');
-  };
-
   const boxForm = (
     <BoxForm
       open={createFormOpen}
@@ -159,29 +138,13 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
     </Button>
   );
 
-  const renderSearchField = (disabled = false) => (
-    <div className="relative" data-testid="boxes.list.search-container">
-      <Input
-        placeholder="Search..."
-        value={searchTerm}
-        onChange={(event) => handleSearchChange(event.target.value)}
-        className="w-full pr-8"
-        data-testid="boxes.list.search"
-        disabled={disabled}
-      />
-      {searchTerm && (
-        <button
-          type="button"
-          onClick={handleClearSearch}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors hover:bg-muted disabled:opacity-50"
-          aria-label="Clear search"
-          data-testid="boxes.list.search.clear"
-          disabled={disabled}
-        >
-          <ClearButtonIcon />
-        </button>
-      )}
-    </div>
+  const renderSearchField = () => (
+    <DebouncedSearchInput
+      searchTerm={searchTerm}
+      routePath="/boxes"
+      placeholder="Search..."
+      testIdPrefix="boxes.list"
+    />
   );
 
   const renderCounts = (content: ReactNode) => (
@@ -196,13 +159,11 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
     content,
     actionsDisabled = false,
     showSearch = true,
-    searchDisabled = false,
     counts,
   }: {
     content: ReactNode;
     actionsDisabled?: boolean;
     showSearch?: boolean;
-    searchDisabled?: boolean;
     counts?: ReactNode;
   }) => (
     <div className="flex h-full min-h-0 flex-col" data-testid="boxes.page">
@@ -217,7 +178,7 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
             {renderAddButton(actionsDisabled)}
           </div>
         )}
-        search={showSearch ? renderSearchField(searchDisabled) : undefined}
+        search={showSearch ? renderSearchField() : undefined}
         counts={counts}
       >
         {content}
@@ -242,7 +203,6 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
         {renderLayout({
           content: loadingContent,
           actionsDisabled: true,
-          searchDisabled: true,
           counts: renderCounts(
             <span className="inline-flex h-5 w-32 animate-pulse rounded bg-muted" />,
           ),

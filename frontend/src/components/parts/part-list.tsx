@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
+import { DebouncedSearchInput } from '@/components/common/debounced-search-input';
 import { useGetPartsWithLocations, useGetTypes, type PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { QuantityBadge } from './quantity-badge';
 import { MetadataBadge } from './metadata-badge';
 import { LocationSummary } from './location-summary';
 import { VendorInfo } from './vendor-info';
-import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { CircuitBoard, ShoppingCart } from 'lucide-react';
 import { useShoppingListMembershipIndicators } from '@/hooks/use-part-shopping-list-memberships';
@@ -30,7 +29,6 @@ interface PartListProps {
 }
 
 export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreateWithAI }: PartListProps) {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const {
     data: parts = [],
@@ -88,25 +86,6 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
     });
     return map;
   }, [types]);
-
-  const handleSearchChange = (value: string) => {
-    if (value) {
-      navigate({
-        to: '/parts',
-        search: { search: value },
-        replace: true
-      });
-    } else {
-      navigate({
-        to: '/parts',
-        replace: true
-      });
-    }
-  };
-
-  const handleClearSearch = () => {
-    handleSearchChange('');
-  };
 
   const filteredParts = useMemo(() => {
     if (!searchTerm.trim()) return parts;
@@ -229,26 +208,12 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
   ) : undefined;
 
   const searchNode = (
-    <div className="relative" data-testid="parts.list.search-container">
-      <Input
-        placeholder="Search..."
-        value={searchTerm}
-        onChange={(event) => handleSearchChange(event.target.value)}
-        className="w-full pr-8"
-        data-testid="parts.list.search"
-      />
-      {searchTerm && (
-        <button
-          type="button"
-          onClick={handleClearSearch}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors hover:bg-muted"
-          aria-label="Clear search"
-          data-testid="parts.list.search.clear"
-        >
-          <ClearButtonIcon />
-        </button>
-      )}
-    </div>
+    <DebouncedSearchInput
+      searchTerm={searchTerm}
+      routePath="/parts"
+      placeholder="Search..."
+      testIdPrefix="parts.list"
+    />
   );
 
   const countsNode = (

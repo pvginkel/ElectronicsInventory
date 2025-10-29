@@ -18,7 +18,7 @@ export class SellersPage extends BasePage {
     this.header = page.getByTestId('sellers.overview.header')
     this.content = page.getByTestId('sellers.overview.content')
     this.addButton = page.getByTestId('sellers.list.add')
-    this.searchInput = page.getByTestId('sellers.list.search')
+    this.searchInput = page.getByTestId('sellers.list.search.input')
     this.searchClear = page.getByTestId('sellers.list.search.clear')
     this.summary = page.getByTestId('sellers.overview.summary')
     this.listTable = page.getByTestId('sellers.list.table')
@@ -40,11 +40,9 @@ export class SellersPage extends BasePage {
   }
 
   async clearSearch(): Promise<void> {
-    if (await this.searchClear.isVisible()) {
-      await this.searchClear.click()
-    } else {
-      await this.searchInput.fill('')
-    }
+    // Directly fill with empty string to trigger clear
+    await this.searchInput.clear()
+    await this.searchInput.blur()
   }
 
   async scrollContent(distance: number): Promise<void> {

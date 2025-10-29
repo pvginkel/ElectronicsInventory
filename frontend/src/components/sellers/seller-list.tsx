@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useNavigate } from '@tanstack/react-router';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/dialog';
-import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
+import { DebouncedSearchInput } from '@/components/common/debounced-search-input';
 import { useConfirm } from '@/hooks/use-confirm';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
@@ -31,7 +29,6 @@ interface SellerSummary {
 }
 
 export function SellerList({ searchTerm = '' }: SellerListProps) {
-  const navigate = useNavigate();
   const { confirm, confirmProps } = useConfirm();
   const { showSuccess, showException } = useToast();
 
@@ -114,26 +111,6 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
     }),
   });
 
-  const handleSearchChange = (value: string) => {
-    if (value) {
-      navigate({
-        to: '/sellers',
-        search: { search: value },
-        replace: true,
-      });
-      return;
-    }
-
-    navigate({
-      to: '/sellers',
-      replace: true,
-    });
-  };
-
-  const handleClearSearch = () => {
-    handleSearchChange('');
-  };
-
   const handleCreateSeller = async (data: { name: string; website: string }) => {
     try {
       await createMutation.mutateAsync({ body: data });
@@ -205,29 +182,13 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
     </Button>
   );
 
-  const renderSearchField = (disabled = false) => (
-    <div className="relative" data-testid="sellers.list.search-container">
-      <Input
-        placeholder="Search..."
-        value={searchTerm}
-        onChange={(event) => handleSearchChange(event.target.value)}
-        className="pr-8"
-        data-testid="sellers.list.search"
-        disabled={disabled}
-      />
-      {searchTerm && (
-        <button
-          type="button"
-          onClick={handleClearSearch}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors hover:bg-muted disabled:opacity-50"
-          aria-label="Clear search"
-          data-testid="sellers.list.search.clear"
-          disabled={disabled}
-        >
-          <ClearButtonIcon />
-        </button>
-      )}
-    </div>
+  const renderSearchField = () => (
+    <DebouncedSearchInput
+      searchTerm={searchTerm}
+      routePath="/sellers"
+      placeholder="Search..."
+      testIdPrefix="sellers.list"
+    />
   );
 
   const breadcrumbNode = (
@@ -248,13 +209,11 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
     content,
     actionsDisabled = false,
     showSearch = true,
-    searchDisabled = false,
     counts,
   }: {
     content: ReactNode;
     actionsDisabled?: boolean;
     showSearch?: boolean;
-    searchDisabled?: boolean;
     counts?: ReactNode;
   }) => (
     <div className="flex h-full min-h-0 flex-col" data-testid="sellers.page">
@@ -269,7 +228,7 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
             {renderAddButton(actionsDisabled)}
           </div>
         )}
-        search={showSearch ? renderSearchField(searchDisabled) : undefined}
+        search={showSearch ? renderSearchField() : undefined}
         counts={counts}
       >
         {content}
@@ -326,7 +285,6 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
         {renderLayout({
           content: loadingContent,
           actionsDisabled: true,
-          searchDisabled: true,
           counts: renderCounts(
             <span className="inline-flex h-5 w-32 animate-pulse rounded bg-muted" />,
           ),

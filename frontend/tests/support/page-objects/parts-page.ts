@@ -24,7 +24,7 @@ export class PartsPage extends BasePage {
     this.header = page.getByTestId('parts.overview.header');
     this.content = page.getByTestId('parts.overview.content');
     this.listRoot = page.getByTestId('parts.list');
-    this.searchInput = page.getByTestId('parts.list.search');
+    this.searchInput = page.getByTestId('parts.list.search.input');
     this.summary = page.getByTestId('parts.overview.summary');
     this.loadingSkeletons = page.getByTestId('parts.list.loading.skeleton');
     this.emptyState = page.getByTestId('parts.list.empty');
