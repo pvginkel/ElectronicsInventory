@@ -363,6 +363,35 @@ test.describe('Shopping Lists', () => {
     await expect(shoppingLists.overviewCardByName(listName, 'completed')).toBeVisible();
   });
 
+  test('debounced search updates URL and filters lists', async ({ page, shoppingLists, testData }) => {
+    const searchTerm = 'Debounce Test';
+    const matchingName = testData.shoppingLists.randomName(`${searchTerm} List`);
+    const nonMatchingName = testData.shoppingLists.randomName('Other List');
+
+    await testData.shoppingLists.create({ name: matchingName });
+    await testData.shoppingLists.create({ name: nonMatchingName });
+
+    await shoppingLists.gotoOverview();
+    await shoppingLists.waitForOverviewFiltersReady();
+
+    // Fill search input - the component will debounce and wait for completion via instrumentation
+    await shoppingLists.overviewSearch.fill(searchTerm);
+    await shoppingLists.waitForOverviewFiltersReady();
+
+    // Verify URL updated with search parameter (accept both + and %20 encoding for spaces)
+    await expect(page).toHaveURL(/search=.+/);
+
+    // Verify filtered results
+    await expect(shoppingLists.overviewCardByName(matchingName)).toBeVisible();
+    await expect(shoppingLists.overviewCardByName(nonMatchingName)).toBeHidden();
+
+    // Clear search - should update URL (search param removed or empty)
+    await shoppingLists.overviewSearch.clear();
+    await shoppingLists.waitForOverviewFiltersReady();
+    await expect(page).toHaveURL(/^(?!.*search=.+)|search=$/);
+    await expect(shoppingLists.overviewCardByName(nonMatchingName)).toBeVisible();
+  });
+
   test('filters segmented tabs by search without losing totals', async ({ shoppingLists, testData }) => {
     const searchTerm = 'Segmented Search';
     const activeName = testData.shoppingLists.randomName(`${searchTerm} Active`);

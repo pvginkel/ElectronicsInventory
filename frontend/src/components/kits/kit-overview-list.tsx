@@ -33,6 +33,10 @@ export function KitOverviewList({
 }: KitOverviewListProps) {
   const { queries, buckets, counts } = useKitsOverview(searchTerm);
 
+  const preserveSearchParams = useCallback((current: Record<string, unknown>) => ({
+    status: current.status as KitStatus,
+  }), []);
+
   const allKitIds = useMemo(() => {
     const ids = new Set<number>();
     for (const kit of buckets.active) {
@@ -134,9 +138,7 @@ export function KitOverviewList({
       routePath="/kits"
       placeholder="Search kits..."
       testIdPrefix="kits.overview"
-      preserveSearchParams={(current) => ({
-        status: current.status as KitStatus,
-      })}
+      preserveSearchParams={preserveSearchParams}
     />
   );
 
