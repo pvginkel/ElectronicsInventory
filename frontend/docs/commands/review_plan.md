@@ -70,6 +70,8 @@ List unanswered questions, emphasizing the impact of each and the decision that 
 - Needed answer: <what information unlocks progress>
 </open_question_template>
 
+If questions can be answered by performing research, perform the research and provide the answer yourself.
+
 ### 4) Deterministic Playwright Coverage (new/changed behavior only)
 For each new or changed user-visible behavior, document the scenarios, instrumentation, and backend hooks that validate it. Employ `<plan_coverage_template>` to note any gaps; missing elements should be escalated as **Major**.
 
@@ -101,6 +103,8 @@ Record each issue with `<finding_template>`, or—if no credible issues remain�
 - Evidence: <plan_path:lines or referenced sections>
 - Why the plan holds: <reason the risk is closed>
 </adversarial_proof_template>
+
+If you can improve the fix suggestion by performing research, do the research and include the results of the research in the fix suggestion.
 
 ### 6) **Derived-Value & State Invariants (table)**
 Document derived UI values that affect cache writes, cleanup, or cross-route state, providing at least three entries or a justified “none; proof.” Populate `<derived_value_template>` for each.
