@@ -26,9 +26,7 @@
 
 4. **Confirmation dialog removals**: Both shopping list line deletion (`:214-232`) and kit part removal (`use-kit-contents.ts:777-814`) currently use `useConfirm` hook. These must be removed and replaced with undo buttons per research findings.
 
-5. **Shopping list group ordering** (`:362-392`): No confirmation dialog; adds undo button to existing success toast flow. Requires storing previous `orderedQuantity` state for all affected lines before mutation.
-
-6. **Test instrumentation**: Existing `ToastTestEvent` schema includes `action?: string` field. Undo tests wait for toast events with `event.action === 'undo'` filter (e.g., `kits-overview.spec.ts:174-176`). Form instrumentation helpers already support `undo: true` metadata.
+5. **Test instrumentation**: Existing `ToastTestEvent` schema includes `action?: string` field. Undo tests wait for toast events with `event.action === 'undo'` filter (e.g., `kits-overview.spec.ts:174-176`). Form instrumentation helpers already support `undo: true` metadata.
 
 **Conflicts Resolved**
 
@@ -55,14 +53,15 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 - Fix auto-close timer behavior so all toasts (including those with actions) dismiss after 15 seconds
 - Remove confirmation dialog for shopping list line deletion; add undo button to success toast
 - Remove confirmation dialog for kit part removal; add undo button to success toast
-- Add undo button to shopping list group ordering success toast (no confirmation dialog to remove)
 - Implement undo handlers following kit archive reference pattern: optimistic updates, snapshot restoration, reverse mutations
 - Add Playwright specs for each undo flow covering happy path, timeout behavior, concurrent operations, and error handling
 - Ensure test instrumentation emits toast events with `action: 'undo'` and form events with `undo: true` metadata
+- For deletion operations: remove row instantly (optimistic deletion); optionally replace delete icon with spinner during mutation to provide subtle feedback
 
 **Out of scope**
 
-- Additional undo candidates beyond the three specified in research document
+- Shopping list group ordering undo — group ordering has a confirmation dialog that cannot be removed (user feedback)
+- Additional undo candidates beyond the two specified (shopping list line deletion, kit part removal)
 - Status transition undo (shopping list Done → Ready) — research recommends dedicated "Reopen" UI instead
 - Undo for rare operations (type/seller/box/list deletion) — these keep confirmation dialogs
 - Undo for create operations — manual deletion available
@@ -70,7 +69,7 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 
 **Assumptions / constraints**
 
-- Backend APIs for "add line," "add content," and "order line" support recreating deleted records with same attributes
+- Backend APIs for "add line" and "add content" support recreating deleted records with same attributes
 - Radix UI Toast duration timer starts on mount and pauses when toast receives focus or hover
 - TanStack Query cache snapshots remain valid across optimistic updates for rollback scenarios
 - Test mode instrumentation (`isTestMode()`) guards all new test events
@@ -94,17 +93,15 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 
 ### Shopping List Detail Route
 
-- **Area**: `src/routes/shopping-lists/$listId.tsx` (`handleDeleteLine`, `handleConfirmGroupOrder`)
-- **Why**: Remove confirmation dialog from line deletion (`:214-232`), add undo handler with snapshot + reverse mutation; add undo handler to group ordering (`:362-392`) with batch rollback
-- **Evidence**:
-  - Line deletion: `:214-232` — calls `confirm()` before `deleteLineMutation.mutateAsync()`, then `showSuccess('Removed part from Concept list')` without action
-  - Group ordering: `:362-392` — directly calls `orderGroupMutation.mutateAsync()`, then `showSuccess(\`Marked ${orderedLines.length} lines Ordered...\`)` without action
+- **Area**: `src/routes/shopping-lists/$listId.tsx` (`handleDeleteLine`)
+- **Why**: Remove confirmation dialog from line deletion (`:214-232`), add undo handler with snapshot + reverse mutation
+- **Evidence**: Line deletion at `:214-232` — calls `confirm()` before `deleteLineMutation.mutateAsync()`, then `showSuccess('Removed part from Concept list')` without action
 
 ### Shopping List Mutations Hook
 
 - **Area**: `src/hooks/use-shopping-lists.ts` (mutation hooks)
-- **Why**: May need to export or enhance `useDeleteShoppingListLineMutation`, `useOrderShoppingListGroupMutation` to support undo workflows; verify optimistic update patterns
-- **Evidence**: Imported at `src/routes/shopping-lists/$listId.tsx:18-20` — `useDeleteShoppingListLineMutation`, `useOrderShoppingListGroupMutation` already exist; need to review if additional hooks required for "add line" reverse mutation
+- **Why**: May need to export or enhance `useDeleteShoppingListLineMutation` to support undo workflows; verify optimistic update patterns and ensure "add line" mutation hook exists for undo
+- **Evidence**: Imported at `src/routes/shopping-lists/$listId.tsx:18-20` — `useDeleteShoppingListLineMutation` already exists; need to review if additional hooks required for "add line" reverse mutation
 
 ### Kit Contents Hook
 
@@ -141,10 +138,6 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 - **Area**: `tests/e2e/shopping-lists/line-deletion-undo.spec.ts` (new)
 - **Why**: Cover undo flow for shopping list line deletion (happy path, timeout, errors)
 - **Evidence**: No existing spec found; must create following pattern in `kits-overview.spec.ts:161-212`
-
-- **Area**: `tests/e2e/shopping-lists/group-ordering-undo.spec.ts` (new)
-- **Why**: Cover undo flow for batch group ordering (happy path, batch rollback, errors)
-- **Evidence**: No existing spec found; must create new file
 
 - **Area**: `tests/e2e/kits/kit-contents-undo.spec.ts` (new)
 - **Why**: Cover undo flow for kit part removal (happy path, timeout, errors)
@@ -219,23 +212,6 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 - **Mapping**: Captured before `deleteMutation.mutateAsync()`, passed to undo handler to call existing "add content" mutation (`usePostKitsContentsByKitId`)
 - **Evidence**: `use-kit-contents.ts:790-792` — `deleteMutation.mutateAsync({ path: { kit_id: kitId, content_id: confirmRow.id } })`; need to capture `confirmRow.part.id`, `confirmRow.requiredPerUnit`, `confirmRow.note`, `confirmRow.version` before deletion
 
-### Shopping List Group Ordering Snapshot
-
-- **Entity**: Previous line quantities (batch snapshot)
-- **Shape**:
-  ```typescript
-  interface OrderGroupSnapshot {
-    listId: number;
-    groupKey: string;
-    previousQuantities: Array<{
-      lineId: number;
-      orderedQuantity: number;
-    }>;
-  }
-  ```
-- **Mapping**: Before `orderGroupMutation.mutateAsync()`, capture current `orderedQuantity` for all lines in group; undo handler calls same mutation with previous quantities
-- **Evidence**: `src/routes/shopping-lists/$listId.tsx:373-380` — `orderGroupMutation.mutateAsync({ listId, groupKey, lines: [...] })`; undo must restore previous `orderedQuantity` values (typically 0 for "New" status)
-
 ### Toast Test Event (Existing, Verify Mapping)
 
 - **Entity**: `ToastTestEvent`
@@ -272,14 +248,6 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 - **Errors**: 409 conflict if part already in kit (should not happen during undo); surface via toast
 - **Evidence**: `use-kit-contents.ts:532-538` — `createMutation.mutateAsync({ path: { kit_id: kitId }, body: { part_id, required_per_unit, note } })`; undo handler reuses this mutation
 
-### Shopping List Line Ordering (Batch Undo)
-
-- **Surface**: `POST /api/shopping-lists/{list_id}/order-group` or `PATCH /api/shopping-lists/{list_id}/lines/{line_id}/order` (batch or individual)
-- **Inputs**: Same as forward mutation; undo passes previous `orderedQuantity` values for all affected lines
-- **Outputs**: Updated line statuses; invalidates shopping list detail query
-- **Errors**: 404 if list or lines deleted; 409 if concurrent edits; surface via toast
-- **Evidence**: `$listId.tsx:373-380` — `orderGroupMutation.mutateAsync({ listId, groupKey, lines: [{ lineId, orderedQuantity }] })`; undo reuses same endpoint with previous quantities
-
 ### Shopping List Line Deletion (Forward Mutation)
 
 - **Surface**: `DELETE /api/shopping-lists/{list_id}/lines/{line_id}` / `useDeleteShoppingListLineMutation`
@@ -300,7 +268,6 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 
 - **Shopping list line undo**: After undo mutation succeeds, invalidate `useShoppingListDetail` query (key: `['getShoppingListById', { path: { list_id: listId } }]`)
 - **Kit content undo**: After undo mutation succeeds, invalidate kit detail query (key: `['getKitsByKitId', { path: { kit_id: kitId } }]`)
-- **Group ordering undo**: After undo mutation succeeds, invalidate shopping list detail query
 
 ---
 
@@ -343,19 +310,22 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 **Steps**:
 1. User clicks delete button on shopping list line in Concept view
 2. **Old**: Confirmation dialog appears → user confirms → line deleted → success toast
-3. **New**: No confirmation; line immediately deleted optimistically → success toast with undo button appears
-4. Snapshot captured before deletion: `{ lineId, listId, partId, partKey, needed, sellerId, note }`
-5. `deleteLineMutation.mutateAsync()` called; TanStack Query optimistically removes line from cache
-6. If user clicks undo before toast dismisses:
+3. **New**: No confirmation; line immediately removed from table (optimistic deletion) → success toast with undo button appears
+4. **Optional feedback**: Delete icon can be replaced with spinner (same size, in place) during mutation to provide subtle loading indicator
+5. Snapshot captured before deletion: `{ lineId, listId, partId, partKey, needed, sellerId, note }`
+6. `deleteLineMutation.mutateAsync()` called; TanStack Query optimistically removes line from cache
+7. If user clicks undo before toast dismisses:
    - `undoInFlightRef` checked to prevent duplicate clicks
    - "Add line" mutation called with snapshot data (`partId`, `needed`, `sellerId`, `note`)
    - Optimistically restore line to cache
    - Success toast: "Restored line to Concept list"
-7. If undo mutation fails: Toast error; original deletion remains
+8. If undo mutation fails: Toast error; original deletion remains
 
-**States / transitions**: Line visible → delete clicked → line removed (optimistic) → toast with undo → (undo clicked) → line restored
+**States / transitions**: Line visible → delete clicked → (optional: delete icon → spinner) → line removed (optimistic) → toast with undo → (undo clicked) → line restored
 
 **Hotspots**: User rapidly deletes multiple lines; undo must not conflict with subsequent deletions
+
+**UI guidance**: Row should disappear instantly (no "Removing..." text or intermediate state message); if showing loading feedback, replace delete icon with spinner in place
 
 **Evidence**: `src/routes/shopping-lists/$listId.tsx:214-232` — current confirmation flow; must replace with optimistic deletion + undo. Backend endpoint confirmed to accept all required fields for restoration.
 
@@ -366,43 +336,24 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 **Steps**:
 1. User clicks remove button on kit content row
 2. **Old**: Confirmation dialog appears → user confirms → content deleted → success toast
-3. **New**: No confirmation; content immediately deleted optimistically → success toast with undo button appears
-4. Snapshot captured before deletion: `{ contentId, kitId, partId, partKey, requiredPerUnit, note, version }`
-5. `deleteMutation.mutateAsync()` called; TanStack Query optimistically removes content from cache
-6. If user clicks undo before toast dismisses:
+3. **New**: No confirmation; content row immediately removed from table (optimistic deletion) → success toast with undo button appears
+4. **Optional feedback**: Remove icon can be replaced with spinner (same size, in place) during mutation to provide subtle loading indicator
+5. Snapshot captured before deletion: `{ contentId, kitId, partId, partKey, requiredPerUnit, note, version }`
+6. `deleteMutation.mutateAsync()` called; TanStack Query optimistically removes content from cache
+7. If user clicks undo before toast dismisses:
    - `undoInFlightRef` checked to prevent duplicate clicks
    - "Add content" mutation called with snapshot data (excluding contentId, version)
    - Optimistically append new content to cache
    - Success toast: "Restored part to kit"
-7. If undo mutation fails: Toast error; original deletion remains
+8. If undo mutation fails: Toast error; original deletion remains
 
-**States / transitions**: Content row visible → remove clicked → row removed (optimistic) → toast with undo → (undo clicked) → row restored with new ID
+**States / transitions**: Content row visible → remove clicked → (optional: remove icon → spinner) → row removed (optimistic) → toast with undo → (undo clicked) → row restored with new ID
 
 **Hotspots**: Part removal during kit editing workflow; undo must handle version conflicts gracefully
 
+**UI guidance**: Row should disappear instantly (no "Removing..." text or intermediate state message); if showing loading feedback, replace remove icon with spinner in place
+
 **Evidence**: `use-kit-contents.ts:777-814` — current confirmation flow; must replace with optimistic deletion + undo
-
----
-
-### Flow: Shopping List Group Ordering with Undo
-
-**Steps**:
-1. User clicks "Mark Ordered" on seller group (e.g., Mouser group with 10 lines)
-2. Snapshot captured before mutation: `{ listId, groupKey, previousQuantities: [{ lineId, orderedQuantity }, ...] }`
-3. `orderGroupMutation.mutateAsync()` called; optimistic update marks all lines as ordered in cache
-4. Success toast appears with undo button: "Marked 10 lines Ordered for Mouser"
-5. If user clicks undo before toast dismisses:
-   - `undoInFlightRef` checked to prevent duplicate clicks
-   - Same `orderGroupMutation` called with previous quantities (typically 0 for all lines)
-   - Optimistic rollback: restore previous ordered quantities in cache
-   - Success toast: "Reverted 10 lines to previous state"
-6. If undo mutation fails: Toast error; lines remain in new state
-
-**States / transitions**: Lines in "New" status → group ordered → lines in "Ordered" status → toast with undo → (undo clicked) → lines back to "New"
-
-**Hotspots**: Batch operation affects 5-15 lines; user may accidentally click wrong seller group; undo must roll back entire batch atomically
-
-**Evidence**: `src/routes/shopping-lists/$listId.tsx:362-392` — current flow without undo; must add snapshot + undo handler
 
 ---
 
@@ -423,14 +374,6 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 - **Guards**: Snapshot only valid until cache refresh; undo creates new content record (different `contentId`, `version`); if part already in kit (409 on undo), show error toast (should not happen)
 - **Invariant**: Snapshot `partId` must resolve to valid part; snapshot `kitId` must match current kit; prevents undo from adding content to wrong kit
 - **Evidence**: `use-kit-contents.ts:790-792` — deletion passes `{ kit_id, content_id }`; snapshot must capture `partId`, `requiredPerUnit`, `note` before mutation
-
-### Derived value: Shopping List Group Ordering Snapshot
-
-- **Source**: Filtered lines from `sellerGroups` (from `useShoppingListDetail`) matching `groupKey` at moment of order click; current `orderedQuantity` for each line
-- **Writes / cleanup**: Stored in React ref before `orderGroupMutation.mutateAsync()`; passed to undo handler; cleared after toast dismisses or undo completes
-- **Guards**: Snapshot captures 5-15 line IDs and quantities; undo mutation must target same lines; if any line deleted (404 on undo), skip that line and proceed with rest; if entire group deleted, show error toast
-- **Invariant**: Snapshot `lineId` list must match lines in group at mutation time; prevents undo from affecting wrong lines if group composition changes
-- **Evidence**: `src/routes/shopping-lists/$listId.tsx:373-380` — mutation passes `{ listId, groupKey, lines: [{ lineId, orderedQuantity }] }`; snapshot must capture previous quantities before mutation
 
 ### Derived value: Undo In-Flight Flag
 
@@ -493,13 +436,6 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 - **Guardrails**: Should not occur (part was just deleted), but if it does, user sees error and current kit state is accurate
 - **Evidence**: Kit archive pattern handles errors via `onError`; `use-kit-contents.ts:704-726` shows 409 conflict handling for edit mutations
 
-### Failure: Shopping list group ordering succeeds but undo mutation fails (partial failure - some lines deleted)
-
-- **Surface**: `$listId.tsx` undo handler for group ordering
-- **Handling**: Batch undo mutation may return mixed results (some lines reverted, some 404); show warning toast: "Reverted X of Y lines (Z lines no longer exist)"; refetch list detail
-- **Guardrails**: Undo handler must handle partial success; if backend supports batch endpoint, parse response to count successes/failures; if individual mutations, use `Promise.allSettled()` to collect results
-- **Evidence**: Group ordering mutation at `$listId.tsx:373-380` calls batch endpoint; undo must handle same endpoint with previous quantities
-
 ### Failure: Toast auto-closes before user clicks undo
 
 - **Surface**: Toast component (15-second duration)
@@ -551,7 +487,7 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 
 - **Type**: `FormTestEvent` (test-event)
 - **Trigger**: On delete mutation submit, success, error; emitted via `trackFormSubmit`, `trackFormSuccess`, `trackFormError`
-- **Labels / fields**: `{ kind: 'form', formId: 'ShoppingListLine:delete' | 'KitContent:delete' | 'ShoppingListGroup:order', phase: 'submit' | 'success' | 'error', metadata: { lineId?, contentId?, groupKey?, undo?: boolean } }`
+- **Labels / fields**: `{ kind: 'form', formId: 'ShoppingListLine:delete' | 'KitContent:delete', phase: 'submit' | 'success' | 'error', metadata: { lineId?, contentId?, undo?: boolean } }`
 - **Consumer**: Playwright waits for `phase: 'success'` before asserting on toast
 - **Evidence**: Existing form instrumentation at `src/lib/test/form-instrumentation.ts`; kit archive uses `trackFormSubmit(ARCHIVE_FORM_ID, metadata)` at `:159`
 
@@ -559,7 +495,7 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 
 - **Type**: `FormTestEvent` (test-event)
 - **Trigger**: On undo mutation submit, success, error; emitted with `metadata.undo = true`
-- **Labels / fields**: `{ kind: 'form', formId: 'ShoppingListLine:restore' | 'KitContent:restore' | 'ShoppingListGroup:revert', phase: 'submit' | 'success' | 'error', metadata: { undo: true, lineId?, contentId?, groupKey? } }`
+- **Labels / fields**: `{ kind: 'form', formId: 'ShoppingListLine:restore' | 'KitContent:restore', phase: 'submit' | 'success' | 'error', metadata: { undo: true, lineId?, contentId? } }`
 - **Consumer**: Playwright waits for `phase: 'success'` with `metadata.undo === true` before asserting on restored state
 - **Evidence**: Kit archive pattern at `kit-archive-controls.tsx:73` — `buildFormMetadata(kit.id, 'active', undoTriggered)` includes `undo: true` when `undoTriggered`
 
@@ -659,13 +595,6 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 - **Dependencies**: `useDeleteKitsContentsByKitIdAndContentId` (delete), `usePostKitsContentsByKitId` (undo)
 - **Evidence**: `src/hooks/use-kit-contents.ts:777-814` — current flow; consuming component must remove confirmation dialog UI
 
-### Entry point: Shopping list detail view (Ready tab, seller group)
-
-- **Change**: Add undo button to success toast after marking group ordered (no confirmation dialog to remove)
-- **User interaction**: User clicks "Mark Ordered" on seller group → lines updated immediately (optimistic) → toast appears: "Marked 10 lines Ordered for Mouser [Undo]" → user can click Undo within 15 seconds to revert all lines to previous quantities
-- **Dependencies**: `useOrderShoppingListGroupMutation` (order), same mutation (undo with previous quantities)
-- **Evidence**: `src/routes/shopping-lists/$listId.tsx:362-392` — current flow; add undo button to success toast at `:381`
-
 ### Entry point: Toast container (all toasts)
 
 - **Change**: Fix message overflow to keep close button visible; ensure toasts with action buttons auto-close after 15 seconds
@@ -721,29 +650,6 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 **Gaps**: None; full coverage of happy path, timeout, error, and edge case scenarios
 
 **Evidence**: Pattern from `tests/e2e/kits/kits-overview.spec.ts:161-212` (kit archive undo spec)
-
----
-
-### Surface: Shopping list group ordering with undo (Ready view)
-
-**Scenarios**:
-- **Given** user is on shopping list detail page (Ready status) with seller group "Mouser" containing 8 lines in "New" status, **When** user clicks "Mark Ordered" on Mouser group, **Then** all 8 lines are marked ordered immediately (optimistic), success toast appears with undo button: "Marked 8 lines Ordered for Mouser [Undo]"
-- **Given** undo toast is visible after group ordering, **When** user clicks undo button, **Then** undo mutation submits with previous quantities (all 0), all 8 lines revert to "New" status, success toast shows "Reverted 8 lines to previous state"
-- **Given** undo toast is visible after group ordering, **When** user waits 15 seconds without clicking undo, **Then** toast auto-dismisses, undo button is no longer available, lines remain ordered
-- **Given** user marked group ordered and undo toast is visible, **When** undo mutation fails partially (some lines deleted by another user), **Then** warning toast appears "Reverted X of 8 lines (Y lines no longer exist)", list detail refetches
-- **Given** user is on Ready view with two seller groups (Mouser, Digikey), **When** user marks Mouser group ordered, then immediately marks Digikey group ordered (before first toast dismisses), **Then** two undo toasts stack, user can undo either group independently
-
-**Instrumentation / hooks**:
-- `data-testid="shopping-lists.ready.group.${groupKey}.markOrdered"` (mark ordered button)
-- `data-testid="shopping-lists.toast.undo.group.${groupKey}"` (undo button in toast)
-- Form event: `{ formId: 'ShoppingListGroup:order', phase: 'submit' | 'success' | 'error', metadata: { groupKey, listId, lineCount } }`
-- Form event: `{ formId: 'ShoppingListGroup:revert', phase: 'submit' | 'success' | 'error', metadata: { undo: true, groupKey, listId, lineCount } }`
-- Toast event: `{ kind: 'toast', level: 'success', message: 'Marked 8 lines Ordered for Mouser', action: 'undo' }`
-- List loading event: `{ scope: 'shoppingLists.list', phase: 'ready' }` (after undo refetch)
-
-**Gaps**: Partial failure handling (some lines 404) requires backend to return structured error or success count; if not supported, undo handler uses `Promise.allSettled()` for individual mutations and counts results
-
-**Evidence**: Pattern from `tests/e2e/kits/kits-overview.spec.ts:161-212` (kit archive undo spec); batch ordering at `$listId.tsx:362-392`
 
 ---
 
@@ -824,18 +730,6 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 
 ---
 
-### Slice: Shopping list group ordering undo
-
-**Goal**: Add undo button to existing success toast, implement batch rollback
-
-**Touches**:
-- `src/routes/shopping-lists/$listId.tsx` — add undo handler to `handleConfirmGroupOrder`, capture snapshot of previous quantities, pass undo action to `showSuccess`
-- Playwright spec (new): `tests/e2e/shopping-lists/group-ordering-undo.spec.ts`
-
-**Dependencies**: Shopping list line undo (Slice 2) establishes undo pattern for shopping list mutations
-
----
-
 ### Slice: Instrumentation and test coverage polish
 
 **Goal**: Ensure all undo flows emit correct test events; verify Playwright specs cover all scenarios
@@ -872,14 +766,6 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 - **Impact**: User deletes line, another user deletes entire list, user clicks undo → undo mutation fails with 404 → error toast appears
 - **Mitigation**: Acceptable per research; undo is best-effort; error handling shows clear message "Could not restore line (shopping list may have been modified)"; user can manually re-add if needed
 
-### Risk: Shopping list group ordering undo may fail partially (some lines deleted by another user) (ENDPOINT CONFIRMED)
-
-- **Impact**: User marks group ordered (10 lines), another user deletes 2 lines, user clicks undo → undo mutation succeeds for 8 lines, fails for 2 lines → unclear feedback to user
-- **Status**: Backend endpoint confirmed via research — uses atomic validation with batch updates
-- **Endpoint**: `POST /api/shopping-lists/{list_id}/seller-groups/<group_ref>/order` at `/work/backend/app/api/shopping_list_lines.py:196-237`
-- **Behavior**: Service method validates all lines first, then updates batch if validation passes; if any line fails validation, entire operation fails (prevents partial state)
-- **Mitigation**: Undo reuses same endpoint with previous quantities; if validation detects deleted lines, entire undo fails with clear error message; show error toast: "Could not revert group (shopping list was modified by another user)"; acceptable per research — undo is best-effort
-
 ### Risk: Playwright specs may be flaky if toast auto-dismiss timing is inconsistent
 
 - **Impact**: Test waits for undo toast, toast dismisses before test can click undo button → test fails intermittently
@@ -898,15 +784,6 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
   - `note: str | None` (optional)
 - Service method: `add_line` at `/work/backend/app/services/shopping_list_line_service.py:41-89` accepts all required fields
 - **Conclusion**: Undo mutations for line deletion can fully restore original line attributes (needed quantity, seller, notes)
-
-**Backend Group Ordering Endpoint Behavior (CONFIRMED)**
-- Endpoint: `POST /api/shopping-lists/{list_id}/seller-groups/<group_ref>/order` at `/work/backend/app/api/shopping_list_lines.py:196-237`
-- Returns: `list[ShoppingListLineResponseSchema]` (batch of updated lines, not atomic rollback)
-- Service method: `set_group_ordered` at `/work/backend/app/services/shopping_list_line_service.py:295-388`
-  - Validates all lines first (lines 359-379)
-  - Updates all lines in batch if validation passes (lines 381-383)
-  - Atomic validation, batch update pattern (validation failure prevents all updates)
-- **Conclusion**: Undo mutations can reuse same endpoint with previous quantities; validation ensures consistent batch operations
 
 **Radix UI Version and Timer Bugs (CONFIRMED ISSUE)**
 - Current version: `@radix-ui/react-toast: ^1.2.15` from `/work/frontend/package.json:28`
@@ -931,7 +808,6 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 - **Conclusion**: Proposed formIds align with existing convention:
   - `ShoppingListLine:delete`, `ShoppingListLine:restore`
   - `KitContent:delete`, `KitContent:restore`
-  - `ShoppingListGroup:order`, `ShoppingListGroup:revert`
 
 **Toast Duration for Undo Actions (RESOLVED)**
 - User confirmed default 15 seconds is acceptable for undo toasts
@@ -949,7 +825,8 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 **Confidence: Very High** — All major unknowns have been resolved through research:
 - Toast overflow and auto-close issues are straightforward CSS and duration fixes (Radix UI timer bugs confirmed, mitigation strategy clear)
 - Undo pattern is well-established (kit archive reference provides complete implementation template)
-- Backend APIs **confirmed** to support full undo workflows: shopping list line endpoint accepts all required fields (`partId`, `needed`, `sellerId`, `note`); kit content endpoint supports all required fields; group ordering endpoint uses atomic validation with batch updates
+- Backend APIs **confirmed** to support full undo workflows: shopping list line endpoint accepts all required fields (`partId`, `needed`, `sellerId`, `note`); kit content endpoint supports all required fields
 - Test infrastructure confirmed mature: `ShoppingListFactory.createLine()` supports all fields needed for undo test scenarios; formId naming convention confirmed (`Domain:action` pattern)
 - Playwright specs can follow proven pattern from kit archive undo tests (`kits-overview.spec.ts:161-212`)
 - Only implementation detail remaining is Radix UI duration fix (well-understood problem with documented mitigation strategy)
+- Scope reduced to two undo flows (shopping list line deletion, kit part removal) per user feedback; group ordering undo removed due to existing confirmation dialog
