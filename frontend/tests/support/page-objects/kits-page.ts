@@ -247,6 +247,8 @@ export class KitsPage extends BasePage {
     await this.overviewSearchClear.waitFor({ state: 'attached' }).catch(() => {});
     if (await this.overviewSearchClear.isVisible()) {
       await this.overviewSearchClear.click({ force: true });
+    } else {
+      await this.overviewSearchInput.fill('');
     }
   }
 

@@ -72,6 +72,32 @@ test.describe('Boxes - List Experience', () => {
     await expect(boxes.summary).toContainText(/\d+ boxes/i)
   })
 
+  test('debounced search updates URL and filters boxes', async ({ page, boxes, testData }) => {
+    const prefix = makeUnique('Search-Test')
+    const storageDescription = `${prefix}-Storage`
+    const componentsDescription = `${prefix}-Components`
+
+    const storageBox = await createSeedBox(testData, storageDescription, 15)
+    await createSeedBox(testData, componentsDescription, 20)
+
+    await boxes.gotoList()
+
+    // Search for the unique storage box description to ensure only 1 match
+    await boxes.search(storageDescription)
+
+    // Verify URL updated with search parameter
+    await expect(page).toHaveURL(/search=/)
+
+    // Verify filtered results
+    await expect(boxes.boxCard(storageBox.box_no)).toBeVisible()
+    await expect(boxes.summary).toContainText(/1 of \d+ boxes showing/i)
+
+    // Clear should update URL immediately (bypass debounce)
+    await boxes.clearSearch()
+    await expect(page).toHaveURL(/^(?!.*search)/)
+    await expect(boxes.summary).toContainText(/\d+ boxes/i)
+  })
+
   test('creates, edits, and deletes a box with instrumentation and toasts', async ({ boxes, testEvents, toastHelper }) => {
     const description = makeUnique('Playwright Box')
 

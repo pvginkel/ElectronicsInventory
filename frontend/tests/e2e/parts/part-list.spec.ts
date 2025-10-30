@@ -82,6 +82,32 @@ test.describe('Parts - List View', () => {
     await expect(parts.searchInput).toHaveValue('');
   });
 
+  test('debounced search updates URL and filters results', async ({ page, parts, testData }) => {
+    const ledDescription = testData.parts.randomPartDescription('LED indicator');
+    const resistorDescription = testData.parts.randomPartDescription('Resistor');
+
+    await testData.parts.create({ overrides: { description: ledDescription } });
+    await testData.parts.create({ overrides: { description: resistorDescription } });
+
+    await parts.gotoList();
+    await parts.waitForCards();
+
+    // Search for the unique LED description to ensure only 1 match
+    await parts.search(ledDescription);
+
+    // Verify URL updated with search parameter
+    await expect(page).toHaveURL(/search=/);
+
+    // Verify filtered results
+    await expect(parts.cardByDescription(ledDescription)).toBeVisible();
+    await parts.expectSummaryText(/1 of \d+ parts showing/i);
+
+    // Clear should update URL after debounce completes
+    await parts.clearSearch();
+    await expect(page).toHaveURL(/^(?!.*search)/); // URL should not contain search param
+    await parts.expectSummaryText(/\d+ parts/i);
+  });
+
   test('opens AI dialog from list page', async ({ parts, partsAI, testData }) => {
     await testData.parts.create();
 

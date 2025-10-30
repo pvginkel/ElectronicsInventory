@@ -39,6 +39,36 @@ test.describe('Sellers - List Experience', () => {
     await expect(sellers.summary).toContainText(/\d+ sellers/i)
   })
 
+  test('debounced search updates URL and filters sellers', async ({ page, sellers, testData }) => {
+    const prefix = makeUnique('Search-Test')
+    const distributorName = `${prefix} Distributor`
+    const manufacturerName = `${prefix} Manufacturer`
+
+    const distributor = await testData.sellers.create({
+      overrides: { name: distributorName, website: `https://dist-${makeUniqueToken(8)}.example.com` }
+    })
+    await testData.sellers.create({
+      overrides: { name: manufacturerName, website: `https://mfg-${makeUniqueToken(8)}.example.com` }
+    })
+
+    await sellers.gotoList()
+
+    // Search for Distributor - page object waits for debounce + query completion
+    await sellers.search('Distributor')
+
+    // Verify URL updated with search parameter
+    await expect(page).toHaveURL(/search=Distributor/i)
+
+    // Verify filtered results
+    await expect(sellers.sellerCard(distributor.id)).toBeVisible()
+    await expect(sellers.summary).toContainText(/1 of \d+ sellers showing/i)
+
+    // Clear should update URL immediately (bypass debounce)
+    await sellers.clearSearch()
+    await expect(page).toHaveURL(/^(?!.*search)/)
+    await expect(sellers.summary).toContainText(/\d+ sellers/i)
+  })
+
   test('creates, edits, and deletes a seller with instrumentation and toasts', async ({ sellers, testEvents, toastHelper }) => {
     const name = makeUnique('Playwright Seller')
     const website = `https://seller-${makeUniqueToken(8)}.example.com`

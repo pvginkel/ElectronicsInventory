@@ -31,7 +31,7 @@ export class ShoppingListsPage extends BasePage {
     this.overviewRoot = page.getByTestId('shopping-lists.overview');
     this.overviewHeader = page.getByTestId('shopping-lists.overview.header');
     this.overviewContent = page.getByTestId('shopping-lists.overview.content');
-    this.overviewSearch = page.getByTestId('shopping-lists.overview.search');
+    this.overviewSearch = page.getByTestId('shopping-lists.overview.search.input');
     this.overviewCreateButton = page.getByTestId('shopping-lists.overview.create');
     this.overviewTabs = page.getByTestId('shopping-lists.overview.tabs');
     this.overviewActiveTab = page.getByTestId('shopping-lists.overview.tabs.active');

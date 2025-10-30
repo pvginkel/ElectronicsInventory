@@ -46,26 +46,6 @@ function KitsOverviewRoute() {
     });
   }, [navigate]);
 
-  const handleSearchChange = useCallback((nextSearch: string) => {
-    if (nextSearch) {
-      navigate({
-        to: '/kits',
-        search: (prev) => ({
-          ...prev,
-          search: nextSearch,
-        }),
-        replace: true,
-      });
-      return;
-    }
-
-    navigate({
-      to: '/kits',
-      search: () => ({ status }),
-      replace: true,
-    });
-  }, [navigate, status]);
-
   const handleCreateKit = useCallback(() => {
     setIsCreateDialogOpen(true);
   }, []);
@@ -103,7 +83,6 @@ function KitsOverviewRoute() {
         status={status}
         searchTerm={search}
         onStatusChange={handleStatusChange}
-        onSearchChange={handleSearchChange}
         onCreateKit={handleCreateKit}
         onOpenDetail={handleOpenDetail}
       />

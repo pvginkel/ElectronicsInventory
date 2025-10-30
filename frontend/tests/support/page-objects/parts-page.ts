@@ -24,7 +24,7 @@ export class PartsPage extends BasePage {
     this.header = page.getByTestId('parts.overview.header');
     this.content = page.getByTestId('parts.overview.content');
     this.listRoot = page.getByTestId('parts.list');
-    this.searchInput = page.getByTestId('parts.list.search');
+    this.searchInput = page.getByTestId('parts.list.search.input');
     this.summary = page.getByTestId('parts.overview.summary');
     this.loadingSkeletons = page.getByTestId('parts.list.loading.skeleton');
     this.emptyState = page.getByTestId('parts.list.empty');
@@ -74,11 +74,22 @@ export class PartsPage extends BasePage {
   }
 
   async search(term: string): Promise<void> {
+    // Parts uses client-side filtering, so just wait for URL to contain search param (debounce completion)
     await this.searchInput.fill(term);
+    await this.page.waitForURL(/[?&]search=/);
   }
 
   async clearSearch(): Promise<void> {
-    await this.searchInput.fill('');
+    const clearButton = this.page.getByTestId('parts.list.search.clear');
+    if (await clearButton.isVisible()) {
+      await clearButton.click();
+      // After clicking clear button, wait for input to be empty
+      await this.searchInput.fill('');
+    } else {
+      await this.searchInput.fill('');
+    }
+    // Wait for debounce to complete and search param to be removed from URL
+    await this.page.waitForURL(url => !url.toString().includes('search='), { timeout: 10000 });
   }
 
   async scrollContent(distance: number): Promise<void> {
