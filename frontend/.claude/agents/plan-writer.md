@@ -19,7 +19,7 @@ When invoked, you will:
 
 3. **Determine Plan Location**: 
    - Plans follow the structure `docs/features/<FEATURE_NAME>/plan.md`
-   - Generate a descriptive, kebab-case folder name based on the feature (e.g., `bulk-inventory-editing`, `pdf-export-feature`)
+   - Generate a descriptive, snake_case folder name based on the feature (e.g., `bulk_inventory_editing`, `pdf_export_feature`)
    - Check if `docs/features/<FEATURE_NAME>/plan.md` already exists
    - If it exists, append a sequence number: `<FEATURE_NAME>_2`, `<FEATURE_NAME>_3`, etc., until you find an available location
    - The user may override this by specifying a location explicitly - always respect their choice

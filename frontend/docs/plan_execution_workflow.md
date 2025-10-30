@@ -66,7 +66,7 @@ Use the **code-reviewer agent** to perform a comprehensive review:
    - Provide the full path to the plan
    - Specify the review output location: `code_review.md` in the same folder as the plan
    - If `code_review.md` already exists, delete it first before requesting the review
-   - Instruct the agent to review **unstaged changes** (since .git is read-only)
+   - Instruct the agent to review **unstaged changes**
 
 2. **Review the generated document**:
    - Read through all findings, questions, and recommendations
@@ -106,7 +106,7 @@ The report MUST include:
 2. **Summary**:
    - Overview of what was accomplished
    - Highlight any outstanding work needed
-   - Example: "All four slices implemented and tested. All critical bugs were resolved. Some minor questions remain unanswered. Ready for production deployment but follow-up is advised."
+   - Example: "All slices implemented and tested. All critical bugs were resolved. Some minor questions remain unanswered. Ready for production deployment but follow-up is advised."
 
 3. **Code Review Summary**:
    - Overview of review findings (BLOCKER, MAJOR, MINOR counts)
@@ -124,18 +124,6 @@ The report MUST include:
    - Known limitations
    - Future enhancement opportunities
    - If nothing outstanding, explicitly state: "No outstanding work required."
-
-## Important Constraints
-
-### Git Operations
-
-**You cannot stage or commit changes.** The workflow runs inside a container where the `.git` directory is mapped read-only for safety.
-
-- Do NOT attempt to stage files with `git add`
-- Do NOT attempt to commit with `git commit`
-- Always request the code-reviewer agent to review **unstaged changes**
-
-The user will handle staging and committing work outside the container after the orchestrated work is complete.
 
 ## Quality Standards
 
