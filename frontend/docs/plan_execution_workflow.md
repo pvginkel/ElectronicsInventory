@@ -2,6 +2,13 @@
 
 This document describes the workflow for executing a reviewed plan. The orchestrating agent oversees the complete execution of the plan and ensures a quality end result.
 
+**Hard guardrails:**
+
+- Agents must be used for significant code changes and to perform code review. You can make minor code changes yourself if you're confident to do so.
+- Usage of agents is limited to only the agents listed below. You may not make use of other agents at all:
+  - `code-writer`
+  - `code-reviewer`
+
 ## Overview
 
 When a user provides the location of a reviewed plan, the orchestrating agent is responsible for:
@@ -85,7 +92,6 @@ Use the **code-reviewer agent** to perform a comprehensive review:
    - If you lack confidence in the end result, request a new code review from a fresh code-reviewer agent
    - Place subsequent reviews at new locations: `code_review_2.md`, `code_review_3.md`, etc.
    - Repeat the review and resolution steps until quality standards are met
-   - **Maximum 3 iterations**: If quality standards aren't met after 3 cycles, escalate to user
 
 ### Step 4: Plan Execution Report
 
@@ -93,44 +99,31 @@ Use the **code-reviewer agent** to perform a comprehensive review:
 
 The report MUST include:
 
-1. **Status Line** (first line of document):
+1. **Status**:
    - One of: `DONE`, `DONE-WITH-CONDITIONS`, `INCOMPLETE`, or `ABORTED`
-   - Example: `Status: DONE` or `Status: DONE-WITH-CONDITIONS`
+   - Example: `Status: DONE, the plan was implemented successfully` or `Status: DONE-WITH-CONDITIONS, there is minor work still to be completed`
 
-2. **Summary** (immediately after status):
-   - 2-3 sentence overview of what was accomplished
-   - Highlight any critical outstanding work needed
-   - Example: "All four slices implemented and tested. Two critical bugs found in review and fixed. Ready for production deployment."
+2. **Summary**:
+   - Overview of what was accomplished
+   - Highlight any outstanding work needed
+   - Example: "All four slices implemented and tested. All critical bugs were resolved. Some minor questions remain unanswered. Ready for production deployment but follow-up is advised."
 
-3. **What Was Implemented**:
-   - Brief bullet list of completed slices/features
-   - Link to relevant files or line numbers
-
-4. **Files Changed**:
-   - List modified files with brief description of changes
-   - List newly created files
-
-5. **Code Review Summary**:
+3. **Code Review Summary**:
    - Overview of review findings (BLOCKER, MAJOR, MINOR counts)
    - Which issues were resolved
    - Which issues were accepted as-is with rationale
 
-6. **Verification Results**:
+4. **Verification Results**:
    - Output of `pnpm check`
    - Test suite results (pass/fail counts)
    - Any manual testing performed
 
-7. **Outstanding Work & Suggested Improvements** (required section):
+5. **Outstanding Work & Suggested Improvements** (required section):
    - Any MINOR issues not fixed with rationale
    - Suggested follow-up improvements
    - Known limitations
    - Future enhancement opportunities
    - If nothing outstanding, explicitly state: "No outstanding work required."
-
-8. **Next Steps for User**:
-   - Instructions for committing (since .git is read-only)
-   - Any manual testing recommended
-   - Deployment considerations
 
 ## Important Constraints
 
@@ -153,35 +146,11 @@ Before considering the work complete:
 - ALL issues identified in code review are resolved (BLOCKER, MAJOR, and MINOR)
 - `pnpm check` passes with no errors
 - All affected tests are passing
+- Tests that fail as a side effect of the work are fixed
 - New test specs created as required by plan
 - Code follows established project patterns
 - No outstanding questions remain (or are deferred to user with clear context)
 - **Plan execution report is written** (required)
-
-## Iteration Exit Criteria
-
-Continue the review → fix cycle until ONE of:
-
-1. ✅ Code review decision is "GO" (no conditions) AND all issues (including MINOR) are resolved
-2. ✅ Code review decision is "GO-WITH-CONDITIONS" AND all issues (including MINOR) are resolved
-3. 🛑 Three iterations complete (escalate to human for guidance)
-
-**Note**: All issues identified in the code review should be fixed, including MINOR ones. Do not document issues as "known limitations" - fix them before completion.
-
-## Test Execution Strategy
-
-**After initial implementation (code-writer):**
-- Run new/modified specs only (faster feedback)
-- Run `pnpm check` for type safety
-
-**After fixes (code-reviewer):**
-- Run ALL affected test suites (prevent regressions)
-- Run new specs that verify the fixes
-- Run `pnpm check` again
-
-**Before declaring "done":**
-- Run full test suite if time permits, or at minimum all domain-related tests
-- Ensure all verification checkpoints are complete
 
 ## Example Workflow
 
