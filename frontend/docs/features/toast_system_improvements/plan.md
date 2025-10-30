@@ -56,7 +56,7 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 - Implement undo handlers following kit archive reference pattern: optimistic updates, snapshot restoration, reverse mutations
 - Add Playwright specs for each undo flow covering happy path, timeout behavior, concurrent operations, and error handling
 - Ensure test instrumentation emits toast events with `action: 'undo'` and form events with `undo: true` metadata
-- For deletion operations: remove row instantly (optimistic deletion); optionally replace delete icon with spinner during mutation to provide subtle feedback
+- For deletion operations: use pure optimistic deletion (row removed instantly when delete is clicked, no intermediate loading state)
 
 **Out of scope**
 
@@ -99,9 +99,9 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 
 ### Shopping List Mutations Hook
 
-- **Area**: `src/hooks/use-shopping-lists.ts` (mutation hooks)
-- **Why**: May need to export or enhance `useDeleteShoppingListLineMutation` to support undo workflows; verify optimistic update patterns and ensure "add line" mutation hook exists for undo
-- **Evidence**: Imported at `src/routes/shopping-lists/$listId.tsx:18-20` — `useDeleteShoppingListLineMutation` already exists; need to review if additional hooks required for "add line" reverse mutation
+- **Area**: `src/lib/api/generated/hooks.ts` — generated API hooks
+- **Why**: Undo workflow requires "add line" mutation hook (`usePostShoppingListsLinesByListId`) which already exists in generated client
+- **Evidence**: Hook confirmed at `src/lib/api/generated/hooks.ts:2044` — accepts `{ path: { list_id }, body: ShoppingListLineCreateSchema }` with fields `part_id`, `seller_id`, `needed`, `note`. Delete hook `useDeleteShoppingListLineMutation` already used in routes. Line object structure confirmed at `src/types/shopping-lists.ts:111-117` — `ShoppingListPartSummary` includes `id: number` field required for undo (line 113).
 
 ### Kit Contents Hook
 
@@ -111,9 +111,9 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 
 ### Kit Contents Component
 
-- **Area**: Component that renders `remove.confirmRow` confirmation dialog (likely `src/components/kits/kit-detail.tsx` or inline dialog)
-- **Why**: Remove dialog UI, update call site to invoke immediate deletion with undo
-- **Evidence**: `use-kit-contents.ts:860-867` exports `remove.confirmRow`, `remove.open`, `remove.close` — these control confirmation dialog visibility; consuming component must be updated to remove dialog render
+- **Area**: `src/components/kits/kit-bom-table.tsx` — renders confirmation dialog at lines 363-380
+- **Why**: Remove dialog UI (Dialog component with confirmRow-based open state), update to invoke immediate deletion with undo
+- **Evidence**: `use-kit-contents.ts:860-867` exports `remove.confirmRow`, `remove.open`, `remove.close`; kit-bom-table.tsx:363-380 renders Dialog with `open={confirmRowId !== null && Boolean(confirmRow)}` and delete confirmation message
 
 ### Shopping List Line Confirm Dialog
 
@@ -234,11 +234,11 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 
 ### Shopping List Line Addition (Undo Reverse Mutation)
 
-- **Surface**: `POST /api/shopping-lists/{list_id}/lines` / `useAddShoppingListLineMutation`
-- **Inputs**: `{ listId: number, partId: number, needed: number, sellerId: number | null, note: string | null }`
-- **Outputs**: Created line response (id, part, needed, seller, note); invalidates `useShoppingListDetail` query
+- **Surface**: `POST /api/shopping-lists/{list_id}/lines` / `usePostShoppingListsLinesByListId`
+- **Inputs**: `{ path: { list_id: number }, body: { part_id: number, needed: number, seller_id: number | null, note: string | null } }`
+- **Outputs**: `ShoppingListLineResponseSchema` (id, part, needed, seller, note); invalidates `useShoppingListDetail` query
 - **Errors**: 409 conflict if part already exists (should not happen during undo); 404 if list deleted; surface via toast
-- **Evidence**: Backend endpoint confirmed at `/work/backend/app/api/shopping_list_lines.py:28-56`; schema at `/work/backend/app/schemas/shopping_list_line.py:12-35` accepts `part_id`, `seller_id`, `needed`, `note`; frontend hook must map to these fields
+- **Evidence**: Frontend hook confirmed at `src/lib/api/generated/hooks.ts:2044` — `usePostShoppingListsLinesByListId` accepts `ShoppingListLineCreateSchema` body. Backend endpoint confirmed at `/work/backend/app/api/shopping_list_lines.py:28-56`; schema at `/work/backend/app/schemas/shopping_list_line.py:12-35` accepts `part_id`, `seller_id`, `needed`, `note`.
 
 ### Kit Content Addition (Undo Reverse Mutation)
 
@@ -294,14 +294,21 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 **Steps**:
 1. User triggers mutation that shows success toast with action button
 2. Toast renders with `duration={15000}` passed to `ToastPrimitive.Root`
-3. **Bug**: User hovers or focuses action button; Radix UI pauses duration timer indefinitely; toast never auto-closes after user moves away
-4. **Fix**: Investigate Radix UI duration behavior with actions; may need to force `duration` prop or adjust `onOpenChange` handling to ensure timer resumes after interaction ends
+3. **Bug**: User hovers or focuses action button; Radix UI v1.2.15 has known timer bugs (#2268, #2461, #2233) causing toasts to never auto-close after button interaction
+4. **Fix**: Implement custom timeout management in ToastProvider using `setTimeout` to force dismissal after 15 seconds regardless of user interaction
 
-**States / transitions**: Toast open → user hovers action → timer pauses → user moves away → **timer should resume** → toast closes after 15s total
+**States / transitions**: Toast open → user hovers action → timer pauses → user moves away → **custom timer forces close** → toast closes after 15s total
 
 **Hotspots**: All toasts with action buttons (undo, etc.)
 
-**Evidence**: `src/components/ui/toast.tsx:74` — duration prop passed; hypothesis that Radix UI pauses timer during focus
+**Implementation approach**:
+- Add `useEffect` in ToastProvider to start `setTimeout(15000)` when toast is added
+- Store timeout IDs in ref keyed by toast ID
+- Clear timeout on manual toast removal (close button, action click)
+- Force removal via `removeToast(id)` when timeout fires
+- This bypasses Radix UI's broken pause/resume logic
+
+**Evidence**: `src/components/ui/toast.tsx:74` — duration prop passed to Radix but unreliable; `src/contexts/toast-context-provider.tsx` manages toast lifecycle. Radix UI v1.2.15 confirmed via `package.json:28`. Known bugs: #2268 (timer doesn't resume after action click), #2461 (new toasts never dismiss after Toast.Close), #2233 (dynamic duration issues).
 
 ---
 
@@ -311,23 +318,72 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 1. User clicks delete button on shopping list line in Concept view
 2. **Old**: Confirmation dialog appears → user confirms → line deleted → success toast
 3. **New**: No confirmation; line immediately removed from table (optimistic deletion) → success toast with undo button appears
-4. **Optional feedback**: Delete icon can be replaced with spinner (same size, in place) during mutation to provide subtle loading indicator
-5. Snapshot captured before deletion: `{ lineId, listId, partId, partKey, needed, sellerId, note }`
-6. `deleteLineMutation.mutateAsync()` called; TanStack Query optimistically removes line from cache
-7. If user clicks undo before toast dismisses:
+4. Snapshot captured before deletion: `{ lineId, listId, partId, partKey, needed, sellerId, note }`
+5. `deleteLineMutation.mutateAsync()` called; TanStack Query optimistically removes line from cache
+6. If user clicks undo before toast dismisses:
    - `undoInFlightRef` checked to prevent duplicate clicks
    - "Add line" mutation called with snapshot data (`partId`, `needed`, `sellerId`, `note`)
    - Optimistically restore line to cache
    - Success toast: "Restored line to Concept list"
-8. If undo mutation fails: Toast error; original deletion remains
+7. If undo mutation fails: Toast error; original deletion remains
 
-**States / transitions**: Line visible → delete clicked → (optional: delete icon → spinner) → line removed (optimistic) → toast with undo → (undo clicked) → line restored
+**States / transitions**: Line visible → delete clicked → line removed instantly (optimistic) → toast with undo → (undo clicked) → line restored
 
 **Hotspots**: User rapidly deletes multiple lines; undo must not conflict with subsequent deletions
 
-**UI guidance**: Row should disappear instantly (no "Removing..." text or intermediate state message); if showing loading feedback, replace delete icon with spinner in place
+**UI guidance**: Row disappears instantly when delete is clicked (pure optimistic deletion, no intermediate loading state)
 
-**Evidence**: `src/routes/shopping-lists/$listId.tsx:214-232` — current confirmation flow; must replace with optimistic deletion + undo. Backend endpoint confirmed to accept all required fields for restoration.
+**Cache manipulation** (optimistic updates):
+
+```typescript
+// Forward deletion (step 5):
+queryClient.setQueryData<ShoppingListDetail | undefined>(
+  ['getShoppingListById', { path: { list_id: listId } }],
+  (current) => {
+    if (!current) return current;
+    const lines = current.lines.filter(line => line.id !== lineId);
+    const lineCounts = computeLineCountsFromLines(lines);
+    return { ...current, lines, lineCounts };
+  }
+);
+
+// Undo restoration (step 6c):
+queryClient.setQueryData<ShoppingListDetail | undefined>(
+  ['getShoppingListById', { path: { list_id: listId } }],
+  (current) => {
+    if (!current) return current;
+    // Map backend response to ShoppingListConceptLine (use mapConceptLine helper)
+    const restoredLine = mapConceptLine(backendResponse);
+    const lines = [...current.lines, restoredLine];
+    const lineCounts = computeLineCountsFromLines(lines);
+    return { ...current, lines, lineCounts };
+  }
+);
+```
+
+**Instrumentation call sites**:
+
+```typescript
+// Forward deletion (in handleDeleteLine, before mutateAsync):
+trackFormSubmit('ShoppingListLine:delete', { lineId, listId, partKey });
+
+// Forward deletion success (in mutation onSuccess):
+trackFormSuccess('ShoppingListLine:delete', { lineId, listId, partKey });
+
+// Forward deletion error (in mutation onError):
+trackFormError('ShoppingListLine:delete', error, { lineId, listId, partKey });
+
+// Undo mutation (in handleUndo, before mutateAsync):
+trackFormSubmit('ShoppingListLine:restore', { undo: true, lineId, listId, partKey });
+
+// Undo success (in undo mutation onSuccess):
+trackFormSuccess('ShoppingListLine:restore', { undo: true, lineId, listId, partKey });
+
+// Undo error (in undo mutation onError):
+trackFormError('ShoppingListLine:restore', error, { undo: true, lineId, listId, partKey });
+```
+
+**Evidence**: `src/routes/shopping-lists/$listId.tsx:214-232` — current confirmation flow; must replace with optimistic deletion + undo. Backend endpoint confirmed to accept all required fields for restoration. Cache manipulation helpers exist at `src/hooks/use-shopping-lists.ts:310-329` (`optimisticallyUpdateLine`), line count helper at `:290-300`. Form instrumentation helpers at `src/lib/test/form-instrumentation.ts`.
 
 ---
 
@@ -337,23 +393,70 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 1. User clicks remove button on kit content row
 2. **Old**: Confirmation dialog appears → user confirms → content deleted → success toast
 3. **New**: No confirmation; content row immediately removed from table (optimistic deletion) → success toast with undo button appears
-4. **Optional feedback**: Remove icon can be replaced with spinner (same size, in place) during mutation to provide subtle loading indicator
-5. Snapshot captured before deletion: `{ contentId, kitId, partId, partKey, requiredPerUnit, note, version }`
-6. `deleteMutation.mutateAsync()` called; TanStack Query optimistically removes content from cache
-7. If user clicks undo before toast dismisses:
+4. Snapshot captured before deletion: `{ contentId, kitId, partId, partKey, requiredPerUnit, note, version }`
+5. `deleteMutation.mutateAsync()` called; TanStack Query optimistically removes content from cache
+6. If user clicks undo before toast dismisses:
    - `undoInFlightRef` checked to prevent duplicate clicks
    - "Add content" mutation called with snapshot data (excluding contentId, version)
    - Optimistically append new content to cache
    - Success toast: "Restored part to kit"
-8. If undo mutation fails: Toast error; original deletion remains
+7. If undo mutation fails: Toast error; original deletion remains
 
-**States / transitions**: Content row visible → remove clicked → (optional: remove icon → spinner) → row removed (optimistic) → toast with undo → (undo clicked) → row restored with new ID
+**States / transitions**: Content row visible → remove clicked → row removed instantly (optimistic) → toast with undo → (undo clicked) → row restored with new ID
 
 **Hotspots**: Part removal during kit editing workflow; undo must handle version conflicts gracefully
 
-**UI guidance**: Row should disappear instantly (no "Removing..." text or intermediate state message); if showing loading feedback, replace remove icon with spinner in place
+**UI guidance**: Row disappears instantly when remove is clicked (pure optimistic deletion, no intermediate loading state)
 
-**Evidence**: `use-kit-contents.ts:777-814` — current confirmation flow; must replace with optimistic deletion + undo
+**Cache manipulation** (optimistic updates):
+
+```typescript
+// Forward deletion (step 5):
+queryClient.setQueryData<KitDetail | undefined>(
+  ['getKitsByKitId', { path: { kit_id: kitId } }],
+  (current) => {
+    if (!current) return current;
+    const contents = current.contents.filter(c => c.id !== contentId);
+    return { ...current, contents };
+  }
+);
+
+// Undo restoration (step 6c):
+queryClient.setQueryData<KitDetail | undefined>(
+  ['getKitsByKitId', { path: { kit_id: kitId } }],
+  (current) => {
+    if (!current) return current;
+    // Map backend response to KitContentRow (use mapContentRow helper)
+    const restoredContent = mapContentRow(backendResponse);
+    const contents = [...current.contents, restoredContent];
+    return { ...current, contents };
+  }
+);
+```
+
+**Instrumentation call sites**:
+
+```typescript
+// Forward deletion (in confirmDeleteHandler, before mutateAsync):
+trackFormSubmit('KitContent:delete', { contentId, kitId, partKey });
+
+// Forward deletion success (in mutation onSuccess):
+trackFormSuccess('KitContent:delete', { contentId, kitId, partKey });
+
+// Forward deletion error (in mutation onError):
+trackFormError('KitContent:delete', error, { contentId, kitId, partKey });
+
+// Undo mutation (in handleUndo, before mutateAsync):
+trackFormSubmit('KitContent:restore', { undo: true, contentId, kitId, partKey });
+
+// Undo success (in undo mutation onSuccess):
+trackFormSuccess('KitContent:restore', { undo: true, contentId, kitId, partKey });
+
+// Undo error (in undo mutation onError):
+trackFormError('KitContent:restore', error, { undo: true, contentId, kitId, partKey });
+```
+
+**Evidence**: `use-kit-contents.ts:777-814` — current confirmation flow; must replace with optimistic deletion + undo. Content row mapper exists at `src/hooks/use-kits.ts` (mapContentRow helper used in kit detail mapping). Existing instrumentation already in place at `use-kit-contents.ts` for create/update/delete operations.
 
 ---
 
@@ -616,8 +719,8 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 - **Given** user is on shopping list detail page, **When** user rapidly deletes 3 lines in sequence, **Then** each deletion shows its own undo toast, user can undo any deletion independently, no mutations conflict
 
 **Instrumentation / hooks**:
-- `data-testid="shopping-lists.concept.table.row.${lineId}.delete"` (delete button)
-- `data-testid="shopping-lists.toast.undo.${lineId}"` (undo button in toast)
+- `data-testid="shopping-lists.concept.row.${lineId}.delete"` (delete button — already exists in concept-line-row.tsx:130)
+- `data-testid="shopping-lists.concept.toast.undo.${lineId}"` (undo button in toast — to be added)
 - Form event: `{ formId: 'ShoppingListLine:delete', phase: 'submit' | 'success' | 'error', metadata: { lineId, listId, partKey } }`
 - Form event: `{ formId: 'ShoppingListLine:restore', phase: 'submit' | 'success' | 'error', metadata: { undo: true, lineId, listId, partKey } }`
 - Toast event: `{ kind: 'toast', level: 'success', message: 'Removed part from Concept list', action: 'undo' }`
@@ -722,9 +825,9 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 
 **Touches**:
 - `src/hooks/use-kit-contents.ts` — remove confirmation flow, add undo handler to `remove` controls, capture snapshot, pass undo action to `showSuccess`
-- Component rendering `remove.confirmRow` dialog — remove dialog UI
+- `src/components/kits/kit-bom-table.tsx` — remove confirmation dialog UI (lines 363-398)
 - Playwright spec (new): `tests/e2e/kits/kit-contents-undo.spec.ts`
-- Update existing specs that assert on part removal confirmation dialog
+- Update existing spec: `tests/e2e/kits/kit-detail.spec.ts:1150-1193` — remove confirmation dialog assertions (`kits.detailDeleteDialog`, `kits.detailDeleteConfirm`), add undo toast checks
 
 **Dependencies**: Toast overflow fix (Slice 1); shopping list line undo (Slice 2) provides reference pattern
 
@@ -797,6 +900,7 @@ Fix toast display bugs (overflow, inconsistent auto-close) and expand undo funct
 - Factory method: `createLine` at `/work/frontend/tests/api/factories/shopping-list-factory.ts:62-93`
 - Endpoint used: `POST /api/parts/{part_key}/shopping-list-memberships` (lines 72-80)
 - Supported fields: `partKey`, `needed` (defaults to 1), `sellerId`, `note`
+- **Note**: Factory uses different endpoint (`/api/parts/{part_key}/shopping-list-memberships`) than undo mutation (`/api/shopping-lists/{list_id}/lines`). Both endpoints create shopping list lines; factory endpoint is a convenience wrapper that auto-resolves part from key. For undo tests, factory remains valid for test setup; undo mutation uses direct line creation endpoint with `part_id`.
 - **Conclusion**: Playwright specs can use existing factory to recreate lines during undo tests with full attribute support
 
 **FormId Naming Convention (CONFIRMED)**
