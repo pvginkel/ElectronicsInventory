@@ -44,11 +44,9 @@ The review needs to be placed in the same folder as where the plan is located. I
 
 ---
 
-**Instructions for the agent writer**: Do not replicate documentation in the agent description. The agent must read established documentation instead of being fed the content from the agent description. Do tell the agent to read some specific document, but do not give the content to the agent.
+Can you write a workflow document at docs/plan_execution_workflow.md using the following instructions:
 
-This agent is used only when the user explicitly requests to use this agent by name. The name of the agent is plan-executor.
-
-The purpose of this agent is to execute a plan. The user will provide the location of a reviewed plan to you and your job is to execute it. This agent oversees execution of the plan and ensures complete execution of the plan and a quality end result.
+The purpose of this workflow is to execute a plan. The user will provide the location of a reviewed plan to you and your job is to execute it. You will oversee execution of the plan and ensures complete execution of the plan and a quality end result.
 
 To execute a plan you will iterate through the following steps:
 
