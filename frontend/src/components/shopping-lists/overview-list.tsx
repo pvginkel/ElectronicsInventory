@@ -4,7 +4,7 @@ import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
-import { DebouncedSearchInput } from '@/components/common/debounced-search-input';
+import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
 import { useShoppingListsOverview } from '@/hooks/use-shopping-lists';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { ShoppingListOverviewCard } from './overview-card';

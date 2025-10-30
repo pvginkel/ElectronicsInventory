@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import { MembershipIndicator } from '@/components/common/membership-indicator';
+import { MembershipIndicator } from '@/components/ui/membership-indicator';
 import type {
   KitSummary,
   KitShoppingListMembershipSummary,

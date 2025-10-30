@@ -6,7 +6,7 @@ import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
-import { DebouncedSearchInput } from '@/components/common/debounced-search-input';
+import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
 import { useGetPartsWithLocations, useGetTypes, type PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { QuantityBadge } from './quantity-badge';
@@ -19,7 +19,7 @@ import { useShoppingListMembershipIndicators } from '@/hooks/use-part-shopping-l
 import { usePartKitMembershipIndicators, type PartKitMembershipSummary } from '@/hooks/use-part-kit-memberships';
 import type { ShoppingListMembershipSummary } from '@/types/shopping-lists';
 import { Badge } from '@/components/ui/badge';
-import { MembershipIndicator } from '@/components/common/membership-indicator';
+import { MembershipIndicator } from '@/components/ui/membership-indicator';
 
 interface PartListProps {
   searchTerm?: string;
