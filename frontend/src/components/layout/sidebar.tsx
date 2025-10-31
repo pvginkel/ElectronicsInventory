@@ -16,7 +16,6 @@ interface SidebarProps {
 }
 
 const navigationItems: SidebarItem[] = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, testId: 'dashboard' },
   { to: '/parts', label: 'Parts', icon: Wrench, testId: 'parts' },
   { to: '/kits', label: 'Kits', icon: CircuitBoard, testId: 'kits' },
   { to: '/shopping-lists', label: 'Shopping Lists', icon: ShoppingCart, testId: 'shopping-lists' },
