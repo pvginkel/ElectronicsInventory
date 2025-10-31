@@ -331,9 +331,8 @@ function sortShoppingLinks(links: KitShoppingListLink[]): KitShoppingListLink[] 
 function ArchivedEditTooltip() {
   return (
     <Tooltip
-      content="Archived kits are read-only. Unarchive the kit to edit metadata or BOM contents."
+      title="Archived kits are read-only. Unarchive the kit to edit metadata or BOM contents."
       testId="kits.detail.actions.edit"
-      className="w-64 text-xs"
     >
       <Button
         variant="outline"

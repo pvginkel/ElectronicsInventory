@@ -52,7 +52,6 @@ export function MembershipIndicator<TSummary>({
       <Tooltip
         testId={`${testId}.error`}
         content={<div className="w-52 text-xs text-destructive">{errorMessage}</div>}
-        className="border-destructive/50"
       >
         <div
           className={cn('flex h-8 w-8 items-center justify-center', containerClassName)}

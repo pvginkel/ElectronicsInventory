@@ -242,7 +242,6 @@ function KitBOMDisplayRow({
           {showReservations ? (
             <Tooltip
               testId={`kits.detail.table.row.${row.id}.reservations`}
-              className="w-72"
               content={
                 <div>
                   <div className="mb-2 flex items-center gap-2 text-sm font-medium">
