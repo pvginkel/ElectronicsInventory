@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { ConceptTable } from '@/components/shopping-lists/concept-table';
 import { ConceptLineForm } from '@/components/shopping-lists/concept-line-form';
 import { ConceptToolbar } from '@/components/shopping-lists/concept-toolbar';
@@ -24,6 +25,7 @@ import {
   flattenReceivableLines,
   findNextReceivableLine,
 } from '@/hooks/use-shopping-lists';
+import { usePostShoppingListsLinesByListId } from '@/lib/api/generated/hooks';
 import type {
   ShoppingListConceptLine,
   ShoppingListLineSortKey,
@@ -34,7 +36,7 @@ import type {
 } from '@/types/shopping-lists';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
-import { useConfirm } from '@/hooks/use-confirm';
+import { trackFormSubmit, trackFormSuccess, trackFormError } from '@/lib/test/form-instrumentation';
 import { ConfirmDialog, type DialogContentProps } from '@/components/ui/dialog';
 import { Route as ShoppingListsRoute } from '@/routes/shopping-lists/index';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
@@ -87,12 +89,25 @@ function ShoppingListDetailRoute() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const { showSuccess, showException, showWarning } = useToast();
-  const { confirm, confirmProps } = useConfirm();
+  const queryClient = useQueryClient();
 
   const listId = Number(params.listId);
   const hasValidListId = Number.isFinite(listId);
   const normalizedListId = hasValidListId ? listId : 0;
   const sortKey = (search.sort as ShoppingListLineSortKey | undefined) ?? 'description';
+
+  // Undo state for line deletion - using Map to support concurrent deletions
+  const undoInFlightRef = useRef(false);
+  interface DeletedLineSnapshot {
+    lineId: number;
+    listId: number;
+    partId: number;
+    partKey: string;
+    needed: number;
+    sellerId: number | null;
+    note: string | null;
+  }
+  const deletedLineSnapshotsRef = useRef<Map<number, DeletedLineSnapshot>>(new Map());
   const handleListDeleted = useCallback((list: ShoppingListOverviewSummary) => {
     void list;
     void navigate({
@@ -144,6 +159,7 @@ function ShoppingListDetailRoute() {
   const updateMetadataMutation = useUpdateShoppingListMutation(normalizedListId);
   const markReadyMutation = useMarkShoppingListReadyMutation();
   const deleteLineMutation = useDeleteShoppingListLineMutation();
+  const addLineMutation = usePostShoppingListsLinesByListId();
   const orderLineMutation = useOrderShoppingListLineMutation();
   const revertLineMutation = useRevertShoppingListLineMutation();
   const orderGroupMutation = useOrderShoppingListGroupMutation();
@@ -211,25 +227,116 @@ function ShoppingListDetailRoute() {
     setLineFormOpen(true);
   }, []);
 
+  // Undo handler for line deletion - accepts lineId to retrieve specific snapshot
+  const handleUndoDeleteLine = useCallback((lineId: number) => {
+    return () => {
+      if (undoInFlightRef.current) {
+        return;
+      }
+      const snapshot = deletedLineSnapshotsRef.current.get(lineId);
+      if (!snapshot) {
+        return;
+      }
+      undoInFlightRef.current = true;
+
+      trackFormSubmit('ShoppingListLine:restore', {
+        undo: true,
+        lineId: snapshot.lineId,
+        listId: snapshot.listId,
+        partKey: snapshot.partKey,
+      });
+
+      addLineMutation
+        .mutateAsync({
+          path: { list_id: snapshot.listId },
+          body: {
+            part_id: snapshot.partId,
+            needed: snapshot.needed,
+            seller_id: snapshot.sellerId,
+            note: snapshot.note,
+          },
+        })
+        .then(() => {
+          undoInFlightRef.current = false;
+          deletedLineSnapshotsRef.current.delete(lineId);
+          trackFormSuccess('ShoppingListLine:restore', {
+            undo: true,
+            lineId: snapshot.lineId,
+            listId: snapshot.listId,
+            partKey: snapshot.partKey,
+          });
+          showSuccess('Restored line to Concept list');
+          // Invalidate query to refetch the list
+          void queryClient.invalidateQueries({
+            queryKey: ['getShoppingListById', { path: { list_id: snapshot.listId } }],
+          });
+        })
+        .catch((err) => {
+          undoInFlightRef.current = false;
+          trackFormError('ShoppingListLine:restore', {
+            undo: true,
+            lineId: snapshot.lineId,
+            listId: snapshot.listId,
+            partKey: snapshot.partKey,
+          });
+          const message = err instanceof Error ? err.message : 'Failed to restore line';
+          showException(message, err);
+        });
+    };
+  }, [addLineMutation, queryClient, showException, showSuccess]);
+
   const handleDeleteLine = useCallback(async (line: ShoppingListConceptLine) => {
-    const confirmed = await confirm({
-      title: 'Delete line',
-      description: `Remove "${line.part.description}" from this Concept list?`,
-      confirmText: 'Delete line',
-      destructive: true,
+    // Capture snapshot before deletion for undo - store in Map for concurrent deletion support
+    const snapshot: DeletedLineSnapshot = {
+      lineId: line.id,
+      listId: line.shoppingListId,
+      partId: line.part.id,
+      partKey: line.part.key,
+      needed: line.needed,
+      sellerId: line.seller?.id ?? null,
+      note: line.note,
+    };
+    deletedLineSnapshotsRef.current.set(line.id, snapshot);
+
+    trackFormSubmit('ShoppingListLine:delete', {
+      lineId: line.id,
+      listId: line.shoppingListId,
+      partKey: line.part.key,
     });
-    if (!confirmed) {
-      return;
-    }
 
     try {
-      await deleteLineMutation.mutateAsync({ lineId: line.id, listId: line.shoppingListId, partKey: line.part.key });
-      showSuccess('Removed part from Concept list');
+      await deleteLineMutation.mutateAsync({
+        lineId: line.id,
+        listId: line.shoppingListId,
+        partKey: line.part.key,
+      });
+
+      trackFormSuccess('ShoppingListLine:delete', {
+        lineId: line.id,
+        listId: line.shoppingListId,
+        partKey: line.part.key,
+      });
+
+      showSuccess('Removed part from Concept list', {
+        action: {
+          id: 'undo',
+          label: 'Undo',
+          testId: `shopping-lists.concept.toast.undo.${line.id}`,
+          onClick: handleUndoDeleteLine(line.id),
+        },
+      });
     } catch (err) {
+      // Remove snapshot if deletion fails
+      deletedLineSnapshotsRef.current.delete(line.id);
+      trackFormError('ShoppingListLine:delete', {
+        lineId: line.id,
+        listId: line.shoppingListId,
+        partKey: line.part.key,
+      });
       const message = err instanceof Error ? err.message : 'Failed to delete line';
       showException(message, err);
     }
-  }, [confirm, deleteLineMutation, showException, showSuccess]);
+  }, [deleteLineMutation, handleUndoDeleteLine, showException, showSuccess]);
 
   const handleDuplicateDetected = useCallback((existingLine: ShoppingListConceptLine, partKey: string) => {
     setDuplicateNotice({ lineId: existingLine.id, partKey });
@@ -779,7 +886,6 @@ function ShoppingListDetailRoute() {
 
       {deleteListDialog}
       {markDoneDialog}
-      <ConfirmDialog {...confirmProps} />
       {linkToUnlink ? (
         <ConfirmDialog
           open={Boolean(linkToUnlink)}

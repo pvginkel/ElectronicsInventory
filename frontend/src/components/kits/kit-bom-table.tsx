@@ -7,14 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { KitBOMRowEditor } from '@/components/kits/kit-bom-row-editor';
-import {
-  Dialog,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogInnerContent,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import type { KitContentRow } from '@/types/kits';
 import type {
   PendingCreateRow,
@@ -38,7 +30,6 @@ export function KitBOMTable({ rows, controls }: KitBOMTableProps) {
     existingPartKeys,
     isArchived,
     isMutationPending,
-    kitName,
   } = controls;
 
   const pendingCreateRow = overlays.pendingCreateRow;
@@ -181,7 +172,7 @@ export function KitBOMTable({ rows, controls }: KitBOMTableProps) {
         </table>
       </div>
 
-      <DeleteConfirmDialog controls={remove} kitName={kitName} />
+      {/* Confirmation dialog removed - deletion now happens immediately with undo button in toast */}
     </>
   );
 }
@@ -354,70 +345,7 @@ function PendingCreateOverlayRow({ pending }: PendingCreateOverlayRowProps) {
   );
 }
 
-interface DeleteConfirmDialogProps {
-  controls: UseKitContentsResult['remove'];
-  kitName: string;
-}
-
-function DeleteConfirmDialog({ controls, kitName }: DeleteConfirmDialogProps) {
-  const open = controls.confirmRowId !== null && Boolean(controls.confirmRow);
-
-  const handleOpenChange = (next: boolean) => {
-    if (!next) {
-      controls.close();
-    }
-  };
-
-  const handleConfirm = () => {
-    void controls.confirm();
-  };
-
-  const partDescription = controls.confirmRow
-    ? `${controls.confirmRow.part.description} (${controls.confirmRow.part.key})`
-    : 'this part';
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={handleOpenChange}
-    >
-      <DialogInnerContent data-testid="kits.detail.table.delete.dialog">
-        <DialogHeader>
-          <DialogTitle>Remove kit part</DialogTitle>
-          <DialogDescription>
-            Are you sure you want to remove {partDescription} from {kitName}?
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={controls.close}
-            disabled={controls.isSubmitting}
-            data-testid="kits.detail.table.delete.cancel"
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onClick={handleConfirm}
-            disabled={controls.isSubmitting}
-            data-testid="kits.detail.table.delete.confirm"
-          >
-            {controls.isSubmitting ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Removing…
-              </span>
-            ) : (
-              'Remove part'
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogInnerContent>
-    </Dialog>
-  );
-}
+// Confirmation dialog removed - deletion now happens immediately with undo button in toast
 
 function formatNumber(value: number): string {
   return NUMBER_FORMATTER.format(value);

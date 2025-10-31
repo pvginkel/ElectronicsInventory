@@ -11,6 +11,7 @@ import {
 import { ApiError } from '@/lib/api/api-error';
 import { useToast } from '@/hooks/use-toast';
 import { useFormInstrumentation, type UseFormInstrumentationResult } from '@/hooks/use-form-instrumentation';
+import { trackFormSubmit, trackFormSuccess, trackFormError } from '@/lib/test/form-instrumentation';
 import type { UseKitDetailResult } from '@/hooks/use-kit-detail';
 import type { PartSelectorSummary } from '@/hooks/use-parts-selector';
 import type { KitContentRow, KitDetail } from '@/types/kits';
@@ -111,7 +112,6 @@ interface DeleteControls {
   open: (row: KitContentRow) => void;
   close: () => void;
   isSubmitting: boolean;
-  confirm: () => Promise<void>;
   instrumentation: UseFormInstrumentationResult<KitContentFormMetadata>;
 }
 
@@ -169,6 +169,18 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
   const [confirmRowId, setConfirmRowId] = useState<number | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [isDeleteSubmitting, setIsDeleteSubmitting] = useState(false);
+
+  // Undo support for deletion - using Map to support concurrent deletions
+  interface DeletedContentSnapshot {
+    contentId: number;
+    kitId: number;
+    partId: number;
+    partKey: string;
+    requiredPerUnit: number;
+    note: string | null;
+  }
+  const deletedContentSnapshotsRef = useRef<Map<number, DeletedContentSnapshot>>(new Map());
+  const undoInFlightRef = useRef(false);
 
   const [pendingCreateRow, setPendingCreateRow] = useState<PendingCreateRow | null>(null);
   const [pendingUpdates, setPendingUpdates] = useState<Map<number, PendingUpdateDraft>>(() => new Map());
@@ -753,76 +765,139 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
     queryClient,
   ]);
 
+  // Undo handler for content deletion - accepts contentId to retrieve specific snapshot
+  const handleUndoDeleteContent = useCallback((contentId: number) => {
+    return () => {
+      if (undoInFlightRef.current) {
+        return;
+      }
+      const snapshot = deletedContentSnapshotsRef.current.get(contentId);
+      if (!snapshot) {
+        return;
+      }
+      undoInFlightRef.current = true;
+
+      trackFormSubmit('KitContent:restore', {
+        kitId: snapshot.kitId,
+        contentId: snapshot.contentId,
+        partKey: snapshot.partKey,
+        undo: true,
+      });
+
+      createMutation
+        .mutateAsync({
+          path: { kit_id: snapshot.kitId },
+          body: {
+            part_id: snapshot.partId,
+            required_per_unit: snapshot.requiredPerUnit,
+            note: snapshot.note,
+          },
+        })
+        .then(() => {
+          undoInFlightRef.current = false;
+          deletedContentSnapshotsRef.current.delete(contentId);
+          trackFormSuccess('KitContent:restore', {
+            kitId: snapshot.kitId,
+            contentId: snapshot.contentId,
+            partKey: snapshot.partKey,
+            undo: true,
+          });
+          showSuccess('Restored part to kit');
+          void query.refetch();
+        })
+        .catch((error) => {
+          undoInFlightRef.current = false;
+          trackFormError('KitContent:restore', {
+            kitId: snapshot.kitId,
+            contentId: snapshot.contentId,
+            partKey: snapshot.partKey,
+            undo: true,
+          });
+          showException('Failed to restore part', error);
+        });
+    };
+  }, [createMutation, query, showException, showSuccess]);
+
   const openDelete = useCallback(
     (row: KitContentRow) => {
       if (isArchived) {
         showException('Cannot delete parts from an archived kit', new Error('Kit archived'));
         return;
       }
-      setConfirmRowId(row.id);
-      deleteInstrumentation.trackOpen({
+      // No confirmation dialog - immediate deletion with undo
+      // Capture snapshot for undo - store in Map for concurrent deletion support
+      const snapshot: DeletedContentSnapshot = {
+        contentId: row.id,
+        kitId,
+        partId: row.partId,
+        partKey: row.part.key,
+        requiredPerUnit: row.requiredPerUnit,
+        note: row.note,
+      };
+      deletedContentSnapshotsRef.current.set(row.id, snapshot);
+
+      setIsDeleteSubmitting(true);
+      setPendingDeleteId(row.id);
+      deleteInstrumentation.trackSubmit({
         kitId,
         contentId: row.id,
         partKey: row.part.key,
-        phase: 'idle',
+        phase: 'pending',
       });
+
+      // Perform immediate deletion
+      deleteMutation
+        .mutateAsync({
+          path: { kit_id: kitId, content_id: row.id },
+        })
+        .then(() => {
+          setPendingDeleteId(null);
+          setIsDeleteSubmitting(false);
+          deleteInstrumentation.trackSuccess({
+            kitId,
+            contentId: row.id,
+            partKey: row.part.key,
+            phase: 'success',
+          });
+          showSuccess('Removed part from kit', {
+            action: {
+              id: 'undo',
+              label: 'Undo',
+              testId: `kits.detail.toast.undo.${row.id}`,
+              onClick: handleUndoDeleteContent(row.id),
+            },
+          });
+          void query.refetch();
+        })
+        .catch((error) => {
+          setPendingDeleteId(null);
+          setIsDeleteSubmitting(false);
+          // Remove snapshot if deletion fails
+          deletedContentSnapshotsRef.current.delete(row.id);
+          deleteInstrumentation.trackError({
+            kitId,
+            contentId: row.id,
+            partKey: row.part.key,
+            phase: 'error',
+          });
+          showException(`Failed to remove "${row.part.description}"`, error);
+        });
     },
-    [deleteInstrumentation, isArchived, kitId, showException]
+    [
+      deleteInstrumentation,
+      deleteMutation,
+      handleUndoDeleteContent,
+      isArchived,
+      kitId,
+      query,
+      showException,
+      showSuccess,
+    ]
   );
 
   const closeDelete = useCallback(() => {
     setConfirmRowId(null);
   }, []);
-
-  const confirmDeleteHandler = useCallback(async () => {
-    if (!confirmRow) {
-      return;
-    }
-    if (isArchived) {
-      showException('Cannot delete parts from an archived kit', new Error('Kit archived'));
-      return;
-    }
-    setIsDeleteSubmitting(true);
-    setPendingDeleteId(confirmRow.id);
-    deleteInstrumentation.trackSubmit(buildDeleteMetadata('pending'));
-
-    try {
-      await deleteMutation.mutateAsync({
-        path: { kit_id: kitId, content_id: confirmRow.id },
-      });
-      await query.refetch();
-      setPendingDeleteId(null);
-      setConfirmRowId(null);
-      deleteInstrumentation.trackSuccess({
-        kitId,
-        contentId: confirmRow.id,
-        partKey: confirmRow.part.key,
-        phase: 'success',
-      });
-      showSuccess('Removed part from kit');
-    } catch (error) {
-      deleteInstrumentation.trackError({
-        kitId,
-        contentId: confirmRow.id,
-        partKey: confirmRow.part.key,
-        phase: 'error',
-      });
-      setPendingDeleteId(null);
-      showException(`Failed to remove "${confirmRow.part.description}"`, error);
-    } finally {
-      setIsDeleteSubmitting(false);
-    }
-  }, [
-    confirmRow,
-    deleteInstrumentation,
-    deleteMutation,
-    buildDeleteMetadata,
-    isArchived,
-    kitId,
-    query,
-    showException,
-    showSuccess,
-  ]);
 
   const isMutationPending =
     isCreateSubmitting || isEditSubmitting || isDeleteSubmitting || createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
@@ -863,7 +938,6 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
       open: openDelete,
       close: closeDelete,
       isSubmitting: isDeleteSubmitting,
-      confirm: confirmDeleteHandler,
       instrumentation: deleteInstrumentation,
     },
     overlays: {

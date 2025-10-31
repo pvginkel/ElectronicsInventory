@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { ToastContainer } from '@/components/ui/toast'
 import type { Toast, ToastOptions, ToastType } from '@/components/ui/toast'
@@ -11,11 +11,21 @@ interface ToastProviderProps {
   children: ReactNode
 }
 
+const DEFAULT_TOAST_DURATION_MS = 15000
+
 export function ToastProvider({ children }: ToastProviderProps) {
   const [toasts, setToasts] = useState<Toast[]>([])
+  // Track timeout IDs for custom auto-dismiss management (workaround for Radix UI timer bugs)
+  const timeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map())
 
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
+    // Clear timeout when toast is manually removed
+    const timeout = timeoutRefs.current.get(id)
+    if (timeout) {
+      clearTimeout(timeout)
+      timeoutRefs.current.delete(id)
+    }
   }
 
   const showToast = (message: string, type: ToastType, options?: ToastOptions) => {
@@ -39,6 +49,15 @@ export function ToastProvider({ children }: ToastProviderProps) {
     }
 
     setToasts(prev => [...prev, toast])
+
+    // Custom timeout management to work around Radix UI timer bugs
+    // Force dismissal after duration regardless of user interaction
+    const duration = options?.duration ?? DEFAULT_TOAST_DURATION_MS
+    const timeout = setTimeout(() => {
+      removeToast(id)
+      timeoutRefs.current.delete(id)
+    }, duration)
+    timeoutRefs.current.set(id, timeout)
 
     return id
   }
@@ -103,6 +122,17 @@ export function ToastProvider({ children }: ToastProviderProps) {
       window.removeEventListener('app:testing:show-exception', handler)
     }
   }, [showExceptionFn])
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    const timeouts = timeoutRefs.current
+    return () => {
+      timeouts.forEach((timeout) => {
+        clearTimeout(timeout)
+      })
+      timeouts.clear()
+    }
+  }, [])
 
   return (
     <ToastContext.Provider value={contextValue}>

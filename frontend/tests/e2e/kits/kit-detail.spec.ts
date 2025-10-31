@@ -1147,7 +1147,7 @@ test.describe('Kit detail workspace', () => {
     await testEvents.stopCapture();
   });
 
-  test('removes kit contents after confirmation', async ({ kits, page, testData, apiClient }) => {
+  test('removes kit contents immediately with undo toast', async ({ kits, page, testData, apiClient }) => {
     const { part } = await testData.parts.create({
       overrides: { description: 'Inline Delete Part' },
     });
@@ -1169,9 +1169,6 @@ test.describe('Kit detail workspace', () => {
     await kits.openDetailFromCard(kit.id);
     await waitForListLoading(page, 'kits.detail.contents', 'ready');
 
-    await kits.detailRowDeleteButton(content.id).click();
-    await expect(kits.detailDeleteDialog).toBeVisible();
-
     const submitEvent = waitTestEvent(page, 'form', (event: any) => {
       return event.formId === 'KitContent:delete' && event.phase === 'submit';
     });
@@ -1179,17 +1176,25 @@ test.describe('Kit detail workspace', () => {
       return event.formId === 'KitContent:delete' && event.phase === 'success';
     });
 
-    await kits.detailDeleteConfirm.click();
+    // Click delete button - should immediately remove without confirmation dialog
+    await kits.detailRowDeleteButton(content.id).click();
+
     await submitEvent;
     await waitForListLoading(page, 'kits.detail.contents', 'ready');
     await successEventPromise;
 
+    // Verify row removed from table
     await expect(kits.detailTableRow(content.id)).toHaveCount(0);
 
+    // Verify backend state
     const backendDetail = await testData.kits.getDetail(kit.id);
     const backendContents = (backendDetail.contents ?? []) as KitContentDetailSchema_b98797e[];
     const deleted = backendContents.find((row) => row.id === content.id);
     expect(deleted).toBeUndefined();
+
+    // Verify undo toast appears
+    const undoToast = page.getByTestId(`kits.detail.toast.undo.${content.id}`);
+    await expect(undoToast).toBeVisible();
   });
 
   test('disables inline editing controls for archived kits', async ({ kits, page, testData, apiClient }) => {

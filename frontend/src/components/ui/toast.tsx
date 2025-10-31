@@ -94,8 +94,8 @@ const ToastComponent = React.forwardRef<
           <div className="flex-shrink-0 leading-none">
             <span className="text-lg">{iconMap[toast.type]}</span>
           </div>
-          <div className="flex flex-1 flex-col gap-2">
-            <ToastPrimitive.Title className="text-sm font-medium">
+          <div className="flex flex-1 flex-col gap-2 overflow-hidden">
+            <ToastPrimitive.Title className="text-sm font-medium overflow-hidden line-clamp-3">
               {toast.message}
             </ToastPrimitive.Title>
             {toast.action && (
