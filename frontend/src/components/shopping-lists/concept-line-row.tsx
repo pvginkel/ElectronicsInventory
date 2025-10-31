@@ -1,6 +1,8 @@
 import { forwardRef } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui';
 import { Button } from '@/components/ui/button';
+import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { cn } from '@/lib/utils';
 import type { ShoppingListConceptLine } from '@/types/shopping-lists';
 import { LINE_TABLE_WIDTHS } from './table-layout';
@@ -13,20 +15,25 @@ interface ConceptLineRowProps {
   highlighted?: boolean;
 }
 
-const STATUS_VARIANT: Record<ShoppingListConceptLine['status'], 'default' | 'secondary' | 'outline'> = {
-  new: 'default',
-  ordered: 'secondary',
-  done: 'outline',
-};
+// Map line status to badge props
+function getLineStatusBadgeProps(status: ShoppingListConceptLine['status']): { color: 'inactive' | 'active' | 'success'; label: string } {
+  switch (status) {
+    case 'new':
+      return { color: 'inactive', label: 'New' };
+    case 'ordered':
+      return { color: 'active', label: 'Ordered' };
+    case 'done':
+      return { color: 'success', label: 'Completed' };
+  }
+}
 
 export const ConceptLineRow = forwardRef<HTMLTableRowElement, ConceptLineRowProps>(function ConceptLineRow(
   { line, onEdit, onDelete, highlighted = false },
   ref,
 ) {
   const sellerName = line.seller?.name ?? line.effectiveSeller?.name ?? null;
-  const statusLabel = line.status.charAt(0).toUpperCase() + line.status.slice(1);
+  const statusBadgeProps = getLineStatusBadgeProps(line.status);
   const note = line.note?.trim();
-  const statusVariant = STATUS_VARIANT[line.status] ?? 'secondary';
 
   return (
     <tr
@@ -36,13 +43,13 @@ export const ConceptLineRow = forwardRef<HTMLTableRowElement, ConceptLineRowProp
       className={cn('transition-colors', highlighted && 'bg-accent/10 ring-2 ring-primary/30')}
     >
       <td className={cn(LINE_TABLE_WIDTHS.part, 'align-top px-4 py-3 text-sm')}>
-        <div className="font-medium text-foreground" data-testid={`shopping-lists.concept.row.${line.id}.part`}>
-          {line.part.description}
-        </div>
-        <div className="text-xs text-muted-foreground space-x-2">
-          <span>Key {line.part.key}</span>
-          {line.part.manufacturerCode && <span>MPN {line.part.manufacturerCode}</span>}
-        </div>
+        <PartInlineSummary
+          partKey={line.part.key}
+          description={line.part.description}
+          manufacturerCode={line.part.manufacturerCode}
+          testId={`shopping-lists.concept.row.${line.id}.part`}
+          link={true}
+        />
       </td>
       <td
         className={cn(LINE_TABLE_WIDTHS.seller, 'align-middle px-4 py-3 text-sm text-muted-foreground')}
@@ -70,14 +77,10 @@ export const ConceptLineRow = forwardRef<HTMLTableRowElement, ConceptLineRowProp
         className={cn(LINE_TABLE_WIDTHS.status, 'align-middle px-4 py-3 text-sm text-center')}
         data-testid={`shopping-lists.concept.row.${line.id}.status`}
       >
-        <Badge
-          variant={statusVariant}
-          className="font-medium"
-          title={`Line status: ${statusLabel}`}
-          data-testid={`shopping-lists.concept.row.${line.id}.status.badge`}
-        >
-          {statusLabel}
-        </Badge>
+        <StatusBadge
+          {...statusBadgeProps}
+          testId={`shopping-lists.concept.row.${line.id}.status.badge`}
+        />
       </td>
       <td
         className={cn(LINE_TABLE_WIDTHS.needed, 'align-middle px-4 py-3 text-sm font-medium text-right')}

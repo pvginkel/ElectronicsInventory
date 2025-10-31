@@ -142,7 +142,7 @@ function LowStockItem({
             className="h-8 px-3"
             data-testid="dashboard.low-stock.item.quick-add.confirm"
           >
-            Add
+            Add Stock
           </Button>
           <Button
             variant="ghost"
@@ -154,7 +154,7 @@ function LowStockItem({
             className="h-8 px-2"
             data-testid="dashboard.low-stock.item.quick-add.cancel"
           >
-            Cancel
+            Cancel Add
           </Button>
         </div>
       )}
@@ -168,9 +168,9 @@ function LowStockItem({
           className="flex-1 h-8 text-xs"
           data-testid="dashboard.low-stock.item.shopping-list"
         >
-          🛒 Add to List
+          Add to Shopping List
         </Button>
-        
+
         <Button
           variant="outline"
           size="sm"
@@ -178,15 +178,16 @@ function LowStockItem({
           className="flex-1 h-8 text-xs"
           data-testid="dashboard.low-stock.item.quick-add.toggle"
         >
-          ➕ Quick Add
+          Quick Add Stock
         </Button>
-        
+
         <Button
           variant="ghost"
           size="sm"
           onClick={onViewPart}
           className="h-8 px-2"
           data-testid="dashboard.low-stock.item.view"
+          aria-label="View Part"
         >
           →
         </Button>

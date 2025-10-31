@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, type DialogContentProps } from '@/components/ui/dialog';
 import { Form, FormField, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,8 @@ interface ListCreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: (payload: { id: number; name: string }) => void;
+  initialName?: string;
+  initialDescription?: string;
 }
 
 interface FormValues extends Record<string, unknown> {
@@ -24,7 +26,13 @@ interface FormValues extends Record<string, unknown> {
 const NAME_LIMIT = 120;
 const DESCRIPTION_LIMIT = 280;
 
-export function ListCreateDialog({ open, onOpenChange, onCreated }: ListCreateDialogProps) {
+export function ListCreateDialog({
+  open,
+  onOpenChange,
+  onCreated,
+  initialName,
+  initialDescription,
+}: ListCreateDialogProps) {
   const { showSuccess, showException } = useToast();
   const createMutation = useCreateShoppingListMutation();
   const instrumentationRef = useRef<UseFormInstrumentationResult<FormValues> | null>(null);
@@ -86,6 +94,22 @@ export function ListCreateDialog({ open, onOpenChange, onCreated }: ListCreateDi
   });
 
   instrumentationRef.current = instrumentation;
+
+  const lastOpenRef = useRef(open);
+  useEffect(() => {
+    const justOpened = open && !lastOpenRef.current;
+    lastOpenRef.current = open;
+    if (!justOpened) {
+      return;
+    }
+
+    if (typeof initialName === 'string') {
+      form.setValue('name', initialName);
+    }
+    if (typeof initialDescription === 'string') {
+      form.setValue('description', initialDescription);
+    }
+  }, [open, initialName, initialDescription, form]);
 
   const handleDialogOpenChange = (nextOpen: boolean) => {
     onOpenChange(nextOpen);
@@ -169,6 +193,15 @@ export function ListCreateDialog({ open, onOpenChange, onCreated }: ListCreateDi
               disabled={!form.isValid || createMutation.isPending}
               loading={createMutation.isPending}
               data-testid={`${resolvedFormId}.submit`}
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
+              onMouseDown={(event) => {
+                event.stopPropagation();
+              }}
+              onPointerUp={(event) => {
+                event.stopPropagation();
+              }}
             >
               Create Concept List
             </Button>

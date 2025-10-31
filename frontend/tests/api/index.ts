@@ -5,6 +5,7 @@ import { AttachmentTestFactory } from './factories/attachment-factory';
 import { BoxTestFactory } from './factories/box-factory';
 import { SellerTestFactory } from './factories/seller-factory';
 import { ShoppingListTestFactory } from './factories/shopping-list-factory';
+import { KitTestFactory } from './factories/kit-factory';
 
 // Re-export the main functions and factories
 export { createApiClient, apiRequest };
@@ -14,6 +15,7 @@ export { AttachmentTestFactory };
 export { BoxTestFactory };
 export { SellerTestFactory };
 export { ShoppingListTestFactory };
+export { KitTestFactory };
 
 /**
  * Creates a testData bundle with all factories for use in fixtures
@@ -34,6 +36,7 @@ export function createTestDataBundle(
   const boxFactory = new BoxTestFactory(apiClient);
   const sellerFactory = new SellerTestFactory(apiClient);
   const shoppingListFactory = new ShoppingListTestFactory(apiClient);
+  const kitFactory = new KitTestFactory(apiClient);
 
   const attachments = {
     createUrl: attachmentFactory.createUrl.bind(attachmentFactory),
@@ -93,6 +96,22 @@ export function createTestDataBundle(
       receiveLine: shoppingListFactory.receiveLine.bind(shoppingListFactory),
       completeLine: shoppingListFactory.completeLine.bind(shoppingListFactory),
       randomName: shoppingListFactory.randomListName.bind(shoppingListFactory),
+      expectConceptMembership: shoppingListFactory.expectConceptMembership.bind(shoppingListFactory),
+    },
+    kits: {
+      create: kitFactory.create.bind(kitFactory),
+      createMany: kitFactory.createMany.bind(kitFactory),
+      createWithContents: kitFactory.createWithContents.bind(kitFactory),
+      addContent: kitFactory.addContent.bind(kitFactory),
+      updateContent: kitFactory.updateContent.bind(kitFactory),
+      deleteContent: kitFactory.deleteContent.bind(kitFactory),
+      getDetail: kitFactory.getDetail.bind(kitFactory),
+      createPickList: kitFactory.createPickList.bind(kitFactory),
+      getPickListDetail: kitFactory.getPickListDetail.bind(kitFactory),
+      archive: kitFactory.archive.bind(kitFactory),
+      unarchive: kitFactory.unarchive.bind(kitFactory),
+      randomKitName: kitFactory.randomKitName.bind(kitFactory),
+      randomKitDescription: kitFactory.randomKitDescription.bind(kitFactory),
     },
   };
 }

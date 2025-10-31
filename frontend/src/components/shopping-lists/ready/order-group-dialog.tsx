@@ -221,7 +221,7 @@ export function OrderGroupDialog({
               disabled={isSubmitting || editableLines.length === 0}
               data-testid="shopping-lists.ready.order-group.submit"
             >
-              Save ordered quantities
+              Save Quantities
             </Button>
           </DialogFooter>
         </Form>

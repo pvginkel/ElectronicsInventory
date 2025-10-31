@@ -263,7 +263,7 @@ export function AIPartReviewStep({
                       onClick={handleCreateSuggestedType}
                       disabled={createTypeMutation.isPending}
                     >
-                      Create
+                      Create Type
                     </Button>
                     <Button
                       type="button"
@@ -503,7 +503,7 @@ export function AIPartReviewStep({
               disabled={isCreating}
               data-testid="parts.ai.review.back"
             >
-              Back
+              Go Back
             </Button>
           )}
           

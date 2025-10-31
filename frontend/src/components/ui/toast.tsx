@@ -5,11 +5,24 @@ import { ClearButtonIcon } from '@/components/icons/clear-button-icon'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
+export interface ToastAction {
+  id: string
+  label: string
+  onClick?: () => void
+  testId?: string
+}
+
+export interface ToastOptions {
+  duration?: number
+  action?: ToastAction
+}
+
 export interface Toast {
   id: string
   type: ToastType
   message: string
   duration?: number
+  action?: ToastAction
 }
 
 type NativeToastRootProps = React.ComponentPropsWithoutRef<typeof ToastPrimitive.Root>;
@@ -22,23 +35,37 @@ interface ToastProps extends Omit<NativeToastRootProps, 'duration' | 'onOpenChan
 
 const DEFAULT_TOAST_DURATION_MS = 15000
 
+const toneStyles = {
+  success: {
+    container: 'bg-green-50 border-green-200 text-green-800',
+    action: 'bg-green-800 text-green-50 hover:bg-green-700 focus:ring-green-900',
+  },
+  error: {
+    container: 'bg-red-50 border-red-200 text-red-800',
+    action: 'bg-red-800 text-red-50 hover:bg-red-700 focus:ring-red-900',
+  },
+  warning: {
+    container: 'bg-yellow-50 border-yellow-200 text-yellow-800',
+    action: 'bg-yellow-800 text-yellow-50 hover:bg-yellow-700 focus:ring-yellow-900',
+  },
+  info: {
+    container: 'bg-blue-50 border-blue-200 text-blue-800',
+    action: 'bg-blue-800 text-blue-50 hover:bg-blue-700 focus:ring-blue-900',
+  },
+} as const;
+
 const ToastComponent = React.forwardRef<
   React.ElementRef<typeof ToastPrimitive.Root>,
   ToastProps
 >(({ toast, onRemove, className, ...props }, ref) => {
-  const typeStyles = {
-    success: 'bg-green-50 border-green-200 text-green-800',
-    error: 'bg-red-50 border-red-200 text-red-800',
-    warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
-    info: 'bg-blue-50 border-blue-200 text-blue-800'
-  }
-
   const iconMap = {
     success: '✓',
     error: '✕',
     warning: '⚠',
     info: 'ℹ'
   }
+
+  const tone = toneStyles[toast.type];
 
   return (
     <ToastPrimitive.Root
@@ -58,28 +85,39 @@ const ToastComponent = React.forwardRef<
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out',
         'data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full',
         'data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full',
-        typeStyles[toast.type],
+        tone.container,
         className
       )}
     >
       <div className="p-4">
-        <div className="flex items-start">
-          <div className="flex-shrink-0">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 leading-none">
             <span className="text-lg">{iconMap[toast.type]}</span>
           </div>
-          <div className="ml-3 w-0 flex-1 pt-0.5">
-            <ToastPrimitive.Title className="text-sm font-medium">
+          <div className="flex flex-1 flex-col gap-2 overflow-hidden">
+            <ToastPrimitive.Title className="text-sm font-medium overflow-hidden line-clamp-3">
               {toast.message}
             </ToastPrimitive.Title>
+            {toast.action && (
+              <button
+                type="button"
+                onClick={toast.action.onClick}
+                className={cn(
+                  'inline-flex w-max items-center justify-center rounded-md px-3 py-1 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-2',
+                  tone.action,
+                )}
+                data-testid={toast.action.testId ?? `app-shell.toast.action.${toast.action.id}`}
+              >
+                {toast.action.label}
+              </button>
+            )}
           </div>
-          <div className="ml-4 flex flex-shrink-0">
-            <ToastPrimitive.Close
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 hover:opacity-75"
-            >
-              <span className="sr-only">Close</span>
-              <ClearButtonIcon className="w-4 h-4" />
-            </ToastPrimitive.Close>
-          </div>
+          <ToastPrimitive.Close
+            className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 hover:opacity-75"
+          >
+            <span className="sr-only">Close</span>
+            <ClearButtonIcon className="w-4 h-4" />
+          </ToastPrimitive.Close>
         </div>
       </div>
     </ToastPrimitive.Root>

@@ -43,12 +43,12 @@ export function AIPartProgressStep({
             <div className="flex gap-3 justify-center">
               {onRetry && (
                 <Button onClick={onRetry}>
-                  Try Again
+                  Retry Analysis
                 </Button>
               )}
               {onCancel && (
                 <Button variant="outline" onClick={onCancel}>
-                  Cancel
+                  Cancel Analysis
                 </Button>
               )}
             </div>

@@ -23,12 +23,18 @@ export interface PartSelectorSummary {
   displayManufacturerCode?: string;
   typeName?: string;
   manufacturer?: string;
+  raw?: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema;
 }
 
 interface PartSelectorOptionMeta {
   option: PartSelectorOption;
   summary: PartSelectorSummary;
   searchTokens: string[];
+}
+
+export interface UsePartsSelectorOptions {
+  excludePartKeys?: string[];
+  includePartKeys?: string[];
 }
 
 export interface UsePartsSelectorResult {
@@ -59,7 +65,7 @@ function buildSearchTokens(detail: PartSelectorOption, part: PartWithTotalSchema
     .map(token => token.toLowerCase());
 }
 
-export function usePartsSelector(): UsePartsSelectorResult {
+export function usePartsSelector(options?: UsePartsSelectorOptions): UsePartsSelectorResult {
   const [searchTerm, setSearchTerm] = useState('');
   const {
     data: partsResponse,
@@ -91,7 +97,15 @@ export function usePartsSelector(): UsePartsSelectorResult {
       } = formatPartForDisplay(part);
       const typeName = part.type_id ? typeMap.get(part.type_id) : undefined;
 
-      const partId = (part as { id?: number | null }).id ?? null;
+      const partId = (() => {
+        if ('id' in part && typeof (part as { id?: unknown }).id === 'number') {
+          return (part as { id: number }).id;
+        }
+        if ('part_id' in part && typeof (part as { part_id?: unknown }).part_id === 'number') {
+          return (part as { part_id: number }).part_id;
+        }
+        return null;
+      })();
 
       const option: PartSelectorOption = {
         id: part.key,
@@ -111,7 +125,8 @@ export function usePartsSelector(): UsePartsSelectorResult {
         displayDescription,
         displayManufacturerCode,
         typeName,
-        manufacturer: displayManufacturer
+        manufacturer: displayManufacturer,
+        raw: part,
       };
 
       return {
@@ -130,7 +145,10 @@ export function usePartsSelector(): UsePartsSelectorResult {
     });
   }, [parts, typeMap]);
 
-  const options = useMemo(() => {
+  const excludeSet = useMemo(() => new Set(options?.excludePartKeys ?? []), [options?.excludePartKeys]);
+  const includeSet = useMemo(() => new Set(options?.includePartKeys ?? []), [options?.includePartKeys]);
+
+  const filteredBySearch = useMemo(() => {
     if (!searchTerm.trim()) {
       return optionsWithMeta;
     }
@@ -145,9 +163,21 @@ export function usePartsSelector(): UsePartsSelectorResult {
     });
   }, [optionsWithMeta, searchTerm]);
 
+  const filteredOptions = useMemo(() => {
+    if (excludeSet.size === 0 && includeSet.size === 0) {
+      return filteredBySearch;
+    }
+    return filteredBySearch.filter(({ option }) => {
+      if (includeSet.has(option.id)) {
+        return true;
+      }
+      return !excludeSet.has(option.id);
+    });
+  }, [excludeSet, filteredBySearch, includeSet]);
+
   const optionsForDisplay = useMemo(
-    () => options.map(({ option }) => option),
-    [options]
+    () => filteredOptions.map(({ option }) => option),
+    [filteredOptions]
   );
 
   const summaryById = useMemo(() => {

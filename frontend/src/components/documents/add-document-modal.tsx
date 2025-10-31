@@ -245,7 +245,7 @@ function AddDocumentModalContent({
                           </svg>
                         }
                       >
-                        Use Camera
+                        Capture Photo
                       </Button>
                     </div>
                   )}

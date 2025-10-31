@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 type ValidationRules<T> = {
   [K in keyof T]?: (value: T[K]) => string | undefined
@@ -29,6 +29,7 @@ export function useFormState<T extends Record<string, unknown>>({
   onSubmit
 }: UseFormStateOptions<T>) {
   const [values, setValues] = useState<T>(initialValues)
+  const valuesRef = useRef(values)
   const [errors, setErrors] = useState<FormErrors<T>>({})
   const [touched, setTouched] = useState<{ [K in keyof T]?: boolean }>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -53,7 +54,11 @@ export function useFormState<T extends Record<string, unknown>>({
   }
 
   const setValue = (name: keyof T, value: T[keyof T]) => {
-    setValues(prev => ({ ...prev, [name]: value }))
+    setValues(prev => {
+      const next = { ...prev, [name]: value }
+      valuesRef.current = next
+      return next
+    })
     
     // Validate field if it has been touched
     if (touched[name]) {
@@ -69,7 +74,7 @@ export function useFormState<T extends Record<string, unknown>>({
     setTouched(prev => ({ ...prev, [name]: isTouched }))
     
     if (isTouched) {
-      const error = validateField(name, values[name])
+      const error = validateField(name, valuesRef.current[name])
       setErrors(prev => ({ ...prev, [name]: error }))
     }
   }
@@ -108,6 +113,7 @@ export function useFormState<T extends Record<string, unknown>>({
   const reset = () => {
     setIsResetting(true)
     setValues(initialValues)
+    valuesRef.current = initialValues
     setErrors({})
     setTouched({})
     setIsSubmitting(false)

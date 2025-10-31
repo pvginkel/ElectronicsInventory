@@ -1,9 +1,10 @@
 import { forwardRef, type MouseEvent } from 'react';
 import { Button } from '@/components/ui/button';
+import { StatusBadge } from '@/components/ui';
+import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { cn } from '@/lib/utils';
 import type { ShoppingListConceptLine } from '@/types/shopping-lists';
 import { Info, Pencil, Undo2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { LINE_TABLE_WIDTHS } from '../table-layout';
 
 type ReadyLineRowActionHandler = (line: ShoppingListConceptLine, trigger?: HTMLElement | null) => void;
@@ -19,23 +20,17 @@ interface ReadyLineRowProps {
   readOnly?: boolean;
 }
 
-function getStatusLabel(status: ShoppingListConceptLine['status']): string {
+// Map line status to badge props
+function getLineStatusBadgeProps(status: ShoppingListConceptLine['status']): { color: 'inactive' | 'active' | 'success'; label: string } {
   switch (status) {
-    case 'ordered':
-      return 'Ordered';
-    case 'done':
-      return 'Completed';
     case 'new':
-    default:
-      return 'New';
+      return { color: 'inactive', label: 'New' };
+    case 'ordered':
+      return { color: 'active', label: 'Ordered' };
+    case 'done':
+      return { color: 'success', label: 'Completed' };
   }
 }
-
-const STATUS_VARIANT: Record<ShoppingListConceptLine['status'], 'default' | 'secondary' | 'outline'> = {
-  new: 'default',
-  ordered: 'secondary',
-  done: 'outline',
-};
 
 export const ReadyLineRow = forwardRef<HTMLTableRowElement, ReadyLineRowProps>(function ReadyLineRow(
   {
@@ -56,8 +51,7 @@ export const ReadyLineRow = forwardRef<HTMLTableRowElement, ReadyLineRowProps>(f
     }
     onOpenOrderDialog(line, event.currentTarget as HTMLElement);
   };
-  const statusLabel = getStatusLabel(line.status);
-  const statusVariant = STATUS_VARIANT[line.status] ?? 'secondary';
+  const statusBadgeProps = getLineStatusBadgeProps(line.status);
   const quantityMismatchTooltip = line.hasQuantityMismatch
     ? `Received ${line.received} vs ordered ${line.ordered}.`
     : undefined;
@@ -70,13 +64,13 @@ export const ReadyLineRow = forwardRef<HTMLTableRowElement, ReadyLineRowProps>(f
       className={cn('transition-colors', highlight && 'bg-accent/10 ring-2 ring-primary/30')}
     >
       <td className={cn(LINE_TABLE_WIDTHS.part, 'align-top px-4 py-3 text-sm')}>
-        <div className="font-medium text-foreground" data-testid={`shopping-lists.ready.line.${line.id}.part`}>
-          {line.part.description}
-        </div>
-        <div className="text-xs text-muted-foreground space-x-2">
-          <span>Key {line.part.key}</span>
-          {line.part.manufacturerCode && <span>MPN {line.part.manufacturerCode}</span>}
-        </div>
+        <PartInlineSummary
+          partKey={line.part.key}
+          description={line.part.description}
+          manufacturerCode={line.part.manufacturerCode}
+          testId={`shopping-lists.ready.line.${line.id}.part`}
+          link={true}
+        />
       </td>
       <td
         className={cn(LINE_TABLE_WIDTHS.needed, 'align-middle px-4 py-3 text-right text-sm font-medium')}
@@ -143,14 +137,10 @@ export const ReadyLineRow = forwardRef<HTMLTableRowElement, ReadyLineRowProps>(f
         className={cn(LINE_TABLE_WIDTHS.status, 'align-middle px-4 py-3 text-sm text-center')}
         data-testid={`shopping-lists.ready.line.${line.id}.status`}
       >
-        <Badge
-          variant={statusVariant}
-          className="font-medium"
-          title={`Line status: ${statusLabel}`}
-          data-testid={`shopping-lists.ready.line.${line.id}.status.badge`}
-        >
-          {statusLabel}
-        </Badge>
+        <StatusBadge
+          {...statusBadgeProps}
+          testId={`shopping-lists.ready.line.${line.id}.status.badge`}
+        />
       </td>
       <td className={cn(LINE_TABLE_WIDTHS.actions, 'align-middle px-4 py-3 text-right')}>
         {readOnly ? (

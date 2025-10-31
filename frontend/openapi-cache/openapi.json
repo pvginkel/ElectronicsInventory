@@ -1680,6 +1680,2977 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "KitChipSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/KitChipSchemaList.a9993e3.KitChipSchema"
+        },
+        "title": "KitChipSchemaList",
+        "type": "array"
+      },
+      "KitChipSchemaList.a9993e3.KitChipSchema": {
+        "description": "Schema describing kits linked to a shopping list.",
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when the link was created",
+            "example": "2024-05-02T12:01:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "honor_reserved": {
+            "description": "Whether reserved quantities were honored for the push",
+            "example": true,
+            "title": "Honor Reserved",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Identifier for the kit-to-shopping-list link",
+            "example": 42,
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_stale": {
+            "description": "Indicates whether the kit changed after the snapshot",
+            "example": false,
+            "title": "Is Stale",
+            "type": "boolean"
+          },
+          "kit_id": {
+            "description": "Identifier of the linked kit",
+            "example": 5,
+            "title": "Kit Id",
+            "type": "integer"
+          },
+          "kit_name": {
+            "description": "Name of the linked kit",
+            "example": "Synth Voice Starter",
+            "title": "Kit Name",
+            "type": "string"
+          },
+          "kit_status": {
+            "$ref": "#/components/schemas/KitChipSchemaList.a9993e3.KitStatus",
+            "description": "Lifecycle status of the linked kit",
+            "example": "active"
+          },
+          "requested_units": {
+            "description": "Number of kit units requested during the push",
+            "example": 2,
+            "minimum": 1,
+            "title": "Requested Units",
+            "type": "integer"
+          },
+          "snapshot_kit_updated_at": {
+            "description": "Kit timestamp captured when the link was last refreshed",
+            "example": "2024-05-02T12:00:00Z",
+            "format": "date-time",
+            "title": "Snapshot Kit Updated At",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "Timestamp when the link was last updated",
+            "example": "2024-05-04T09:00:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kit_id",
+          "kit_name",
+          "kit_status",
+          "requested_units",
+          "honor_reserved",
+          "snapshot_kit_updated_at",
+          "is_stale",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "KitChipSchema",
+        "type": "object"
+      },
+      "KitChipSchemaList.a9993e3.KitStatus": {
+        "description": "Lifecycle status for a kit.",
+        "enum": [
+          "active",
+          "archived"
+        ],
+        "title": "KitStatus",
+        "type": "string"
+      },
+      "KitContentCreateSchema.b98797e": {
+        "description": "Schema for creating a kit content entry.",
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional note about this part within the kit",
+            "example": "Use gold-plated headers for final builds.",
+            "title": "Note"
+          },
+          "part_id": {
+            "description": "Identifier of the part to include in the kit",
+            "example": 105,
+            "title": "Part Id",
+            "type": "integer"
+          },
+          "required_per_unit": {
+            "description": "Quantity of the part required for a single kit",
+            "example": 4,
+            "minimum": 1,
+            "title": "Required Per Unit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part_id",
+          "required_per_unit"
+        ],
+        "title": "KitContentCreateSchema",
+        "type": "object"
+      },
+      "KitContentDetailSchema.b98797e": {
+        "description": "Schema representing a kit content row with availability math.",
+        "properties": {
+          "active_reservations": {
+            "description": "Active kits reserving this part excluding the current kit",
+            "items": {
+              "$ref": "#/components/schemas/KitContentDetailSchema.b98797e.KitReservationEntrySchema"
+            },
+            "title": "Active Reservations",
+            "type": "array"
+          },
+          "available": {
+            "description": "Quantity available for this kit after reservations",
+            "example": 3,
+            "title": "Available",
+            "type": "integer"
+          },
+          "created_at": {
+            "description": "Timestamp when the kit content row was created",
+            "example": "2024-03-28T11:20:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the kit content row",
+            "example": 312,
+            "title": "Id",
+            "type": "integer"
+          },
+          "in_stock": {
+            "description": "Quantity currently in stock for this part",
+            "example": 4,
+            "title": "In Stock",
+            "type": "integer"
+          },
+          "kit_id": {
+            "description": "Identifier of the parent kit",
+            "example": 17,
+            "title": "Kit Id",
+            "type": "integer"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional note about the part within the kit",
+            "example": "Match polarity markings carefully",
+            "title": "Note"
+          },
+          "part": {
+            "$ref": "#/components/schemas/KitContentDetailSchema.b98797e.PartListSchema",
+            "description": "Lightweight details about the referenced part"
+          },
+          "part_id": {
+            "description": "Identifier of the part referenced by this content",
+            "example": 88,
+            "title": "Part Id",
+            "type": "integer"
+          },
+          "required_per_unit": {
+            "description": "Quantity required per kit build",
+            "example": 2,
+            "title": "Required Per Unit",
+            "type": "integer"
+          },
+          "reserved": {
+            "description": "Quantity reserved by other active kits",
+            "example": 1,
+            "title": "Reserved",
+            "type": "integer"
+          },
+          "shortfall": {
+            "description": "Quantity short of the total requirement",
+            "example": 3,
+            "title": "Shortfall",
+            "type": "integer"
+          },
+          "total_required": {
+            "description": "Total quantity required to fulfill the kit build target",
+            "example": 6,
+            "title": "Total Required",
+            "type": "integer"
+          },
+          "updated_at": {
+            "description": "Timestamp when the kit content row was last updated",
+            "example": "2024-04-05T13:55:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "description": "Current optimistic locking version for this row",
+            "example": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "kit_id",
+          "part_id",
+          "required_per_unit",
+          "note",
+          "version",
+          "created_at",
+          "updated_at",
+          "part",
+          "total_required",
+          "in_stock",
+          "reserved",
+          "available",
+          "shortfall"
+        ],
+        "title": "KitContentDetailSchema",
+        "type": "object"
+      },
+      "KitContentDetailSchema.b98797e.KitReservationEntrySchema": {
+        "description": "Schema representing an active kit reserving a part.",
+        "properties": {
+          "build_target": {
+            "description": "Build target for the reserving kit",
+            "example": 2,
+            "title": "Build Target",
+            "type": "integer"
+          },
+          "kit_id": {
+            "description": "Identifier of the kit reserving the part",
+            "example": 3,
+            "title": "Kit Id",
+            "type": "integer"
+          },
+          "kit_name": {
+            "description": "Display name of the kit reserving the part",
+            "example": "Synth Voice Starter",
+            "title": "Kit Name",
+            "type": "string"
+          },
+          "required_per_unit": {
+            "description": "Quantity of the part required per kit build",
+            "example": 2,
+            "title": "Required Per Unit",
+            "type": "integer"
+          },
+          "reserved_quantity": {
+            "description": "Total quantity reserved by the kit",
+            "example": 4,
+            "title": "Reserved Quantity",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitContentDetailSchema.b98797e.KitStatus",
+            "description": "Current status of the reserving kit",
+            "example": "active"
+          },
+          "updated_at": {
+            "description": "Timestamp when the reserving kit was last updated",
+            "example": "2024-05-01T12:00:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kit_id",
+          "kit_name",
+          "status",
+          "build_target",
+          "required_per_unit",
+          "reserved_quantity",
+          "updated_at"
+        ],
+        "title": "KitReservationEntrySchema",
+        "type": "object"
+      },
+      "KitContentDetailSchema.b98797e.KitStatus": {
+        "description": "Lifecycle status for a kit.",
+        "enum": [
+          "active",
+          "archived"
+        ],
+        "title": "KitStatus",
+        "type": "string"
+      },
+      "KitContentDetailSchema.b98797e.PartListSchema": {
+        "description": "Schema for lightweight part listings.",
+        "properties": {
+          "description": {
+            "description": "Free text description",
+            "example": "12V SPDT relay with 40A contacts",
+            "title": "Description",
+            "type": "string"
+          },
+          "key": {
+            "description": "4-character unique part identifier",
+            "example": "BZQP",
+            "title": "Key",
+            "type": "string"
+          },
+          "manufacturer_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Manufacturer's part number",
+            "example": "OMRON G5Q-1A4",
+            "title": "Manufacturer Code"
+          }
+        },
+        "required": [
+          "key",
+          "manufacturer_code",
+          "description"
+        ],
+        "title": "PartListSchema",
+        "type": "object"
+      },
+      "KitContentUpdateSchema.b98797e": {
+        "description": "Schema for updating a kit content entry with optimistic locking.",
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated note for this kit content (null clears the note)",
+            "example": "Swap for 2% tolerance for QA builds.",
+            "title": "Note"
+          },
+          "required_per_unit": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated quantity required per kit",
+            "example": 6,
+            "title": "Required Per Unit"
+          },
+          "version": {
+            "description": "Row version used for optimistic locking",
+            "example": 2,
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "KitContentUpdateSchema",
+        "type": "object"
+      },
+      "KitCreateSchema.b98797e": {
+        "description": "Schema for creating a new kit definition.",
+        "properties": {
+          "build_target": {
+            "default": 1,
+            "description": "Number of complete kits to maintain in stock; must be zero or greater",
+            "example": 5,
+            "minimum": 0,
+            "title": "Build Target",
+            "type": "integer"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional description for planners reviewing the kit",
+            "example": "All parts to build the self-contained synth voice demo",
+            "title": "Description"
+          },
+          "name": {
+            "description": "Human-readable kit name displayed in overviews",
+            "example": "Portable Synth Voice",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "KitCreateSchema",
+        "type": "object"
+      },
+      "KitDetailResponseSchema.b98797e": {
+        "description": "Schema for the kit detail workspace response.",
+        "properties": {
+          "archived_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp when kit was archived, if applicable",
+            "example": "2024-03-20T18:45:00Z",
+            "title": "Archived At"
+          },
+          "build_target": {
+            "description": "Target quantity of complete kits to keep on hand",
+            "example": 5,
+            "title": "Build Target",
+            "type": "integer"
+          },
+          "contents": {
+            "description": "Bill-of-material entries for the kit with availability data",
+            "items": {
+              "$ref": "#/components/schemas/KitDetailResponseSchema.b98797e.KitContentDetailSchema"
+            },
+            "title": "Contents",
+            "type": "array"
+          },
+          "created_at": {
+            "description": "Timestamp when the kit was created",
+            "example": "2024-03-15T11:10:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional kit description",
+            "example": "Compact synth voice for workshop demos",
+            "title": "Description"
+          },
+          "id": {
+            "description": "Unique kit identifier",
+            "example": 17,
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Kit display name",
+            "example": "Portable Synth Voice",
+            "title": "Name",
+            "type": "string"
+          },
+          "pick_list_badge_count": {
+            "default": 0,
+            "description": "Number of open pick lists for the kit",
+            "example": 1,
+            "title": "Pick List Badge Count",
+            "type": "integer"
+          },
+          "pick_lists": {
+            "description": "Pick list summaries associated with this kit",
+            "items": {
+              "$ref": "#/components/schemas/KitDetailResponseSchema.b98797e.KitPickListSummarySchema"
+            },
+            "title": "Pick Lists",
+            "type": "array"
+          },
+          "shopping_list_badge_count": {
+            "default": 0,
+            "description": "Number of concept/ready shopping lists linked to the kit",
+            "example": 2,
+            "title": "Shopping List Badge Count",
+            "type": "integer"
+          },
+          "shopping_list_links": {
+            "description": "Shopping lists linked to this kit",
+            "items": {
+              "$ref": "#/components/schemas/KitDetailResponseSchema.b98797e.KitShoppingListLinkSchema"
+            },
+            "title": "Shopping List Links",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitDetailResponseSchema.b98797e.KitStatus",
+            "description": "Current lifecycle status of the kit",
+            "example": "active"
+          },
+          "updated_at": {
+            "description": "Timestamp when the kit was last modified",
+            "example": "2024-04-10T15:30:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "status",
+          "build_target",
+          "archived_at",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "KitDetailResponseSchema",
+        "type": "object"
+      },
+      "KitDetailResponseSchema.b98797e.KitContentDetailSchema": {
+        "description": "Schema representing a kit content row with availability math.",
+        "properties": {
+          "active_reservations": {
+            "description": "Active kits reserving this part excluding the current kit",
+            "items": {
+              "$ref": "#/components/schemas/KitDetailResponseSchema.b98797e.KitReservationEntrySchema"
+            },
+            "title": "Active Reservations",
+            "type": "array"
+          },
+          "available": {
+            "description": "Quantity available for this kit after reservations",
+            "example": 3,
+            "title": "Available",
+            "type": "integer"
+          },
+          "created_at": {
+            "description": "Timestamp when the kit content row was created",
+            "example": "2024-03-28T11:20:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the kit content row",
+            "example": 312,
+            "title": "Id",
+            "type": "integer"
+          },
+          "in_stock": {
+            "description": "Quantity currently in stock for this part",
+            "example": 4,
+            "title": "In Stock",
+            "type": "integer"
+          },
+          "kit_id": {
+            "description": "Identifier of the parent kit",
+            "example": 17,
+            "title": "Kit Id",
+            "type": "integer"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional note about the part within the kit",
+            "example": "Match polarity markings carefully",
+            "title": "Note"
+          },
+          "part": {
+            "$ref": "#/components/schemas/KitDetailResponseSchema.b98797e.PartListSchema",
+            "description": "Lightweight details about the referenced part"
+          },
+          "part_id": {
+            "description": "Identifier of the part referenced by this content",
+            "example": 88,
+            "title": "Part Id",
+            "type": "integer"
+          },
+          "required_per_unit": {
+            "description": "Quantity required per kit build",
+            "example": 2,
+            "title": "Required Per Unit",
+            "type": "integer"
+          },
+          "reserved": {
+            "description": "Quantity reserved by other active kits",
+            "example": 1,
+            "title": "Reserved",
+            "type": "integer"
+          },
+          "shortfall": {
+            "description": "Quantity short of the total requirement",
+            "example": 3,
+            "title": "Shortfall",
+            "type": "integer"
+          },
+          "total_required": {
+            "description": "Total quantity required to fulfill the kit build target",
+            "example": 6,
+            "title": "Total Required",
+            "type": "integer"
+          },
+          "updated_at": {
+            "description": "Timestamp when the kit content row was last updated",
+            "example": "2024-04-05T13:55:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "description": "Current optimistic locking version for this row",
+            "example": 1,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "kit_id",
+          "part_id",
+          "required_per_unit",
+          "note",
+          "version",
+          "created_at",
+          "updated_at",
+          "part",
+          "total_required",
+          "in_stock",
+          "reserved",
+          "available",
+          "shortfall"
+        ],
+        "title": "KitContentDetailSchema",
+        "type": "object"
+      },
+      "KitDetailResponseSchema.b98797e.KitPickListStatus": {
+        "description": "Lifecycle status for a kit pick list.",
+        "enum": [
+          "open",
+          "completed"
+        ],
+        "title": "KitPickListStatus",
+        "type": "string"
+      },
+      "KitDetailResponseSchema.b98797e.KitPickListSummarySchema": {
+        "description": "Summary information for a pick list used in listings.",
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp when the pick list was completed",
+            "example": "2024-04-16T13:25:00Z",
+            "title": "Completed At"
+          },
+          "completed_line_count": {
+            "description": "Number of lines that have already been picked",
+            "example": 3,
+            "title": "Completed Line Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "description": "Timestamp when the pick list was created",
+            "example": "2024-04-15T09:00:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the pick list",
+            "example": 12,
+            "title": "Id",
+            "type": "integer"
+          },
+          "kit_id": {
+            "description": "Identifier of the kit that owns the pick list",
+            "example": 3,
+            "title": "Kit Id",
+            "type": "integer"
+          },
+          "line_count": {
+            "description": "Total number of lines in the pick list",
+            "example": 5,
+            "title": "Line Count",
+            "type": "integer"
+          },
+          "open_line_count": {
+            "description": "Number of lines that still need to be picked",
+            "example": 2,
+            "title": "Open Line Count",
+            "type": "integer"
+          },
+          "picked_quantity": {
+            "description": "Quantity already picked for the pick list",
+            "example": 8,
+            "title": "Picked Quantity",
+            "type": "integer"
+          },
+          "remaining_quantity": {
+            "description": "Quantity still outstanding for the pick list",
+            "example": 4,
+            "title": "Remaining Quantity",
+            "type": "integer"
+          },
+          "requested_units": {
+            "description": "Number of kit builds requested for the pick list",
+            "example": 2,
+            "title": "Requested Units",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitDetailResponseSchema.b98797e.KitPickListStatus",
+            "description": "Lifecycle status for the pick list",
+            "example": "open"
+          },
+          "total_quantity_to_pick": {
+            "description": "Sum of quantities across all lines",
+            "example": 12,
+            "title": "Total Quantity To Pick",
+            "type": "integer"
+          },
+          "updated_at": {
+            "description": "Timestamp when the pick list was last updated",
+            "example": "2024-04-15T11:10:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kit_id",
+          "requested_units",
+          "status",
+          "created_at",
+          "updated_at",
+          "completed_at",
+          "line_count",
+          "open_line_count",
+          "completed_line_count",
+          "total_quantity_to_pick",
+          "picked_quantity",
+          "remaining_quantity"
+        ],
+        "title": "KitPickListSummarySchema",
+        "type": "object"
+      },
+      "KitDetailResponseSchema.b98797e.KitReservationEntrySchema": {
+        "description": "Schema representing an active kit reserving a part.",
+        "properties": {
+          "build_target": {
+            "description": "Build target for the reserving kit",
+            "example": 2,
+            "title": "Build Target",
+            "type": "integer"
+          },
+          "kit_id": {
+            "description": "Identifier of the kit reserving the part",
+            "example": 3,
+            "title": "Kit Id",
+            "type": "integer"
+          },
+          "kit_name": {
+            "description": "Display name of the kit reserving the part",
+            "example": "Synth Voice Starter",
+            "title": "Kit Name",
+            "type": "string"
+          },
+          "required_per_unit": {
+            "description": "Quantity of the part required per kit build",
+            "example": 2,
+            "title": "Required Per Unit",
+            "type": "integer"
+          },
+          "reserved_quantity": {
+            "description": "Total quantity reserved by the kit",
+            "example": 4,
+            "title": "Reserved Quantity",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitDetailResponseSchema.b98797e.KitStatus",
+            "description": "Current status of the reserving kit",
+            "example": "active"
+          },
+          "updated_at": {
+            "description": "Timestamp when the reserving kit was last updated",
+            "example": "2024-05-01T12:00:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kit_id",
+          "kit_name",
+          "status",
+          "build_target",
+          "required_per_unit",
+          "reserved_quantity",
+          "updated_at"
+        ],
+        "title": "KitReservationEntrySchema",
+        "type": "object"
+      },
+      "KitDetailResponseSchema.b98797e.KitShoppingListLinkSchema": {
+        "description": "Schema describing shopping lists linked to a kit.",
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when the link was created",
+            "example": "2024-04-01T09:30:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "honor_reserved": {
+            "description": "Whether reserved quantities were honored during the push",
+            "example": false,
+            "title": "Honor Reserved",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Unique identifier for the kit to shopping list link",
+            "example": 9,
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_stale": {
+            "description": "Indicates whether the link needs resynchronization",
+            "example": true,
+            "title": "Is Stale",
+            "type": "boolean"
+          },
+          "requested_units": {
+            "description": "Number of kit build units used when pushing to the list",
+            "example": 3,
+            "minimum": 1,
+            "title": "Requested Units",
+            "type": "integer"
+          },
+          "shopping_list_id": {
+            "description": "Identifier of the linked shopping list",
+            "example": 21,
+            "title": "Shopping List Id",
+            "type": "integer"
+          },
+          "shopping_list_name": {
+            "description": "Name of the linked shopping list",
+            "example": "Concept BOM",
+            "title": "Shopping List Name",
+            "type": "string"
+          },
+          "snapshot_kit_updated_at": {
+            "description": "Kit timestamp captured when the link was last refreshed",
+            "example": "2024-05-01T14:15:00Z",
+            "format": "date-time",
+            "title": "Snapshot Kit Updated At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitDetailResponseSchema.b98797e.ShoppingListStatus",
+            "description": "Current status of the linked shopping list",
+            "example": "ready"
+          },
+          "updated_at": {
+            "description": "Timestamp when the link was last updated",
+            "example": "2024-04-08T12:05:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "shopping_list_id",
+          "shopping_list_name",
+          "status",
+          "requested_units",
+          "honor_reserved",
+          "snapshot_kit_updated_at",
+          "is_stale",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "KitShoppingListLinkSchema",
+        "type": "object"
+      },
+      "KitDetailResponseSchema.b98797e.KitStatus": {
+        "description": "Lifecycle status for a kit.",
+        "enum": [
+          "active",
+          "archived"
+        ],
+        "title": "KitStatus",
+        "type": "string"
+      },
+      "KitDetailResponseSchema.b98797e.PartListSchema": {
+        "description": "Schema for lightweight part listings.",
+        "properties": {
+          "description": {
+            "description": "Free text description",
+            "example": "12V SPDT relay with 40A contacts",
+            "title": "Description",
+            "type": "string"
+          },
+          "key": {
+            "description": "4-character unique part identifier",
+            "example": "BZQP",
+            "title": "Key",
+            "type": "string"
+          },
+          "manufacturer_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Manufacturer's part number",
+            "example": "OMRON G5Q-1A4",
+            "title": "Manufacturer Code"
+          }
+        },
+        "required": [
+          "key",
+          "manufacturer_code",
+          "description"
+        ],
+        "title": "PartListSchema",
+        "type": "object"
+      },
+      "KitDetailResponseSchema.b98797e.ShoppingListStatus": {
+        "description": "Possible lifecycle states for a shopping list.",
+        "enum": [
+          "concept",
+          "ready",
+          "done"
+        ],
+        "title": "ShoppingListStatus",
+        "type": "string"
+      },
+      "KitListQuerySchema.b98797e": {
+        "description": "Query parameters supported by the kits overview endpoint.",
+        "properties": {
+          "limit": {
+            "anyOf": [
+              {
+                "maximum": 100,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional maximum number of kits to return",
+            "example": 12,
+            "title": "Limit"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Substring search across kit names and descriptions",
+            "example": "Synth",
+            "title": "Query"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitListQuerySchema.b98797e.KitStatusSchema",
+            "default": "active",
+            "description": "Filter kits by lifecycle status",
+            "example": "active"
+          }
+        },
+        "title": "KitListQuerySchema",
+        "type": "object"
+      },
+      "KitListQuerySchema.b98797e.KitStatusSchema": {
+        "description": "Pydantic enum mirroring the KitStatus model enum.",
+        "enum": [
+          "active",
+          "archived"
+        ],
+        "title": "KitStatusSchema",
+        "type": "string"
+      },
+      "KitMembershipBulkQueryRequestSchema.b98797e": {
+        "description": "Schema for querying kit memberships across related resources.",
+        "properties": {
+          "include_done": {
+            "default": false,
+            "description": "Include archived or completed memberships when true",
+            "title": "Include Done",
+            "type": "boolean"
+          },
+          "kit_ids": {
+            "description": "Ordered collection of kit identifiers to resolve",
+            "example": [
+              1,
+              2,
+              3
+            ],
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Kit Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kit_ids"
+        ],
+        "title": "KitMembershipBulkQueryRequestSchema",
+        "type": "object"
+      },
+      "KitPickListCreateSchema.b247181": {
+        "description": "Request payload for creating a pick list.",
+        "properties": {
+          "requested_units": {
+            "description": "Number of kit builds to fulfill with this pick list",
+            "example": 2,
+            "minimum": 1,
+            "title": "Requested Units",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requested_units"
+        ],
+        "title": "KitPickListCreateSchema",
+        "type": "object"
+      },
+      "KitPickListDetailSchema.b247181": {
+        "description": "Detailed pick list payload including line breakdown.",
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp when the pick list was completed",
+            "example": "2024-04-16T13:25:00Z",
+            "title": "Completed At"
+          },
+          "completed_line_count": {
+            "description": "Number of lines that have already been picked",
+            "example": 3,
+            "title": "Completed Line Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "description": "Timestamp when the pick list was created",
+            "example": "2024-04-15T09:00:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the pick list",
+            "example": 12,
+            "title": "Id",
+            "type": "integer"
+          },
+          "kit_id": {
+            "description": "Identifier of the kit that owns the pick list",
+            "example": 3,
+            "title": "Kit Id",
+            "type": "integer"
+          },
+          "kit_name": {
+            "description": "Display name of the kit that owns the pick list",
+            "example": "Synth Voice Starter",
+            "title": "Kit Name",
+            "type": "string"
+          },
+          "line_count": {
+            "description": "Total number of lines in the pick list",
+            "example": 5,
+            "title": "Line Count",
+            "type": "integer"
+          },
+          "lines": {
+            "description": "Detailed picking instructions grouped by location",
+            "items": {
+              "$ref": "#/components/schemas/KitPickListDetailSchema.b247181.KitPickListLineSchema"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "open_line_count": {
+            "description": "Number of lines that still need to be picked",
+            "example": 2,
+            "title": "Open Line Count",
+            "type": "integer"
+          },
+          "picked_quantity": {
+            "description": "Quantity already picked for the pick list",
+            "example": 8,
+            "title": "Picked Quantity",
+            "type": "integer"
+          },
+          "remaining_quantity": {
+            "description": "Quantity still outstanding for the pick list",
+            "example": 4,
+            "title": "Remaining Quantity",
+            "type": "integer"
+          },
+          "requested_units": {
+            "description": "Number of kit builds requested for the pick list",
+            "example": 2,
+            "title": "Requested Units",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitPickListDetailSchema.b247181.KitPickListStatus",
+            "description": "Lifecycle status for the pick list",
+            "example": "open"
+          },
+          "total_quantity_to_pick": {
+            "description": "Sum of quantities across all lines",
+            "example": 12,
+            "title": "Total Quantity To Pick",
+            "type": "integer"
+          },
+          "updated_at": {
+            "description": "Timestamp when the pick list was last updated",
+            "example": "2024-04-15T11:10:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kit_id",
+          "requested_units",
+          "status",
+          "created_at",
+          "updated_at",
+          "completed_at",
+          "line_count",
+          "open_line_count",
+          "completed_line_count",
+          "total_quantity_to_pick",
+          "picked_quantity",
+          "remaining_quantity",
+          "kit_name"
+        ],
+        "title": "KitPickListDetailSchema",
+        "type": "object"
+      },
+      "KitPickListDetailSchema.b247181.KitPickListLineSchema": {
+        "description": "Detailed representation of a pick list line.",
+        "properties": {
+          "id": {
+            "description": "Unique identifier of the pick list line",
+            "example": 512,
+            "title": "Id",
+            "type": "integer"
+          },
+          "inventory_change_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Quantity history entry recorded when picked",
+            "example": 2048,
+            "title": "Inventory Change Id"
+          },
+          "kit_content": {
+            "$ref": "#/components/schemas/KitPickListDetailSchema.b247181.PickListLineContentSchema",
+            "description": "Kit content metadata referenced by the line"
+          },
+          "location": {
+            "$ref": "#/components/schemas/KitPickListDetailSchema.b247181.PickListLineLocationSchema",
+            "description": "Location to pull inventory from"
+          },
+          "picked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp when the line was picked",
+            "example": "2024-04-18T14:30:00Z",
+            "title": "Picked At"
+          },
+          "quantity_to_pick": {
+            "description": "Quantity of the part to pick from the location",
+            "example": 4,
+            "title": "Quantity To Pick",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitPickListDetailSchema.b247181.PickListLineStatus",
+            "description": "Current status of the line",
+            "example": "open"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "quantity_to_pick",
+          "inventory_change_id",
+          "picked_at",
+          "kit_content",
+          "location"
+        ],
+        "title": "KitPickListLineSchema",
+        "type": "object"
+      },
+      "KitPickListDetailSchema.b247181.KitPickListStatus": {
+        "description": "Lifecycle status for a kit pick list.",
+        "enum": [
+          "open",
+          "completed"
+        ],
+        "title": "KitPickListStatus",
+        "type": "string"
+      },
+      "KitPickListDetailSchema.b247181.PickListLineContentSchema": {
+        "description": "Kit content information attached to a pick list line.",
+        "properties": {
+          "id": {
+            "description": "Kit content identifier referenced by the line",
+            "example": 128,
+            "title": "Id",
+            "type": "integer"
+          },
+          "part_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Description of the part to pick",
+            "example": "NE555 timer in DIP package",
+            "title": "Part Description"
+          },
+          "part_id": {
+            "description": "Identifier of the part to pick",
+            "example": 64,
+            "title": "Part Id",
+            "type": "integer"
+          },
+          "part_key": {
+            "description": "Unique key of the part to pick",
+            "example": "ABCD",
+            "title": "Part Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "part_id",
+          "part_key",
+          "part_description"
+        ],
+        "title": "PickListLineContentSchema",
+        "type": "object"
+      },
+      "KitPickListDetailSchema.b247181.PickListLineLocationSchema": {
+        "description": "Location metadata for a pick list line.",
+        "properties": {
+          "box_no": {
+            "description": "Box number containing the location",
+            "example": 3,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Unique identifier of the storage location",
+            "example": 42,
+            "title": "Id",
+            "type": "integer"
+          },
+          "loc_no": {
+            "description": "Location number inside the box",
+            "example": 7,
+            "title": "Loc No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "box_no",
+          "loc_no"
+        ],
+        "title": "PickListLineLocationSchema",
+        "type": "object"
+      },
+      "KitPickListDetailSchema.b247181.PickListLineStatus": {
+        "description": "Lifecycle status for an individual pick list line.",
+        "enum": [
+          "open",
+          "completed"
+        ],
+        "title": "PickListLineStatus",
+        "type": "string"
+      },
+      "KitPickListMembershipQueryResponseSchema.b247181": {
+        "description": "Bulk response schema for pick list memberships grouped by kit.",
+        "properties": {
+          "memberships": {
+            "description": "Memberships grouped by kit identifier order",
+            "items": {
+              "$ref": "#/components/schemas/KitPickListMembershipQueryResponseSchema.b247181.KitPickListMembershipQueryItemSchema"
+            },
+            "title": "Memberships",
+            "type": "array"
+          }
+        },
+        "title": "KitPickListMembershipQueryResponseSchema",
+        "type": "object"
+      },
+      "KitPickListMembershipQueryResponseSchema.b247181.KitPickListMembershipQueryItemSchema": {
+        "description": "Schema encapsulating pick list memberships for a single kit.",
+        "properties": {
+          "kit_id": {
+            "description": "Requested kit identifier",
+            "example": 7,
+            "title": "Kit Id",
+            "type": "integer"
+          },
+          "pick_lists": {
+            "description": "Pick lists associated with the kit",
+            "items": {
+              "$ref": "#/components/schemas/KitPickListMembershipQueryResponseSchema.b247181.KitPickListMembershipSchema"
+            },
+            "title": "Pick Lists",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kit_id"
+        ],
+        "title": "KitPickListMembershipQueryItemSchema",
+        "type": "object"
+      },
+      "KitPickListMembershipQueryResponseSchema.b247181.KitPickListMembershipSchema": {
+        "description": "Schema describing pick list membership for bulk kit queries.",
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp when the pick list was completed",
+            "example": "2024-04-16T13:25:00Z",
+            "title": "Completed At"
+          },
+          "completed_line_count": {
+            "description": "Number of lines that have already been picked",
+            "example": 3,
+            "title": "Completed Line Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "description": "Timestamp when the pick list was created",
+            "example": "2024-04-15T09:00:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the pick list",
+            "example": 12,
+            "title": "Id",
+            "type": "integer"
+          },
+          "kit_id": {
+            "description": "Identifier of the kit that owns the pick list",
+            "example": 3,
+            "title": "Kit Id",
+            "type": "integer"
+          },
+          "line_count": {
+            "description": "Total number of lines in the pick list",
+            "example": 5,
+            "title": "Line Count",
+            "type": "integer"
+          },
+          "open_line_count": {
+            "description": "Number of lines that still need to be picked",
+            "example": 2,
+            "title": "Open Line Count",
+            "type": "integer"
+          },
+          "picked_quantity": {
+            "description": "Quantity already picked for the pick list",
+            "example": 8,
+            "title": "Picked Quantity",
+            "type": "integer"
+          },
+          "remaining_quantity": {
+            "description": "Quantity still outstanding for the pick list",
+            "example": 4,
+            "title": "Remaining Quantity",
+            "type": "integer"
+          },
+          "requested_units": {
+            "description": "Number of kit builds requested for the pick list",
+            "example": 2,
+            "title": "Requested Units",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitPickListMembershipQueryResponseSchema.b247181.KitPickListStatus",
+            "description": "Lifecycle status for the pick list",
+            "example": "open"
+          },
+          "total_quantity_to_pick": {
+            "description": "Sum of quantities across all lines",
+            "example": 12,
+            "title": "Total Quantity To Pick",
+            "type": "integer"
+          },
+          "updated_at": {
+            "description": "Timestamp when the pick list was last updated",
+            "example": "2024-04-15T11:10:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kit_id",
+          "requested_units",
+          "status",
+          "created_at",
+          "updated_at",
+          "completed_at",
+          "line_count",
+          "open_line_count",
+          "completed_line_count",
+          "total_quantity_to_pick",
+          "picked_quantity",
+          "remaining_quantity"
+        ],
+        "title": "KitPickListMembershipSchema",
+        "type": "object"
+      },
+      "KitPickListMembershipQueryResponseSchema.b247181.KitPickListStatus": {
+        "description": "Lifecycle status for a kit pick list.",
+        "enum": [
+          "open",
+          "completed"
+        ],
+        "title": "KitPickListStatus",
+        "type": "string"
+      },
+      "KitPickListSummarySchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/KitPickListSummarySchemaList.a9993e3.KitPickListSummarySchema"
+        },
+        "title": "KitPickListSummarySchemaList",
+        "type": "array"
+      },
+      "KitPickListSummarySchemaList.a9993e3.KitPickListStatus": {
+        "description": "Lifecycle status for a kit pick list.",
+        "enum": [
+          "open",
+          "completed"
+        ],
+        "title": "KitPickListStatus",
+        "type": "string"
+      },
+      "KitPickListSummarySchemaList.a9993e3.KitPickListSummarySchema": {
+        "description": "Summary information for a pick list used in listings.",
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp when the pick list was completed",
+            "example": "2024-04-16T13:25:00Z",
+            "title": "Completed At"
+          },
+          "completed_line_count": {
+            "description": "Number of lines that have already been picked",
+            "example": 3,
+            "title": "Completed Line Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "description": "Timestamp when the pick list was created",
+            "example": "2024-04-15T09:00:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the pick list",
+            "example": 12,
+            "title": "Id",
+            "type": "integer"
+          },
+          "kit_id": {
+            "description": "Identifier of the kit that owns the pick list",
+            "example": 3,
+            "title": "Kit Id",
+            "type": "integer"
+          },
+          "line_count": {
+            "description": "Total number of lines in the pick list",
+            "example": 5,
+            "title": "Line Count",
+            "type": "integer"
+          },
+          "open_line_count": {
+            "description": "Number of lines that still need to be picked",
+            "example": 2,
+            "title": "Open Line Count",
+            "type": "integer"
+          },
+          "picked_quantity": {
+            "description": "Quantity already picked for the pick list",
+            "example": 8,
+            "title": "Picked Quantity",
+            "type": "integer"
+          },
+          "remaining_quantity": {
+            "description": "Quantity still outstanding for the pick list",
+            "example": 4,
+            "title": "Remaining Quantity",
+            "type": "integer"
+          },
+          "requested_units": {
+            "description": "Number of kit builds requested for the pick list",
+            "example": 2,
+            "title": "Requested Units",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitPickListSummarySchemaList.a9993e3.KitPickListStatus",
+            "description": "Lifecycle status for the pick list",
+            "example": "open"
+          },
+          "total_quantity_to_pick": {
+            "description": "Sum of quantities across all lines",
+            "example": 12,
+            "title": "Total Quantity To Pick",
+            "type": "integer"
+          },
+          "updated_at": {
+            "description": "Timestamp when the pick list was last updated",
+            "example": "2024-04-15T11:10:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kit_id",
+          "requested_units",
+          "status",
+          "created_at",
+          "updated_at",
+          "completed_at",
+          "line_count",
+          "open_line_count",
+          "completed_line_count",
+          "total_quantity_to_pick",
+          "picked_quantity",
+          "remaining_quantity"
+        ],
+        "title": "KitPickListSummarySchema",
+        "type": "object"
+      },
+      "KitResponseSchema.b98797e": {
+        "description": "Detailed schema for kit lifecycle operations.",
+        "properties": {
+          "archived_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp when kit was archived, if applicable",
+            "example": "2024-03-20T18:45:00Z",
+            "title": "Archived At"
+          },
+          "build_target": {
+            "description": "Target quantity of complete kits to keep on hand",
+            "example": 5,
+            "title": "Build Target",
+            "type": "integer"
+          },
+          "created_at": {
+            "description": "Timestamp when the kit was created",
+            "example": "2024-03-15T11:10:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional kit description",
+            "example": "Compact synth voice for workshop demos",
+            "title": "Description"
+          },
+          "id": {
+            "description": "Unique kit identifier",
+            "example": 17,
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Kit display name",
+            "example": "Portable Synth Voice",
+            "title": "Name",
+            "type": "string"
+          },
+          "pick_list_badge_count": {
+            "default": 0,
+            "description": "Number of open pick lists for the kit",
+            "example": 1,
+            "title": "Pick List Badge Count",
+            "type": "integer"
+          },
+          "shopping_list_badge_count": {
+            "default": 0,
+            "description": "Number of concept/ready shopping lists linked to the kit",
+            "example": 2,
+            "title": "Shopping List Badge Count",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitResponseSchema.b98797e.KitStatus",
+            "description": "Current lifecycle status of the kit",
+            "example": "active"
+          },
+          "updated_at": {
+            "description": "Timestamp when the kit was last modified",
+            "example": "2024-04-10T15:30:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "status",
+          "build_target",
+          "archived_at",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "KitResponseSchema",
+        "type": "object"
+      },
+      "KitResponseSchema.b98797e.KitStatus": {
+        "description": "Lifecycle status for a kit.",
+        "enum": [
+          "active",
+          "archived"
+        ],
+        "title": "KitStatus",
+        "type": "string"
+      },
+      "KitShoppingListChipSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/KitShoppingListChipSchemaList.a9993e3.KitShoppingListChipSchema"
+        },
+        "title": "KitShoppingListChipSchemaList",
+        "type": "array"
+      },
+      "KitShoppingListChipSchemaList.a9993e3.KitShoppingListChipSchema": {
+        "description": "Compact schema for chip renderings on kit and shopping list detail views.",
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when the link was created",
+            "example": "2024-04-01T09:30:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "honor_reserved": {
+            "description": "Whether reserved quantities were honored during the push",
+            "example": false,
+            "title": "Honor Reserved",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Unique identifier for the kit to shopping list link",
+            "example": 9,
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_stale": {
+            "description": "Indicates whether the link needs resynchronization",
+            "example": true,
+            "title": "Is Stale",
+            "type": "boolean"
+          },
+          "requested_units": {
+            "description": "Number of kit build units used when pushing to the list",
+            "example": 3,
+            "minimum": 1,
+            "title": "Requested Units",
+            "type": "integer"
+          },
+          "shopping_list_id": {
+            "description": "Identifier of the linked shopping list",
+            "example": 21,
+            "title": "Shopping List Id",
+            "type": "integer"
+          },
+          "shopping_list_name": {
+            "description": "Name of the linked shopping list",
+            "example": "Concept BOM",
+            "title": "Shopping List Name",
+            "type": "string"
+          },
+          "snapshot_kit_updated_at": {
+            "description": "Kit timestamp captured when the link was last refreshed",
+            "example": "2024-05-01T14:15:00Z",
+            "format": "date-time",
+            "title": "Snapshot Kit Updated At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitShoppingListChipSchemaList.a9993e3.ShoppingListStatus",
+            "description": "Current status of the linked shopping list",
+            "example": "ready"
+          },
+          "updated_at": {
+            "description": "Timestamp when the link was last updated",
+            "example": "2024-04-08T12:05:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "shopping_list_id",
+          "shopping_list_name",
+          "status",
+          "requested_units",
+          "honor_reserved",
+          "snapshot_kit_updated_at",
+          "is_stale",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "KitShoppingListChipSchema",
+        "type": "object"
+      },
+      "KitShoppingListChipSchemaList.a9993e3.ShoppingListStatus": {
+        "description": "Possible lifecycle states for a shopping list.",
+        "enum": [
+          "concept",
+          "ready",
+          "done"
+        ],
+        "title": "ShoppingListStatus",
+        "type": "string"
+      },
+      "KitShoppingListLinkResponseSchema.b98797e": {
+        "description": "Response payload after creating or appending a kit shopping list link.",
+        "properties": {
+          "created_new_list": {
+            "description": "Indicates whether a new shopping list was created during the push",
+            "example": true,
+            "title": "Created New List",
+            "type": "boolean"
+          },
+          "lines_modified": {
+            "description": "Number of shopping list lines created or updated",
+            "example": 4,
+            "title": "Lines Modified",
+            "type": "integer"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.KitShoppingListLinkSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Link metadata after the push completes; omitted when no changes occurred"
+          },
+          "noop": {
+            "description": "True when no shopping list lines required changes (no link created)",
+            "example": false,
+            "title": "Noop",
+            "type": "boolean"
+          },
+          "shopping_list": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListResponseSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Refreshed shopping list payload reflecting merged lines"
+          },
+          "total_needed_quantity": {
+            "description": "Total needed quantity summed across affected lines",
+            "example": 16,
+            "title": "Total Needed Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "created_new_list",
+          "lines_modified",
+          "total_needed_quantity",
+          "noop"
+        ],
+        "title": "KitShoppingListLinkResponseSchema",
+        "type": "object"
+      },
+      "KitShoppingListLinkResponseSchema.b98797e.KitShoppingListLinkSchema": {
+        "description": "Schema describing shopping lists linked to a kit.",
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when the link was created",
+            "example": "2024-04-01T09:30:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "honor_reserved": {
+            "description": "Whether reserved quantities were honored during the push",
+            "example": false,
+            "title": "Honor Reserved",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Unique identifier for the kit to shopping list link",
+            "example": 9,
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_stale": {
+            "description": "Indicates whether the link needs resynchronization",
+            "example": true,
+            "title": "Is Stale",
+            "type": "boolean"
+          },
+          "requested_units": {
+            "description": "Number of kit build units used when pushing to the list",
+            "example": 3,
+            "minimum": 1,
+            "title": "Requested Units",
+            "type": "integer"
+          },
+          "shopping_list_id": {
+            "description": "Identifier of the linked shopping list",
+            "example": 21,
+            "title": "Shopping List Id",
+            "type": "integer"
+          },
+          "shopping_list_name": {
+            "description": "Name of the linked shopping list",
+            "example": "Concept BOM",
+            "title": "Shopping List Name",
+            "type": "string"
+          },
+          "snapshot_kit_updated_at": {
+            "description": "Kit timestamp captured when the link was last refreshed",
+            "example": "2024-05-01T14:15:00Z",
+            "format": "date-time",
+            "title": "Snapshot Kit Updated At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListStatus",
+            "description": "Current status of the linked shopping list",
+            "example": "ready"
+          },
+          "updated_at": {
+            "description": "Timestamp when the link was last updated",
+            "example": "2024-04-08T12:05:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "shopping_list_id",
+          "shopping_list_name",
+          "status",
+          "requested_units",
+          "honor_reserved",
+          "snapshot_kit_updated_at",
+          "is_stale",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "KitShoppingListLinkSchema",
+        "type": "object"
+      },
+      "KitShoppingListLinkResponseSchema.b98797e.PartListSchema": {
+        "description": "Schema for lightweight part listings.",
+        "properties": {
+          "description": {
+            "description": "Free text description",
+            "example": "12V SPDT relay with 40A contacts",
+            "title": "Description",
+            "type": "string"
+          },
+          "key": {
+            "description": "4-character unique part identifier",
+            "example": "BZQP",
+            "title": "Key",
+            "type": "string"
+          },
+          "manufacturer_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Manufacturer's part number",
+            "example": "OMRON G5Q-1A4",
+            "title": "Manufacturer Code"
+          }
+        },
+        "required": [
+          "key",
+          "manufacturer_code",
+          "description"
+        ],
+        "title": "PartListSchema",
+        "type": "object"
+      },
+      "KitShoppingListLinkResponseSchema.b98797e.PartLocationInlineSchema": {
+        "description": "Inline schema for part location quantities.",
+        "properties": {
+          "box_no": {
+            "description": "Box number where stock is stored",
+            "example": 7,
+            "title": "Box No",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Unique identifier for the part location row",
+            "example": 501,
+            "title": "Id",
+            "type": "integer"
+          },
+          "loc_no": {
+            "description": "Location number within the box",
+            "example": 3,
+            "title": "Loc No",
+            "type": "integer"
+          },
+          "qty": {
+            "description": "Quantity stored at this location",
+            "example": 10,
+            "title": "Qty",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "box_no",
+          "loc_no",
+          "qty"
+        ],
+        "title": "PartLocationInlineSchema",
+        "type": "object"
+      },
+      "KitShoppingListLinkResponseSchema.b98797e.SellerListSchema": {
+        "description": "Lightweight schema for seller dropdowns and listings.",
+        "properties": {
+          "id": {
+            "description": "Unique seller ID",
+            "example": 1,
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Seller name",
+            "example": "DigiKey",
+            "title": "Name",
+            "type": "string"
+          },
+          "website": {
+            "description": "Seller website URL",
+            "example": "https://www.digikey.com",
+            "title": "Website",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "website"
+        ],
+        "title": "SellerListSchema",
+        "type": "object"
+      },
+      "KitShoppingListLinkResponseSchema.b98797e.ShoppingListLineCountsSchema": {
+        "description": "Aggregated counts of shopping list lines by status.",
+        "properties": {
+          "done": {
+            "description": "Number of lines marked DONE",
+            "title": "Done",
+            "type": "integer"
+          },
+          "new": {
+            "description": "Number of lines in NEW status",
+            "title": "New",
+            "type": "integer"
+          },
+          "ordered": {
+            "description": "Number of lines marked ORDERED",
+            "title": "Ordered",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "new",
+          "ordered",
+          "done"
+        ],
+        "title": "ShoppingListLineCountsSchema",
+        "type": "object"
+      },
+      "KitShoppingListLinkResponseSchema.b98797e.ShoppingListLineResponseSchema": {
+        "description": "Detailed schema for shopping list line responses including related entities.",
+        "properties": {
+          "can_receive": {
+            "description": "True when the line can accept stock receipt actions",
+            "example": true,
+            "title": "Can Receive",
+            "type": "boolean"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp when the line was completed",
+            "title": "Completed At"
+          },
+          "completion_mismatch": {
+            "description": "Flag indicating completion with quantity mismatch",
+            "example": false,
+            "title": "Completion Mismatch",
+            "type": "boolean"
+          },
+          "completion_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional note explaining completion mismatch",
+            "example": "Vendor short-shipped two units",
+            "title": "Completion Note"
+          },
+          "created_at": {
+            "description": "Timestamp when the line was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "effective_seller": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.SellerListSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Seller entity used for Ready grouping"
+          },
+          "effective_seller_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Seller identifier used for grouping (override or part seller)",
+            "example": 4,
+            "title": "Effective Seller Id"
+          },
+          "has_quantity_mismatch": {
+            "description": "True when ordered and received totals differ",
+            "example": false,
+            "title": "Has Quantity Mismatch",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Unique line identifier",
+            "example": 42,
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_orderable": {
+            "description": "True when the line can be marked as ordered",
+            "example": true,
+            "title": "Is Orderable",
+            "type": "boolean"
+          },
+          "is_revertible": {
+            "description": "True when the line can revert from ordered back to new",
+            "example": false,
+            "title": "Is Revertible",
+            "type": "boolean"
+          },
+          "needed": {
+            "description": "Requested quantity",
+            "example": 4,
+            "title": "Needed",
+            "type": "integer"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional notes for procurement",
+            "example": "Optional color variant acceptable",
+            "title": "Note"
+          },
+          "ordered": {
+            "description": "Ordered quantity",
+            "example": 0,
+            "title": "Ordered",
+            "type": "integer"
+          },
+          "part": {
+            "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.PartListSchema",
+            "description": "Details about the requested part"
+          },
+          "part_id": {
+            "description": "Part identifier on this line",
+            "example": 101,
+            "title": "Part Id",
+            "type": "integer"
+          },
+          "part_locations": {
+            "description": "Locations currently holding stock for the part",
+            "items": {
+              "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.PartLocationInlineSchema"
+            },
+            "title": "Part Locations",
+            "type": "array"
+          },
+          "received": {
+            "description": "Received quantity",
+            "example": 0,
+            "title": "Received",
+            "type": "integer"
+          },
+          "seller": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.SellerListSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Seller override details if specified"
+          },
+          "seller_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Seller override identifier",
+            "example": 3,
+            "title": "Seller Id"
+          },
+          "shopping_list_id": {
+            "description": "Parent shopping list identifier",
+            "example": 9,
+            "title": "Shopping List Id",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListLineStatus",
+            "description": "Workflow status for this line",
+            "example": "new"
+          },
+          "updated_at": {
+            "description": "Timestamp when the line was last updated",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "shopping_list_id",
+          "part_id",
+          "seller_id",
+          "needed",
+          "ordered",
+          "received",
+          "status",
+          "note",
+          "created_at",
+          "updated_at",
+          "effective_seller_id",
+          "can_receive",
+          "completion_mismatch",
+          "completion_note",
+          "completed_at",
+          "has_quantity_mismatch",
+          "part",
+          "seller",
+          "is_orderable",
+          "is_revertible"
+        ],
+        "title": "ShoppingListLineResponseSchema",
+        "type": "object"
+      },
+      "KitShoppingListLinkResponseSchema.b98797e.ShoppingListLineStatus": {
+        "description": "Lifecycle states for an individual shopping list line.",
+        "enum": [
+          "new",
+          "ordered",
+          "done"
+        ],
+        "title": "ShoppingListLineStatus",
+        "type": "string"
+      },
+      "KitShoppingListLinkResponseSchema.b98797e.ShoppingListResponseSchema": {
+        "description": "Detailed schema for shopping list responses including line items.",
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when the list was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional list description",
+            "example": "Collect everything for the VCF section",
+            "title": "Description"
+          },
+          "id": {
+            "description": "Unique shopping list identifier",
+            "example": 7,
+            "title": "Id",
+            "type": "integer"
+          },
+          "line_counts": {
+            "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListLineCountsSchema",
+            "description": "Line counts grouped by status"
+          },
+          "lines": {
+            "description": "Line items associated with this list",
+            "items": {
+              "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListLineResponseSchema"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "name": {
+            "description": "Shopping list name",
+            "example": "Synth Voice Build",
+            "title": "Name",
+            "type": "string"
+          },
+          "seller_groups": {
+            "description": "Grouping of lines by seller for Ready planning",
+            "items": {
+              "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListSellerGroupSchema"
+            },
+            "title": "Seller Groups",
+            "type": "array"
+          },
+          "seller_notes": {
+            "description": "Seller-specific notes for Ready view",
+            "items": {
+              "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListSellerOrderNoteSchema"
+            },
+            "title": "Seller Notes",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListStatus",
+            "description": "Workflow status",
+            "example": "ready"
+          },
+          "updated_at": {
+            "description": "Timestamp when the list was last updated",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "status",
+          "created_at",
+          "updated_at",
+          "line_counts",
+          "lines"
+        ],
+        "title": "ShoppingListResponseSchema",
+        "type": "object"
+      },
+      "KitShoppingListLinkResponseSchema.b98797e.ShoppingListSellerGroupSchema": {
+        "description": "Schema representing seller-based grouping in Ready view.",
+        "properties": {
+          "group_key": {
+            "description": "Identifier for the seller grouping (seller id or 'ungrouped')",
+            "example": "seller-4",
+            "title": "Group Key",
+            "type": "string"
+          },
+          "lines": {
+            "description": "Lines that belong to this grouping",
+            "items": {
+              "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListLineResponseSchema"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "order_note": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListSellerOrderNoteSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Seller note if the group is associated with a seller"
+          },
+          "seller": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.SellerListSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Seller metadata for the group when available"
+          },
+          "seller_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Seller identifier if group is seller-backed",
+            "example": 4,
+            "title": "Seller Id"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.ShoppingListSellerGroupTotalsSchema",
+            "description": "Aggregated quantities for the group"
+          }
+        },
+        "required": [
+          "group_key",
+          "seller_id",
+          "seller",
+          "lines",
+          "totals"
+        ],
+        "title": "ShoppingListSellerGroupSchema",
+        "type": "object"
+      },
+      "KitShoppingListLinkResponseSchema.b98797e.ShoppingListSellerGroupTotalsSchema": {
+        "description": "Aggregated totals for a seller grouping.",
+        "properties": {
+          "needed": {
+            "description": "Total needed quantity for the group",
+            "example": 12,
+            "title": "Needed",
+            "type": "integer"
+          },
+          "ordered": {
+            "description": "Total ordered quantity for the group",
+            "example": 8,
+            "title": "Ordered",
+            "type": "integer"
+          },
+          "received": {
+            "description": "Total received quantity for the group",
+            "example": 0,
+            "title": "Received",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "needed",
+          "ordered",
+          "received"
+        ],
+        "title": "ShoppingListSellerGroupTotalsSchema",
+        "type": "object"
+      },
+      "KitShoppingListLinkResponseSchema.b98797e.ShoppingListSellerOrderNoteSchema": {
+        "description": "Response schema for seller-specific order notes on a shopping list.",
+        "properties": {
+          "note": {
+            "description": "Free-form per-seller order note",
+            "example": "Bundle this order with enclosure purchase.",
+            "title": "Note",
+            "type": "string"
+          },
+          "seller": {
+            "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e.SellerListSchema",
+            "description": "Seller metadata for display"
+          },
+          "seller_id": {
+            "description": "Seller identifier the note applies to",
+            "example": 4,
+            "title": "Seller Id",
+            "type": "integer"
+          },
+          "updated_at": {
+            "description": "Timestamp when the note was last updated",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seller_id",
+          "seller",
+          "note",
+          "updated_at"
+        ],
+        "title": "ShoppingListSellerOrderNoteSchema",
+        "type": "object"
+      },
+      "KitShoppingListLinkResponseSchema.b98797e.ShoppingListStatus": {
+        "description": "Possible lifecycle states for a shopping list.",
+        "enum": [
+          "concept",
+          "ready",
+          "done"
+        ],
+        "title": "ShoppingListStatus",
+        "type": "string"
+      },
+      "KitShoppingListMembershipQueryResponseSchema.b98797e": {
+        "description": "Bulk response schema for shopping list memberships grouped by kit.",
+        "properties": {
+          "memberships": {
+            "description": "Memberships grouped by kit identifier order",
+            "items": {
+              "$ref": "#/components/schemas/KitShoppingListMembershipQueryResponseSchema.b98797e.KitShoppingListMembershipQueryItemSchema"
+            },
+            "title": "Memberships",
+            "type": "array"
+          }
+        },
+        "title": "KitShoppingListMembershipQueryResponseSchema",
+        "type": "object"
+      },
+      "KitShoppingListMembershipQueryResponseSchema.b98797e.KitShoppingListLinkSchema": {
+        "description": "Schema describing shopping lists linked to a kit.",
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when the link was created",
+            "example": "2024-04-01T09:30:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "honor_reserved": {
+            "description": "Whether reserved quantities were honored during the push",
+            "example": false,
+            "title": "Honor Reserved",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Unique identifier for the kit to shopping list link",
+            "example": 9,
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_stale": {
+            "description": "Indicates whether the link needs resynchronization",
+            "example": true,
+            "title": "Is Stale",
+            "type": "boolean"
+          },
+          "requested_units": {
+            "description": "Number of kit build units used when pushing to the list",
+            "example": 3,
+            "minimum": 1,
+            "title": "Requested Units",
+            "type": "integer"
+          },
+          "shopping_list_id": {
+            "description": "Identifier of the linked shopping list",
+            "example": 21,
+            "title": "Shopping List Id",
+            "type": "integer"
+          },
+          "shopping_list_name": {
+            "description": "Name of the linked shopping list",
+            "example": "Concept BOM",
+            "title": "Shopping List Name",
+            "type": "string"
+          },
+          "snapshot_kit_updated_at": {
+            "description": "Kit timestamp captured when the link was last refreshed",
+            "example": "2024-05-01T14:15:00Z",
+            "format": "date-time",
+            "title": "Snapshot Kit Updated At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitShoppingListMembershipQueryResponseSchema.b98797e.ShoppingListStatus",
+            "description": "Current status of the linked shopping list",
+            "example": "ready"
+          },
+          "updated_at": {
+            "description": "Timestamp when the link was last updated",
+            "example": "2024-04-08T12:05:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "shopping_list_id",
+          "shopping_list_name",
+          "status",
+          "requested_units",
+          "honor_reserved",
+          "snapshot_kit_updated_at",
+          "is_stale",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "KitShoppingListLinkSchema",
+        "type": "object"
+      },
+      "KitShoppingListMembershipQueryResponseSchema.b98797e.KitShoppingListMembershipQueryItemSchema": {
+        "description": "Schema encapsulating shopping list memberships for a single kit.",
+        "properties": {
+          "kit_id": {
+            "description": "Requested kit identifier",
+            "example": 7,
+            "title": "Kit Id",
+            "type": "integer"
+          },
+          "memberships": {
+            "description": "Shopping list memberships associated with the kit",
+            "items": {
+              "$ref": "#/components/schemas/KitShoppingListMembershipQueryResponseSchema.b98797e.KitShoppingListLinkSchema"
+            },
+            "title": "Memberships",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kit_id"
+        ],
+        "title": "KitShoppingListMembershipQueryItemSchema",
+        "type": "object"
+      },
+      "KitShoppingListMembershipQueryResponseSchema.b98797e.ShoppingListStatus": {
+        "description": "Possible lifecycle states for a shopping list.",
+        "enum": [
+          "concept",
+          "ready",
+          "done"
+        ],
+        "title": "ShoppingListStatus",
+        "type": "string"
+      },
+      "KitShoppingListRequestSchema.b98797e": {
+        "description": "Request payload for pushing kit contents to a shopping list.",
+        "properties": {
+          "honor_reserved": {
+            "default": false,
+            "description": "Subtract reserved quantities belonging to other kits when true",
+            "example": false,
+            "title": "Honor Reserved",
+            "type": "boolean"
+          },
+          "new_list_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional description for the new shopping list",
+            "example": "Sourcing pass for the spring synth kits",
+            "title": "New List Description"
+          },
+          "new_list_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Name for a new Concept shopping list when creating one",
+            "example": "Synth Voice Purchasing",
+            "title": "New List Name"
+          },
+          "note_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Fallback text appended to line notes when kit BOM rows lack notes",
+            "example": "General replenishment",
+            "title": "Note Prefix"
+          },
+          "shopping_list_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Existing Concept shopping list to append to",
+            "example": 18,
+            "title": "Shopping List Id"
+          },
+          "units": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Number of kit units to plan for; defaults to the kit build target when omitted",
+            "example": 2,
+            "title": "Units"
+          }
+        },
+        "title": "KitShoppingListRequestSchema",
+        "type": "object"
+      },
+      "KitSummarySchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/KitSummarySchemaList.a9993e3.KitSummarySchema"
+        },
+        "title": "KitSummarySchemaList",
+        "type": "array"
+      },
+      "KitSummarySchemaList.a9993e3.KitStatus": {
+        "description": "Lifecycle status for a kit.",
+        "enum": [
+          "active",
+          "archived"
+        ],
+        "title": "KitStatus",
+        "type": "string"
+      },
+      "KitSummarySchemaList.a9993e3.KitSummarySchema": {
+        "description": "Lightweight schema for kit overview cards.",
+        "properties": {
+          "archived_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp when kit was archived, if applicable",
+            "example": "2024-03-20T18:45:00Z",
+            "title": "Archived At"
+          },
+          "build_target": {
+            "description": "Target quantity of complete kits to keep on hand",
+            "example": 5,
+            "title": "Build Target",
+            "type": "integer"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional kit description shown in the overview",
+            "example": "Compact synth voice for workshop demos",
+            "title": "Description"
+          },
+          "id": {
+            "description": "Unique kit identifier",
+            "example": 17,
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Kit display name",
+            "example": "Portable Synth Voice",
+            "title": "Name",
+            "type": "string"
+          },
+          "pick_list_badge_count": {
+            "default": 0,
+            "description": "Number of open pick lists for the kit",
+            "example": 1,
+            "title": "Pick List Badge Count",
+            "type": "integer"
+          },
+          "shopping_list_badge_count": {
+            "default": 0,
+            "description": "Number of concept/ready shopping lists linked to the kit",
+            "example": 2,
+            "title": "Shopping List Badge Count",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/KitSummarySchemaList.a9993e3.KitStatus",
+            "description": "Current lifecycle status of the kit",
+            "example": "active"
+          },
+          "updated_at": {
+            "description": "Timestamp when the kit was last modified",
+            "example": "2024-04-10T15:30:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "status",
+          "build_target",
+          "archived_at",
+          "updated_at"
+        ],
+        "title": "KitSummarySchema",
+        "type": "object"
+      },
+      "KitUpdateSchema.b98797e": {
+        "description": "Schema for updating kit metadata.",
+        "properties": {
+          "build_target": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated build target for inventory planning; must be zero or greater",
+            "example": 3,
+            "title": "Build Target"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated description for the kit",
+            "example": "Rev B adds MIDI DIN breakouts and improves documentation",
+            "title": "Description"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated kit name",
+            "example": "Synth Voice Rev B",
+            "title": "Name"
+          }
+        },
+        "title": "KitUpdateSchema",
+        "type": "object"
+      },
       "LocationResponseSchema.1cdc15f": {
         "description": "Schema for location details.",
         "properties": {
@@ -2390,6 +5361,199 @@
         "title": "PartCreateSchema",
         "type": "object"
       },
+      "PartKitReservationsResponseSchema.d12d9a5": {
+        "description": "Response schema for the part reservation debug endpoint.",
+        "properties": {
+          "active_reservations": {
+            "description": "Active kits that currently reserve this part",
+            "items": {
+              "$ref": "#/components/schemas/PartKitReservationsResponseSchema.d12d9a5.KitReservationEntrySchema"
+            },
+            "title": "Active Reservations",
+            "type": "array"
+          },
+          "part_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional description of the part",
+            "example": "Utility op-amp for signal conditioning",
+            "title": "Part Description"
+          },
+          "part_id": {
+            "description": "Identifier of the part being inspected",
+            "example": 42,
+            "title": "Part Id",
+            "type": "integer"
+          },
+          "part_key": {
+            "description": "Unique key of the part",
+            "example": "ABCD",
+            "title": "Part Key",
+            "type": "string"
+          },
+          "total_reserved": {
+            "description": "Sum of reserved quantities across all active kits",
+            "example": 7,
+            "title": "Total Reserved",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part_id",
+          "part_key",
+          "part_description",
+          "total_reserved"
+        ],
+        "title": "PartKitReservationsResponseSchema",
+        "type": "object"
+      },
+      "PartKitReservationsResponseSchema.d12d9a5.KitReservationEntrySchema": {
+        "description": "Schema representing an active kit reserving a part.",
+        "properties": {
+          "build_target": {
+            "description": "Build target for the reserving kit",
+            "example": 2,
+            "title": "Build Target",
+            "type": "integer"
+          },
+          "kit_id": {
+            "description": "Identifier of the kit reserving the part",
+            "example": 3,
+            "title": "Kit Id",
+            "type": "integer"
+          },
+          "kit_name": {
+            "description": "Display name of the kit reserving the part",
+            "example": "Synth Voice Starter",
+            "title": "Kit Name",
+            "type": "string"
+          },
+          "required_per_unit": {
+            "description": "Quantity of the part required per kit build",
+            "example": 2,
+            "title": "Required Per Unit",
+            "type": "integer"
+          },
+          "reserved_quantity": {
+            "description": "Total quantity reserved by the kit",
+            "example": 4,
+            "title": "Reserved Quantity",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PartKitReservationsResponseSchema.d12d9a5.KitStatus",
+            "description": "Current status of the reserving kit",
+            "example": "active"
+          },
+          "updated_at": {
+            "description": "Timestamp when the reserving kit was last updated",
+            "example": "2024-05-01T12:00:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kit_id",
+          "kit_name",
+          "status",
+          "build_target",
+          "required_per_unit",
+          "reserved_quantity",
+          "updated_at"
+        ],
+        "title": "KitReservationEntrySchema",
+        "type": "object"
+      },
+      "PartKitReservationsResponseSchema.d12d9a5.KitStatus": {
+        "description": "Lifecycle status for a kit.",
+        "enum": [
+          "active",
+          "archived"
+        ],
+        "title": "KitStatus",
+        "type": "string"
+      },
+      "PartKitUsageSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/PartKitUsageSchemaList.a9993e3.PartKitUsageSchema"
+        },
+        "title": "PartKitUsageSchemaList",
+        "type": "array"
+      },
+      "PartKitUsageSchemaList.a9993e3.KitStatus": {
+        "description": "Lifecycle status for a kit.",
+        "enum": [
+          "active",
+          "archived"
+        ],
+        "title": "KitStatus",
+        "type": "string"
+      },
+      "PartKitUsageSchemaList.a9993e3.PartKitUsageSchema": {
+        "description": "Schema describing an active kit that consumes a specific part.",
+        "properties": {
+          "build_target": {
+            "description": "Build target quantity for the reserving kit",
+            "example": 5,
+            "title": "Build Target",
+            "type": "integer"
+          },
+          "kit_id": {
+            "description": "Identifier of the kit reserving the part",
+            "example": 7,
+            "title": "Kit Id",
+            "type": "integer"
+          },
+          "kit_name": {
+            "description": "Display name of the kit reserving the part",
+            "example": "Eurorack Power Module",
+            "title": "Kit Name",
+            "type": "string"
+          },
+          "required_per_unit": {
+            "description": "Quantity of this part required for a single kit build",
+            "example": 2,
+            "title": "Required Per Unit",
+            "type": "integer"
+          },
+          "reserved_quantity": {
+            "description": "Total quantity of the part reserved by the kit",
+            "example": 10,
+            "title": "Reserved Quantity",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PartKitUsageSchemaList.a9993e3.KitStatus",
+            "description": "Current lifecycle status of the reserving kit",
+            "example": "active"
+          },
+          "updated_at": {
+            "description": "Timestamp when the reserving kit was last updated",
+            "example": "2024-05-22T18:30:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kit_id",
+          "kit_name",
+          "status",
+          "build_target",
+          "required_per_unit",
+          "reserved_quantity",
+          "updated_at"
+        ],
+        "title": "PartKitUsageSchema",
+        "type": "object"
+      },
       "PartLocationResponseSchema.1a46b79": {
         "description": "Schema for part location details with quantity.",
         "properties": {
@@ -2756,6 +5920,13 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "used_in_kits": {
+            "default": false,
+            "description": "True when the part is reserved by at least one active kit",
+            "example": true,
+            "title": "Used In Kits",
+            "type": "boolean"
           },
           "voltage_rating": {
             "anyOf": [
@@ -6067,6 +9238,29 @@
             "example": false,
             "title": "Include Done",
             "type": "boolean"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter by one or more shopping list statuses",
+            "example": [
+              "concept",
+              "ready"
+            ],
+            "title": "Status"
           }
         },
         "title": "ShoppingListListQuerySchema",
@@ -8476,6 +11670,1029 @@
         "tags": []
       }
     },
+    "/api/kit-shopping-list-links/{link_id}": {
+      "delete": {
+        "description": "",
+        "operationId": "delete__api_kit-shopping-list-links_{link_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Remove a kit shopping list link without modifying list contents.",
+        "tags": []
+      }
+    },
+    "/api/kits": {
+      "get": {
+        "description": "",
+        "operationId": "get__api_kits",
+        "parameters": [
+          {
+            "description": "Filter kits by lifecycle status",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/KitListQuerySchema.b98797e.KitStatusSchema",
+              "default": "active",
+              "description": "Filter kits by lifecycle status",
+              "example": "active"
+            }
+          },
+          {
+            "description": "Substring search across kit names and descriptions",
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Substring search across kit names and descriptions",
+              "example": "Synth",
+              "title": "Query"
+            }
+          },
+          {
+            "description": "Optional maximum number of kits to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional maximum number of kits to return",
+              "example": 12,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitSummarySchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "List kits filtered by status and optional text query.",
+        "tags": []
+      },
+      "post": {
+        "description": "",
+        "operationId": "post__api_kits",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KitCreateSchema.b98797e"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitResponseSchema.b98797e"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Create a new kit definition.",
+        "tags": []
+      }
+    },
+    "/api/kits/pick-list-memberships/query": {
+      "post": {
+        "description": "",
+        "operationId": "post__api_kits_pick-list-memberships_query",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KitMembershipBulkQueryRequestSchema.b98797e"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitPickListMembershipQueryResponseSchema.b247181"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Return pick list memberships for the requested kits.",
+        "tags": []
+      }
+    },
+    "/api/kits/shopping-list-memberships/query": {
+      "post": {
+        "description": "",
+        "operationId": "post__api_kits_shopping-list-memberships_query",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KitMembershipBulkQueryRequestSchema.b98797e"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitShoppingListMembershipQueryResponseSchema.b98797e"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Return shopping list memberships for the requested kits.",
+        "tags": []
+      }
+    },
+    "/api/kits/{kit_id}": {
+      "delete": {
+        "description": "",
+        "operationId": "delete__api_kits_{kit_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "kit_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Permanently delete a kit and all child records.",
+        "tags": []
+      },
+      "get": {
+        "description": "",
+        "operationId": "get__api_kits_{kit_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "kit_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitDetailResponseSchema.b98797e"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Return the kit detail workspace payload.",
+        "tags": []
+      },
+      "patch": {
+        "description": "",
+        "operationId": "patch__api_kits_{kit_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "kit_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KitUpdateSchema.b98797e"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitResponseSchema.b98797e"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Update the metadata for an active kit.",
+        "tags": []
+      }
+    },
+    "/api/kits/{kit_id}/archive": {
+      "post": {
+        "description": "",
+        "operationId": "post__api_kits_{kit_id}_archive",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "kit_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitResponseSchema.b98797e"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Archive a kit.",
+        "tags": []
+      }
+    },
+    "/api/kits/{kit_id}/contents": {
+      "post": {
+        "description": "",
+        "operationId": "post__api_kits_{kit_id}_contents",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "kit_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KitContentCreateSchema.b98797e"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitContentDetailSchema.b98797e"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Create a new kit content entry.",
+        "tags": []
+      }
+    },
+    "/api/kits/{kit_id}/contents/{content_id}": {
+      "delete": {
+        "description": "",
+        "operationId": "delete__api_kits_{kit_id}_contents_{content_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "kit_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "",
+            "in": "path",
+            "name": "content_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Remove a kit content entry.",
+        "tags": []
+      },
+      "patch": {
+        "description": "",
+        "operationId": "patch__api_kits_{kit_id}_contents_{content_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "kit_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "",
+            "in": "path",
+            "name": "content_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KitContentUpdateSchema.b98797e"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitContentDetailSchema.b98797e"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Update an existing kit content row.",
+        "tags": []
+      }
+    },
+    "/api/kits/{kit_id}/pick-lists": {
+      "get": {
+        "description": "",
+        "operationId": "get__api_kits_{kit_id}_pick-lists",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "kit_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitPickListSummarySchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Return pick list summaries for a kit.",
+        "tags": []
+      },
+      "post": {
+        "description": "",
+        "operationId": "post__api_kits_{kit_id}_pick-lists",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "kit_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KitPickListCreateSchema.b247181"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitPickListDetailSchema.b247181"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Create a pick list for the specified kit.",
+        "tags": []
+      }
+    },
+    "/api/kits/{kit_id}/shopping-lists": {
+      "get": {
+        "description": "",
+        "operationId": "get__api_kits_{kit_id}_shopping-lists",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "kit_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitShoppingListChipSchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Return shopping list chips linked to the specified kit.",
+        "tags": []
+      },
+      "post": {
+        "description": "",
+        "operationId": "post__api_kits_{kit_id}_shopping-lists",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "kit_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KitShoppingListRequestSchema.b98797e"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitShoppingListLinkResponseSchema.b98797e"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Create or append a shopping list from kit contents.",
+        "tags": []
+      }
+    },
+    "/api/kits/{kit_id}/unarchive": {
+      "post": {
+        "description": "",
+        "operationId": "post__api_kits_{kit_id}_unarchive",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "kit_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitResponseSchema.b98797e"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Restore a kit to active status.",
+        "tags": []
+      }
+    },
     "/api/locations/{box_no}/{loc_no}": {
       "get": {
         "description": "",
@@ -9515,6 +13732,108 @@
         "tags": []
       }
     },
+    "/api/parts/{part_key}/kit-reservations": {
+      "get": {
+        "description": "",
+        "operationId": "get__api_parts_{part_key}_kit-reservations",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "part_key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartKitReservationsResponseSchema.d12d9a5"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Return active kit reservations for the specified part.",
+        "tags": []
+      }
+    },
+    "/api/parts/{part_key}/kits": {
+      "get": {
+        "description": "",
+        "operationId": "get__api_parts_{part_key}_kits",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "part_key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartKitUsageSchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "List active kits consuming the specified part.",
+        "tags": []
+      }
+    },
     "/api/parts/{part_key}/locations": {
       "get": {
         "description": "",
@@ -9673,6 +13992,245 @@
           }
         },
         "summary": "Add a part to a Concept shopping list and return the new membership.",
+        "tags": []
+      }
+    },
+    "/api/pick-lists/{pick_list_id}": {
+      "delete": {
+        "description": "",
+        "operationId": "delete__api_pick-lists_{pick_list_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "pick_list_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Delete a pick list.",
+        "tags": []
+      },
+      "get": {
+        "description": "",
+        "operationId": "get__api_pick-lists_{pick_list_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "pick_list_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitPickListDetailSchema.b247181"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Return a detailed pick list payload with line allocations.",
+        "tags": []
+      }
+    },
+    "/api/pick-lists/{pick_list_id}/lines/{line_id}/pick": {
+      "post": {
+        "description": "",
+        "operationId": "post__api_pick-lists_{pick_list_id}_lines_{line_id}_pick",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "pick_list_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "",
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitPickListDetailSchema.b247181"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Mark a pick list line as picked and return updated detail payload.",
+        "tags": []
+      }
+    },
+    "/api/pick-lists/{pick_list_id}/lines/{line_id}/undo": {
+      "post": {
+        "description": "",
+        "operationId": "post__api_pick-lists_{pick_list_id}_lines_{line_id}_undo",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "pick_list_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "",
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitPickListDetailSchema.b247181"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Undo a pick list line and return the refreshed detail payload.",
         "tags": []
       }
     },
@@ -10351,6 +14909,35 @@
               "title": "Include Done",
               "type": "boolean"
             }
+          },
+          {
+            "description": "Filter by one or more shopping list statuses",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Filter by one or more shopping list statuses",
+              "example": [
+                "concept",
+                "ready"
+              ],
+              "title": "Status"
+            }
           }
         ],
         "responses": {
@@ -10590,6 +15177,58 @@
           }
         },
         "summary": "Update the metadata for a shopping list.",
+        "tags": []
+      }
+    },
+    "/api/shopping-lists/{list_id}/kits": {
+      "get": {
+        "description": "",
+        "operationId": "get__api_shopping-lists_{list_id}_kits",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitChipSchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Return kits linked to a shopping list.",
         "tags": []
       }
     },

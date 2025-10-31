@@ -2,7 +2,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useDashboardCategories } from '@/hooks/use-dashboard'
 import { useNavigate } from '@tanstack/react-router'
-import { useState, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 interface CategoryBarProps {
   categoryName: string
@@ -13,46 +13,39 @@ interface CategoryBarProps {
 }
 
 function CategoryBar({ categoryName, count, maxCount, color, onCategoryClick }: CategoryBarProps) {
-  const [isHovered, setIsHovered] = useState(false)
   const percentage = maxCount > 0 ? (count / maxCount) * 100 : 0
 
   return (
-    <div 
+    <div
       className="group cursor-pointer transition-all duration-200 hover:scale-105 relative"
       onClick={() => onCategoryClick(categoryName)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       data-testid="dashboard.categories.bar"
       data-category={categoryName}
       data-count={count}
+      title={`${categoryName}: ${count} parts (${Math.round(percentage)}%)`}
     >
       <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-medium truncate" title={categoryName} data-testid="dashboard.categories.bar.name">
+        <span className="text-sm font-medium truncate" data-testid="dashboard.categories.bar.name">
           {categoryName}
         </span>
         <span className="text-sm font-semibold ml-2" data-testid="dashboard.categories.bar.count">
           {count.toLocaleString()}
         </span>
       </div>
-      
+
       <div className="relative w-full bg-muted/50 rounded-full h-3 overflow-hidden" data-testid="dashboard.categories.bar.track">
         <div
-          className={`
-            h-3 rounded-full transition-all duration-500 ease-out relative
-            ${isHovered ? 'brightness-110 shadow-sm' : ''}
-          `}
-          style={{ 
+          className="h-3 rounded-full transition-all duration-500 ease-out relative group-hover:brightness-110 group-hover:shadow-sm"
+          style={{
             width: `${Math.max(percentage, 2)}%`,
             backgroundColor: color,
           }}
           data-testid="dashboard.categories.bar.fill"
         >
           {/* Shine effect on hover */}
-          {isHovered && (
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
-          )}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-pulse transition-opacity" />
         </div>
-        
+
         {/* Percentage label */}
         {percentage >= 20 && (
           <div className="absolute inset-0 flex items-center justify-end pr-2">
@@ -62,14 +55,6 @@ function CategoryBar({ categoryName, count, maxCount, color, onCategoryClick }: 
           </div>
         )}
       </div>
-
-      {/* Tooltip */}
-      {isHovered && (
-        <div className="absolute bottom-full left-0 mb-2 z-[70] bg-popover border rounded-lg px-3 py-2 shadow-lg text-sm pointer-events-none max-w-xs whitespace-nowrap" data-testid="dashboard.categories.bar.tooltip">
-          <div className="font-semibold">{categoryName}</div>
-          <div className="text-muted-foreground">{count} parts ({Math.round(percentage)}%)</div>
-        </div>
-      )}
     </div>
   )
 }

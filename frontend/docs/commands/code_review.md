@@ -1,15 +1,32 @@
-# Code Review — Guidance for LLM (single-pass, adversarial)
+# Code Review — Frontend Guidance for LLM (single-pass, adversarial)
 
-**Purpose.** Perform a one-shot, thorough code review that *proves* readiness (or finds real risks) without relying on multi-iteration follow-ups. Write the results to:
+**Purpose.** Perform a one-shot, thorough frontend code review that *proves* readiness (or surfaces real risks) without relying on multi-iteration follow-ups. Write the results to:
 `docs/features/<FEATURE>/code_review.md`.
 
 **Inputs**
 - The feature branch or repo snapshot under review.
 - The related plan (`plan.md`) at the same revision (if available).
-- The exact code changes in the form of one or more commits. Refuse to do the review if this information has not been provided,
+- The exact code changes (diff or commit range). Refuse to review if this information is missing.
+
+**LLM instructions**
+Output snippets are marked by XML brackets. The XML brackets are not to be included in the end result.
+
+Assuming the template <output_template>:
+
+```
+<output_template>
+The answer is <value>
+</output_template>
+```
+
+The final document will contain the following output only:
+
+```
+The answer is 42
+```
 
 **Ignore (out of scope)**
-Minor cosmetic nits that a competent developer would auto-fix: exact message wording, trivial import shuffles, minor formatting, variable naming bikeshedding.
+Minor cosmetic nits a competent developer would auto-fix: copy tweaks, import reshuffles, formatting, purely stylistic class name changes.
 
 ---
 
@@ -17,98 +34,151 @@ Minor cosmetic nits that a competent developer would auto-fix: exact message wor
 Use these headings. Inside each, free-form prose is fine, but **quote evidence** with `path:line-range` and a short snippet.
 
 ### 1) Summary & Decision
-- One paragraph on overall readiness.
-- **Decision:** `GO` | `GO-WITH-CONDITIONS` | `NO-GO` (brief reason).
+Capture overall readiness and the review verdict. Use `<review_summary_template>` to keep the summary tight and evidence-linked.
+
+<review_summary_template>
+**Readiness**
+<single paragraph on overall readiness>
+
+**Decision**
+`GO` | `GO-WITH-CONDITIONS` | `NO-GO` — <brief reason tied to evidence>
+</review_summary_template>
 
 ### 2) Conformance to Plan (with evidence)
-- Show where the code implements the plan’s key behaviors (quote both code and plan).
-- Call out any plan items that are unimplemented or implemented differently (justify).
+Explain how the implementation maps to the approved plan, and flag deviations or missing deliverables. Structure the comparison with `<plan_conformance_template>`.
+
+<plan_conformance_template>
+**Plan alignment**
+- `<plan section>` ↔ `code_path:lines` — <snippet showing implementation>
+- ...
+
+**Gaps / deviations**
+- `<plan commitment>` — <what's missing or differs> (`code_path:lines`)
+- ...
+</plan_conformance_template>
 
 ### 3) Correctness — Findings (ranked)
-For each issue, provide:
-- **[ID] Severity — Title**  
-  **Evidence:** `file:lines` + short snippet.  
-  **Why it matters:** concrete user/system impact.  
-  **Fix suggestion:** minimal viable change (be specific).  
-  **Confidence:** High/Medium/Low.
+List every correctness issue in descending severity using `<finding_template>`. Each entry must include severity with ID/title, the code evidence, the concrete impact, the smallest actionable fix, and your confidence level. For any **Blocker** or **Major**, add either a runnable test sketch or stepwise failure reasoning.
 
-> **No-bluff rule:** For every **Blocker** or **Major** claim, include either (a) a small, runnable test sketch, or (b) logic that demonstrates the failure from the quoted code. If you can’t, downgrade or move to *Questions*.
+<finding_template>
+- Title: `<Severity> — <short summary>`
+- Evidence: `file:lines` — <snippet or paraphrase>
+- Impact: <user/system consequence>
+- Fix: <minimal viable change>
+- Confidence: <High / Medium / Low>
+</finding_template>
 
 Severity:
-- **Blocker** = violates product intent, corrupts or loses data, breaks core flow, or is untestable → typically `NO-GO`.
-- **Major** = correctness risk, API/contract mismatch, or ambiguity that affects scope → often `GO-WITH-CONDITIONS`.
+- **Blocker** = violates product intent, breaks user-visible flow, drops instrumentation needed for tests, corrupts persistent state, or is untestable → typically `NO-GO`.
+- **Major** = correctness risk, API/contract mismatch, caching/state ambiguity affecting scope → often `GO-WITH-CONDITIONS`.
 - **Minor** = non-blocking clarity/ergonomics.
 
 ### 4) Over-Engineering & Refactoring Opportunities
-- Identify hotspots (files/functions) with unnecessary abstraction, dead code, or excessive breadth.
-- Suggest the smallest refactor that reduces complexity (name the functions/files you’d split or simplify) and why it pays off (testability, clarity).
+Highlight hotspots with unnecessary abstraction, duplication, or unclear ownership, and describe the smallest refactor that restores clarity. Capture each observation with `<refactor_opportunity_template>`.
+
+<refactor_opportunity_template>
+- Hotspot: <module/component showing over-design>
+- Evidence: `file:lines` — <snippet>
+- Suggested refactor: <minimal change>
+- Payoff: <testability/maintenance benefit>
+</refactor_opportunity_template>
 
 ### 5) Style & Consistency
-- Note only substantive inconsistencies that hinder maintenance (e.g., mixed state patterns, diverging error strategies).
-- Point to representative examples; avoid exhaustive style audits.
+Call out substantive consistency issues that threaten maintainability (state patterns, error handling, instrumentation usage) and summarize them with `<style_consistency_template>`.
+
+<style_consistency_template>
+- Pattern: <inconsistency observed>
+- Evidence: `file:lines` — <snippet>
+- Impact: <maintenance/testability consequence>
+- Recommendation: <concise alignment step>
+</style_consistency_template>
 
 ### 6) Tests & Deterministic Coverage (new/changed behavior only)
-For each user-visible behavior introduced/changed:
-- **Scenario(s)**: “Given/When/Then …”
-- **Test hooks**: stable selectors (`data-testid`) or test IDs, contract fixtures, route stubs.
-- **Gaps**: call out missing cases (edge conditions, error paths, cancellation, retries).
+For each changed behavior, document the exercised Playwright scenarios, supporting instrumentation, and any coverage gaps. Capture the details with `<test_coverage_template>`. Mark missing scenarios or hooks as **Major** and propose the minimum viable tests.
 
-If any new behavior lacks scenarios **or** stable hooks, mark **Major** and propose the minimal test additions.
+<test_coverage_template>
+- Surface: <page/component/workflow>
+- Scenarios:
+  - Given <context>, When <action>, Then <outcome> (`tests/path.spec.ts`)
+- Hooks: <instrumentation events, selectors, backend helpers>
+- Gaps: <missing cases or instrumentation>
+- Evidence: <code_path:lines or test file references>
+</test_coverage_template>
 
 ### 7) **Adversarial Sweep (must attempt ≥3 credible failures or justify none)**
-Actively try to break the code on likely fault lines. Prefer issues that would survive to runtime. Typical seams:
-- **Derived state ↔ persistence**: counts/toggles from filtered views driving writes or cleanup.
-- **Concurrency/async**: race windows, missing cancellation, stale closures (frontend), unsafely shared state (backend).
-- **Input/contracts**: missing validation, versioned schema drift, unguarded null/undefined.
-- **Error handling**: swallowed exceptions, partial writes without compensation, missing retries/backoff/timeouts.
-- **Performance traps**: N+1 queries, O(n²) loops on hot paths, excessive re-renders (frontend).
+Attack likely frontend fault lines:
+- Derived state ↔ persistence: filtered lists driving writes or cache mutations without guards.
+- Concurrency/async: race windows between navigation and responses, missing effect cleanup, stale closures in callbacks.
+- Query/cache usage: forgetting invalidation, mixing server data with local state, optimistic updates that never roll back.
+- Instrumentation & selectors: missing events/tests, unstable `data-testid` usage.
+- Performance traps: accidental O(n²) loops, unnecessary re-renders, large memo dependencies.
 
-Report each as in section 3 (ID, severity, evidence, fix, confidence).  
-If none found, write a short proof of what you tried and why the code held up.
+Report adversarial findings using `<finding_template>`. If the sweep turns up no credible failures, document the attempted attacks and rationale with `<adversarial_proof_template>`.
+
+<adversarial_proof_template>
+- Checks attempted: <list of fault lines probed>
+- Evidence: <code_path:lines or test output references>
+- Why code held up: <reasoning that closes the risk>
+</adversarial_proof_template>
 
 ### 8) Invariants Checklist (table)
-Document the critical invariants the code must maintain. Fill at least 3 rows or justify “none”.
+Document critical invariants the code must maintain, providing at least three entries or a justified “none; proof.” Fill out `<invariant_template>` for each invariant.
 
-| Invariant | Where enforced | How it could fail | Current protection | Evidence (file:lines) |
-|---|---|---|---|---|
-| Persistent prefs are not cleared by filtered views | ... | Using filtered count to decide cleanup | Guard X / global count Y | `path:lines` |
+<invariant_template>
+- Invariant: <statement the system must uphold>
+  - Where enforced: <component/hook/test proving it (`file:lines`)>
+  - Failure mode: <how the invariant could break>
+  - Protection: <existing guard, effect cleanup, cache invalidation>
+  - Evidence: <additional path:lines as needed>
+</invariant_template>
 
-> If a row shows filtered/derived state driving a persistent write/cleanup without a guard, that’s at least **Major**.
+> If an entry shows filtered/derived state driving a persistent write/cleanup without a guard, escalate to at least **Major**.
 
 ### 9) Questions / Needs-Info
-- Q1 — why it matters and what answer would change.
-- Q2 — …
+List unresolved questions that block confidence in the change, explaining why each matters and what clarification is required. Record them with `<question_template>`.
+
+<question_template>
+- Question: <what you need to know>
+- Why it matters: <decision blocked or risk introduced>
+- Desired answer: <specific clarification or artifact>
+</question_template>
 
 ### 10) Risks & Mitigations (top 3)
-- R1 — risk → mitigation (link to issues).
+Call out the top execution risks revealed by the review and the mitigation you expect before shipping. Summarize each using `<risk_template>`.
+
+<risk_template>
+- Risk: <concise statement tied to evidence>
+- Mitigation: <action or follow-up to reduce impact>
+- Evidence: <reference to finding/question `path:lines`>
+</risk_template>
 
 ### 11) Confidence
-High/Medium/Low with one-sentence rationale.
+State your confidence level and rationale, using `<confidence_template>` to keep the statement concise.
+
+<confidence_template>Confidence: <High / Medium / Low> — <one-sentence rationale></confidence_template>
 
 ---
 
 ## Method (how to think)
-1) **Assume wrong until proven**: try to falsify before you endorse.  
-2) **Quote evidence**: every claim includes `file:lines`.  
-3) **Be diff-aware**: if a PR/diff exists, focus on changed code first.  
-4) **Prefer minimal fixes**: propose the smallest change that closes the risk.  
-5) **Don’t self-certify**: never claim “fixed”; suggest a patch or tests instead.
+1. **Assume wrong until proven**: stress React lifecycle, query cache usage, instrumentation hooks, and navigation flows before endorsing the change.
+2. **Quote evidence**: every claim includes `file:lines` (and plan refs when applicable).
+3. **Be diff-aware**: focus on changed code first, but validate touchpoints (components, hooks, API calls, tests, instrumentation).
+4. **Prefer minimal fixes**: propose the smallest change that closes the risk (e.g., add abort controller, tighten dependency array, extend instrumentation).
+5. **Don’t self-certify**: never claim “fixed”; suggest patches or tests.
 
 ---
 
-## Optional front-end specifics (if React)
-- Effect deps and cleanup (no stale closures, no leaking listeners).
-- Stable keys for lists; avoid state derived from filtered views for persistence.
-- Avoid unnecessary re-renders; memoization where needed; proper controlled inputs.
-- Abort in-flight requests on navigation/unmount; handle race between responses.
-
-## Optional back-end specifics
-- Input validation at boundaries; errors → typed responses.
-- Transactionality/idempotency for write paths; retry/backoff with bounded attempts.
-- Indexing and N+1 checks on hot queries; timeouts/cancellation.
-- Concurrency controls for shared resources; logging/metrics for observability.
+## Frontend specifics to keep in mind
+- Generated API hooks: prefer `useXQuery`/`useXMutation` wrappers; avoid ad hoc `fetch` and wire cache invalidation.
+- React 19 features: respect concurrent rendering, use `useEffectEvent`/`useTransition` where documented, clean up subscriptions.
+- State management: avoid deriving persistent decisions from filtered views; keep source of truth in TanStack Query or central contexts.
+- Instrumentation: keep `useListLoadingInstrumentation`, `trackForm*`, and `isTestMode()` flows aligned with Playwright expectations; selectors must stay stable.
+- Accessibility & semantics: reuse shared components and adhere to UI guidelines before shipping.
 
 ---
 
 ## Stop condition
-If **Blocker/Major** is empty and tests/coverage are adequate, recommend **GO**; otherwise **GO-WITH-CONDITIONS** or **NO-GO** with the minimal changes to reach **GO**.
+If **Blocker/Major** is empty and tests/coverage are adequate, recommend **GO**; otherwise `GO-WITH-CONDITIONS` or `NO-GO` with the minimal changes needed for `GO`.
+
+## Final check
+All XML template demarcation tags have been removed and all XML tags inside template output has been replaced with an actual value.

@@ -38,6 +38,7 @@ Designers drafting plans and developers implementing Playwright work must re-rea
 3. Keep instrumentation behind `isTestMode()` and follow the documented test-event taxonomy when enhancing visibility.
 4. When in doubt, defer to `docs/contribute/` rather than copying guidance back into this file.
 5. Treat instrumentation as part of the UI contract. Add or update `useListLoadingInstrumentation` and `trackForm*` hooks alongside any new loading or mutation flow.
+6. For tooltips, use the shared `Tooltip` component or plain `title` attribute — never create bespoke tooltip implementations. See `docs/contribute/ui/tooltip_guidelines.md` for the decision tree and usage patterns.
 
 ## UI & Playwright Coupling
 
@@ -79,3 +80,19 @@ For structured tasks use the command templates under `docs/commands/`:
 - Perform code review: `@docs/commands/code_review.md`
 
 Refer back to this file only as a launchpad; the authoritative content lives in the linked docs.
+
+## Tips and tricks
+
+This project contains quite a few files with $ in their name. You can't use these file names verbatim in shell commands. E.g. the following command will given an error:
+
+```bash
+head src/routes/shopping-lists/$listId.tsx
+```
+
+This is because `$listId` expands to an empty string (assuming the environment variable is not defined).
+
+Whenever you want to use such a filename in a shell command, escape the `$` sign like this:
+
+```bash
+head src/routes/shopping-lists/\$listId.tsx
+```

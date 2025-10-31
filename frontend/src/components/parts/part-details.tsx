@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ShoppingCart } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/dialog';
@@ -11,14 +10,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { KeyValueBadge } from '@/components/ui';
 import { Badge } from '@/components/ui/badge';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { PartLocationGrid } from './part-location-grid';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import { PartDocumentGrid } from './part-document-grid';
 import { AddDocumentModal } from '@/components/documents/add-document-modal';
+import { ShoppingListLinkChip } from '@/components/shopping-lists/shopping-list-link-chip';
 import { MoreVerticalIcon } from '@/components/icons/MoreVerticalIcon';
 import { AddToShoppingListDialog } from '@/components/shopping-lists/part/add-to-shopping-list-dialog';
+import { KitLinkChip } from '@/components/kits/kit-link-chip';
 import {
   useGetPartsByPartKey,
   useDeletePartsByPartKey,
@@ -30,6 +32,10 @@ import {
   invalidatePartMemberships,
   usePartShoppingListMemberships,
 } from '@/hooks/use-part-shopping-list-memberships';
+import {
+  invalidatePartKitMemberships,
+  usePartKitMemberships,
+} from '@/hooks/use-part-kit-memberships';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 
 interface PartDetailsProps {
@@ -50,12 +56,22 @@ export function PartDetails({ partId }: PartDetailsProps) {
   const membershipQuery = usePartShoppingListMemberships(partId);
   const memberships = membershipQuery.summary.memberships;
 
+  const kitMembershipQuery = usePartKitMemberships(partId);
+  const kitMemberships = kitMembershipQuery.summary.kits;
+  const activeKitMemberships = useMemo(
+    () => kitMemberships.filter((kit) => kit.status === 'active'),
+    [kitMemberships],
+  );
+  const archivedKitMemberships = useMemo(
+    () => kitMemberships.filter((kit) => kit.status === 'archived'),
+    [kitMemberships],
+  );
+
   const {
     data: part,
     isLoading: isPartLoading,
     isFetching: isPartFetching,
     error: partError,
-    refetch: refetchPart,
   } = useGetPartsByPartKey(
     { path: { part_key: partId } },
     { enabled: Boolean(partId) },
@@ -121,7 +137,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
     };
   }, [part]);
 
-  const activeMemberships = useMemo(() => {
+  const activeShoppingMemberships = useMemo(() => {
     const seen = new Set<number>();
     const unique = [] as typeof memberships;
 
@@ -141,6 +157,12 @@ export function PartDetails({ partId }: PartDetailsProps) {
   const showMembershipSkeleton =
     isMembershipPending ||
     (isMembershipFetching && membershipQuery.status === 'success');
+
+  const isKitPending = kitMembershipQuery.status === 'pending';
+  const isKitFetching = kitMembershipQuery.fetchStatus === 'fetching';
+  const kitMembershipError = kitMembershipQuery.error;
+  const showKitMembershipSkeleton =
+    isKitPending || (isKitFetching && kitMembershipQuery.status === 'success');
 
   useListLoadingInstrumentation({
     scope: 'parts.detail',
@@ -176,7 +198,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
       status: 'success',
       partKey: part?.key ?? partId,
       memberships: memberships.length,
-      activeMemberships: activeMemberships.length,
+      activeMemberships: activeShoppingMemberships.length,
     }),
     getErrorMetadata: (error) => ({
       status: 'error',
@@ -235,10 +257,18 @@ export function PartDetails({ partId }: PartDetailsProps) {
 
   const metadataRow = part ? (
     <>
-      <Badge variant="secondary">Type: {part.type?.name ?? 'Unassigned'}</Badge>
-      <span className="text-muted-foreground">
-        Created {new Date(part.created_at).toLocaleDateString()}
-      </span>
+      <KeyValueBadge
+        label="Type"
+        value={part.type?.name ?? 'Unassigned'}
+        color="neutral"
+        testId="parts.detail.metadata.type"
+      />
+      <KeyValueBadge
+        label="Created"
+        value={new Date(part.created_at).toLocaleDateString()}
+        color="neutral"
+        testId="parts.detail.metadata.created"
+      />
     </>
   ) : null;
 
@@ -257,7 +287,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" data-testid="parts.detail.actions.menu">
+          <Button variant="outline" data-testid="parts.detail.actions.menu" aria-label="More Actions">
             <MoreVerticalIcon className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -266,90 +296,123 @@ export function PartDetails({ partId }: PartDetailsProps) {
             onClick={() => setShowAddToListDialog(true)}
             data-testid="parts.detail.actions.add-to-shopping-list"
           >
-            Add to shopping list
+            Order Stock
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleDuplicatePart}>Duplicate Part</DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => {
-              refetchPart();
-            }}
-          >
-            Refresh
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </>
   ) : null;
 
-  const renderMembershipBadges = () => {
-    if (showMembershipSkeleton) {
+  const showLinkBadgeSkeleton = showMembershipSkeleton || showKitMembershipSkeleton;
+
+  const handleLinkBadgeRetry = () => {
+    if (membershipError) {
+      invalidatePartMemberships(queryClient, partId);
+      void membershipQuery.refetch();
+    }
+    if (kitMembershipError) {
+      invalidatePartKitMemberships(queryClient, partId);
+      void kitMembershipQuery.refetch();
+    }
+  };
+
+  const renderLinkBadges = () => {
+    if (showLinkBadgeSkeleton) {
       return (
         <div
           className="flex flex-wrap gap-2"
-          data-testid="parts.detail.shopping-list.badges.loading"
+          data-testid="parts.detail.link.badges.loading"
         >
           <div className="h-6 w-32 animate-pulse rounded-full bg-muted" />
           <div className="h-6 w-24 animate-pulse rounded-full bg-muted" />
+          <div className="h-6 w-28 animate-pulse rounded-full bg-muted" />
         </div>
       );
     }
 
-    if (membershipError) {
+    if (membershipError || kitMembershipError) {
+      const shoppingMessage = membershipError instanceof Error
+        ? membershipError.message
+        : membershipError
+          ? String(membershipError)
+          : null;
+      const kitMessage = kitMembershipError instanceof Error
+        ? kitMembershipError.message
+        : kitMembershipError
+          ? String(kitMembershipError)
+          : null;
+
       return (
         <div
-          className="flex flex-wrap items-center gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-          data-testid="parts.detail.shopping-list.badges.error"
+          className="flex flex-wrap items-start gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          data-testid="parts.detail.link.badges.error"
         >
-          <span>Failed to load shopping list memberships.</span>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              invalidatePartMemberships(queryClient, partId);
-              void membershipQuery.refetch();
-            }}
-          >
-            Retry
+          <div className="space-y-1">
+            <span>Failed to load linked list and kit data.</span>
+            <ul className="list-disc pl-4 text-xs text-muted-foreground">
+              {shoppingMessage ? <li>Shopping lists: {shoppingMessage}</li> : null}
+              {kitMessage ? <li>Kits: {kitMessage}</li> : null}
+            </ul>
+          </div>
+          <Button type="button" size="sm" variant="outline" onClick={handleLinkBadgeRetry}>
+            Reload Data
           </Button>
         </div>
       );
     }
 
-    if (membershipQuery.summary.hasActiveMembership) {
+    const hasShoppingMemberships = activeShoppingMemberships.length > 0;
+    const hasKitMemberships = kitMemberships.length > 0;
+
+    if (!hasShoppingMemberships && !hasKitMemberships) {
       return (
-        <div
-          className="flex flex-wrap gap-2"
-          data-testid="parts.detail.shopping-list.badge-list"
+        <p
+          className="text-sm text-muted-foreground"
+          data-testid="parts.detail.link.badges.empty"
         >
-          {activeMemberships.map((membership) => (
-            <Link
-              key={membership.listId}
-              to="/shopping-lists/$listId"
-              params={{ listId: String(membership.listId) }}
-              search={{ sort: 'description', originSearch: undefined }}
-              className="group inline-flex items-center gap-2 rounded-full border border-input bg-muted/40 px-3 py-1 text-sm transition hover:border-primary hover:text-primary"
-              data-testid="parts.detail.shopping-list.badge"
-            >
-              <ShoppingCart
-                className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary"
-                aria-hidden="true"
-                data-testid="parts.detail.shopping-list.badge.icon"
-              />
-              <span>{membership.listName}</span>
-              <Badge
-                variant={membership.listStatus === 'ready' ? 'default' : 'secondary'}
-                className="capitalize"
-              >
-                {membership.listStatus}
-              </Badge>
-            </Link>
-          ))}
-        </div>
+          This part is not on Concept or Ready shopping lists and is not used in any kits.
+        </p>
       );
     }
 
-    return null;
+    return (
+      <div
+        className="flex flex-wrap gap-2"
+        data-testid="parts.detail.link.badges.content"
+      >
+        {activeShoppingMemberships.map((membership) => (
+          <ShoppingListLinkChip
+            key={membership.listId}
+            listId={membership.listId}
+            name={membership.listName}
+            status={membership.listStatus}
+            testId="parts.detail.shopping-list.badge"
+            iconTestId="parts.detail.shopping-list.badge.icon"
+          />
+        ))}
+        {activeKitMemberships.map((kit) => (
+          <KitLinkChip
+            key={`kit-active-${kit.kitId}`}
+            kitId={kit.kitId}
+            name={kit.kitName}
+            status={kit.status}
+            testId="parts.detail.kit.badge"
+            iconTestId="parts.detail.kit.badge.icon"
+          />
+        ))}
+        {archivedKitMemberships.map((kit) => (
+          <KitLinkChip
+            key={`kit-archived-${kit.kitId}`}
+            kitId={kit.kitId}
+            name={kit.kitName}
+            status={kit.status}
+            testId="parts.detail.kit.badge"
+            iconTestId="parts.detail.kit.badge.icon"
+          />
+        ))}
+      </div>
+    );
   };
 
   const detailBody = (() => {
@@ -386,16 +449,15 @@ export function PartDetails({ partId }: PartDetailsProps) {
 
     const { displayId, displayManufacturerCode, displayManufacturer, displayProductPage } =
       formattedPart;
-    const membershipBadges = renderMembershipBadges();
 
     return (
       <div className="space-y-6">
         <div
-          id="parts.detail.shopping-list.badges"
-          data-testid="parts.detail.shopping-list.badges"
-          className={membershipBadges ? 'min-h-[32px]' : undefined}
+          id="parts.detail.link.badges"
+          data-testid="parts.detail.link.badges"
+          className="min-h-[32px]"
         >
-          {membershipBadges}
+          {renderLinkBadges()}
         </div>
 
         <div
@@ -691,7 +753,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
         title={detailTitle}
         titleMetadata={
           formattedPart?.displayId ? (
-            <Badge variant="outline">#{formattedPart.displayId}</Badge>
+            <Badge variant="outline" className="text-sm px-3 py-1">#{formattedPart.displayId}</Badge>
           ) : null
         }
         supplementary={

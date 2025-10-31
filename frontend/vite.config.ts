@@ -136,6 +136,7 @@ export default defineConfig({
       external: process.env.NODE_ENV === 'production' && process.env.VITE_TEST_MODE === 'true'
         ? ['./src/lib/test/*']
         : []
-    }
+    },
+    chunkSizeWarningLimit: 2000
   }
 })

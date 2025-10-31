@@ -8,6 +8,7 @@ test.describe('App shell - desktop navigation', () => {
     parts,
     boxes,
     types,
+    kits,
     sellers,
     about,
     page,
@@ -37,6 +38,11 @@ test.describe('App shell - desktop navigation', () => {
     await types.waitForListState('ready');
     await appShell.expectActiveNav('types');
 
+    await appShell.clickDesktopNav('kits');
+    await expect(page).toHaveURL(/\/kits(?:$|\?)/);
+    await kits.waitForOverviewReady();
+    await appShell.expectActiveNav('kits');
+
     await appShell.clickDesktopNav('sellers');
     await expect(page).toHaveURL(/\/sellers(?:$|\?)/);
     await sellers.waitForListState('ready');
@@ -53,5 +59,19 @@ test.describe('App shell - desktop navigation', () => {
     await expect(page).toHaveURL(/\/?$/);
     await dashboard.waitForMetricsReady();
     await appShell.expectActiveNav('dashboard');
+  });
+
+  test('renders Lucide icons for all navigation items', async ({ appShell, page }) => {
+    await appShell.gotoHome();
+
+    // Verify that each navigation link contains an SVG element (Lucide icons render as SVG)
+    const navigationItems = ['dashboard', 'parts', 'kits', 'shopping-lists', 'boxes', 'types', 'sellers', 'about'];
+
+    for (const item of navigationItems) {
+      const link = page.getByTestId(`app-shell.sidebar.link.${item}`);
+      await expect(link).toBeVisible();
+      const icon = link.locator('svg').first();
+      await expect(icon).toBeVisible();
+    }
   });
 });

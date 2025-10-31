@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 type NativeDivProps = React.ComponentPropsWithoutRef<"div">
 
 interface CardProps extends NativeDivProps {
-  variant?: 'default' | 'stats' | 'action' | 'content'
+  variant?: 'default' | 'stats' | 'action' | 'content';
 }
 
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(

@@ -3,6 +3,12 @@
  * These map generated API payloads into camelCase models we can reason about.
  */
 
+import type { KitStatus } from '@/types/kits';
+import type {
+  KitChipSchemaList_a9993e3,
+  KitChipSchemaList_a9993e3_KitChipSchema,
+} from '@/lib/api/generated/hooks';
+
 export type ShoppingListStatus = 'concept' | 'ready' | 'done';
 export type ShoppingListLineStatus = 'new' | 'ordered' | 'done';
 
@@ -11,6 +17,13 @@ export interface ShoppingListLineCounts {
   new: number;
   ordered: number;
   done: number;
+}
+
+export interface ShoppingListOption extends Record<string, unknown> {
+  id: number;
+  name: string;
+  status: ShoppingListStatus;
+  lineCounts: ShoppingListLineCounts;
 }
 
 export interface ShoppingListOverviewSummary extends Record<string, unknown> {
@@ -80,6 +93,19 @@ export interface ShoppingListDetail extends ShoppingListOverviewSummary {
   sellerOrderNotes: ShoppingListSellerOrderNote[];
   hasOrderedLines: boolean;
   canReturnToConcept: boolean;
+}
+
+export interface ShoppingListKitLink extends Record<string, unknown> {
+  linkId: number;
+  kitId: number;
+  kitName: string;
+  kitStatus: KitStatus;
+  requestedUnits: number;
+  honorReserved: boolean;
+  isStale: boolean;
+  snapshotKitUpdatedAt: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ShoppingListPartSummary {
@@ -177,6 +203,29 @@ export type ShoppingListLineSortKey = 'description' | 'mpn' | 'createdAt';
 export interface ShoppingListLineSortOption {
   key: ShoppingListLineSortKey;
   label: string;
+}
+
+export function mapShoppingListKitLinks(links?: KitChipSchemaList_a9993e3 | null): ShoppingListKitLink[] {
+  if (!links?.length) {
+    return [];
+  }
+
+  return links.map(mapShoppingListKitLink);
+}
+
+function mapShoppingListKitLink(model: KitChipSchemaList_a9993e3_KitChipSchema): ShoppingListKitLink {
+  return {
+    linkId: model.id,
+    kitId: model.kit_id,
+    kitName: model.kit_name,
+    kitStatus: model.kit_status,
+    requestedUnits: model.requested_units ?? 0,
+    honorReserved: model.honor_reserved ?? false,
+    isStale: model.is_stale ?? false,
+    snapshotKitUpdatedAt: model.snapshot_kit_updated_at,
+    createdAt: model.created_at,
+    updatedAt: model.updated_at,
+  };
 }
 
 /** Input for creating lists; callers trim strings before passing. */

@@ -1,6 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Tooltip } from '@/components/ui/tooltip'
 import { useDashboardHealth } from '@/hooks/use-dashboard'
-import { useState } from 'react'
 
 interface CircularProgressProps {
   value: number
@@ -73,43 +73,36 @@ function CircularProgress({ value, size = 200, strokeWidth = 8, className, testI
   )
 }
 
-interface HealthBreakdownTooltipProps {
-  isVisible: boolean
-  onClose: () => void
-  stats?: any
-  documentation?: any
-  storage?: any
-  lowStock?: any
-  activity?: any
-}
-
-function HealthBreakdownTooltip({
-  isVisible,
-  onClose,
+// Component for health breakdown tooltip content
+function HealthBreakdownTooltipContent({
   stats,
   documentation,
   storage,
   lowStock,
   activity,
-}: HealthBreakdownTooltipProps) {
-  if (!isVisible || !stats) return null
+}: {
+  stats: any;
+  documentation: any;
+  storage: any;
+  lowStock: any;
+  activity: any;
+}) {
+  const totalParts = stats?.total_parts || 1;
+  const documentedParts = totalParts - (documentation?.count || 0);
+  const documentationScore = (documentedParts / totalParts) * 100;
 
-  const totalParts = stats.total_parts || 1
-  const documentedParts = totalParts - (documentation?.count || 0)
-  const documentationScore = (documentedParts / totalParts) * 100
+  const lowStockCount = lowStock?.length || 0;
+  const stockScore = Math.max(0, 100 - (lowStockCount / totalParts) * 100);
 
-  const lowStockCount = lowStock?.length || 0
-  const stockScore = Math.max(0, 100 - (lowStockCount / totalParts) * 100)
-
-  const totalBoxes = storage?.length || 1
-  const usedBoxes = storage?.filter((box: any) => (box.occupied_locations || 0) > 0).length || 0
+  const totalBoxes = storage?.length || 1;
+  const usedBoxes = storage?.filter((box: any) => (box.occupied_locations || 0) > 0).length || 0;
   const avgUtilization =
     storage?.reduce((sum: number, box: any) => sum + ((box.occupied_locations || 0) / (box.total_locations || 1)), 0) /
-      totalBoxes || 0
-  const organizationScore = (usedBoxes / totalBoxes) * 50 + avgUtilization * 50
+      totalBoxes || 0;
+  const organizationScore = (usedBoxes / totalBoxes) * 50 + avgUtilization * 50;
 
-  const recentActivityCount = activity?.length || 0
-  const activityScore = Math.min(100, recentActivityCount * 10)
+  const recentActivityCount = activity?.length || 0;
+  const activityScore = Math.min(100, recentActivityCount * 10);
 
   const breakdown = [
     {
@@ -136,24 +129,11 @@ function HealthBreakdownTooltip({
       weight: 15,
       description: `${recentActivityCount} recent changes`,
     },
-  ]
+  ];
 
   return (
-    <div
-      className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 bg-popover border rounded-lg shadow-lg p-4 z-[70]"
-      data-testid="dashboard.health.tooltip"
-    >
-      <div className="flex justify-between items-center mb-3">
-        <h3 className="font-semibold text-sm">Health Score Breakdown</h3>
-        <button
-          onClick={onClose}
-          className="text-muted-foreground hover:text-foreground text-lg leading-none"
-          aria-label="Close health breakdown"
-        >
-          ×
-        </button>
-      </div>
-
+    <div className="w-80">
+      <h3 className="font-semibold text-sm mb-3">Health Score Breakdown</h3>
       <div className="space-y-3">
         {breakdown.map((item) => (
           <div key={item.label} className="space-y-1" data-testid={`dashboard.health.tooltip.${item.label.toLowerCase()}`}>
@@ -180,12 +160,11 @@ function HealthBreakdownTooltip({
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 export function InventoryHealthScore() {
   const { healthScore, isLoading, stats, documentation, storage, lowStock, activity } = useDashboardHealth()
-  const [showTooltip, setShowTooltip] = useState(false)
 
   const handleClick = () => {
     console.log('Navigate to detailed health report')
@@ -209,25 +188,27 @@ export function InventoryHealthScore() {
             </div>
           </div>
         ) : (
-          <div
-            className="relative cursor-pointer transition-transform hover:scale-105"
-            onClick={handleClick}
-            onMouseEnter={() => setShowTooltip(true)}
-            onMouseLeave={() => setShowTooltip(false)}
-            data-testid="dashboard.health.gauge"
+          <Tooltip
+            placement="center"
+            testId="dashboard.health"
+            content={
+              <HealthBreakdownTooltipContent
+                stats={stats}
+                documentation={documentation}
+                storage={storage}
+                lowStock={lowStock}
+                activity={activity}
+              />
+            }
           >
-            <CircularProgress value={healthScore} strokeWidth={12} testId="dashboard.health.progress" />
-
-            <HealthBreakdownTooltip
-              isVisible={showTooltip}
-              onClose={() => setShowTooltip(false)}
-              stats={stats}
-              documentation={documentation}
-              storage={storage}
-              lowStock={lowStock}
-              activity={activity}
-            />
-          </div>
+            <div
+              className="relative cursor-pointer transition-transform hover:scale-105"
+              onClick={handleClick}
+              data-testid="dashboard.health.gauge"
+            >
+              <CircularProgress value={healthScore} strokeWidth={12} testId="dashboard.health.progress" />
+            </div>
+          </Tooltip>
         )}
 
         <p

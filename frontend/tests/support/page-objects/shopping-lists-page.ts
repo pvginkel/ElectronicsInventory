@@ -19,6 +19,7 @@ export class ShoppingListsPage extends BasePage {
   readonly detailContentConcept: Locator;
   readonly detailContentReady: Locator;
   readonly detailActions: Locator;
+  readonly detailKitChips: Locator;
   readonly conceptToolbar: Locator;
   readonly conceptTable: Locator;
   readonly readyToolbar: Locator;
@@ -30,7 +31,7 @@ export class ShoppingListsPage extends BasePage {
     this.overviewRoot = page.getByTestId('shopping-lists.overview');
     this.overviewHeader = page.getByTestId('shopping-lists.overview.header');
     this.overviewContent = page.getByTestId('shopping-lists.overview.content');
-    this.overviewSearch = page.getByTestId('shopping-lists.overview.search');
+    this.overviewSearch = page.getByTestId('shopping-lists.overview.search.input');
     this.overviewCreateButton = page.getByTestId('shopping-lists.overview.create');
     this.overviewTabs = page.getByTestId('shopping-lists.overview.tabs');
     this.overviewActiveTab = page.getByTestId('shopping-lists.overview.tabs.active');
@@ -41,6 +42,7 @@ export class ShoppingListsPage extends BasePage {
     this.detailContentConcept = page.getByTestId('shopping-lists.detail.content.concept');
     this.detailContentReady = page.getByTestId('shopping-lists.detail.content.ready');
     this.detailActions = page.getByTestId('shopping-lists.detail.actions');
+    this.detailKitChips = page.getByTestId('shopping-lists.concept.body.kits');
     this.conceptToolbar = page.getByTestId('shopping-lists.concept.toolbar');
     this.conceptTable = page.getByTestId('shopping-lists.concept.table');
     this.readyToolbar = page.getByTestId('shopping-lists.ready.toolbar');
@@ -117,6 +119,10 @@ export class ShoppingListsPage extends BasePage {
       const rect = element.getBoundingClientRect();
       return { top: rect.top, bottom: rect.bottom, height: rect.height };
     });
+  }
+
+  kitChip(kitId: number): Locator {
+    return this.page.getByTestId(`shopping-lists.concept.body.kits.${kitId}`);
   }
 
   async getToolbarRect(view: 'concept' | 'ready'): Promise<{ top: number; bottom: number; height: number }> {
@@ -354,7 +360,7 @@ export class ShoppingListsPage extends BasePage {
 
     const confirmDialog = this.page.getByTestId('shopping-lists.ready.archive-dialog');
     await expect(confirmDialog).toBeVisible();
-    await confirmDialog.getByRole('button', { name: /mark done/i }).click();
+    await confirmDialog.getByRole('button', { name: /complete list|mark as completed/i }).click();
   }
 
   async addConceptLine(options: {

@@ -5,18 +5,16 @@ import { Form, FormField, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { SellerSelector } from '@/components/sellers/seller-selector';
+import { ShoppingListSelector } from '@/components/shopping-lists/shopping-list-selector';
 import { cn } from '@/lib/utils';
 import { useFormState } from '@/hooks/use-form-state';
 import { useFormInstrumentation, type UseFormInstrumentationResult } from '@/hooks/use-form-instrumentation';
 import {
   useCreateShoppingListLineMutation,
-  useCreateShoppingListMutation,
-  useShoppingListsOverview,
 } from '@/hooks/use-shopping-lists';
 import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/lib/api/api-error';
 import { invalidatePartMemberships } from '@/hooks/use-part-shopping-list-memberships';
-import type { ShoppingListOverviewSummary } from '@/types/shopping-lists';
 
 interface PartSummary {
   id: number | null;
@@ -34,8 +32,6 @@ interface AddToShoppingListDialogProps {
 
 interface FormValues extends Record<string, unknown> {
   listId: string;
-  newListName: string;
-  newListDescription: string;
   needed: string;
   sellerId: number | undefined;
   note: string;
@@ -49,8 +45,6 @@ type MembershipFormSnapshot = {
   sellerId: number | null;
 };
 
-const NAME_LIMIT = 120;
-const DESCRIPTION_LIMIT = 280;
 const NOTE_LIMIT = 500;
 const FORM_ID = 'ShoppingListMembership:addFromPart';
 
@@ -58,23 +52,14 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
   const queryClient = useQueryClient();
   const { showSuccess, showException, showWarning } = useToast();
   const instrumentationRef = useRef<UseFormInstrumentationResult<MembershipFormSnapshot> | null>(null);
-  const [createNewList, setCreateNewList] = useState(false);
+  const [selectionMode, setSelectionMode] = useState<'create' | 'select'>('select');
   const [conflictError, setConflictError] = useState<string | null>(null);
 
-  const overviewQuery = useShoppingListsOverview();
-  const conceptLists = useMemo(
-    () => overviewQuery.lists.filter((list: ShoppingListOverviewSummary) => list.status === 'concept'),
-    [overviewQuery.lists]
-  );
-
-  const createListMutation = useCreateShoppingListMutation();
   const createLineMutation = useCreateShoppingListLineMutation();
 
   const form = useFormState<FormValues>({
     initialValues: {
       listId: '',
-      newListName: '',
-      newListDescription: '',
       needed: String(defaultNeeded),
       sellerId: part.defaultSellerId ?? undefined,
       note: '',
@@ -82,37 +67,8 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
     validationRules: (
       {
       listId: (value) => {
-        if (createNewList) {
-          return undefined;
-        }
         const trimmed = (value as string).trim();
         return trimmed ? undefined : 'Select a Concept list';
-      },
-      newListName: (value) => {
-        if (!createNewList) {
-          return undefined;
-        }
-        const trimmed = (value as string).trim();
-        if (!trimmed) {
-          return 'Name your new Concept list';
-        }
-        if (trimmed.length > NAME_LIMIT) {
-          return `Name must be ${NAME_LIMIT} characters or fewer`;
-        }
-        return undefined;
-      },
-      newListDescription: (value) => {
-        if (!createNewList) {
-          return undefined;
-        }
-        const raw = (value as string) ?? '';
-        if (!raw.trim()) {
-          return undefined;
-        }
-        if (raw.trim().length > DESCRIPTION_LIMIT) {
-          return `Description must be ${DESCRIPTION_LIMIT} characters or fewer`;
-        }
-        return undefined;
       },
       needed: (value) => {
         const parsed = Number(value);
@@ -143,22 +99,12 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
       try {
         instrumentationRef.current?.trackSubmit(snapshot);
 
-        let listId: number;
-        if (createNewList) {
-          const payload = {
-            name: values.newListName.trim(),
-            description: values.newListDescription.trim()
-              ? values.newListDescription.trim()
-              : null,
-          };
-          const created = await createListMutation.mutateAsync(payload);
-          listId = created.id;
-        } else {
-          listId = Number(values.listId);
+        const parsedListId = Number.parseInt(values.listId, 10);
+        if (!Number.isFinite(parsedListId)) {
+          throw new Error('Missing target shopping list');
         }
-
         await createLineMutation.mutateAsync({
-          listId,
+          listId: parsedListId,
           partId: part.id,
           partKey: part.key,
           needed: parsedNeeded,
@@ -166,7 +112,7 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
           note: values.note.trim() ? values.note.trim() : null,
         });
 
-        instrumentationRef.current?.trackSuccess({ ...snapshot, listId });
+        instrumentationRef.current?.trackSuccess({ ...snapshot, listId: parsedListId });
         showSuccess('Added part to Concept list');
         invalidatePartMemberships(queryClient, part.key);
         handleClose();
@@ -191,11 +137,11 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
 
   const snapshotFields = useCallback<() => MembershipFormSnapshot>(() => ({
     partKey: part.key,
-    mode: createNewList ? 'create' : 'select',
+    mode: selectionMode,
     needed: Number.parseInt(form.values.needed, 10) || 0,
-    listId: createNewList ? null : (form.values.listId ? Number(form.values.listId) : null),
+    listId: form.values.listId ? Number.parseInt(form.values.listId, 10) : null,
     sellerId: form.values.sellerId ?? null,
-  }), [createNewList, form.values.listId, form.values.needed, form.values.sellerId, part.key]);
+  }), [form.values.listId, form.values.needed, form.values.sellerId, part.key, selectionMode]);
 
   const instrumentation = useFormInstrumentation<MembershipFormSnapshot>({
     formId: FORM_ID,
@@ -205,18 +151,11 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
 
   instrumentationRef.current = instrumentation;
 
-  const conceptListCount = conceptLists.length;
-  const firstConceptListId = conceptLists[0]?.id ?? null;
   const defaultSellerId = part.defaultSellerId ?? null;
 
-  const isMutating = form.isSubmitting || createListMutation.isPending || createLineMutation.isPending;
+  const isMutating = form.isSubmitting || createLineMutation.isPending;
 
-  const initializationRef = useRef<{
-    conceptCount: number;
-    defaultNeeded: number;
-    sellerId: number | null;
-    firstConceptId: number | null;
-  } | null>(null);
+  const initializationRef = useRef(false);
 
   const formApiRef = useRef(form);
   useEffect(() => {
@@ -227,57 +166,25 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
     const formApi = formApiRef.current;
 
     if (!open) {
-      initializationRef.current = null;
+      initializationRef.current = false;
       formApi.reset();
-      setCreateNewList(conceptListCount === 0);
+      setSelectionMode('select');
       setConflictError(null);
       return;
     }
 
-    const previous = initializationRef.current;
-    const currentSignature = {
-      conceptCount: conceptListCount,
-      defaultNeeded,
-      sellerId: defaultSellerId,
-      firstConceptId: firstConceptListId,
-    };
-
-    if (
-      previous &&
-      previous.conceptCount === currentSignature.conceptCount &&
-      previous.defaultNeeded === currentSignature.defaultNeeded &&
-      previous.sellerId === currentSignature.sellerId &&
-      previous.firstConceptId === currentSignature.firstConceptId
-    ) {
+    if (initializationRef.current) {
       return;
     }
 
-    initializationRef.current = currentSignature;
+    initializationRef.current = true;
     setConflictError(null);
-
-    if (conceptListCount === 0) {
-      setCreateNewList(true);
-      formApi.setValue('listId', '');
-    } else {
-      setCreateNewList(false);
-      formApi.setValue('listId', firstConceptListId !== null ? String(firstConceptListId) : '');
-    }
-
+    setSelectionMode('select');
+    formApi.setValue('listId', '');
     formApi.setValue('needed', String(defaultNeeded));
     formApi.setValue('sellerId', defaultSellerId ?? undefined);
-  }, [conceptListCount, defaultSellerId, defaultNeeded, firstConceptListId, open]);
-
-  const handleToggleCreateNew = (next: boolean) => {
-    setCreateNewList(next);
-    setConflictError(null);
-
-    if (next) {
-      form.setValue('listId', '');
-      form.setFieldTouched('listId', false);
-    } else if (conceptLists.length > 0) {
-      form.setValue('listId', String(conceptLists[0].id));
-    }
-  };
+    formApi.setValue('note', '');
+  }, [defaultSellerId, defaultNeeded, open]);
 
   const handleClose = () => {
     if (isMutating) {
@@ -285,9 +192,43 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
     }
     onClose();
     form.reset();
-    setCreateNewList(conceptLists.length === 0);
+    setSelectionMode('select');
     setConflictError(null);
   };
+
+  const applyListSelection = useCallback((nextListId: number | undefined, mode: 'create' | 'select') => {
+    form.setValue('listId', nextListId != null ? String(nextListId) : '');
+    setSelectionMode(mode);
+    setConflictError(null);
+  }, [form]);
+
+  // Guidepost: Reset conflict banner whenever the user adjusts the target list.
+  const handleListChange = useCallback((nextListId: number | undefined) => {
+    applyListSelection(nextListId, 'select');
+  }, [applyListSelection]);
+
+  const handleListCreated = useCallback(({ id }: { id: number; name: string }) => {
+    applyListSelection(id, 'create');
+  }, [applyListSelection]);
+
+  const listSelectorInstrumentation = useMemo(() => ({
+    scope: 'parts.orderStock.lists',
+    getReadyMetadata: () => ({ partKey: part.key }),
+    getErrorMetadata: (err: unknown) => ({
+      partKey: part.key,
+      message: err instanceof Error ? err.message : String(err),
+    }),
+    getAbortedMetadata: () => ({ partKey: part.key }),
+  }), [part.key]);
+
+  const conceptListEmptyState = (
+    <div
+      className="rounded-md border border-dashed border-muted px-3 py-2 text-sm text-muted-foreground"
+      data-testid="parts.shopping-list.add.list.empty"
+    >
+      No Concept lists available yet. Create one to get started.
+    </div>
+  );
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     await form.handleSubmit(event);
@@ -327,7 +268,7 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
       <DialogContent>
         <Form onSubmit={handleSubmit} data-testid="parts.shopping-list.add.form">
           <DialogHeader>
-            <DialogTitle>Add to shopping list</DialogTitle>
+            <DialogTitle>Order Stock</DialogTitle>
             <p className="text-sm text-muted-foreground">
               {part.description} ({part.key})
             </p>
@@ -338,7 +279,7 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
               <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" data-testid="parts.shopping-list.add.conflict">
                 {conflictError}{' '}
                 <a
-                  href="#parts.detail.shopping-list.badges"
+                  href="#parts.detail.link.badges"
                   className="underline underline-offset-2"
                 >
                   View existing lists
@@ -347,113 +288,28 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
             )}
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <FormLabel htmlFor="parts.shopping-list.add.list">
-                  Concept list
-                </FormLabel>
-                {conceptLists.length > 0 && (
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      id="parts.shopping-list.add.toggle.create"
-                      checked={createNewList}
-                      onChange={(event) => handleToggleCreateNew(event.target.checked)}
-                      className="h-4 w-4"
-                      data-testid="parts.shopping-list.add.toggle.create"
-                    />
-                    <span>Create new Concept list</span>
-                  </label>
-                )}
-            </div>
-
-            {overviewQuery.error && (
-              <p className="text-sm text-destructive">
-                Failed to load Concept lists. Create a new list instead.
-              </p>
-            )}
-
-            {!createNewList && conceptLists.length > 0 && (
+              <FormLabel htmlFor="parts.shopping-list.add.list" required>
+                Concept list
+              </FormLabel>
               <FormField>
-                <select
-                  id="parts.shopping-list.add.list"
-                    className={cn(
-                      'w-full rounded-md border border-input bg-background px-3 py-2 text-sm',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-                    )}
-                    value={form.values.listId}
-                    onChange={(event) => form.setValue('listId', event.target.value)}
-                    onBlur={() => form.setFieldTouched('listId')}
-                    disabled={overviewQuery.isLoading || overviewQuery.isFetching}
-                    data-testid="parts.shopping-list.add.field.list"
-                  >
-                    {conceptLists.map((list) => (
-                      <option key={list.id} value={list.id}>
-                        {list.name} ({list.lineCounts.new + list.lineCounts.ordered} items)
-                      </option>
-                    ))}
-                  </select>
-                  {form.errors.listId && (
-                    <p className="text-sm text-destructive mt-1">{form.errors.listId}</p>
-                  )}
-                </FormField>
-              )}
-
-              {!createNewList && conceptLists.length === 0 && (
-                <div className="rounded-md border border-dashed border-muted px-3 py-2 text-sm text-muted-foreground">
-                  No Concept lists available yet. Create one below to get started.
-                </div>
-              )}
+                <ShoppingListSelector
+                  value={form.values.listId ? Number(form.values.listId) : undefined}
+                  onChange={handleListChange}
+                  onTouched={() => form.setFieldTouched('listId')}
+                  statuses={['concept']}
+                  enableCreate
+                  enabled={open}
+                  instrumentation={listSelectorInstrumentation}
+                  error={form.errors.listId}
+                  inputProps={{
+                    id: 'parts.shopping-list.add.list',
+                    'data-testid': 'parts.shopping-list.add.field.list',
+                  }}
+                  onListCreated={handleListCreated}
+                  emptyState={conceptListEmptyState}
+                />
+              </FormField>
             </div>
-
-            {createNewList && (
-              <div className="space-y-3 rounded-md border border-muted p-3">
-                <FormField>
-                  <FormLabel htmlFor="parts.shopping-list.add.new-name" required>
-                    New Concept list name
-                  </FormLabel>
-                  <Input
-                    id="parts.shopping-list.add.new-name"
-                    maxLength={NAME_LIMIT}
-                    placeholder="e.g., Spring Synth Build"
-                    value={form.values.newListName}
-                    onChange={(event) => form.setValue('newListName', event.target.value)}
-                    onBlur={() => form.setFieldTouched('newListName')}
-                    error={form.errors.newListName}
-                    data-testid="parts.shopping-list.add.field.new-name"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {form.values.newListName.trim().length}/{NAME_LIMIT} characters
-                  </p>
-                </FormField>
-
-                <FormField>
-                  <FormLabel htmlFor="parts.shopping-list.add.new-description">
-                    Description <span className="text-xs font-normal text-muted-foreground">(optional)</span>
-                  </FormLabel>
-                  <textarea
-                    id="parts.shopping-list.add.new-description"
-                    placeholder="Add context for collaborators"
-                    maxLength={DESCRIPTION_LIMIT}
-                    className={cn(
-                      'flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm',
-                      'ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none',
-                      'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                      'min-h-[96px]'
-                    )}
-                    value={form.values.newListDescription}
-                    onChange={(event) => form.setValue('newListDescription', event.target.value)}
-                    onBlur={() => form.setFieldTouched('newListDescription')}
-                    data-testid="parts.shopping-list.add.field.new-description"
-                  />
-                  {form.errors.newListDescription && (
-                    <p className="text-sm text-destructive mt-1">{form.errors.newListDescription}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {form.values.newListDescription.trim().length}/{DESCRIPTION_LIMIT} characters
-                  </p>
-                </FormField>
-              </div>
-            )}
 
             <div className="grid gap-4 md:grid-cols-2">
               <FormField>
@@ -529,7 +385,7 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
               loading={isMutating}
               data-testid="parts.shopping-list.add.submit"
             >
-              Add to shopping list
+              Order Stock
             </Button>
           </DialogFooter>
         </Form>

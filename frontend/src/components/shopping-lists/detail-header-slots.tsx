@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Badge } from '@/components/ui/badge';
+import { CircuitBoard } from 'lucide-react';
+import { KeyValueBadge, StatusBadge } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/ui/dialog';
 import { Form, FormField, FormLabel } from '@/components/ui/form';
@@ -8,6 +9,10 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useFormState } from '@/hooks/use-form-state';
 import { useToast } from '@/hooks/use-toast';
+import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
+import { useGetShoppingListsKitsByListId } from '@/lib/api/generated/hooks';
+import { mapShoppingListKitLinks } from '@/types/shopping-lists';
+import { KitLinkChip } from '@/components/kits/kit-link-chip';
 import { Route as ShoppingListsRoute } from '@/routes/shopping-lists/';
 import type { ShoppingListDetail } from '@/types/shopping-lists';
 import type { ConceptHeaderProps } from './concept-header';
@@ -25,27 +30,29 @@ export interface ShoppingListDetailHeaderSlots {
   supplementary?: ReactNode;
   metadataRow?: ReactNode;
   actions?: ReactNode;
+  linkChips?: ReactNode;
 }
 
 export interface ShoppingListDetailHeaderRender {
   slots: ShoppingListDetailHeaderSlots;
   overlays: ReactNode | null;
+  kitsQuery: ReturnType<typeof useGetShoppingListsKitsByListId>;
 }
 
 const NAME_LIMIT = 120;
 const DESCRIPTION_LIMIT = 280;
 
-const STATUS_BADGE_VARIANT: Record<ShoppingListDetail['status'], 'default' | 'secondary' | 'outline'> = {
-  concept: 'default',
-  ready: 'secondary',
-  done: 'outline',
-};
-
-const STATUS_LABELS: Record<ShoppingListDetail['status'], string> = {
-  concept: 'Concept',
-  ready: 'Ready',
-  done: 'Completed',
-};
+// Map shopping list status to badge props
+function getShoppingListStatusBadgeProps(status: ShoppingListDetail['status']): { color: 'inactive' | 'active'; label: string } {
+  switch (status) {
+    case 'concept':
+      return { color: 'inactive', label: 'Concept' };
+    case 'ready':
+      return { color: 'active', label: 'Ready' };
+    case 'done':
+      return { color: 'inactive', label: 'Completed' };
+  }
+}
 
 export function useShoppingListDetailHeaderSlots({
   list,
@@ -54,6 +61,8 @@ export function useShoppingListDetailHeaderSlots({
   onDeleteList,
   isDeletingList,
   overviewSearchTerm = '',
+  onUnlinkKit,
+  unlinkingLinkId,
 }: ConceptHeaderProps): ShoppingListDetailHeaderRender {
   const { showSuccess, showException } = useToast();
   const [editOpen, setEditOpen] = useState(false);
@@ -106,6 +115,40 @@ export function useShoppingListDetailHeaderSlots({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editOpen, list]);
 
+  const kitsQuery = useGetShoppingListsKitsByListId(
+    list ? { path: { list_id: list.id } } : undefined,
+    { enabled: Boolean(list) }
+  );
+
+  const linkedKits = useMemo(() => mapShoppingListKitLinks(kitsQuery.data), [kitsQuery.data]);
+
+  useListLoadingInstrumentation({
+    scope: 'shoppingLists.detail.kits',
+    isLoading: kitsQuery.isLoading,
+    isFetching: kitsQuery.isFetching,
+    error: kitsQuery.error,
+    getReadyMetadata: () => ({
+      listId: list?.id ?? null,
+      kitLinkCount: linkedKits.length,
+      statusCounts: linkedKits.reduce<Record<string, number>>(
+        (accumulator, kitLink) => {
+          accumulator[kitLink.kitStatus] = (accumulator[kitLink.kitStatus] ?? 0) + 1;
+          return accumulator;
+        },
+        { active: 0, archived: 0 }
+      ),
+      renderLocation: 'body' as const,
+    }),
+    getErrorMetadata: (error: unknown) => ({
+      listId: list?.id ?? null,
+      message: error instanceof Error ? error.message : String(error ?? 'Unknown error'),
+    }),
+    getAbortedMetadata: () => ({
+      listId: list?.id ?? null,
+      status: 'aborted',
+    }),
+  });
+
   if (!list) {
     return {
       slots: {
@@ -135,13 +178,18 @@ export function useShoppingListDetailHeaderSlots({
             <div className="h-6 w-24 animate-pulse rounded bg-muted" />
           </div>
         ),
+        linkChips: (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="h-6 w-32 animate-pulse rounded-full bg-muted" />
+            <div className="h-6 w-28 animate-pulse rounded-full bg-muted" />
+          </div>
+        ),
       },
       overlays: null,
+      kitsQuery,
     };
   }
 
-  const statusLabel = STATUS_LABELS[list.status] ?? list.status;
-  const statusVariant = STATUS_BADGE_VARIANT[list.status] ?? 'secondary';
   const isCompleted = list.status === 'done';
 
   const newCount = list.lineCounts.new;
@@ -164,13 +212,11 @@ export function useShoppingListDetailHeaderSlots({
       </span>
     ),
     titleMetadata: (
-      <Badge
-        variant={statusVariant}
-        title={`List status: ${statusLabel}`}
-        data-testid="shopping-lists.concept.header.status"
-      >
-        {statusLabel}
-      </Badge>
+      <StatusBadge
+        {...getShoppingListStatusBadgeProps(list.status)}
+        size="large"
+        testId="shopping-lists.concept.header.status"
+      />
     ),
     description: list.description ? (
       <p className="max-w-2xl text-sm text-muted-foreground" data-testid="shopping-lists.concept.header.description">
@@ -179,40 +225,59 @@ export function useShoppingListDetailHeaderSlots({
     ) : null,
     metadataRow: (
       <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="shopping-lists.concept.header.badges">
-        <Badge
-          variant="outline"
-          className="bg-slate-100 text-slate-700"
-          title="Total lines across all statuses"
-          data-testid="shopping-lists.concept.header.badge.total"
-        >
-          Total {list.totalLines}
-        </Badge>
-        <Badge
-          variant="outline"
-          className="bg-sky-100 text-sky-800"
-          title="Lines waiting to be ordered"
-          data-testid="shopping-lists.concept.header.badge.new"
-        >
-          New {newCount}
-        </Badge>
-        <Badge
-          variant="outline"
-          className="bg-amber-100 text-amber-800"
-          title="Lines in progress with sellers"
-          data-testid="shopping-lists.concept.header.badge.ordered"
-        >
-          Ordered {orderedCount}
-        </Badge>
-        <Badge
-          variant="outline"
-          className="bg-emerald-100 text-emerald-800"
-          title="Lines already received"
-          data-testid="shopping-lists.concept.header.badge.done"
-        >
-          Completed {doneCount}
-        </Badge>
+        <KeyValueBadge
+          label="Total"
+          value={list.totalLines}
+          color="neutral"
+          testId="shopping-lists.concept.header.badge.total"
+        />
+        <KeyValueBadge
+          label="New"
+          value={newCount}
+          color="info"
+          testId="shopping-lists.concept.header.badge.new"
+        />
+        <KeyValueBadge
+          label="Ordered"
+          value={orderedCount}
+          color="warning"
+          testId="shopping-lists.concept.header.badge.ordered"
+        />
+        <KeyValueBadge
+          label="Completed"
+          value={doneCount}
+          color="success"
+          testId="shopping-lists.concept.header.badge.done"
+        />
       </div>
     ),
+    linkChips: kitsQuery.isLoading ? (
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="h-6 w-32 animate-pulse rounded-full bg-muted" />
+        <div className="h-6 w-28 animate-pulse rounded-full bg-muted" />
+      </div>
+    ) : linkedKits.length > 0 ? (
+      <div className="flex flex-wrap items-center gap-2" data-testid="shopping-lists.concept.body.kits">
+        {linkedKits.map((kitLink) => (
+          <KitLinkChip
+            key={kitLink.linkId}
+            kitId={kitLink.kitId}
+            name={kitLink.kitName}
+            status={kitLink.kitStatus}
+            icon={
+              <CircuitBoard
+                className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary"
+                aria-hidden="true"
+              />
+            }
+            testId={`shopping-lists.concept.body.kits.${kitLink.kitId}`}
+            onUnlink={onUnlinkKit ? () => onUnlinkKit(kitLink) : undefined}
+            unlinkLoading={unlinkingLinkId === kitLink.linkId}
+            unlinkTestId={`shopping-lists.concept.body.kits.${kitLink.kitId}.unlink`}
+          />
+        ))}
+      </div>
+    ) : null,
     actions: (
       <div className="flex flex-wrap gap-2">
         <Button
@@ -315,5 +380,5 @@ export function useShoppingListDetailHeaderSlots({
     </Dialog>
   );
 
-  return { slots, overlays };
+  return { slots, overlays, kitsQuery };
 }

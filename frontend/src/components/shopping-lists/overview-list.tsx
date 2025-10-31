@@ -3,15 +3,13 @@ import { useNavigate } from '@tanstack/react-router';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
-import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
+import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
 import { useShoppingListsOverview } from '@/hooks/use-shopping-lists';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { ShoppingListOverviewCard } from './overview-card';
 import { ListCreateDialog } from './list-create-dialog';
 import type { ShoppingListOverviewSummary } from '@/types/shopping-lists';
-import { Route as ShoppingListsRoute } from '@/routes/shopping-lists/index';
 import { Route as ShoppingListDetailRoute } from '@/routes/shopping-lists/$listId';
 import { beginUiState, endUiState } from '@/lib/test/ui-state';
 
@@ -46,6 +44,7 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
   });
   const filterUiPendingRef = useRef(false);
   const hasEmittedInitialFiltersRef = useRef(false);
+  const previousSearchTermRef = useRef(searchTerm);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -54,6 +53,24 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
 
     window.localStorage.setItem(OVERVIEW_TAB_STORAGE_KEY, activeTab);
   }, [activeTab]);
+
+  // Emit filter event when search term changes
+  useEffect(() => {
+    if (showLoading || isFetching) {
+      return;
+    }
+
+    if (!hasEmittedInitialFiltersRef.current) {
+      // Initial emission will be handled by the main filter effect
+      return;
+    }
+
+    if (previousSearchTermRef.current !== searchTerm) {
+      previousSearchTermRef.current = searchTerm;
+      filterUiPendingRef.current = true;
+      beginUiState('shoppingLists.overview.filters');
+    }
+  }, [searchTerm, showLoading, isFetching]);
 
   useEffect(() => {
     if (isLoading) {
@@ -181,20 +198,6 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
     }
   }, [filtersMetadata, isFetching, showLoading]);
 
-  const handleSearchChange = (value: string) => {
-    filterUiPendingRef.current = true;
-    beginUiState('shoppingLists.overview.filters');
-    navigate({
-      to: ShoppingListsRoute.fullPath,
-      search: { search: value },
-      replace: true,
-    });
-  };
-
-  const handleClearSearch = () => {
-    handleSearchChange('');
-  };
-
   const handleOpenList = (listId: number) => {
     const originSearch = searchTerm.length > 0 ? searchTerm : undefined;
     navigate({
@@ -235,6 +238,15 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
     }
   };
 
+  const searchNode = (
+    <DebouncedSearchInput
+      searchTerm={searchTerm}
+      routePath="/shopping-lists"
+      placeholder="Search..."
+      testIdPrefix="shopping-lists.overview"
+    />
+  );
+
   if (showLoading) {
     return (
       <div data-testid="shopping-lists.overview.loading">
@@ -244,29 +256,14 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
         </div>
 
         <div className="relative mb-6">
-          <Input
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={(event) => handleSearchChange(event.target.value)}
-            className="pr-8"
-          />
-          {searchTerm && (
-            <button
-              type="button"
-              onClick={handleClearSearch}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 hover:bg-muted transition-colors"
-              aria-label="Clear search"
-            >
-              <ClearButtonIcon />
-            </button>
-          )}
+          {searchNode}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-6 py-6">
           {Array.from({ length: 6 }).map((_, index) => (
             <div
               key={index}
-              className="h-40 rounded-lg border border-dashed border-muted bg-muted/40 animate-pulse"
+              className="h-28 rounded-lg border border-dashed border-muted bg-muted/40 animate-pulse"
               data-testid="shopping-lists.overview.skeleton"
             />
           ))}
@@ -321,29 +318,6 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
         noun={{ singular: 'list', plural: 'lists' }}
         filtered={filteredCount}
       />
-    </div>
-  );
-
-  const searchNode = (
-    <div className="relative" data-testid="shopping-lists.overview.search-container">
-      <Input
-        placeholder="Search..."
-        value={searchTerm}
-        onChange={(event) => handleSearchChange(event.target.value)}
-        className="w-full pr-8"
-        data-testid="shopping-lists.overview.search"
-      />
-      {searchTerm && (
-        <button
-          type="button"
-          onClick={handleClearSearch}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors hover:bg-muted"
-          aria-label="Clear search"
-          data-testid="shopping-lists.overview.search.clear"
-        >
-          <ClearButtonIcon />
-        </button>
-      )}
     </div>
   );
 

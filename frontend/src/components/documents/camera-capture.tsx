@@ -189,18 +189,18 @@ export function CameraCapture({ open, onCapture, onClose }: CameraCaptureProps) 
           {capturedImage ? (
             <>
               <Button variant="outline" onClick={handleRetake}>
-                Retake
+                Retake Photo
               </Button>
               <Button onClick={handleUsePhoto}>
-                Use Photo
+                Accept Photo
               </Button>
             </>
           ) : (
-            <Button 
-              onClick={capturePhoto} 
+            <Button
+              onClick={capturePhoto}
               disabled={isLoading || !!error}
             >
-              Capture
+              Capture Photo
             </Button>
           )}
         </DialogFooter>

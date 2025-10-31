@@ -1,24 +1,25 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link } from '@tanstack/react-router';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
+import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
 import { useGetPartsWithLocations, useGetTypes, type PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { QuantityBadge } from './quantity-badge';
 import { MetadataBadge } from './metadata-badge';
 import { LocationSummary } from './location-summary';
 import { VendorInfo } from './vendor-info';
-import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
-import { Loader2, ShoppingCart, AlertTriangle } from 'lucide-react';
+import { CircuitBoard, ShoppingCart } from 'lucide-react';
 import { useShoppingListMembershipIndicators } from '@/hooks/use-part-shopping-list-memberships';
+import { usePartKitMembershipIndicators, type PartKitMembershipSummary } from '@/hooks/use-part-kit-memberships';
 import type { ShoppingListMembershipSummary } from '@/types/shopping-lists';
 import { Badge } from '@/components/ui/badge';
+import { MembershipIndicator } from '@/components/ui/membership-indicator';
 
 interface PartListProps {
   searchTerm?: string;
@@ -28,7 +29,6 @@ interface PartListProps {
 }
 
 export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreateWithAI }: PartListProps) {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const {
     data: parts = [],
@@ -87,25 +87,6 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
     return map;
   }, [types]);
 
-  const handleSearchChange = (value: string) => {
-    if (value) {
-      navigate({
-        to: '/parts',
-        search: { search: value },
-        replace: true
-      });
-    } else {
-      navigate({
-        to: '/parts',
-        replace: true
-      });
-    }
-  };
-
-  const handleClearSearch = () => {
-    handleSearchChange('');
-  };
-
   const filteredParts = useMemo(() => {
     if (!searchTerm.trim()) return parts;
 
@@ -138,8 +119,10 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
     () => filteredParts.map((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => part.key),
     [filteredParts],
   );
-  const membershipIndicators = useShoppingListMembershipIndicators(partKeys);
-  const indicatorMap = membershipIndicators.summaryByPartKey;
+  const shoppingIndicators = useShoppingListMembershipIndicators(partKeys);
+  const shoppingIndicatorMap = shoppingIndicators.summaryByPartKey;
+  const kitIndicators = usePartKitMembershipIndicators(partKeys);
+  const kitIndicatorMap = kitIndicators.summaryByPartKey;
 
   useListLoadingInstrumentation({
     scope: 'parts.list',
@@ -213,7 +196,7 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
     <div className="flex flex-wrap gap-2">
       {onCreateWithAI && (
         <Button onClick={onCreateWithAI} variant="ai_assisted">
-          Add with AI
+          Add Part with AI
         </Button>
       )}
       {onCreatePart && (
@@ -225,26 +208,12 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
   ) : undefined;
 
   const searchNode = (
-    <div className="relative" data-testid="parts.list.search-container">
-      <Input
-        placeholder="Search..."
-        value={searchTerm}
-        onChange={(event) => handleSearchChange(event.target.value)}
-        className="w-full pr-8"
-        data-testid="parts.list.search"
-      />
-      {searchTerm && (
-        <button
-          type="button"
-          onClick={handleClearSearch}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors hover:bg-muted"
-          aria-label="Clear search"
-          data-testid="parts.list.search.clear"
-        >
-          <ClearButtonIcon />
-        </button>
-      )}
-    </div>
+    <DebouncedSearchInput
+      searchTerm={searchTerm}
+      routePath="/parts"
+      placeholder="Search..."
+      testIdPrefix="parts.list"
+    />
   );
 
   const countsNode = (
@@ -333,10 +302,14 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
           part={part}
           typeMap={typeMap}
           onClick={() => onSelectPart?.(part.key)}
-          indicatorSummary={indicatorMap.get(part.key)}
-          indicatorStatus={membershipIndicators.status}
-          indicatorFetchStatus={membershipIndicators.fetchStatus}
-          indicatorError={membershipIndicators.error}
+          shoppingIndicatorSummary={shoppingIndicatorMap.get(part.key)}
+          shoppingIndicatorStatus={shoppingIndicators.status}
+          shoppingIndicatorFetchStatus={shoppingIndicators.fetchStatus}
+          shoppingIndicatorError={shoppingIndicators.error}
+          kitIndicatorSummary={kitIndicatorMap.get(part.key)}
+          kitIndicatorStatus={kitIndicators.status}
+          kitIndicatorFetchStatus={kitIndicators.fetchStatus}
+          kitIndicatorError={kitIndicators.error}
         />
       ))}
     </div>
@@ -375,20 +348,28 @@ interface PartListItemProps {
   part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema;
   typeMap: Map<number, string>;
   onClick?: () => void;
-  indicatorSummary?: ShoppingListMembershipSummary;
-  indicatorStatus: 'pending' | 'error' | 'success';
-  indicatorFetchStatus: 'idle' | 'fetching' | 'paused';
-  indicatorError: unknown;
+  shoppingIndicatorSummary?: ShoppingListMembershipSummary;
+  shoppingIndicatorStatus: 'pending' | 'error' | 'success';
+  shoppingIndicatorFetchStatus: 'idle' | 'fetching' | 'paused';
+  shoppingIndicatorError: unknown;
+  kitIndicatorSummary?: PartKitMembershipSummary;
+  kitIndicatorStatus: 'pending' | 'error' | 'success';
+  kitIndicatorFetchStatus: 'idle' | 'fetching' | 'paused';
+  kitIndicatorError: unknown;
 }
 
 function PartListItem({
   part,
   typeMap,
   onClick,
-  indicatorSummary,
-  indicatorStatus,
-  indicatorFetchStatus,
-  indicatorError,
+  shoppingIndicatorSummary,
+  shoppingIndicatorStatus,
+  shoppingIndicatorFetchStatus,
+  shoppingIndicatorError,
+  kitIndicatorSummary,
+  kitIndicatorStatus,
+  kitIndicatorFetchStatus,
+  kitIndicatorError,
 }: PartListItemProps) {
   const { displayId, displayDescription, displayManufacturerCode } = formatPartForDisplay(part);
 
@@ -431,11 +412,29 @@ function PartListItem({
         {/* Quantity & Indicator */}
         <div className="flex flex-col items-end gap-2">
           <QuantityBadge quantity={part.total_quantity} />
-          <ShoppingListIndicator
-            summary={indicatorSummary}
-            status={indicatorStatus}
-            fetchStatus={indicatorFetchStatus}
-            error={indicatorError}
+          <MembershipIndicator<ShoppingListMembershipSummary>
+            summary={shoppingIndicatorSummary}
+            status={shoppingIndicatorStatus}
+            fetchStatus={shoppingIndicatorFetchStatus}
+            error={shoppingIndicatorError}
+            testId="parts.list.card.shopping-list-indicator"
+            icon={ShoppingCart}
+            ariaLabel={getPartShoppingIndicatorLabel}
+            hasMembership={partHasShoppingMembership}
+            renderTooltip={renderPartShoppingTooltip}
+            errorMessage="Failed to load shopping list data."
+          />
+          <MembershipIndicator<PartKitMembershipSummary>
+            summary={kitIndicatorSummary}
+            status={kitIndicatorStatus}
+            fetchStatus={kitIndicatorFetchStatus}
+            error={kitIndicatorError}
+            testId="parts.list.card.kit-indicator"
+            icon={CircuitBoard}
+            ariaLabel={getPartKitIndicatorLabel}
+            hasMembership={partHasKitMembership}
+            renderTooltip={renderPartKitTooltip}
+            errorMessage="Failed to load kit data."
           />
         </div>
       </div>
@@ -493,92 +492,104 @@ function PartListItem({
   );
 }
 
-interface ShoppingListIndicatorProps {
-  summary?: ShoppingListMembershipSummary;
-  status: 'pending' | 'error' | 'success';
-  fetchStatus: 'idle' | 'fetching' | 'paused';
-  error: unknown;
+function getPartShoppingIndicatorLabel(summary: ShoppingListMembershipSummary): string {
+  const count = summary.activeCount;
+  const noun = count === 1 ? 'list' : 'lists';
+  return `Part appears on ${count} shopping ${noun}`;
 }
 
-function ShoppingListIndicator({ summary, status, fetchStatus, error }: ShoppingListIndicatorProps) {
-  const isPending = status === 'pending';
-  const isRefetching = fetchStatus === 'fetching';
+function partHasShoppingMembership(summary: ShoppingListMembershipSummary): boolean {
+  return summary.hasActiveMembership;
+}
 
-  if (isPending) {
+function renderPartShoppingTooltip(summary: ShoppingListMembershipSummary) {
+  if (summary.memberships.length === 0) {
     return (
-      <div className="flex h-8 w-8 items-center justify-center" data-testid="parts.list.card.shopping-list-indicator.loading">
-        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-      </div>
+      <p className="text-sm text-muted-foreground">No active shopping lists.</p>
     );
-  }
-
-  if (error) {
-    return (
-      <div
-        className="group relative flex h-8 w-8 items-center justify-center"
-        data-testid="parts.list.card.shopping-list-indicator.error"
-        onClick={(event) => event.stopPropagation()}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <AlertTriangle className="h-4 w-4 text-destructive" />
-        <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden w-52 rounded-md border border-destructive/50 bg-background p-2 text-xs text-destructive shadow-lg group-hover:block">
-          Failed to load shopping list data.
-        </div>
-      </div>
-    );
-  }
-
-  if (!summary || !summary.hasActiveMembership) {
-    if (isRefetching) {
-      return (
-        <div className="flex h-8 w-8 items-center justify-center" data-testid="parts.list.card.shopping-list-indicator.loading">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-        </div>
-      );
-    }
-    return null;
   }
 
   return (
-    <div
-      className="group relative flex h-8 w-8 items-center justify-center"
-      data-testid="parts.list.card.shopping-list-indicator"
-      onClick={(event) => event.stopPropagation()}
-      onMouseDown={(event) => event.stopPropagation()}
-      tabIndex={0}
-      role="button"
-      aria-label={`Part appears on ${summary.activeCount} shopping ${summary.activeCount === 1 ? 'list' : 'lists'}`}
-    >
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary transition group-hover:bg-primary/20">
-        <ShoppingCart className="h-4 w-4" />
-      </div>
-      <div
-        className="pointer-events-auto absolute right-0 top-full z-50 mt-2 hidden w-64 rounded-md border border-input bg-background p-3 text-sm shadow-lg group-hover:block group-focus-within:block"
-        data-testid="parts.list.card.shopping-list-indicator.tooltip"
-      >
-        <p className="mb-2 text-xs font-medium text-muted-foreground">On shopping lists</p>
-        <ul className="space-y-1">
-          {summary.memberships.map((membership) => (
-            <li key={membership.listId}>
-              <Link
-                to="/shopping-lists/$listId"
-                params={{ listId: String(membership.listId) }}
-                search={{ sort: 'description', originSearch: undefined }}
-                className="flex items-center justify-between gap-2 truncate text-sm hover:text-primary"
-                onClick={(event) => event.stopPropagation()}
+    <>
+      <p className="mb-2 text-xs font-medium text-muted-foreground">On shopping lists</p>
+      <ul className="space-y-1">
+        {summary.memberships.map((membership) => (
+          <li key={membership.listId}>
+            <Link
+              to="/shopping-lists/$listId"
+              params={{ listId: String(membership.listId) }}
+              search={{ sort: 'description', originSearch: undefined }}
+              className="flex items-center justify-between gap-2 truncate text-sm hover:text-primary"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <span className="truncate">{membership.listName}</span>
+              <Badge
+                variant={membership.listStatus === 'ready' ? 'default' : 'secondary'}
+                className="shrink-0 capitalize"
               >
-                <span className="truncate">{membership.listName}</span>
-                <Badge
-                  variant={membership.listStatus === 'ready' ? 'default' : 'secondary'}
-                  className="shrink-0 capitalize"
-                >
-                  {membership.listStatus}
-                </Badge>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+                {membership.listStatus}
+              </Badge>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function getPartKitIndicatorLabel(summary: PartKitMembershipSummary): string {
+  const active = summary.activeCount;
+  const archived = summary.archivedCount;
+  if (active > 0 && archived > 0) {
+    return `Part used in ${active} active kits and ${archived} archived kits`;
+  }
+  if (active > 0) {
+    const noun = active === 1 ? 'kit' : 'kits';
+    return `Part used in ${active} active ${noun}`;
+  }
+  if (archived > 0) {
+    const noun = archived === 1 ? 'kit' : 'kits';
+    return `Part used in ${archived} archived ${noun}`;
+  }
+  return 'Part not used in any kits';
+}
+
+function partHasKitMembership(summary: PartKitMembershipSummary): boolean {
+  return summary.hasMembership;
+}
+
+function renderPartKitTooltip(summary: PartKitMembershipSummary) {
+  if (summary.kits.length === 0) {
+    return <p className="text-sm text-muted-foreground">Not used in any kits.</p>;
+  }
+
+  return (
+    <>
+      <p className="mb-2 text-xs font-medium text-muted-foreground">Used in kits</p>
+      <ul className="space-y-2">
+        {summary.kits.map((kit) => (
+          <li key={kit.kitId} className="space-y-1">
+            <Link
+              to="/kits/$kitId"
+              params={{ kitId: String(kit.kitId) }}
+              search={{ status: kit.status }}
+              className="flex items-center justify-between gap-2 truncate text-sm hover:text-primary"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <span className="truncate">{kit.kitName}</span>
+              <Badge
+                variant={kit.status === 'active' ? 'default' : 'secondary'}
+                className="shrink-0 capitalize"
+              >
+                {kit.status}
+              </Badge>
+            </Link>
+            <p className="text-xs text-muted-foreground">
+              {kit.requiredPerUnit} per kit • reserved {kit.reservedQuantity}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

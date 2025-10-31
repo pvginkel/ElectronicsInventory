@@ -73,7 +73,7 @@ export function TagsInput({ value = [], onChange, placeholder = "", error }: Tag
           disabled={!inputValue.trim() || value.includes(inputValue.trim())}
           preventValidation
         >
-          Add
+          Add Tag
         </Button>
       </div>
     </div>

@@ -17,7 +17,8 @@
         "showReuseMessage": false
       },
       "runOptions": {
-        "reevaluateOnRerun": true
+        "reevaluateOnRerun": true,
+        "instanceLimit": 999
       },
       "isBackground": true
     },
@@ -67,7 +68,7 @@
     {
       "label": "Server",
       "type": "shell",
-      "command": "pnpm dev",
+      "command": "scripts/dev-server.sh",
       "options": {
         "cwd": "${workspaceFolder}"
       },

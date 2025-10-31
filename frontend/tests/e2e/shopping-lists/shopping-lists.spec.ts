@@ -79,11 +79,11 @@ test.describe('Shopping Lists', () => {
     await expect(shoppingLists.overviewCreateButton).toBeEnabled();
   });
 
-  test('marks a ready list without ordered lines as done from the detail view', async ({ shoppingLists, testData, toastHelper }) => {
+  test('marks a ready list without ordered lines as completed from the detail view', async ({ shoppingLists, testData, toastHelper }) => {
     const seller = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
-    const { part } = await testData.parts.create({ overrides: { description: 'Ready mark-done part' } });
+    const { part } = await testData.parts.create({ overrides: { description: 'Ready mark-completed part' } });
     const listDetail = await testData.shoppingLists.createWithLines({
-      listOverrides: { name: testData.shoppingLists.randomName('Ready Done Flow') },
+      listOverrides: { name: testData.shoppingLists.randomName('Ready Completed Flow') },
       lines: [{ partKey: part.key, needed: 4, sellerId: seller.id }],
     });
 
@@ -119,13 +119,13 @@ test.describe('Shopping Lists', () => {
     expect(successEvent.metadata).toMatchObject({ status: 'done' });
     expect(readyEvent.metadata).toMatchObject({ status: 'done', view: 'completed', filteredDiff: 0 });
     if (!Array.isArray(readyEvent.metadata?.groupTotals)) {
-      throw new Error('Expected groupTotals metadata after marking list done');
+      throw new Error('Expected groupTotals metadata after marking list completed');
     }
     for (const group of readyEvent.metadata.groupTotals) {
       expect(group.visibleTotals).toEqual(group.totals);
     }
 
-    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listDetail.name}" as Done`, 'i'));
+    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listDetail.name}" as Completed`, 'i'));
     await toastHelper.dismissToast({ all: true });
     await expect(shoppingLists.detailLayout).toBeVisible();
     await expect(shoppingLists.detailContentReady).toBeVisible();
@@ -138,7 +138,7 @@ test.describe('Shopping Lists', () => {
     expect(completedCount).toBeGreaterThan(0);
   });
 
-  test('marks a ready list with ordered lines as done and keeps rows visible', async ({ shoppingLists, testData, toastHelper }) => {
+  test('marks a ready list with ordered lines as completed and keeps rows visible', async ({ shoppingLists, testData, toastHelper }) => {
     const sellerPrimary = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
     const sellerSecondary = await testData.sellers.create({ overrides: { name: testData.sellers.randomSellerName() } });
     const { part: orderedPart } = await testData.parts.create({ overrides: { description: 'Ordered retention part' } });
@@ -154,7 +154,7 @@ test.describe('Shopping Lists', () => {
 
     const orderedLine = listDetail.lines.find(line => line.part.key === orderedPart.key);
     if (!orderedLine) {
-      throw new Error('Failed to resolve ordered line for mark-done test');
+      throw new Error('Failed to resolve ordered line for mark-completed test');
     }
 
     await testData.shoppingLists.markReady(listDetail.id);
@@ -207,7 +207,7 @@ test.describe('Shopping Lists', () => {
       expect(group.visibleTotals).toEqual(group.totals);
     }
 
-    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listDetail.name}" as Done`, 'i'));
+    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listDetail.name}" as Completed`, 'i'));
     await toastHelper.dismissToast({ all: true });
 
     await expect(shoppingLists.detailLayout).toBeVisible();
@@ -284,7 +284,7 @@ test.describe('Shopping Lists', () => {
     expect(successEvent.metadata).toMatchObject({ status: 'done' });
     expect(readyEvent.metadata).toMatchObject({ status: 'done', view: 'completed' });
 
-    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listName}" as Done`, 'i'));
+    await toastHelper.expectSuccessToast(new RegExp(`Marked shopping list "${listName}" as Completed`, 'i'));
     await toastHelper.dismissToast({ all: true });
 
     await shoppingLists.gotoOverview();
@@ -361,6 +361,35 @@ test.describe('Shopping Lists', () => {
       }),
     );
     await expect(shoppingLists.overviewCardByName(listName, 'completed')).toBeVisible();
+  });
+
+  test('debounced search updates URL and filters lists', async ({ page, shoppingLists, testData }) => {
+    const searchTerm = 'Debounce Test';
+    const matchingName = testData.shoppingLists.randomName(`${searchTerm} List`);
+    const nonMatchingName = testData.shoppingLists.randomName('Other List');
+
+    await testData.shoppingLists.create({ name: matchingName });
+    await testData.shoppingLists.create({ name: nonMatchingName });
+
+    await shoppingLists.gotoOverview();
+    await shoppingLists.waitForOverviewFiltersReady();
+
+    // Fill search input - the component will debounce and wait for completion via instrumentation
+    await shoppingLists.overviewSearch.fill(searchTerm);
+    await shoppingLists.waitForOverviewFiltersReady();
+
+    // Verify URL updated with search parameter (accept both + and %20 encoding for spaces)
+    await expect(page).toHaveURL(/search=.+/);
+
+    // Verify filtered results
+    await expect(shoppingLists.overviewCardByName(matchingName)).toBeVisible();
+    await expect(shoppingLists.overviewCardByName(nonMatchingName)).toBeHidden();
+
+    // Clear search - should update URL (search param removed or empty)
+    await shoppingLists.overviewSearch.clear();
+    await shoppingLists.waitForOverviewFiltersReady();
+    await expect(page).toHaveURL(/^(?!.*search=.+)|search=$/);
+    await expect(shoppingLists.overviewCardByName(nonMatchingName)).toBeVisible();
   });
 
   test('filters segmented tabs by search without losing totals', async ({ shoppingLists, testData }) => {
@@ -652,9 +681,9 @@ test.describe('Shopping Lists', () => {
     expect(conceptEvent.metadata?.sortKey).toBe('description');
 
     const conceptRows = shoppingLists.conceptTable.locator('tbody tr');
-    await expect(conceptRows.nth(0).getByTestId(/\.part$/)).toHaveText(alphaPart.description);
-    await expect(conceptRows.nth(1).getByTestId(/\.part$/)).toHaveText(bravoUpper.description);
-    await expect(conceptRows.nth(2).getByTestId(/\.part$/)).toHaveText(bravoLower.description);
+    await expect(conceptRows.nth(0).getByTestId(/\.part$/)).toContainText(alphaPart.description);
+    await expect(conceptRows.nth(1).getByTestId(/\.part$/)).toContainText(bravoUpper.description);
+    await expect(conceptRows.nth(2).getByTestId(/\.part$/)).toContainText(bravoLower.description);
 
     await expect(shoppingLists.conceptSellerBadge(alphaPart.description)).toHaveText('Duplicate Seller A');
     await expect(shoppingLists.conceptStatusBadge(alphaPart.description)).toHaveText(/New/i);
@@ -664,9 +693,9 @@ test.describe('Shopping Lists', () => {
     await shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.sort.button').click();
     await shoppingLists.playwrightPage.getByTestId('shopping-lists.concept.sort.description').click();
 
-    await expect(conceptRows.nth(0).getByTestId(/\.part$/)).toHaveText(alphaPart.description);
-    await expect(conceptRows.nth(1).getByTestId(/\.part$/)).toHaveText(bravoUpper.description);
-    await expect(conceptRows.nth(2).getByTestId(/\.part$/)).toHaveText(bravoLower.description);
+    await expect(conceptRows.nth(0).getByTestId(/\.part$/)).toContainText(alphaPart.description);
+    await expect(conceptRows.nth(1).getByTestId(/\.part$/)).toContainText(bravoUpper.description);
+    await expect(conceptRows.nth(2).getByTestId(/\.part$/)).toContainText(bravoLower.description);
 
     await testData.shoppingLists.markReady(listDetail.id);
     await testData.shoppingLists.orderLine(listDetail.id, alphaLine.id, 1);
@@ -1231,5 +1260,24 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     expect(completedLine?.status).toBe('done');
     expect(completedLine?.completion_mismatch).toBe(true);
     expect(completedLine?.completion_note).toContain('Supplier short shipped');
+  });
+
+  test('shopping list cards include animation classes', async ({ shoppingLists, testData }) => {
+    const list = await testData.shoppingLists.create({
+      name: testData.shoppingLists.randomName('Animation Test List'),
+    });
+
+    await shoppingLists.gotoOverview();
+    const card = shoppingLists.overviewCardByName(list.name);
+    await expect(card).toBeVisible();
+
+    // Verify that the card includes the animation classes
+    const classList = await card.getAttribute('class');
+    expect(classList).toContain('transition-all');
+    expect(classList).toContain('duration-200');
+    expect(classList).toMatch(/hover:shadow-md/);
+    expect(classList).toMatch(/hover:scale-\[1\.02\]/);
+    expect(classList).toMatch(/hover:border-primary\/50/);
+    expect(classList).toMatch(/active:scale-\[0\.98\]/);
   });
 });

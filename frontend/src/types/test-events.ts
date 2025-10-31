@@ -73,6 +73,7 @@ export interface ToastTestEvent extends BaseTestEvent {
   level: 'success' | 'error' | 'warning' | 'info';
   code?: string;
   message: string;
+  action?: string;
   exception?: {
     name?: string;
     message?: string;
@@ -120,7 +121,7 @@ export interface SseTestEvent extends BaseTestEvent {
 export interface UiStateTestEvent extends BaseTestEvent {
   kind: 'ui_state';
   scope: string;
-  phase: 'loading' | 'ready';
+  phase: 'loading' | 'ready' | 'open' | 'submit' | 'success' | 'error';
   metadata?: Record<string, unknown>;
 }
 
