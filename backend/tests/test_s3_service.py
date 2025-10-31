@@ -68,9 +68,9 @@ class TestS3Service:
         assert result is True
         mock_s3_client.upload_fileobj.assert_called_once()
         args, kwargs = mock_s3_client.upload_fileobj.call_args
-        assert kwargs["Fileobj"] == file_data
-        assert "electronics-inventory" in kwargs["Bucket"]  # bucket name from config
-        assert kwargs["Key"] == s3_key
+        assert args[0] == file_data
+        assert args[1] == s3_service.settings.S3_BUCKET_NAME
+        assert args[2] == s3_key
         assert kwargs["ExtraArgs"]["ContentType"] == content_type
 
     def test_upload_file_client_error(self, s3_service, mock_s3_client):

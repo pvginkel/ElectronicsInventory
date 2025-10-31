@@ -1,0 +1,29 @@
+[
+  {
+    "kit": "Synth Voice Starter",
+    "part": "ABCD",
+    "required_per_unit": 2,
+    "note": "Use socketed DIP packages for quick swaps"
+  },
+  {
+    "kit": "Synth Voice Starter",
+    "part": "EFGH",
+    "required_per_unit": 1
+  },
+  {
+    "kit": "Field Recorder Essentials",
+    "part": "ABCD",
+    "required_per_unit": 1,
+    "note": "Shared with synth demo kit"
+  },
+  {
+    "kit": "Field Recorder Essentials",
+    "part": "IJKL",
+    "required_per_unit": 3
+  },
+  {
+    "kit": "Legacy Mixer Refresh",
+    "part": "ABCD",
+    "required_per_unit": 2
+  }
+]

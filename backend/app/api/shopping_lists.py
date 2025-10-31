@@ -4,8 +4,11 @@ from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request
 from spectree import Response as SpectreeResponse
 
+from app.exceptions import InvalidOperationException
+from app.models.shopping_list import ShoppingListStatus
 from app.schemas.common import ErrorResponseSchema
 from app.schemas.shopping_list import (
+    KitChipSchema,
     ShoppingListCreateSchema,
     ShoppingListListQuerySchema,
     ShoppingListListSchema,
@@ -19,7 +22,10 @@ from app.schemas.shopping_list_seller_note import (
 )
 from app.services.container import ServiceContainer
 from app.utils.error_handling import handle_api_errors
-from app.utils.request_parsing import parse_bool_query_param
+from app.utils.request_parsing import (
+    parse_bool_query_param,
+    parse_enum_list_query_param,
+)
 from app.utils.spectree_config import api
 
 shopping_lists_bp = Blueprint("shopping_lists", __name__, url_prefix="/shopping-lists")
@@ -66,10 +72,46 @@ def list_shopping_lists(
         request.args.get("include_done"),
         default=False,
     )
-    shopping_lists = shopping_list_service.list_lists(include_done=include_done)
+    raw_status_params = request.args.getlist("status")
+    statuses: list[ShoppingListStatus] | None = None
+    if raw_status_params:
+        try:
+            parsed_statuses = parse_enum_list_query_param(
+                raw_status_params,
+                ShoppingListStatus,
+            )
+        except ValueError as exc:
+            raise InvalidOperationException("list shopping lists", str(exc)) from exc
+        statuses = parsed_statuses
+
+    shopping_lists = shopping_list_service.list_lists(
+        include_done=include_done,
+        statuses=statuses,
+    )
     return [
         ShoppingListListSchema.model_validate(shopping_list).model_dump()
         for shopping_list in shopping_lists
+    ]
+
+
+@shopping_lists_bp.route("/<int:list_id>/kits", methods=["GET"])
+@api.validate(
+    resp=SpectreeResponse(
+        HTTP_200=list[KitChipSchema],
+        HTTP_404=ErrorResponseSchema,
+    ),
+)
+@handle_api_errors
+@inject
+def list_kits_for_shopping_list(
+    list_id: int,
+    kit_shopping_list_service=Provide[ServiceContainer.kit_shopping_list_service],
+):
+    """Return kits linked to a shopping list."""
+    links = kit_shopping_list_service.list_kits_for_shopping_list(list_id)
+    return [
+        KitChipSchema.model_validate(link).model_dump()
+        for link in links
     ]
 
 

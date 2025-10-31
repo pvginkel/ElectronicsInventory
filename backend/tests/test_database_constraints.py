@@ -1,14 +1,22 @@
 """Tests for database constraints and validation."""
 
+from datetime import UTC, datetime
+
 import pytest
 from flask import Flask
 from sqlalchemy import exc
 
 from app.extensions import db
 from app.models.box import Box
+from app.models.kit import Kit, KitStatus
+from app.models.kit_content import KitContent
+from app.models.kit_pick_list import KitPickList, KitPickListStatus
+from app.models.kit_pick_list_line import KitPickListLine, PickListLineStatus
+from app.models.kit_shopping_list_link import KitShoppingListLink
 from app.models.location import Location
+from app.models.part import Part
 from app.models.seller import Seller
-from app.models.shopping_list import ShoppingList
+from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.models.shopping_list_seller_note import ShoppingListSellerNote
 
 
@@ -348,3 +356,247 @@ class TestDatabaseConstraints:
             db.session.commit()
 
             assert db.session.query(ShoppingListSellerNote).count() == 0
+
+    def test_kit_name_uniqueness(self, app: Flask):
+        """Kit names must remain unique."""
+        with app.app_context():
+            first = Kit(name="Duplicate Kit", build_target=1)
+            second = Kit(name="Duplicate Kit", build_target=2)
+            db.session.add_all([first, second])
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+    def test_kit_build_target_non_negative_constraint(self, app: Flask):
+        """Build target constraint enforces non-negative values."""
+        with app.app_context():
+            zero_allowed = Kit(name="Zero Target", build_target=0)
+            db.session.add(zero_allowed)
+            db.session.commit()
+
+            negative = Kit(name="Negative Target", build_target=-1)
+            db.session.add(negative)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+    def test_archived_kits_require_timestamp(self, app: Flask):
+        """Archived kits must include an archived_at timestamp."""
+        with app.app_context():
+            missing_timestamp = Kit(
+                name="Missing Timestamp",
+                build_target=1,
+                status=KitStatus.ARCHIVED,
+            )
+            db.session.add(missing_timestamp)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+            stamped = Kit(
+                name="Stamped Archived",
+                build_target=1,
+                status=KitStatus.ARCHIVED,
+                archived_at=datetime.now(UTC),
+            )
+            db.session.add(stamped)
+            db.session.commit()
+
+    def test_kit_pick_list_requested_units_positive(self, app: Flask):
+        """Kit pick list requested units must be positive."""
+        with app.app_context():
+            kit = Kit(name="Pick Constraint Kit", build_target=1)
+            db.session.add(kit)
+            db.session.flush()
+
+            pick_list = KitPickList(
+                kit_id=kit.id,
+                requested_units=0,
+                status=KitPickListStatus.OPEN,
+            )
+            db.session.add(pick_list)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+    def test_kit_shopping_list_link_uniqueness(self, app: Flask):
+        """Kit-shopping list link enforces uniqueness."""
+        with app.app_context():
+            kit = Kit(name="Link Kit", build_target=1)
+            shopping_list = ShoppingList(name="Link List", status=ShoppingListStatus.CONCEPT)
+            db.session.add_all([kit, shopping_list])
+            db.session.flush()
+
+            link = KitShoppingListLink(
+                kit_id=kit.id,
+                shopping_list_id=shopping_list.id,
+                requested_units=kit.build_target,
+                honor_reserved=False,
+                snapshot_kit_updated_at=datetime.now(UTC),
+            )
+            db.session.add(link)
+            db.session.commit()
+
+            duplicate = KitShoppingListLink(
+                kit_id=kit.id,
+                shopping_list_id=shopping_list.id,
+                requested_units=kit.build_target,
+                honor_reserved=False,
+                snapshot_kit_updated_at=datetime.now(UTC),
+            )
+            db.session.add(duplicate)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+    def test_cascade_delete_kit_removes_links_and_pick_lists(self, app: Flask):
+        """Deleting a kit cascades to related child tables."""
+        with app.app_context():
+            kit = Kit(name="Cascade Kit", build_target=1)
+            shopping_list = ShoppingList(name="Cascade List", status=ShoppingListStatus.CONCEPT)
+            db.session.add_all([kit, shopping_list])
+            db.session.flush()
+
+            link = KitShoppingListLink(
+                kit_id=kit.id,
+                shopping_list_id=shopping_list.id,
+                requested_units=kit.build_target,
+                honor_reserved=False,
+                snapshot_kit_updated_at=datetime.now(UTC),
+            )
+            pick_list = KitPickList(
+                kit_id=kit.id,
+                requested_units=1,
+                status=KitPickListStatus.OPEN,
+            )
+            db.session.add_all([link, pick_list])
+            db.session.commit()
+
+            db.session.delete(kit)
+            db.session.commit()
+
+            assert db.session.query(KitShoppingListLink).count() == 0
+            assert db.session.query(KitPickList).count() == 0
+
+    def test_kit_content_required_per_unit_positive(self, app: Flask):
+        """Ensure kit contents enforce positive required quantities."""
+        with app.app_context():
+            kit = Kit(name="Constraint Kit", build_target=1)
+            part = Part(key="QC01", description="Constraint Part")
+            db.session.add_all([kit, part])
+            db.session.flush()
+
+            invalid_content = KitContent(
+                kit=kit,
+                part=part,
+                required_per_unit=0,
+            )
+            db.session.add(invalid_content)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+    def test_kit_content_unique_per_kit_part(self, app: Flask):
+        """Ensure kit contents enforce uniqueness per kit and part."""
+        with app.app_context():
+            kit = Kit(name="Unique Kit", build_target=1)
+            part = Part(key="QC02", description="Unique Part")
+            db.session.add_all([kit, part])
+            db.session.flush()
+
+            first = KitContent(kit=kit, part=part, required_per_unit=1)
+            db.session.add(first)
+            db.session.commit()
+
+            duplicate = KitContent(kit=kit, part=part, required_per_unit=2)
+            db.session.add(duplicate)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+    def test_pick_list_line_quantity_positive(self, app: Flask):
+        """Pick list line quantity_to_pick must be positive."""
+        with app.app_context():
+            box = Box(box_no=50, description="Constraint Box", capacity=2)
+            kit = Kit(name="Line Constraint Kit", build_target=1)
+            part = Part(key="PLC01", description="Constraint Part")
+            db.session.add_all([box, kit, part])
+            db.session.flush()
+
+            location = Location(box_id=box.id, box_no=box.box_no, loc_no=1)
+            db.session.add(location)
+            db.session.flush()
+
+            content = KitContent(kit=kit, part=part, required_per_unit=1)
+            pick_list = KitPickList(
+                kit_id=kit.id,
+                requested_units=1,
+                status=KitPickListStatus.OPEN,
+            )
+            db.session.add_all([content, pick_list])
+            db.session.flush()
+
+            invalid_line = KitPickListLine(
+                pick_list_id=pick_list.id,
+                kit_content_id=content.id,
+                location_id=location.id,
+                quantity_to_pick=0,
+                status=PickListLineStatus.OPEN,
+            )
+            db.session.add(invalid_line)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()
+
+    def test_pick_list_line_unique_constraint(self, app: Flask):
+        """Duplicate allocations for the same content/location are rejected."""
+        with app.app_context():
+            box = Box(box_no=51, description="Unique Box", capacity=2)
+            kit = Kit(name="Line Unique Kit", build_target=1)
+            part = Part(key="PLC02", description="Unique Part")
+            db.session.add_all([box, kit, part])
+            db.session.flush()
+
+            location = Location(box_id=box.id, box_no=box.box_no, loc_no=1)
+            db.session.add(location)
+            db.session.flush()
+
+            content = KitContent(kit=kit, part=part, required_per_unit=1)
+            pick_list = KitPickList(
+                kit_id=kit.id,
+                requested_units=1,
+                status=KitPickListStatus.OPEN,
+            )
+            db.session.add_all([content, pick_list])
+            db.session.flush()
+
+            first_line = KitPickListLine(
+                pick_list_id=pick_list.id,
+                kit_content_id=content.id,
+                location_id=location.id,
+                quantity_to_pick=1,
+                status=PickListLineStatus.OPEN,
+            )
+            db.session.add(first_line)
+            db.session.commit()
+
+            duplicate_line = KitPickListLine(
+                pick_list_id=pick_list.id,
+                kit_content_id=content.id,
+                location_id=location.id,
+                quantity_to_pick=2,
+                status=PickListLineStatus.OPEN,
+            )
+            db.session.add(duplicate_line)
+
+            with pytest.raises(exc.IntegrityError):
+                db.session.commit()
+            db.session.rollback()

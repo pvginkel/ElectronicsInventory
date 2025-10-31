@@ -1,0 +1,21 @@
+[
+  {
+    "key": "synth-voice-2u",
+    "kit_name": "Synth Voice Starter",
+    "requested_units": 2,
+    "status": "open"
+  },
+  {
+    "key": "synth-voice-1u",
+    "kit_name": "Synth Voice Starter",
+    "requested_units": 1,
+    "status": "open"
+  },
+  {
+    "key": "legacy-mixer-1u",
+    "kit_name": "Legacy Mixer Refresh",
+    "requested_units": 1,
+    "status": "completed",
+    "completed_at": "2024-01-12T10:00:00"
+  }
+]

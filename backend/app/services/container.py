@@ -12,9 +12,11 @@ from app.services.download_cache_service import DownloadCacheService
 from app.services.html_document_handler import HtmlDocumentHandler
 from app.services.image_service import ImageService
 from app.services.inventory_service import InventoryService
-from app.services.metrics_service import (
-    MetricsService,
-)
+from app.services.kit_pick_list_service import KitPickListService
+from app.services.kit_reservation_service import KitReservationService
+from app.services.kit_service import KitService
+from app.services.kit_shopping_list_service import KitShoppingListService
+from app.services.metrics_service import MetricsService
 from app.services.part_service import PartService
 from app.services.s3_service import S3Service
 from app.services.seller_service import SellerService
@@ -28,9 +30,7 @@ from app.services.type_service import TypeService
 from app.services.url_transformers import LCSCInterceptor, URLInterceptorRegistry
 from app.services.version_service import VersionService
 from app.utils.reset_lock import ResetLock
-from app.utils.shutdown_coordinator import (
-    ShutdownCoordinator,
-)
+from app.utils.shutdown_coordinator import ShutdownCoordinator
 from app.utils.temp_file_manager import TempFileManager
 
 
@@ -99,20 +99,45 @@ class ServiceContainer(containers.DeclarativeContainer):
         shutdown_coordinator=shutdown_coordinator,
     )
 
-    # InventoryService depends on PartService and MetricsService
     inventory_service = providers.Factory(
         InventoryService,
         db=db_session,
         part_service=part_service,
         metrics_service=metrics_service
     )
-
+    kit_reservation_service = providers.Factory(
+        KitReservationService,
+        db=db_session,
+    )
     shopping_list_line_service = providers.Factory(
         ShoppingListLineService,
         db=db_session,
         seller_service=seller_service,
         inventory_service=inventory_service,
         metrics_service=metrics_service,
+    )
+    kit_pick_list_service = providers.Factory(
+        KitPickListService,
+        db=db_session,
+        inventory_service=inventory_service,
+        kit_reservation_service=kit_reservation_service,
+        metrics_service=metrics_service,
+    )
+    kit_shopping_list_service = providers.Factory(
+        KitShoppingListService,
+        db=db_session,
+        inventory_service=inventory_service,
+        kit_reservation_service=kit_reservation_service,
+        shopping_list_service=shopping_list_service,
+        shopping_list_line_service=shopping_list_line_service,
+        metrics_service=metrics_service,
+    )
+    kit_service = providers.Factory(
+        KitService,
+        db=db_session,
+        metrics_service=metrics_service,
+        inventory_service=inventory_service,
+        kit_reservation_service=kit_reservation_service,
     )
 
     # URL interceptor registry with LCSC interceptor

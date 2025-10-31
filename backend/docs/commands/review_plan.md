@@ -13,6 +13,23 @@
 
 **Ignore**: minor implementation nits (imports, exact message text, small style, variable names). Assume a competent developer will handle those.
 
+**LLM instructions**
+Output snippets are marked by XML brackets. The XML brackets are not to be included in the end result.
+
+Assuming the template <output_template>:
+
+```
+<output_template>
+The answer is <value>
+</output_template>
+```
+
+The final document will contain the following output only:
+
+```
+The answer is 42
+```
+
 ---
 
 ## What to produce (write to `plan_review.md`)
@@ -20,60 +37,97 @@
 Use these headings (free-form prose inside each, but **quote evidence** with file + line ranges).
 
 ### 1) Summary & Decision
+Provide an overall readiness assessment and verdict, using `<plan_review_summary_template>` to anchor the evidence and decision.
 
-* One paragraph on readiness.
-* **Decision:** `GO` | `GO-WITH-CONDITIONS` | `NO-GO` (brief reason).
+<plan_review_summary_template>
+**Readiness**
+<single paragraph assessing plan readiness>
+
+**Decision**
+`GO` | `GO-WITH-CONDITIONS` | `NO-GO` — <brief reason tied to evidence>
+</plan_review_summary_template>
 
 ### 2) Conformance & Fit (with evidence)
+Evaluate how the plan honors the governing references and meshes with the existing codebase. Summarize the results with `<plan_conformance_fit_template>`.
 
-* **Conformance to refs**: pass/fail with 1–3 quoted snippets per ref (product brief scope, feature planning checklist, agent responsibilities, backend layering rules).
-* **Fit with codebase**: name concrete modules/services/models/migrations; quote plan lines that assume them (e.g., `PartService`, service container wiring, Alembic revisions, metrics integration).
+<plan_conformance_fit_template>
+**Conformance to refs**
+- `<reference>` — Pass/Fail — `plan_path:lines` — <quote>
+- ...
+
+**Fit with codebase**
+- `<module/service>` — `plan_path:lines` — <assumption or gap>
+- ...
+</plan_conformance_fit_template>
 
 ### 3) Open Questions & Ambiguities
+List unanswered questions, emphasizing the impact of each and the decision that hinges on it. Capture them with `<open_question_template>`.
 
-* Bullet list; each item includes: why it matters + what answer would change (e.g., schema shape, transaction boundaries, shutdown behavior, metrics cardinality).
+<open_question_template>
+- Question: <uncertainty to resolve>
+- Why it matters: <impact on implementation or scope>
+- Needed answer: <what information unlocks progress>
+</open_question_template>
 
 ### 4) Deterministic Backend Coverage (new/changed behavior only)
+For each new or changed backend behavior, document the scenarios, observability, and persistence hooks that will validate it. Employ `<plan_coverage_template>` to note any gaps; missing elements should be escalated as **Major**.
 
-For each new or changed user-visible backend behavior (API route, service operation, CLI command, background task):
-
-* **Scenarios** (Given/When/Then) – point to `pytest` suites covering API/service/migration paths.
-* **Instrumentation** – metrics/logging/alerts that prove observability (e.g., `MetricsService`, structured logs).
-* **Persistence hooks** – migrations, seed data updates, S3/storage flows, shutdown coordination, dependency-injector wiring.
-
-> If any behavior lacks one of the three, mark **Major** and reference the missing piece.
+<plan_coverage_template>
+- Behavior: <API/service/CLI/background task>
+- Scenarios:
+  - Given <context>, When <action>, Then <outcome> (`tests/path::test_name`)
+- Instrumentation: <metrics/logging/alerts expected>
+- Persistence hooks: <migrations/test data/DI wiring/storage updates>
+- Gaps: <missing element if any>
+- Evidence: <plan_path:lines or reference doc>
+</plan_coverage_template>
 
 ### 5) **Adversarial Sweep (must find ≥3 credible issues or declare why none exist)**
+Stress-test the plan by targeting failure modes that would surface in implementation. Record each issue with `<finding_template>`, or—if no credible issues remain—log the attempted checks and justification via `<adversarial_proof_template>`.
 
-Deliberately try to break the plan. Prefer issues that would survive to runtime (schema drift, transaction misuse, DI misconfig, metrics regressions).
-For each issue, provide:
+<finding_template>
+**Severity — Title**
+**Evidence:** `plan_path:lines` (+ refs) — <quote>
+**Why it matters:** <impact>
+**Fix suggestion:** <minimal plan change>
+**Confidence:** <High / Medium / Low>
+</finding_template>
 
-* **[ID] Severity — Title**
-  **Evidence:** file:lines quotes (plan + relevant ref).
-  **Why it matters:** concrete user/system impact.
-  **Fix suggestion:** minimal change to `plan.md`.
-  **Confidence:** High/Medium/Low.
+<adversarial_proof_template>
+- Checks attempted: <targeted invariants or fault lines>
+- Evidence: <plan_path:lines or referenced sections>
+- Why the plan holds: <reason the risk is closed>
+</adversarial_proof_template>
 
-> If you claim “no credible issues,” write a short proof: which invariants you checked and the evidence that each holds.
+### 6) **Derived-Value & Persistence Invariants (stacked entries)**
+Document derived values that affect storage, cleanup, or cross-context state, providing at least three entries or a justified “none; proof.” Populate `<derived_value_template>` for each.
 
-### 6) **Derived-Value & Persistence Invariants (table)**
+<derived_value_template>
+- Derived value: <name>
+  - Source dataset: <filtered/unfiltered inputs>
+  - Write / cleanup triggered: <persistence actions>
+  - Guards: <conditions or feature flags>
+  - Invariant: <statement that must hold>
+  - Evidence: <plan_path:lines or reference doc>
+</derived_value_template>
 
-List every derived variable that influences **storage, cleanup, or cross-context state** (database rows, S3 artifacts, cached metrics, shutdown waiters). At least 3 rows or “none; proof”.
+*(Example: “Box occupancy percentage” derived from filtered `part_locations` drives storage cleanup; guard with transaction-level check to avoid orphaning.)*
 
-| Derived value | Source dataset (filtered/unfiltered) | Write/cleanup it triggers | Guard conditions | Invariant that must hold | Evidence (file:lines) |
-| ------------- | ------------------------------------ | ------------------------- | ---------------- | ------------------------ | --------------------- |
-
-*(Example rows: computed inventory counts driving deletes, filtered selections used for quantity history rewrites, metrics snapshots that purge data.)*
-
-> If any row uses a **filtered** view to drive a **persistent** write/cleanup, flag **Major** unless justified.
+> If an entry uses a **filtered** view to drive a **persistent** write/cleanup without guards, flag **Major** unless fully justified.
 
 ### 7) Risks & Mitigations (top 3)
+Summarize the top plan-level risks and expected mitigations, grounding each in cited evidence. Use `<risk_template>` for consistency.
 
-Short bullets linking to the above evidence (e.g., migration ordering risks, race conditions, metrics blow-up).
+<risk_template>
+- Risk: <description tied to plan evidence>
+- Mitigation: <action or clarification needed>
+- Evidence: <plan_path:lines or referenced ref>
+</risk_template>
 
 ### 8) Confidence
+State your confidence in the plan and the reasoning behind it, using `<confidence_template>` to keep the statement concise.
 
-High/Medium/Low + one sentence why (experience with similar changes, coverage gaps, etc.).
+<confidence_template>Confidence: <High / Medium / Low> — <one-sentence rationale></confidence_template>
 
 ---
 
@@ -91,3 +145,6 @@ High/Medium/Low + one sentence why (experience with similar changes, coverage ga
 2. **Quote evidence**: every claim or closure needs file:line quotes from the plan (and refs). Flag when refs contradict plan assumptions.
 3. **Focus on invariants**: ensure filtering, batching, or async work doesn’t corrupt inventory state, leave hanging migrations, or orphan S3 blobs/test data.
 4. **Coverage is explicit**: if behavior is new/changed, require pytest scenarios, metrics instrumentation, and persistence hooks; reject “we’ll test later”.
+
+## Final check
+All XML template demarcation tags have been removed and all XML tags inside template output has been replaced with an actual value.

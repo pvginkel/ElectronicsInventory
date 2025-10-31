@@ -76,19 +76,18 @@ class S3Service(BaseService):
         """
         try:
             extra_args = {"ContentType": content_type} if content_type else None
-
-            if extra_args is None:
+            if extra_args is not None:
                 self.s3_client.upload_fileobj(
-                    Fileobj=file_obj,
-                    Bucket=self.settings.S3_BUCKET_NAME,
-                    Key=s3_key,
+                    file_obj,
+                    self.settings.S3_BUCKET_NAME,
+                    s3_key,
+                    ExtraArgs=extra_args,
                 )
             else:
                 self.s3_client.upload_fileobj(
-                    Fileobj=file_obj,
-                    Bucket=self.settings.S3_BUCKET_NAME,
-                    Key=s3_key,
-                    ExtraArgs=extra_args,
+                    file_obj,
+                    self.settings.S3_BUCKET_NAME,
+                    s3_key,
                 )
             return True
 

@@ -12,6 +12,7 @@ from sqlalchemy.pool import StaticPool
 from app import create_app
 from app.config import Settings
 from app.database import upgrade_database
+from app.exceptions import InvalidOperationException
 from app.services.container import ServiceContainer
 
 
@@ -60,6 +61,22 @@ def test_settings() -> Settings:
     return _build_test_settings()
 
 
+def _assert_s3_available(app: Flask) -> None:
+    """Ensure S3 storage is reachable for tests."""
+    try:
+        app.container.s3_service().ensure_bucket_exists()
+    except InvalidOperationException as exc:  # pragma: no cover - environment guard
+        pytest.fail(
+            "S3 storage is not available for tests: "
+            f"{exc.message}. Ensure S3_ENDPOINT_URL, credentials, and bucket access are configured."
+        )
+    except Exception as exc:  # pragma: no cover - environment guard
+        pytest.fail(
+            "Unexpected error while verifying S3 availability for tests: "
+            f"{exc}"
+        )
+
+
 @pytest.fixture(scope="session")
 def template_connection() -> Generator[sqlite3.Connection, None, None]:
     """Create a template SQLite database once and apply migrations."""
@@ -75,6 +92,7 @@ def template_connection() -> Generator[sqlite3.Connection, None, None]:
     template_app = create_app(settings)
     with template_app.app_context():
         upgrade_database(recreate=True)
+        _assert_s3_available(template_app)
 
     yield conn
 

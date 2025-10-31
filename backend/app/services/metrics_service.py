@@ -60,6 +60,75 @@ class MetricsServiceProtocol(ABC):
         """Record shopping list line stock receipt events."""
         pass
 
+    def record_kit_created(self) -> None:
+        """Record kit creation lifecycle events."""
+        return None
+
+    def record_kit_archived(self) -> None:
+        """Record kit archive lifecycle events."""
+        return None
+
+    def record_kit_unarchived(self) -> None:
+        """Record kit unarchive lifecycle events."""
+        return None
+
+    def record_kit_overview_request(self, status: str, result_count: int, limit: int | None = None) -> None:
+        """Record kit overview listing calls."""
+        return None
+
+    def record_kit_detail_view(self, kit_id: int) -> None:
+        """Record a kit detail view."""
+        return None
+
+    def record_part_kit_usage_request(self, has_results: bool) -> None:
+        """Record lookups for kits that consume a part."""
+        return None
+
+    def record_kit_content_created(self, kit_id: int, part_id: int, required_per_unit: int) -> None:
+        """Record creation of a kit content entry."""
+        return None
+
+    def record_kit_content_updated(self, kit_id: int, part_id: int, duration_seconds: float) -> None:
+        """Record update of a kit content entry."""
+        return None
+
+    def record_kit_content_deleted(self, kit_id: int, part_id: int) -> None:
+        """Record deletion of a kit content entry."""
+        return None
+
+    def record_kit_shopping_list_push(
+        self,
+        outcome: str,
+        honor_reserved: bool,
+        duration_seconds: float,
+    ) -> None:
+        """Record metrics for kit-to-shopping-list pushes."""
+        return None
+
+    def record_kit_shopping_list_unlink(self, outcome: str) -> None:
+        """Record metrics for kit-to-shopping-list unlink operations."""
+        return None
+
+    def record_pick_list_created(self, kit_id: int, requested_units: int, line_count: int) -> None:
+        """Record creation of a pick list."""
+        return None
+
+    def record_pick_list_line_picked(self, line_id: int, quantity: int) -> None:
+        """Record pick list line completion."""
+        return None
+
+    def record_pick_list_line_undo(self, outcome: str, duration_seconds: float) -> None:
+        """Record pick list line undo attempt."""
+        return None
+
+    def record_pick_list_detail_request(self, pick_list_id: int) -> None:
+        """Record pick list detail request metrics."""
+        return None
+
+    def record_pick_list_list_request(self, kit_id: int, result_count: int) -> None:
+        """Record pick list listing request metrics."""
+        return None
+
     @abstractmethod
     def record_ai_analysis(
         self,
@@ -194,6 +263,97 @@ class MetricsService(MetricsServiceProtocol):
             'inventory_parts_by_type',
             'Parts per category',
             ['type_name']
+        )
+
+        # Pick List Metrics
+        self.pick_list_created_total = Counter(
+            'pick_list_created_total',
+            'Total pick lists created'
+        )
+        self.pick_list_lines_per_creation = Histogram(
+            'pick_list_lines_per_creation',
+            'Distribution of pick list line counts per creation event'
+        )
+        self.pick_list_line_picked_total = Counter(
+            'pick_list_line_picked_total',
+            'Pick list lines marked as picked'
+        )
+        self.pick_list_line_undo_total = Counter(
+            'pick_list_line_undo_total',
+            'Pick list line undo outcomes',
+            ['outcome']
+        )
+        self.pick_list_line_undo_duration_seconds = Histogram(
+            'pick_list_line_undo_duration_seconds',
+            'Duration of pick list line undo operations in seconds'
+        )
+        self.pick_list_detail_requests_total = Counter(
+            'pick_list_detail_requests_total',
+            'Pick list detail requests processed'
+        )
+        self.pick_list_list_requests_total = Counter(
+            'pick_list_list_requests_total',
+            'Pick list list requests processed'
+        )
+
+        # Kit Metrics
+        self.kits_created_total = Counter(
+            'kits_created_total',
+            'Total kits created'
+        )
+        self.kits_archived_total = Counter(
+            'kits_archived_total',
+            'Total kits archived'
+        )
+        self.kits_unarchived_total = Counter(
+            'kits_unarchived_total',
+            'Total kits restored from archive'
+        )
+        self.kits_overview_requests_total = Counter(
+            'kits_overview_requests_total',
+            'Total kit overview requests',
+            ['status']
+        )
+        self.kits_active_count = Gauge(
+            'kits_active_count',
+            'Current count of active kits'
+        )
+        self.kits_archived_count = Gauge(
+            'kits_archived_count',
+            'Current count of archived kits'
+        )
+        self.kit_detail_views_total = Counter(
+            'kit_detail_views_total',
+            'Total kit detail view requests'
+        )
+        self.part_kit_usage_requests_total = Counter(
+            'part_kit_usage_requests_total',
+            'Total part kit usage lookup requests',
+            ['has_results'],
+        )
+        self.kit_shopping_list_push_total = Counter(
+            'kit_shopping_list_push_total',
+            'Total kit shopping list push operations by outcome',
+            ['outcome', 'honor_reserved'],
+        )
+        self.kit_shopping_list_push_seconds = Histogram(
+            'kit_shopping_list_push_seconds',
+            'Duration of kit shopping list push operations',
+            ['honor_reserved'],
+        )
+        self.kit_shopping_list_unlink_total = Counter(
+            'kit_shopping_list_unlink_total',
+            'Total kit shopping list unlink operations by outcome',
+            ['outcome'],
+        )
+        self.kit_content_mutations_total = Counter(
+            'kit_content_mutations_total',
+            'Total kit content mutations grouped by action',
+            ['action'],
+        )
+        self.kit_content_update_duration_seconds = Histogram(
+            'kit_content_update_duration_seconds',
+            'Duration of kit content update operations in seconds'
         )
 
         # Shopping list metrics
@@ -384,6 +544,158 @@ class MetricsService(MetricsServiceProtocol):
             self.shopping_list_lines_marked_ordered_total.labels(mode=mode).inc(count)
         except Exception as exc:
             logger.error("Error recording shopping list ordered lines metric: %s", exc)
+
+    def record_kit_created(self) -> None:
+        """Record kit creation lifecycle event."""
+        try:
+            self.kits_created_total.inc()
+            self.kits_active_count.inc()
+        except Exception as exc:
+            logger.error("Error recording kit creation metric: %s", exc)
+
+    def record_kit_archived(self) -> None:
+        """Record kit archive lifecycle event."""
+        try:
+            self.kits_archived_total.inc()
+            self.kits_active_count.dec()
+            self.kits_archived_count.inc()
+        except Exception as exc:
+            logger.error("Error recording kit archive metric: %s", exc)
+
+    def record_kit_unarchived(self) -> None:
+        """Record kit unarchive lifecycle event."""
+        try:
+            self.kits_unarchived_total.inc()
+            self.kits_archived_count.dec()
+            self.kits_active_count.inc()
+        except Exception as exc:
+            logger.error("Error recording kit unarchive metric: %s", exc)
+
+    def record_kit_overview_request(self, status: str, result_count: int, limit: int | None = None) -> None:
+        """Record list endpoint usage and optionally refresh gauges."""
+        try:
+            self.kits_overview_requests_total.labels(status=status).inc()
+            if limit is None:
+                if status == "active":
+                    self.kits_active_count.set(result_count)
+                elif status == "archived":
+                    self.kits_archived_count.set(result_count)
+        except Exception as exc:
+            logger.error("Error recording kit overview metrics: %s", exc)
+
+    def record_kit_detail_view(self, kit_id: int) -> None:
+        """Record kit detail view usage."""
+        try:
+            self.kit_detail_views_total.inc()
+        except Exception as exc:
+            logger.error("Error recording kit detail view metric: %s", exc)
+
+    def record_part_kit_usage_request(self, has_results: bool) -> None:
+        """Record part detail kit usage lookups."""
+        try:
+            result_label = "true" if has_results else "false"
+            self.part_kit_usage_requests_total.labels(has_results=result_label).inc()
+        except Exception as exc:
+            logger.error("Error recording part kit usage metric: %s", exc)
+
+    def record_kit_content_created(self, kit_id: int, part_id: int, required_per_unit: int) -> None:
+        """Record creation of a kit content entry."""
+        try:
+            self.kit_content_mutations_total.labels(action="create").inc()
+        except Exception as exc:
+            logger.error("Error recording kit content creation metric: %s", exc)
+
+    def record_kit_content_updated(self, kit_id: int, part_id: int, duration_seconds: float) -> None:
+        """Record update of a kit content entry including duration."""
+        try:
+            self.kit_content_mutations_total.labels(action="update").inc()
+            self.kit_content_update_duration_seconds.observe(
+                max(duration_seconds, 0.0)
+            )
+        except Exception as exc:
+            logger.error("Error recording kit content update metric: %s", exc)
+
+    def record_kit_content_deleted(self, kit_id: int, part_id: int) -> None:
+        """Record deletion of a kit content entry."""
+        try:
+            self.kit_content_mutations_total.labels(action="delete").inc()
+        except Exception as exc:
+            logger.error("Error recording kit content deletion metric: %s", exc)
+
+    def record_kit_shopping_list_push(
+        self,
+        outcome: str,
+        honor_reserved: bool,
+        duration_seconds: float,
+    ) -> None:
+        """Record metrics for kit push flows."""
+        try:
+            reserved_label = "true" if honor_reserved else "false"
+            self.kit_shopping_list_push_total.labels(
+                outcome=outcome,
+                honor_reserved=reserved_label,
+            ).inc()
+            self.kit_shopping_list_push_seconds.labels(
+                honor_reserved=reserved_label,
+            ).observe(max(duration_seconds, 0.0))
+        except Exception as exc:
+            logger.error(
+                "Error recording kit shopping list push metrics: %s",
+                exc,
+            )
+
+    def record_kit_shopping_list_unlink(self, outcome: str) -> None:
+        """Record metrics for unlink operations."""
+        try:
+            self.kit_shopping_list_unlink_total.labels(outcome=outcome).inc()
+        except Exception as exc:
+            logger.error(
+                "Error recording kit shopping list unlink metrics: %s",
+                exc,
+            )
+
+    def record_pick_list_created(self, kit_id: int, requested_units: int, line_count: int) -> None:
+        """Record metrics when a new pick list is created."""
+        if line_count < 0:
+            line_count = 0
+        try:
+            self.pick_list_created_total.inc()
+            self.pick_list_lines_per_creation.observe(line_count)
+        except Exception as exc:
+            logger.error("Error recording pick list creation metrics: %s", exc)
+
+    def record_pick_list_line_picked(self, line_id: int, quantity: int) -> None:
+        """Record metrics for pick line completion."""
+        if quantity <= 0:
+            return
+        try:
+            self.pick_list_line_picked_total.inc()
+        except Exception as exc:
+            logger.error("Error recording pick list line pick metric: %s", exc)
+
+    def record_pick_list_line_undo(self, outcome: str, duration_seconds: float) -> None:
+        """Record metrics for undo attempts."""
+        try:
+            self.pick_list_line_undo_total.labels(outcome=outcome).inc()
+            self.pick_list_line_undo_duration_seconds.observe(
+                max(duration_seconds, 0.0)
+            )
+        except Exception as exc:
+            logger.error("Error recording pick list undo metrics: %s", exc)
+
+    def record_pick_list_detail_request(self, pick_list_id: int) -> None:
+        """Record detail request metrics."""
+        try:
+            self.pick_list_detail_requests_total.inc()
+        except Exception as exc:
+            logger.error("Error recording pick list detail metrics: %s", exc)
+
+    def record_pick_list_list_request(self, kit_id: int, result_count: int) -> None:
+        """Record list request metrics."""
+        try:
+            self.pick_list_list_requests_total.inc()
+        except Exception as exc:
+            logger.error("Error recording pick list list metrics: %s", exc)
 
     def record_shopping_list_line_receipt(self, lines: int, total_qty: int) -> None:
         """Record metrics for shopping list line stock receipts."""

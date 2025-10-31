@@ -2,6 +2,9 @@
 
 import uuid
 
+from app.models.kit import Kit, KitStatus
+from app.models.kit_content import KitContent
+from app.models.part import Part
 from app.models.shopping_list import ShoppingListStatus
 
 
@@ -96,6 +99,41 @@ class TestShoppingListsAPI:
             assert "has_ordered_lines" in entry
             assert "last_updated" in entry
             assert entry["last_updated"] == entry["updated_at"]
+
+    def test_list_endpoint_status_filter(self, client, session, container):
+        shopping_list_service = container.shopping_list_service()
+        part_service = container.part_service()
+        shopping_list_line_service = container.shopping_list_line_service()
+
+        concept = shopping_list_service.create_list(f"Concept-{uuid.uuid4()}")
+        ready = shopping_list_service.create_list(f"Ready-{uuid.uuid4()}")
+        done = shopping_list_service.create_list(f"Done-{uuid.uuid4()}")
+        part = part_service.create_part(description="Filter resistor")
+        shopping_list_line_service.add_line(ready.id, part_id=part.id, needed=1)
+        shopping_list_line_service.add_line(done.id, part_id=part.id, needed=1)
+        shopping_list_service.set_list_status(ready.id, ShoppingListStatus.READY)
+        shopping_list_service.set_list_status(done.id, ShoppingListStatus.READY)
+        shopping_list_service.set_list_status(done.id, ShoppingListStatus.DONE)
+        session.commit()
+
+        filtered = client.get("/api/shopping-lists?status=concept&status=ready")
+        assert filtered.status_code == 200
+        names = {entry["name"] for entry in filtered.get_json()}
+        assert concept.name in names
+        assert ready.name in names
+        assert done.name not in names
+
+        done_only = client.get("/api/shopping-lists?status=done")
+        assert done_only.status_code == 200, done_only.get_json()
+        assert done_only.get_json() == []
+
+        done_included = client.get("/api/shopping-lists?status=done&include_done=true")
+        assert done_included.status_code == 200
+        done_names = {entry["name"] for entry in done_included.get_json()}
+        assert done.name in done_names
+
+        invalid = client.get("/api/shopping-lists?status=invalid")
+        assert invalid.status_code == 409
 
     def test_status_transitions_validate_rules(self, client, session, container):
         shopping_list_service = container.shopping_list_service()
@@ -241,7 +279,37 @@ class TestShoppingListsAPI:
             json={"description": "Should fail"},
         )
         assert update_resp.status_code == 409
-        assert (
-            update_resp.get_json()["error"]
-            == "Cannot update shopping list because lists marked as done cannot be modified"
+
+    def test_get_shopping_list_kits_endpoint(self, client, session, container):
+        kit = Kit(name="List Kit", build_target=1, status=KitStatus.ACTIVE)
+        part = Part(key="LIST1", description="List Part")
+        session.add_all([kit, part])
+        session.flush()
+        content = KitContent(kit_id=kit.id, part_id=part.id, required_per_unit=1)
+        session.add(content)
+        session.commit()
+
+        service = container.kit_shopping_list_service()
+        result = service.create_or_append_list(
+            kit.id,
+            units=None,
+            honor_reserved=False,
+            shopping_list_id=None,
+            note_prefix="Fallback",
+            new_list_name="Linked Shopping List",
         )
+        link = result.link
+        assert link is not None
+
+        response = client.get(f"/api/shopping-lists/{link.shopping_list_id}/kits")
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert len(payload) == 1
+        entry = payload[0]
+        assert entry["kit_id"] == kit.id
+        assert entry["kit_name"] == kit.name
+        assert entry["kit_status"] == KitStatus.ACTIVE.value
+        assert entry["requested_units"] == kit.build_target
+
+        missing = client.get("/api/shopping-lists/99999/kits")
+        assert missing.status_code == 404

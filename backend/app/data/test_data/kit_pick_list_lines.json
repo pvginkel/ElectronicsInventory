@@ -1,0 +1,38 @@
+[
+  {
+    "pick_list_key": "synth-voice-2u",
+    "kit_content_part_key": "ABCD",
+    "location": {"box_no": 3, "loc_no": 1},
+    "quantity_to_pick": 4,
+    "status": "open"
+  },
+  {
+    "pick_list_key": "synth-voice-2u",
+    "kit_content_part_key": "EFGH",
+    "location": {"box_no": 3, "loc_no": 2},
+    "quantity_to_pick": 2,
+    "status": "open"
+  },
+  {
+    "pick_list_key": "synth-voice-1u",
+    "kit_content_part_key": "ABCD",
+    "location": {"box_no": 3, "loc_no": 1},
+    "quantity_to_pick": 2,
+    "status": "open"
+  },
+  {
+    "pick_list_key": "synth-voice-1u",
+    "kit_content_part_key": "EFGH",
+    "location": {"box_no": 3, "loc_no": 2},
+    "quantity_to_pick": 1,
+    "status": "open"
+  },
+  {
+    "pick_list_key": "legacy-mixer-1u",
+    "kit_content_part_key": "ABCD",
+    "location": {"box_no": 3, "loc_no": 1},
+    "quantity_to_pick": 2,
+    "status": "completed",
+    "picked_at": "2024-01-12T09:30:00"
+  }
+]
