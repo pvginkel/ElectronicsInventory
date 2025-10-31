@@ -56,8 +56,8 @@ Remove the "Removing..." loading state from kit content deletion to align with t
 
 - The pure optimistic deletion pattern is the correct UX (as specified in original plan)
 - Existing Playwright tests do not assert on the "Removing..." badge visibility
-- TanStack Query's optimistic updates provide sufficient user feedback through instant row removal
-- Backend deletion performance is fast enough that additional UI feedback is unnecessary
+- The mutation-then-refetch pattern provides sufficient user feedback (row disappears after backend confirmation and cache refresh)
+- Backend deletion performance is fast enough that refetch-based removal feels responsive in typical network conditions
 
 ## 2) Affected Areas & File Map
 
@@ -122,24 +122,25 @@ Remove the "Removing..." loading state from kit content deletion to align with t
 4. Form instrumentation tracks submit phase (unchanged)
 5. **[REMOVED]** ~~`setIsDeleteSubmitting(true)` and `setPendingDeleteId(row.id)` called~~
 6. **[REMOVED]** ~~Row displays "Removing..." badge, edit/delete buttons disabled~~
-7. `deleteMutation.mutateAsync()` called
-8. TanStack Query optimistically removes row from cache → **row disappears instantly**
-9. On success:
+7. `deleteMutation.mutateAsync()` called → backend DELETE request sent
+8. On success:
    - **[REMOVED]** ~~Reset `pendingDeleteId` and `isDeleteSubmitting`~~
    - Track success instrumentation
    - Show success toast with undo button
-   - Refetch query
-10. On error:
-    - **[REMOVED]** ~~Reset `pendingDeleteId` and `isDeleteSubmitting`~~
-    - Remove snapshot from Map
-    - Track error instrumentation
-    - Show exception toast
+   - `query.refetch()` called → backend fetches updated kit detail
+   - **Row disappears when refetch completes** (cache updated with backend state)
+9. On error:
+   - **[REMOVED]** ~~Reset `pendingDeleteId` and `isDeleteSubmitting`~~
+   - Remove snapshot from Map
+   - Track error instrumentation
+   - Show exception toast
+   - Row remains visible (mutation failed, no cache update)
 
-**States / transitions**: Content row visible → delete clicked → **row removed instantly (no loading badge)** → toast with undo → (undo clicked) → row restored
+**States / transitions**: Content row visible → delete clicked → (mutation + refetch) → **row removed when refetch completes (no loading badge)** → toast with undo → (undo clicked) → row restored
 
 **Hotspots**: None. Removing state simplifies the component and eliminates re-render pressure from loading state updates.
 
-**UI guidance**: Row disappears instantly when delete is clicked (pure optimistic deletion, no intermediate loading state). This matches shopping list line deletion behavior exactly.
+**UI guidance**: Row disappears when refetch completes after successful deletion (no intermediate loading state shown). On typical network speeds this feels near-instant. On slow networks there may be a brief delay before the row disappears. This matches shopping list line deletion behavior exactly.
 
 **Evidence**:
 - Current implementation: `src/hooks/use-kit-contents.ts:821-896`
@@ -147,13 +148,34 @@ Remove the "Removing..." loading state from kit content deletion to align with t
 
 ## 6) Derived State & Invariants
 
-**No derived state involved.** The loading state variables (`pendingDeleteId`, `isDeleteSubmitting`) were local presentational state, not derived from queries or props. Their removal eliminates these values entirely; no replacement derivation is needed.
+**Derived state: `isMutationPending`**
+
+The hook computes a global mutation lock (`isMutationPending`) that combines local state flags and TanStack Query mutation states:
+
+```typescript
+const isMutationPending =
+  isCreateSubmitting || isEditSubmitting || isDeleteSubmitting ||
+  createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+```
+
+**Impact of removing `isDeleteSubmitting`:**
+- ✅ **Safe to remove**: `deleteMutation.isPending` provides equivalent coverage for deletion operations
+- When `deleteMutation.mutateAsync()` is called, `deleteMutation.isPending` becomes `true` automatically
+- It remains `true` until the mutation promise resolves or rejects
+- After removal, `isMutationPending` will still correctly reflect deletion state via `deleteMutation.isPending`
+
+**Evidence**: `src/hooks/use-kit-contents.ts:902-903` — `isMutationPending` calculation; `:849-852` — `mutateAsync()` call sets `deleteMutation.isPending = true`
+
+**Invariants maintained:**
+- Global mutation lock prevents concurrent overlapping operations (unchanged)
+- Row action buttons disabled during any mutation via `disableActions={isMutationPending}` (unchanged)
+- The `remove.isSubmitting` export will need to be updated or removed since it currently returns `isDeleteSubmitting` (see Section 14, Slice 1)
 
 ## 7) State Consistency & Async Coordination
 
 **Source of truth**: TanStack Query cache for kit detail (unchanged)
 
-**Coordination**: Deletion mutation triggers cache refetch via `query.refetch()` after success. The instant row removal is handled by TanStack Query's optimistic update behavior (framework-provided, not manually implemented in current code).
+**Coordination**: Deletion mutation triggers cache refetch via `query.refetch()` after success. Row removal occurs when the refetch completes and updates the cache with backend state (mutation-then-refetch pattern, not optimistic updates).
 
 **Async safeguards**: Existing undo in-flight protection via `undoInFlightRef` remains (unchanged). Deletion mutation error handling remains (unchanged).
 
@@ -167,8 +189,11 @@ Remove the "Removing..." loading state from kit content deletion to align with t
 
 - Surface: Kit BOM table row
 - Handling: Currently prevented by `isDeleting` disabling the button. **After change**: First click triggers deletion, second click during mutation could trigger a second deletion attempt (will fail if content already deleted, showing error toast). This matches shopping list behavior.
-- Guardrails: Error toast shown if deletion fails. Undo snapshot only captured on first successful deletion.
-- Evidence: Shopping list implementation has same behavior (no button disabling during deletion)
+- Guardrails:
+  - **Map-based snapshot storage prevents corruption**: Each deletion is keyed by `contentId` in `deletedContentSnapshotsRef` Map (`use-kit-contents.ts:173-182`). Second call would overwrite the first snapshot at the same key, but since both deletions target the same content, the snapshot data is identical.
+  - **Backend rejects duplicate deletion**: Second DELETE request returns 404 (content already deleted), triggering error handler which shows exception toast and removes the snapshot from the Map.
+  - **Concurrent deletions of different contents are fully safe**: Map structure allows multiple independent deletion operations with separate snapshots keyed by different `contentId` values.
+- Evidence: Shopping list implementation has same behavior (no button disabling during deletion); `src/hooks/use-kit-contents.ts:829-837` — snapshot creation; `:876` — cleanup on error
 
 **Failure: User clicks edit button during deletion**
 
@@ -181,14 +206,15 @@ Remove the "Removing..." loading state from kit content deletion to align with t
 
 - Surface: Kit BOM table
 - Handling: **Unchanged** - Exception toast shown, snapshot removed from Map, instrumentation tracks error
-- Guardrails: Row remains visible (optimistic update didn't occur on error), user can retry
+- Guardrails: Row remains visible (mutation failed, cache was not refetched), user can retry
 - Evidence: `src/hooks/use-kit-contents.ts:872-884` — error handling
 
 **Edge case: Slow network**
 
 - Surface: Kit BOM table
-- Handling: **After change**: No visual indication that deletion is in progress. Row remains visible until mutation completes (if optimistic update isn't immediate) or disappears instantly (if optimistic update is immediate).
-- Guardrails: Toast appears after mutation succeeds, providing confirmation
+- Handling: **After change**: No visual indication that deletion is in progress. Row remains visible during the full mutation + refetch cycle, which may take several seconds on slow networks. Row disappears only when refetch completes.
+- Guardrails: Toast appears after mutation succeeds, providing delayed but clear confirmation
+- UX note: This is a trade-off of the refetch-based deletion pattern. On typical network speeds (< 500ms round-trip), the delay is imperceptible. On slow networks, users may perceive a delay between clicking delete and row disappearing.
 - Evidence: Shopping list has same behavior
 
 ## 9) Observability / Instrumentation
@@ -242,10 +268,10 @@ Remove the "Removing..." loading state from kit content deletion to align with t
 **Change**: Remove "Removing..." badge with spinner that currently appears on a row during content deletion
 
 **User interaction**:
-- **Before**: User clicks delete → row shows "Removing..." badge with spinner → row disappears after mutation completes → toast appears with undo
-- **After**: User clicks delete → row disappears instantly → toast appears with undo
+- **Before**: User clicks delete → row shows "Removing..." badge with spinner → row disappears after mutation + refetch completes → toast appears with undo
+- **After**: User clicks delete → (mutation + refetch happens) → row disappears when refetch completes → toast appears with undo
 
-**Visual difference**: No intermediate loading state. Row removal feels instantaneous (powered by TanStack Query's optimistic update behavior or instant DOM update on mutation completion).
+**Visual difference**: No intermediate loading state. Row removal occurs when the refetch completes after successful backend deletion (mutation-then-refetch pattern). On typical network speeds this feels near-instant; on slow networks there may be a perceptible delay before the row disappears.
 
 **Consistency**: This aligns kit content deletion with shopping list line deletion, which already works this way. Both features now provide identical deletion UX.
 
@@ -287,9 +313,12 @@ Remove the "Removing..." loading state from kit content deletion to align with t
 
 - Goal: Eliminate state variables and setter calls that track deletion in-progress status
 - Touches:
-  - `src/hooks/use-kit-contents.ts:170-171` — Delete state declarations
-  - `src/hooks/use-kit-contents.ts:839-840, :854-855, :873-874` — Delete setState calls in `openDelete` function
-  - `src/hooks/use-kit-contents.ts` (overlays return object) — Remove `pendingDeleteId` and `isDeleteSubmitting` from export (if present)
+  - `src/hooks/use-kit-contents.ts:170-171` — Delete `pendingDeleteId` and `isDeleteSubmitting` state declarations
+  - `src/hooks/use-kit-contents.ts:839-840, :854-855, :873-874` — Delete `setPendingDeleteId` and `setIsDeleteSubmitting` calls in `openDelete` function
+  - `src/hooks/use-kit-contents.ts:109-116` — Update `DeleteControls` interface: either remove `isSubmitting: boolean;` or make it optional, OR replace with `deleteMutation.isPending` in the return value
+  - `src/hooks/use-kit-contents.ts:118-132` — Remove `pendingDeleteId: number | null;` from `overlays` in `UseKitContentsResult` interface
+  - `src/hooks/use-kit-contents.ts:905-949` — Remove `pendingDeleteId` from `overlays` object in return statement (line ~942) AND update `remove.isSubmitting` to use `deleteMutation.isPending` instead of `isDeleteSubmitting` (line ~919)
+- Verification: Run `pnpm check` to ensure TypeScript compiles without errors after these changes
 - Dependencies: None. This slice is independent.
 
 **Slice 2: Remove loading state from UI components**
@@ -309,9 +338,9 @@ Remove the "Removing..." loading state from kit content deletion to align with t
 
 - Goal: Confirm Playwright tests pass and behavior matches shopping list deletion
 - Touches:
+  - Run `pnpm check` to verify TypeScript and ESLint pass (confirms TypeScript export changes are correct)
   - Run `pnpm playwright test tests/e2e/kits/kit-contents-undo.spec.ts` to verify all 5 tests pass
-  - Run `pnpm check` to verify TypeScript and ESLint pass
-  - Manual verification: Delete kit content in browser, observe instant row removal with no loading badge
+  - Manual verification: Delete kit content in browser, observe row removal when refetch completes with no loading badge (on fast networks this feels near-instant; on slow networks there may be a brief delay)
 - Dependencies: Slices 1-2 completed
 
 ## 15) Risks & Open Questions
@@ -319,7 +348,7 @@ Remove the "Removing..." loading state from kit content deletion to align with t
 **Risk: User confusion from lack of feedback**
 
 - Impact: On slow networks, user might not realize deletion is processing and click delete multiple times
-- Mitigation: Shopping list already works this way without reported issues. TanStack Query's optimistic updates typically make deletion feel instant even on slow networks. If issues arise, we can add a global loading indicator or temporarily disable all actions during any mutation.
+- Mitigation: Shopping list already works this way without reported issues. The mutation-then-refetch pattern typically completes quickly enough (< 500ms) that deletion feels responsive on typical network speeds. If issues arise on slow networks, we can add a global loading indicator or temporarily disable all actions during any mutation.
 
 **Risk: Double-click creates unexpected error toast**
 
@@ -333,7 +362,7 @@ Remove the "Removing..." loading state from kit content deletion to align with t
 
 **Open Question: Should we disable edit button during deletion?**
 
-- Why it matters: Allows trade-off between "pure optimistic deletion" (no UI changes except row removal) and "prevent confusing interactions" (disable edit button briefly)
+- Why it matters: Allows trade-off between "no loading state UI" (no intermediate feedback, row removal on refetch) and "prevent confusing interactions" (disable edit button briefly during mutation)
 - Owner / follow-up: Product decision. Current plan removes all loading state for consistency with shopping list. If edit-during-deletion becomes a real issue, can be addressed in follow-up.
 
 **Open Question: Should we add global mutation indicator?**
