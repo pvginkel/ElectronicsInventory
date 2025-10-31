@@ -2,6 +2,7 @@
 import { type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -328,32 +329,19 @@ function sortShoppingLinks(links: KitShoppingListLink[]): KitShoppingListLink[] 
 }
 
 function ArchivedEditTooltip() {
-  const tooltipId = 'kits-detail-edit-tooltip';
-
   return (
-    <div
-      className="group relative inline-flex cursor-not-allowed"
-      tabIndex={0}
-      aria-describedby={tooltipId}
-      data-testid="kits.detail.actions.edit.disabled-wrapper"
+    <Tooltip
+      content="Archived kits are read-only. Unarchive the kit to edit metadata or BOM contents."
+      testId="kits.detail.actions.edit"
+      className="w-64 text-xs"
     >
       <Button
         variant="outline"
         disabled
         data-testid="kits.detail.actions.edit"
-        aria-disabled="true"
-        className="pointer-events-none"
       >
         Edit Kit
       </Button>
-      <div
-        id={tooltipId}
-        role="tooltip"
-        className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 hidden w-64 -translate-x-1/2 rounded-md border border-border bg-background p-2 text-xs text-muted-foreground shadow-lg group-hover:block group-focus-visible:block"
-        data-testid="kits.detail.actions.edit.tooltip"
-      >
-        Archived kits are read-only. Unarchive the kit to edit metadata or BOM contents.
-      </div>
-    </div>
+    </Tooltip>
   );
 }

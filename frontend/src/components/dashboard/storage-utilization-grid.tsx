@@ -1,7 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { useDashboardStorage } from '@/hooks/use-dashboard'
 import { useNavigate } from '@tanstack/react-router'
-import { useState } from 'react'
 
 interface StorageBoxProps {
   boxNo: number
@@ -22,8 +21,6 @@ function StorageBox({
   onClick,
   dataset,
 }: StorageBoxProps) {
-  const [isHovered, setIsHovered] = useState(false)
-
   // Visual encoding based on plan
   const getActivityLevel = (usage: number) => {
     if (usage >= 80) return 3 // High activity - thicker border
@@ -46,23 +43,21 @@ function StorageBox({
 
   const activityLevel = getActivityLevel(usagePercentage)
   const borderThickness = `border-${Math.max(1, activityLevel)}`
-  
+
   return (
     <div
       className={`
-        relative cursor-pointer transition-all duration-200 rounded-lg p-3
+        relative cursor-pointer transition-all duration-200 rounded-lg p-3 group
         ${getBorderColor(usagePercentage)} ${borderThickness}
-        hover:shadow-md hover:shadow-primary/20 hover:border-primary/60
-        ${isHovered ? 'transform scale-105 z-[60]' : ''}
+        hover:shadow-md hover:shadow-primary/20 hover:border-primary/60 hover:scale-105 hover:z-[60]
       `}
       style={{
         backgroundColor: `rgba(var(--primary), ${getBackgroundOpacity(usagePercentage)})`
       }}
       onClick={() => onClick(boxNo)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       data-testid="dashboard.storage.box"
       data-box-no={boxNo}
+      title={`Box ${boxNo} - ${description}: ${occupiedLocations} / ${totalLocations} locations (${Math.round(usagePercentage)}%)`}
       {...dataset}
     >
       {/* Box Number Badge */}
@@ -101,23 +96,9 @@ function StorageBox({
         </div>
       </div>
 
-      {/* Hover Tooltip */}
-      {isHovered && (
-        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-popover border rounded px-2 py-1 shadow-lg text-xs whitespace-nowrap z-[70]">
-          <div className="font-medium">Box {boxNo}</div>
-          <div className="text-muted-foreground">{description}</div>
-          <div className="text-primary font-medium">
-            {occupiedLocations} / {totalLocations} locations ({Math.round(usagePercentage)}%)
-          </div>
-        </div>
-      )}
-
       {/* Ripple effect on click */}
       <div className="absolute inset-0 rounded-lg overflow-hidden">
-        <div className={`
-          absolute inset-0 bg-primary/20 rounded-lg transform scale-0 transition-transform duration-300
-          ${isHovered ? 'animate-ping' : ''}
-        `} />
+        <div className="absolute inset-0 bg-primary/20 rounded-lg transform scale-0 transition-transform duration-300 group-hover:animate-ping" />
       </div>
     </div>
   )

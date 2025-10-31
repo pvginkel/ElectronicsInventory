@@ -38,6 +38,7 @@ Designers drafting plans and developers implementing Playwright work must re-rea
 3. Keep instrumentation behind `isTestMode()` and follow the documented test-event taxonomy when enhancing visibility.
 4. When in doubt, defer to `docs/contribute/` rather than copying guidance back into this file.
 5. Treat instrumentation as part of the UI contract. Add or update `useListLoadingInstrumentation` and `trackForm*` hooks alongside any new loading or mutation flow.
+6. For tooltips, use the shared `Tooltip` component or plain `title` attribute — never create bespoke tooltip implementations. See `docs/contribute/ui/tooltip_guidelines.md` for the decision tree and usage patterns.
 
 ## UI & Playwright Coupling
 

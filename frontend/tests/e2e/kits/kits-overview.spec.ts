@@ -125,6 +125,10 @@ test.describe('Kits overview', () => {
       await expect(shoppingTooltip).toContainText(status);
     }
 
+    // Move mouse away from shopping tooltip to avoid blocking the pick indicator hover
+    await page.mouse.move(0, 0);
+    await expect(shoppingTooltip).not.toBeVisible();
+
     const pickIndicator = kits.pickIndicator(kitId);
     await expect(pickIndicator).toBeVisible();
     await pickIndicator.hover();

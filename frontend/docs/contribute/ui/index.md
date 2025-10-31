@@ -17,6 +17,7 @@ This section of the contributor docs captures the UI conventions that every feat
 - [Button Labeling Standards](./button_standards.md) – defines the `<verb> <noun>` pattern, business-function naming, accessibility requirements, and acceptable exceptions for all button labels.
 - [Form Conventions](./forms.md) – outlines how to compose dialogs, forms, validation, and instrumentation with `useFormState`, `useFormInstrumentation`, and the UI kit.
 - [Data Display Conventions](./data_display.md) – explains list/detail expectations, skeletons, empty states, and `useListLoadingInstrumentation` usage.
+- [Tooltip Guidelines](./tooltip_guidelines.md) – documents when to use plain `title` vs the shared `Tooltip` component, automatic disabled element handling, placement modes, and the prohibition on bespoke tooltip implementations.
 
 Use these building-block docs whenever you extend a pattern. They summarize reusable pieces such as `FormLabel`, `Button`, `SearchableSelect`, and list instrumentation so new code stays consistent.
 

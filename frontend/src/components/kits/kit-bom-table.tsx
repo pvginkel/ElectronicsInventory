@@ -1,10 +1,9 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { createPortal } from 'react-dom';
+import { useCallback } from 'react';
 import { AlertTriangle, Loader2, Pencil, Trash, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip } from '@/components/ui/tooltip';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { KitBOMRowEditor } from '@/components/kits/kit-bom-row-editor';
 import type { KitContentRow } from '@/types/kits';
@@ -241,10 +240,54 @@ function KitBOMDisplayRow({
         <div className="flex items-center justify-end gap-2">
           <span>{formatNumber(row.reserved)}</span>
           {showReservations ? (
-            <ReservationTooltip
-              reservations={row.activeReservations}
+            <Tooltip
               testId={`kits.detail.table.row.${row.id}.reservations`}
-            />
+              className="w-72"
+              content={
+                <div>
+                  <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    <span>
+                      {row.activeReservations.length === 1
+                        ? '1 active reservation'
+                        : `${row.activeReservations.length} active reservations`}
+                    </span>
+                  </div>
+                  <ul className="space-y-2 text-xs">
+                    {row.activeReservations.map((reservation) => (
+                      <li key={reservation.kitId} className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-medium">{reservation.kitName}</p>
+                          <p className="text-muted-foreground/80">{reservation.status}</p>
+                        </div>
+                        <div className="text-right">
+                          <p>
+                            Reserved:{' '}
+                            <span className="font-medium">
+                              {formatNumber(reservation.reservedQuantity)}
+                            </span>
+                          </p>
+                          <p>Build target: {formatNumber(reservation.buildTarget)}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              }
+            >
+              <div
+                className="flex items-center"
+                role="button"
+                tabIndex={0}
+                aria-label={
+                  row.activeReservations.length === 1
+                    ? '1 active reservation'
+                    : `${row.activeReservations.length} active reservations`
+                }
+              >
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </Tooltip>
           ) : null}
         </div>
       </td>
@@ -338,159 +381,4 @@ function PendingCreateOverlayRow({ pending }: PendingCreateOverlayRowProps) {
 
 function formatNumber(value: number): string {
   return NUMBER_FORMATTER.format(value);
-}
-
-interface ReservationTooltipProps {
-  reservations: KitContentRow['activeReservations'];
-  testId: string;
-}
-
-function ReservationTooltip({ reservations, testId }: ReservationTooltipProps) {
-  const triggerRef = useRef<HTMLDivElement>(null);
-  const tooltipRef = useRef<HTMLDivElement>(null);
-  const closeTimerRef = useRef<number | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
-
-  const summaryLabel = useMemo(
-    () =>
-      reservations.length === 1
-        ? '1 active reservation'
-        : `${reservations.length} active reservations`,
-    [reservations.length],
-  );
-
-  const cancelScheduledClose = useCallback(() => {
-    if (closeTimerRef.current) {
-      window.clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-  }, []);
-
-  const scheduleClose = useCallback(() => {
-    cancelScheduledClose();
-    closeTimerRef.current = window.setTimeout(() => {
-      setIsOpen(false);
-    }, 120);
-  }, [cancelScheduledClose]);
-
-  const updatePosition = useCallback(() => {
-    const trigger = triggerRef.current;
-    const tooltip = tooltipRef.current;
-    if (!trigger || !tooltip) {
-      return;
-    }
-    const triggerRect = trigger.getBoundingClientRect();
-    const tooltipRect = tooltip.getBoundingClientRect();
-    const padding = 12;
-
-    let top = triggerRect.bottom + 8;
-    let left = triggerRect.right - tooltipRect.width;
-
-    const maxLeft = window.innerWidth - tooltipRect.width - padding;
-    left = Math.min(Math.max(padding, left), Math.max(padding, maxLeft));
-
-    if (top + tooltipRect.height > window.innerHeight - padding) {
-      top = Math.max(
-        padding,
-        triggerRect.top - tooltipRect.height - 8,
-      );
-    }
-
-    setPosition({ top, left });
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    updatePosition();
-    const handleScroll = () => updatePosition();
-    const handleResize = () => updatePosition();
-
-    window.addEventListener('scroll', handleScroll, true);
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll, true);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [isOpen, updatePosition]);
-
-  useLayoutEffect(() => {
-    return () => {
-      if (closeTimerRef.current) {
-        window.clearTimeout(closeTimerRef.current);
-      }
-    };
-  }, []);
-
-  const handleOpen = () => {
-    cancelScheduledClose();
-    setIsOpen(true);
-  };
-
-  const handleClose = () => {
-    scheduleClose();
-  };
-
-  const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      setIsOpen(false);
-    }
-  };
-
-  return (
-    <div
-      ref={triggerRef}
-      className="flex items-center"
-      onMouseEnter={handleOpen}
-      onMouseLeave={handleClose}
-      onFocus={handleOpen}
-      onBlur={handleClose}
-      onKeyDown={handleKeyDown}
-      role="button"
-      tabIndex={0}
-      data-testid={testId}
-      aria-label={summaryLabel}
-    >
-      <Users className="h-4 w-4 text-muted-foreground" />
-      {isOpen && createPortal(
-        <div
-          ref={tooltipRef}
-          className="z-50 w-72 rounded-md border border-border bg-background p-3 shadow-lg"
-          style={{ position: 'fixed', top: position.top, left: position.left }}
-          role="tooltip"
-          data-testid={`${testId}.tooltip`}
-        >
-          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-            <span>{summaryLabel}</span>
-          </div>
-          <ul className="space-y-2 text-xs text-muted-foreground">
-            {reservations.map((reservation) => (
-              <li key={reservation.kitId} className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium text-foreground">{reservation.kitName}</p>
-                  <p className="text-muted-foreground/80">{reservation.status}</p>
-                </div>
-                <div className="text-right">
-                  <p>
-                    Reserved:{' '}
-                    <span className="font-medium text-foreground">
-                      {formatNumber(reservation.reservedQuantity)}
-                    </span>
-                  </p>
-                  <p>Build target: {formatNumber(reservation.buildTarget)}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>,
-        document.body
-      )}
-    </div>
-  );
 }

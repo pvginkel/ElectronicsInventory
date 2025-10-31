@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Tooltip } from './tooltip';
 
 interface MembershipIndicatorProps<TSummary> {
   summary?: TSummary;
@@ -48,17 +49,19 @@ export function MembershipIndicator<TSummary>({
 
   if (hasError) {
     return (
-      <div
-        className={cn('group relative flex h-8 w-8 items-center justify-center', containerClassName)}
-        data-testid={`${testId}.error`}
-        onClick={(event) => event.stopPropagation()}
-        onMouseDown={(event) => event.stopPropagation()}
+      <Tooltip
+        testId={`${testId}.error`}
+        content={<div className="w-52 text-xs text-destructive">{errorMessage}</div>}
+        className="border-destructive/50"
       >
-        <AlertTriangle className="h-4 w-4 text-destructive" />
-        <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden w-52 rounded-md border border-destructive/50 bg-background p-2 text-xs text-destructive shadow-lg group-hover:block">
-          {errorMessage}
+        <div
+          className={cn('flex h-8 w-8 items-center justify-center', containerClassName)}
+          onClick={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <AlertTriangle className="h-4 w-4 text-destructive" />
         </div>
-      </div>
+      </Tooltip>
     );
   }
 
@@ -76,32 +79,28 @@ export function MembershipIndicator<TSummary>({
   const label = ariaLabel(summary);
 
   return (
-    <div
-      className={cn('group relative flex h-8 w-8 items-center justify-center', containerClassName)}
-      data-testid={testId}
-      onClick={(event) => event.stopPropagation()}
-      onMouseDown={(event) => event.stopPropagation()}
-      tabIndex={0}
-      role="button"
-      aria-label={label}
+    <Tooltip
+      testId={testId}
+      content={<div className={cn('w-64', tooltipClassName)}>{renderTooltip(summary)}</div>}
     >
       <div
-        className={cn(
-          'flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary transition group-hover:bg-primary/20',
-          iconWrapperClassName
-        )}
+        className={cn('flex h-8 w-8 items-center justify-center', containerClassName)}
+        onClick={(event) => event.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
+        tabIndex={0}
+        role="button"
+        aria-label={label}
+        data-testid={testId}
       >
-        <Icon className="h-4 w-4" />
+        <div
+          className={cn(
+            'flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary transition hover:bg-primary/20',
+            iconWrapperClassName
+          )}
+        >
+          <Icon className="h-4 w-4" />
+        </div>
       </div>
-      <div
-        className={cn(
-          'pointer-events-auto absolute right-0 top-full z-50 mt-2 hidden w-64 rounded-md border border-input bg-background p-3 text-sm shadow-lg group-hover:block group-focus-within:block',
-          tooltipClassName
-        )}
-        data-testid={`${testId}.tooltip`}
-      >
-        {renderTooltip(summary)}
-      </div>
-    </div>
+    </Tooltip>
   );
 }
