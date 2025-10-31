@@ -8,6 +8,11 @@ from sqlalchemy import select
 
 from app.exceptions import InvalidOperationException
 from app.models.box import Box
+from app.models.kit import Kit, KitStatus
+from app.models.kit_content import KitContent
+from app.models.kit_pick_list import KitPickList, KitPickListStatus
+from app.models.kit_pick_list_line import KitPickListLine, PickListLineStatus
+from app.models.kit_shopping_list_link import KitShoppingListLink
 from app.models.location import Location
 from app.models.part import Part
 from app.models.part_location import PartLocation
@@ -33,10 +38,24 @@ class TestDataService(BaseService):
         boxes = self.load_boxes(data_dir)
         parts = self.load_parts(data_dir, types, sellers)
         shopping_lists = self.load_shopping_lists(data_dir)
+        kits = self.load_kits(data_dir)
+        self.load_kit_contents(data_dir, kits, parts)
+        self.load_kit_shopping_list_links(
+            data_dir,
+            kits,
+            shopping_lists,
+        )
+        pick_lists = self.load_kit_pick_lists(data_dir, kits)
         self.load_shopping_list_lines(data_dir, shopping_lists, parts, sellers)
         self.load_shopping_list_seller_notes(data_dir, shopping_lists, sellers)
         self.load_part_locations(data_dir, parts, boxes)
         self.load_quantity_history(data_dir, parts)
+        self.load_kit_pick_list_lines(
+            data_dir,
+            pick_lists,
+            kits,
+            parts,
+        )
 
         # Commit all changes
         self.db.commit()
@@ -201,6 +220,374 @@ class TestDataService(BaseService):
             shopping_lists_map[shopping_list.name] = shopping_list
 
         return shopping_lists_map
+    def load_kits(self, data_dir: Path) -> dict[str, Kit]:
+        """Load kits from kits.json."""
+        kits_file = data_dir / "kits.json"
+        try:
+            with kits_file.open() as f:
+                kits_data = json.load(f)
+        except FileNotFoundError:
+            return {}
+        except json.JSONDecodeError as e:
+            raise InvalidOperationException(
+                "load kits data",
+                f"failed to parse {kits_file}: {e}",
+            ) from e
+
+        kits_map: dict[str, Kit] = {}
+        for kit_data in kits_data:
+            name = kit_data["name"]
+            raw_status = kit_data.get("status", KitStatus.ACTIVE.value)
+            try:
+                status = KitStatus(raw_status)
+            except ValueError as exc:
+                raise InvalidOperationException(
+                    "load kits data",
+                    f"invalid status '{raw_status}' for kit {name}",
+                ) from exc
+
+            archived_at = None
+            archived_at_raw = kit_data.get("archived_at")
+            if archived_at_raw:
+                try:
+                    archived_at = datetime.fromisoformat(archived_at_raw)
+                except ValueError as exc:
+                    raise InvalidOperationException(
+                        "load kits data",
+                        f"invalid archived_at value '{archived_at_raw}' for kit {name}",
+                    ) from exc
+
+            kit = Kit(
+                name=name,
+                description=kit_data.get("description"),
+                build_target=kit_data.get("build_target", 1),
+                status=status,
+                archived_at=archived_at,
+            )
+            self.db.add(kit)
+            self.db.flush()
+            kits_map[name] = kit
+        return kits_map
+
+    def load_kit_contents(
+        self,
+        data_dir: Path,
+        kits: dict[str, Kit],
+        parts: dict[str, Part],
+    ) -> None:
+        """Load kit contents from kit_contents.json."""
+        kit_contents_file = data_dir / "kit_contents.json"
+        try:
+            with kit_contents_file.open() as f:
+                kit_contents_data = json.load(f)
+        except FileNotFoundError:
+            return
+        except json.JSONDecodeError as exc:
+            raise InvalidOperationException(
+                "load kit contents data",
+                f"failed to parse {kit_contents_file}: {exc}",
+            ) from exc
+
+        for entry in kit_contents_data:
+            kit_name = entry.get("kit")
+            part_key = entry.get("part")
+            required_per_unit = entry.get("required_per_unit")
+
+            if kit_name is None or part_key is None or required_per_unit is None:
+                raise InvalidOperationException(
+                    "load kit contents data",
+                    "kit, part, and required_per_unit fields are required for kit contents",
+                )
+
+            kit = kits.get(kit_name)
+            if kit is None:
+                raise InvalidOperationException(
+                    "load kit contents data",
+                    f"unknown kit '{kit_name}' referenced in kit contents",
+                )
+
+            part = parts.get(part_key)
+            if part is None:
+                raise InvalidOperationException(
+                    "load kit contents data",
+                    f"unknown part '{part_key}' referenced in kit contents",
+                )
+
+            if required_per_unit < 1:
+                raise InvalidOperationException(
+                    "load kit contents data",
+                    f"required_per_unit must be at least 1 for {kit_name}/{part_key}",
+                )
+
+            content = KitContent(
+                kit=kit,
+                part=part,
+                required_per_unit=required_per_unit,
+                note=entry.get("note"),
+            )
+            self.db.add(content)
+            self.db.flush()
+
+    def load_kit_shopping_list_links(
+        self,
+        data_dir: Path,
+        kits: dict[str, Kit],
+        shopping_lists: dict[str, ShoppingList],
+    ) -> None:
+        """Load kit-to-shopping-list links from kit_shopping_list_links.json."""
+        links_file = data_dir / "kit_shopping_list_links.json"
+        try:
+            with links_file.open() as f:
+                links_data = json.load(f)
+        except FileNotFoundError:
+            return
+        except json.JSONDecodeError as e:
+            raise InvalidOperationException(
+                "load kit shopping list links data",
+                f"failed to parse {links_file}: {e}",
+            ) from e
+
+        for link_data in links_data:
+            kit_name = link_data["kit_name"]
+            shopping_list_name = link_data["shopping_list_name"]
+            kit = kits.get(kit_name)
+            shopping_list = shopping_lists.get(shopping_list_name)
+
+            if kit is None:
+                raise InvalidOperationException(
+                    "load kit shopping list links data",
+                    f"unknown kit '{kit_name}' in kit_shopping_list_links.json",
+                )
+            if shopping_list is None:
+                raise InvalidOperationException(
+                    "load kit shopping list links data",
+                    f"unknown shopping list '{shopping_list_name}' in kit_shopping_list_links.json",
+                )
+
+            requested_units = link_data.get("requested_units")
+            if not isinstance(requested_units, int) or requested_units < 1:
+                raise InvalidOperationException(
+                    "load kit shopping list links data",
+                    f"invalid requested_units '{requested_units}' for kit '{kit_name}'",
+                )
+            honor_reserved_raw = link_data.get("honor_reserved", False)
+            if not isinstance(honor_reserved_raw, bool):
+                raise InvalidOperationException(
+                    "load kit shopping list links data",
+                    f"invalid honor_reserved '{honor_reserved_raw}' for kit '{kit_name}'",
+                )
+            snapshot_value = link_data.get("snapshot_kit_updated_at")
+            if not snapshot_value:
+                raise InvalidOperationException(
+                    "load kit shopping list links data",
+                    f"missing snapshot_kit_updated_at for kit '{kit_name}'",
+                )
+            try:
+                snapshot_updated_at = datetime.fromisoformat(snapshot_value)
+            except ValueError as exc:
+                raise InvalidOperationException(
+                    "load kit shopping list links data",
+                    f"invalid snapshot_kit_updated_at '{snapshot_value}' for kit '{kit_name}'",
+                ) from exc
+
+            link = KitShoppingListLink(
+                kit_id=kit.id,
+                shopping_list_id=shopping_list.id,
+                requested_units=requested_units,
+                honor_reserved=honor_reserved_raw,
+                snapshot_kit_updated_at=snapshot_updated_at,
+            )
+            self.db.add(link)
+            self.db.flush()
+
+    def load_kit_pick_lists(
+        self,
+        data_dir: Path,
+        kits: dict[str, Kit],
+    ) -> dict[str, KitPickList]:
+        """Load kit pick lists from kit_pick_lists.json."""
+        pick_lists_file = data_dir / "kit_pick_lists.json"
+        try:
+            with pick_lists_file.open() as f:
+                pick_list_data = json.load(f)
+        except FileNotFoundError:
+            return {}
+        except json.JSONDecodeError as e:
+            raise InvalidOperationException(
+                "load kit pick lists data",
+                f"failed to parse {pick_lists_file}: {e}",
+            ) from e
+        pick_list_map: dict[str, KitPickList] = {}
+
+        for entry in pick_list_data:
+            key = entry.get("key")
+            if not key:
+                raise InvalidOperationException(
+                    "load kit pick lists data",
+                    "each pick list entry must include a unique 'key' field",
+                )
+            if key in pick_list_map:
+                raise InvalidOperationException(
+                    "load kit pick lists data",
+                    f"duplicate pick list key '{key}' encountered",
+                )
+
+            kit_name = entry["kit_name"]
+            kit = kits.get(kit_name)
+            if kit is None:
+                raise InvalidOperationException(
+                    "load kit pick lists data",
+                    f"unknown kit '{kit_name}' in kit_pick_lists.json",
+                )
+
+            raw_status = entry.get("status", KitPickListStatus.OPEN.value)
+            try:
+                status = KitPickListStatus(raw_status)
+            except ValueError as exc:
+                raise InvalidOperationException(
+                    "load kit pick lists data",
+                    f"invalid status '{raw_status}' for pick list on kit '{kit_name}'",
+                ) from exc
+
+            completed_at = None
+            if entry.get("completed_at"):
+                try:
+                    completed_at = datetime.fromisoformat(entry["completed_at"])
+                except ValueError as exc:
+                    raise InvalidOperationException(
+                        "load kit pick lists data",
+                    f"invalid completed_at '{entry['completed_at']}' for kit '{kit_name}'",
+                ) from exc
+
+            pick_list = KitPickList(
+                kit_id=kit.id,
+                requested_units=entry["requested_units"],
+                status=status,
+                completed_at=completed_at,
+            )
+            self.db.add(pick_list)
+            self.db.flush()
+            pick_list_map[key] = pick_list
+
+        return pick_list_map
+
+    def load_kit_pick_list_lines(
+        self,
+        data_dir: Path,
+        pick_lists: dict[str, KitPickList],
+        kits: dict[str, Kit],
+        parts: dict[str, Part],
+    ) -> None:
+        """Load pick list line allocations from kit_pick_list_lines.json."""
+        lines_file = data_dir / "kit_pick_list_lines.json"
+        try:
+            with lines_file.open() as handle:
+                lines_data = json.load(handle)
+        except FileNotFoundError:
+            return
+        except json.JSONDecodeError as exc:
+            raise InvalidOperationException(
+                "load kit pick list lines data",
+                f"failed to parse {lines_file}: {exc}",
+            ) from exc
+
+        for entry in lines_data:
+            pick_list_key = entry.get("pick_list_key")
+            if not pick_list_key:
+                raise InvalidOperationException(
+                    "load kit pick list lines data",
+                    "pick_list_key is required for each line entry",
+                )
+            pick_list = pick_lists.get(pick_list_key)
+            if pick_list is None:
+                raise InvalidOperationException(
+                    "load kit pick list lines data",
+                    f"unknown pick list key '{pick_list_key}'",
+                )
+
+            part_key = entry.get("kit_content_part_key")
+            if not part_key:
+                raise InvalidOperationException(
+                    "load kit pick list lines data",
+                    "kit_content_part_key is required for each line entry",
+                )
+            part = parts.get(part_key)
+            if part is None:
+                raise InvalidOperationException(
+                    "load kit pick list lines data",
+                    f"unknown part key '{part_key}' referenced by line on '{pick_list_key}'",
+                )
+
+            kit_content_stmt = select(KitContent).where(
+                KitContent.kit_id == pick_list.kit_id,
+                KitContent.part_id == part.id,
+            )
+            kit_content = self.db.execute(kit_content_stmt).scalar_one_or_none()
+            if kit_content is None:
+                kit_name = next(
+                    (kit_name for kit_name, kit_obj in kits.items() if kit_obj.id == pick_list.kit_id),
+                    f"id={pick_list.kit_id}",
+                )
+                raise InvalidOperationException(
+                    "load kit pick list lines data",
+                    f"no kit content found for kit '{kit_name}' and part '{part_key}' referenced by '{pick_list_key}'",
+                )
+
+            location_data = entry.get("location") or {}
+            box_no = location_data.get("box_no")
+            loc_no = location_data.get("loc_no")
+            if box_no is None or loc_no is None:
+                raise InvalidOperationException(
+                    "load kit pick list lines data",
+                    "location.box_no and location.loc_no are required for each line entry",
+                )
+            location_stmt = select(Location).where(
+                Location.box_no == box_no,
+                Location.loc_no == loc_no,
+            )
+            location = self.db.execute(location_stmt).scalar_one_or_none()
+            if location is None:
+                raise InvalidOperationException(
+                    "load kit pick list lines data",
+                    f"unknown location {box_no}-{loc_no} referenced by '{pick_list_key}'",
+                )
+
+            quantity_to_pick = entry.get("quantity_to_pick")
+            if quantity_to_pick is None or quantity_to_pick < 1:
+                raise InvalidOperationException(
+                    "load kit pick list lines data",
+                    f"quantity_to_pick must be at least 1 for pick list '{pick_list_key}'",
+                )
+
+            raw_status = entry.get("status", PickListLineStatus.OPEN.value)
+            try:
+                status = PickListLineStatus(raw_status)
+            except ValueError as exc:
+                raise InvalidOperationException(
+                    "load kit pick list lines data",
+                    f"invalid status '{raw_status}' for pick list line on '{pick_list_key}'",
+                ) from exc
+
+            picked_at = None
+            if entry.get("picked_at"):
+                try:
+                    picked_at = datetime.fromisoformat(entry["picked_at"])
+                except ValueError as exc:
+                    raise InvalidOperationException(
+                        "load kit pick list lines data",
+                        f"invalid picked_at value '{entry['picked_at']}' for pick list '{pick_list_key}'",
+                    ) from exc
+
+            line = KitPickListLine(
+                pick_list_id=pick_list.id,
+                kit_content_id=kit_content.id,
+                location_id=location.id,
+                quantity_to_pick=quantity_to_pick,
+                status=status,
+                picked_at=picked_at,
+            )
+            self.db.add(line)
+            self.db.flush()
 
     def load_shopping_list_lines(
         self,

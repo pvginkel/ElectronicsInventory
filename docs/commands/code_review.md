@@ -11,26 +11,62 @@
 **Ignore (out of scope)**
 Minor cosmetic nits a competent developer would auto-fix: exact log wording, trivial import shuffles, minor formatting, variable naming bikeshedding.
 
+**LLM instructions**
+Output snippets are marked by XML brackets. The XML brackets are not to be included in the end result.
+
+Assuming the template <output_template>:
+
+```
+<output_template>
+The answer is <value>
+</output_template>
+```
+
+The final document will contain the following output only:
+
+```
+The answer is 42
+```
+
 ---
 
 ## What to produce (section layout for `code_review.md`)
 Use these headings. Inside each, free-form prose is fine, but **quote evidence** with `path:line-range` and a short snippet.
 
 ### 1) Summary & Decision
-- One paragraph on overall readiness.
-- **Decision:** `GO` | `GO-WITH-CONDITIONS` | `NO-GO` (brief reason).
+Capture overall readiness and the review verdict. Use `<review_summary_template>` to keep the summary tight and evidence-linked.
+
+<review_summary_template>
+**Readiness**
+<single paragraph on overall readiness>
+
+**Decision**
+`GO` | `GO-WITH-CONDITIONS` | `NO-GO` — <brief reason tied to evidence>
+</review_summary_template>
 
 ### 2) Conformance to Plan (with evidence)
-- Show where the code implements the plan’s key behaviors (quote both code and plan).
-- Call out plan items that are unimplemented, implemented differently, or missing critical pieces (migrations, service wiring, test data updates).
+Explain how the implementation maps to the approved plan, and flag any deviations or missing deliverables. Structure the comparison with `<plan_conformance_template>`.
+
+<plan_conformance_template>
+**Plan alignment**
+- `<plan section>` ↔ `code_path:lines` — <snippet showing implementation>
+- ...
+
+**Gaps / deviations**
+- `<plan commitment>` — <what's missing or differs> (`code_path:lines`)
+- ...
+</plan_conformance_template>
 
 ### 3) Correctness — Findings (ranked)
-For each issue, provide:
-- **[ID] Severity — Title**  
-  **Evidence:** `file:lines` + short snippet.  
-  **Why it matters:** concrete user/system impact (data loss, transaction breakage, DI miswire, metrics regression).  
-  **Fix suggestion:** minimal viable change (be specific).  
-  **Confidence:** High/Medium/Low.
+List every correctness issue in descending severity using the template in `<finding_template>`. Each entry must include severity with ID/title, the code evidence, the concrete impact, the smallest actionable fix, and your confidence level. For any **Blocker** or **Major**, add either a runnable test sketch or stepwise failure reasoning.
+
+<finding_template>
+- Title: `<Severity> — <short summary>`
+- Evidence: `file:lines` — <snippet or paraphrase>
+- Impact: <user/system consequence>
+- Fix: <minimal viable change>
+- Confidence: <High / Medium / Low>
+</finding_template>
 
 > **No-bluff rule:** For every **Blocker** or **Major**, include either (a) a runnable test sketch (pytest/service/API) or (b) step-by-step logic showing the failure (e.g., missing flush before S3 upload, `scalar_one_or_none()` returning `None`). Otherwise downgrade or move to *Questions*.
 
@@ -40,20 +76,36 @@ Severity:
 - **Minor** = non-blocking clarity/ergonomics.
 
 ### 4) Over-Engineering & Refactoring Opportunities
-- Flag hotspots with unnecessary abstraction, copy-paste logic, or services growing beyond single responsibility.
-- Suggest the smallest refactor (split service method, share helper, collapse schema duplication) and why it pays off (testability, smaller diffs).
+Highlight hotspots with unnecessary abstraction, duplication, or unclear ownership, and describe the smallest refactor that restores clarity. Capture each observation with `<refactor_opportunity_template>`.
+
+<refactor_opportunity_template>
+- Hotspot: <module/function showing over-design>
+- Evidence: `file:lines` — <snippet>
+- Suggested refactor: <minimal change>
+- Payoff: <testability/maintenance benefit>
+</refactor_opportunity_template>
 
 ### 5) Style & Consistency
-- Note only substantive inconsistencies that hinder maintenance (mixed transaction patterns, diverging error handling, metrics usage).
-- Point to representative examples; avoid exhaustive style audits.
+Call out substantive consistency issues that threaten maintainability (transactions, error handling, metrics usage) and summarize them with `<style_consistency_template>`.
+
+<style_consistency_template>
+- Pattern: <inconsistency observed>
+- Evidence: `file:lines` — <snippet>
+- Impact: <maintenance/testability consequence>
+- Recommendation: <concise alignment step>
+</style_consistency_template>
 
 ### 6) Tests & Deterministic Coverage (new/changed behavior only)
-For each new or changed backend behavior (API route, service method, migration, CLI command, background task):
-- **Scenario(s)**: “Given/When/Then …” tied to specific `pytest` tests.
-- **Test hooks**: fixtures, dependency-injector providers, stable dataset references (`app/data/test_data/`), or helper utilities.
-- **Gaps**: highlight missing cases (edge constraints, rollback paths, negative tests, metrics assertions, shutdown behavior).
+For each changed behavior, document the exercised scenarios, supporting fixtures/hooks, and any coverage gaps. Capture the details with `<test_coverage_template>`. Mark missing scenarios or hooks as **Major** and propose the minimum viable tests.
 
-If behavior lacks scenarios **or** stable hooks, mark **Major** and propose the minimal tests.
+<test_coverage_template>
+- Surface: <API/service/migration/etc.>
+- Scenarios:
+  - Given <context>, When <action>, Then <outcome> (`tests/path::test_name`)
+- Hooks: <fixtures/factories/injector wiring>
+- Gaps: <missing cases or instrumentation>
+- Evidence: <code_path:lines or test file references>
+</test_coverage_template>
 
 ### 7) **Adversarial Sweep (must attempt ≥3 credible failures or justify none)**
 Attack likely backend fault lines:
@@ -63,27 +115,49 @@ Attack likely backend fault lines:
 - Migrations/test data: schema drift, missing Alembic revision, dataset not updated.
 - Observability: counters never incremented, timers using `time.time()`, missing shutdown hooks.
 
-Report each issue in the Section 3 format (ID, severity, evidence, fix, confidence).  
-If none found, write a short proof of what you tested and why the code held up.
+Report adversarial findings using `<finding_template>`. If the sweep turns up no credible failures, document the attempted attacks and rationale with `<adversarial_proof_template>`.
 
-### 8) Invariants Checklist (table)
-Document critical invariants the code must maintain. Fill at least 3 rows or justify “none”.
+<adversarial_proof_template>
+- Checks attempted: <list of fault lines probed>
+- Evidence: <code_path:lines or test output references>
+- Why code held up: <reasoning that closes the risk>
+</adversarial_proof_template>
 
-| Invariant | Where enforced | How it could fail | Current protection | Evidence (file:lines) |
-|---|---|---|---|---|
-| Inventory quantity history remains consistent after updates | ... | Transaction commits without history row | Service ensures atomic insert | `path:lines` |
+### 8) Invariants Checklist (stacked entries)
+Document critical invariants the code must maintain, providing at least three entries or a justified “none; proof.” Fill out `<invariant_template>` for each invariant.
 
-> If a row shows filtered/derived state driving a persistent write/cleanup without a guard, that’s at least **Major**.
+<invariant_template>
+- Invariant: <statement the system must uphold>
+  - Where enforced: <module or test proving it (`file:lines`)>
+  - Failure mode: <how the invariant could break>
+  - Protection: <existing guard, transaction, or test>
+  - Evidence: <additional path:lines as needed>
+</invariant_template>
+
+> If an entry shows filtered/derived state driving a persistent write/cleanup without a guard, escalate to at least **Major**.
 
 ### 9) Questions / Needs-Info
-- Q1 — why it matters and what answer would change.
-- Q2 — …
+List unresolved questions that block confidence in the change, explaining why each matters and what clarification is required. Record them with `<question_template>`.
+
+<question_template>
+- Question: <what you need to know>
+- Why it matters: <decision blocked or risk introduced>
+- Desired answer: <specific clarification or artifact>
+</question_template>
 
 ### 10) Risks & Mitigations (top 3)
-- R1 — risk → mitigation (link to issues/findings).
+Call out the top execution risks revealed by the review and the mitigation you expect before shipping. Summarize each using `<risk_template>`.
+
+<risk_template>
+- Risk: <concise statement tied to evidence>
+- Mitigation: <action or follow-up to reduce impact>
+- Evidence: <reference to finding/question `path:lines`>
+</risk_template>
 
 ### 11) Confidence
-High/Medium/Low with one-sentence rationale.
+State your confidence level and rationale, using `<confidence_template>` to keep the statement concise.
+
+<confidence_template>Confidence: <High / Medium / Low> — <one-sentence rationale></confidence_template>
 
 ---
 
@@ -108,3 +182,6 @@ High/Medium/Low with one-sentence rationale.
 
 ## Stop condition
 If **Blocker/Major** is empty and tests/coverage are adequate, recommend **GO**; otherwise **GO-WITH-CONDITIONS** or **NO-GO** with the minimal changes needed for **GO**.
+
+## Final check
+All XML template demarcation tags have been removed and all XML tags inside template output has been replaced with an actual value.

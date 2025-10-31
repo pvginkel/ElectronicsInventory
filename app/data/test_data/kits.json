@@ -1,0 +1,27 @@
+[
+  {
+    "name": "Synth Voice Starter",
+    "description": "Active kit bundling core modules for demonstrations.",
+    "build_target": 3,
+    "status": "active"
+  },
+  {
+    "name": "Field Recorder Essentials",
+    "description": "Portable field recorder reference build used in workshops.",
+    "build_target": 2,
+    "status": "active"
+  },
+  {
+    "name": "Legacy Mixer Refresh",
+    "description": "Archived kit capturing the completed mixer refresh program.",
+    "build_target": 1,
+    "status": "archived",
+    "archived_at": "2024-02-15T10:30:00"
+  },
+  {
+    "name": "Bench Tooling Wizard",
+    "description": "Experimental flow kit kept on standby until tooling stabilizes.",
+    "build_target": 0,
+    "status": "active"
+  }
+]

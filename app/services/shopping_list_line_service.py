@@ -117,6 +117,64 @@ class ShoppingListLineService(BaseService):
         self.db.flush()
         return self._get_line(line.id)
 
+    def merge_line_for_concept_list(
+        self,
+        shopping_list: ShoppingList,
+        *,
+        part_id: int,
+        needed: int,
+        provenance_note: str | None = None,
+    ) -> ShoppingListLine:
+        """Increase needed quantity for existing lines or create new entries.
+
+        This helper is used by kit push flows to ensure Concept lists are the only
+        append targets while preserving existing notes.
+        """
+        if needed <= 0:
+            raise InvalidOperationException(
+                "merge part into concept list",
+                "needed quantity must be positive",
+            )
+
+        if shopping_list.status != ShoppingListStatus.CONCEPT:
+            raise InvalidOperationException(
+                "merge part into concept list",
+                "lines can only be merged while the list is in Concept status",
+            )
+
+        stmt = (
+            select(ShoppingListLine)
+            .where(
+                ShoppingListLine.shopping_list_id == shopping_list.id,
+                ShoppingListLine.part_id == part_id,
+            )
+            .with_for_update()
+        )
+        existing_line = self.db.execute(stmt).scalar_one_or_none()
+
+        note_to_apply = provenance_note.strip() if provenance_note else None
+        if existing_line is not None:
+            existing_line.needed += needed
+            if note_to_apply:
+                if existing_line.note:
+                    existing_line.note = f"{existing_line.note}\n{note_to_apply}"
+                else:
+                    existing_line.note = note_to_apply
+            self._touch_list(shopping_list)
+            self.db.flush()
+            return existing_line
+
+        line = ShoppingListLine(
+            shopping_list_id=shopping_list.id,
+            part_id=part_id,
+            needed=needed,
+            note=note_to_apply,
+        )
+        self.db.add(line)
+        self._touch_list(shopping_list)
+        self.db.flush()
+        return line
+
     def update_line(
         self,
         line_id: int,
