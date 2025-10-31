@@ -34,7 +34,6 @@ export function KitBOMTable({ rows, controls }: KitBOMTableProps) {
 
   const pendingCreateRow = overlays.pendingCreateRow;
   const pendingUpdates = overlays.pendingUpdates;
-  const pendingDeleteId = overlays.pendingDeleteId;
   const hasRows = rows.length > 0;
   const disableMutations = isArchived || isMutationPending;
 
@@ -136,7 +135,6 @@ export function KitBOMTable({ rows, controls }: KitBOMTableProps) {
 
             {rows.map((row) => {
               const pendingUpdate = pendingUpdates.get(row.id);
-              const isDeleting = pendingDeleteId === row.id;
               const isEditing = edit.editingRowId === row.id;
 
               if (isEditing) {
@@ -148,7 +146,6 @@ export function KitBOMTable({ rows, controls }: KitBOMTableProps) {
                   key={row.id}
                   row={row}
                   pendingUpdate={pendingUpdate}
-                  isDeleting={isDeleting}
                   disableActions={disableMutations}
                   readOnly={isArchived}
                   onEdit={edit.start}
@@ -180,7 +177,6 @@ export function KitBOMTable({ rows, controls }: KitBOMTableProps) {
 interface KitBOMDisplayRowProps {
   row: KitContentRow;
   pendingUpdate?: PendingUpdateDraft;
-  isDeleting: boolean;
   disableActions: boolean;
   readOnly: boolean;
   onEdit: (row: KitContentRow) => void;
@@ -190,7 +186,6 @@ interface KitBOMDisplayRowProps {
 function KitBOMDisplayRow({
   row,
   pendingUpdate,
-  isDeleting,
   disableActions,
   readOnly,
   onEdit,
@@ -204,7 +199,7 @@ function KitBOMDisplayRow({
     shortfallDetected ? 'bg-destructive/5' : 'bg-background'
   );
 
-  const disableRowActions = disableActions || Boolean(pendingUpdate) || isDeleting;
+  const disableRowActions = disableActions || Boolean(pendingUpdate);
   const readOnlyTooltip = readOnly ? 'Archived kits cannot be edited' : undefined;
 
   const handleEdit = () => {
@@ -274,12 +269,6 @@ function KitBOMDisplayRow({
             <Badge variant="outline" className="inline-flex items-center gap-1 text-xs">
               <Loader2 className="h-3 w-3 animate-spin" />
               Saving…
-            </Badge>
-          ) : null}
-          {isDeleting ? (
-            <Badge variant="outline" className="inline-flex items-center gap-1 text-xs">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Removing…
             </Badge>
           ) : null}
           <Button

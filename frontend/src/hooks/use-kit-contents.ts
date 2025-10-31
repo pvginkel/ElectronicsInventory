@@ -111,7 +111,6 @@ interface DeleteControls {
   confirmRow: KitContentRow | null;
   open: (row: KitContentRow) => void;
   close: () => void;
-  isSubmitting: boolean;
   instrumentation: UseFormInstrumentationResult<KitContentFormMetadata>;
 }
 
@@ -126,7 +125,6 @@ export interface UseKitContentsResult {
   overlays: {
     pendingCreateRow: PendingCreateRow | null;
     pendingUpdates: Map<number, PendingUpdateDraft>;
-    pendingDeleteId: number | null;
   };
   isMutationPending: boolean;
 }
@@ -167,8 +165,6 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
   const syncEditDraftRef = useRef(false);
 
   const [confirmRowId, setConfirmRowId] = useState<number | null>(null);
-  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
-  const [isDeleteSubmitting, setIsDeleteSubmitting] = useState(false);
 
   // Undo support for deletion - using Map to support concurrent deletions
   interface DeletedContentSnapshot {
@@ -359,7 +355,7 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
   const deleteInstrumentation = useFormInstrumentation<KitContentFormMetadata>({
     formId: KIT_CONTENT_DELETE_FORM_ID,
     isOpen: confirmRowId !== null,
-    snapshotFields: () => buildDeleteMetadata(isDeleteSubmitting ? 'pending' : 'idle'),
+    snapshotFields: () => buildDeleteMetadata(deleteMutation.isPending ? 'pending' : 'idle'),
   });
 
   const resetCreateDraft = useCallback(() => {
@@ -836,8 +832,6 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
       };
       deletedContentSnapshotsRef.current.set(row.id, snapshot);
 
-      setIsDeleteSubmitting(true);
-      setPendingDeleteId(row.id);
       deleteInstrumentation.trackSubmit({
         kitId,
         contentId: row.id,
@@ -851,8 +845,6 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
           path: { kit_id: kitId, content_id: row.id },
         })
         .then(() => {
-          setPendingDeleteId(null);
-          setIsDeleteSubmitting(false);
           deleteInstrumentation.trackSuccess({
             kitId,
             contentId: row.id,
@@ -870,8 +862,6 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
           void query.refetch();
         })
         .catch((error) => {
-          setPendingDeleteId(null);
-          setIsDeleteSubmitting(false);
           // Remove snapshot if deletion fails
           deletedContentSnapshotsRef.current.delete(row.id);
           deleteInstrumentation.trackError({
@@ -900,7 +890,7 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
   }, []);
 
   const isMutationPending =
-    isCreateSubmitting || isEditSubmitting || isDeleteSubmitting || createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+    isCreateSubmitting || isEditSubmitting || createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
   return {
     kitId,
@@ -937,13 +927,11 @@ export function useKitContents({ detail, contents, query }: UseKitContentsOption
       confirmRow,
       open: openDelete,
       close: closeDelete,
-      isSubmitting: isDeleteSubmitting,
       instrumentation: deleteInstrumentation,
     },
     overlays: {
       pendingCreateRow,
       pendingUpdates,
-      pendingDeleteId,
     },
     isMutationPending,
   };
