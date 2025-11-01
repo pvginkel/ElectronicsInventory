@@ -1,6 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { CircuitBoard } from 'lucide-react';
 import { KeyValueBadge, StatusBadge } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/ui/dialog';
@@ -264,12 +263,6 @@ export function useShoppingListDetailHeaderSlots({
             kitId={kitLink.kitId}
             name={kitLink.kitName}
             status={kitLink.kitStatus}
-            icon={
-              <CircuitBoard
-                className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary"
-                aria-hidden="true"
-              />
-            }
             testId={`shopping-lists.concept.body.kits.${kitLink.kitId}`}
             onUnlink={onUnlinkKit ? () => onUnlinkKit(kitLink) : undefined}
             unlinkLoading={unlinkingLinkId === kitLink.linkId}

@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { ShoppingCart } from 'lucide-react';
 
 import { LinkChip } from '@/components/ui';
@@ -29,7 +28,6 @@ interface ShoppingListLinkChipProps {
   name: string;
   status: ShoppingListStatus;
   testId?: string;
-  icon?: ReactNode;
   iconTestId?: string;
   badgeTestId?: string;
   onUnlink?: () => void;
@@ -56,7 +54,6 @@ export function ShoppingListLinkChip({
   params,
   search,
   testId,
-  icon,
   iconTestId,
   badgeTestId,
   onUnlink,
@@ -79,18 +76,13 @@ export function ShoppingListLinkChip({
   const badgeProps = getShoppingListBadgeProps(status);
   const accessibilityLabel = `${name} (${badgeProps.label})`;
 
-  // Guidepost: Default icon is ShoppingCart if not provided
-  const resolvedIcon = icon ?? (
-    <ShoppingCart className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
-  );
-
   return (
     <LinkChip
       to={resolvedTo}
       params={resolvedParams}
       search={resolvedSearch}
       label={name}
-      icon={resolvedIcon}
+      icon={<ShoppingCart className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />}
       statusBadgeColor={badgeProps.color}
       statusBadgeLabel={badgeProps.label}
       accessibilityLabel={accessibilityLabel}

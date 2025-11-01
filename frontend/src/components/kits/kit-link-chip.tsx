@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { CircuitBoard } from 'lucide-react';
 
 import { LinkChip } from '@/components/ui';
@@ -10,7 +9,6 @@ interface KitLinkChipProps {
   status: KitStatus;
   search?: Record<string, unknown>;
   testId?: string;
-  icon?: ReactNode;
   iconTestId?: string;
   badgeTestId?: string;
   onUnlink?: () => void;
@@ -43,7 +41,6 @@ export function KitLinkChip({
   status,
   search,
   testId,
-  icon,
   iconTestId,
   badgeTestId,
   onUnlink,
@@ -57,18 +54,13 @@ export function KitLinkChip({
   const accessibilityLabel = `${name} (${statusBadgeProps.label})`;
   const resolvedSearch = search ?? { status };
 
-  // Guidepost: Default icon is CircuitBoard if not provided
-  const resolvedIcon = icon ?? (
-    <CircuitBoard className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
-  );
-
   return (
     <LinkChip
       to="/kits/$kitId"
       params={{ kitId: String(kitId) }}
       search={resolvedSearch}
       label={name}
-      icon={resolvedIcon}
+      icon={<CircuitBoard className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />}
       statusBadgeColor={statusBadgeProps.color}
       statusBadgeLabel={statusBadgeProps.label}
       accessibilityLabel={accessibilityLabel}
