@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ExternalLinkIcon } from '@/components/icons/ExternalLinkIcon'
+import { ExternalLink } from '@/components/ui'
 
 interface SellerCardProps {
   seller: {
@@ -15,10 +15,6 @@ interface SellerCardProps {
 }
 
 export function SellerCard({ seller, onEdit, onDelete }: SellerCardProps) {
-  const handleWebsiteClick = () => {
-    window.open(seller.website, '_blank', 'noopener,noreferrer')
-  }
-
   return (
     <Card
       variant="content"
@@ -30,14 +26,13 @@ export function SellerCard({ seller, onEdit, onDelete }: SellerCardProps) {
         <div className="flex justify-between items-start">
           <div className="flex-1 min-w-0">
             <CardTitle className="text-base">{seller.name}</CardTitle>
-            <button
-              onClick={handleWebsiteClick}
-              className="flex items-center gap-1 mt-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              data-testid={`sellers.list.item.${seller.id}.link`}
+            <ExternalLink
+              href={seller.website}
+              testId={`sellers.list.item.${seller.id}.link`}
+              className="text-sm"
             >
-              <span className="truncate">{seller.website}</span>
-              <ExternalLinkIcon className="w-3 h-3 flex-shrink-0" />
-            </button>
+              {seller.website}
+            </ExternalLink>
           </div>
         </div>
       </CardHeader>

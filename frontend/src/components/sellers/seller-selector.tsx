@@ -3,6 +3,7 @@ import { SearchableSelect } from '@/components/ui/searchable-select'
 import { SellerCreateDialog } from './seller-create-dialog'
 import { useSellers, useCreateSeller } from '@/hooks/use-sellers'
 import { ExternalLinkIcon } from '@/components/icons/ExternalLinkIcon'
+import { ExternalLink } from '@/components/ui'
 import { useToast } from '@/hooks/use-toast'
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
 
@@ -84,12 +85,6 @@ export function SellerSelector({
     </div>
   ), [])
 
-  const handleWebsiteClick = () => {
-    if (selectedSeller?.website) {
-      window.open(selectedSeller.website, '_blank', 'noopener,noreferrer')
-    }
-  }
-
   useEffect(() => {
     if (loadError) {
       showException('Failed to load sellers', loadError)
@@ -133,16 +128,13 @@ export function SellerSelector({
       />
 
       {selectedSeller && (
-        <div className="mt-2 text-sm text-muted-foreground" data-testid="sellers.selector.selected">
-          <button
-            type="button"
-            onClick={handleWebsiteClick}
-            className="flex items-center gap-1 hover:text-foreground transition-colors"
-            data-testid="sellers.selector.selected.link"
+        <div className="mt-2 text-sm" data-testid="sellers.selector.selected">
+          <ExternalLink
+            href={selectedSeller.website}
+            testId="sellers.selector.selected.link"
           >
-            <span>Website: {selectedSeller.website}</span>
-            <ExternalLinkIcon className="w-3 h-3" />
-          </button>
+            {selectedSeller.website}
+          </ExternalLink>
         </div>
       )}
 

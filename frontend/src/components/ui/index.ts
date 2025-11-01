@@ -15,3 +15,6 @@ export { useTooltip, type UseTooltipOptions, type UseTooltipReturn } from './use
 
 // Empty state component
 export { EmptyState } from './empty-state';
+
+// External link component
+export { ExternalLink, type ExternalLinkProps } from './external-link';

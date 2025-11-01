@@ -6,10 +6,11 @@ import { useToast } from '@/hooks/use-toast';
 import type { DocumentItem } from '@/types/documents';
 import pdfIconSvg from '@/assets/pdf-icon.svg';
 import { LinkIcon } from '@/components/icons/LinkIcon';
+import { ExternalLinkIcon } from '@/components/icons/ExternalLinkIcon';
 
 interface DocumentTileProps {
   document: DocumentItem;
-  onTileClick: (document: DocumentItem) => void;
+  onShowMedia: (document: DocumentItem) => void;
   onToggleCover: (documentId: string) => void;
   onDelete: (documentId: string) => Promise<boolean>;
   showCoverToggle?: boolean;
@@ -17,7 +18,7 @@ interface DocumentTileProps {
 
 export function DocumentTile({
   document,
-  onTileClick,
+  onShowMedia,
   onToggleCover,
   onDelete,
   showCoverToggle = true
@@ -27,7 +28,11 @@ export function DocumentTile({
   const { showError, showException } = useToast();
 
   const handleTileClick = () => {
-    onTileClick(document);
+    if (document.type === 'website') {
+      window.open(document.assetUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      onShowMedia(document);
+    }
   };
 
   const handleToggleCover = async () => {
@@ -35,7 +40,6 @@ export function DocumentTile({
   };
 
   const handleDelete = async () => {
-    
     const confirmed = await confirm({
       title: 'Delete Document',
       description: `Are you sure you want to delete "${document.title}"? This action cannot be undone.`,
@@ -64,7 +68,12 @@ export function DocumentTile({
     switch (document.type) {
       case 'image': return 'Image';
       case 'pdf': return 'PDF';
-      case 'website': return 'Link';
+      case 'website': return (
+        <span className="inline-flex items-center gap-1">
+          Link
+          <ExternalLinkIcon className="w-3 h-3" />
+        </span>
+      );
       default: return 'Document';
     }
   };
@@ -98,14 +107,14 @@ export function DocumentTile({
   };
 
   return (
-    <div 
+    <div
       className={`relative bg-card border rounded-lg overflow-hidden transition-all ${
-        isDeleting ? 'opacity-50 pointer-events-none' : 'hover:shadow-md'
+        isDeleting ? 'opacity-50 pointer-events-none' : 'transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover:border-primary/50 active:scale-[0.98]'
       }`}
       data-document-tile
       data-document-id={document.id}>
       <div className="relative aspect-square">
-        <div 
+        <div
           className="w-full h-full cursor-pointer"
           onClick={handleTileClick}
         >
@@ -123,7 +132,7 @@ export function DocumentTile({
             </div>
           )}
         </div>
-        
+
         {/* Action buttons positioned at top-right */}
         <div className="absolute top-2 right-2 flex space-x-1">
           {showCoverToggle && (
@@ -151,11 +160,11 @@ export function DocumentTile({
         </div>
       </div>
 
-      <div className="p-3">
+      <div className="p-3 cursor-pointer" onClick={handleTileClick}>
         <h3 className="text-sm font-medium truncate mb-1" title={document.title}>
           {document.title}
         </h3>
-        
+
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>{getTypeDisplay()}</span>
         </div>

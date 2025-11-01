@@ -28,15 +28,9 @@ export function DuplicateDocumentGrid({
     return transformApiDocumentsToDocumentItems(documents, mockCoverAttachment, partId);
   }, [documents, coverDocumentId, partId]);
 
-  const handleTileClick = (document: DocumentItem) => {
-    if (document.type === 'website') {
-      // Open URL in new tab
-      window.open(document.assetUrl, '_blank', 'noopener,noreferrer');
-    } else {
-      // Open in media viewer for images and PDFs
-      setCurrentDocumentId(document.id);
-      setIsViewerOpen(true);
-    }
+  const handleShowMedia = (document: DocumentItem) => {
+    setCurrentDocumentId(document.id);
+    setIsViewerOpen(true);
   };
 
   const handleToggleCover = (documentId: string) => {
@@ -65,7 +59,7 @@ export function DuplicateDocumentGrid({
     <>
       <DocumentGridBase
         documents={transformedDocuments}
-        onTileClick={handleTileClick}
+        onShowMedia={handleShowMedia}
         onToggleCover={handleToggleCover}
         onDelete={handleDelete}
         showCoverToggle={true}

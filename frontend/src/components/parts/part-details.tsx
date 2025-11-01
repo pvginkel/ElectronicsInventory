@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Alert, KeyValueBadge } from '@/components/ui';
+import { Alert, KeyValueBadge, ExternalLink } from '@/components/ui';
 import { Badge } from '@/components/ui/badge';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { PartLocationGrid } from './part-location-grid';
@@ -506,14 +506,12 @@ export function PartDetails({ partId }: PartDetailsProps) {
                             <div>
                               <div className="text-sm font-medium">Product Page</div>
                               <div className="text-sm">
-                                <a
+                                <ExternalLink
                                   href={displayProductPage}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="break-all text-blue-600 underline hover:text-blue-800"
+                                  className="break-all"
                                 >
                                   {displayProductPage}
-                                </a>
+                                </ExternalLink>
                               </div>
                             </div>
                           ) : null}
@@ -538,14 +536,9 @@ export function PartDetails({ partId }: PartDetailsProps) {
                             <div>
                               <div className="text-sm font-medium">Product Page</div>
                               <div className="text-sm">
-                                <a
-                                  href={part.seller_link}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="break-all text-blue-600 underline hover:text-blue-800"
-                                >
+                                <ExternalLink href={part.seller_link}>
                                   {part.seller_link}
-                                </a>
+                                </ExternalLink>
                               </div>
                             </div>
                           ) : null}

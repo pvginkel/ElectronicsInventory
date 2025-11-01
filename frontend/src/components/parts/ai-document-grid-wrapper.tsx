@@ -103,15 +103,10 @@ export function AIDocumentGridWrapper({
     });
   }, [documents]);
 
-  const handleTileClick = (document: DocumentItem) => {
-    if (document.type === 'website') {
-      // Open URL in new tab
-      window.open(document.assetUrl, '_blank', 'noopener,noreferrer');
-    } else {
-      // Open in media viewer for images and PDFs
-      setCurrentDocumentId(document.id);
-      setIsViewerOpen(true);
-    }
+  const handleShowMedia = (document: DocumentItem) => {
+    // Open in media viewer for images and PDFs
+    setCurrentDocumentId(document.id);
+    setIsViewerOpen(true);
   };
 
   const handleToggleCover = async (documentId: string) => {
@@ -149,7 +144,7 @@ export function AIDocumentGridWrapper({
     <>
       <DocumentGridBase
         documents={transformedDocuments}
-        onTileClick={handleTileClick}
+        onShowMedia={handleShowMedia}
         onToggleCover={handleToggleCover}
         onDelete={handleDelete}
         showCoverToggle={!readOnly}

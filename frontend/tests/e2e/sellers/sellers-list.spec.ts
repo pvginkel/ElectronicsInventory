@@ -132,22 +132,18 @@ test.describe('Sellers - List Experience', () => {
     await sellers.search(seller.name)
     await expect(sellers.listTable).toBeVisible({ timeout: 15000 })
 
-    await sellers.playwrightPage.evaluate(() => {
-      const win = window as typeof window & { __lastOpenedUrl?: string | null }
-      const original = win.open
-      win.__lastOpenedUrl = null
-      win.open = function (...args: Parameters<typeof original>) {
-        const [url] = args
-        win.__lastOpenedUrl = typeof url === 'string' ? url : url && typeof url.toString === 'function' ? url.toString() : null
-        return original ? original.apply(window, args) : null
-      }
-    })
+    // Verify link element has correct href and target attributes
+    const linkElement = sellers.sellerLink(seller.id)
+    await expect(linkElement).toHaveAttribute('href', seller.website)
+    await expect(linkElement).toHaveAttribute('target', '_blank')
+    await expect(linkElement).toHaveAttribute('rel', 'noopener noreferrer')
+
+    // Verify clicking opens new tab (popup will fail to load since example.com is not real,
+    // but we verify the browser attempted to open it)
     const popupPromise = sellers.playwrightPage.waitForEvent('popup')
-    await sellers.sellerLink(seller.id).click()
+    await linkElement.click()
     const popup = await popupPromise
     await expect(popup).not.toBeNull()
-    const openedUrl = await sellers.playwrightPage.evaluate(() => (window as typeof window & { __lastOpenedUrl?: string | null }).__lastOpenedUrl)
-    expect(openedUrl).toBe(seller.website)
     await popup.close()
 
     await sellers.clearSearch()

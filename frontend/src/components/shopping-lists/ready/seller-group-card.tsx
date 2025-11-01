@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { ExternalLink } from '@/components/ui';
 import { summarizeSellerGroupVisibility } from '@/hooks/use-shopping-lists';
 import type { ShoppingListConceptLine, ShoppingListSellerGroup } from '@/types/shopping-lists';
 import { ReadyLineRow } from './ready-line-row';
@@ -55,14 +56,12 @@ export function SellerGroupCard({
             {group.sellerName}
           </h3>
           {group.sellerWebsite ? (
-            <a
+            <ExternalLink
               href={group.sellerWebsite}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-muted-foreground underline hover:text-foreground"
+              className="text-sm"
             >
               {group.sellerWebsite}
-            </a>
+            </ExternalLink>
           ) : (
             <p className="text-xs text-muted-foreground">No website on file</p>
           )}

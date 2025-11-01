@@ -1,4 +1,5 @@
 import { cn } from '@/lib/ui';
+import { ExternalLink } from '@/components/ui';
 
 interface VendorInfoProps {
   seller?: { id: number; name: string } | null;
@@ -14,17 +15,16 @@ export function VendorInfo({ seller, sellerLink, className }: VendorInfoProps) {
   return (
     <span className={cn("inline-flex items-center gap-1 text-sm text-muted-foreground", className)}>
       {sellerLink ? (
-        <a
-          href={sellerLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
-          onClick={(e) => e.stopPropagation()}
-          title={`${seller.name} - Product page`}
-        >
+        <>
           <span className="text-xs">🏪</span>
-          {truncatedSeller}
-        </a>
+          <ExternalLink
+            href={sellerLink}
+            onClick={(e) => e.stopPropagation()}
+            ariaLabel={`${seller.name} - Product page`}
+          >
+            {truncatedSeller}
+          </ExternalLink>
+        </>
       ) : (
         <>
           <span className="text-xs">🏪</span>

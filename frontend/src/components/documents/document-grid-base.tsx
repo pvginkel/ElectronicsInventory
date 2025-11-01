@@ -5,7 +5,7 @@ import type { DocumentGridProps } from '@/types/documents';
 
 export function DocumentGridBase({
   documents,
-  onTileClick,
+  onShowMedia,
   onToggleCover,
   onDelete,
   showCoverToggle = true
@@ -28,7 +28,7 @@ export function DocumentGridBase({
         <DocumentTile
           key={document.id}
           document={document}
-          onTileClick={onTileClick}
+          onShowMedia={onShowMedia}
           onToggleCover={onToggleCover}
           onDelete={onDelete}
           showCoverToggle={showCoverToggle}

@@ -171,7 +171,7 @@ export function MediaViewerBase({
   const canGoPrevious = documents.length > 1;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose} className="w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h-none m-[30px]">
+    <Dialog open={isOpen} onOpenChange={onClose} className="w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h-none">
       <DialogContent className="w-full h-full p-0 bg-black/95">
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 z-10 bg-black/80 backdrop-blur-sm p-4">

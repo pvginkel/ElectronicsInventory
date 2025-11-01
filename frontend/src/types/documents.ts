@@ -15,7 +15,7 @@ export interface DocumentItem {
 
 export interface DocumentGridProps {
   documents: DocumentItem[];
-  onTileClick: (document: DocumentItem) => void;
+  onShowMedia: (document: DocumentItem) => void;
   onToggleCover: (documentId: string) => void;
   onDelete: (documentId: string) => Promise<boolean>;
   showCoverToggle?: boolean;

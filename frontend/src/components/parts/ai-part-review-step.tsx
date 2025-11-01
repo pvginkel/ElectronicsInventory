@@ -12,7 +12,7 @@ import { AIDocumentGridWrapper } from './ai-document-grid-wrapper';
 import { transformAIPartAnalysisResult, transformToCreateSchema } from '@/lib/utils/ai-parts';
 import { useCreateType } from '@/hooks/use-types';
 import type { components } from '@/lib/api/generated/types';
-import { ExternalLinkIcon } from '@/components/icons/ExternalLinkIcon';
+import { ExternalLink } from '@/components/ui';
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 
 type DocumentSuggestionSchema = components['schemas']['AIPartCreateSchema.63ff6da.DocumentSuggestionSchema'];
@@ -428,14 +428,12 @@ export function AIPartReviewStep({
                 onClear={() => updateField('productPageUrl', '')}
                 action={
                   formData.productPageUrl ? (
-                    <button
-                      type="button"
-                      onClick={() => window.open(formData.productPageUrl, '_blank')}
-                      className="p-1 text-muted-foreground hover:text-foreground focus:outline-none"
-                      aria-label="Open URL in new tab"
-                    >
-                      <ExternalLinkIcon />
-                    </button>
+                    <ExternalLink
+                      href={formData.productPageUrl}
+                      ariaLabel="Open URL in new tab"
+                      testId="parts.ai-review.product-page.link"
+                      className="p-1 text-muted-foreground hover:text-foreground no-underline"
+                    />
                   ) : null
                 }
               />
@@ -463,14 +461,12 @@ export function AIPartReviewStep({
                 onClear={() => updateField('sellerLink', '')}
                 action={
                   formData.sellerLink ? (
-                    <button
-                      type="button"
-                      onClick={() => window.open(formData.sellerLink, '_blank')}
-                      className="p-1 text-muted-foreground hover:text-foreground focus:outline-none"
-                      aria-label="Open URL in new tab"
-                    >
-                      <ExternalLinkIcon />
-                    </button>
+                    <ExternalLink
+                      href={formData.sellerLink}
+                      ariaLabel="Open URL in new tab"
+                      testId="parts.ai-review.seller-link.link"
+                      className="p-1 text-muted-foreground hover:text-foreground no-underline"
+                    />
                   ) : null
                 }
               />
