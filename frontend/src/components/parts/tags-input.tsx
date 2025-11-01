@@ -1,6 +1,7 @@
 import { useState, type KeyboardEvent } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { InformationBadge } from '@/components/ui';
 
 interface TagsInputProps {
   value: string[];
@@ -39,21 +40,13 @@ export function TagsInput({ value = [], onChange, placeholder = "", error }: Tag
     <div className="space-y-2">
       <div className="flex flex-wrap gap-1 mb-2">
         {value.map((tag, index) => (
-          <span
+          <InformationBadge
             key={index}
-            className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded-md"
+            onRemove={() => removeTag(index)}
+            testId={`parts.form.tag.${index}`}
           >
             {tag}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-auto p-0 text-xs hover:bg-transparent"
-              onClick={() => removeTag(index)}
-            >
-              ×
-            </Button>
-          </span>
+          </InformationBadge>
         ))}
       </div>
       

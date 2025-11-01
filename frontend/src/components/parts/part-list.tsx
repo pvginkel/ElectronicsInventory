@@ -10,7 +10,7 @@ import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
 import { useGetPartsWithLocations, useGetTypes, type PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { QuantityBadge } from './quantity-badge';
-import { MetadataBadge } from './metadata-badge';
+import { InformationBadge } from '@/components/ui';
 import { LocationSummary } from './location-summary';
 import { VendorInfo } from './vendor-info';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
@@ -449,31 +449,38 @@ function PartListItem({
       {/* Metadata Badges Row */}
       <div className="flex flex-wrap gap-2 mb-3">
         {part.type_id && typeMap.get(part.type_id) && (
-          <MetadataBadge icon="🏷️" label={typeMap.get(part.type_id)!} />
+          <InformationBadge icon="🏷️" testId={`parts.list.card.badge.type-${part.key}`}>
+            {typeMap.get(part.type_id)!}
+          </InformationBadge>
         )}
         {part.package && (
-          <MetadataBadge icon="📏" label={part.package} />
+          <InformationBadge icon="📏" testId={`parts.list.card.badge.package-${part.key}`}>
+            {part.package}
+          </InformationBadge>
         )}
         {part.pin_pitch && (
-          <MetadataBadge icon="📏" label={part.pin_pitch} />
+          <InformationBadge icon="📏" testId={`parts.list.card.badge.pin-pitch-${part.key}`}>
+            {part.pin_pitch}
+          </InformationBadge>
         )}
         {(part.voltage_rating || part.input_voltage || part.output_voltage) && (
-          <MetadataBadge 
-            icon="⚡" 
-            label={
-              [
-                part.voltage_rating,
-                part.input_voltage ? `I: ${part.input_voltage}` : null,
-                part.output_voltage ? `O: ${part.output_voltage}` : null
-              ]
-              .filter(Boolean)
-              .join(' ∣ ')
-            }
-            className="font-mono"
-          />
+          <InformationBadge
+            icon="⚡"
+            testId={`parts.list.card.badge.voltage-${part.key}`}
+          >
+            {[
+              part.voltage_rating,
+              part.input_voltage ? `I: ${part.input_voltage}` : null,
+              part.output_voltage ? `O: ${part.output_voltage}` : null
+            ]
+            .filter(Boolean)
+            .join(' ∣ ')}
+          </InformationBadge>
         )}
         {part.mounting_type && (
-          <MetadataBadge icon="📐" label={part.mounting_type} />
+          <InformationBadge icon="📐" testId={`parts.list.card.badge.mounting-type-${part.key}`}>
+            {part.mounting_type}
+          </InformationBadge>
         )}
       </div>
 
@@ -484,8 +491,9 @@ function PartListItem({
           sellerLink={part.seller_link} 
         />
         
-        <LocationSummary 
-          locations={part.locations || []} 
+        <LocationSummary
+          locations={part.locations || []}
+          testId={`parts.list.card.location-summary-${part.key}`}
         />
       </div>
     </Card>

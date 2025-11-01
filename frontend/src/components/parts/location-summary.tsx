@@ -1,4 +1,5 @@
 import { formatLocationSummary } from '@/lib/utils/locations';
+import { InformationBadge } from '@/components/ui';
 
 interface PartLocation {
   box_no: number;
@@ -8,16 +9,15 @@ interface PartLocation {
 
 interface LocationSummaryProps {
   locations: PartLocation[];
-  className?: string;
+  testId: string;
 }
 
-export function LocationSummary({ locations, className }: LocationSummaryProps) {
+export function LocationSummary({ locations, testId }: LocationSummaryProps) {
   const summary = formatLocationSummary(locations);
-  
+
   return (
-    <span className={`inline-flex items-center gap-1 text-sm text-muted-foreground ${className || ''}`}>
-      <span className="text-xs">📊</span>
-      <span>{summary}</span>
-    </span>
+    <InformationBadge icon="📊" variant="subtle" testId={testId}>
+      {summary}
+    </InformationBadge>
   );
 }

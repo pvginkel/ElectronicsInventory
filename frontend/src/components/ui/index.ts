@@ -1,4 +1,5 @@
 // Standardized badge components
+export { InformationBadge, type InformationBadgeProps } from './information-badge';
 export { KeyValueBadge, type KeyValueBadgeProps } from './key-value-badge';
 export { StatusBadge, type StatusBadgeProps } from './status-badge';
 
