@@ -10,56 +10,56 @@ function About() {
   const features = [
     {
       icon: '🔧',
-      title: 'Smart Part Management',
-      description: 'Organize electronic components with unique 4-letter IDs and intelligent categorization.'
+      title: 'Detailed Part Tracking',
+      description: 'Track components with unique 4-letter IDs, manufacturer codes, technical specs (package, pin count, voltage), and extensive documentation.'
     },
     {
       icon: '📦',
-      title: 'Flexible Storage',
-      description: 'Track parts across numbered boxes and locations with automatic organization suggestions.'
-    },
-    {
-      icon: '🔍',
-      title: 'Powerful Search',
-      description: 'Find parts quickly by ID, manufacturer code, category, or any description text.'
-    },
-    {
-      icon: '📱',
-      title: 'Mobile Scanning',
-      description: 'Use your device camera to identify parts and automatically fetch datasheets.'
+      title: 'Multi-Location Storage',
+      description: 'Organize parts across numbered boxes and locations. A single part can exist in multiple locations with tracked quantities.'
     },
     {
       icon: '🛒',
-      title: 'Shopping Lists',
-      description: 'Keep track of parts you need to order and convert them to inventory when they arrive.'
+      title: 'Procurement Workflow',
+      description: 'Shopping lists with three-phase workflow: concept planning, ordering from vendors, and receiving into inventory.'
     },
     {
-      icon: '⚡',
-      title: 'Project Planning',
-      description: 'Plan electronics projects, track required parts, and manage build workflows.'
+      icon: '🔨',
+      title: 'Kit Assembly',
+      description: 'Define kits with bills of materials, build targets, and location-specific pick lists for repeatable assembly workflows.'
+    },
+    {
+      icon: '🤖',
+      title: 'AI Part Analysis',
+      description: 'Upload photos or descriptions to automatically identify parts, extract specifications, and fetch datasheets.'
+    },
+    {
+      icon: '📊',
+      title: 'Dashboard Analytics',
+      description: 'Monitor inventory health, storage utilization, low stock alerts, documentation status, and recent activity at a glance.'
     }
   ]
 
   const quickStartSteps = [
     {
       step: '1',
-      title: 'Create Storage Boxes',
-      description: 'Set up numbered boxes with locations to organize your components.'
+      title: 'Set Up Storage',
+      description: 'Create numbered boxes with configurable capacity. Each box contains numbered locations for organizing parts.'
     },
     {
       step: '2',
-      title: 'Add Your First Part',
-      description: 'Register a component with manufacturer code, category, and quantity.'
+      title: 'Add Parts',
+      description: 'Use AI analysis from photos or manually enter manufacturer codes, technical specs, and documentation. Each part gets a unique 4-letter ID.'
     },
     {
       step: '3',
-      title: 'Assign Storage Location',
-      description: 'Place the part in a box location and print the generated ID label.'
+      title: 'Track Inventory',
+      description: 'Assign quantities to specific box-location combinations. Parts can exist in multiple locations simultaneously.'
     },
     {
       step: '4',
-      title: 'Start Organizing',
-      description: 'Use reorganization suggestions to keep similar parts together.'
+      title: 'Build Workflows',
+      description: 'Create shopping lists for procurement, define kits for assembly, and generate pick lists for building.'
     }
   ]
 
@@ -72,19 +72,9 @@ function About() {
           Electronics Inventory System
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          A modern, intelligent solution for managing your hobby electronics parts. 
-          Keep track of what you have, where it is, and how to get more.
+          A production-grade inventory management system for electronics enthusiasts and small-scale manufacturers.
+          Track parts, manage procurement, coordinate assembly, and maintain complete documentation.
         </p>
-        <div className="mt-8 flex justify-center gap-4">
-          <Button size="lg" data-testid="about.hero.cta.add-part">
-            <span className="mr-2">➕</span>
-            Add Your First Part
-          </Button>
-          <Button variant="outline" size="lg" data-testid="about.hero.cta.documentation">
-            <span className="mr-2">📖</span>
-            View Documentation
-          </Button>
-        </div>
       </div>
 
       {/* Features Grid */}
@@ -139,60 +129,40 @@ function About() {
 
         <Card data-testid="about.overview">
           <CardHeader>
-            <CardTitle className="text-2xl">System Overview</CardTitle>
+            <CardTitle className="text-2xl">System Capabilities</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h3 className="font-medium mb-2">🏷️ Part Management</h3>
+              <h3 className="font-medium mb-2">🏷️ Comprehensive Part Data</h3>
               <p className="text-sm text-muted-foreground">
-                Each component gets a unique 4-letter ID for easy identification and labeling. 
-                Track manufacturer codes, categories, quantities, and attach documentation.
+                Beyond basic tracking, capture technical specs: package type, pin count, voltage ratings,
+                mounting type, dimensions, and more. Attach datasheets, images, and links.
               </p>
             </div>
             <div>
-              <h3 className="font-medium mb-2">📍 Smart Storage</h3>
+              <h3 className="font-medium mb-2">📍 Flexible Inventory</h3>
               <p className="text-sm text-muted-foreground">
-                Organize parts in numbered boxes with locations. The system suggests optimal 
-                placement to keep similar components together.
+                Parts can exist in multiple storage locations simultaneously with tracked quantities.
+                Complete quantity history maintains an audit trail of all changes.
               </p>
             </div>
             <div>
-              <h3 className="font-medium mb-2">🤖 AI-Powered</h3>
+              <h3 className="font-medium mb-2">🛒 Procurement Pipeline</h3>
               <p className="text-sm text-muted-foreground">
-                Get automatic part recognition from photos, intelligent tagging, 
-                and reorganization suggestions to maintain an organized inventory.
+                Shopping lists progress through concept, ordering, and receiving phases.
+                Track orders by seller, manage vendor relationships, and receive stock into inventory.
               </p>
             </div>
             <div>
-              <h3 className="font-medium mb-2">📊 Project Ready</h3>
+              <h3 className="font-medium mb-2">🔨 Assembly Workflows</h3>
               <p className="text-sm text-muted-foreground">
-                Plan projects, track required parts, manage shopping lists, 
-                and see what you have available for your next build.
+                Define kits with bills of materials and build targets. Generate location-specific
+                pick lists for assembly. Link shopping lists to procure missing components.
               </p>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Call to Action */}
-      <Card className="text-center bg-muted/30" data-testid="about.cta">
-        <CardContent className="py-12">
-          <h2 className="text-2xl font-bold mb-4">Ready to Get Organized?</h2>
-          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            Start managing your electronics inventory with modern tools designed for makers.
-          </p>
-          <div className="flex justify-center gap-4">
-            <Button size="lg" data-testid="about.cta.get-started">
-              <span className="mr-2">🚀</span>
-              Get Started
-            </Button>
-            <Button variant="outline" size="lg" data-testid="about.cta.view-dashboard">
-              <span className="mr-2">📊</span>
-              View Dashboard
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }
