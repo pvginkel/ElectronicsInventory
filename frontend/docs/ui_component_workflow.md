@@ -4,8 +4,6 @@
 
 This document describes an automated, iterative workflow for reducing CSS class soup by extracting reusable UI components into `src/components/ui/`. The goal is to centralize all styling in generic UI components, leaving domain-specific components free of styling classes.
 
-**Sandbox Note**: The `.git` directory is read-only, so git write operations (commit, add, stash) are not available. However, all workflow steps should still be executed, including code review which can operate on unstaged changes. The human reviewer will commit changes manually outside the sandbox after the workflow completes.
-
 ## Principles
 
 1. **Encapsulation**: All styling lives in `components/ui`. Reusable components do NOT expose `className` props.
@@ -52,10 +50,10 @@ Pick a single, clearly specified component to extract. Examples:
 
 ### 2. Create a Plan
 
-Use the `feature-planner` agent to create a detailed implementation plan:
+Use the `plan-writer` agent to create a detailed implementation plan:
 
 ```
-Use the Task tool with the feature-planner agent to create a plan for extracting [COMPONENT_NAME] into a reusable UI component in src/components/ui/.
+Use the Task tool with the plan-writer agent to create a plan for extracting [COMPONENT_NAME] into a reusable UI component in src/components/ui/.
 
 The plan should:
 - Identify all current usages of this pattern in the codebase
@@ -91,64 +89,7 @@ Apply the output to improve the plan. If significant changes are needed, run the
 
 ### 4. Execute the Plan
 
-Use the `code-writer` agent to execute the plan:
-
-```
-Use the Task tool with the code-writer agent to execute the plan at docs/features/<FEATURE_NAME>/plan.md.
-
-The agent should:
-- Execute the plan in full, fully tested.
-- Report on what was implemented and what was left out, and why.
-- Report on problems it encountered during implementation.
-
-Breaking Changes Are Expected, Type errors are your discovery mechanism. Each error points to a call site that needs updating. Work through them systematically.
-```
-
-**Important**: Provide explicit full paths to the plan file in your agent prompt (e.g., `docs/features/link_chip_extraction/plan.md`).
-
-### 5. Perform Code Review
-
-Use the `code-review-executor` agent to review the implemented changes:
-
-```
-Use the Task tool with the code-review-executor agent to review the unstaged changes against the plan at docs/features/<FEATURE_NAME>/plan.md.
-
-The code review output will be written to: docs/features/<FEATURE_NAME>/code_review.md
-
-The agent should verify:
-- Styling is properly encapsulated in the UI component
-- No className props are exposed on the new component
-- Domain-specific wrappers do NOT have className props in their interfaces
-- No call sites pass className props to the refactored components
-- Domain components no longer contain styling classes
-- The component is generic and domain-agnostic
-- Tests are updated appropriately
-
-Apply any suggested improvements using the code-writer agent. If substantial issues are found, run the code-reviewer again after fixes.
-```
-
-**Important**: Provide explicit full paths to both the plan and code review files in your agent prompt (e.g., `docs/features/link_chip_extraction/plan.md` and `docs/features/link_chip_extraction/code_review.md`).
-
-**Note**: The code-review-executor agent can review commits, staged changes, unstaged changes, or specific files. In the sandbox environment with read-only git, it will review unstaged changes using `git diff`.
-
-### 6. Verify Quality
-
-Run the full verification suite:
-
-```bash
-# Type checking, linting, and build
-pnpm check
-
-# Playwright test suite (headless by default)
-pnpm playwright test
-```
-
-**During initial implementation**, type errors and test failures are EXPECTED and serve as your discovery mechanism:
-- **Type errors**: Each error identifies a call site passing a now-removed `className` prop. Remove the prop at each call site.
-- **Lint errors**: Follow the project's style guidelines
-- **Test failures**: Update selectors or assertions if the refactoring changed DOM structure (rare—most refactorings preserve testId patterns)
-
-**Final verification must pass with zero errors.** If you cannot resolve an error after multiple attempts, abort and request user intervention.
+The workflow to execute a plan and review the results is written up in `docs/plan_execution_workflow.md`. Use the workflow in that document to execute the plan you created.
 
 ## Completion Criteria
 
@@ -162,7 +103,7 @@ The workflow is complete when:
 - [ ] No call sites pass `className` props to the refactored components
 - [ ] `pnpm check` passes with zero errors
 - [ ] All Playwright tests pass
-- [ ] Planning documents created in feature directory (`plan.md`, `plan_review.md`, `code_review.md`)
+- [ ] Planning documents created in feature directory (`plan.md`, `plan_review.md`, `code_review.md`, `plan_execution_report.md`)
 - [ ] Changes are ready for manual commit outside the sandbox
 
 ## Abort Conditions
@@ -184,7 +125,7 @@ First, establish the feature directory (e.g., docs/features/link_chip_extraction
 
 Then, pick a component, create a plan with explicit paths, review the plan, execute it, review the code, and verify everything passes.
 
-Provide explicit full paths to all planning documents (plan.md, plan_review.md, code_review.md) when invoking agents.
+Provide explicit full paths to all planning documents (plan.md, plan_review.md, code_review.md, plan_execution_report.md) when working through the workflow.
 
 Complete the entire workflow unattended unless intervention is required.
 ```
@@ -195,12 +136,13 @@ Complete the entire workflow unattended unless intervention is required.
 - **Loss of Customization**: This is intentional. We are removing the ability to pass `className` props and other styling customizations. Visual standardization is a feature, not a bug. Components will look consistent across the application.
 - **Breaking Changes Are Good**: Type errors from removed props are the mechanism for discovering all usages. Embrace them as a verification tool.
 - **Test-Driven**: Update Playwright tests alongside UI changes to maintain coverage.
-- **Documentation**: The generated `plan.md` and `code_review.md` serve as audit trails for each iteration.
+- **Documentation**: The generated `plan.md`, `code_review.md`, and `plan_execution_report.md` serve as audit trails for each iteration.
 - **No Backward Compatibility**: Do not attempt to maintain backward compatibility by keeping deprecated props. Remove them completely and fix all breaking changes.
 
 ## Related Documentation
 
 - `CLAUDE.md` — Project instructions and verification requirements
+- `docs/plan_execution_workflow.md` — Plan execution and code review workflow
 - `docs/contribute/architecture/application_overview.md` — Architecture patterns
 - `docs/commands/plan_feature.md` — Feature planning template
 - `docs/commands/review_plan.md` — Plan review criteria
