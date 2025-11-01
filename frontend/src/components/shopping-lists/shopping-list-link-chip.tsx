@@ -1,10 +1,7 @@
-import type { MouseEvent, ReactNode } from 'react';
-import { Link } from '@tanstack/react-router';
-import { ShoppingCart, Unlink } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { ShoppingCart } from 'lucide-react';
 
-import { StatusBadge } from '@/components/ui';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { LinkChip } from '@/components/ui';
 import type { ShoppingListStatus } from '@/types/shopping-lists';
 
 const DEFAULT_SHOPPING_LIST_SEARCH = {
@@ -12,7 +9,7 @@ const DEFAULT_SHOPPING_LIST_SEARCH = {
   originSearch: undefined,
 } as const;
 
-// Map shopping list status to badge props
+// Guidepost: Map shopping list status to badge props
 function getShoppingListBadgeProps(status: ShoppingListStatus): { label: string; color: 'inactive' | 'active' } {
   switch (status) {
     case 'concept':
@@ -31,7 +28,6 @@ interface ShoppingListLinkChipProps {
   search?: Record<string, unknown>;
   name: string;
   status: ShoppingListStatus;
-  className?: string;
   testId?: string;
   icon?: ReactNode;
   iconTestId?: string;
@@ -44,6 +40,14 @@ interface ShoppingListLinkChipProps {
   unlinkLabel?: string;
 }
 
+/**
+ * ShoppingListLinkChip — Domain-specific wrapper for shopping list navigation chips
+ *
+ * Maps ShoppingListStatus to LinkChip props and provides default ShoppingCart icon.
+ * Supports both listId convenience prop and explicit to/params for flexibility.
+ * Applies DEFAULT_SHOPPING_LIST_SEARCH when listId is used without explicit search.
+ * Renders via the shared LinkChip component.
+ */
 export function ShoppingListLinkChip({
   listId,
   name,
@@ -51,7 +55,6 @@ export function ShoppingListLinkChip({
   to,
   params,
   search,
-  className,
   testId,
   icon,
   iconTestId,
@@ -63,6 +66,7 @@ export function ShoppingListLinkChip({
   unlinkTooltip,
   unlinkLabel = 'Unlink list',
 }: ShoppingListLinkChipProps) {
+  // Guidepost: Resolve routing props from either listId or explicit to/params
   const resolvedTo = to ?? '/shopping-lists/$listId';
   const resolvedParams = params ?? (typeof listId === 'number' ? { listId: String(listId) } : undefined);
   const resolvedSearch =
@@ -75,71 +79,30 @@ export function ShoppingListLinkChip({
   const badgeProps = getShoppingListBadgeProps(status);
   const accessibilityLabel = `${name} (${badgeProps.label})`;
 
-  const handleUnlinkClick = (event: MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    onUnlink?.();
-  };
-
-  const containerTestId = testId ? `${testId}.wrapper` : undefined;
+  // Guidepost: Default icon is ShoppingCart if not provided
+  const resolvedIcon = icon ?? (
+    <ShoppingCart className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
+  );
 
   return (
-    <div
-      className={cn(
-        'group relative inline-flex items-center gap-2 rounded-full border border-input bg-muted/40 px-2 py-1 text-sm transition-all hover:border-primary',
-        onUnlink && 'hover:pr-9 focus-within:pr-9 [@media(pointer:coarse)]:pr-9',
-        className,
-      )}
-      data-testid={containerTestId}
-      aria-label={accessibilityLabel}
-      title={accessibilityLabel}
-    >
-      <Link
-        to={resolvedTo as any}
-        params={resolvedParams as any}
-        search={resolvedSearch as any}
-        className="flex min-w-0 flex-1 items-center gap-2 rounded-full px-1 py-0.5 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        data-testid={testId}
-        aria-label={accessibilityLabel}
-        title={accessibilityLabel}
-      >
-        <span className="flex items-center gap-2 min-w-0">
-          {icon ?? (
-            <ShoppingCart
-              className="h-4 w-4 flex-shrink-0 text-muted-foreground transition-colors group-hover:text-primary"
-              aria-hidden="true"
-              data-testid={iconTestId}
-            />
-          )}
-          <span className="truncate">{name}</span>
-        </span>
-        <StatusBadge
-          color={badgeProps.color}
-          label={badgeProps.label}
-          size="default"
-          testId={badgeTestId ?? ''}
-        />
-      </Link>
-      {onUnlink ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className={cn(
-            'absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full p-0 text-muted-foreground hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-            'opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100',
-            '@media(prefers-reduced-motion:reduce):transition-none',
-          )}
-          onClick={handleUnlinkClick}
-          disabled={unlinkDisabled}
-          loading={unlinkLoading}
-          data-testid={unlinkTestId}
-          title={unlinkTooltip ?? unlinkLabel}
-          aria-label={unlinkLabel}
-        >
-          <Unlink className="h-4 w-4" aria-hidden="true" />
-        </Button>
-      ) : null}
-    </div>
+    <LinkChip
+      to={resolvedTo}
+      params={resolvedParams}
+      search={resolvedSearch}
+      label={name}
+      icon={resolvedIcon}
+      statusBadgeColor={badgeProps.color}
+      statusBadgeLabel={badgeProps.label}
+      accessibilityLabel={accessibilityLabel}
+      testId={testId}
+      iconTestId={iconTestId}
+      badgeTestId={badgeTestId}
+      onUnlink={onUnlink}
+      unlinkDisabled={unlinkDisabled}
+      unlinkLoading={unlinkLoading}
+      unlinkTestId={unlinkTestId}
+      unlinkTooltip={unlinkTooltip}
+      unlinkLabel={unlinkLabel}
+    />
   );
 }
