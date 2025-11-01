@@ -230,7 +230,7 @@ test.describe('Shopping List Phase 3 entry points', () => {
     const activeIndicator = parts.shoppingListIndicator(activePart.key);
     await expect(activeIndicator).toBeVisible();
     await activeIndicator.hover();
-    const activeTooltip = parts.shoppingListIndicatorTooltip(activePart.key);
+    const activeTooltip = parts.shoppingListIndicatorTooltip();
     await expect(activeTooltip).toBeVisible();
     await expect(activeTooltip).toContainText('Indicator Concept');
 
@@ -239,7 +239,7 @@ test.describe('Shopping List Phase 3 entry points', () => {
     const kitIndicator = parts.kitIndicator(activePart.key);
     await expect(kitIndicator).toBeVisible();
     await kitIndicator.hover();
-    const kitTooltip = parts.kitIndicatorTooltip(activePart.key);
+    const kitTooltip = parts.kitIndicatorTooltip();
     await expect(kitTooltip).toBeVisible();
     await expect(kitTooltip).toContainText(kit.name);
     await expect(parts.kitIndicator(donePart.key)).toHaveCount(0);

@@ -280,7 +280,7 @@ export class PartsPage extends BasePage {
     return this.cardByKey(partKey).getByTestId('parts.list.card.shopping-list-indicator.loading');
   }
 
-  shoppingListIndicatorTooltip(partKey: string): Locator {
+  shoppingListIndicatorTooltip(): Locator {
     // Tooltips are portaled to document.body, so search from page level
     return this.page.getByTestId('parts.list.card.shopping-list-indicator.tooltip');
   }
@@ -293,7 +293,7 @@ export class PartsPage extends BasePage {
     return this.cardByKey(partKey).getByTestId('parts.list.card.kit-indicator.loading');
   }
 
-  kitIndicatorTooltip(partKey: string): Locator {
+  kitIndicatorTooltip(): Locator {
     // Tooltips are portaled to document.body, so search from page level
     return this.page.getByTestId('parts.list.card.kit-indicator.tooltip');
   }
