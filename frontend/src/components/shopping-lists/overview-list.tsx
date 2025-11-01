@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
 import { useShoppingListsOverview } from '@/hooks/use-shopping-lists';
@@ -333,28 +334,22 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
   );
 
   const content = !hasLists ? (
-    <div
-      className="rounded-lg border border-dashed border-muted py-16 text-center"
-      data-testid="shopping-lists.overview.empty"
-    >
-      <h2 className="text-lg font-semibold">No concept lists yet</h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Start by creating a Concept list, then populate it with parts ready for purchasing.
-      </p>
-      <Button className="mt-4" onClick={() => setCreateDialogOpen(true)}>
-        Create your first list
-      </Button>
-    </div>
+    <EmptyState
+      testId="shopping-lists.overview.empty"
+      title="No concept lists yet"
+      description="Start by creating a Concept list, then populate it with parts ready for purchasing."
+      action={{
+        label: 'Create your first list',
+        onClick: () => setCreateDialogOpen(true),
+        testId: 'shopping-lists.overview.empty.cta',
+      }}
+    />
   ) : noMatches ? (
-    <div
-      className="rounded-lg border border-dashed border-muted py-16 text-center"
-      data-testid="shopping-lists.overview.no-results"
-    >
-      <h2 className="text-lg font-semibold">No lists match “{searchTerm}”</h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Adjust the search or create a new Concept list tailored to your build.
-      </p>
-    </div>
+    <EmptyState
+      testId="shopping-lists.overview.no-results"
+      title={`No lists match "${searchTerm}"`}
+      description="Adjust the search or create a new Concept list tailored to your build."
+    />
   ) : hasVisibleLists ? (
     <div
       className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
@@ -369,14 +364,15 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
       ))}
     </div>
   ) : (
-    <div
-      className="rounded-md border border-dashed border-muted px-4 py-6 text-sm text-muted-foreground"
-      data-testid={`shopping-lists.overview.${activeTab}.empty`}
-    >
-      {isFiltered
-        ? `No ${summaryCategory.toLowerCase()} lists match the current filters.`
-        : `No ${summaryCategory.toLowerCase()} lists yet.`}
-    </div>
+    <EmptyState
+      variant="minimal"
+      testId={`shopping-lists.overview.${activeTab}.empty`}
+      title={
+        isFiltered
+          ? `No ${summaryCategory.toLowerCase()} lists match the current filters.`
+          : `No ${summaryCategory.toLowerCase()} lists yet.`
+      }
+    />
   );
 
   return (

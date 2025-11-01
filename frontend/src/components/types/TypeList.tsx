@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
@@ -359,18 +360,16 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
       <>
         {renderLayout({
           content: (
-            <div className="py-12 text-center" data-testid="types.list.empty">
-              <h3 className="text-lg font-medium text-muted-foreground">No types yet</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Add your first part type to start organizing your electronics parts.
-              </p>
-              <Button
-                className="mt-4"
-                onClick={() => setCreateFormOpen(true)}
-              >
-                Add First Type
-              </Button>
-            </div>
+            <EmptyState
+              testId="types.list.empty"
+              title="No types yet"
+              description="Add your first part type to start organizing your electronics parts."
+              action={{
+                label: 'Add your first type',
+                onClick: () => setCreateFormOpen(true),
+                testId: 'types.list.empty.cta',
+              }}
+            />
           ),
           showSearch: false,
           counts: undefined,
@@ -407,12 +406,11 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
       ))}
     </div>
   ) : (
-    <div className="py-12 text-center" data-testid="types.list.no-results">
-      <h3 className="text-lg font-medium text-muted-foreground">No matching types</h3>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Try adjusting your search terms or add a new type.
-      </p>
-    </div>
+    <EmptyState
+      testId="types.list.no-results"
+      title="No matching types"
+      description="Try adjusting your search terms or add a new type."
+    />
   );
 
   return (

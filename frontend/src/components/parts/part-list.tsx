@@ -5,6 +5,7 @@ import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
 import { useGetPartsWithLocations, useGetTypes, type PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema } from '@/lib/api/generated/hooks';
@@ -265,30 +266,28 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
   );
 
   const emptyContent = (
-    <Card className="p-8" data-testid="parts.list.empty">
-      <div className="text-center">
-        <h3 className="mb-2 text-lg font-medium">No parts yet</h3>
-        <p className="mb-4 text-muted-foreground">
-          Get started by adding your first part to the inventory.
-        </p>
-        {onCreatePart && (
-          <Button onClick={onCreatePart}>
-            Add First Part
-          </Button>
-        )}
-      </div>
-    </Card>
+    <EmptyState
+      testId="parts.list.empty"
+      title="No parts yet"
+      description="Get started by adding your first part to the inventory."
+      action={
+        onCreatePart
+          ? {
+              label: 'Create your first part',
+              onClick: onCreatePart,
+              testId: 'parts.list.empty.cta',
+            }
+          : undefined
+      }
+    />
   );
 
   const noResultsContent = (
-    <Card className="p-8" data-testid="parts.list.no-results">
-      <div className="text-center">
-        <h3 className="mb-2 text-lg font-medium">No parts found</h3>
-        <p className="text-muted-foreground">
-          Try adjusting your search terms or create a new part.
-        </p>
-      </div>
-    </Card>
+    <EmptyState
+      testId="parts.list.no-results"
+      title="No parts found"
+      description="Try adjusting your search terms or create a new part."
+    />
   );
 
   const listContent = (

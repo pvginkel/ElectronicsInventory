@@ -9,3 +9,6 @@ export { LinkChip, type LinkChipProps } from './link-chip';
 // Tooltip component
 export { Tooltip, type TooltipProps } from './tooltip';
 export { useTooltip, type UseTooltipOptions, type UseTooltipReturn } from './use-tooltip';
+
+// Empty state component
+export { EmptyState } from './empty-state';

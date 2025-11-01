@@ -3,6 +3,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { KeyValueBadge, StatusBadge } from '@/components/ui';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { getLineAvailabilityQuantity } from '@/hooks/use-pick-list-availability';
@@ -67,12 +68,10 @@ export function PickListLines({
 }: PickListLinesProps) {
   if (groups.length === 0) {
     return (
-      <div
-        className="rounded-lg border border-dashed border-muted-foreground/50 bg-muted/20 px-6 py-10 text-center text-sm text-muted-foreground"
-        data-testid="pick-lists.detail.lines.empty"
-      >
-        This pick list does not contain any lines yet.
-      </div>
+      <EmptyState
+        testId="pick-lists.detail.lines.empty"
+        title="This pick list does not contain any lines yet."
+      />
     );
   }
 

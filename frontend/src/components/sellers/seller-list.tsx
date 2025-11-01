@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
 import { useConfirm } from '@/hooks/use-confirm';
@@ -316,19 +317,16 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
       <>
         {renderLayout({
           content: (
-            <div className="py-12 text-center" data-testid="sellers.list.empty">
-              <h3 className="text-lg font-medium text-muted-foreground">No sellers yet</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Add your first seller to start managing vendor information for your parts.
-              </p>
-              <Button
-                className="mt-4"
-                onClick={() => setCreateFormOpen(true)}
-                data-testid="sellers.list.empty.cta"
-              >
-                Add First Seller
-              </Button>
-            </div>
+            <EmptyState
+              testId="sellers.list.empty"
+              title="No sellers yet"
+              description="Add your first seller to start managing vendor information for your parts."
+              action={{
+                label: 'Add your first seller',
+                onClick: () => setCreateFormOpen(true),
+                testId: 'sellers.list.empty.cta',
+              }}
+            />
           ),
           showSearch: false,
           counts: undefined,
@@ -364,12 +362,11 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
       ))}
     </div>
   ) : (
-    <div className="py-12 text-center" data-testid="sellers.list.no-results">
-      <h3 className="text-lg font-medium text-muted-foreground">No matching sellers</h3>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Try adjusting your search terms or add a new seller.
-      </p>
-    </div>
+    <EmptyState
+      testId="sellers.list.no-results"
+      title="No matching sellers"
+      description="Try adjusting your search terms or add a new seller."
+    />
   );
 
   return (

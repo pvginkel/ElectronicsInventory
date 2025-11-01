@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
@@ -234,19 +235,16 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
       <>
         {renderLayout({
           content: (
-            <div className="py-12 text-center" data-testid="boxes.list.empty">
-              <h3 className="text-lg font-medium text-muted-foreground">No storage boxes yet</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Add your first storage box to start organizing your electronics parts.
-              </p>
-              <Button
-                className="mt-4"
-                onClick={() => setCreateFormOpen(true)}
-                data-testid="boxes.list.empty.cta"
-              >
-                Add First Box
-              </Button>
-            </div>
+            <EmptyState
+              testId="boxes.list.empty"
+              title="No storage boxes yet"
+              description="Add your first storage box to start organizing your electronics parts."
+              action={{
+                label: 'Create your first box',
+                onClick: () => setCreateFormOpen(true),
+                testId: 'boxes.list.empty.cta',
+              }}
+            />
           ),
           showSearch: false,
           counts: undefined,
@@ -281,12 +279,11 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
       ))}
     </div>
   ) : (
-    <div className="py-12 text-center" data-testid="boxes.list.no-results">
-      <h3 className="text-lg font-medium text-muted-foreground">No boxes found</h3>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Try adjusting your search terms or add a new box.
-      </p>
-    </div>
+    <EmptyState
+      testId="boxes.list.no-results"
+      title="No boxes found"
+      description="Try adjusting your search terms or add a new box."
+    />
   );
 
   return (

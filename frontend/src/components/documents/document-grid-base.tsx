@@ -1,8 +1,9 @@
 import { DocumentTile } from './document-tile';
 import { DocumentIcon } from '@/components/icons/DocumentIcon';
+import { EmptyState } from '@/components/ui/empty-state';
 import type { DocumentGridProps } from '@/types/documents';
 
-export function DocumentGridBase({ 
+export function DocumentGridBase({
   documents,
   onTileClick,
   onToggleCover,
@@ -12,15 +13,12 @@ export function DocumentGridBase({
 
   if (documents.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-          <DocumentIcon className="w-8 h-8 text-muted-foreground" />
-        </div>
-        <h3 className="text-lg font-medium mb-2">No documents yet</h3>
-        <p className="text-muted-foreground mb-4">
-          Add images, PDFs, or website links to document this part.
-        </p>
-      </div>
+      <EmptyState
+        testId="documents.grid.empty"
+        title="No documents yet"
+        description="Add images, PDFs, or website links to document this part."
+        icon={DocumentIcon}
+      />
     );
   }
 

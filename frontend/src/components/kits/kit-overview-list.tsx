@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
@@ -183,39 +184,32 @@ export function KitOverviewList({
     );
   } else if (!hasAnyKits && !searchActive) {
     content = (
-      <div
-        className="rounded-lg border border-dashed border-muted py-16 text-center"
-        data-testid="kits.overview.empty"
-      >
-        <h2 className="text-lg font-semibold">No kits yet</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Create your first kit to start planning builds and tracking sourcing work.
-        </p>
-        <Button className="mt-4" onClick={onCreateKit} data-testid="kits.overview.empty.cta">
-          Add Kit
-        </Button>
-      </div>
+      <EmptyState
+        testId="kits.overview.empty"
+        title="No kits yet"
+        description="Create your first kit to start planning builds and tracking sourcing work."
+        action={{
+          label: 'Create your first kit',
+          onClick: onCreateKit,
+          testId: 'kits.overview.empty.cta',
+        }}
+      />
     );
   } else if (searchActive && activeKits.length === 0) {
     content = (
-      <div
-        className="rounded-lg border border-dashed border-muted py-16 text-center"
-        data-testid="kits.overview.no-results"
-      >
-        <h2 className="text-lg font-semibold">No kits match "{searchTerm}"</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Try adjusting the search term or creating a new kit for the build you need.
-        </p>
-      </div>
+      <EmptyState
+        testId="kits.overview.no-results"
+        title={`No kits match "${searchTerm}"`}
+        description="Try adjusting the search term or creating a new kit for the build you need."
+      />
     );
   } else if (activeKits.length === 0) {
     content = (
-      <div
-        className="rounded-md border border-dashed border-muted px-4 py-6 text-sm text-muted-foreground"
-        data-testid={`kits.overview.${status}.empty`}
-      >
-        No {TAB_LABELS[status].toLowerCase()} kits yet.
-      </div>
+      <EmptyState
+        variant="minimal"
+        testId={`kits.overview.${status}.empty`}
+        title={`No ${TAB_LABELS[status].toLowerCase()} kits yet.`}
+      />
     );
   } else {
     content = (
