@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { LayoutDashboard, Wrench, CircuitBoard, ShoppingCart, Archive, Tag, Store, Info, type LucideIcon } from 'lucide-react'
+import { Wrench, CircuitBoard, ShoppingCart, Archive, Tag, Store, Info, type LucideIcon } from 'lucide-react'
 
 interface SidebarItem {
   to: string

@@ -26,7 +26,7 @@ export class DashboardPage extends BasePage {
   }
 
   async gotoDashboard(): Promise<void> {
-    await this.goto('/');
+    await this.goto('/dashboard');
     await expect(this.root).toBeVisible();
   }
 
