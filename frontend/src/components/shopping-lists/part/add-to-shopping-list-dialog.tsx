@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type Di
 import { Form, FormField, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Alert } from '@/components/ui';
 import { SellerSelector } from '@/components/sellers/seller-selector';
 import { ShoppingListSelector } from '@/components/shopping-lists/shopping-list-selector';
 import { cn } from '@/lib/utils';
@@ -276,7 +277,7 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
 
           <div className="space-y-4 py-4">
             {conflictError && (
-              <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" data-testid="parts.shopping-list.add.conflict">
+              <Alert variant="error" icon={true} testId="parts.shopping-list.add.conflict">
                 {conflictError}{' '}
                 <a
                   href="#parts.detail.link.badges"
@@ -284,7 +285,7 @@ export function AddToShoppingListDialog({ open, onClose, part, defaultNeeded = 1
                 >
                   View existing lists
                 </a>
-              </div>
+              </Alert>
             )}
 
             <div className="space-y-2">

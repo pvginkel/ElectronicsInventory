@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { KeyValueBadge } from '@/components/ui';
+import { Alert, KeyValueBadge } from '@/components/ui';
 import { Badge } from '@/components/ui/badge';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { PartLocationGrid } from './part-location-grid';
@@ -344,9 +344,15 @@ export function PartDetails({ partId }: PartDetailsProps) {
           : null;
 
       return (
-        <div
-          className="flex flex-wrap items-start gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-          data-testid="parts.detail.link.badges.error"
+        <Alert
+          variant="error"
+          icon={true}
+          testId="parts.detail.link.badges.error"
+          action={
+            <Button type="button" size="sm" variant="outline" onClick={handleLinkBadgeRetry}>
+              Reload Data
+            </Button>
+          }
         >
           <div className="space-y-1">
             <span>Failed to load linked list and kit data.</span>
@@ -355,10 +361,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
               {kitMessage ? <li>Kits: {kitMessage}</li> : null}
             </ul>
           </div>
-          <Button type="button" size="sm" variant="outline" onClick={handleLinkBadgeRetry}>
-            Reload Data
-          </Button>
-        </div>
+        </Alert>
       );
     }
 

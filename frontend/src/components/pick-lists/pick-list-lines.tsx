@@ -3,8 +3,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/ui/empty-state';
-import { KeyValueBadge, StatusBadge } from '@/components/ui';
+import { Alert, EmptyState, KeyValueBadge, StatusBadge } from '@/components/ui';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { getLineAvailabilityQuantity } from '@/hooks/use-pick-list-availability';
 import { formatLocation } from '@/lib/utils/locations';
@@ -78,11 +77,12 @@ export function PickListLines({
   return (
     <div className="space-y-6" data-testid="pick-lists.detail.lines">
       {availabilityHasError ? (
-        <div
-          className="flex flex-col gap-2 rounded-md border border-destructive/60 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-          data-testid="pick-lists.detail.availability.error"
+        <Alert
+          variant="error"
+          icon={true}
+          title="Inventory availability is currently unavailable."
+          testId="pick-lists.detail.availability.error"
         >
-          <span className="font-semibold">Inventory availability is currently unavailable.</span>
           <ul className="list-disc space-y-1 pl-4">
             {availabilityErrors.map(error => (
               <li key={error.partKey}>
@@ -90,7 +90,7 @@ export function PickListLines({
               </li>
             ))}
           </ul>
-        </div>
+        </Alert>
       ) : null}
 
       {groups.map(group => {

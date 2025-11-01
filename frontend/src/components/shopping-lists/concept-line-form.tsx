@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type Di
 import { Form, FormField, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Alert } from '@/components/ui';
 import { PartSelector } from '@/components/parts/part-selector';
 import { SellerSelector } from '@/components/sellers/seller-selector';
 import { cn } from '@/lib/utils';
@@ -256,30 +257,19 @@ export function ConceptLineForm({
     >
       <DialogContent>
         {duplicateNotice && (
-          <div
-            className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
-            data-testid="shopping-lists.concept.duplicate-banner"
+          <Alert
+            variant="warning"
+            icon={true}
+            className="mb-4"
+            onDismiss={() => {
+              onDismissDuplicateNotice?.();
+              setDuplicateError(null);
+            }}
+            testId="shopping-lists.concept.duplicate-banner"
           >
-            <div className="flex items-start justify-between gap-4">
-              <p>
-                Part with key <strong>{duplicateNotice.partKey}</strong> already exists on this Concept list.
-                Edit the existing line instead of creating a duplicate.
-              </p>
-              <div className="flex shrink-0 gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    onDismissDuplicateNotice?.();
-                    setDuplicateError(null);
-                  }}
-                  data-testid="shopping-lists.concept.duplicate-banner.dismiss"
-                >
-                  Dismiss
-                </Button>
-              </div>
-            </div>
-          </div>
+            Part with key <strong>{duplicateNotice.partKey}</strong> already exists on this Concept list.
+            Edit the existing line instead of creating a duplicate.
+          </Alert>
         )}
 
         <Form onSubmit={form.handleSubmit} data-testid={`${formId}.form`}>

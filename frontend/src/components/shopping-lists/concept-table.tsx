@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { Alert } from '@/components/ui';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { SHOPPING_LIST_LINE_SORT_OPTIONS } from '@/hooks/use-shopping-lists';
@@ -102,14 +103,13 @@ export function ConceptTable({
       </div>
 
       {duplicateNotice && !isMutating && (
-        <div
-          className="relative z-[60] flex items-center justify-between gap-4 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 pointer-events-auto"
-          data-testid="shopping-lists.concept.duplicate-banner"
-        >
-          <span>
-            Part with key <strong>{duplicateNotice.partKey}</strong> already exists on this Concept list.
-          </span>
-          <div className="flex gap-2">
+        <Alert
+          variant="warning"
+          icon={true}
+          className="relative z-[60] rounded-none border-0 border-b pointer-events-auto"
+          onDismiss={onDismissDuplicateNotice}
+          testId="shopping-lists.concept.duplicate-banner"
+          action={
             <Button
               variant="outline"
               size="sm"
@@ -123,16 +123,10 @@ export function ConceptTable({
             >
               View existing line
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onDismissDuplicateNotice}
-              data-testid="shopping-lists.concept.duplicate-banner.dismiss"
-            >
-              Dismiss
-            </Button>
-          </div>
-        </div>
+          }
+        >
+          Part with key <strong>{duplicateNotice.partKey}</strong> already exists on this Concept list.
+        </Alert>
       )}
 
       <div className="overflow-x-auto">

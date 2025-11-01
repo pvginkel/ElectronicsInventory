@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/ui/empty-state';
+import { Alert, EmptyState } from '@/components/ui';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
@@ -172,15 +172,21 @@ export function KitOverviewList({
     );
   } else if (error) {
     content = (
-      <div className="rounded-md border border-destructive/20 bg-destructive/10 p-6" data-testid="kits.overview.error">
-        <h2 className="text-lg font-semibold text-destructive">Unable to load kits</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
+      <Alert
+        variant="error"
+        icon={true}
+        title="Unable to load kits"
+        testId="kits.overview.error"
+        action={
+          <Button variant="outline" onClick={() => void (status === 'archived' ? queries.archived.refetch() : queries.active.refetch())} data-testid="kits.overview.error.retry">
+            Retry
+          </Button>
+        }
+      >
+        <p className="text-sm text-muted-foreground">
           {error instanceof Error ? error.message : String(error)}
         </p>
-        <Button className="mt-4" variant="outline" onClick={() => void (status === 'archived' ? queries.archived.refetch() : queries.active.refetch())}>
-          Retry
-        </Button>
-      </div>
+      </Alert>
     );
   } else if (!hasAnyKits && !searchActive) {
     content = (

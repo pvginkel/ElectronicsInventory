@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/ui/empty-state';
+import { Alert, EmptyState } from '@/components/ui';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
 import { useShoppingListsOverview } from '@/hooks/use-shopping-lists';
@@ -275,12 +275,12 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
 
   if (error) {
     return (
-      <div className="space-y-4" data-testid="shopping-lists.overview.error">
+      <div className="space-y-4">
         <h1 className="text-3xl font-bold">Shopping Lists</h1>
-        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4">
-          <p className="text-sm text-destructive">Failed to load shopping lists.</p>
+        <Alert variant="error" icon={true} testId="shopping-lists.overview.error">
+          <p className="text-sm">Failed to load shopping lists.</p>
           <p className="text-xs text-muted-foreground mt-1">{String(error)}</p>
-        </div>
+        </Alert>
       </div>
     );
   }

@@ -1,3 +1,6 @@
+// Alert component
+export { Alert, type AlertProps, type AlertVariant } from './alert';
+
 // Standardized badge components
 export { InformationBadge, type InformationBadgeProps } from './information-badge';
 export { KeyValueBadge, type KeyValueBadgeProps } from './key-value-badge';

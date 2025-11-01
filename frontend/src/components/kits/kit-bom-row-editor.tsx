@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import { PartSelector } from '@/components/parts/part-selector';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
+import { Alert } from '@/components/ui';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -204,9 +205,9 @@ export function KitBOMRowEditor(props: KitBOMRowEditorProps) {
       </div>
 
       {formMessage ? (
-        <div className="rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <Alert variant="error" icon={true} testId="kits.detail.bom.row-editor.error">
           {formMessage}
-        </div>
+        </Alert>
       ) : null}
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
