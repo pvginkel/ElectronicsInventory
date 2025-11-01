@@ -102,8 +102,7 @@ test.describe('Cross-domain workflow - type to dashboard', () => {
     await types.waitForListState('ready');
     await expect(types.partCountBadge(typeName)).toContainText(/1\s+part/i);
 
-    await appShell.clickDesktopNav('dashboard');
-    await expect(page).toHaveURL(/\/?$/);
+    await dashboard.gotoDashboard();
     await dashboard.waitForMetricsReady();
 
     const statsAfter = await apiClient.GET('/api/dashboard/stats', {});

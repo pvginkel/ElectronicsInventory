@@ -410,9 +410,9 @@ test.describe('Kit detail workspace', () => {
     await waitForListLoading(page, 'kits.detail.contents', 'ready');
 
     await expect(kits.detailEditButton).toBeDisabled();
-    await kits.detailEditDisabledWrapper.hover();
-    await expect(kits.detailEditTooltip).toBeVisible();
-    await expect(kits.detailEditTooltip).toContainText('Archived kits are read-only');
+    // With title mode, the Tooltip wraps the button in a div with the title attribute
+    const editButtonParent = page.locator('[data-testid="kits.detail.actions.edit"]').locator('..');
+    await expect(editButtonParent).toHaveAttribute('title', /Archived kits are read-only/);
 
     await expect(kits.detailAddPartButton).toBeDisabled();
     await expect(kits.detailAddPartButton).toHaveAttribute('title', /Archived kits cannot be edited/i);

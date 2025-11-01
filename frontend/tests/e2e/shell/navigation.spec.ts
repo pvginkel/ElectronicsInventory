@@ -4,7 +4,6 @@ import { test } from '../../support/fixtures';
 test.describe('App shell - desktop navigation', () => {
   test('collapses sidebar and navigates primary routes', async ({
     appShell,
-    dashboard,
     parts,
     boxes,
     types,
@@ -16,17 +15,14 @@ test.describe('App shell - desktop navigation', () => {
     await appShell.gotoHome();
     await expect(appShell.desktopSidebar).toBeVisible();
     await appShell.expectSidebarState('expanded');
-    await appShell.expectActiveNav('dashboard');
+    // Home redirects to /parts, so parts should be active
+    await expect(page).toHaveURL(/\/parts(?:$|\?)/);
+    await appShell.expectActiveNav('parts');
 
     await appShell.toggleDesktopSidebar();
     await appShell.expectSidebarState('collapsed');
     await appShell.toggleDesktopSidebar();
     await appShell.expectSidebarState('expanded');
-
-    await appShell.clickDesktopNav('parts');
-    await expect(page).toHaveURL(/\/parts(?:$|\?)/);
-    await parts.waitForCards();
-    await appShell.expectActiveNav('parts');
 
     await appShell.clickDesktopNav('boxes');
     await expect(page).toHaveURL(/\/boxes(?:$|\?)/);
@@ -55,17 +51,17 @@ test.describe('App shell - desktop navigation', () => {
     await expect(about.quickStartSteps).toHaveCount(4);
     await appShell.expectActiveNav('about');
 
-    await appShell.clickDesktopNav('dashboard');
-    await expect(page).toHaveURL(/\/?$/);
-    await dashboard.waitForMetricsReady();
-    await appShell.expectActiveNav('dashboard');
+    await appShell.clickDesktopNav('parts');
+    await expect(page).toHaveURL(/\/parts(?:$|\?)/);
+    await parts.waitForCards();
+    await appShell.expectActiveNav('parts');
   });
 
   test('renders Lucide icons for all navigation items', async ({ appShell, page }) => {
     await appShell.gotoHome();
 
     // Verify that each navigation link contains an SVG element (Lucide icons render as SVG)
-    const navigationItems = ['dashboard', 'parts', 'kits', 'shopping-lists', 'boxes', 'types', 'sellers', 'about'];
+    const navigationItems = ['parts', 'kits', 'shopping-lists', 'boxes', 'types', 'sellers', 'about'];
 
     for (const item of navigationItems) {
       const link = page.getByTestId(`app-shell.sidebar.link.${item}`);

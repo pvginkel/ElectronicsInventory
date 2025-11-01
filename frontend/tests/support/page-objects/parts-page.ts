@@ -281,7 +281,8 @@ export class PartsPage extends BasePage {
   }
 
   shoppingListIndicatorTooltip(partKey: string): Locator {
-    return this.cardByKey(partKey).getByTestId('parts.list.card.shopping-list-indicator.tooltip');
+    // Tooltips are portaled to document.body, so search from page level
+    return this.page.getByTestId('parts.list.card.shopping-list-indicator.tooltip');
   }
 
   kitIndicator(partKey: string): Locator {
@@ -293,7 +294,8 @@ export class PartsPage extends BasePage {
   }
 
   kitIndicatorTooltip(partKey: string): Locator {
-    return this.cardByKey(partKey).getByTestId('parts.list.card.kit-indicator.tooltip');
+    // Tooltips are portaled to document.body, so search from page level
+    return this.page.getByTestId('parts.list.card.kit-indicator.tooltip');
   }
 
   get editPartButton(): Locator {

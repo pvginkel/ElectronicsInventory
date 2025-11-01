@@ -6,7 +6,7 @@ const MOBILE_VIEWPORT = { width: 414, height: 736 } as const;
 test.describe('App shell - mobile menu', () => {
   test('opens, navigates, and closes the mobile sidebar', async ({
     appShell,
-    dashboard,
+    kits,
     parts,
     page,
   }) => {
@@ -29,9 +29,9 @@ test.describe('App shell - mobile menu', () => {
     await appShell.expectMobileMenuState('closed');
 
     await appShell.openMobileMenu();
-    await appShell.sidebarLink('dashboard', { variant: 'mobile' }).click();
+    await appShell.sidebarLink('kits', { variant: 'mobile' }).click();
     await appShell.expectMobileMenuState('closed');
-    await expect(page).toHaveURL(/\/?$/);
-    await dashboard.waitForMetricsReady();
+    await expect(page).toHaveURL(/\/kits(?:$|\?)/);
+    await kits.waitForOverviewReady();
   });
 });

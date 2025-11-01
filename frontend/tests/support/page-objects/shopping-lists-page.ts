@@ -468,10 +468,6 @@ export class ShoppingListsPage extends BasePage {
     const row = this.conceptRowByPart(part);
     await expect(row).toBeVisible();
     await row.getByTestId(/\.delete$/).click();
-
-    const dialog = this.page.getByRole('dialog', { name: /delete line/i });
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: /delete line/i }).click();
     await this.waitForConceptReady();
   }
 

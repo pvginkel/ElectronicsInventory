@@ -332,7 +332,6 @@ function ArchivedEditTooltip() {
   return (
     <Tooltip
       title="Archived kits are read-only. Unarchive the kit to edit metadata or BOM contents."
-      testId="kits.detail.actions.edit"
     >
       <Button
         variant="outline"
