@@ -48,6 +48,8 @@ Pick a single, clearly specified component to extract. Examples:
 - MUST be designed generically enough to avoid domain coupling
 - Should have clear visual/behavioral boundaries
 
+That being said: when selecting a component prefer ones with more applications or that abstract away more UI complexity.
+
 ### 2. Create a Plan
 
 Use the `plan-writer` agent to create a detailed implementation plan:
