@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { TypeList } from '@/components/types/TypeList';
+import { TypeList } from '@/components/types/type-list';
 
 export const Route = createFileRoute('/types/')({
   validateSearch: (search: Record<string, unknown>) => {

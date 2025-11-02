@@ -1,6 +1,4 @@
-import type { KeyboardEvent } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { cn } from '@/lib/utils'
 
 interface BoxCardProps {
   box: {
@@ -24,13 +22,6 @@ export function BoxCard({ box, onOpen, disabled = false }: BoxCardProps) {
     onOpen()
   }
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      handleSelect()
-    }
-  }
-
   return (
     <Card
       variant={disabled ? "grid-tile-disabled" : "grid-tile"}
@@ -41,7 +32,6 @@ export function BoxCard({ box, onOpen, disabled = false }: BoxCardProps) {
       aria-disabled={disabled}
       aria-label={`Open box ${box.box_no}`}
       onClick={handleSelect}
-      onKeyDown={handleKeyDown}
     >
       <CardHeader>
         <div className="flex justify-between items-start">

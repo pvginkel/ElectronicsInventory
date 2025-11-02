@@ -1,8 +1,6 @@
-import type { KeyboardEvent } from 'react';
 import { KeyValueBadge, StatusBadge } from '@/components/ui';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ShoppingListOverviewSummary } from '@/types/shopping-lists';
-import { cn } from '@/lib/utils';
 
 interface ShoppingListOverviewCardProps {
   list: ShoppingListOverviewSummary;
@@ -38,13 +36,6 @@ export function ShoppingListOverviewCard({
     onOpen();
   };
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      handleSelect();
-    }
-  };
-
   return (
     <Card
       variant={disabled ? "grid-tile-disabled" : "grid-tile"}
@@ -54,7 +45,6 @@ export function ShoppingListOverviewCard({
       aria-disabled={disabled}
       aria-label={`Open shopping list ${list.name}`}
       onClick={handleSelect}
-      onKeyDown={handleKeyDown}
     >
       <CardHeader>
         <div className="flex items-start justify-between gap-3">

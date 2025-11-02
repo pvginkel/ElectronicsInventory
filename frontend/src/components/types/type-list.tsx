@@ -16,8 +16,8 @@ import {
   useDeleteType,
   useGetTypesWithStats,
 } from '@/hooks/use-types';
-import { TypeCard } from './TypeCard';
-import { TypeForm } from './TypeForm';
+import { TypeCard } from './type-card';
+import { TypeForm } from './type-form';
 
 interface TypeListProps {
   searchTerm?: string;

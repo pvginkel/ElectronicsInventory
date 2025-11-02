@@ -8,7 +8,7 @@ interface CardProps extends NativeDivProps {
 }
 
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ variant = 'default', className, onClick, children, ...props }, ref) => {
+  ({ variant = 'default', className, onClick, onKeyDown, children, ...props }, ref) => {
     const baseClasses = 'rounded-lg border bg-card text-card-foreground shadow-sm'
 
     const variantClasses = {
@@ -24,12 +24,24 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
       onClick?.(e)
     }
 
+    const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
+      // If there's a custom onKeyDown handler, call it first
+      onKeyDown?.(e)
+
+      // If onClick is provided and the key is Enter or Space, trigger the click
+      if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault()
+        onClick(e as unknown as React.MouseEvent<HTMLDivElement>)
+      }
+    }
+
     return (
       <div
         ref={ref}
         {...props}
         className={cn(baseClasses, variantClasses[variant], className)}
         onClick={handleClick}
+        onKeyDown={onClick ? handleKeyDown : onKeyDown}
       >
         {children}
       </div>
