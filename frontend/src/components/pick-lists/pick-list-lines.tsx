@@ -1,9 +1,9 @@
 import { type ReactNode } from 'react';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Alert, EmptyState, KeyValueBadge, StatusBadge } from '@/components/ui';
+import { Alert, EmptyState, InlineNotification, KeyValueBadge, StatusBadge } from '@/components/ui';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { getLineAvailabilityQuantity } from '@/hooks/use-pick-list-availability';
 import { formatLocation } from '@/lib/utils/locations';
@@ -207,13 +207,13 @@ export function PickListLines({
                           </td>
                           <td className={`${COLUMN_WIDTHS.shortfall} px-4 py-3 text-sm text-muted-foreground`}>
                             {shortfall > 0 ? (
-                              <span
-                                className="inline-flex items-center gap-2 rounded border border-amber-400 bg-amber-50 px-2 py-1 text-amber-900"
-                                data-testid={`pick-lists.detail.line.${lineId}.shortfall`}
+                              <InlineNotification
+                                variant="warning"
+                                icon={true}
+                                testId={`pick-lists.detail.line.${lineId}.shortfall`}
                               >
-                                <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
                                 Shortfall {NUMBER_FORMATTER.format(shortfall)}
-                              </span>
+                              </InlineNotification>
                             ) : (
                               <span data-testid={`pick-lists.detail.line.${lineId}.shortfall`}>—</span>
                             )}

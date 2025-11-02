@@ -1,6 +1,13 @@
 // Alert component
 export { Alert, type AlertProps, type AlertVariant } from './alert';
 
+// InlineNotification component
+export {
+  InlineNotification,
+  type InlineNotificationProps,
+  type InlineNotificationVariant,
+} from './inline-notification';
+
 // Standardized badge components
 export { InformationBadge, type InformationBadgeProps } from './information-badge';
 export { KeyValueBadge, type KeyValueBadgeProps } from './key-value-badge';
