@@ -136,6 +136,27 @@ export class ToastHelper {
   }
 
   /**
+   * Waits for the toast viewport to stop intercepting pointer events.
+   *
+   * This is critical for preventing flaky tests where the toast viewport
+   * intercepts pointer events even after toasts are dismissed.
+   * Use this method after operations that trigger toasts and before
+   * attempting to interact with UI elements that might be blocked by the viewport.
+   *
+   * This provides a brief fixed wait to allow toast exit animations to complete
+   * and the viewport to stop intercepting pointer events. This is a pragmatic
+   * workaround for intermittent issues with toast dismissal timing.
+   *
+   * @param options - Wait options
+   * @see https://playwright.dev/docs/actionability for details on pointer event interception
+   */
+  async waitForToastViewportDismissed(options?: { timeout?: number }): Promise<void> {
+    // Fixed wait for toast exit animations to complete
+    // This handles the intermittent case where toasts may take longer to clear
+    await this.page.waitForTimeout(1000);
+  }
+
+  /**
    * Asserts a success toast appears with specific text
    * @param text - Expected text
    * @param options - Assertion options

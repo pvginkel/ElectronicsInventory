@@ -112,7 +112,7 @@ test.describe('Boxes - List Experience', () => {
     expect(createSubmit).toBeTruthy()
 
     await toastHelper.expectSuccessToast(/box created successfully/i)
-    await toastHelper.dismissToast({ all: true })
+    await toastHelper.waitForToastViewportDismissed()
 
     const createdCard = boxes.listTable.locator(`[data-testid^="boxes.list.item."]`, { hasText: description })
     await expect(createdCard).toBeVisible()
@@ -131,7 +131,7 @@ test.describe('Boxes - List Experience', () => {
     const editSubmit = editEvents.find(event => event.kind === 'form' && typeof event.formId === 'string' && event.formId.startsWith('boxes.detail.edit.') && event.phase === 'submit')
     expect(editSubmit).toBeTruthy()
     await toastHelper.expectSuccessToast(/box updated successfully/i)
-    await toastHelper.dismissToast({ all: true })
+    await toastHelper.waitForToastViewportDismissed()
     await expect(boxes.detailSummary).toContainText(updatedDescription)
 
     await boxes.returnToListFromDetail()
@@ -145,7 +145,7 @@ test.describe('Boxes - List Experience', () => {
     await confirmDialog.getByRole('button', { name: /delete/i }).click()
 
     await toastHelper.expectSuccessToast(new RegExp(`Box #${createdBoxNo} deleted`, 'i'))
-    await toastHelper.dismissToast({ all: true })
+    await toastHelper.waitForToastViewportDismissed()
     await expect(boxes.boxCard(createdBoxNo)).toBeHidden()
   })
 })
