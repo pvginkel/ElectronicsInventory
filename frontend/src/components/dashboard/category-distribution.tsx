@@ -1,5 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useDashboardCategories } from '@/hooks/use-dashboard'
 import { useNavigate } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
@@ -105,41 +106,6 @@ function SmartInsight({ insight }: SmartInsightProps) {
   )
 }
 
-function CategoryDistributionSkeleton() {
-  return (
-    <div className="space-y-6" data-testid="dashboard.categories.skeleton">
-      {/* Chart Skeleton */}
-      <div className="space-y-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="space-y-1">
-            <div className="flex justify-between">
-              <div className="w-20 h-4 bg-muted rounded animate-pulse" />
-              <div className="w-8 h-4 bg-muted rounded animate-pulse" />
-            </div>
-            <div className="w-full h-3 bg-muted rounded animate-pulse" />
-          </div>
-        ))}
-      </div>
-      
-      {/* Insights Skeleton */}
-      <div className="space-y-2">
-        <div className="h-4 w-24 bg-muted rounded animate-pulse" />
-        {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="border rounded-lg p-3">
-            <div className="flex gap-2">
-              <div className="w-6 h-6 bg-muted rounded animate-pulse" />
-              <div className="flex-1 space-y-2">
-                <div className="w-3/4 h-4 bg-muted rounded animate-pulse" />
-                <div className="w-1/2 h-3 bg-muted rounded animate-pulse" />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 // Predefined category colors for consistency
 const CATEGORY_COLORS = [
   '#3b82f6', // blue
@@ -229,7 +195,36 @@ export function CategoryDistribution() {
           <CardTitle>Category Distribution</CardTitle>
         </CardHeader>
         <CardContent>
-          <CategoryDistributionSkeleton />
+          <div className="space-y-6" data-testid="dashboard.categories.skeleton">
+            {/* Chart Skeleton */}
+            <div className="space-y-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="space-y-1">
+                  <div className="flex justify-between">
+                    <Skeleton width="w-20" height="h-4" />
+                    <Skeleton width="w-8" height="h-4" />
+                  </div>
+                  <Skeleton width="w-full" height="h-3" />
+                </div>
+              ))}
+            </div>
+
+            {/* Insights Skeleton */}
+            <div className="space-y-2">
+              <Skeleton width="w-24" height="h-4" />
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="border rounded-lg p-3">
+                  <div className="flex gap-2">
+                    <Skeleton width="w-6" height="h-6" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton width="w-3/4" height="h-4" />
+                      <Skeleton width="w-1/2" height="h-3" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </CardContent>
       </Card>
     )

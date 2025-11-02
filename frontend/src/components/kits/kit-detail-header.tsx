@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { StatusBadge, KeyValueBadge } from '@/components/ui';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ShoppingListLinkChip } from '@/components/shopping-lists/shopping-list-link-chip';
 import { MoreVerticalIcon } from '@/components/icons/MoreVerticalIcon';
 import type { KitDetail, KitShoppingListLink, KitStatus } from '@/types/kits';
@@ -89,18 +90,18 @@ export function createKitDetailHeaderSlots(options: KitDetailHeaderOptions): Kit
           <span>Loading...</span>
         </div>
       ),
-      title: <div className="h-8 w-64 animate-pulse rounded bg-muted" />,
+      title: <Skeleton width="w-64" height="h-8" />,
       description: (
         <div className="space-y-2">
-          <div className="h-4 w-80 animate-pulse rounded bg-muted" />
-          <div className="h-4 w-64 animate-pulse rounded bg-muted" />
+          <Skeleton width="w-80" height="h-4" />
+          <Skeleton width="w-64" height="h-4" />
         </div>
       ),
       metadataRow: (
         <div className="flex flex-wrap items-center gap-2">
-          <div className="h-6 w-28 animate-pulse rounded bg-muted" />
-          <div className="h-6 w-40 animate-pulse rounded-full bg-muted" />
-          <div className="h-6 w-40 animate-pulse rounded-full bg-muted" />
+          <Skeleton width="w-28" height="h-6" />
+          <Skeleton variant="circular" width="w-40" height="h-6" />
+          <Skeleton variant="circular" width="w-40" height="h-6" />
         </div>
       ),
       actions: (

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Alert, KeyValueBadge, ExternalLink } from '@/components/ui';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { PartLocationGrid } from './part-location-grid';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
@@ -423,13 +424,13 @@ export function PartDetails({ partId }: PartDetailsProps) {
       return (
         <div className="space-y-6">
           <Card className="p-6">
-            <div className="animate-pulse space-y-4">
-              <div className="h-6 w-1/3 rounded bg-muted" />
+            <div className="space-y-4">
+              <Skeleton width="w-1/3" height="h-6" />
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="h-4 rounded bg-muted" />
-                <div className="h-4 rounded bg-muted" />
-                <div className="h-4 rounded bg-muted" />
-                <div className="h-4 rounded bg-muted" />
+                <Skeleton height="h-4" />
+                <Skeleton height="h-4" />
+                <Skeleton height="h-4" />
+                <Skeleton height="h-4" />
               </div>
             </div>
           </Card>

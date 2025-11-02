@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, type DialogContentProps } from '@/components/ui/dialog';
 import { Form, FormField, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useFormState } from '@/hooks/use-form-state';
 import { useToast } from '@/hooks/use-toast';
@@ -161,26 +162,26 @@ export function useShoppingListDetailHeaderSlots({
           </div>
         ),
         title: (
-          <div className="h-8 w-64 animate-pulse rounded bg-muted" />
+          <Skeleton width="w-64" height="h-8" />
         ),
         description: (
           <div className="space-y-2">
-            <div className="h-4 w-80 animate-pulse rounded bg-muted" />
-            <div className="h-4 w-64 animate-pulse rounded bg-muted" />
+            <Skeleton width="w-80" height="h-4" />
+            <Skeleton width="w-64" height="h-4" />
           </div>
         ),
         metadataRow: (
           <div className="flex flex-wrap items-center gap-2">
-            <div className="h-6 w-24 animate-pulse rounded bg-muted" />
-            <div className="h-6 w-20 animate-pulse rounded bg-muted" />
-            <div className="h-6 w-20 animate-pulse rounded bg-muted" />
-            <div className="h-6 w-24 animate-pulse rounded bg-muted" />
+            <Skeleton width="w-24" height="h-6" />
+            <Skeleton width="w-20" height="h-6" />
+            <Skeleton width="w-20" height="h-6" />
+            <Skeleton width="w-24" height="h-6" />
           </div>
         ),
         linkChips: (
           <div className="flex flex-wrap items-center gap-2">
-            <div className="h-6 w-32 animate-pulse rounded-full bg-muted" />
-            <div className="h-6 w-28 animate-pulse rounded-full bg-muted" />
+            <Skeleton variant="circular" width="w-32" height="h-6" />
+            <Skeleton variant="circular" width="w-28" height="h-6" />
           </div>
         ),
       },
@@ -252,8 +253,8 @@ export function useShoppingListDetailHeaderSlots({
     ),
     linkChips: kitsQuery.isLoading ? (
       <div className="flex flex-wrap items-center gap-2">
-        <div className="h-6 w-32 animate-pulse rounded-full bg-muted" />
-        <div className="h-6 w-28 animate-pulse rounded-full bg-muted" />
+        <Skeleton variant="circular" width="w-32" height="h-6" />
+        <Skeleton variant="circular" width="w-28" height="h-6" />
       </div>
     ) : linkedKits.length > 0 ? (
       <div className="flex flex-wrap items-center gap-2" data-testid="shopping-lists.concept.body.kits">

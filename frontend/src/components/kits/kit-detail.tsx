@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { createKitDetailHeaderSlots } from '@/components/kits/kit-detail-header';
 import { KitBOMTable } from '@/components/kits/kit-bom-table';
 import { KitPickListPanel } from '@/components/kits/kit-pick-list-panel';
@@ -607,12 +608,14 @@ function KitDetailLoadingState() {
       <Card>
         <CardHeader className="flex flex-col gap-3 border-b border-border/70 px-6 py-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="h-6 w-36 animate-pulse rounded bg-muted" />
-            <div className="mt-2 h-4 w-64 animate-pulse rounded bg-muted" />
+            <Skeleton width="w-36" height="h-6" />
+            <div className="mt-2">
+              <Skeleton width="w-64" height="h-4" />
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="h-7 w-32 animate-pulse rounded bg-muted" />
+              <Skeleton key={index} width="w-32" height="h-7" />
             ))}
           </div>
         </CardHeader>
@@ -621,9 +624,10 @@ function KitDetailLoadingState() {
             {Array.from({ length: 4 }).map((_, index) => (
               <div key={index} className="grid grid-cols-[2fr_repeat(6,minmax(4rem,1fr))_1.5fr] gap-4 px-6 py-4">
                 {Array.from({ length: 8 }).map((__, cellIndex) => (
-                  <div
+                  <Skeleton
                     key={`${index}-${cellIndex}`}
-                    className="h-4 w-full animate-pulse rounded bg-muted"
+                    width="w-full"
+                    height="h-4"
                   />
                 ))}
               </div>

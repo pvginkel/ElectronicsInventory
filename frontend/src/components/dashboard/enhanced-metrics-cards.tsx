@@ -185,27 +185,3 @@ export function EnhancedMetricsCards() {
   )
 }
 
-// Skeleton loader for metrics cards
-export function MetricsCardsSkeleton() {
-  return (
-    <div
-      className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6"
-      data-testid="dashboard.metrics.skeleton"
-    >
-      {Array.from({ length: 4 }).map((_, i) => (
-        <Card key={i} variant="stats" data-testid="dashboard.metrics.skeleton.card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="text-left space-y-2">
-                <div className="h-4 w-20 bg-muted rounded animate-pulse" />
-                <div className="h-8 w-16 bg-muted rounded animate-pulse" />
-                <div className="h-3 w-24 bg-muted rounded animate-pulse" />
-              </div>
-              <div className="w-8 h-8 bg-muted rounded animate-pulse" />
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  )
-}

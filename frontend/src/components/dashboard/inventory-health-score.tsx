@@ -1,5 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Tooltip } from '@/components/ui/tooltip'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useDashboardHealth } from '@/hooks/use-dashboard'
 
 interface CircularProgressProps {
@@ -182,9 +183,9 @@ export function InventoryHealthScore() {
       <CardContent className="flex flex-col items-center">
         {isLoading ? (
           <div className="relative" data-testid="dashboard.health.skeleton">
-            <div className="w-48 h-48 rounded-full bg-muted animate-pulse" />
+            <Skeleton variant="circular" width="w-48" height="h-48" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-16 h-8 bg-muted rounded animate-pulse" />
+              <Skeleton width="w-16" height="h-8" />
             </div>
           </div>
         ) : (

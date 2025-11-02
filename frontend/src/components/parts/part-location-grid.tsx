@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { usePartLocations, useAddStock, useRemoveStock } from '@/hooks/use-parts';
 import { useLocationSuggestions } from '@/hooks/use-types';
 import { useGetBoxes } from '@/lib/api/generated/hooks';
@@ -39,17 +40,15 @@ export function PartLocationGrid({ partId, typeId }: PartLocationGridProps) {
     return (
       <div className="space-y-2">
         <div className="flex justify-between items-center mb-4">
-          <div className="h-5 bg-muted rounded w-32 animate-pulse"></div>
-          <div className="h-4 bg-muted rounded w-20 animate-pulse"></div>
+          <Skeleton width="w-32" height="h-5" />
+          <Skeleton width="w-20" height="h-4" />
         </div>
         <div className="space-y-2">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="animate-pulse">
-              <div className="flex items-center justify-between p-2 border rounded">
-                <div className="h-4 bg-muted rounded w-16"></div>
-                <div className="h-4 bg-muted rounded w-12"></div>
-                <div className="h-8 bg-muted rounded w-20"></div>
-              </div>
+            <div key={i} className="flex items-center justify-between p-2 border rounded">
+              <Skeleton width="w-16" height="h-4" />
+              <Skeleton width="w-12" height="h-4" />
+              <Skeleton width="w-20" height="h-8" />
             </div>
           ))}
         </div>

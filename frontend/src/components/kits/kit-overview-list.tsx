@@ -6,6 +6,7 @@ import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { KitCard } from '@/components/kits/kit-card';
 import { useKitsOverview } from '@/hooks/use-kits';
 import { useKitPickListMemberships, useKitShoppingListMemberships } from '@/hooks/use-kit-memberships';
@@ -161,10 +162,10 @@ export function KitOverviewList({
       <div className="space-y-6" data-testid="kits.overview.loading">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (
-            <div
+            <Skeleton
               key={index}
-              className="h-40 rounded-lg border border-dashed border-muted bg-muted/40 animate-pulse"
-              data-testid="kits.overview.skeleton"
+              height="h-40"
+              testId="kits.overview.skeleton"
             />
           ))}
         </div>

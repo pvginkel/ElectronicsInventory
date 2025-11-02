@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, EmptyState } from '@/components/ui';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useShoppingListsOverview } from '@/hooks/use-shopping-lists';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { ShoppingListOverviewCard } from './overview-card';
@@ -262,10 +263,10 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-6 py-6">
           {Array.from({ length: 6 }).map((_, index) => (
-            <div
+            <Skeleton
               key={index}
-              className="h-28 rounded-lg border border-dashed border-muted bg-muted/40 animate-pulse"
-              data-testid="shopping-lists.overview.skeleton"
+              height="h-28"
+              testId="shopping-lists.overview.skeleton"
             />
           ))}
         </div>

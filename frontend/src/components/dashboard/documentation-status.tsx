@@ -1,5 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useDashboardDocumentation } from '@/hooks/use-dashboard'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, useMemo } from 'react'
@@ -139,39 +140,6 @@ function UndocumentedPartItem({ partKey, partDescription, onAddDocumentation, on
   )
 }
 
-function DocumentationSkeleton() {
-  return (
-    <div className="space-y-6" data-testid="dashboard.documentation.skeleton">
-      {/* Progress Ring Skeleton */}
-      <div className="flex flex-col items-center space-y-4">
-        <div className="w-32 h-32 rounded-full bg-muted animate-pulse" />
-        <div className="flex gap-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="w-8 h-8 rounded-full bg-muted animate-pulse" />
-          ))}
-        </div>
-      </div>
-      
-      {/* Parts List Skeleton */}
-      <div className="space-y-3">
-        <div className="h-4 w-32 bg-muted rounded animate-pulse" />
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="flex items-center justify-between p-3 rounded-lg border">
-            <div className="flex-1 space-y-2">
-              <div className="w-12 h-4 bg-muted rounded animate-pulse" />
-              <div className="w-3/4 h-3 bg-muted rounded animate-pulse" />
-            </div>
-            <div className="flex gap-2">
-              <div className="w-20 h-8 bg-muted rounded animate-pulse" />
-              <div className="w-8 h-8 bg-muted rounded animate-pulse" />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 export function DocumentationStatus() {
   const { data: documentation, stats, isLoading } = useDashboardDocumentation()
   const navigate = useNavigate()
@@ -226,7 +194,34 @@ export function DocumentationStatus() {
           <CardTitle>Documentation Status</CardTitle>
         </CardHeader>
         <CardContent>
-          <DocumentationSkeleton />
+          <div className="space-y-6" data-testid="dashboard.documentation.skeleton">
+            {/* Progress Ring Skeleton */}
+            <div className="flex flex-col items-center space-y-4">
+              <Skeleton variant="circular" width="w-32" height="h-32" />
+              <div className="flex gap-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} variant="circular" width="w-8" height="h-8" />
+                ))}
+              </div>
+            </div>
+
+            {/* Parts List Skeleton */}
+            <div className="space-y-3">
+              <Skeleton width="w-32" height="h-4" />
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div className="flex-1 space-y-2">
+                    <Skeleton width="w-12" height="h-4" />
+                    <Skeleton width="w-3/4" height="h-3" />
+                  </div>
+                  <div className="flex gap-2">
+                    <Skeleton width="w-20" height="h-8" />
+                    <Skeleton width="w-8" height="h-8" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </CardContent>
       </Card>
     )

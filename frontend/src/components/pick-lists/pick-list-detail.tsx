@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { KeyValueBadge, StatusBadge } from '@/components/ui';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PickListLines } from '@/components/pick-lists/pick-list-lines';
 import { usePickListDetail, buildPickListDetailQueryKey } from '@/hooks/use-pick-list-detail';
 import { usePickListExecution } from '@/hooks/use-pick-list-execution';
@@ -442,18 +443,18 @@ function PickListDetailLoadingState() {
   return (
     <div className="space-y-4" data-testid="pick-lists.detail.loading">
       <div className="space-y-3 rounded-lg border border-border bg-card p-6">
-        <div className="h-6 w-48 animate-pulse rounded bg-muted" />
+        <Skeleton width="w-48" height="h-6" />
         <div className="flex flex-wrap gap-2">
-          <div className="h-6 w-32 animate-pulse rounded-full bg-muted" />
-          <div className="h-6 w-32 animate-pulse rounded-full bg-muted" />
-          <div className="h-6 w-32 animate-pulse rounded-full bg-muted" />
+          <Skeleton variant="circular" width="w-32" height="h-6" />
+          <Skeleton variant="circular" width="w-32" height="h-6" />
+          <Skeleton variant="circular" width="w-32" height="h-6" />
         </div>
       </div>
       <div className="space-y-3 rounded-lg border border-border bg-card p-6">
-        <div className="h-5 w-56 animate-pulse rounded bg-muted" />
-        <div className="h-4 w-full animate-pulse rounded bg-muted" />
-        <div className="h-4 w-5/6 animate-pulse rounded bg-muted" />
-        <div className="h-4 w-4/6 animate-pulse rounded bg-muted" />
+        <Skeleton width="w-56" height="h-5" />
+        <Skeleton width="w-full" height="h-4" />
+        <Skeleton width="w-5/6" height="h-4" />
+        <Skeleton width="w-4/6" height="h-4" />
       </div>
     </div>
   );

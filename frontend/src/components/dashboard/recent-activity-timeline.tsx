@@ -1,5 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useDashboardActivity } from '@/hooks/use-dashboard'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, useMemo } from 'react'
@@ -145,34 +146,6 @@ function ActivityTimelineGroup({
   )
 }
 
-function ActivityTimelineSkeleton() {
-  return (
-    <div className="space-y-4" data-testid="dashboard.activity.skeleton">
-      {Array.from({ length: 3 }).map((_, groupIndex) => (
-        <div key={groupIndex} className="space-y-2">
-          <div className="h-4 w-20 bg-muted rounded animate-pulse" />
-          {Array.from({ length: 2 }).map((_, itemIndex) => (
-            <div key={itemIndex} className="flex items-start gap-3 p-3">
-              <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-12 h-4 bg-muted rounded animate-pulse" />
-                  <div className="w-16 h-4 bg-muted rounded animate-pulse" />
-                </div>
-                <div className="w-3/4 h-4 bg-muted rounded animate-pulse" />
-                <div className="flex gap-2">
-                  <div className="w-12 h-3 bg-muted rounded animate-pulse" />
-                  <div className="w-16 h-3 bg-muted rounded animate-pulse" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  )
-}
-
 export function RecentActivityTimeline() {
   const { data: activities, isLoading, error } = useDashboardActivity()
   const navigate = useNavigate()
@@ -228,7 +201,29 @@ export function RecentActivityTimeline() {
           <CardTitle>Recent Activity</CardTitle>
         </CardHeader>
         <CardContent className="max-h-96 overflow-y-auto">
-          <ActivityTimelineSkeleton />
+          <div className="space-y-4" data-testid="dashboard.activity.skeleton">
+            {Array.from({ length: 3 }).map((_, groupIndex) => (
+              <div key={groupIndex} className="space-y-2">
+                <Skeleton width="w-20" height="h-4" />
+                {Array.from({ length: 2 }).map((_, itemIndex) => (
+                  <div key={itemIndex} className="flex items-start gap-3 p-3">
+                    <Skeleton variant="circular" width="w-8" height="h-8" />
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Skeleton width="w-12" height="h-4" />
+                        <Skeleton width="w-16" height="h-4" />
+                      </div>
+                      <Skeleton width="w-3/4" height="h-4" />
+                      <div className="flex gap-2">
+                        <Skeleton width="w-12" height="h-3" />
+                        <Skeleton width="w-16" height="h-3" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     )

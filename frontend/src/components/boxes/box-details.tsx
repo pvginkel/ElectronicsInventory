@@ -12,6 +12,7 @@ import { BoxForm } from './box-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useConfirm } from '@/hooks/use-confirm';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
@@ -200,10 +201,12 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
         <div data-testid="boxes.detail.loading" className="space-y-6">
           <Card className="p-6">
             <div className="space-y-4">
-              <div className="h-6 w-48 animate-pulse rounded bg-muted" />
+              <Skeleton width="w-48" height="h-6" />
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                <div className="h-40 animate-pulse rounded-lg bg-muted" />
-                <div className="h-40 animate-pulse rounded-lg bg-muted lg:col-span-2" />
+                <Skeleton height="h-40" />
+                <div className="lg:col-span-2">
+                  <Skeleton height="h-40" />
+                </div>
               </div>
             </div>
           </Card>

@@ -5,6 +5,7 @@ import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import {
@@ -194,7 +195,7 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
         data-testid="boxes.list.loading"
       >
         {Array.from({ length: 6 }).map((_, index) => (
-          <div key={index} className="h-48 animate-pulse rounded-lg bg-muted" />
+          <Skeleton key={index} height="h-48" />
         ))}
       </div>
     );
@@ -205,7 +206,9 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
           content: loadingContent,
           actionsDisabled: true,
           counts: renderCounts(
-            <span className="inline-flex h-5 w-32 animate-pulse rounded bg-muted" />,
+            <span className="inline-flex">
+              <Skeleton width="w-32" height="h-5" />
+            </span>,
           ),
         })}
         {boxForm}

@@ -1,4 +1,5 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useDashboardStorage } from '@/hooks/use-dashboard'
 import { useNavigate } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
@@ -102,29 +103,6 @@ function StorageBox({
   )
 }
 
-function StorageGridSkeleton() {
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3" data-testid="dashboard.storage.skeleton">
-      {Array.from({ length: 12 }).map((_, i) => (
-        <div key={i} className="border border-muted rounded-lg p-3" data-testid="dashboard.storage.skeleton.card">
-          <div className="flex items-center justify-between mb-2">
-            <div className="w-6 h-4 bg-muted rounded animate-pulse" />
-            <div className="w-8 h-3 bg-muted rounded animate-pulse" />
-          </div>
-          <div className="w-full h-4 bg-muted rounded animate-pulse mb-2" />
-          <div className="space-y-1">
-            <div className="flex justify-between">
-              <div className="w-12 h-3 bg-muted rounded animate-pulse" />
-              <div className="w-16 h-3 bg-muted rounded animate-pulse" />
-            </div>
-            <div className="w-full h-1.5 bg-muted rounded animate-pulse" />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 export function StorageUtilizationGrid() {
   const { data: storage, isLoading } = useDashboardStorage()
   const navigate = useNavigate()
@@ -151,7 +129,24 @@ export function StorageUtilizationGrid() {
         </CardHeader>
         <CardContent className="text-center py-8">
           {isLoading ? (
-            <StorageGridSkeleton />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3" data-testid="dashboard.storage.skeleton">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="border border-muted rounded-lg p-3" data-testid="dashboard.storage.skeleton.card">
+                  <div className="flex items-center justify-between mb-2">
+                    <Skeleton width="w-6" height="h-4" />
+                    <Skeleton width="w-8" height="h-3" />
+                  </div>
+                  <Skeleton width="w-full" height="h-4" />
+                  <div className="space-y-1 mt-2">
+                    <div className="flex justify-between">
+                      <Skeleton width="w-12" height="h-3" />
+                      <Skeleton width="w-16" height="h-3" />
+                    </div>
+                    <Skeleton width="w-full" height="h-1.5" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
             <div data-testid="dashboard.storage.empty">
               <div className="text-4xl mb-2">📦</div>
@@ -185,7 +180,24 @@ export function StorageUtilizationGrid() {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <StorageGridSkeleton />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3" data-testid="dashboard.storage.skeleton">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} className="border border-muted rounded-lg p-3" data-testid="dashboard.storage.skeleton.card">
+                <div className="flex items-center justify-between mb-2">
+                  <Skeleton width="w-6" height="h-4" />
+                  <Skeleton width="w-8" height="h-3" />
+                </div>
+                <Skeleton width="w-full" height="h-4" />
+                <div className="space-y-1 mt-2">
+                  <div className="flex justify-between">
+                    <Skeleton width="w-12" height="h-3" />
+                    <Skeleton width="w-16" height="h-3" />
+                  </div>
+                  <Skeleton width="w-full" height="h-1.5" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3" data-testid="dashboard.storage.grid">
           {sortedStorage?.map((box: any) => (

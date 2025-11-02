@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useConfirm } from '@/hooks/use-confirm';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
@@ -276,7 +277,7 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
         data-testid="sellers.list.loading"
       >
         {Array.from({ length: 6 }).map((_, index) => (
-          <div key={index} className="h-32 animate-pulse rounded-lg bg-muted" />
+          <Skeleton key={index} height="h-32" />
         ))}
       </div>
     );
@@ -287,7 +288,9 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
           content: loadingContent,
           actionsDisabled: true,
           counts: renderCounts(
-            <span className="inline-flex h-5 w-32 animate-pulse rounded bg-muted" />,
+            <span className="inline-flex">
+              <Skeleton width="w-32" height="h-5" />
+            </span>,
           ),
         })}
         {dialogs}

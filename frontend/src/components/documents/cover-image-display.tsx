@@ -3,6 +3,7 @@ import { useCoverAttachment } from '@/hooks/use-cover-image';
 import { getCoverThumbnailUrl, generateCoverSrcSet, getSizesAttribute } from '@/lib/utils/thumbnail-urls';
 import pdfIconSvg from '@/assets/pdf-icon.svg';
 import { ImagePlaceholderIcon } from '@/components/icons/ImagePlaceholderIcon';
+import { cn } from '@/lib/utils';
 
 interface CoverImageDisplayProps {
   partId: string;
@@ -39,7 +40,7 @@ export function CoverImageDisplay({
 
   if (hasCoverAttachment !== false && isLoading) {
     return (
-      <div className={`rounded-lg bg-muted animate-pulse ${getSizeClasses(size)} ${className}`} />
+      <div className={cn('rounded-lg bg-muted animate-pulse', getSizeClasses(size), className)} />
     );
   }
 

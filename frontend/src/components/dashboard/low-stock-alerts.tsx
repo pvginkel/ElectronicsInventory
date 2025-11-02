@@ -1,6 +1,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useDashboardLowStock } from '@/hooks/use-dashboard'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -196,30 +197,6 @@ function LowStockItem({
   )
 }
 
-function LowStockSkeleton() {
-  return (
-    <div className="space-y-3" data-testid="dashboard.low-stock.skeleton">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="border rounded-lg p-4 space-y-3" data-testid="dashboard.low-stock.skeleton.card">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-4 bg-muted rounded animate-pulse" />
-              <div className="w-16 h-5 bg-muted rounded animate-pulse" />
-            </div>
-            <div className="w-6 h-6 bg-muted rounded animate-pulse" />
-          </div>
-          <div className="w-3/4 h-4 bg-muted rounded animate-pulse" />
-          <div className="flex gap-2">
-            <div className="flex-1 h-8 bg-muted rounded animate-pulse" />
-            <div className="flex-1 h-8 bg-muted rounded animate-pulse" />
-            <div className="w-8 h-8 bg-muted rounded animate-pulse" />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 export function LowStockAlerts() {
   const { data: lowStockItems, isLoading, error } = useDashboardLowStock()
   const navigate = useNavigate()
@@ -264,7 +241,25 @@ export function LowStockAlerts() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <LowStockSkeleton />
+          <div className="space-y-3" data-testid="dashboard.low-stock.skeleton">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="border rounded-lg p-4 space-y-3" data-testid="dashboard.low-stock.skeleton.card">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Skeleton width="w-12" height="h-4" />
+                    <Skeleton width="w-16" height="h-5" />
+                  </div>
+                  <Skeleton variant="circular" width="w-6" height="h-6" />
+                </div>
+                <Skeleton width="w-3/4" height="h-4" />
+                <div className="flex gap-2">
+                  <Skeleton width="flex-1" height="h-8" />
+                  <Skeleton width="flex-1" height="h-8" />
+                  <Skeleton width="w-8" height="h-8" />
+                </div>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     )

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 import { useConfirm } from '@/hooks/use-confirm';
 import { useToast } from '@/hooks/use-toast';
@@ -314,10 +315,10 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
         data-testid="types.list.loading"
       >
         {Array.from({ length: 6 }).map((_, index) => (
-          <div
+          <Skeleton
             key={index}
-            className="h-32 animate-pulse rounded-lg bg-muted"
-            data-testid="types.list.loading.skeleton"
+            height="h-32"
+            testId="types.list.loading.skeleton"
           />
         ))}
       </div>
@@ -330,7 +331,9 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
           actionsDisabled: true,
           searchDisabled: true,
           counts: renderCounts(
-            <span className="inline-flex h-5 w-32 animate-pulse rounded bg-muted" />,
+            <span className="inline-flex">
+              <Skeleton width="w-32" height="h-5" />
+            </span>,
           ),
         })}
         {dialogs}

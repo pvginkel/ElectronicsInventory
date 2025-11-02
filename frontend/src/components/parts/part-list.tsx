@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useGetPartsWithLocations, useGetTypes, type PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
@@ -231,8 +232,8 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
       data-testid="parts.list.loading"
     >
       {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="animate-pulse" data-testid="parts.list.loading.skeleton">
-          <div className="h-48 rounded-lg bg-muted" />
+        <div key={index} data-testid="parts.list.loading.skeleton">
+          <Skeleton height="h-48" />
         </div>
       ))}
     </div>
