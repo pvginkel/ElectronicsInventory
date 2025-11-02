@@ -17,7 +17,7 @@ import { useConfirm } from '@/hooks/use-confirm';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
-import { KeyValueBadge } from '@/components/ui';
+import { KeyValueBadge, DescriptionItem } from '@/components/ui';
 
 interface BoxDetailsProps {
   boxNo: number;
@@ -240,26 +240,24 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
                 <CardTitle>Box Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <div className="text-sm font-medium">Box Number</div>
-                  <div className="text-2xl font-bold">#{box.box_no}</div>
-                </div>
+                <DescriptionItem
+                  label="Box Number"
+                  value={`#${box.box_no}`}
+                  variant="prominent"
+                />
+
+                <DescriptionItem label="Description" value={box.description} />
+
+                <DescriptionItem
+                  label="Capacity"
+                  value={`${box.capacity} locations`}
+                />
 
                 <div>
-                  <div className="text-sm font-medium">Description</div>
-                  <div className="text-lg">{box.description}</div>
-                </div>
-
-                <div>
-                  <div className="text-sm font-medium">Capacity</div>
-                  <div className="text-lg">{box.capacity} locations</div>
-                </div>
-
-                <div>
-                  <div className="text-sm font-medium">Usage</div>
-                  <div className="text-lg">
-                    {usageStats.usedLocations}/{usageStats.totalLocations} ({usageStats.usagePercentage}%)
-                  </div>
+                  <DescriptionItem
+                    label="Usage"
+                    value={`${usageStats.usedLocations}/${usageStats.totalLocations} (${usageStats.usagePercentage}%)`}
+                  />
                   <div className="mt-2 h-2 w-full rounded-full bg-muted">
                     <div
                       className="h-2 rounded-full bg-primary transition-all duration-300"

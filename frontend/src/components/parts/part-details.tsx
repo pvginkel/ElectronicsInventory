@@ -10,7 +10,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Alert, KeyValueBadge, ExternalLink } from '@/components/ui';
+import {
+  Alert,
+  KeyValueBadge,
+  ExternalLink,
+  DescriptionList,
+  DescriptionItem,
+} from '@/components/ui';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
@@ -476,8 +482,11 @@ export function PartDetails({ partId }: PartDetailsProps) {
               <CardContent>
                 <div className="mb-4 flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="text-sm font-medium">Part ID</div>
-                    <div className="font-mono text-2xl font-bold">{displayId}</div>
+                    <DescriptionItem
+                      label="Part ID"
+                      value={<span className="font-mono">{displayId}</span>}
+                      variant="prominent"
+                    />
                   </div>
                   <CoverImageDisplay
                     partId={partId}
@@ -495,28 +504,25 @@ export function PartDetails({ partId }: PartDetailsProps) {
                         <div className="mb-2 text-xs font-medium text-muted-foreground">
                           Manufacturer Information
                         </div>
-                        <div className="space-y-2">
+                        <DescriptionList spacing="default">
                           {displayManufacturer ? (
-                            <div>
-                              <div className="text-sm font-medium">Manufacturer</div>
-                              <div className="text-lg">{displayManufacturer}</div>
-                            </div>
+                            <DescriptionItem
+                              label="Manufacturer"
+                              value={displayManufacturer}
+                            />
                           ) : null}
 
                           {displayProductPage ? (
-                            <div>
-                              <div className="text-sm font-medium">Product Page</div>
-                              <div className="text-sm">
-                                <ExternalLink
-                                  href={displayProductPage}
-                                  className="break-all"
-                                >
-                                  {displayProductPage}
-                                </ExternalLink>
-                              </div>
-                            </div>
+                            <DescriptionItem label="Product Page" variant="compact">
+                              <ExternalLink
+                                href={displayProductPage}
+                                className="break-all"
+                              >
+                                {displayProductPage}
+                              </ExternalLink>
+                            </DescriptionItem>
                           ) : null}
-                        </div>
+                        </DescriptionList>
                       </div>
                     )}
 
@@ -525,41 +531,33 @@ export function PartDetails({ partId }: PartDetailsProps) {
                         <div className="mb-2 text-xs font-medium text-muted-foreground">
                           Seller Information
                         </div>
-                        <div className="space-y-2">
+                        <DescriptionList spacing="default">
                           {part.seller ? (
-                            <div>
-                              <div className="text-sm font-medium">Seller</div>
-                              <div className="text-lg">{part.seller.name}</div>
-                            </div>
+                            <DescriptionItem label="Seller" value={part.seller.name} />
                           ) : null}
 
                           {part.seller_link ? (
-                            <div>
-                              <div className="text-sm font-medium">Product Page</div>
-                              <div className="text-sm">
-                                <ExternalLink href={part.seller_link}>
-                                  {part.seller_link}
-                                </ExternalLink>
-                              </div>
-                            </div>
+                            <DescriptionItem label="Product Page" variant="compact">
+                              <ExternalLink href={part.seller_link}>
+                                {part.seller_link}
+                              </ExternalLink>
+                            </DescriptionItem>
                           ) : null}
-                        </div>
+                        </DescriptionList>
                       </div>
                     )}
 
                     {displayManufacturerCode ? (
-                      <div>
-                        <div className="text-sm font-medium">Manufacturer Code</div>
-                        <div className="text-lg">{displayManufacturerCode}</div>
-                      </div>
+                      <DescriptionItem
+                        label="Manufacturer Code"
+                        value={displayManufacturerCode}
+                      />
                     ) : null}
 
-                    <div>
-                      <div className="text-sm font-medium">Type</div>
-                      <div className="text-lg">
-                        {part.type?.name ?? 'No type assigned'}
-                      </div>
-                    </div>
+                    <DescriptionItem
+                      label="Type"
+                      value={part.type?.name ?? 'No type assigned'}
+                    />
 
                     <div>
                       <div className="text-sm font-medium">Tags</div>
@@ -579,12 +577,11 @@ export function PartDetails({ partId }: PartDetailsProps) {
                       </div>
                     </div>
 
-                    <div>
-                      <div className="text-sm font-medium">Created</div>
-                      <div className="text-sm text-muted-foreground">
-                        {new Date(part.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
+                    <DescriptionItem
+                      label="Created"
+                      value={new Date(part.created_at).toLocaleDateString()}
+                      variant="muted"
+                    />
                   </div>
 
                   {(part.dimensions ||
@@ -608,42 +605,47 @@ export function PartDetails({ partId }: PartDetailsProps) {
                           <div className="mb-2 text-xs font-medium text-muted-foreground">
                             Physical
                           </div>
-                          <div className="space-y-2">
+                          <DescriptionList spacing="default">
                             {part.dimensions ? (
-                              <div>
-                                <div className="text-sm font-medium">Dimensions</div>
-                                <div className="text-sm">{part.dimensions}</div>
-                              </div>
+                              <DescriptionItem
+                                label="Dimensions"
+                                value={part.dimensions}
+                                variant="compact"
+                              />
                             ) : null}
 
                             {part.package ? (
-                              <div>
-                                <div className="text-sm font-medium">Package</div>
-                                <div className="text-sm">{part.package}</div>
-                              </div>
+                              <DescriptionItem
+                                label="Package"
+                                value={part.package}
+                                variant="compact"
+                              />
                             ) : null}
 
                             {part.pin_count ? (
-                              <div>
-                                <div className="text-sm font-medium">Pin Count</div>
-                                <div className="text-sm">{part.pin_count}</div>
-                              </div>
+                              <DescriptionItem
+                                label="Pin Count"
+                                value={part.pin_count}
+                                variant="compact"
+                              />
                             ) : null}
 
                             {part.pin_pitch ? (
-                              <div>
-                                <div className="text-sm font-medium">Pin Pitch</div>
-                                <div className="text-sm">{part.pin_pitch}</div>
-                              </div>
+                              <DescriptionItem
+                                label="Pin Pitch"
+                                value={part.pin_pitch}
+                                variant="compact"
+                              />
                             ) : null}
 
                             {part.mounting_type ? (
-                              <div>
-                                <div className="text-sm font-medium">Mounting Type</div>
-                                <div className="text-sm">{part.mounting_type}</div>
-                              </div>
+                              <DescriptionItem
+                                label="Mounting Type"
+                                value={part.mounting_type}
+                                variant="compact"
+                              />
                             ) : null}
-                          </div>
+                          </DescriptionList>
                         </div>
                       )}
 
@@ -655,35 +657,39 @@ export function PartDetails({ partId }: PartDetailsProps) {
                           <div className="mb-2 text-xs font-medium text-muted-foreground">
                             Electrical / Technical
                           </div>
-                          <div className="space-y-2">
+                          <DescriptionList spacing="default">
                             {part.voltage_rating ? (
-                              <div>
-                                <div className="text-sm font-medium">Voltage Rating</div>
-                                <div className="text-sm">{part.voltage_rating}</div>
-                              </div>
+                              <DescriptionItem
+                                label="Voltage Rating"
+                                value={part.voltage_rating}
+                                variant="compact"
+                              />
                             ) : null}
 
                             {part.input_voltage ? (
-                              <div>
-                                <div className="text-sm font-medium">Input Voltage</div>
-                                <div className="text-sm">{part.input_voltage}</div>
-                              </div>
+                              <DescriptionItem
+                                label="Input Voltage"
+                                value={part.input_voltage}
+                                variant="compact"
+                              />
                             ) : null}
 
                             {part.output_voltage ? (
-                              <div>
-                                <div className="text-sm font-medium">Output Voltage</div>
-                                <div className="text-sm">{part.output_voltage}</div>
-                              </div>
+                              <DescriptionItem
+                                label="Output Voltage"
+                                value={part.output_voltage}
+                                variant="compact"
+                              />
                             ) : null}
 
                             {part.series ? (
-                              <div>
-                                <div className="text-sm font-medium">Series</div>
-                                <div className="text-sm">{part.series}</div>
-                              </div>
+                              <DescriptionItem
+                                label="Series"
+                                value={part.series}
+                                variant="compact"
+                              />
                             ) : null}
-                          </div>
+                          </DescriptionList>
                         </div>
                       )}
                     </div>

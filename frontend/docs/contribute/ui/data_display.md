@@ -15,6 +15,46 @@ These guidelines cover list, grid, and detail presentations that sit on top of t
 - When switching into edit mode, replace the detail surface with the corresponding form component instead of navigating away. This keeps instrumentation state consistent and simplifies Playwright flows.
 - Heavy experiences (attachment uploads, AI flows) should expose navigation affordances (`DropdownMenu`, explicit buttons) and rely on generated mutations (`useDeletePartsByPartKey`, `usePostAiPartsCreate`).
 
+### Label-Value Pairs with DescriptionList
+For vertical label-value pair displays in detail views and information cards, use the `DescriptionList` and `DescriptionItem` components (`src/components/ui/description-list.tsx`) instead of inline divs:
+
+```tsx
+import { DescriptionList, DescriptionItem } from '@/components/ui';
+
+// Simple label-value pairs
+<DescriptionList spacing="default">
+  <DescriptionItem label="Part ID" value={partId} variant="prominent" />
+  <DescriptionItem label="Manufacturer" value={manufacturer} />
+  <DescriptionItem label="Created" value={createdDate} variant="muted" />
+</DescriptionList>
+
+// With custom value rendering
+<DescriptionItem label="Product Page" variant="compact">
+  <ExternalLink href={url}>{url}</ExternalLink>
+</DescriptionItem>
+```
+
+**Variants:**
+- `default`: label `text-sm font-medium`, value `text-lg` (standard label-value pairs)
+- `prominent`: label `text-sm font-medium`, value `text-2xl font-bold` (primary identifiers like Part ID, Box Number)
+- `compact`: label `text-sm font-medium`, value `text-sm` (technical specifications, densely packed fields)
+- `muted`: label `text-sm font-medium`, value `text-sm text-muted-foreground` (timestamps, secondary metadata)
+
+**Spacing:**
+- `compact`: `space-y-1` (tight grouping)
+- `default`: `space-y-2` (standard spacing, most common)
+- `relaxed`: `space-y-4` (section spacing)
+
+**When NOT to use DescriptionList:**
+- Horizontal layouts where label and value appear side-by-side
+- Interactive value slots requiring buttons, form inputs, or other controls
+- Specialized layouts like metrics cards with icons and trend indicators
+- Complex multi-value layouts with custom spacing or flex-wrap
+
+**Section headers stay separate:** Keep section headers (e.g., "Technical Specifications", "Manufacturer Information") as plain `<div>` elements with `text-xs font-medium text-muted-foreground` styling OUTSIDE the DescriptionList. Section headers serve organizational purposes distinct from data presentation.
+
+See `src/components/parts/part-details.tsx` and `src/components/boxes/box-details.tsx` for reference implementations.
+
 ## Empty, Loading & Error States
 - Emit skeletons while TanStack Query is loading. Follow the existing pattern: skeleton cards in lists and muted placeholders in detail views, each with `data-testid` hooks (`*.loading`, `*.loading.skeleton`).
 - Provide empty and "no results" states with actionable guidance, e.g. "Add First Type" or "Try adjusting your search." That messaging belongs in the pattern docs, not in ad hoc components.

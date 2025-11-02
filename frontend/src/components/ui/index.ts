@@ -25,3 +25,6 @@ export { EmptyState } from './empty-state';
 
 // External link component
 export { ExternalLink, type ExternalLinkProps } from './external-link';
+
+// Description list components
+export { DescriptionList, DescriptionItem } from './description-list';
