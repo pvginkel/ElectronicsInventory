@@ -1,6 +1,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { IconBadge } from '@/components/ui'
 import { useDashboardDocumentation } from '@/hooks/use-dashboard'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, useMemo } from 'react'
@@ -65,18 +66,19 @@ interface MilestoneBadgeProps {
 function MilestoneBadge({ milestone, achieved, current }: MilestoneBadgeProps) {
   const isNext = !achieved && current < milestone && (current + 20) >= milestone
 
+  // Determine badge variant based on achievement state
+  const variant = achieved ? 'success' : isNext ? 'primary' : 'neutral'
+
   return (
-    <div className={`
-      relative inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold
-      transition-all duration-300
-      ${achieved 
-        ? 'bg-green-500 text-white shadow-md' 
-        : isNext
-        ? 'bg-primary/20 text-primary border-2 border-primary animate-pulse'
-        : 'bg-muted text-muted-foreground'
-      }
-    `} data-testid="dashboard.documentation.milestone" data-milestone={milestone} data-achieved={achieved}>
-      {milestone}%
+    <div
+      className="relative inline-flex"
+      data-testid="dashboard.documentation.milestone"
+      data-milestone={milestone}
+      data-achieved={achieved}
+    >
+      <IconBadge size="sm" variant={variant} animated={isNext}>
+        {milestone}%
+      </IconBadge>
       {achieved && (
         <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-600 rounded-full flex items-center justify-center">
           <span className="text-white text-xs">✓</span>

@@ -1,6 +1,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { IconBadge } from '@/components/ui'
 import { useDashboardActivity } from '@/hooks/use-dashboard'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, useMemo } from 'react'
@@ -14,22 +15,28 @@ interface ActivityItemProps {
   onPartClick: (partId: string) => void
 }
 
-function ActivityItem({ 
-  partKey, 
-  partDescription, 
-  deltaQty, 
-  locationReference, 
-  timestamp, 
-  onPartClick 
+function ActivityItem({
+  partKey,
+  partDescription,
+  deltaQty,
+  locationReference,
+  timestamp,
+  onPartClick
 }: ActivityItemProps) {
   const isAddition = deltaQty > 0
   const isRemoval = deltaQty < 0
 
-  // Icon and color based on activity type
+  // Icon and variant based on activity type
   const getActivityIcon = () => {
     if (isAddition) return '➕'
     if (isRemoval) return '➖'
     return '🔄' // Move or other operations
+  }
+
+  const getActivityVariant = () => {
+    if (isAddition) return 'success' as const
+    if (isRemoval) return 'error' as const
+    return 'info' as const
   }
 
   const getActivityColor = () => {
@@ -69,12 +76,14 @@ function ActivityItem({
       data-delta={deltaQty}
     >
       {/* Activity Icon */}
-      <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm border ${getActivityColor()}`}
-        data-testid="dashboard.activity.item.icon"
+      <IconBadge
+        size="sm"
+        variant={getActivityVariant()}
+        border
+        testId="dashboard.activity.item.icon"
       >
         {getActivityIcon()}
-      </div>
+      </IconBadge>
 
       {/* Activity Details */}
       <div className="flex-1 min-w-0">

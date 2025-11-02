@@ -1,6 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { IconBadge } from '@/components/ui';
+import { X } from 'lucide-react';
 
 interface CameraCaptureProps {
   open: boolean;
@@ -137,12 +139,10 @@ export function CameraCapture({ open, onCapture, onClose }: CameraCaptureProps) 
         <div className="flex flex-col items-center space-y-4">
           {error ? (
             <div className="text-center py-8">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-red-500">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="15" y1="9" x2="9" y2="15"/>
-                  <line x1="9" y1="9" x2="15" y2="15"/>
-                </svg>
+              <div className="mx-auto mb-4">
+                <IconBadge size="xl" variant="destructive">
+                  <X className="h-8 w-8" />
+                </IconBadge>
               </div>
               <h3 className="text-lg font-medium mb-2">Camera Access Failed</h3>
               <p className="text-muted-foreground">{error}</p>

@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { IconBadge } from '@/components/ui'
 
 export const Route = createFileRoute('/about')({
   component: About,
@@ -114,9 +115,9 @@ function About() {
                 data-testid="about.quickstart.step"
                 data-step={step.step}
               >
-                <div className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-semibold">
+                <IconBadge size="sm" variant="primary">
                   {step.step}
-                </div>
+                </IconBadge>
                 <div className="flex-1">
                   <h3 className="font-medium mb-1">{step.title}</h3>
                   <p className="text-sm text-muted-foreground">{step.description}</p>

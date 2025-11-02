@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Card } from '@/components/ui/card';
+import { IconBadge } from '@/components/ui';
 import { Loader2, X } from 'lucide-react';
 
 interface AIPartProgressStepProps {
@@ -31,10 +32,12 @@ export function AIPartProgressStep({
 
         <Card className="p-6" data-testid="parts.ai.progress-error">
           <div className="text-center space-y-4">
-            <div className="w-16 h-16 mx-auto bg-destructive/10 rounded-full flex items-center justify-center">
-              <X className="h-8 w-8 text-destructive" />
+            <div className="mx-auto">
+              <IconBadge size="xl" variant="destructive">
+                <X className="h-8 w-8" />
+              </IconBadge>
             </div>
-            
+
             <div>
               <h3 className="text-lg font-medium mb-2">Analysis Error</h3>
               <p className="text-sm text-muted-foreground" data-testid="parts.ai.progress-error-message">{error}</p>
@@ -71,9 +74,9 @@ export function AIPartProgressStep({
         <div className="space-y-6">
           {/* Progress Animation */}
           <div className="flex justify-center">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <Loader2 className="h-8 w-8 text-primary animate-spin" />
-            </div>
+            <IconBadge size="xl" variant="primary">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </IconBadge>
           </div>
 
           {/* Progress Bar */}

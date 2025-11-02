@@ -9,6 +9,7 @@ export {
 } from './inline-notification';
 
 // Standardized badge components
+export { IconBadge, type IconBadgeProps } from './icon-badge';
 export { InformationBadge, type InformationBadgeProps } from './information-badge';
 export { KeyValueBadge, type KeyValueBadgeProps } from './key-value-badge';
 export { StatusBadge, type StatusBadgeProps } from './status-badge';

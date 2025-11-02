@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { IconButton } from '@/components/ui/hover-actions';
+import { IconBadge } from '@/components/ui';
+import { X } from 'lucide-react';
 import { ZoomInIcon } from '@/components/icons/ZoomInIcon';
 import { ZoomOutIcon } from '@/components/icons/ZoomOutIcon';
 import { ZoomResetIcon } from '@/components/icons/ZoomResetIcon';
@@ -261,12 +263,10 @@ export function MediaViewerBase({
               
               {imageError ? (
                 <div className="text-center text-white">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/20 flex items-center justify-center">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10"/>
-                      <line x1="15" y1="9" x2="9" y2="15"/>
-                      <line x1="9" y1="9" x2="15" y2="15"/>
-                    </svg>
+                  <div className="mx-auto mb-4">
+                    <IconBadge size="xl" variant="destructive">
+                      <X className="h-8 w-8" />
+                    </IconBadge>
                   </div>
                   <p>Failed to load image</p>
                 </div>
