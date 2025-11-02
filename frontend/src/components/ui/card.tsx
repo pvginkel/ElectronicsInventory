@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 type NativeDivProps = React.ComponentPropsWithoutRef<"div">
 
 interface CardProps extends NativeDivProps {
-  variant?: 'default' | 'stats' | 'action' | 'content';
+  variant?: 'default' | 'stats' | 'action' | 'content' | 'grid-tile' | 'grid-tile-disabled';
 }
 
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(
@@ -15,7 +15,9 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
       default: 'p-6',
       stats: 'p-6 text-center',
       action: 'p-4 hover:bg-accent/50 cursor-pointer transition-colors',
-      content: 'p-4'
+      content: 'p-4',
+      'grid-tile': 'p-4 overflow-hidden transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover:border-primary/50 active:scale-[0.98] cursor-pointer',
+      'grid-tile-disabled': 'p-4 overflow-hidden pointer-events-none'
     }
 
     const handleClick: React.MouseEventHandler<HTMLDivElement> = (e) => {

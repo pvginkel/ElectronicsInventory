@@ -2,6 +2,7 @@ import type { KeyboardEvent } from 'react';
 import { KeyValueBadge, StatusBadge } from '@/components/ui';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ShoppingListOverviewSummary } from '@/types/shopping-lists';
+import { cn } from '@/lib/utils';
 
 interface ShoppingListOverviewCardProps {
   list: ShoppingListOverviewSummary;
@@ -27,7 +28,6 @@ export function ShoppingListOverviewCard({
   disabled = false,
 }: ShoppingListOverviewCardProps) {
   const statusBadgeProps = getShoppingListStatusBadgeProps(list.status);
-  const interactiveClasses = disabled ? 'pointer-events-none opacity-60' : 'cursor-pointer';
   const tabIndex = disabled ? -1 : 0;
 
   const handleSelect = () => {
@@ -47,8 +47,7 @@ export function ShoppingListOverviewCard({
 
   return (
     <Card
-      variant="content"
-      className={`group transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover:border-primary/50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${interactiveClasses}`}
+      variant={disabled ? "grid-tile-disabled" : "grid-tile"}
       data-testid={`shopping-lists.overview.card.${list.id}`}
       tabIndex={tabIndex}
       role="button"
@@ -57,7 +56,7 @@ export function ShoppingListOverviewCard({
       onClick={handleSelect}
       onKeyDown={handleKeyDown}
     >
-      <CardHeader className="pb-3">
+      <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
             <CardTitle className="text-base leading-tight" data-testid={`shopping-lists.overview.card.${list.id}.name`}>
@@ -81,7 +80,7 @@ export function ShoppingListOverviewCard({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3">
+      <CardContent>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <KeyValueBadge
             label="New"

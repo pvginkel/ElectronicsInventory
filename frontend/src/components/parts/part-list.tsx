@@ -373,12 +373,8 @@ function PartListItem({
   const { displayId, displayDescription, displayManufacturerCode } = formatPartForDisplay(part);
 
   return (
-    <Card 
-      className={`p-4 transition-all duration-200 rounded-lg shadow-sm border ${
-        onClick 
-          ? 'cursor-pointer hover:shadow-md hover:scale-[1.02] hover:border-primary/50' 
-          : ''
-      } active:scale-[0.98]`}
+    <Card
+      variant={onClick ? 'grid-tile' : 'grid-tile-disabled'}
       onClick={onClick}
       data-testid="parts.list.card"
       data-part-key={part.key}

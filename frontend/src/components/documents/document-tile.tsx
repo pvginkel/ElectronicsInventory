@@ -7,6 +7,7 @@ import type { DocumentItem } from '@/types/documents';
 import pdfIconSvg from '@/assets/pdf-icon.svg';
 import { LinkIcon } from '@/components/icons/LinkIcon';
 import { ExternalLinkIcon } from '@/components/icons/ExternalLinkIcon';
+import { Card } from '@/components/ui/card';
 
 interface DocumentTileProps {
   document: DocumentItem;
@@ -107,15 +108,14 @@ export function DocumentTile({
   };
 
   return (
-    <div
-      className={`relative bg-card border rounded-lg overflow-hidden transition-all ${
-        isDeleting ? 'opacity-50 pointer-events-none' : 'transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover:border-primary/50 active:scale-[0.98]'
-      }`}
+    <Card
+      variant={isDeleting ? "grid-tile-disabled" : "grid-tile"}
+      className="p-0"
       data-document-tile
       data-document-id={document.id}>
       <div className="relative aspect-square">
         <div
-          className="w-full h-full cursor-pointer"
+          className="w-full h-full"
           onClick={handleTileClick}
         >
           {document.previewImageUrl ? (
@@ -177,6 +177,6 @@ export function DocumentTile({
       )}
 
       <ConfirmDialog {...confirmProps} />
-    </div>
+    </Card>
   );
 }

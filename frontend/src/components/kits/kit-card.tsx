@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui';
-import { cn } from '@/lib/utils';
 import { MembershipIndicator } from '@/components/ui/membership-indicator';
 import type {
   KitSummary,
@@ -21,7 +20,6 @@ interface MembershipIndicatorState<TSummary> {
 
 interface KitCardProps {
   kit: KitSummary;
-  className?: string;
   shoppingIndicator: MembershipIndicatorState<KitShoppingListMembershipSummary>;
   pickIndicator: MembershipIndicatorState<KitPickListMembershipSummary>;
   onOpenDetail?: (kitId: number) => void;
@@ -29,7 +27,6 @@ interface KitCardProps {
 
 export function KitCard({
   kit,
-  className,
   shoppingIndicator,
   pickIndicator,
   onOpenDetail,
@@ -62,11 +59,10 @@ export function KitCard({
 
   return (
     <Card
-      className={cn('flex h-full flex-col gap-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover:border-primary/50 active:scale-[0.98]', className)}
+      variant="grid-tile"
       data-testid={`kits.overview.card.${kit.id}`}
     >
       <div
-        className="flex flex-1 flex-col gap-3 rounded-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         data-testid={`kits.overview.card.${kit.id}.link`}
         role="link"
         tabIndex={0}

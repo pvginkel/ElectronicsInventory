@@ -1,5 +1,6 @@
 import type { KeyboardEvent } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 
 interface BoxCardProps {
   box: {
@@ -32,8 +33,7 @@ export function BoxCard({ box, onOpen, disabled = false }: BoxCardProps) {
 
   return (
     <Card
-      variant="content"
-      className={`group transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${disabled ? 'pointer-events-none opacity-60' : 'cursor-pointer'}`}
+      variant={disabled ? "grid-tile-disabled" : "grid-tile"}
       data-testid={`boxes.list.item.${box.box_no}`}
       data-box-no={box.box_no}
       tabIndex={disabled ? -1 : 0}
@@ -43,7 +43,7 @@ export function BoxCard({ box, onOpen, disabled = false }: BoxCardProps) {
       onClick={handleSelect}
       onKeyDown={handleKeyDown}
     >
-      <CardHeader className="pb-3">
+      <CardHeader>
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="text-base">#{box.box_no} {box.description}</CardTitle>
@@ -55,7 +55,7 @@ export function BoxCard({ box, onOpen, disabled = false }: BoxCardProps) {
         </div>
       </CardHeader>
       
-      <CardContent className="pt-0">
+      <CardContent>
         <div className="flex justify-between items-center">
           <div className="text-sm text-muted-foreground">
             Usage: {box.occupied_locations ?? 0}/{box.total_locations ?? box.capacity} ({Math.round(box.usage_percentage ?? 0)}%)

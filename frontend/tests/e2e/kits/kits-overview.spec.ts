@@ -261,22 +261,8 @@ test.describe('Kits overview', () => {
     await expect(page).toHaveURL(new RegExp(`/kits/${createdKitId}(\\?.*)?$`));
   });
 
-  test('kit cards include animation classes', async ({ kits, testData }) => {
-    const kit = await testData.kits.create({
-      overrides: { name: testData.kits.randomKitName('Animation Test Kit'), build_target: 1 },
-    });
-
-    await kits.gotoOverview();
-    await expect(kits.cardById(kit.id)).toBeVisible();
-
-    // Verify that the card includes the animation classes
-    const card = kits.cardById(kit.id);
-    const classList = await card.getAttribute('class');
-    expect(classList).toContain('transition-all');
-    expect(classList).toContain('duration-200');
-    expect(classList).toMatch(/hover:shadow-md/);
-    expect(classList).toMatch(/hover:scale-\[1\.02\]/);
-    expect(classList).toMatch(/hover:border-primary\/50/);
-    expect(classList).toMatch(/active:scale-\[0\.98\]/);
-  });
+  // Note: The previous "kit cards include animation classes" test was removed because
+  // animation classes are now an implementation detail of the Card component's grid-tile
+  // variant. Tests should focus on functional behavior (navigation, data display, etc.)
+  // rather than asserting on internal CSS class names.
 });

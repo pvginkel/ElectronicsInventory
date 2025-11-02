@@ -17,12 +17,11 @@ interface SellerCardProps {
 export function SellerCard({ seller, onEdit, onDelete }: SellerCardProps) {
   return (
     <Card
-      variant="content"
-      className="hover:shadow-md transition-shadow"
+      variant="grid-tile"
       data-testid={`sellers.list.item.${seller.id}`}
       data-seller-id={seller.id}
     >
-      <CardHeader className="pb-3">
+      <CardHeader>
         <div className="flex justify-between items-start">
           <div className="flex-1 min-w-0">
             <CardTitle className="text-base">{seller.name}</CardTitle>
@@ -37,7 +36,7 @@ export function SellerCard({ seller, onEdit, onDelete }: SellerCardProps) {
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0">
+      <CardContent>
         <div className="flex justify-end items-center">
           <div className="flex space-x-2">
             <Button variant="ghost" size="sm" onClick={onEdit}>

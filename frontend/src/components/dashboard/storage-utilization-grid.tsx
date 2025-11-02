@@ -1,6 +1,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { useDashboardStorage } from '@/hooks/use-dashboard'
 import { useNavigate } from '@tanstack/react-router'
+import { cn } from '@/lib/utils'
 
 interface StorageBoxProps {
   boxNo: number
@@ -45,12 +46,9 @@ function StorageBox({
   const borderThickness = `border-${Math.max(1, activityLevel)}`
 
   return (
-    <div
-      className={`
-        relative cursor-pointer transition-all duration-200 rounded-lg p-3 group
-        ${getBorderColor(usagePercentage)} ${borderThickness}
-        hover:shadow-md hover:shadow-primary/20 hover:border-primary/60 hover:scale-105 hover:z-[60]
-      `}
+    <Card
+      variant="grid-tile"
+      className={cn('relative group', getBorderColor(usagePercentage), borderThickness)}
       style={{
         backgroundColor: `rgba(var(--primary), ${getBackgroundOpacity(usagePercentage)})`
       }}
@@ -100,7 +98,7 @@ function StorageBox({
       <div className="absolute inset-0 rounded-lg overflow-hidden">
         <div className="absolute inset-0 bg-primary/20 rounded-lg transform scale-0 transition-transform duration-300 group-hover:animate-ping" />
       </div>
-    </div>
+    </Card>
   )
 }
 
