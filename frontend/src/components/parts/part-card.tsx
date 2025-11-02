@@ -4,7 +4,7 @@ import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import { type PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { QuantityBadge } from './quantity-badge';
-import { InformationBadge } from '@/components/ui';
+import { InformationBadge, SectionHeading } from '@/components/ui';
 import { LocationSummary } from './location-summary';
 import { VendorInfo } from './vendor-info';
 import { CircuitBoard, ShoppingCart } from 'lucide-react';
@@ -184,7 +184,7 @@ function renderPartShoppingTooltip(summary: ShoppingListMembershipSummary) {
 
   return (
     <>
-      <p className="mb-2 text-xs font-medium text-muted-foreground">On shopping lists</p>
+      <SectionHeading>On shopping lists</SectionHeading>
       <ul className="space-y-1">
         {summary.memberships.map((membership) => (
           <li key={membership.listId}>
@@ -238,7 +238,7 @@ function renderPartKitTooltip(summary: PartKitMembershipSummary) {
 
   return (
     <>
-      <p className="mb-2 text-xs font-medium text-muted-foreground">Used in kits</p>
+      <SectionHeading>Used in kits</SectionHeading>
       <ul className="space-y-2">
         {summary.kits.map((kit) => (
           <li key={kit.kitId} className="space-y-1">

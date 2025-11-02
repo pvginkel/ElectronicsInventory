@@ -28,3 +28,6 @@ export { ExternalLink, type ExternalLinkProps } from './external-link';
 
 // Description list components
 export { DescriptionList, DescriptionItem } from './description-list';
+
+// Section heading component
+export { SectionHeading, type SectionHeadingProps } from './section-heading';

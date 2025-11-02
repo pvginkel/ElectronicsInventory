@@ -16,6 +16,7 @@ import {
   ExternalLink,
   DescriptionList,
   DescriptionItem,
+  SectionHeading,
 } from '@/components/ui';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -501,9 +502,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
                   <div className="space-y-4">
                     {(displayManufacturer || displayProductPage) && (
                       <div>
-                        <div className="mb-2 text-xs font-medium text-muted-foreground">
-                          Manufacturer Information
-                        </div>
+                        <SectionHeading>Manufacturer Information</SectionHeading>
                         <DescriptionList spacing="default">
                           {displayManufacturer ? (
                             <DescriptionItem
@@ -528,9 +527,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
 
                     {(part.seller || part.seller_link) && (
                       <div>
-                        <div className="mb-2 text-xs font-medium text-muted-foreground">
-                          Seller Information
-                        </div>
+                        <SectionHeading>Seller Information</SectionHeading>
                         <DescriptionList spacing="default">
                           {part.seller ? (
                             <DescriptionItem label="Seller" value={part.seller.name} />
@@ -594,7 +591,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
                     part.input_voltage ||
                     part.output_voltage) && (
                     <div>
-                      <div className="mb-3 text-sm font-medium">Technical Specifications</div>
+                      <SectionHeading variant="section">Technical Specifications</SectionHeading>
 
                       {(part.dimensions ||
                         part.package ||
@@ -602,9 +599,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
                         part.pin_pitch ||
                         part.mounting_type) && (
                         <div className="mb-4">
-                          <div className="mb-2 text-xs font-medium text-muted-foreground">
-                            Physical
-                          </div>
+                          <SectionHeading>Physical</SectionHeading>
                           <DescriptionList spacing="default">
                             {part.dimensions ? (
                               <DescriptionItem
@@ -654,9 +649,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
                         part.output_voltage ||
                         part.series) && (
                         <div className="mb-4">
-                          <div className="mb-2 text-xs font-medium text-muted-foreground">
-                            Electrical / Technical
-                          </div>
+                          <SectionHeading>Electrical / Technical</SectionHeading>
                           <DescriptionList spacing="default">
                             {part.voltage_rating ? (
                               <DescriptionItem

@@ -147,10 +147,9 @@ export class ToastHelper {
    * and the viewport to stop intercepting pointer events. This is a pragmatic
    * workaround for intermittent issues with toast dismissal timing.
    *
-   * @param options - Wait options
    * @see https://playwright.dev/docs/actionability for details on pointer event interception
    */
-  async waitForToastViewportDismissed(options?: { timeout?: number }): Promise<void> {
+  async waitForToastViewportDismissed(): Promise<void> {
     // Fixed wait for toast exit animations to complete
     // This handles the intermittent case where toasts may take longer to clear
     await this.page.waitForTimeout(1000);

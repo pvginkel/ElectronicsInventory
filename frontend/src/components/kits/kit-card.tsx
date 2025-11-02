@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
-import { StatusBadge } from '@/components/ui';
+import { StatusBadge, SectionHeading } from '@/components/ui';
 import { MembershipIndicator } from '@/components/ui/membership-indicator';
 import type {
   KitSummary,
@@ -175,7 +175,7 @@ function renderKitShoppingTooltip(summary: KitShoppingListMembershipSummary): Re
 
   return (
     <>
-      <p className="mb-2 text-xs font-medium text-muted-foreground">Linked shopping lists</p>
+      <SectionHeading>Linked shopping lists</SectionHeading>
       <ul className="space-y-2">
         {summary.memberships.map((membership) => {
           const detailItems: ReactNode[] = [];
@@ -230,7 +230,7 @@ function renderKitPickTooltip(summary: KitPickListMembershipSummary): ReactNode 
 
   return (
     <>
-      <p className="mb-2 text-xs font-medium text-muted-foreground">Open pick lists</p>
+      <SectionHeading>Open pick lists</SectionHeading>
       <ul className="space-y-2">
         {summary.memberships.map((membership) => {
           const detailItems: ReactNode[] = [];
