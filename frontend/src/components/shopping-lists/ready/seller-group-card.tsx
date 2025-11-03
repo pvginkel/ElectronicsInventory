@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ExternalLink } from '@/components/ui';
+import { ExternalLink, MetricDisplay } from '@/components/ui';
 import { summarizeSellerGroupVisibility } from '@/hooks/use-shopping-lists';
 import type { ShoppingListConceptLine, ShoppingListSellerGroup } from '@/types/shopping-lists';
 import { ReadyLineRow } from './ready-line-row';
@@ -67,24 +67,21 @@ export function SellerGroupCard({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-          <div className="flex flex-col text-right">
-            <span className="text-xs uppercase tracking-wide">Needed</span>
-            <span className="font-semibold text-foreground" data-testid={`shopping-lists.ready.group.${group.groupKey}.totals.needed`}>
-              {visibleTotals.needed}
-            </span>
-          </div>
-          <div className="flex flex-col text-right">
-            <span className="text-xs uppercase tracking-wide">Ordered</span>
-            <span className="font-semibold text-foreground" data-testid={`shopping-lists.ready.group.${group.groupKey}.totals.ordered`}>
-              {visibleTotals.ordered}
-            </span>
-          </div>
-          <div className="flex flex-col text-right">
-            <span className="text-xs uppercase tracking-wide">Received</span>
-            <span className="font-semibold text-foreground" data-testid={`shopping-lists.ready.group.${group.groupKey}.totals.received`}>
-              {visibleTotals.received}
-            </span>
-          </div>
+          <MetricDisplay
+            label="Needed"
+            value={visibleTotals.needed}
+            testId={`shopping-lists.ready.group.${group.groupKey}.totals.needed`}
+          />
+          <MetricDisplay
+            label="Ordered"
+            value={visibleTotals.ordered}
+            testId={`shopping-lists.ready.group.${group.groupKey}.totals.ordered`}
+          />
+          <MetricDisplay
+            label="Received"
+            value={visibleTotals.received}
+            testId={`shopping-lists.ready.group.${group.groupKey}.totals.received`}
+          />
           {showActions && (
             <div className="flex flex-wrap items-center gap-2">
               <Button

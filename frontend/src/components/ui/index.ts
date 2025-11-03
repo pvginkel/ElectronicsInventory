@@ -14,6 +14,9 @@ export { InformationBadge, type InformationBadgeProps } from './information-badg
 export { KeyValueBadge, type KeyValueBadgeProps } from './key-value-badge';
 export { StatusBadge, type StatusBadgeProps } from './status-badge';
 
+// Metric display component
+export { MetricDisplay, type MetricDisplayProps } from './metric-display';
+
 // Link chip component
 export { LinkChip, type LinkChipProps } from './link-chip';
 

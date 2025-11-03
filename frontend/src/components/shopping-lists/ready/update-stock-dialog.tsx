@@ -5,6 +5,7 @@ import { Form, FormField, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { BoxSelector } from '@/components/parts/box-selector';
 import { Badge } from '@/components/ui/badge';
+import { MetricDisplay } from '@/components/ui';
 import { Trash2 } from 'lucide-react';
 import { useFormState } from '@/hooks/use-form-state';
 import { useFormInstrumentation } from '@/hooks/use-form-instrumentation';
@@ -558,16 +559,17 @@ export function UpdateStockDialog({
                     )}
                   </div>
                   <div className="flex items-center gap-4 text-sm">
-                    <div className="text-right">
-                      <p className="text-xs uppercase text-muted-foreground">Ordered</p>
-                      <p className="font-semibold text-foreground">{line.ordered}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs uppercase text-muted-foreground">Received</p>
-                      <p className={cn('font-semibold', line.hasQuantityMismatch ? 'text-amber-600' : 'text-foreground')}>
-                        {line.received}
-                      </p>
-                    </div>
+                    <MetricDisplay
+                      label="Ordered"
+                      value={line.ordered}
+                      testId="shopping-lists.ready.update-stock.line.metric.ordered"
+                    />
+                    <MetricDisplay
+                      label="Received"
+                      value={line.received}
+                      valueColor={line.hasQuantityMismatch ? 'warning' : 'default'}
+                      testId="shopping-lists.ready.update-stock.line.metric.received"
+                    />
                     <Badge variant={line.status === 'ordered' ? 'secondary' : 'outline'}>
                       {line.status === 'ordered' ? 'Ordered' : 'Received'}
                     </Badge>
