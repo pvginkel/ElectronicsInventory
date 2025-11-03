@@ -17,6 +17,11 @@ Found multiple categories of repeated high-level patterns:
 - **Detail screen patterns**: Similar layouts for detail views (kit-detail, part-detail, pick-list-detail)
 - **Form patterns**: Repeated form field groupings and validation patterns
 
+**Pattern rejection log**
+Documented patterns explicitly rejected during research:
+- **FlexRow**: Describes layout (how), not meaning (what). Violates semantic principle.
+- **ActionButtonGroup**: User feedback indicates it creates composition overhead without semantic value. Too low-level.
+
 **Key insight from user feedback**
 User expressed concern that low-level components like ActionButtonGroup are too simple and create composition overhead. Preference is for higher-level abstractions that capture complete concepts (e.g., "grid tile card with actions" rather than composing Card + CardHeader + CardContent + ActionButtonGroup). This approach is already used successfully for dialogs and list views.
 
@@ -108,15 +113,22 @@ Create a systematic catalog of high-level, semantic UI component opportunities a
   semanticMeaning: string;         // What this component represents
   instanceCount: number;           // How many times pattern appears
   files: string[];                 // List of files with instances
+  verificationCommands: string[];  // Glob/grep commands to regenerate instance counts
+  lastVerified: string;            // ISO date when pattern was last verified
   commonPattern: string;           // Description of the repeated pattern
-  proposedAPI: object;             // Sketch of props interface
+  propsAnalysis: {                 // API validation based on actual instances
+    common: string[];              // Props needed by >80% of instances
+    optional: string[];            // Props needed by 20-80% of instances
+    outliers: string[];            // Props needed by <20% (may need wrappers)
+  };
+  proposedAPI: object;             // Evidence-based props interface
   complexityReduction: "Low" | "Medium" | "High";
   priority: number;                // Calculated from instances × complexity
   implementationNotes: string;     // Key considerations
 }
 ```
 - Mapping: N/A - this is a planning document structure, not runtime data
-- Evidence: Derived from component extraction workflow requirements
+- Evidence: Derived from component extraction workflow requirements and plan review recommendations
 
 ## 4) API / Integration Surface
 
@@ -129,30 +141,37 @@ N/A - This is a research and cataloging effort with no API integration. The cata
 - Flow: Identify and catalog component opportunities
 - Steps:
   1. Search codebase for files matching pattern categories (cards, dialogs, forms, lists, detail screens)
-  2. For each category, read and analyze 3-5 representative files
-  3. Identify common structural patterns (what repeats across instances)
-  4. Extract semantic meaning (what is this UI element conceptually)
-  5. Count total instances of the pattern
-  6. Sketch proposed component API (props that would encapsulate the pattern)
-  7. Assess complexity reduction (how much boilerplate eliminated)
-  8. Calculate priority score (instances × complexity weight)
-  9. Document in catalog with evidence (file paths, line ranges)
+  2. Document glob/grep commands used for verification and timestamp the search
+  3. For each category, read and analyze at least 3 representative files (ideally: 1 simple, 1 average, 1 complex)
+  4. Identify common structural patterns (what repeats across instances)
+  5. Extract semantic meaning (what is this UI element conceptually)
+  6. For patterns that don't meet semantic criteria, add to Pattern Rejection Log with reasons
+  7. Count total instances of the pattern
+  8. Validate proposed API: extract actual props from at least 3 instances
+     a. Categorize props as common (>80% of instances), optional (20-80%), or outliers (<20%)
+     b. Document the API span and any high-variance patterns requiring design decisions
+  9. Sketch evidence-based component API (props that would encapsulate the pattern)
+  10. Assess complexity reduction (how much boilerplate eliminated)
+  11. Calculate priority score (instances × complexity weight)
+  12. Document in catalog with evidence (file paths, verification commands, line ranges)
 - States / transitions: Sequential research process, no interactive UI
-- Hotspots: Manual pattern analysis requires careful reading of each file
-- Evidence: Research methodology derived from docs/ui_component_workflow.md
+- Hotspots: Manual pattern analysis requires careful reading of each file; API validation requires thorough prop extraction
+- Evidence: Research methodology derived from docs/ui_component_workflow.md and plan review recommendations
 
 ### Prioritization Flow
 
 - Flow: Rank component opportunities by impact
 - Steps:
-  1. For each catalog entry, calculate impact score: instanceCount × complexityWeight
-  2. complexityWeight: Low=1, Medium=3, High=5
-  3. Sort entries by impact score descending
-  4. Group into phases: Phase 1 (highest impact), Phase 2 (medium impact), Phase 3 (nice-to-have)
-  5. For each phase, recommend implementation order based on dependencies
+  1. Re-run all verification commands to validate instance counts are current
+  2. Flag any discrepancies >20% and re-research those patterns before proceeding
+  3. For each catalog entry, calculate impact score: instanceCount × complexityWeight
+  4. complexityWeight: Low=1, Medium=3, High=5
+  5. Sort entries by impact score descending
+  6. Group into phases: Phase 1 (highest impact), Phase 2 (medium impact), Phase 3 (nice-to-have)
+  7. For each phase, recommend implementation order based on dependencies
 - States / transitions: Static calculation, no state management
-- Hotspots: Subjective complexity assessment requires judgment
-- Evidence: Prioritization approach aligns with workflow goal of highest ROI first
+- Hotspots: Subjective complexity assessment requires judgment; verification commands may reveal catalog drift
+- Evidence: Prioritization approach aligns with workflow goal of highest ROI first; verification step added per plan review
 
 ## 6) Derived State & Invariants
 
@@ -185,15 +204,15 @@ N/A - This is a research and documentation effort with no runtime state or async
 
 - Failure: Pattern appears semantically similar but has subtle domain-specific differences
 - Surface: Catalog entry may incorrectly group non-compatible patterns
-- Handling: Document variations in implementationNotes; mark as "needs design decision" if unclear
-- Guardrails: Read at least 3 instances of each pattern to verify consistency
+- Handling: Document variations in implementationNotes; mark as "needs design decision" if unclear; add to Pattern Rejection Log if differences are too significant
+- Guardrails: Read at least 3 instances of each pattern (1 simple, 1 average, 1 complex) to verify consistency; document rejected patterns explicitly
 - Evidence: Risk identified from ActionButtonGroup example - seemed general but user questioned its value
 
 - Failure: Proposed API is too rigid or too flexible
 - Surface: Catalog entry may suggest unimplementable or overly complex API
-- Handling: Mark API as "sketch only - needs refinement during implementation"; focus on semantic concept
-- Guardrails: Keep proposed APIs simple; defer complexity decisions to actual implementation
-- Evidence: Planning documents are implementation-ready but allow for adjustment
+- Handling: Use props analysis to document common/optional/outlier props; mark high-variance patterns as "needs design spike"; focus on semantic concept while providing evidence-based API suggestions
+- Guardrails: Validate API against at least 3 instances; document outliers; keep proposed APIs simple; defer complexity decisions to actual implementation
+- Evidence: Planning documents are implementation-ready but allow for adjustment; props analysis added per plan review
 
 - Failure: Miss legitimate opportunities by focusing only on file-name patterns
 - Surface: Components with different names but similar semantic patterns might be missed
@@ -277,17 +296,21 @@ N/A - No automated tests required for research documentation. Validation occurs 
 
 ### Risks
 
+- Risk: Catalog becomes outdated as codebase evolves
+- Impact: Instance counts and pattern descriptions become stale, reducing catalog reliability
+- Mitigation: Include verification commands with each catalog entry; add verification step to prioritization flow; timestamp all searches; document commands to regenerate findings
+
 - Risk: Catalog identifies too many low-value opportunities
 - Impact: Backlog becomes overwhelming and distracts from high-impact work
-- Mitigation: Apply strict filters - minimum 3 instances, minimum "Medium" complexity, clear semantic meaning; ruthlessly cut marginal cases
+- Mitigation: Apply strict filters - minimum 3 instances, minimum "Medium" complexity, clear semantic meaning; maintain Pattern Rejection Log to document exclusions; ruthlessly cut marginal cases
 
 - Risk: Semantic meaning is ambiguous for some patterns
 - Impact: Unclear whether to create abstraction or leave as domain-specific
 - Mitigation: Document ambiguity in catalog; mark as "needs design decision"; focus on clear-cut cases for initial backlog
 
 - Risk: Proposed APIs may not match actual implementation needs
-- Impact: Catalog becomes outdated quickly if APIs are wrong
-- Mitigation: Keep APIs at sketch level; emphasize semantic concept over exact prop structure; expect refinement during implementation
+- Impact: Catalog becomes outdated quickly if APIs are wrong; implementation work may be wasted
+- Mitigation: Validate APIs against at least 3 instances (simple, average, complex); document props analysis with common/optional/outlier categorization; mark high-variance patterns as "needs design spike"; emphasize semantic concept while providing evidence-based suggestions
 
 - Risk: Analysis is too shallow and misses important pattern variations
 - Impact: Components get built that don't actually fit all instances
@@ -297,7 +320,7 @@ N/A - No automated tests required for research documentation. Validation occurs 
 
 - Question: Should the catalog include metrics on current code duplication (total LOC that could be eliminated)?
 - Why it matters: Quantitative metrics strengthen prioritization and ROI justification
-- Owner / follow-up: Implementation decision - add if time permits and calculation is straightforward
+- Owner / follow-up: Defer to post-catalog analysis - focus on instance counts and verification commands first; LOC analysis can be added later if needed for stakeholder communication
 
 - Question: Should we examine existing dialog/list abstractions in detail or just reference them as examples?
 - Why it matters: Understanding working abstractions helps validate approach for new ones
