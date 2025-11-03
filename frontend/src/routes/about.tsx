@@ -32,11 +32,6 @@ function About() {
       icon: '🤖',
       title: 'AI Part Analysis',
       description: 'Upload photos or descriptions to automatically identify parts, extract specifications, and fetch datasheets.'
-    },
-    {
-      icon: '📊',
-      title: 'Dashboard Analytics',
-      description: 'Monitor inventory health, storage utilization, low stock alerts, documentation status, and recent activity at a glance.'
     }
   ]
 

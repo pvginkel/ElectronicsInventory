@@ -109,12 +109,6 @@ function invalidateInventoryQueries(queryClient: ReturnType<typeof useQueryClien
   queryClient.invalidateQueries({ queryKey: ['getPartsLocationsByPartKey'] });
   queryClient.invalidateQueries({ queryKey: ['getPartsWithLocations'] });
   queryClient.invalidateQueries({ queryKey: ['getPartsHistoryByPartKey'] });
-  queryClient.invalidateQueries({ queryKey: ['getDashboardStats'] });
-  queryClient.invalidateQueries({ queryKey: ['getDashboardStorageSummary'] });
-  queryClient.invalidateQueries({ queryKey: ['getDashboardRecentActivity'] });
-  queryClient.invalidateQueries({ queryKey: ['getDashboardCategoryDistribution'] });
-  queryClient.invalidateQueries({ queryKey: ['getDashboardLowStock'] });
-  queryClient.invalidateQueries({ queryKey: ['getDashboardPartsWithoutDocuments'] });
   queryClient.invalidateQueries({ queryKey: ['getBoxes'] });
   queryClient.invalidateQueries({ queryKey: ['getBoxesByBoxNo'] });
   queryClient.invalidateQueries({ queryKey: ['getBoxesLocationsByBoxNo'] });

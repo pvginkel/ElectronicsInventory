@@ -187,19 +187,6 @@ export const selectors = {
     },
   },
 
-  // Dashboard selectors
-  dashboard: {
-    page: testId('dashboard.page'),
-    cards: {
-      parts: testId('dashboard.cards.parts'),
-      types: testId('dashboard.cards.types'),
-      boxes: testId('dashboard.cards.boxes'),
-    },
-    charts: {
-      container: testId('dashboard.charts.container'),
-    },
-  },
-
   // Common UI selectors
   common: {
     loading: testId('loading'),

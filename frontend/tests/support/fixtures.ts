@@ -13,7 +13,6 @@ import { SellersPage } from './page-objects/sellers-page';
 import { AIDialogPage } from './page-objects/ai-dialog-page';
 import { LocationEditorPage } from './page-objects/location-editor-page';
 import { DocumentGridPage } from './page-objects/document-grid-page';
-import { DashboardPage } from './page-objects/dashboard-page';
 import { AppShellPage } from './page-objects/app-shell-page';
 import { AboutPage } from './page-objects/about-page';
 import { ShoppingListsPage } from './page-objects/shopping-lists-page';
@@ -70,7 +69,6 @@ type TestFixtures = {
   partsAI: AIDialogPage;
   partsLocations: LocationEditorPage;
   partsDocuments: DocumentGridPage;
-  dashboard: DashboardPage;
   about: AboutPage;
   shoppingLists: ShoppingListsPage;
   kits: KitsPage;
@@ -261,10 +259,6 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
 
     partsDocuments: async ({ page }, use) => {
       await use(new DocumentGridPage(page));
-    },
-
-    dashboard: async ({ page }, use) => {
-      await use(new DashboardPage(page));
     },
 
     about: async ({ page }, use) => {

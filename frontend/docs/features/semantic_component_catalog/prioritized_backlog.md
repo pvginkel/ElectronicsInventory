@@ -123,17 +123,12 @@ All analyzed patterns either:
 
 These patterns did not meet extraction thresholds but should be monitored as the codebase evolves:
 
-**1. MetricsCard**
-- **Current Status:** Only 1 instance (dashboard metrics)
-- **Monitor For:** If additional dashboard screens or stats displays are added, re-evaluate for extraction
-- **Threshold:** 3+ instances with consistent API
-
-**2. Form Field Groupings**
+**1. Form Field Groupings**
 - **Current Status:** Common patterns like "Name + Description" appear in multiple forms
 - **Monitor For:** If specific field combinations repeat 5+ times with identical validation, consider extracting compound field components
 - **Current Mitigation:** Form primitives (FormField, FormLabel, Input) already provide good composability
 
-**3. Empty State Patterns**
+**2. Empty State Patterns**
 - **Current Status:** EmptyState component exists; usage patterns vary by context
 - **Monitor For:** If specific empty state messages/actions repeat frequently, consider domain-specific empty state components
 - **Current Mitigation:** EmptyState component is flexible and handles most cases

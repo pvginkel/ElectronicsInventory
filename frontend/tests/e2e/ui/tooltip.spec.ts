@@ -2,83 +2,6 @@ import { test, expect } from '../../support/fixtures';
 import { waitForListLoading } from '../../support/helpers';
 
 test.describe('Tooltip component', () => {
-  test('shows tooltip on hover with open delay', async ({ page, dashboard }) => {
-    await dashboard.gotoDashboard();
-    await dashboard.waitForHealthReady();
-
-    const trigger = page.getByTestId('dashboard.health.gauge');
-    await expect(trigger).toBeVisible();
-
-    // Hover and wait for tooltip to appear
-    await trigger.hover();
-    const tooltip = page.getByTestId('dashboard.health.tooltip');
-
-    // Tooltip should appear after delay
-    await expect(tooltip).toBeVisible({ timeout: 1000 });
-    await expect(tooltip).toContainText('Health Score Breakdown');
-  });
-
-  test('hides tooltip when mouse leaves trigger', async ({ page, dashboard }) => {
-    await dashboard.gotoDashboard();
-    await dashboard.waitForHealthReady();
-
-    const trigger = page.getByTestId('dashboard.health.gauge');
-    await trigger.hover();
-
-    const tooltip = page.getByTestId('dashboard.health.tooltip');
-    await expect(tooltip).toBeVisible();
-
-    // Move mouse away
-    await page.mouse.move(0, 0);
-
-    // Tooltip should disappear (with close delay)
-    await expect(tooltip).not.toBeVisible({ timeout: 1000 });
-  });
-
-  test('handles quick mouse movement without getting stuck open', async ({ page, dashboard }) => {
-    await dashboard.gotoDashboard();
-    await dashboard.waitForHealthReady();
-
-    const trigger = page.getByTestId('dashboard.health.gauge');
-    await expect(trigger).toBeVisible();
-
-    // Rapidly move mouse over and away multiple times (simulating quick movement)
-    for (let i = 0; i < 5; i++) {
-      await trigger.hover();
-      await page.waitForTimeout(50); // Less than open delay
-      await page.mouse.move(0, 0);
-      await page.waitForTimeout(50);
-    }
-
-    // After quick movements, tooltip should not be stuck open
-    const tooltip = page.getByTestId('dashboard.health.tooltip');
-    await expect(tooltip).not.toBeVisible();
-  });
-
-  test('displays tooltip with center placement for health gauge', async ({ page, dashboard }) => {
-    await dashboard.gotoDashboard();
-    await dashboard.waitForHealthReady();
-
-    const trigger = page.getByTestId('dashboard.health.gauge');
-    await trigger.hover();
-
-    const tooltip = page.getByTestId('dashboard.health.tooltip');
-    await expect(tooltip).toBeVisible();
-
-    // Verify tooltip content structure for center-placed tooltip
-    await expect(tooltip).toContainText('Health Score Breakdown');
-    await expect(tooltip).toContainText('Documentation');
-    await expect(tooltip).toContainText('Stock Levels');
-    await expect(tooltip).toContainText('Organization');
-    await expect(tooltip).toContainText('Recent Activity');
-
-    // Verify all breakdown items are present
-    await expect(tooltip.getByTestId('dashboard.health.tooltip.documentation')).toBeVisible();
-    await expect(tooltip.getByTestId('dashboard.health.tooltip.stock levels')).toBeVisible();
-    await expect(tooltip.getByTestId('dashboard.health.tooltip.organization')).toBeVisible();
-    await expect(tooltip.getByTestId('dashboard.health.tooltip.recent activity')).toBeVisible();
-  });
-
   test('shows tooltips on disabled elements', async ({ page, testData }) => {
     // Create an archived kit which will have a disabled Edit button with tooltip
     const kit = await testData.kits.create({
@@ -163,27 +86,5 @@ test.describe('Tooltip component', () => {
 
     // Tooltip should contain rich content (shopping list details)
     await expect(tooltip).toContainText(shoppingListName);
-  });
-
-  test('keeps tooltip open when hovering over tooltip content', async ({ page, dashboard }) => {
-    await dashboard.gotoDashboard();
-    await dashboard.waitForHealthReady();
-
-    const trigger = page.getByTestId('dashboard.health.gauge');
-    await trigger.hover();
-
-    const tooltip = page.getByTestId('dashboard.health.tooltip');
-    await expect(tooltip).toBeVisible();
-
-    // Move mouse to tooltip content
-    await tooltip.hover();
-
-    // Tooltip should remain visible
-    await page.waitForTimeout(300); // Wait longer than close delay
-    await expect(tooltip).toBeVisible();
-
-    // Now move mouse completely away
-    await page.mouse.move(0, 0);
-    await expect(tooltip).not.toBeVisible({ timeout: 1000 });
   });
 });

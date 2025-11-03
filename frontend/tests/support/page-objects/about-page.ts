@@ -13,7 +13,6 @@ export class AboutPage extends BasePage {
   readonly overviewCard: Locator;
   readonly ctaCard: Locator;
   readonly ctaGetStarted: Locator;
-  readonly ctaViewDashboard: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -28,7 +27,6 @@ export class AboutPage extends BasePage {
     this.overviewCard = page.getByTestId('about.overview');
     this.ctaCard = page.getByTestId('about.cta');
     this.ctaGetStarted = page.getByTestId('about.cta.get-started');
-    this.ctaViewDashboard = page.getByTestId('about.cta.view-dashboard');
   }
 
   async gotoAbout(): Promise<void> {

@@ -9,18 +9,16 @@ function extractPartKeyFromUrl(url: string): string {
   return segments[segments.length - 1];
 }
 
-test.describe('Cross-domain workflow - type to dashboard', () => {
-  test('creates type and part, assigns locations, updates dashboard, and protects box deletion', async ({
+test.describe('Cross-domain workflow - type to box protection', () => {
+  test('creates type and part, assigns locations, and protects box deletion', async ({
     page,
     appShell,
     types,
     parts,
     partsLocations,
     boxes,
-    dashboard,
     toastHelper,
     testData,
-    apiClient,
   }) => {
     test.setTimeout(120_000);
 
@@ -33,9 +31,6 @@ test.describe('Cross-domain workflow - type to dashboard', () => {
     const initialLocation = { boxNo: sourceBox.box_no, locNo: 7 };
     const targetBox = await testData.boxes.create({ overrides: { description: makeUnique('Target Box') } });
     const targetLocation = { boxNo: targetBox.box_no, locNo: 11 };
-
-    const statsBefore = await apiClient.GET('/api/dashboard/stats', {});
-    const baselineTotalParts = statsBefore.data?.total_parts ?? 0;
 
     await types.goto();
     await types.createType(typeName);
@@ -101,17 +96,6 @@ test.describe('Cross-domain workflow - type to dashboard', () => {
     await expect(page).toHaveURL(/\/types/);
     await types.waitForListState('ready');
     await expect(types.partCountBadge(typeName)).toContainText(/1\s+part/i);
-
-    await dashboard.gotoDashboard();
-    await dashboard.waitForMetricsReady();
-
-    const statsAfter = await apiClient.GET('/api/dashboard/stats', {});
-    const totalPartsAfter = statsAfter.data?.total_parts ?? baselineTotalParts;
-    expect(totalPartsAfter).toBeGreaterThanOrEqual(baselineTotalParts + 1);
-    const totalPartsText = await dashboard.metricsValue('totalParts').textContent();
-    expect(totalPartsText).toBeTruthy();
-    const totalPartsMetric = Number((totalPartsText ?? '').replace(/[^0-9]/g, '') || '0');
-    expect(totalPartsMetric).toBeGreaterThanOrEqual(totalPartsAfter);
 
     await boxes.gotoList();
     await boxes.expectCardVisible(targetBox.box_no);

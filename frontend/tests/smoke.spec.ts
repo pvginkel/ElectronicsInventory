@@ -70,7 +70,6 @@ test.describe('Smoke Tests', () => {
   test('should verify test infrastructure works', async ({ sseTimeout }) => {
     expect(sseTimeout).toBe(35000);
     expect(selectors.common.loading).toBe('[data-testid="loading"]');
-    expect(selectors.dashboard.page).toBe('[data-testid="dashboard.page"]');
 
     console.log('✅ Test infrastructure verification passed');
   });
