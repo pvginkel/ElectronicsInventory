@@ -272,7 +272,7 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
 
   if (isLoading && showLoading) {
     const loadingContent = (
-      <CollectionGrid breakpoint="lg" testId="sellers.list.loading">
+      <CollectionGrid testId="sellers.list.loading">
         {Array.from({ length: 6 }).map((_, index) => (
           <Skeleton key={index} height="h-32" />
         ))}
@@ -348,7 +348,7 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
   );
 
   const listContent = hasResults ? (
-    <CollectionGrid breakpoint="lg" testId="sellers.list.table">
+    <CollectionGrid testId="sellers.list.table">
       {sortedSellers.map((seller) => (
         <SellerCard
           key={seller.id}

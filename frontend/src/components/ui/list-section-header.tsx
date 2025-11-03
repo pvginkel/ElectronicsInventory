@@ -2,15 +2,19 @@ export interface ListSectionHeaderProps {
   /**
    * Section title. Can be a string or custom ReactNode.
    * - String: Renders as <h3> with standardized styling (text-base font-semibold)
-   * - ReactNode: Caller must provide semantic h3 tag with appropriate classes
    */
-  title: string | React.ReactNode;
+  title: string;
   /**
    * Optional description text below the title.
    * - String: Renders as muted text (text-xs text-muted-foreground)
    * - ReactNode: Caller provides custom structure (e.g., links, formatted content)
    */
   description?: string | React.ReactNode;
+  /**
+   * Optional slot for information in the middle.
+   * Should contain only informational displays.
+   */
+  information?: React.ReactNode;
   /**
    * Optional slot for interactive buttons/controls on the right side.
    * Should contain only actionable elements (buttons, dropdowns), not informational displays.
@@ -48,18 +52,14 @@ export interface ListSectionHeaderProps {
  *   footer={<div>Filter note text</div>}
  * />
  */
-export function ListSectionHeader({ title, description, actions, footer, testId }: ListSectionHeaderProps) {
+export function ListSectionHeader({ title, description, information, actions, footer, testId }: ListSectionHeaderProps) {
   return (
     <div
       className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3"
       data-testid={testId}
     >
       <div>
-        {typeof title === 'string' ? (
-          <h3 className="text-base font-semibold text-foreground">{title}</h3>
-        ) : (
-          title
-        )}
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
         {description && (
           typeof description === 'string' ? (
             <p className="text-xs text-muted-foreground">{description}</p>
@@ -68,7 +68,10 @@ export function ListSectionHeader({ title, description, actions, footer, testId 
           )
         )}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      <div className="flex gap-7">
+        {information && <div className="flex gap-3">{information}</div>}
+        {actions && <div className="flex gap-2">{actions}</div>}
+      </div>
       {footer && <div className="w-full">{footer}</div>}
     </div>
   );

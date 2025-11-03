@@ -190,7 +190,7 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
 
   if (isLoading && showLoading) {
     const loadingContent = (
-      <CollectionGrid breakpoint="lg" testId="boxes.list.loading">
+      <CollectionGrid testId="boxes.list.loading">
         {Array.from({ length: 6 }).map((_, index) => (
           <Skeleton key={index} height="h-48" />
         ))}
@@ -266,7 +266,7 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
   );
 
   const listContent = hasResults ? (
-    <CollectionGrid breakpoint="lg" testId="boxes.list.table">
+    <CollectionGrid testId="boxes.list.table">
       {sortedBoxes.map((box) => (
         <BoxCard
           key={box.box_no}

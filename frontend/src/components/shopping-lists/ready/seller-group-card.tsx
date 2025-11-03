@@ -51,11 +51,7 @@ export function SellerGroupCard({
       data-testid={`shopping-lists.ready.group.card.${group.groupKey}`}
     >
       <ListSectionHeader
-        title={
-          <h3 className="text-lg font-semibold text-foreground" data-testid={`shopping-lists.ready.group.${group.groupKey}.name`}>
-            {group.sellerName}
-          </h3>
-        }
+        title={group.sellerName!}
         description={
           <div className="flex flex-col gap-2">
             {group.sellerWebsite ? (
@@ -68,24 +64,26 @@ export function SellerGroupCard({
             ) : (
               <p className="text-xs text-muted-foreground">No website on file</p>
             )}
-            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-              <MetricDisplay
-                label="Needed"
-                value={visibleTotals.needed}
-                testId={`shopping-lists.ready.group.${group.groupKey}.totals.needed`}
-              />
-              <MetricDisplay
-                label="Ordered"
-                value={visibleTotals.ordered}
-                testId={`shopping-lists.ready.group.${group.groupKey}.totals.ordered`}
-              />
-              <MetricDisplay
-                label="Received"
-                value={visibleTotals.received}
-                testId={`shopping-lists.ready.group.${group.groupKey}.totals.received`}
-              />
-            </div>
           </div>
+        }
+        information={
+          <>
+            <MetricDisplay
+              label="Needed"
+              value={visibleTotals.needed}
+              testId={`shopping-lists.ready.group.${group.groupKey}.totals.needed`}
+            />
+            <MetricDisplay
+              label="Ordered"
+              value={visibleTotals.ordered}
+              testId={`shopping-lists.ready.group.${group.groupKey}.totals.ordered`}
+            />
+            <MetricDisplay
+              label="Received"
+              value={visibleTotals.received}
+              testId={`shopping-lists.ready.group.${group.groupKey}.totals.received`}
+            />
+          </>
         }
         actions={
           showActions ? (

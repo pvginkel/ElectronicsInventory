@@ -310,7 +310,7 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
 
   if (isLoading && showLoading) {
     const loadingContent = (
-      <CollectionGrid breakpoint="lg" testId="types.list.loading">
+      <CollectionGrid testId="types.list.loading">
         {Array.from({ length: 6 }).map((_, index) => (
           <Skeleton
             key={index}
@@ -391,7 +391,7 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
   );
 
   const listContent = hasResults ? (
-    <CollectionGrid breakpoint="lg" testId="types.list.container">
+    <CollectionGrid testId="types.list.container">
       {sortedTypes.map((type) => (
         <TypeCard
           key={type.id}
