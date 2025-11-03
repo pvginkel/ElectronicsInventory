@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import { type PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
-import { InformationBadge, QuantityBadge, SectionHeading } from '@/components/ui';
+import { CodeBadge, InformationBadge, QuantityBadge, SectionHeading } from '@/components/ui';
 import { LocationSummary } from './location-summary';
 import { VendorInfo } from './vendor-info';
 import { CircuitBoard, ShoppingCart } from 'lucide-react';
@@ -108,9 +108,7 @@ export function PartListItem({
 
       {/* Part ID Section */}
       <div className="mb-3">
-        <div className="inline-block bg-muted px-2 py-1 rounded font-mono text-sm">
-          {displayId}
-        </div>
+        <CodeBadge code={displayId} />
       </div>
 
       {/* Metadata Badges Row */}

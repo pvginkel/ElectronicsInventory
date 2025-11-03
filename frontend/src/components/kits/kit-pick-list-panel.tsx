@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { StatusBadge } from '@/components/ui';
+import { ListSectionHeader, StatusBadge } from '@/components/ui';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { emitTestEvent } from '@/lib/test/event-emitter';
 import { buildPickListDetailSearch } from '@/types/pick-lists';
 import type { KitDetail, KitPickListSummary, KitStatus } from '@/types/kits';
@@ -123,31 +123,28 @@ export function KitPickListPanel({
 
   return (
     <Card className="p-0" data-testid="kits.detail.pick-lists.panel">
-      <CardHeader className={cn(
-        "flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between space-y-0",
-        { "border-b border-border/70 ": openPickLists.length > 0 }
-      )}>
-        <div>
-          <CardTitle className="text-base">Pick lists</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Track open work and review completed picks without leaving the kit detail.
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={canCreatePickList ? onCreatePickList : undefined}
-          disabled={!canCreatePickList}
-          title={creationTitle}
-          aria-disabled={canCreatePickList ? undefined : 'true'}
-          className="inline-flex items-center gap-2"
-          data-testid="kits.detail.pick-lists.add"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Add Pick List</span>
-        </Button>
-      </CardHeader>
+      <div className={cn({ "border-b border-border/70": openPickLists.length > 0 })}>
+        <ListSectionHeader
+          title="Pick lists"
+          description="Track open work and review completed picks without leaving the kit detail."
+          actions={
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={canCreatePickList ? onCreatePickList : undefined}
+              disabled={!canCreatePickList}
+              title={creationTitle}
+              aria-disabled={canCreatePickList ? undefined : 'true'}
+              className="inline-flex items-center gap-2"
+              data-testid="kits.detail.pick-lists.add"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Pick List</span>
+            </Button>
+          }
+        />
+      </div>
       {openPickLists.length > 0 || completedPickLists.length > 0 ? (
         <CardContent className="px-0 py-0">
           {openPickLists.length > 0 ? (

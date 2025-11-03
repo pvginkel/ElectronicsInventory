@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/ui/empty-state';
+import { CollectionGrid, EmptyState } from '@/components/ui';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -310,10 +310,7 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
 
   if (isLoading && showLoading) {
     const loadingContent = (
-      <div
-        className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
-        data-testid="types.list.loading"
-      >
+      <CollectionGrid breakpoint="lg" testId="types.list.loading">
         {Array.from({ length: 6 }).map((_, index) => (
           <Skeleton
             key={index}
@@ -321,7 +318,7 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
             testId="types.list.loading.skeleton"
           />
         ))}
-      </div>
+      </CollectionGrid>
     );
 
     return (
@@ -394,10 +391,7 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
   );
 
   const listContent = hasResults ? (
-    <div
-      className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
-      data-testid="types.list.container"
-    >
+    <CollectionGrid breakpoint="lg" testId="types.list.container">
       {sortedTypes.map((type) => (
         <TypeCard
           key={type.id}
@@ -407,7 +401,7 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
           onDelete={() => handleDeleteType(type)}
         />
       ))}
-    </div>
+    </CollectionGrid>
   ) : (
     <EmptyState
       testId="types.list.no-results"

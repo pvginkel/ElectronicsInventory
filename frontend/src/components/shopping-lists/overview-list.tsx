@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
-import { Alert, EmptyState } from '@/components/ui';
+import { Alert, CollectionGrid, EmptyState } from '@/components/ui';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -352,10 +352,7 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
       description="Adjust the search or create a new Concept list tailored to your build."
     />
   ) : hasVisibleLists ? (
-    <div
-      className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
-      data-testid={`shopping-lists.overview.grid.${activeTab}`}
-    >
+    <CollectionGrid testId={`shopping-lists.overview.grid.${activeTab}`}>
       {visibleLists.map((list) => (
         <ShoppingListOverviewCard
           key={list.id}
@@ -363,7 +360,7 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
           onOpen={() => handleOpenList(list.id)}
         />
       ))}
-    </div>
+    </CollectionGrid>
   ) : (
     <EmptyState
       variant="minimal"

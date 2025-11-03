@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Alert,
+  CodeBadge,
   KeyValueBadge,
   ExternalLink,
   DescriptionList,
@@ -485,7 +486,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
                   <div className="flex-1">
                     <DescriptionItem
                       label="Part ID"
-                      value={<span className="font-mono">{displayId}</span>}
+                      value={<CodeBadge code={displayId} />}
                       variant="prominent"
                     />
                   </div>

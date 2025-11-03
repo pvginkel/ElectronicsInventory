@@ -4,7 +4,7 @@ import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { EmptyState } from '@/components/ui/empty-state';
+import { CollectionGrid, EmptyState } from '@/components/ui';
 import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGetPartsWithLocations, useGetTypes, type PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema } from '@/lib/api/generated/hooks';
@@ -227,16 +227,13 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
   );
 
   const loadingContent = (
-    <div
-      className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
-      data-testid="parts.list.loading"
-    >
+    <CollectionGrid testId="parts.list.loading">
       {Array.from({ length: 6 }).map((_, index) => (
         <div key={index} data-testid="parts.list.loading.skeleton">
           <Skeleton height="h-48" />
         </div>
       ))}
-    </div>
+    </CollectionGrid>
   );
 
   const errorMessage = combinedError
@@ -283,10 +280,7 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
   );
 
   const listContent = (
-    <div
-      className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
-      data-testid="parts.list.container"
-    >
+    <CollectionGrid testId="parts.list.container">
       {sortedParts.map((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => (
         <PartListItem
           key={part.key}
@@ -303,7 +297,7 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
           kitIndicatorError={kitIndicators.error}
         />
       ))}
-    </div>
+    </CollectionGrid>
   );
 
   let contentNode: ReactNode;

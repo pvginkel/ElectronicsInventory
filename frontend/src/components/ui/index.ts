@@ -9,6 +9,7 @@ export {
 } from './inline-notification';
 
 // Standardized badge components
+export { CodeBadge, type CodeBadgeProps } from './code-badge';
 export { IconBadge, type IconBadgeProps } from './icon-badge';
 export { InformationBadge, type InformationBadgeProps } from './information-badge';
 export { KeyValueBadge, type KeyValueBadgeProps } from './key-value-badge';
@@ -36,3 +37,9 @@ export { DescriptionList, DescriptionItem } from './description-list';
 
 // Section heading component
 export { SectionHeading, type SectionHeadingProps } from './section-heading';
+
+// List section header component
+export { ListSectionHeader, type ListSectionHeaderProps } from './list-section-header';
+
+// Collection grid component
+export { CollectionGrid, type CollectionGridProps } from './collection-grid';

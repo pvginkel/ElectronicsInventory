@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router';
 
 import { cn } from '@/lib/utils';
+import { CodeBadge } from '@/components/ui';
 
 interface PartInlineSummaryProps {
   partKey: string;
@@ -37,7 +38,7 @@ export function PartInlineSummary({
       <div className={baseClasses} data-testid={testId}>
         <span className={titleClasses}>{description}</span>
         <span className={metadataClasses}>
-          <span className="font-mono">Key {partKey}</span>
+          <CodeBadge code={`Key ${partKey}`} />
           {manufacturerCode ? <span>MPN {manufacturerCode}</span> : null}
         </span>
       </div>
@@ -53,7 +54,7 @@ export function PartInlineSummary({
     >
       <span className={titleClasses}>{description}</span>
       <span className={metadataClasses}>
-        <span className="font-mono">Key {partKey}</span>
+        <CodeBadge code={`Key ${partKey}`} />
         {manufacturerCode ? <span>MPN {manufacturerCode}</span> : null}
       </span>
     </Link>

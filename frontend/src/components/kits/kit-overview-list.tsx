@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { Alert, EmptyState } from '@/components/ui';
+import { Alert, CollectionGrid, EmptyState } from '@/components/ui';
 import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
@@ -220,10 +220,7 @@ export function KitOverviewList({
     );
   } else {
     content = (
-      <div
-        className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
-        data-testid={`kits.overview.grid.${status}`}
-      >
+      <CollectionGrid testId={`kits.overview.grid.${status}`}>
         {activeKits.map((kit) => (
           <KitCard
             key={kit.id}
@@ -243,7 +240,7 @@ export function KitOverviewList({
             onOpenDetail={onOpenDetail}
           />
         ))}
-      </div>
+      </CollectionGrid>
     );
   }
 

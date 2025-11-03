@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, MetricDisplay } from '@/components/ui';
+import { ExternalLink, ListSectionHeader, MetricDisplay } from '@/components/ui';
 import { summarizeSellerGroupVisibility } from '@/hooks/use-shopping-lists';
 import type { ShoppingListConceptLine, ShoppingListSellerGroup } from '@/types/shopping-lists';
 import { ReadyLineRow } from './ready-line-row';
@@ -50,44 +50,49 @@ export function SellerGroupCard({
       className="rounded-lg border border-border bg-card shadow-sm"
       data-testid={`shopping-lists.ready.group.card.${group.groupKey}`}
     >
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b px-4 py-3">
-        <div>
+      <ListSectionHeader
+        title={
           <h3 className="text-lg font-semibold text-foreground" data-testid={`shopping-lists.ready.group.${group.groupKey}.name`}>
             {group.sellerName}
           </h3>
-          {group.sellerWebsite ? (
-            <ExternalLink
-              href={group.sellerWebsite}
-              className="text-sm"
-            >
-              {group.sellerWebsite}
-            </ExternalLink>
-          ) : (
-            <p className="text-xs text-muted-foreground">No website on file</p>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-          <MetricDisplay
-            label="Needed"
-            value={visibleTotals.needed}
-            testId={`shopping-lists.ready.group.${group.groupKey}.totals.needed`}
-          />
-          <MetricDisplay
-            label="Ordered"
-            value={visibleTotals.ordered}
-            testId={`shopping-lists.ready.group.${group.groupKey}.totals.ordered`}
-          />
-          <MetricDisplay
-            label="Received"
-            value={visibleTotals.received}
-            testId={`shopping-lists.ready.group.${group.groupKey}.totals.received`}
-          />
-          {showActions && (
+        }
+        description={
+          <div className="flex flex-col gap-2">
+            {group.sellerWebsite ? (
+              <ExternalLink
+                href={group.sellerWebsite}
+                className="text-sm"
+              >
+                {group.sellerWebsite}
+              </ExternalLink>
+            ) : (
+              <p className="text-xs text-muted-foreground">No website on file</p>
+            )}
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+              <MetricDisplay
+                label="Needed"
+                value={visibleTotals.needed}
+                testId={`shopping-lists.ready.group.${group.groupKey}.totals.needed`}
+              />
+              <MetricDisplay
+                label="Ordered"
+                value={visibleTotals.ordered}
+                testId={`shopping-lists.ready.group.${group.groupKey}.totals.ordered`}
+              />
+              <MetricDisplay
+                label="Received"
+                value={visibleTotals.received}
+                testId={`shopping-lists.ready.group.${group.groupKey}.totals.received`}
+              />
+            </div>
+          </div>
+        }
+        actions={
+          showActions ? (
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="secondary"
                 size="sm"
-                className="ml-4"
                 disabled={!hasOrderableLines || !canBulkOrder}
                 onClick={(event) => onOpenOrderGroup(group, event.currentTarget as HTMLElement)}
                 title="Set ordered quantities for every line in this group"
@@ -106,17 +111,19 @@ export function SellerGroupCard({
                 </Button>
               )}
             </div>
-          )}
-        </div>
-        {showFilterNote && (
-          <div
-            className="w-full text-right text-xs text-muted-foreground"
-            data-testid="shopping-lists.ready.group.filter-note"
-          >
-            Showing filtered totals; original: {filteredDiff} more
-          </div>
-        )}
-      </div>
+          ) : undefined
+        }
+        footer={
+          showFilterNote ? (
+            <div
+              className="text-right text-xs text-muted-foreground"
+              data-testid="shopping-lists.ready.group.filter-note"
+            >
+              Showing filtered totals; original: {filteredDiff} more
+            </div>
+          ) : undefined
+        }
+      />
 
       {note && (
         <div className="border-b px-4 py-4 text-sm text-muted-foreground" data-testid={`shopping-lists.ready.group.${group.groupKey}.order-note`}>

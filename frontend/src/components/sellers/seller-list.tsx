@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/ui/empty-state';
+import { CollectionGrid, EmptyState } from '@/components/ui';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -272,14 +272,11 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
 
   if (isLoading && showLoading) {
     const loadingContent = (
-      <div
-        className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
-        data-testid="sellers.list.loading"
-      >
+      <CollectionGrid breakpoint="lg" testId="sellers.list.loading">
         {Array.from({ length: 6 }).map((_, index) => (
           <Skeleton key={index} height="h-32" />
         ))}
-      </div>
+      </CollectionGrid>
     );
 
     return (
@@ -351,10 +348,7 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
   );
 
   const listContent = hasResults ? (
-    <div
-      className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
-      data-testid="sellers.list.table"
-    >
+    <CollectionGrid breakpoint="lg" testId="sellers.list.table">
       {sortedSellers.map((seller) => (
         <SellerCard
           key={seller.id}
@@ -363,7 +357,7 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
           onDelete={() => handleDeleteSeller(seller)}
         />
       ))}
-    </div>
+    </CollectionGrid>
   ) : (
     <EmptyState
       testId="sellers.list.no-results"
