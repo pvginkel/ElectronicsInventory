@@ -13,7 +13,7 @@ This document describes an automated, iterative workflow for extracting reusable
 3. **Encapsulation**: All styling lives in `components/ui`. Reusable components do NOT expose `className` props.
 4. **Generic Design**: UI components must be domain-agnostic. No kit-specific or shopping-list-specific logic in `components/ui`.
 5. **Pragmatic Standardization**: Minor visual differences (padding, spacing) across similar components are acceptable casualties. Standardize using common sense.
-6. **Single Component per Iteration**: Each workflow run targets exactly one well-defined component type.
+6. **Batched Extraction**: Each workflow run targets 3-5 related component types that share code proximity or semantic meaning. Batch components that are used together or represent related UI concepts.
 7. **Unattended Execution**: The workflow should complete without user intervention for typical refactoring work.
 8. **Aggressive Cleanup**: This is technical debt elimination. Make breaking changes. Remove `className` props completely—do NOT keep them as deprecated or no-op parameters. Let TypeScript and tests catch all affected call sites. Fix breaking changes as they arise.
 
@@ -38,9 +38,14 @@ Create this directory using `mkdir -p docs/features/<FEATURE_NAME>/` before proc
 
 You will provide these **explicit full paths** to every agent invocation in the following steps.
 
-### 1. Identify a Component
+### 1. Identify Components
 
-Pick a single, clearly specified component to extract. The component must have **semantic meaning** and represent a clear UI concept.
+Identify 3-5 related components to extract together. Components should be batched if they:
+- Share code proximity (used in the same files or feature areas)
+- Represent related semantic concepts (e.g., different types of badges, various card layouts)
+- Form a coherent UI pattern family
+
+Each component must have **semantic meaning** and represent a clear UI concept.
 
 **Valid Component Examples** (semantic, represent clear UI concepts):
 - **StatusBadge** — Displays the status of an item (semantic: it shows status)
@@ -65,27 +70,29 @@ Pick a single, clearly specified component to extract. The component must have *
 
 **Selection Process**:
 - Do a thorough search of the codebase to find candidates
-- Select at least three candidates
-- From these three, pick the one that:
-  - Has the clearest semantic meaning
-  - Has the most use cases OR abstracts away the most UI complexity
-  - Represents a complete concept (prefer high-level over low-level)
+- Identify patterns and group related components by proximity or semantic meaning
+- Select 3-5 components that form a coherent batch:
+  - All must have clear semantic meaning
+  - Prefer components used in the same feature areas or files
+  - Group by semantic family (e.g., all badge types, all card variants, all empty states)
+  - Balance scope: mix high-impact and smaller refactors within the batch
 
 ### 2. Create a Plan
 
 Use the `plan-writer` agent to create a detailed implementation plan:
 
 ```
-Use the Task tool with the plan-writer agent to create a plan for extracting [COMPONENT_NAME] into a reusable UI component in src/components/ui/.
+Use the Task tool with the plan-writer agent to create a plan for extracting [COMPONENT_NAMES] into reusable UI components in src/components/ui/.
 
-The plan should:
-- Identify all current usages of this pattern in the codebase
-- Specify the component API (props, variants, etc.) WITHOUT a className prop
+The plan should cover all 3-5 components in the batch and:
+- Identify all current usages of each pattern in the codebase
+- Specify the component API (props, variants, etc.) WITHOUT a className prop for each component
 - Detail the styling that will be encapsulated
-- Outline the refactoring steps for each usage
-- Include Playwright test updates if the component has test coverage
+- Outline the refactoring steps for each usage across all components
+- Include Playwright test updates if any component has test coverage
 - Address any visual standardization decisions
 - Plan to REMOVE className props from domain-specific wrappers completely (not deprecate, REMOVE)
+- Group refactoring work logically (e.g., by file or feature area when components co-occur)
 
 Since this is technical debt work, resolve all questions autonomously. Accept minor visual differences as acceptable losses for consistency. Make breaking changes—do not attempt backward compatibility.
 
@@ -118,12 +125,12 @@ The workflow to execute a plan and review the results is written up in `docs/pla
 
 The workflow is complete when:
 - [ ] Feature directory created at `docs/features/<FEATURE_NAME>/`
-- [ ] New UI component exists in `src/components/ui/`
-- [ ] All identified usages are refactored
-- [ ] No styling classes remain in domain components (for this pattern)
-- [ ] The UI component does NOT expose `className` prop
+- [ ] 3-5 new UI components exist in `src/components/ui/`
+- [ ] All identified usages are refactored for all components in the batch
+- [ ] No styling classes remain in domain components (for these patterns)
+- [ ] None of the UI components expose `className` props
 - [ ] Domain-specific wrappers do NOT have `className` props in their interfaces
-- [ ] No call sites pass `className` props to the refactored components
+- [ ] No call sites pass `className` props to any refactored components
 - [ ] `pnpm check` passes with zero errors
 - [ ] All Playwright tests pass
 - [ ] Planning documents created in feature directory (`plan.md`, `plan_review.md`, `code_review.md`, `plan_execution_report.md`)
@@ -145,11 +152,11 @@ Abort and request user intervention if:
 To execute one iteration of this workflow:
 
 ```
-Follow docs/ui_component_workflow.md to extract a reusable UI component.
+Follow docs/ui_component_workflow.md to extract 3-5 related reusable UI components.
 
-First, establish the feature directory (e.g., docs/features/link_chip_extraction/).
+First, establish the feature directory (e.g., docs/features/badge_family_extraction/).
 
-Then, pick a component, create a plan with explicit paths, review the plan, execute it, review the code, and verify everything passes.
+Then, identify 3-5 related components, create a plan with explicit paths, review the plan, execute it, review the code, and verify everything passes.
 
 Provide explicit full paths to all planning documents (plan.md, plan_review.md, code_review.md, plan_execution_report.md) when working through the workflow.
 
@@ -161,7 +168,7 @@ Complete the entire workflow unattended unless intervention is required.
 - **Semantic Components Only**: Only extract components with clear semantic meaning. If the component name describes styling (FlexRow, DivWithPadding) rather than purpose (StatusBadge, EmptyState), it's not a valid component.
 - **Prefer Higher-Level Abstractions**: One complete abstraction (GridTileCard) is better than many small pieces (Card + CardHeader + ActionButtonGroup). Look for complete UI concepts to extract.
 - **Small Semantic Components Are Valid**: Small components like StatusBadge, InformationBadge, and EmptyState are fine—they're small but semantically meaningful. The issue is not size, it's semantic clarity.
-- **Incremental Progress**: Each run handles one component type. Repeat this workflow until all styling is centralized in semantic components.
+- **Batched Progress**: Each run handles 3-5 related component types. Group by code proximity or semantic family to accelerate the refactoring. Repeat this workflow until all styling is centralized in semantic components.
 - **Loss of Customization**: This is intentional. We are removing the ability to pass `className` props and other styling customizations. Visual standardization is a feature, not a bug. Components will look consistent across the application.
 - **Breaking Changes Are Good**: Type errors from removed props are the mechanism for discovering all usages. Embrace them as a verification tool.
 - **Test-Driven**: Update Playwright tests alongside UI changes to maintain coverage.

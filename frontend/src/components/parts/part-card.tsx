@@ -3,8 +3,7 @@ import { Card } from '@/components/ui/card';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import { type PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
-import { QuantityBadge } from './quantity-badge';
-import { InformationBadge, SectionHeading } from '@/components/ui';
+import { InformationBadge, QuantityBadge, SectionHeading } from '@/components/ui';
 import { LocationSummary } from './location-summary';
 import { VendorInfo } from './vendor-info';
 import { CircuitBoard, ShoppingCart } from 'lucide-react';
@@ -76,7 +75,10 @@ export function PartListItem({
 
         {/* Quantity & Indicator */}
         <div className="flex flex-col items-end gap-2">
-          <QuantityBadge quantity={part.total_quantity} />
+          <QuantityBadge
+            quantity={part.total_quantity}
+            testId={`parts.list.card.quantity-${part.key}`}
+          />
           <MembershipIndicator<ShoppingListMembershipSummary>
             summary={shoppingIndicatorSummary}
             status={shoppingIndicatorStatus}

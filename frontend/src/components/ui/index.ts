@@ -12,6 +12,7 @@ export {
 export { IconBadge, type IconBadgeProps } from './icon-badge';
 export { InformationBadge, type InformationBadgeProps } from './information-badge';
 export { KeyValueBadge, type KeyValueBadgeProps } from './key-value-badge';
+export { QuantityBadge, type QuantityBadgeProps } from './quantity-badge';
 export { StatusBadge, type StatusBadgeProps } from './status-badge';
 
 // Metric display component

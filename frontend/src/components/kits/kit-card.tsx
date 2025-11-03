@@ -1,14 +1,13 @@
 import type { ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
-import { StatusBadge, SectionHeading } from '@/components/ui';
+import { QuantityBadge, StatusBadge, SectionHeading } from '@/components/ui';
 import { MembershipIndicator } from '@/components/ui/membership-indicator';
 import type {
   KitSummary,
   KitShoppingListMembershipSummary,
   KitPickListMembershipSummary,
 } from '@/types/kits';
-import { QuantityBadge } from '../parts/quantity-badge';
 import { ClipboardList, ShoppingCart } from 'lucide-react';
 
 interface MembershipIndicatorState<TSummary> {
@@ -72,7 +71,10 @@ export function KitCard({
         <div className="flex items-start justify-between gap-3">
           <CardTitle className="text-xl font-semibold leading-tight">{kit.name}</CardTitle>
           <div className="flex flex-col items-end gap-2">
-            <QuantityBadge quantity={kit.buildTarget} />
+            <QuantityBadge
+              quantity={kit.buildTarget}
+              testId={`kits.overview.card.${kit.id}.quantity`}
+            />
             <div
               className="flex items-center gap-2"
               data-testid={`kits.overview.card.${kit.id}.activity`}
