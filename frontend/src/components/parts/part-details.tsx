@@ -748,11 +748,6 @@ export function PartDetails({ partId }: PartDetailsProps) {
         actionsTestId="parts.detail.actions"
         breadcrumbs={breadcrumbs}
         title={detailTitle}
-        titleMetadata={
-          formattedPart?.displayId ? (
-            <Badge variant="outline" className="text-sm px-3 py-1">#{formattedPart.displayId}</Badge>
-          ) : null
-        }
         metadataRow={metadataRow}
         actions={actions}
       >
