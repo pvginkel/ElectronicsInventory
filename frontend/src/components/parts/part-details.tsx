@@ -753,13 +753,6 @@ export function PartDetails({ partId }: PartDetailsProps) {
             <Badge variant="outline" className="text-sm px-3 py-1">#{formattedPart.displayId}</Badge>
           ) : null
         }
-        supplementary={
-          hasCoverAttachment ? (
-            <span className="text-sm text-muted-foreground">
-              Cover image available
-            </span>
-          ) : null
-        }
         metadataRow={metadataRow}
         actions={actions}
       >
