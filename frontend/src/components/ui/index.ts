@@ -43,3 +43,10 @@ export { ListSectionHeader, type ListSectionHeaderProps } from './list-section-h
 
 // Collection grid component
 export { CollectionGrid, type CollectionGridProps } from './collection-grid';
+
+// Membership tooltip content component
+export {
+  MembershipTooltipContent,
+  type MembershipTooltipContentProps,
+  type MembershipTooltipContentItem,
+} from './membership-tooltip-content';

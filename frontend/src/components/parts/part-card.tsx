@@ -1,9 +1,15 @@
-import { Link } from '@tanstack/react-router';
+import type { ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import { type PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
-import { CodeBadge, InformationBadge, QuantityBadge, SectionHeading } from '@/components/ui';
+import {
+  CodeBadge,
+  InformationBadge,
+  QuantityBadge,
+  MembershipTooltipContent,
+  type MembershipTooltipContentItem,
+} from '@/components/ui';
 import { LocationSummary } from './location-summary';
 import { VendorInfo } from './vendor-info';
 import { CircuitBoard, ShoppingCart } from 'lucide-react';
@@ -175,38 +181,31 @@ function partHasShoppingMembership(summary: ShoppingListMembershipSummary): bool
   return summary.hasActiveMembership;
 }
 
-function renderPartShoppingTooltip(summary: ShoppingListMembershipSummary) {
-  if (summary.memberships.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">No active shopping lists.</p>
-    );
-  }
+function renderPartShoppingTooltip(summary: ShoppingListMembershipSummary): ReactNode {
+  const items: MembershipTooltipContentItem[] = summary.memberships.map((membership) => ({
+    id: membership.listId,
+    label: membership.listName,
+    statusBadge: (
+      <Badge
+        variant={membership.listStatus === 'ready' ? 'default' : 'secondary'}
+        className="shrink-0 capitalize"
+      >
+        {membership.listStatus}
+      </Badge>
+    ),
+    link: {
+      to: '/shopping-lists/$listId',
+      params: { listId: String(membership.listId) },
+      search: { sort: 'description', originSearch: undefined },
+    },
+  }));
 
   return (
-    <>
-      <SectionHeading>On shopping lists</SectionHeading>
-      <ul className="space-y-1">
-        {summary.memberships.map((membership) => (
-          <li key={membership.listId}>
-            <Link
-              to="/shopping-lists/$listId"
-              params={{ listId: String(membership.listId) }}
-              search={{ sort: 'description', originSearch: undefined }}
-              className="flex items-center justify-between gap-2 truncate text-sm hover:text-primary"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <span className="truncate">{membership.listName}</span>
-              <Badge
-                variant={membership.listStatus === 'ready' ? 'default' : 'secondary'}
-                className="shrink-0 capitalize"
-              >
-                {membership.listStatus}
-              </Badge>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </>
+    <MembershipTooltipContent
+      heading="On shopping lists"
+      items={items}
+      emptyMessage="No active shopping lists."
+    />
   );
 }
 
@@ -231,38 +230,35 @@ function partHasKitMembership(summary: PartKitMembershipSummary): boolean {
   return summary.hasMembership;
 }
 
-function renderPartKitTooltip(summary: PartKitMembershipSummary) {
-  if (summary.kits.length === 0) {
-    return <p className="text-sm text-muted-foreground">Not used in any kits.</p>;
-  }
+function renderPartKitTooltip(summary: PartKitMembershipSummary): ReactNode {
+  const items: MembershipTooltipContentItem[] = summary.kits.map((kit) => ({
+    id: kit.kitId,
+    label: kit.kitName,
+    statusBadge: (
+      <Badge
+        variant={kit.status === 'active' ? 'default' : 'secondary'}
+        className="shrink-0 capitalize"
+      >
+        {kit.status}
+      </Badge>
+    ),
+    link: {
+      to: '/kits/$kitId',
+      params: { kitId: String(kit.kitId) },
+      search: { status: kit.status },
+    },
+    metadata: [
+      <span key="metadata">
+        {kit.requiredPerUnit} per kit • reserved {kit.reservedQuantity}
+      </span>,
+    ],
+  }));
 
   return (
-    <>
-      <SectionHeading>Used in kits</SectionHeading>
-      <ul className="space-y-2">
-        {summary.kits.map((kit) => (
-          <li key={kit.kitId} className="space-y-1">
-            <Link
-              to="/kits/$kitId"
-              params={{ kitId: String(kit.kitId) }}
-              search={{ status: kit.status }}
-              className="flex items-center justify-between gap-2 truncate text-sm hover:text-primary"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <span className="truncate">{kit.kitName}</span>
-              <Badge
-                variant={kit.status === 'active' ? 'default' : 'secondary'}
-                className="shrink-0 capitalize"
-              >
-                {kit.status}
-              </Badge>
-            </Link>
-            <p className="text-xs text-muted-foreground">
-              {kit.requiredPerUnit} per kit • reserved {kit.reservedQuantity}
-            </p>
-          </li>
-        ))}
-      </ul>
-    </>
+    <MembershipTooltipContent
+      heading="Used in kits"
+      items={items}
+      emptyMessage="Not used in any kits."
+    />
   );
 }

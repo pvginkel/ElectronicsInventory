@@ -118,4 +118,60 @@ test.describe('Parts - List View', () => {
     await partsAI.waitForOpen();
     await partsAI.close();
   });
+
+  test('shows part shopping list and kit membership tooltips', async ({ page, parts, testData, apiClient }) => {
+    // Create part with memberships
+    const { part } = await testData.parts.create();
+
+    // Get part_id for kit membership
+    const partReservations = await apiClient.apiRequest(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+    const partId = partReservations.part_id;
+    if (typeof partId !== 'number') {
+      throw new Error('Failed to resolve part id for tooltip test');
+    }
+
+    // Create shopping list membership
+    const shoppingList = await testData.shoppingLists.create();
+    await testData.shoppingLists.createLine(shoppingList.id, {
+      partKey: part.key,
+      needed: 10,
+    });
+
+    // Create kit membership
+    const kit = await testData.kits.create();
+    await testData.kits.addContent(kit.id, {
+      partId,
+      requiredPerUnit: 5,
+    });
+
+    await parts.gotoList();
+    await parts.waitForCards();
+    await parts.search(part.description);
+
+    // Verify shopping list tooltip
+    const shoppingIndicator = parts.shoppingListIndicator(part.key);
+    await shoppingIndicator.hover();
+    const shoppingTooltip = parts.shoppingListIndicatorTooltip();
+    await shoppingTooltip.waitFor({ state: 'visible' });
+    await expect(shoppingTooltip).toContainText(shoppingList.name);
+    await expect(shoppingTooltip).toContainText(/ready|concept/i);
+
+    // Move mouse away from shopping tooltip to avoid blocking the kit indicator hover
+    await page.mouse.move(0, 0);
+    await shoppingTooltip.waitFor({ state: 'hidden' });
+
+    // Verify kit membership tooltip
+    const kitIndicator = parts.kitIndicator(part.key);
+    await kitIndicator.hover();
+    const kitTooltip = parts.kitIndicatorTooltip();
+    await kitTooltip.waitFor({ state: 'visible' });
+    await expect(kitTooltip).toContainText(kit.name);
+    await expect(kitTooltip).toContainText(/active/i);
+    await expect(kitTooltip).toContainText('per kit');
+    await expect(kitTooltip).toContainText('reserved');
+  });
 });

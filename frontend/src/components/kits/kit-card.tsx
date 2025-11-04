@@ -1,7 +1,11 @@
 import type { ReactNode } from 'react';
-import { Link } from '@tanstack/react-router';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
-import { QuantityBadge, StatusBadge, SectionHeading } from '@/components/ui';
+import {
+  QuantityBadge,
+  StatusBadge,
+  MembershipTooltipContent,
+  type MembershipTooltipContentItem,
+} from '@/components/ui';
 import { MembershipIndicator } from '@/components/ui/membership-indicator';
 import type {
   KitSummary,
@@ -91,7 +95,6 @@ export function KitCard({
                   hasMembership={kitHasShoppingMembership}
                   renderTooltip={renderKitShoppingTooltip}
                   errorMessage="Failed to load kit shopping list memberships."
-                  tooltipClassName="w-72"
                 />
               ) : null}
               {showPickIndicator ? (
@@ -106,8 +109,6 @@ export function KitCard({
                   hasMembership={kitHasOpenPickList}
                   renderTooltip={renderKitPickTooltip}
                   errorMessage="Failed to load kit pick list memberships."
-                  tooltipClassName="w-72"
-                  iconWrapperClassName="bg-amber-500/15 text-amber-600 group-hover:bg-amber-500/20"
                 />
               ) : null}
             </div>
@@ -171,112 +172,108 @@ function getKitPickIndicatorLabel(summary: KitPickListMembershipSummary): string
 }
 
 function renderKitShoppingTooltip(summary: KitShoppingListMembershipSummary): ReactNode {
-  if (summary.memberships.length === 0) {
-    return <p className="text-sm text-muted-foreground">No active shopping lists.</p>;
-  }
+  const items: MembershipTooltipContentItem[] = summary.memberships.map((membership) => {
+    const metadata: ReactNode[] = [];
+
+    if (membership.requestedUnits > 0) {
+      const unitNoun = membership.requestedUnits === 1 ? 'unit' : 'units';
+      metadata.push(<span key="units">{`${membership.requestedUnits} ${unitNoun}`}</span>);
+    }
+
+    if (membership.honorReserved) {
+      metadata.push(
+        <span key="reserved" className="font-medium text-muted-foreground/80">
+          Honors reservations
+        </span>
+      );
+    }
+
+    return {
+      id: membership.id,
+      label: membership.listName,
+      statusBadge: (
+        <StatusBadge
+          color={
+            membership.status === 'ready'
+              ? 'active'
+              : membership.status === 'done'
+                ? 'success'
+                : 'inactive'
+          }
+          label={
+            membership.status === 'concept'
+              ? 'Concept'
+              : membership.status === 'ready'
+                ? 'Ready'
+                : 'Completed'
+          }
+          size="default"
+          testId=""
+        />
+      ),
+      link: {
+        to: '/shopping-lists/$listId',
+        params: { listId: String(membership.listId) },
+        search: { sort: 'description', originSearch: undefined },
+      },
+      metadata: metadata.length > 0 ? metadata : undefined,
+    };
+  });
 
   return (
-    <>
-      <SectionHeading>Linked shopping lists</SectionHeading>
-      <ul className="space-y-2">
-        {summary.memberships.map((membership) => {
-          const detailItems: ReactNode[] = [];
-          if (membership.requestedUnits > 0) {
-            const unitNoun = membership.requestedUnits === 1 ? 'unit' : 'units';
-            detailItems.push(
-              <span key="units">{`${membership.requestedUnits} ${unitNoun}`}</span>
-            );
-          }
-          if (membership.honorReserved) {
-            detailItems.push(
-              <span key="reserved" className="font-medium text-muted-foreground/80">
-                Honors reservations
-              </span>
-            );
-          }
-
-          return (
-            <li key={membership.id} className="space-y-1">
-              <Link
-                to="/shopping-lists/$listId"
-                params={{ listId: String(membership.listId) }}
-                search={{ sort: 'description', originSearch: undefined }}
-                className="flex items-center justify-between gap-2 truncate text-sm hover:text-primary"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <span className="truncate">{membership.listName}</span>
-                <StatusBadge
-                  color={membership.status === 'ready' ? 'active' : membership.status === 'done' ? 'success' : 'inactive'}
-                  label={membership.status === 'concept' ? 'Concept' : membership.status === 'ready' ? 'Ready' : 'Completed'}
-                  size="default"
-                  testId=""
-                />
-              </Link>
-              {detailItems.length > 0 ? (
-                <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                  {detailItems}
-                </div>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
-    </>
+    <MembershipTooltipContent
+      heading="Linked shopping lists"
+      items={items}
+      emptyMessage="No active shopping lists."
+    />
   );
 }
 
 function renderKitPickTooltip(summary: KitPickListMembershipSummary): ReactNode {
-  if (summary.memberships.length === 0) {
-    return <p className="text-sm text-muted-foreground">No open pick lists.</p>;
-  }
+  const items: MembershipTooltipContentItem[] = summary.memberships.map((membership) => {
+    const metadata: ReactNode[] = [];
+
+    metadata.push(
+      <span key="lines">
+        {membership.openLineCount} {membership.openLineCount === 1 ? 'open line' : 'open lines'}
+      </span>
+    );
+
+    metadata.push(
+      <span key="remaining">
+        {membership.remainingQuantity}{' '}
+        {membership.remainingQuantity === 1 ? 'remaining item' : 'items remaining'}
+      </span>
+    );
+
+    if (membership.requestedUnits > 0) {
+      metadata.push(
+        <span key="units">
+          {membership.requestedUnits} {membership.requestedUnits === 1 ? 'unit' : 'units'}
+        </span>
+      );
+    }
+
+    return {
+      id: membership.id,
+      label: `Pick list #${membership.id}`,
+      statusBadge: (
+        <StatusBadge
+          color="active"
+          label={membership.status === 'open' ? 'Open' : 'Closed'}
+          size="default"
+          testId=""
+        />
+      ),
+      metadata,
+    };
+  });
 
   return (
-    <>
-      <SectionHeading>Open pick lists</SectionHeading>
-      <ul className="space-y-2">
-        {summary.memberships.map((membership) => {
-          const detailItems: ReactNode[] = [];
-
-          detailItems.push(
-            <span key="lines">
-              {membership.openLineCount}{' '}
-              {membership.openLineCount === 1 ? 'open line' : 'open lines'}
-            </span>
-          );
-
-          detailItems.push(
-            <span key="remaining">
-              {membership.remainingQuantity}{' '}
-              {membership.remainingQuantity === 1 ? 'remaining item' : 'items remaining'}
-            </span>
-          );
-
-          if (membership.requestedUnits > 0) {
-            detailItems.push(
-              <span key="units">
-                {membership.requestedUnits} {membership.requestedUnits === 1 ? 'unit' : 'units'}
-              </span>
-            );
-          }
-
-          return (
-            <li key={membership.id} className="space-y-1">
-              <div className="flex items-center justify-between gap-2 text-sm">
-                <span className="truncate font-medium">Pick list #{membership.id}</span>
-                <StatusBadge
-                  color="active"
-                  label={membership.status === 'open' ? 'Open' : 'Closed'}
-                  size="default"
-                  testId=""
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                {detailItems}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </>
+    <MembershipTooltipContent
+      heading="Open pick lists"
+      items={items}
+      emptyMessage="No open pick lists."
+    />
   );
 }
