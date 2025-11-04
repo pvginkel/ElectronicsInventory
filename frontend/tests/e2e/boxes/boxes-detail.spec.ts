@@ -41,7 +41,7 @@ test('shows usage metrics, location assignments, and supports deletion from deta
     await expect(boxes.detailSummary).toContainText('Box Number')
     await expect(boxes.detailSummary).toContainText(String(box.box_no))
     await expect(boxes.detailSummary).toContainText(box.description)
-    await expect(boxes.detailSummary).toContainText(new RegExp(`Usage\\s*1\\/${box.capacity}`, 'i'))
+    await expect(boxes.detailSummary).toContainText(new RegExp(`Usage:?\\s*1\\/${box.capacity}`, 'i'))
 
     const headerBefore = await boxes.getDetailHeaderRect()
     const actionsBefore = await boxes.getDetailActionsRect()

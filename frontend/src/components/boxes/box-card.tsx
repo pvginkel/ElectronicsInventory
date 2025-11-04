@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CapacityBar } from '@/components/ui'
 
 interface BoxCardProps {
   box: {
@@ -46,18 +47,10 @@ export function BoxCard({ box, onOpen, disabled = false }: BoxCardProps) {
       </CardHeader>
       
       <CardContent>
-        <div className="flex justify-between items-center">
-          <div className="text-sm text-muted-foreground">
-            Usage: {box.occupied_locations ?? 0}/{box.total_locations ?? box.capacity} ({Math.round(box.usage_percentage ?? 0)}%)
-          </div>
-        </div>
-        
-        <div className="mt-3 bg-muted rounded-full h-2">
-          <div 
-            className="bg-primary h-2 rounded-full transition-all duration-300" 
-            style={{ width: `${Math.min(box.usage_percentage ?? 0, 100)}%` }}
-          />
-        </div>
+        <CapacityBar
+          used={box.occupied_locations ?? 0}
+          total={box.total_locations ?? box.capacity}
+        />
       </CardContent>
     </Card>
   )

@@ -50,3 +50,6 @@ export {
   type MembershipTooltipContentProps,
   type MembershipTooltipContentItem,
 } from './membership-tooltip-content';
+
+// Capacity bar component
+export { CapacityBar, type CapacityBarProps } from './capacity-bar';
