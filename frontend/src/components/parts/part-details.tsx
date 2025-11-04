@@ -378,14 +378,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
     const hasKitMemberships = kitMemberships.length > 0;
 
     if (!hasShoppingMemberships && !hasKitMemberships) {
-      return (
-        <p
-          className="text-sm text-muted-foreground"
-          data-testid="parts.detail.link.badges.empty"
-        >
-          This part is not on Concept or Ready shopping lists and is not used in any kits.
-        </p>
-      );
+      return null;
     }
 
     return (
