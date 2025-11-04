@@ -69,7 +69,7 @@ export function PartListItem({
 
         {/* Main Info */}
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold text-foreground mb-1 leading-tight">
+          <h3 className="text-lg font-semibold text-foreground mb-1 leading-tight line-clamp-3">
             {displayDescription}
           </h3>
           {displayManufacturerCode && (
