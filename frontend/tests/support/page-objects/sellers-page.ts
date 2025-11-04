@@ -44,8 +44,6 @@ export class SellersPage extends BasePage {
   async clearSearch(): Promise<void> {
     if (await this.searchClear.isVisible()) {
       await this.searchClear.click();
-      // After clicking clear button, wait for input to be empty
-      await this.searchInput.fill('');
     } else {
       await this.searchInput.fill('');
     }

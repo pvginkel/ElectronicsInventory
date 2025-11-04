@@ -246,7 +246,7 @@ export class KitsPage extends BasePage {
   async clearSearch(): Promise<void> {
     await this.overviewSearchClear.waitFor({ state: 'attached' }).catch(() => {});
     if (await this.overviewSearchClear.isVisible()) {
-      await this.overviewSearchClear.click({ force: true });
+      await this.overviewSearchClear.click();
     } else {
       await this.overviewSearchInput.fill('');
     }

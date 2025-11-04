@@ -19,7 +19,6 @@ import {
   DescriptionItem,
   SectionHeading,
 } from '@/components/ui';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { PartLocationGrid } from './part-location-grid';

@@ -83,8 +83,6 @@ export class PartsPage extends BasePage {
     const clearButton = this.page.getByTestId('parts.list.search.clear');
     if (await clearButton.isVisible()) {
       await clearButton.click();
-      // After clicking clear button, wait for input to be empty
-      await this.searchInput.fill('');
     } else {
       await this.searchInput.fill('');
     }

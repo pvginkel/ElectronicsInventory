@@ -51,6 +51,13 @@ export function DebouncedSearchInput({
       return;
     }
 
+    // Skip navigation if searchInput is empty but debouncedSearch still has a value
+    // This prevents a race condition where clicking clear sets searchInput to '',
+    // but the debounced value hasn't caught up yet and would navigate back to the old search term
+    if (!searchInput && debouncedSearch) {
+      return;
+    }
+
     const baseSearch = preserveSearchParams
       ? preserveSearchParams(currentSearch as Record<string, unknown>)
       : {};
@@ -62,14 +69,14 @@ export function DebouncedSearchInput({
         : baseSearch,
       replace: true,
     });
-  }, [debouncedSearch, searchTerm, routePath, navigate, preserveSearchParams, currentSearch]);
+  }, [debouncedSearch, searchTerm, routePath, navigate, preserveSearchParams, currentSearch, searchInput]);
 
   const handleSearchInputChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     setSearchInput(event.target.value);
   }, []);
 
   const handleClear = useCallback(() => {
-    // Update local state immediately
+    // Clear searchInput immediately to cancel any pending debounced navigation
     setSearchInput('');
 
     const baseSearch = preserveSearchParams
@@ -77,6 +84,8 @@ export function DebouncedSearchInput({
       : {};
 
     // Navigate immediately (bypass debounce)
+    // Note: We must update searchInput BEFORE navigate to prevent the debounced effect
+    // from firing with the old value and navigating back to the search term
     navigate({
       to: routePath,
       search: baseSearch, // No search param

@@ -108,6 +108,31 @@ test.describe('Parts - List View', () => {
     await parts.expectSummaryText(/\d+ parts/i);
   });
 
+  test('clear button click clears input field without programmatic fill', async ({ page, parts, testData }) => {
+    // TDD test for clear button bug fix
+    const searchTerm = testData.parts.randomPartDescription('Test Component');
+    await testData.parts.create({ overrides: { description: searchTerm } });
+
+    await parts.gotoList();
+    await parts.waitForCards();
+
+    // Enter search term
+    await parts.searchInput.fill(searchTerm);
+    await page.waitForURL(/[?&]search=/);
+    await expect(parts.searchInput).toHaveValue(searchTerm);
+
+    // Click clear button (without programmatic fill workaround)
+    const clearButton = page.getByTestId('parts.list.search.clear');
+    await expect(clearButton).toBeVisible();
+    await clearButton.click();
+
+    // Assert URL cleared
+    await expect(page).toHaveURL(/^(?!.*search)/);
+
+    // Assert input field is empty
+    await expect(parts.searchInput).toHaveValue('');
+  });
+
   test('opens AI dialog from list page', async ({ parts, partsAI, testData }) => {
     await testData.parts.create();
 
