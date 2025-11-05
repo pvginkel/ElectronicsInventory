@@ -63,7 +63,7 @@ export async function waitForUiState(
 export async function waitForListLoading(
   page: Page,
   scope: string,
-  phase: 'loading' | 'ready' | 'error' | 'aborted',
+  phase: 'loading' | 'ready' | 'error' | 'aborted' | 'filtered' | 'cleared',
   timeout = 10_000,
 ): Promise<ListLoadingTestEvent> {
   return waitTestEvent<ListLoadingTestEvent>(

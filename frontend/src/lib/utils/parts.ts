@@ -110,7 +110,7 @@ export function validatePartData(data: PartData): {
   };
 }
 
-export function formatPartForDisplay(part: Part): {
+export function formatPartForDisplay(part: Part | { key: string; description?: string | null; manufacturer_code?: string | null }): {
   displayId: string;
   displayDescription: string;
   displayManufacturerCode?: string;
@@ -119,10 +119,10 @@ export function formatPartForDisplay(part: Part): {
 } {
   return {
     displayId: part.key.toUpperCase(),
-    displayDescription: part.description,
+    displayDescription: part.description || part.key,
     displayManufacturerCode: part.manufacturer_code || undefined,
-    displayManufacturer: part.manufacturer || undefined,
-    displayProductPage: part.product_page || undefined,
+    displayManufacturer: 'manufacturer' in part ? part.manufacturer || undefined : undefined,
+    displayProductPage: 'product_page' in part ? part.product_page || undefined : undefined,
   };
 }
 

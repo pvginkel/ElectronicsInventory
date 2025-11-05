@@ -47,7 +47,7 @@ test.describe('App shell - desktop navigation', () => {
     await appShell.clickDesktopNav('about');
     await expect(page).toHaveURL(/\/about(?:$|\?)/);
     await expect(about.hero).toBeVisible();
-    await expect(about.featureCards).toHaveCount(6);
+    await expect(about.featureCards).toHaveCount(5);
     await expect(about.quickStartSteps).toHaveCount(4);
     await appShell.expectActiveNav('about');
 

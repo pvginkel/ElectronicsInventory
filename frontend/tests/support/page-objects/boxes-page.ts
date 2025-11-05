@@ -184,26 +184,66 @@ export class BoxesPage extends BasePage {
     await expect(this.root).toBeVisible()
   }
 
-  locationItem(boxNo: number, locNo: number): Locator {
-    return this.page.getByTestId(`boxes.detail.locations.item.${boxNo}-${locNo}`)
+  locationContainer(boxNo: number, locNo: number): Locator {
+    return this.page.getByTestId(`boxes.detail.location-container.${boxNo}-${locNo}`)
+  }
+
+  partCard(partKey: string): Locator {
+    return this.page.getByTestId(`boxes.detail.part-card.${partKey}`)
+  }
+
+  get detailSearch(): Locator {
+    return this.page.getByTestId('boxes.detail.search')
+  }
+
+  async searchParts(term: string): Promise<void> {
+    await this.detailSearch.fill(term)
+    // Wait for the search filtering event that indicates filtering is complete
+    await waitForListLoading(this.page, 'boxes.detail.search', 'filtered')
+  }
+
+  async clearPartSearch(): Promise<void> {
+    await this.detailSearch.fill('')
+    // Wait for the search cleared event
+    await waitForListLoading(this.page, 'boxes.detail.search', 'cleared')
   }
 
   async expectLocationOccupied(boxNo: number, locNo: number, options: { partKey?: string; quantity?: number }): Promise<void> {
-    const item = this.locationItem(boxNo, locNo)
-    await expect(item).toBeVisible()
-    await expect(item).toHaveAttribute('data-is-occupied', 'true')
+    const container = this.locationContainer(boxNo, locNo)
+    await expect(container).toBeVisible()
+
     if (options.partKey) {
-      await expect(item).toHaveAttribute('data-primary-part-key', options.partKey)
-    }
-    if (options.quantity !== undefined) {
-      await expect(item).toContainText(`Qty: ${options.quantity}`)
+      const card = container.getByTestId(`boxes.detail.part-card.${options.partKey}`)
+      await expect(card).toBeVisible()
+
+      if (options.quantity !== undefined) {
+        const quantityBadge = card.getByTestId(`boxes.detail.part-card.quantity-${options.partKey}`)
+        await expect(quantityBadge).toContainText(`${options.quantity}`)
+      }
     }
   }
 
   async expectLocationEmpty(boxNo: number, locNo: number): Promise<void> {
-    const item = this.locationItem(boxNo, locNo)
-    await expect(item).toBeVisible()
-    await expect(item).toHaveAttribute('data-is-occupied', 'false')
-    await expect(item).toContainText('Empty')
+    const container = this.locationContainer(boxNo, locNo)
+    // Empty locations are not rendered in the new layout
+    await expect(container).not.toBeVisible()
+  }
+
+  async expectPartCardVisible(partKey: string): Promise<void> {
+    await expect(this.partCard(partKey)).toBeVisible()
+  }
+
+  async expectPartCardNotVisible(partKey: string): Promise<void> {
+    await expect(this.partCard(partKey)).not.toBeVisible()
+  }
+
+  async clickPartCard(partKey: string): Promise<void> {
+    await this.partCard(partKey).click()
+  }
+
+  async getLocationPartCount(boxNo: number, locNo: number): Promise<number> {
+    const container = this.locationContainer(boxNo, locNo)
+    const count = await container.getAttribute('data-part-count')
+    return count ? parseInt(count, 10) : 0
   }
 }

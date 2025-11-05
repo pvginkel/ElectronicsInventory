@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link } from '@tanstack/react-router';
 import {
   useGetBoxesByBoxNo,
@@ -13,11 +13,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
 import { useConfirm } from '@/hooks/use-confirm';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { KeyValueBadge, DescriptionItem, CapacityBar } from '@/components/ui';
+import { emitTestEvent } from '@/lib/test/event-emitter';
+import { TestEventKind } from '@/types/test-events';
+import { isTestMode } from '@/lib/config/test-mode';
+import type { LocationDisplayData } from '@/types/locations';
 
 interface BoxDetailsProps {
   boxNo: number;
@@ -26,6 +31,7 @@ interface BoxDetailsProps {
 
 export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
   const [editFormOpen, setEditFormOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const { confirm, confirmProps } = useConfirm();
   const { showSuccess, showException } = useToast();
 
@@ -47,6 +53,84 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
 
   const updateMutation = usePutBoxesByBoxNo();
   const deleteMutation = useDeleteBoxesByBoxNo();
+
+  // Filter locations by search term
+  const filteredLocations = useMemo((): LocationDisplayData[] => {
+    if (!locations) return [];
+    if (!searchTerm.trim()) return locations;
+
+    const lowerSearchTerm = searchTerm.toLowerCase();
+
+    // For each location, filter parts that match the search term
+    const filtered: LocationDisplayData[] = [];
+
+    for (const location of locations) {
+      if (!location.partAssignments) continue;
+
+      const matchingParts = location.partAssignments.filter((part) => {
+        const key = part.key.toLowerCase();
+        const description = (part.description ?? '').toLowerCase();
+        const manufacturerCode = (part.manufacturer_code ?? '').toLowerCase();
+
+        return (
+          key.includes(lowerSearchTerm) ||
+          description.includes(lowerSearchTerm) ||
+          manufacturerCode.includes(lowerSearchTerm)
+        );
+      });
+
+      // If no parts match, exclude this location
+      if (matchingParts.length === 0) continue;
+
+      // Return location with only matching parts
+      filtered.push({
+        ...location,
+        partAssignments: matchingParts,
+      });
+    }
+
+    return filtered;
+  }, [locations, searchTerm]);
+
+  // Emit search instrumentation events
+  useEffect(() => {
+    if (!isTestMode()) return;
+
+    const nonEmptyFilteredLocations = filteredLocations.filter(
+      (loc) => !loc.isEmpty && loc.partAssignments && loc.partAssignments.length > 0
+    );
+
+    const matchingPartCount = nonEmptyFilteredLocations.reduce(
+      (sum, loc) => sum + (loc.partAssignments?.length ?? 0),
+      0
+    );
+
+    if (searchTerm.trim()) {
+      const payload: Omit<import('@/types/test-events').ListLoadingTestEvent, 'timestamp'> = {
+        kind: TestEventKind.LIST_LOADING,
+        scope: 'boxes.detail.search',
+        phase: 'filtered',
+        metadata: {
+          searchTerm,
+          matchingLocationCount: nonEmptyFilteredLocations.length,
+          matchingPartCount,
+        },
+      };
+      emitTestEvent(payload);
+    } else {
+      const payload: Omit<import('@/types/test-events').ListLoadingTestEvent, 'timestamp'> = {
+        kind: TestEventKind.LIST_LOADING,
+        scope: 'boxes.detail.search',
+        phase: 'cleared',
+        metadata: {
+          searchTerm: '',
+          matchingLocationCount: nonEmptyFilteredLocations.length,
+          matchingPartCount,
+        },
+      };
+      emitTestEvent(payload);
+    }
+  }, [searchTerm, filteredLocations]);
 
   const usageStats = useMemo(() => {
     const boxFromList = boxes?.find((candidate) => candidate.box_no === boxNo) ?? null;
@@ -233,40 +317,64 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
 
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-1">
-            <Card data-testid="boxes.detail.summary">
-              <CardHeader>
-                <CardTitle>Box Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+        {/* Box Information - Horizontal Layout Across Top */}
+        <Card data-testid="boxes.detail.summary">
+          <CardHeader>
+            <CardTitle>Box Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              <div className="space-y-4">
                 <DescriptionItem
                   label="Box Number"
                   value={`#${box.box_no}`}
                   variant="prominent"
                 />
-
                 <DescriptionItem label="Description" value={box.description} />
+              </div>
 
+              <div className="space-y-4">
                 <DescriptionItem
                   label="Capacity"
                   value={`${box.capacity} locations`}
                 />
-
-                <CapacityBar
-                  used={usageStats.usedLocations}
-                  total={usageStats.totalLocations}
+                <DescriptionItem
+                  label="Used Locations"
+                  value={`${usageStats.usedLocations} of ${usageStats.totalLocations}`}
                 />
-              </CardContent>
-            </Card>
-          </div>
+              </div>
 
-          <div className="lg:col-span-2">
-            <Card data-testid="boxes.detail.locations">
+              <div className="space-y-4">
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground mb-2">Usage</div>
+                  <CapacityBar
+                    used={usageStats.usedLocations}
+                    total={usageStats.totalLocations}
+                  />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Locations - Full Width Below */}
+        <Card data-testid="boxes.detail.locations">
               <CardHeader>
                 <CardTitle>Locations</CardTitle>
               </CardHeader>
               <CardContent>
+                {/* Search Input */}
+                <div className="mb-4">
+                  <Input
+                    type="text"
+                    placeholder="Search..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    data-testid="boxes.detail.search"
+                    className="w-full"
+                  />
+                </div>
+
                 {locationsError ? (
                   <div className="py-8 text-center" data-testid="boxes.detail.locations.error">
                     <p className="mb-2 text-muted-foreground">Failed to load location details</p>
@@ -287,12 +395,13 @@ export function BoxDetails({ boxNo, onDeleted }: BoxDetailsProps) {
                     />
                   </div>
                 ) : (
-                  <LocationList locations={locations ?? []} />
+                  <LocationList
+                    locations={filteredLocations}
+                    isFiltered={searchTerm.trim().length > 0}
+                  />
                 )}
               </CardContent>
             </Card>
-          </div>
-        </div>
       </div>
     );
   })();

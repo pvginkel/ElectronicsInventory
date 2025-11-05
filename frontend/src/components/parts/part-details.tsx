@@ -454,15 +454,17 @@ export function PartDetails({ partId }: PartDetailsProps) {
     const { displayId, displayManufacturerCode, displayManufacturer, displayProductPage } =
       formattedPart;
 
+    const linkedBadges = renderLinkBadges();
+
     return (
       <div className="space-y-6">
-        <div
+        {linkedBadges && <div
           id="parts.detail.link.badges"
           data-testid="parts.detail.link.badges"
           className="min-h-[32px]"
         >
-          {renderLinkBadges()}
-        </div>
+          {linkedBadges}
+        </div>}
 
         <div
           className="grid grid-cols-1 gap-6 lg:grid-cols-2"

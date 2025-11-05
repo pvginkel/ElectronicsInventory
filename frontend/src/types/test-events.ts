@@ -127,11 +127,12 @@ export interface UiStateTestEvent extends BaseTestEvent {
 
 /**
  * List loading lifecycle event (start/ready/error/aborted)
+ * Also supports custom phases like 'filtered' and 'cleared' for search operations
  */
 export interface ListLoadingTestEvent extends BaseTestEvent {
   kind: 'list_loading';
   scope: string;
-  phase: 'loading' | 'ready' | 'error' | 'aborted';
+  phase: 'loading' | 'ready' | 'error' | 'aborted' | 'filtered' | 'cleared';
   metadata?: Record<string, unknown>;
 }
 
