@@ -152,7 +152,7 @@ export function KitPickListPanel({
               {openPickLists.map((pickList) => (
                 <Link
                   key={pickList.id}
-                  className="group block rounded-lg border border-border bg-card px-4 py-3 shadow-sm transition hover:border-primary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="group block rounded-lg border border-border bg-card px-4 py-3 shadow-sm transition hover:border-primary/70 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                   {...buildPickListLinkParams(pickList.id)}
                   search={searchState}
                   onClick={() => handleNavigate(pickList, 'open')}
@@ -222,7 +222,7 @@ export function KitPickListPanel({
                     return (
                       <Link
                         key={pickList.id}
-                        className="flex flex-col gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-3 text-sm transition hover:border-primary/70 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="flex flex-col gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-4 py-3 text-sm transition hover:border-primary/70 hover:text-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                         {...buildPickListLinkParams(pickList.id)}
                         search={searchState}
                         onClick={() => handleNavigate(pickList, 'completed')}

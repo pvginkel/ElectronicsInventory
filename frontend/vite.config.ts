@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 import { execSync } from 'child_process'
 import fs from 'fs'
@@ -86,7 +87,7 @@ const backendProxyTarget = process.env.BACKEND_URL || 'http://localhost:5000'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), versionPlugin(), backendProxyStatusPlugin(backendProxyTarget)],
+  plugins: [tailwindcss(), react(), versionPlugin(), backendProxyStatusPlugin(backendProxyTarget)],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

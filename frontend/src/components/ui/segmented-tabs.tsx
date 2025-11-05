@@ -292,7 +292,7 @@ export function SegmentedTabs({
             aria-disabled={isDisabled || undefined}
             data-testid={item.testId}
             className={cn(
-              'relative z-10 flex shrink-0 items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium leading-none tracking-tight transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+              'relative z-10 flex shrink-0 items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium leading-none tracking-tight transition-colors duration-150 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               scrollable ? 'snap-start' : undefined,
               uppercase ? 'uppercase tracking-[0.08em]' : undefined,
               isDisabled

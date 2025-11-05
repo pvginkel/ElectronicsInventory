@@ -16,7 +16,9 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
       stats: 'p-6 text-center',
       action: 'p-4 hover:bg-accent/50 cursor-pointer transition-colors',
       content: 'p-4',
-      'grid-tile': 'p-4 overflow-hidden transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover:border-primary/50 active:scale-[0.98] cursor-pointer',
+      'grid-tile': onClick
+        ? 'p-4 overflow-hidden transition-all duration-200 hover:shadow-md hover:scale-[1.02] hover:border-primary/50 active:scale-[0.98] cursor-pointer'
+        : 'p-4 overflow-hidden',
       'grid-tile-disabled': 'p-4 overflow-hidden pointer-events-none'
     }
 

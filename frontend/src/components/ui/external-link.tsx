@@ -64,7 +64,7 @@ export const ExternalLink = React.forwardRef<HTMLAnchorElement, ExternalLinkProp
         onClick={handleClick}
         className={cn(
           'inline-flex items-center gap-1',
-          'text-primary hover:underline',
+          'text-link hover:underline',
           className
         )}
         aria-label={ariaLabel}

@@ -16,7 +16,7 @@ export function DeploymentNotificationBar() {
       A new version of the app is available.{' '}
       <button
         onClick={reloadApp}
-        className="underline hover:no-underline font-semibold focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 focus:ring-offset-blue-600 rounded px-1"
+        className="underline hover:no-underline font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 focus:ring-offset-blue-600 rounded px-1"
         type="button"
         data-testid="deployment.banner.reload"
       >

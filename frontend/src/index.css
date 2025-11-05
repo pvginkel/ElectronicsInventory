@@ -1,6 +1,37 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  /* Custom breakpoint */
+  --breakpoint-3xl: 110rem;
+
+  /* Theme colors using CSS variables */
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-link: hsl(var(--link));
+  --color-link-hover: hsl(var(--link-hover));
+
+  /* Border radius using CSS variables */
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
 
 @layer base {
   :root {
@@ -24,7 +55,9 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
-    
+    --link: 221.2 60% 48%;
+    --link-hover: 221.2 60% 42%;
+
     /* Extended design tokens for modern UI */
     --success: 142 76% 36%;
     --success-foreground: 355 7% 97%;
@@ -32,14 +65,14 @@
     --warning-foreground: 26 83% 14%;
     --info: 199 89% 48%;
     --info-foreground: 210 20% 98%;
-    
+
     /* Component category colors */
     --electronics-resistor: 45 93% 47%;
     --electronics-capacitor: 262 83% 58%;
     --electronics-ic: 217 91% 60%;
     --electronics-mechanical: 142 71% 45%;
     --electronics-connector: 24 70% 50%;
-    
+
     /* Spacing scale */
     --spacing-xs: 0.25rem;
     --spacing-sm: 0.5rem;
@@ -47,7 +80,7 @@
     --spacing-lg: 1.5rem;
     --spacing-xl: 2rem;
     --spacing-2xl: 3rem;
-    
+
     /* Enhanced shadows */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -70,12 +103,14 @@
       --muted-foreground: 215 20.2% 65.1%;
       --accent: 217.2 32.6% 17.5%;
       --accent-foreground: 210 40% 98%;
-      --destructive: 0 62.8% 30.6%;
+      --destructive: 0 84% 65%;
       --destructive-foreground: 210 40% 98%;
       --border: 217.2 32.6% 17.5%;
       --input: 217.2 32.6% 17.5%;
       --ring: 224.3 76.3% 94.1%;
-      
+      --link: 221.2 70% 68%;
+      --link-hover: 221.2 70% 75%;
+
       /* Dark mode extended tokens */
       --success: 142 84% 47%;
       --success-foreground: 355 7% 97%;
@@ -83,72 +118,102 @@
       --warning-foreground: 26 83% 14%;
       --info: 199 89% 58%;
       --info-foreground: 210 20% 98%;
-      
+
       /* Enhanced shadows for dark mode */
       --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
       --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
       --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
-    }
-
-    @layer components {
-      /* Text color utilities with CSS variable override */
-      .text-destructive {
-        color: rgb(239 68 68) !important; /* red-500 as override */
-      }
     }
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
+/* Custom utilities using @utility directive for TailwindCSS v4 */
+@utility transition-smooth {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@utility shadow-soft {
+  box-shadow: var(--shadow-sm);
+}
+
+@utility shadow-medium {
+  box-shadow: var(--shadow-md);
+}
+
+@utility shadow-strong {
+  box-shadow: var(--shadow-lg);
+}
+
+@utility category-resistor {
+  border-left: 3px solid hsl(var(--electronics-resistor));
+}
+
+@utility category-capacitor {
+  border-left: 3px solid hsl(var(--electronics-capacitor));
+}
+
+@utility category-ic {
+  border-left: 3px solid hsl(var(--electronics-ic));
+}
+
+@utility category-mechanical {
+  border-left: 3px solid hsl(var(--electronics-mechanical));
+}
+
+@utility category-connector {
+  border-left: 3px solid hsl(var(--electronics-connector));
+}
+
+@utility ai-glare {
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.4) 50%, transparent 70%);
+    width: 50%;
+    transform: translateX(-200%) skewX(-10deg);
+    z-index: 1;
+  }
+
+  &:hover::before {
+    transform: translateX(400%) skewX(-10deg);
+    transition: transform 1s ease-out;
+  }
+}
+
+@utility text-link {
+  color: hsl(var(--link));
+
+  &:hover {
+    color: hsl(var(--link-hover));
+  }
+}
+
 @layer components {
-  /* Smooth transitions for interactive elements */
-  .transition-smooth {
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Dark mode text color overrides */
+  @media (prefers-color-scheme: dark) {
+    .text-destructive {
+      color: rgb(239 68 68);
+    }
   }
-  
-  /* Enhanced shadow utilities */
-  .shadow-soft {
-    box-shadow: var(--shadow-sm);
-  }
-  
-  .shadow-medium {
-    box-shadow: var(--shadow-md);
-  }
-  
-  .shadow-strong {
-    box-shadow: var(--shadow-lg);
-  }
-  
-  /* Category-specific styling */
-  .category-resistor {
-    border-left: 3px solid hsl(var(--electronics-resistor));
-  }
-  
-  .category-capacitor {
-    border-left: 3px solid hsl(var(--electronics-capacitor));
-  }
-  
-  .category-ic {
-    border-left: 3px solid hsl(var(--electronics-ic));
-  }
-  
-  .category-mechanical {
-    border-left: 3px solid hsl(var(--electronics-mechanical));
-  }
-  
-  .category-connector {
-    border-left: 3px solid hsl(var(--electronics-connector));
-  }
-  
+
   /* Custom scrollbar styling for better dark mode visibility */
   * {
     scrollbar-width: thin;
@@ -180,7 +245,7 @@
     background: transparent;
   }
 
-  /* AI Assisted Button Glare Animation */
+  /* AI Assisted Button Glare Animation keyframes */
   @keyframes glare-sweep {
     0% {
       transform: translateX(-100%) skewX(-15deg);
@@ -188,28 +253,5 @@
     100% {
       transform: translateX(200%) skewX(-15deg);
     }
-  }
-
-  .ai-glare {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .ai-glare::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.4) 50%, transparent 70%);
-    width: 50%;
-    transform: translateX(-200%) skewX(-10deg);
-    z-index: 1;
-  }
-
-  .ai-glare:hover::before {
-    transform: translateX(400%) skewX(-10deg);
-    transition: transform 1s ease-out;
   }
 }

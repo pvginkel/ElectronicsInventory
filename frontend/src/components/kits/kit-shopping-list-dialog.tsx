@@ -335,7 +335,7 @@ export function KitShoppingListDialog({
                 <input
                   id="kits-detail-shopping-list-honor"
                   type="checkbox"
-                  className="mt-1 h-4 w-4 rounded border border-border text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="mt-1 h-4 w-4 rounded border border-border text-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
                   checked={form.values.honorReserved}
                   onChange={(event) => form.setValue('honorReserved', event.target.checked)}
                   disabled={mutation.isPending || !hasBOM}

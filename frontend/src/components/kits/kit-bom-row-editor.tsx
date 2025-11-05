@@ -90,7 +90,7 @@ export function KitBOMRowEditor(props: KitBOMRowEditorProps) {
   const conflictMessage = errors && 'conflict' in errors ? errors.conflict : undefined;
   const formMessage = errors?.form ?? conflictMessage;
   const textareaClasses =
-    'flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50';
+    'flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50';
 
   const handleSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {

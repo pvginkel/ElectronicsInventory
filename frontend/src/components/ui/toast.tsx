@@ -103,7 +103,7 @@ const ToastComponent = React.forwardRef<
                 type="button"
                 onClick={toast.action.onClick}
                 className={cn(
-                  'inline-flex w-max items-center justify-center rounded-md px-3 py-1 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-2',
+                  'inline-flex w-max items-center justify-center rounded-md px-3 py-1 text-xs font-semibold transition focus:outline-hidden focus:ring-2 focus:ring-offset-2 cursor-pointer',
                   tone.action,
                 )}
                 data-testid={toast.action.testId ?? `app-shell.toast.action.${toast.action.id}`}
@@ -113,7 +113,7 @@ const ToastComponent = React.forwardRef<
             )}
           </div>
           <ToastPrimitive.Close
-            className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 hover:opacity-75"
+            className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md focus:outline-hidden focus:ring-2 focus:ring-offset-2 hover:opacity-75 cursor-pointer"
           >
             <span className="sr-only">Close</span>
             <ClearButtonIcon className="w-4 h-4" />

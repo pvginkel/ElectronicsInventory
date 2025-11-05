@@ -22,7 +22,7 @@ export function PartInlineSummary({
 }: PartInlineSummaryProps) {
   const baseClasses = cn(
     '-mx-2.5 -my-1 inline-flex w-[calc(100%+1rem)] flex-col gap-1 rounded-md px-2.5 py-1',
-    link ? 'group transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring' : '',
+    link ? 'group transition hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring' : '',
     className,
   );
 
