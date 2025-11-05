@@ -6,6 +6,7 @@ interface ListScreenLayoutProps {
   title: ReactNode;
   actions?: ReactNode;
   search?: ReactNode;
+  filters?: ReactNode;
   segmentedTabs?: ReactNode;
   counts?: ReactNode;
   children: ReactNode;
@@ -25,6 +26,7 @@ export function ListScreenLayout({
   title,
   actions,
   search,
+  filters,
   segmentedTabs,
   counts,
   children,
@@ -70,6 +72,12 @@ export function ListScreenLayout({
           {search && (
             <div className="w-full" data-testid="list-screen.search">
               {search}
+            </div>
+          )}
+
+          {filters && (
+            <div className="w-full" data-testid="list-screen.filters">
+              {filters}
             </div>
           )}
 

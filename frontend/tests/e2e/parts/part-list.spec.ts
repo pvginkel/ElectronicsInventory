@@ -199,4 +199,296 @@ test.describe('Parts - List View', () => {
     await expect(kitTooltip).toContainText('per kit');
     await expect(kitTooltip).toContainText('reserved');
   });
+
+  test('shows filter buttons and toggles stock filter', async ({ page, parts, testData, apiClient }) => {
+    const uniqueTerm = makeUnique('StockFilter');
+
+    // Create parts with and without stock
+    const typeA = await testData.types.create();
+    const { part: partWithStock } = await testData.parts.create({
+      overrides: {
+        description: `${uniqueTerm} Part with stock`,
+        type_id: typeA.id,
+      },
+    });
+    const { part: partWithoutStock } = await testData.parts.create({
+      overrides: {
+        description: `${uniqueTerm} Part without stock`,
+        type_id: typeA.id,
+      },
+    });
+
+    // Add stock to one part
+    const box = await testData.boxes.create();
+    await apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+      params: { path: { part_key: partWithStock.key } },
+      body: { box_no: box.box_no, loc_no: 1, qty: 10 },
+    });
+
+    await parts.gotoList();
+    await parts.waitForCards();
+
+    // Search for our unique parts to isolate the test
+    await parts.search(uniqueTerm);
+
+    // Verify both parts are visible initially
+    await expect(parts.cardByKey(partWithStock.key)).toBeVisible();
+    await expect(parts.cardByKey(partWithoutStock.key)).toBeVisible();
+    await parts.expectSummaryText(/2 of \d+ parts showing/i);
+
+    // Activate stock filter
+    await parts.activateStockFilter();
+    await expect(page).toHaveURL(/hasStock=true/);
+
+    // Verify only part with stock is visible
+    await expect(parts.cardByKey(partWithStock.key)).toBeVisible();
+    await expect(parts.cardByKey(partWithoutStock.key)).toBeHidden();
+    await parts.expectSummaryText(/1 of \d+ parts showing/i);
+
+    // Deactivate stock filter
+    await parts.deactivateStockFilter();
+    await expect(page).toHaveURL(/^(?!.*hasStock)/);
+
+    // Verify both parts are visible again
+    await expect(parts.cardByKey(partWithStock.key)).toBeVisible();
+    await expect(parts.cardByKey(partWithoutStock.key)).toBeVisible();
+    await parts.expectSummaryText(/2 of \d+ parts showing/i); // Still shows filtered count due to search
+  });
+
+  test('filters by shopping list membership', async ({ page, parts, testData }) => {
+    const uniqueTerm = makeUnique('ShoppingListFilter');
+
+    // Create parts with and without shopping list memberships
+    const { part: partOnList } = await testData.parts.create({
+      overrides: { description: `${uniqueTerm} Part on list` },
+    });
+    const { part: partNotOnList } = await testData.parts.create({
+      overrides: { description: `${uniqueTerm} Part not on list` },
+    });
+
+    // Add one part to a shopping list
+    const shoppingList = await testData.shoppingLists.create();
+    await testData.shoppingLists.createLine(shoppingList.id, {
+      partKey: partOnList.key,
+      needed: 5,
+    });
+
+    await parts.gotoList();
+    await parts.waitForCards();
+
+    // Search for our unique parts to isolate the test
+    await parts.search(uniqueTerm);
+
+    // Wait for shopping list indicator to load for the part on the list
+    await expect(parts.shoppingListIndicator(partOnList.key)).toBeVisible();
+
+    // Verify both parts are visible initially
+    await expect(parts.cardByKey(partOnList.key)).toBeVisible();
+    await expect(parts.cardByKey(partNotOnList.key)).toBeVisible();
+    await parts.expectSummaryText(/2 of \d+ parts showing/i);
+
+    // Activate shopping list filter
+    await parts.onShoppingListFilterButton.click();
+    await expect(page).toHaveURL(/onShoppingList=true/);
+
+    // Verify only part on shopping list is visible (filter applies after shopping list indicators load)
+    await expect(parts.cardByKey(partNotOnList.key)).toBeHidden();
+    await expect(parts.cardByKey(partOnList.key)).toBeVisible();
+    await parts.expectSummaryText(/1 of \d+ parts showing/i);
+
+    // Deactivate shopping list filter
+    await parts.deactivateShoppingListFilter();
+    await expect(page).toHaveURL(/^(?!.*onShoppingList)/);
+
+    // Verify both parts are visible again
+    await expect(parts.cardByKey(partOnList.key)).toBeVisible();
+    await expect(parts.cardByKey(partNotOnList.key)).toBeVisible();
+    await parts.expectSummaryText(/2 of \d+ parts showing/i); // Still shows filtered count due to search
+  });
+
+  test('combines both filters with AND logic', async ({ page, parts, testData, apiClient }) => {
+    const uniqueTerm = makeUnique('BothFilters');
+
+    // Create parts with different combinations of stock and shopping list membership
+    const { part: partWithBoth } = await testData.parts.create({
+      overrides: { description: `${uniqueTerm} Has stock and on list` },
+    });
+    const { part: partStockOnly } = await testData.parts.create({
+      overrides: { description: `${uniqueTerm} Has stock only` },
+    });
+    const { part: partListOnly } = await testData.parts.create({
+      overrides: { description: `${uniqueTerm} On list only` },
+    });
+    const { part: partNeither } = await testData.parts.create({
+      overrides: { description: `${uniqueTerm} Neither stock nor list` },
+    });
+
+    // Add stock to relevant parts
+    const box = await testData.boxes.create();
+    await apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+      params: { path: { part_key: partWithBoth.key } },
+      body: { box_no: box.box_no, loc_no: 1, qty: 10 },
+    });
+    await apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+      params: { path: { part_key: partStockOnly.key } },
+      body: { box_no: box.box_no, loc_no: 2, qty: 5 },
+    });
+
+    // Add shopping list memberships
+    const shoppingList = await testData.shoppingLists.create();
+    await testData.shoppingLists.createLine(shoppingList.id, {
+      partKey: partWithBoth.key,
+      needed: 5,
+    });
+    await testData.shoppingLists.createLine(shoppingList.id, {
+      partKey: partListOnly.key,
+      needed: 3,
+    });
+
+    await parts.gotoList();
+    await parts.waitForCards();
+
+    // Search for our unique parts to isolate the test
+    await parts.search(uniqueTerm);
+
+    // Wait for shopping list indicators to load
+    await expect(parts.shoppingListIndicator(partWithBoth.key)).toBeVisible();
+    await expect(parts.shoppingListIndicator(partListOnly.key)).toBeVisible();
+
+    // Activate both filters
+    await parts.activateStockFilter();
+    await parts.onShoppingListFilterButton.click();
+    await expect(page).toHaveURL(/hasStock=true/);
+    await expect(page).toHaveURL(/onShoppingList=true/);
+
+    // Verify only part with both stock AND shopping list membership is visible
+    await expect(parts.cardByKey(partStockOnly.key)).toBeHidden();
+    await expect(parts.cardByKey(partListOnly.key)).toBeHidden();
+    await expect(parts.cardByKey(partNeither.key)).toBeHidden();
+    await expect(parts.cardByKey(partWithBoth.key)).toBeVisible();
+    await parts.expectSummaryText(/1 of \d+ parts showing/i);
+  });
+
+  test('combines filters with search term', async ({ parts, testData, apiClient }) => {
+    const uniqueTerm = makeUnique('FilterTest');
+
+    // Create parts with different combinations
+    const { part: matchesAll } = await testData.parts.create({
+      overrides: { description: `${uniqueTerm} matches all criteria` },
+    });
+    const { part: matchesSearchAndStock } = await testData.parts.create({
+      overrides: { description: `${uniqueTerm} has stock only` },
+    });
+    const { part: matchesSearchOnly } = await testData.parts.create({
+      overrides: { description: `${uniqueTerm} no stock or list` },
+    });
+    const { part: noMatch } = await testData.parts.create({
+      overrides: { description: 'Different part entirely' },
+    });
+
+    // Add stock
+    const box = await testData.boxes.create();
+    await apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+      params: { path: { part_key: matchesAll.key } },
+      body: { box_no: box.box_no, loc_no: 1, qty: 10 },
+    });
+    await apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+      params: { path: { part_key: matchesSearchAndStock.key } },
+      body: { box_no: box.box_no, loc_no: 2, qty: 5 },
+    });
+
+    // Add to shopping list
+    const shoppingList = await testData.shoppingLists.create();
+    await testData.shoppingLists.createLine(shoppingList.id, {
+      partKey: matchesAll.key,
+      needed: 5,
+    });
+
+    await parts.gotoList();
+    await parts.waitForCards();
+
+    // Wait for shopping list indicator to load
+    await expect(parts.shoppingListIndicator(matchesAll.key)).toBeVisible();
+
+    // Apply search term
+    await parts.search(uniqueTerm);
+
+    // Apply both filters
+    await parts.activateStockFilter();
+    await parts.activateShoppingListFilter();
+
+    // Verify only part matching all criteria is visible
+    await expect(parts.cardByKey(matchesAll.key)).toBeVisible();
+    await expect(parts.cardByKey(matchesSearchAndStock.key)).toBeHidden();
+    await expect(parts.cardByKey(matchesSearchOnly.key)).toBeHidden();
+    await expect(parts.cardByKey(noMatch.key)).toBeHidden();
+    await parts.expectSummaryText(/1 of \d+ parts showing/i);
+  });
+
+  test('shows no results state when filters yield zero matches', async ({ parts, testData }) => {
+    const uniqueTerm = makeUnique('NoStock');
+
+    // Create parts without stock or shopping list memberships
+    const { part: part1 } = await testData.parts.create({
+      overrides: { description: `${uniqueTerm} No stock part 1` },
+    });
+    const { part: part2 } = await testData.parts.create({
+      overrides: { description: `${uniqueTerm} No stock part 2` },
+    });
+
+    await parts.gotoList();
+    await parts.waitForCards();
+
+    // First, search for our unique parts to isolate the test
+    await parts.search(uniqueTerm);
+
+    // Verify both parts are visible without filter
+    await expect(parts.cardByKey(part1.key)).toBeVisible();
+    await expect(parts.cardByKey(part2.key)).toBeVisible();
+
+    // Activate stock filter - should show no results since these parts have no stock
+    await parts.activateStockFilter();
+
+    await parts.expectNoResults();
+    await parts.expectSummaryText(/0 of \d+ parts showing/i);
+  });
+
+  test('preserves filter state across navigation to detail and back', async ({ page, parts, testData, apiClient }) => {
+    const uniqueTerm = makeUnique('NavTest');
+
+    // Create part with stock
+    const { part } = await testData.parts.create({
+      overrides: { description: `${uniqueTerm} Test part` },
+    });
+    const box = await testData.boxes.create();
+    await apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+      params: { path: { part_key: part.key } },
+      body: { box_no: box.box_no, loc_no: 1, qty: 10 },
+    });
+
+    await parts.gotoList();
+    await parts.waitForCards();
+
+    // Search for our unique part to isolate the test
+    await parts.search(uniqueTerm);
+
+    // Activate filter
+    await parts.activateStockFilter();
+    await expect(page).toHaveURL(/hasStock=true/);
+    await expect(page).toHaveURL(/search=/);
+
+    // Navigate to detail
+    await parts.openCardByKey(part.key);
+    await parts.waitForDetailReady();
+
+    // Navigate back
+    await page.goBack();
+    await parts.waitForCards();
+
+    // Verify filter and search are still active
+    await expect(page).toHaveURL(/hasStock=true/);
+    await expect(page).toHaveURL(/search=/);
+    await expect(parts.cardByKey(part.key)).toBeVisible();
+    await parts.expectSummaryText(/1 of \d+ parts showing/i);
+  });
 });

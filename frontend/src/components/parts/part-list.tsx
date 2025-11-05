@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from '@tanstack/react-router';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
@@ -16,13 +17,16 @@ import { PartListItem } from './part-card';
 
 interface PartListProps {
   searchTerm?: string;
+  hasStockFilter?: boolean;
+  onShoppingListFilter?: boolean;
   onSelectPart?: (partId: string) => void;
   onCreatePart?: () => void;
   onCreateWithAI?: () => void;
 }
 
-export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreateWithAI }: PartListProps) {
+export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter, onSelectPart, onCreatePart, onCreateWithAI }: PartListProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate({ from: '/parts' });
   const {
     data: parts = [],
     isLoading: partsLoading,
@@ -80,23 +84,52 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
     return map;
   }, [types]);
 
-  const filteredParts = useMemo(() => {
-    if (!searchTerm.trim()) return parts;
+  // Load shopping list indicators for ALL parts (not just filtered)
+  const allPartKeys = useMemo(
+    () => parts.map((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => part.key),
+    [parts],
+  );
+  const shoppingIndicators = useShoppingListMembershipIndicators(allPartKeys);
+  const shoppingIndicatorMap = shoppingIndicators.summaryByPartKey;
 
-    const term = searchTerm.toLowerCase();
-    return parts.filter((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => {
-      const { displayId, displayDescription, displayManufacturerCode } = formatPartForDisplay(part);
-      const typeName = part.type_id ? typeMap.get(part.type_id) : '';
-      
-      return (
-        displayId.toLowerCase().includes(term) ||
-        displayDescription.toLowerCase().includes(term) ||
-        (displayManufacturerCode && displayManufacturerCode.toLowerCase().includes(term)) ||
-        (typeName && typeName.toLowerCase().includes(term)) ||
-        (part.tags && part.tags.some(tag => tag.toLowerCase().includes(term)))
-      );
-    });
-  }, [parts, searchTerm, typeMap]);
+  // Filter parts sequentially: search term (if present), stock filter (if active), shopping list filter (if active).
+  // All filters combine with AND logic.
+  const filteredParts = useMemo(() => {
+    let result = parts;
+
+    // Apply search term filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => {
+        const { displayId, displayDescription, displayManufacturerCode } = formatPartForDisplay(part);
+        const typeName = part.type_id ? typeMap.get(part.type_id) : '';
+
+        return (
+          displayId.toLowerCase().includes(term) ||
+          displayDescription.toLowerCase().includes(term) ||
+          (displayManufacturerCode && displayManufacturerCode.toLowerCase().includes(term)) ||
+          (typeName && typeName.toLowerCase().includes(term)) ||
+          (part.tags && part.tags.some(tag => tag.toLowerCase().includes(term)))
+        );
+      });
+    }
+
+    // Apply stock filter
+    if (hasStockFilter) {
+      result = result.filter((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => {
+        return part.total_quantity > 0;
+      });
+    }
+
+    // Apply shopping list filter
+    if (onShoppingListFilter) {
+      result = result.filter((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => {
+        return shoppingIndicatorMap.get(part.key)?.hasActiveMembership === true;
+      });
+    }
+
+    return result;
+  }, [parts, searchTerm, typeMap, hasStockFilter, onShoppingListFilter, shoppingIndicatorMap]);
 
   const sortedParts = useMemo(
     () => [...filteredParts].sort((a, b) => a.description.localeCompare(b.description, undefined, { numeric: true, sensitivity: 'base' })),
@@ -105,17 +138,22 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
 
   const totalCount = parts.length;
   const visibleCount = filteredParts.length;
-  const filteredCount = filteredParts.length < parts.length ? filteredParts.length : undefined;
   const searchActive = searchTerm.trim().length > 0;
+  const filtersOrSearchActive = searchActive || hasStockFilter || onShoppingListFilter;
+  const filteredCount = filtersOrSearchActive && visibleCount < totalCount ? visibleCount : undefined;
 
-  const partKeys = useMemo(
+  // Load kit indicators for filtered parts only (for display)
+  const filteredPartKeys = useMemo(
     () => filteredParts.map((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => part.key),
     [filteredParts],
   );
-  const shoppingIndicators = useShoppingListMembershipIndicators(partKeys);
-  const shoppingIndicatorMap = shoppingIndicators.summaryByPartKey;
-  const kitIndicators = usePartKitMembershipIndicators(partKeys);
+  const kitIndicators = usePartKitMembershipIndicators(filteredPartKeys);
   const kitIndicatorMap = kitIndicators.summaryByPartKey;
+
+  // Build activeFilters array for instrumentation
+  const activeFilters: string[] = [];
+  if (hasStockFilter) activeFilters.push('hasStock');
+  if (onShoppingListFilter) activeFilters.push('onShoppingList');
 
   useListLoadingInstrumentation({
     scope: 'parts.list',
@@ -136,6 +174,7 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
       visibleCount,
       ...(typeof filteredCount === 'number' ? { filteredCount } : {}),
       searchTerm: searchActive ? searchTerm : null,
+      activeFilters,
     }),
     getErrorMetadata: () => {
       const metadata: Record<string, unknown> = {
@@ -152,6 +191,7 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
         visibleCount,
         ...(typeof filteredCount === 'number' ? { filteredCount } : {}),
         searchTerm: searchActive ? searchTerm : null,
+        activeFilters,
       };
 
       if (partsError) {
@@ -178,8 +218,26 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
       visibleCount,
       ...(typeof filteredCount === 'number' ? { filteredCount } : {}),
       searchTerm: searchActive ? searchTerm : null,
+      activeFilters,
     }),
   });
+
+  // Filter toggle handlers
+  const handleToggleStockFilter = () => {
+    navigate({
+      to: '/parts',
+      search: (prev) => ({ ...prev, hasStock: prev.hasStock ? undefined : true }),
+      replace: true,
+    });
+  };
+
+  const handleToggleShoppingListFilter = () => {
+    navigate({
+      to: '/parts',
+      search: (prev) => ({ ...prev, onShoppingList: prev.onShoppingList ? undefined : true }),
+      replace: true,
+    });
+  };
 
   const breadcrumbsNode = (
     <span data-testid="parts.overview.breadcrumb">Parts</span>
@@ -207,6 +265,29 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
       placeholder="Search..."
       testIdPrefix="parts.list"
     />
+  );
+
+  const filtersNode = (
+    <div className="flex flex-wrap gap-2">
+      <Button
+        variant="filter"
+        size="md"
+        onClick={handleToggleStockFilter}
+        aria-pressed={hasStockFilter}
+        data-testid="parts.list.filter.hasStock"
+      >
+        In Stock
+      </Button>
+      <Button
+        variant="filter"
+        size="md"
+        onClick={handleToggleShoppingListFilter}
+        aria-pressed={onShoppingListFilter}
+        data-testid="parts.list.filter.onShoppingList"
+      >
+        On Shopping List
+      </Button>
+    </div>
   );
 
   const countsNode = (
@@ -306,7 +387,7 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
   } else if (showLoading) {
     contentNode = loadingContent;
   } else if (visibleCount === 0) {
-    contentNode = searchActive ? noResultsContent : emptyContent;
+    contentNode = filtersOrSearchActive ? noResultsContent : emptyContent;
   } else {
     contentNode = listContent;
   }
@@ -321,6 +402,7 @@ export function PartList({ searchTerm = '', onSelectPart, onCreatePart, onCreate
         title="Parts"
         actions={actionsNode}
         search={searchNode}
+        filters={filtersNode}
         counts={countsNode}
       >
         {contentNode}

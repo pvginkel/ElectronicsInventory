@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 type NativeButtonProps = React.ComponentPropsWithoutRef<"button">
 
 interface ButtonProps extends NativeButtonProps {
-  variant?: 'default' | 'primary' | 'secondary' | 'outline' | 'ghost' | 'ai_assisted'
+  variant?: 'default' | 'primary' | 'secondary' | 'outline' | 'ghost' | 'ai_assisted' | 'filter'
   size?: 'sm' | 'md' | 'lg'
   loading?: boolean
   icon?: React.ReactNode
@@ -31,7 +31,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   }, ref) => {
     const Comp = asChild ? Slot : 'button'
 
-    const baseClasses = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
+    const baseClasses = variant === 'filter'
+      ? 'inline-flex items-center justify-center rounded-full font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
+      : 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
 
     const variantClasses = {
       default: 'bg-primary text-primary-foreground hover:bg-primary/90',
@@ -39,10 +41,15 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
       outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
       ghost: 'hover:bg-accent hover:text-accent-foreground',
-      ai_assisted: 'bg-gradient-to-r from-[#0afecf] to-[#16bbd4] ai-glare'
+      ai_assisted: 'bg-gradient-to-r from-[#0afecf] to-[#16bbd4] ai-glare',
+      filter: 'border border-input bg-background text-foreground hover:opacity-80 aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:border-primary'
     }
 
-    const sizeClasses = {
+    const sizeClasses = variant === 'filter' ? {
+      sm: 'px-2.5 py-0.5 text-xs',
+      md: 'px-3 py-1 text-sm',
+      lg: 'px-4 py-1.5 text-base'
+    } : {
       sm: 'h-8 px-2 text-sm',
       md: 'h-10 px-4',
       lg: 'h-11 px-8'

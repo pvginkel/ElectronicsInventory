@@ -17,6 +17,8 @@ export class PartsPage extends BasePage {
   readonly errorState: Locator;
   readonly addPartButton: Locator;
   readonly addWithAIButton: Locator;
+  readonly hasStockFilterButton: Locator;
+  readonly onShoppingListFilterButton: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -32,6 +34,8 @@ export class PartsPage extends BasePage {
     this.errorState = page.getByTestId('parts.list.error');
     this.addPartButton = page.getByTestId('parts.list.add');
     this.addWithAIButton = page.getByRole('button', { name: /add part with ai/i });
+    this.hasStockFilterButton = page.getByTestId('parts.list.filter.hasStock');
+    this.onShoppingListFilterButton = page.getByTestId('parts.list.filter.onShoppingList');
   }
 
   async gotoList(): Promise<void> {
@@ -116,6 +120,26 @@ export class PartsPage extends BasePage {
 
   async expectErrorState(): Promise<void> {
     await expect(this.errorState).toBeVisible();
+  }
+
+  async activateStockFilter(): Promise<void> {
+    await this.hasStockFilterButton.click();
+    await this.page.waitForURL(/hasStock=true/);
+  }
+
+  async deactivateStockFilter(): Promise<void> {
+    await this.hasStockFilterButton.click();
+    await this.page.waitForURL(url => !url.toString().includes('hasStock=true'));
+  }
+
+  async activateShoppingListFilter(): Promise<void> {
+    await this.onShoppingListFilterButton.click();
+    await this.page.waitForURL(/onShoppingList=true/);
+  }
+
+  async deactivateShoppingListFilter(): Promise<void> {
+    await this.onShoppingListFilterButton.click();
+    await this.page.waitForURL(url => !url.toString().includes('onShoppingList=true'));
   }
 
   async waitForLoading(): Promise<void> {
