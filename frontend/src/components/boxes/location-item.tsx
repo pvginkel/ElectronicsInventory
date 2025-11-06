@@ -44,13 +44,13 @@ export function LocationItem({ location }: LocationItemProps) {
       <div className="text-right">
         {location.isOccupied && location.partAssignments && location.partAssignments.length > 0 ? (
           <>
-            <div className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+            <div className="text-sm font-medium text-emerald-700 dark:text-emerald-100">
               {location.partAssignments[0].key}
             </div>
             <div className="text-xs text-muted-foreground">
               Qty: {location.totalQuantity}
               {location.partAssignments.length > 1 && (
-                <span className="ml-1 text-blue-600 dark:text-blue-400">
+                <span className="ml-1 text-blue-600 dark:text-blue-200">
                   +{location.partAssignments.length - 1} more
                 </span>
               )}

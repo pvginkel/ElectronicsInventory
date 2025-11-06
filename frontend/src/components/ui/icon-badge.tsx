@@ -11,10 +11,10 @@ const SIZE_CLASSES = {
 
 // Color variants for semantic status indicators
 const VARIANT_CLASSES = {
-  success: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
-  error: 'bg-amber-50 text-amber-600 dark:bg-amber-900 dark:text-amber-300',
-  warning: 'bg-amber-50 text-amber-600 dark:bg-amber-900 dark:text-amber-300',
-  info: 'bg-blue-50 text-blue-600 dark:bg-blue-900 dark:text-blue-300',
+  success: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-800 dark:text-emerald-300',
+  error: 'bg-amber-50 text-amber-600 dark:bg-amber-800 dark:text-amber-300',
+  warning: 'bg-amber-50 text-amber-600 dark:bg-amber-800 dark:text-amber-300',
+  info: 'bg-blue-50 text-blue-600 dark:bg-blue-800 dark:text-blue-200', /* Changed from blue-300 to blue-200 for WCAG AA compliance */
   neutral: 'bg-muted text-muted-foreground',
   primary: 'bg-primary text-primary-foreground',
   destructive: 'bg-destructive/10 text-destructive',
@@ -22,10 +22,10 @@ const VARIANT_CLASSES = {
 
 // Border colors matching each variant
 const BORDER_CLASSES = {
-  success: 'border-emerald-200 dark:border-emerald-800',
-  error: 'border-amber-200 dark:border-amber-800',
-  warning: 'border-amber-200 dark:border-amber-800',
-  info: 'border-blue-200 dark:border-blue-800',
+  success: 'border-emerald-200 dark:border-emerald-700',
+  error: 'border-amber-200 dark:border-amber-700',
+  warning: 'border-amber-200 dark:border-amber-700',
+  info: 'border-blue-200 dark:border-blue-700',
   neutral: 'border-muted',
   primary: 'border-primary',
   destructive: 'border-destructive',

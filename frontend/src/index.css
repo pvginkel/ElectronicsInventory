@@ -89,40 +89,47 @@
 
   @media (prefers-color-scheme: dark) {
     :root {
-      --background: 222.2 84% 4.9%;
-      --foreground: 210 40% 98%;
-      --card: 222.2 84% 4.9%;
-      --card-foreground: 210 40% 98%;
-      --popover: 222.2 84% 4.9%;
-      --popover-foreground: 210 40% 98%;
-      --primary: 217.2 91.2% 59.8%;
-      --primary-foreground: 222.2 84% 4.9%;
-      --secondary: 217.2 32.6% 17.5%;
-      --secondary-foreground: 210 40% 98%;
-      --muted: 217.2 32.6% 17.5%;
-      --muted-foreground: 215 20.2% 65.1%;
-      --accent: 217.2 32.6% 17.5%;
-      --accent-foreground: 210 40% 98%;
-      --destructive: 0 84% 65%;
-      --destructive-foreground: 210 40% 98%;
-      --border: 217.2 32.6% 17.5%;
-      --input: 217.2 32.6% 17.5%;
-      --ring: 224.3 76.3% 94.1%;
-      --link: 221.2 70% 68%;
-      --link-hover: 221.2 70% 75%;
+      --background: 220 20% 10%;
+      --foreground: 210 25% 90%;
+      --card: 220 20% 10%;
+      --card-foreground: 210 25% 90%;
+      --popover: 220 20% 10%;
+      --popover-foreground: 210 25% 90%;
+      --primary: 217 55% 55%;
+      --primary-foreground: 220 20% 10%;
+      --secondary: 220 25% 18%;
+      --secondary-foreground: 210 25% 90%;
+      --muted: 220 20% 20%;
+      --muted-foreground: 215 15% 72%;
+      --accent: 220 25% 18%;
+      --accent-foreground: 210 25% 90%;
+      --destructive: 0 65% 58%;
+      --destructive-foreground: 210 25% 90%;
+      --border: 220 20% 30%;
+      --input: 220 20% 20%;
+      --ring: 224 55% 70%;
+      --link: 221 50% 65%;
+      --link-hover: 221 50% 72%;
 
       /* Dark mode extended tokens */
-      --success: 142 84% 47%;
-      --success-foreground: 355 7% 97%;
-      --warning: 35 91% 65%;
-      --warning-foreground: 26 83% 14%;
-      --info: 199 89% 58%;
-      --info-foreground: 210 20% 98%;
+      --success: 142 55% 48%;
+      --success-foreground: 220 20% 10%;
+      --warning: 35 65% 60%;
+      --warning-foreground: 26 65% 15%;
+      --info: 199 60% 55%;
+      --info-foreground: 220 20% 10%;
+
+      /* Electronics category colors for dark mode */
+      --electronics-resistor: 45 60% 50%;
+      --electronics-capacitor: 262 55% 55%;
+      --electronics-ic: 217 55% 55%;
+      --electronics-mechanical: 142 50% 46%;
+      --electronics-connector: 24 55% 52%;
 
       /* Enhanced shadows for dark mode */
-      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
-      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.25);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.25), 0 2px 4px -2px rgb(0 0 0 / 0.25);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.25), 0 4px 6px -4px rgb(0 0 0 / 0.25);
     }
   }
 }
