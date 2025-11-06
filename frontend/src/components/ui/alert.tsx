@@ -179,7 +179,7 @@ export const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
               <button
                 type="button"
                 onClick={onDismiss}
-                className="flex-shrink-0 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                className="flex-shrink-0 cursor-pointer rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 aria-label={dismissLabel}
                 data-testid={`${testId}.dismiss`}
               >

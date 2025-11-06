@@ -65,7 +65,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               <button
                 type="button"
                 onClick={handleClear}
-                className="p-1 text-muted-foreground hover:text-foreground focus:outline-hidden"
+                className="cursor-pointer p-1 text-muted-foreground hover:text-foreground focus:outline-hidden"
                 aria-label="Clear"
               >
                 <ClearButtonIcon />

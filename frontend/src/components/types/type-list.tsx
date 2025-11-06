@@ -11,6 +11,7 @@ import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 import { useConfirm } from '@/hooks/use-confirm';
 import { useToast } from '@/hooks/use-toast';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
+import { cn } from '@/lib/utils';
 import {
   useCreateType,
   useUpdateType,
@@ -221,7 +222,10 @@ export function TypeList({ searchTerm = '' }: TypeListProps) {
         <button
           type="button"
           onClick={handleClearSearch}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors hover:bg-muted disabled:opacity-50"
+          className={cn(
+            "absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors hover:bg-muted disabled:opacity-50",
+            disabled ? "cursor-not-allowed" : "cursor-pointer"
+          )}
           aria-label="Clear search"
           data-testid="types.list.search.clear"
           disabled={disabled}

@@ -100,7 +100,7 @@ function AppShellFrame() {
             <button
               type="button"
               onClick={toggleMobileMenu}
-              className="flex w-full items-center justify-between p-4 hover:bg-accent"
+              className="flex w-full cursor-pointer items-center justify-between p-4 hover:bg-accent"
               aria-expanded={mobileMenuOpen}
               aria-controls="app-shell-mobile-menu"
               aria-label="Toggle navigation menu"

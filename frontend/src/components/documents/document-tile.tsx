@@ -110,14 +110,12 @@ export function DocumentTile({
   return (
     <Card
       variant={isDeleting ? "grid-tile-disabled" : "grid-tile"}
+      onClick={handleTileClick}
       className="p-0"
       data-document-tile
       data-document-id={document.id}>
       <div className="relative aspect-square">
-        <div
-          className="w-full h-full"
-          onClick={handleTileClick}
-        >
+        <div className="w-full h-full">
           {document.previewImageUrl ? (
             <img
               src={document.previewImageUrl}
@@ -160,7 +158,7 @@ export function DocumentTile({
         </div>
       </div>
 
-      <div className="p-3 cursor-pointer" onClick={handleTileClick}>
+      <div className="p-3">
         <h3 className="text-sm font-medium truncate mb-1" title={document.title}>
           {document.title}
         </h3>

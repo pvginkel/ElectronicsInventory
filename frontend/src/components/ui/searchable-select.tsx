@@ -256,7 +256,7 @@ function SearchableSelectComponent<
           />
           <button
             type="button"
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-0 h-4 w-4"
+            className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer p-0 h-4 w-4"
             tabIndex={-1}
             onClick={handleDropdownToggle}
             aria-label="Toggle dropdown"
@@ -367,7 +367,7 @@ function SearchableSelectOptionButton<
       role="option"
       aria-selected={isSelected}
       className={cn(
-        "w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-hidden flex justify-between items-center",
+        "w-full cursor-pointer px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-hidden flex justify-between items-center",
         isSelected && "bg-accent text-accent-foreground"
       )}
       onClick={onClick}
@@ -394,7 +394,7 @@ function SearchableSelectCreateOption({
   return (
     <button
       type="button"
-      className="w-full px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-hidden border-t"
+      className="w-full cursor-pointer px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-hidden border-t"
       onClick={onClick}
       onMouseDown={(e) => {
         // Prevent the input from losing focus when clicking the create option

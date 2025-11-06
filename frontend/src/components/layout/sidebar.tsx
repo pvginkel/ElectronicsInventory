@@ -52,7 +52,7 @@ export function Sidebar({
           {onToggle && (
             <button
               onClick={onToggle}
-              className={`${isCollapsed ? 'mx-auto' : 'ml-auto'} flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground`}
+              className={`${isCollapsed ? 'mx-auto' : 'ml-auto'} flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground`}
               title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               type="button"
               aria-pressed={!isCollapsed}

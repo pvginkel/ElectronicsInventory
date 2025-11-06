@@ -52,10 +52,10 @@ export function IconButton({
         onClick();
       }}
       className={`
-        ${sizeClasses[size]} 
+        ${sizeClasses[size]}
         ${variantClasses[variant]}
-        rounded-full flex items-center justify-center 
-        transition-colors backdrop-blur-sm
+        rounded-full flex items-center justify-center
+        transition-colors backdrop-blur-sm cursor-pointer
         ${tooltip ? 'relative' : ''}
       `}
       title={tooltip}

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { IconButton } from '@/components/ui/hover-actions';
 import { IconBadge } from '@/components/ui';
 import { X } from 'lucide-react';
@@ -180,7 +180,7 @@ export function MediaViewerBase({
         <div className="absolute top-0 left-0 right-0 z-10 bg-black/80 backdrop-blur-sm p-4">
           <div className="flex items-center justify-between text-white">
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-medium truncate">{currentDocument.title}</h2>
+              <DialogTitle className="text-lg font-medium truncate">{currentDocument.title}</DialogTitle>
             </div>
             
             <div className="flex items-center space-x-2">
@@ -301,18 +301,18 @@ export function MediaViewerBase({
         {canGoPrevious && (
           <button
             onClick={goToPrevious}
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white transition-colors"
+            className="absolute left-4 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-full bg-black/60 hover:bg-black/80 cursor-pointer flex items-center justify-center text-white transition-colors"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="15,18 9,12 15,6"/>
             </svg>
           </button>
         )}
-        
+
         {canGoNext && (
           <button
             onClick={goToNext}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white transition-colors"
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 w-12 h-12 rounded-full bg-black/60 hover:bg-black/80 cursor-pointer flex items-center justify-center text-white transition-colors"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="9,18 15,12 9,6"/>

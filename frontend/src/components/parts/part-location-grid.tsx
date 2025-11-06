@@ -267,7 +267,7 @@ function LocationRow({
           />
         ) : (
           <button
-            className="text-sm hover:bg-accent hover:text-accent-foreground px-2 py-1 rounded"
+            className="cursor-pointer text-sm hover:bg-accent hover:text-accent-foreground px-2 py-1 rounded"
             onClick={onStartEdit}
             data-testid="parts.locations.quantity"
           >

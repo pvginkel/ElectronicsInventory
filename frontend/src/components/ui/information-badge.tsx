@@ -87,7 +87,7 @@ export const InformationBadge = React.forwardRef<HTMLSpanElement, InformationBad
           <button
             type="button"
             onClick={onRemove}
-            className="ml-0.5 text-xs hover:opacity-70"
+            className="ml-0.5 cursor-pointer text-xs hover:opacity-70"
             aria-label={`Remove ${childrenText}`}
           >
             ×
