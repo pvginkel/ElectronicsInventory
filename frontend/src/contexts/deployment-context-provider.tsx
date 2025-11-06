@@ -75,6 +75,7 @@ export function DeploymentProvider({ children }: DeploymentProviderProps) {
     if (version) {
       if (currentVersion === null) {
         // First version received - set as current
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional state synchronization from SSE
         setCurrentVersion(version)
       } else if (version !== currentVersion) {
         // Version changed - new version available
@@ -91,6 +92,7 @@ export function DeploymentProvider({ children }: DeploymentProviderProps) {
       return
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional SSE connection initiation
     connectWithRequestId()
     return () => disconnect()
   }, [connectWithRequestId, disconnect, shouldAutoConnect])

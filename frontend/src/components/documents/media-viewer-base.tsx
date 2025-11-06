@@ -30,6 +30,7 @@ export function MediaViewerBase({
 
   // Reset viewer state when document changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset zoom/position/loading when viewing different document
     setZoom(1);
     setPosition({ x: 0, y: 0 });
     setIsLoading(true);

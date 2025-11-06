@@ -137,7 +137,10 @@ export function KitPickListCreateDialog({
     snapshotFields: instrumentationSnapshot,
   });
 
-  instrumentationRef.current = instrumentation;
+  // Update ref when instrumentation changes
+  useEffect(() => {
+    instrumentationRef.current = instrumentation
+  }, [instrumentation])
 
   useEffect(() => {
     if (!open) {

@@ -93,7 +93,10 @@ export function ListCreateDialog({
     }),
   });
 
-  instrumentationRef.current = instrumentation;
+  // Update ref when instrumentation changes
+  useEffect(() => {
+    instrumentationRef.current = instrumentation
+  }, [instrumentation])
 
   const lastOpenRef = useRef(open);
   useEffect(() => {

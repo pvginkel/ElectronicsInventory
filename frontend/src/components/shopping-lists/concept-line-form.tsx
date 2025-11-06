@@ -200,7 +200,10 @@ export function ConceptLineForm({
     }),
   });
 
-  instrumentationRef.current = instrumentation;
+  // Update ref when instrumentation changes
+  useEffect(() => {
+    instrumentationRef.current = instrumentation
+  }, [instrumentation])
 
   useEffect(() => {
     if (!open) {

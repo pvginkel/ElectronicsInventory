@@ -242,7 +242,10 @@ export function KitMetadataDialog({ open, kit, onOpenChange, onSuccess }: KitMet
     snapshotFields: () => instrumentationSnapshot(form.values),
   });
 
-  instrumentationRef.current = instrumentation;
+  // Update ref when instrumentation changes
+  useEffect(() => {
+    instrumentationRef.current = instrumentation
+  }, [instrumentation])
 
   useEffect(() => {
     if (!open) {

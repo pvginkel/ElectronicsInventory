@@ -364,6 +364,7 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
 
   useEffect(() => {
     if (!detail || detail.status !== 'active') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Close pick list dialog when kit becomes archived/deleted
       setCreatePickListDialogOpen(false);
     }
   }, [detail]);

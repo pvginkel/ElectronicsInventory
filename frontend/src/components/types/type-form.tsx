@@ -3,7 +3,7 @@ import { Form, FormField, FormLabel } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useFormState } from '@/hooks/use-form-state'
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import { useFormInstrumentation, type UseFormInstrumentationResult } from '@/hooks/use-form-instrumentation'
 import { generateFormId } from '@/lib/test/form-instrumentation'
 
@@ -76,7 +76,10 @@ export function TypeForm({
     snapshotFields: () => ({ name: form.values.name })
   });
 
-  instrumentationRef.current = instrumentation;
+  // Update ref when instrumentation changes
+  useEffect(() => {
+    instrumentationRef.current = instrumentation
+  }, [instrumentation])
 
   const handleClose = () => {
     onOpenChange(false)

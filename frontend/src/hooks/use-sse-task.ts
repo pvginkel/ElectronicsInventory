@@ -85,15 +85,17 @@ export function useSSETask<T = unknown>(options: UseSSETaskOptions = {}): UseSSE
     retryCountRef.current = 0;
   }, []);
 
+  const connectRef = useRef<((streamUrl: string) => void) | null>(null);
+
   const connect = useCallback((streamUrl: string) => {
     // Clean up existing connection
     disconnect();
-    
+
     // Reset state
     setError(null);
     setResult(null);
     setProgress(null);
-    
+
     const eventSource = new EventSource(streamUrl);
     eventSourceRef.current = eventSource;
 
@@ -106,13 +108,13 @@ export function useSSETask<T = unknown>(options: UseSSETaskOptions = {}): UseSSE
     eventSource.addEventListener('task_event', (event) => {
       try {
         const parsedEvent: SSEEvent<T> = JSON.parse(event.data);
-        
+
         switch (parsedEvent.event_type) {
           case 'task_started': {
             // Don't need to do anything special for task_started
             break;
           }
-            
+
           case 'progress_update': {
             const progressData = {
               message: parsedEvent.data.text,
@@ -122,7 +124,7 @@ export function useSSETask<T = unknown>(options: UseSSETaskOptions = {}): UseSSE
             onProgress?.(progressData.message, progressData.percentage);
             break;
           }
-            
+
           case 'task_completed': {
             if (parsedEvent.data.success && parsedEvent.data.analysis) {
               // Task completed successfully
@@ -137,7 +139,7 @@ export function useSSETask<T = unknown>(options: UseSSETaskOptions = {}): UseSSE
             disconnect(); // Task completed (either success or failure)
             break;
           }
-            
+
           case 'task_failed': {
             const errorMessage = parsedEvent.data.error;
             const errorCode = parsedEvent.data.code;
@@ -161,14 +163,14 @@ export function useSSETask<T = unknown>(options: UseSSETaskOptions = {}): UseSSE
 
     eventSource.onerror = (event) => {
       console.error('EventSource error:', event);
-      
+
       if (retryCountRef.current < retryAttempts) {
         retryCountRef.current++;
         const delay = retryDelay * Math.pow(2, retryCountRef.current - 1); // Exponential backoff
-        
+
         retryTimeoutRef.current = setTimeout(() => {
           if (eventSourceRef.current?.readyState === EventSource.CLOSED) {
-            connect(streamUrl); // Retry connection
+            connectRef.current?.(streamUrl); // Retry connection using ref
           }
         }, delay);
       } else {
@@ -177,6 +179,11 @@ export function useSSETask<T = unknown>(options: UseSSETaskOptions = {}): UseSSE
       }
     };
   }, [disconnect, onProgress, onResult, onError, retryAttempts, retryDelay]);
+
+  // Update ref when connect function changes
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   // Clean up on unmount
   useEffect(() => {

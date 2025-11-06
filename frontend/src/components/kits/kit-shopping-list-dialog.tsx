@@ -197,7 +197,11 @@ export function KitShoppingListDialog({
   });
   // Keep the latest form API in a ref so effects don't thrash when the wrapper object re-renders.
   const formRef = useRef(form);
-  formRef.current = form;
+
+  // Update ref when form changes
+  useEffect(() => {
+    formRef.current = form;
+  }, [form]);
 
   const parsedUnits = useMemo(() => {
     const trimmed = form.values.requestedUnits.trim();
@@ -242,8 +246,10 @@ export function KitShoppingListDialog({
     }),
   });
 
-  instrumentationRef.current = instrumentation;
-
+  // Update ref when instrumentation changes
+  useEffect(() => {
+    instrumentationRef.current = instrumentation
+  }, [instrumentation])
   const lastOpenRef = useRef(open);
   useEffect(() => {
     if (open && !lastOpenRef.current) {

@@ -35,6 +35,7 @@ export function CoverImageDisplay({
 
   // Reset image error when cache buster changes (new image to load)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset error state when reloadToken changes (new image)
     setImageError(false);
   }, [reloadToken]);
 

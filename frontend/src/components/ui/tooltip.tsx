@@ -149,6 +149,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           tabIndex={isChildDisabled ? 0 : undefined}
+          // eslint-disable-next-line react-hooks/refs -- tooltip.isOpen is state, not ref
           aria-describedby={tooltip.isOpen ? tooltipId : undefined}
           data-testid={wrapperTestId}
         >
@@ -159,6 +160,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
       );
 
       // Render tooltip content via portal
+      /* eslint-disable react-hooks/refs -- tooltip object contains state values (isOpen, position, arrowPosition), not refs */
       const tooltipContent = tooltip.isOpen
         ? createPortal(
             <div
@@ -196,6 +198,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
             document.body
           )
         : null;
+      /* eslint-enable react-hooks/refs */
 
       return (
         <>

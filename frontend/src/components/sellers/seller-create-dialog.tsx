@@ -93,7 +93,10 @@ export function SellerCreateDialog({
     })
   })
 
-  instrumentationRef.current = instrumentation
+  // Update ref when instrumentation changes
+  useEffect(() => {
+    instrumentationRef.current = instrumentation
+  }, [instrumentation])
 
   const handleDialogOpenChange = (nextOpen: boolean) => {
     onOpenChange(nextOpen)

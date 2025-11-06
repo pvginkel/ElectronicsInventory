@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, type DialogContentProps } from '@/components/ui/dialog'
 import { Form, FormField, FormLabel } from '@/components/ui/form'
 import { Button } from '@/components/ui/button'
@@ -95,7 +95,10 @@ export function SellerForm({
     })
   })
 
-  instrumentationRef.current = instrumentation
+  // Update ref when instrumentation changes
+  useEffect(() => {
+    instrumentationRef.current = instrumentation
+  }, [instrumentation])
 
   const handleClose = () => {
     onOpenChange(false)

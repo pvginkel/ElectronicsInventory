@@ -108,6 +108,7 @@ export function ShoppingListSelector({
     }
     const existsInQuery = queryOptions.some((option) => option.id === pendingCreatedOption.id);
     if (existsInQuery) {
+// eslint-disable-next-line react-hooks/set-state-in-effect -- Clear pending optimistic option once confirmed in query results
       setPendingCreatedOption(null);
     }
   }, [pendingCreatedOption, queryOptions]);
@@ -140,6 +141,7 @@ export function ShoppingListSelector({
 
   useEffect(() => {
     if (!canCreateLists && createDialogOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Close dialog when create capability is disabled
       setCreateDialogOpen(false);
     }
   }, [canCreateLists, createDialogOpen]);
@@ -235,6 +237,7 @@ export function ShoppingListSelector({
     const isSelected = value === createdOption.id;
     const matchesSearch = searchTerm.trim().toLowerCase() === createdOption.name.toLowerCase();
     if (isSelected && !matchesSearch) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Sync search term with selected created option name
       setSearchTerm(createdOption.name);
     }
   }, [createdOption, searchTerm, setSearchTerm, value]);

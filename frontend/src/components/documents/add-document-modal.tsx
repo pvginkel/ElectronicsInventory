@@ -65,6 +65,7 @@ function AddDocumentModalContent({
   // Reset camera state when modal closes
   useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Turn off camera when modal closes externally (backdrop/escape)
       setShowCamera(false);
     }
   }, [open]);

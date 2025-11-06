@@ -17,6 +17,8 @@ export function ToastProvider({ children }: ToastProviderProps) {
   const [toasts, setToasts] = useState<Toast[]>([])
   // Track timeout IDs for custom auto-dismiss management (workaround for Radix UI timer bugs)
   const timeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map())
+  // Use counter for toast IDs to avoid Math.random() during render
+  const idCounterRef = useRef(0)
 
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
@@ -29,7 +31,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
   }
 
   const showToast = (message: string, type: ToastType, options?: ToastOptions) => {
-    const id = Math.random().toString(36).substring(2, 11)
+    const id = `toast-${++idCounterRef.current}`
     const action = options?.action
       ? {
           ...options.action,
@@ -97,6 +99,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
 
   // Instrument toast functions in test mode
   const contextValue = isTestMode()
+    // eslint-disable-next-line react-hooks/refs -- baseContextValue is not a ref, false positive
     ? createInstrumentedToastWrapper(baseContextValue)
     : baseContextValue
 

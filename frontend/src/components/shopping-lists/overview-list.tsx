@@ -76,6 +76,7 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
 
   useEffect(() => {
     if (isLoading) {
+// eslint-disable-next-line react-hooks/set-state-in-effect -- Debounced loading visibility state for UX
       setShowLoading(true);
       return;
     }

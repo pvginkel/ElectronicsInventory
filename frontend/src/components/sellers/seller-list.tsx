@@ -52,6 +52,7 @@ export function SellerList({ searchTerm = '' }: SellerListProps) {
 
   useEffect(() => {
     if (isLoading) {
+// eslint-disable-next-line react-hooks/set-state-in-effect -- Debounced loading visibility state for UX
       setShowLoading(true);
       return;
     }

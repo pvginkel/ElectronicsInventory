@@ -53,6 +53,7 @@ export function OrderGroupDialog({
     for (const line of editableLines) {
       nextQuantities[line.id] = String(line.needed);
     }
+// eslint-disable-next-line react-hooks/set-state-in-effect -- Reset quantities to defaults when dialog opens
     setQuantities(nextQuantities);
     setErrors({});
   }, [open, editableLines]);

@@ -47,6 +47,8 @@ export function useVersionSSE(): UseVersionSSEReturn {
     retryCountRef.current = 0;
   }, []);
 
+  const createConnectionRef = useRef<((options?: UseVersionSSEConnectOptions) => void) | null>(null);
+
   const createConnection = useCallback((options?: UseVersionSSEConnectOptions) => {
     const nextOptions = options ?? connectOptionsRef.current ?? {};
 
@@ -96,13 +98,13 @@ export function useVersionSSE(): UseVersionSSEReturn {
         clearTimeout(retryTimeoutRef.current);
         retryTimeoutRef.current = null;
       }
-      
+
       retryCountRef.current++;
       const delay = Math.min(1000 * Math.pow(2, retryCountRef.current - 1), maxRetryDelay);
-      
+
       retryTimeoutRef.current = setTimeout(() => {
         if (eventSourceRef.current?.readyState === EventSource.CLOSED || !eventSourceRef.current) {
-          createConnection();
+          createConnectionRef.current?.();
         }
       }, delay);
     };
@@ -175,6 +177,11 @@ export function useVersionSSE(): UseVersionSSEReturn {
       scheduleReconnect();
     };
   }, [disconnect]);
+
+  // Update ref when createConnection function changes
+  useEffect(() => {
+    createConnectionRef.current = createConnection;
+  }, [createConnection]);
 
   // Clean up on unmount
   useEffect(() => {

@@ -118,6 +118,7 @@ export function useAddDocumentModal(partId: string) {
   // Sync previewState with document when URL preview data becomes available
   useEffect(() => {
     if (document?.type === 'url' && previewState.title) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Update document with fetched URL preview metadata when available
       setDocument(prev => ({
         ...prev,
         url: previewState.url || prev?.url || '',

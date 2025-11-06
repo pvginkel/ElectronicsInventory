@@ -56,6 +56,7 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
         window.clearTimeout(hideLoadingTimeoutRef.current);
         hideLoadingTimeoutRef.current = null;
       }
+// eslint-disable-next-line react-hooks/set-state-in-effect -- Debounced loading visibility state for UX (minimum 200ms display)
       setShowLoading(true);
       return;
     }
