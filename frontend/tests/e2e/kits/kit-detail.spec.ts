@@ -1326,15 +1326,13 @@ test.describe('Kit detail workspace', () => {
         Number(event.metadata?.kitId) === kit.id
     );
 
-    // Set up dialog handler BEFORE opening menu
-    page.once('dialog', async dialog => {
-      expect(dialog.type()).toBe('confirm');
-      expect(dialog.message()).toContain('Are you sure you want to delete');
-      await dialog.accept();
-    });
-
     await kits.detailMenuButton.click();
     await kits.detailDeleteMenuItem.click();
+
+    // Confirm deletion in styled dialog
+    const dialog = page.getByRole('dialog', { name: /delete kit/i });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Delete' }).click();
 
     await submitEventPromise;
     await successEventPromise;
@@ -1361,6 +1359,48 @@ test.describe('Kit detail workspace', () => {
         // Any other error is expected (404, etc)
       }
     }).toPass({ timeout: 5000 });
+  });
+
+  test('cancels kit deletion when dialog is dismissed', async ({
+    kits,
+    testData,
+    page,
+  }) => {
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Cancel Delete Kit'),
+        build_target: 1,
+      },
+    });
+
+    await kits.gotoOverview();
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await kits.openDetailFromCard(kit.id);
+    await waitForListLoading(page, 'kits.detail', 'ready');
+
+    // Open delete dialog
+    await kits.detailMenuButton.click();
+    await kits.detailDeleteMenuItem.click();
+
+    // Verify dialog is visible
+    const dialog = page.getByRole('dialog', { name: /delete kit/i });
+    await expect(dialog).toBeVisible();
+
+    // Cancel the dialog
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+
+    // Verify dialog is dismissed
+    await expect(dialog).not.toBeVisible();
+
+    // Verify detail view is still visible (no navigation occurred)
+    await expect(page.getByTestId('kits.detail')).toBeVisible();
+
+    // Verify kit still exists in backend (no deletion mutation fired)
+    const stillExists = await testData.kits.getDetail(kit.id);
+    expect(stillExists.id).toBe(kit.id);
+    expect(stillExists.name).toBe(kit.name);
   });
 
   test('orders stock into a Concept list and supports unlinking from kit detail', async ({ kits, testData, toastHelper, page, apiClient }) => {

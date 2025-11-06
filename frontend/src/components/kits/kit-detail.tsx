@@ -21,6 +21,7 @@ import { KitShoppingListDialog } from '@/components/kits/kit-shopping-list-dialo
 import { KitPickListCreateDialog } from '@/components/kits/kit-pick-list-create-dialog';
 import { useKitShoppingListUnlinkMutation } from '@/hooks/use-kit-shopping-list-links';
 import { useToast } from '@/hooks/use-toast';
+import { useConfirm } from '@/hooks/use-confirm';
 import { emitTestEvent } from '@/lib/test/event-emitter';
 import { ApiError } from '@/lib/api/api-error';
 import { trackFormError, trackFormSubmit, trackFormSuccess } from '@/lib/test/form-instrumentation';
@@ -59,6 +60,7 @@ function emitUiState(payload: Omit<UiStateTestEvent, 'timestamp'>) {
 export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { confirm, confirmProps } = useConfirm();
   const {
     isKitIdValid,
     detail,
@@ -311,16 +313,18 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
   const handleDeleteClick = useCallback(async () => {
     if (!detail || archiveMutation.isPending || unarchiveMutation.isPending || deleteKitMutation.isPending) return;
 
-    // Note: Using window.confirm for simplicity, matching parts pattern
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${detail.name}"? This action cannot be undone and will only succeed if the kit has no dependencies.`
-    );
+    const confirmed = await confirm({
+      title: 'Delete Kit',
+      description: `Are you sure you want to delete "${detail.name}"? This action cannot be undone and will only succeed if the kit has no dependencies.`,
+      confirmText: 'Delete',
+      destructive: true,
+    });
 
     if (!confirmed) return;
 
     trackFormSubmit(DELETE_FORM_ID, { kitId: detail.id });
     deleteKitMutation.mutate({ path: { kit_id: detail.id } });
-  }, [detail, archiveMutation, unarchiveMutation, deleteKitMutation]);
+  }, [detail, archiveMutation, unarchiveMutation, deleteKitMutation, confirm]);
 
   const canOrderStock = detail ? detail.status === 'active' && detail.contents.length > 0 : false;
   const canUnlinkShoppingList = detail ? detail.status === 'active' : false;
@@ -515,6 +519,7 @@ export function KitDetail({ kitId, overviewStatus, overviewSearch }: KitDetailPr
           }}
         />
       ) : null}
+      <ConfirmDialog {...confirmProps} />
     </div>
   );
 }
