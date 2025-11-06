@@ -190,7 +190,7 @@ export class KitsPage extends BasePage {
   }
 
   cardDetailLink(kitId: number, tab: KitTab = 'active'): Locator {
-    return this.cardById(kitId, tab).getByTestId(`kits.overview.card.${kitId}.link`);
+    return this.cardById(kitId, tab);
   }
 
   cardByName(name: string | RegExp, tab: KitTab = 'active'): Locator {

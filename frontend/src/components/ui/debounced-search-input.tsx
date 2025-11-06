@@ -107,7 +107,7 @@ export function DebouncedSearchInput({
         <button
           type="button"
           onClick={handleClear}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 transition-colors hover:bg-muted"
+          className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer rounded-full p-1 transition-colors hover:bg-muted"
           aria-label="Clear search"
           data-testid={`${testIdPrefix}.search.clear`}
         >
