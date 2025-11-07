@@ -1,16 +1,9 @@
 """API blueprints for Electronics Inventory."""
 
-from flask import Blueprint, jsonify
+from flask import Blueprint
 
 # Create main API blueprint
 api_bp = Blueprint("api", __name__, url_prefix="/api")
-
-
-# Health check endpoint directly on the main API blueprint
-@api_bp.route("/health")
-def health_check():
-    """Health check endpoint for container orchestration."""
-    return jsonify({"status": "healthy"})
 
 
 # Import and register all resource blueprints
