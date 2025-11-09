@@ -6,11 +6,22 @@ type NativeFormProps = React.ComponentPropsWithoutRef<"form">
 type FormProps = NativeFormProps
 
 export const Form = React.forwardRef<HTMLFormElement, FormProps>(
-  ({ className, children, ...props }, ref) => {
+  ({ className, children, onSubmit, ...props }, ref) => {
+    // Wrap onSubmit to prevent event propagation to parent forms.
+    // This is critical for nested dialogs (e.g., SellerCreateDialog opened from PartForm)
+    // to prevent the dialog's form submission from triggering the parent form's submission.
+    const handleSubmit = onSubmit
+      ? (e: React.FormEvent<HTMLFormElement>) => {
+          e.stopPropagation()
+          onSubmit(e)
+        }
+      : undefined
+
     return (
       <form
         ref={ref}
         {...props}
+        onSubmit={handleSubmit}
         className={cn('', className)}
       >
         {children}

@@ -78,9 +78,13 @@ test('adds, marks cover, and removes documents with the real backend', async ({
 
     await expect.poll(async () => (await testData.parts.getDetail(part.key)).cover_attachment_id).toBe(attachmentId);
 
+    // Capture URL before deletion to verify link doesn't open after confirming deletion
+    const urlBefore = page.url();
     await partsDocuments.deleteDocument(attachmentId, { partKey: part.key });
     await toastHelper.waitForToastWithText(/delete|removed|remove/i, { timeout: 10000 }).catch(() => undefined);
     await partsDocuments.waitForAttachmentCount(0);
+    // Verify that the link was NOT opened (URL should remain unchanged)
+    expect(page.url()).toBe(urlBefore);
 
     await expect.poll(async () => (await testData.attachments.list(part.key)).length).toBe(0);
     await expect.poll(async () => {

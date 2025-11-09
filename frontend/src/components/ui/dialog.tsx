@@ -201,8 +201,16 @@ export function ConfirmDialog({
   destructive = false,
   contentProps
 }: ConfirmDialogProps) {
-  const handleConfirm = () => {
+  const handleConfirm = (e: React.MouseEvent) => {
+    // Prevent event from bubbling to parent elements (e.g., clickable cards)
+    e.stopPropagation()
     onConfirm()
+    onOpenChange(false)
+  }
+
+  const handleCancel = (e: React.MouseEvent) => {
+    // Prevent event from bubbling to parent elements
+    e.stopPropagation()
     onOpenChange(false)
   }
 
@@ -218,7 +226,7 @@ export function ConfirmDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={handleCancel}>
             {cancelText}
           </Button>
           <Button

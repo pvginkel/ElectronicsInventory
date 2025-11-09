@@ -64,4 +64,51 @@ test('creates a seller inline and preserves selection through part lifecycle', a
     await expect(sellers.listTable).toContainText(inlineSellerName)
     await toastHelper.dismissToast({ all: true })
   })
+
+  test('creates seller inline from part EDIT form without submitting parent form', async ({ parts, testData, toastHelper }) => {
+    // Create a part with a type
+    const type = await testData.types.create({ name: makeUnique('Edit Flow Type') })
+    const { part } = await testData.parts.create({
+      overrides: {
+        description: makeUnique('Part to Edit'),
+        manufacturer_code: `EDIT-${makeUniqueToken(4).toUpperCase()}`,
+        type_id: type.id
+      }
+    })
+
+    // Navigate to edit form for the part
+    await parts.gotoList()
+    await parts.waitForCards()
+    await parts.openCardByKey(part.key)
+    await expect(parts.detailRoot).toBeVisible()
+
+    // Verify part detail does NOT show the new seller yet
+    await expect(parts.detailRoot).not.toContainText('Edit Form Seller')
+
+    await parts.editPartButton.click()
+    await expect(parts.formRoot).toBeVisible()
+
+    // Trigger inline seller creation
+    const selector = new SellerSelectorHarness(parts.playwrightPage)
+    await selector.waitForReady()
+
+    const inlineSellerName = makeUnique('Edit Form Seller')
+    const inlineWebsite = `https://edit-${makeUniqueToken(8)}.example.com`
+
+    await selector.triggerInlineCreate(inlineSellerName)
+    await selector.fillInlineCreate({ name: inlineSellerName, website: inlineWebsite })
+    await selector.submitInlineCreate()
+    await toastHelper.expectSuccessToast(/seller created successfully/i)
+    await selector.expectSelected(inlineSellerName)
+
+    // Verify parent form is still visible (not submitted)
+    await expect(parts.formRoot).toBeVisible()
+
+    // Now cancel the edit form to verify we can exit without committing
+    await parts.formCancel.click()
+    await expect(parts.detailRoot).toBeVisible()
+
+    // Verify part detail still does NOT show the seller (form was cancelled)
+    await expect(parts.detailRoot).not.toContainText(inlineSellerName)
+  })
 })
