@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, jsonify
 
@@ -43,7 +45,7 @@ def get_task_stream(task_id: str, task_service=Provide[ServiceContainer.task_ser
 
                 if not events:
                     # Send heartbeat event instead of raw keepalive
-                    yield format_sse_event("heartbeat", {"timestamp": task_service.get_current_time()}, correlation_id)
+                    yield format_sse_event("heartbeat", {"timestamp": datetime.now(UTC).isoformat()}, correlation_id)
                     continue
 
                 for event in events:
