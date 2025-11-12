@@ -54,8 +54,11 @@ def main():
             # Production: Use Waitress WSGI server
             wsgi = TransLogger(app, setup_console_handler=False)
 
-            wsgi.logger.info("Using Waitress WSGI server for production")
-            serve(wsgi, host=host, port=port, threads=20)
+            # For AI-heavy workloads (external API calls block threads),
+            # we need more threads than typical CRUD apps
+            threads = int(os.getenv("WAITRESS_THREADS", 100))
+            wsgi.logger.info(f"Using Waitress WSGI server with {threads} threads")
+            serve(wsgi, host=host, port=port, threads=threads)
 
         thread = threading.Thread(target=runner, daemon=True)
         thread.start()
