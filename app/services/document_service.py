@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from io import BytesIO
 from typing import BinaryIO
 
-import magic
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -22,6 +21,7 @@ from app.services.html_document_handler import HtmlDocumentHandler
 from app.services.image_service import ImageService
 from app.services.s3_service import S3Service
 from app.services.url_transformers import URLInterceptorRegistry
+from app.utils.mime_handling import detect_mime_type
 from app.utils.text_utils import truncate_with_ellipsis
 from app.utils.url_utils import get_filename_from_url
 
@@ -104,8 +104,10 @@ class DocumentService(BaseService):
         content = download_result.content
 
         # Detect actual content type from bytes
-        detected_mime_type = magic.from_buffer(content, mime=True)
+        detected_mime_type = detect_mime_type(content, download_result.content_type)
         detected_attachment_type = self._mime_type_to_attachment_type(detected_mime_type)
+
+        logger.info(f"Download content type {download_result.content_type}, detected content type {detected_mime_type} for URL {url}")
 
         # Extract filename from URL for non-HTML content
         filename = get_filename_from_url(url, "upload")
@@ -155,20 +157,17 @@ class DocumentService(BaseService):
         """
         try:
             # Use python-magic to detect actual file type
-            detected_type = magic.from_buffer(file_data, mime=True)
+            detected_type = detect_mime_type(file_data, content_type)
 
             # Allowed file types from config
             allowed_image_types = self.settings.ALLOWED_IMAGE_TYPES
             allowed_file_types = self.settings.ALLOWED_FILE_TYPES
             all_allowed = allowed_image_types + allowed_file_types
 
-            # Use detected type if it's more specific/reliable
-            final_type = detected_type if detected_type in all_allowed else content_type
+            if detected_type not in all_allowed:
+                raise InvalidOperationException("validate file type", f"file type not allowed: {detected_type}")
 
-            if final_type not in all_allowed:
-                raise InvalidOperationException("validate file type", f"file type not allowed: {final_type}")
-
-            return final_type
+            return detected_type
 
         except Exception as e:
             raise InvalidOperationException("validate file type", f"validation failed: {str(e)}") from e
@@ -212,7 +211,7 @@ class DocumentService(BaseService):
         file_data.seek(0)
         file_bytes = file_data.read()
 
-        validated_content_type = magic.from_buffer(file_bytes, mime=True)
+        validated_content_type = detect_mime_type(file_bytes, None)
 
         return self._create_attachment(
             part_key=part_key,

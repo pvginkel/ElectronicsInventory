@@ -8,6 +8,7 @@ import pytest
 import requests
 
 from app.services.download_cache_service import DownloadCacheService, DownloadResult
+from app.utils.mime_handling import detect_mime_type
 from app.utils.temp_file_manager import TempFileManager
 from tests.testing_utils import StubShutdownCoordinator
 
@@ -376,55 +377,55 @@ class TestDownloadCacheService:
         assert service.max_download_size == 500 * 1024
         assert service.download_timeout == 5
 
-    def test_detect_mime_type_html_with_leading_whitespace(self, download_service):
+    def test_detect_mime_type_html_with_leading_whitespace(self):
         """Test MIME detection for HTML with leading whitespace (like datasheet4u.com)."""
         # Simulate the problematic content from datasheet4u.com
         content = b'\r\n\r\n\r\n\r\n\r\n<!DOCTYPE HTML>\r\n<html lang="en">\r\n<head>\r\n</head>\r\n</html>'
 
-        detected = download_service._detect_mime_type(content)
+        detected = detect_mime_type(content)
 
         # Should correctly detect as HTML after stripping
         assert detected == 'text/html'
 
-    def test_detect_mime_type_normal_html(self, download_service):
+    def test_detect_mime_type_normal_html(self):
         """Test MIME detection for normal HTML without leading whitespace."""
         content = b'<!DOCTYPE html>\r\n<html>\r\n<head><title>Test</title></head>\r\n</html>'
 
-        detected = download_service._detect_mime_type(content)
+        detected = detect_mime_type(content)
 
         assert detected == 'text/html'
 
-    def test_detect_mime_type_trusts_html_header(self, download_service):
+    def test_detect_mime_type_trusts_html_header(self):
         """Test that HTTP Content-Type header is trusted for HTML."""
         # Content could be anything - we trust the header
         content = b'some random content that is not actually HTML'
 
-        detected = download_service._detect_mime_type(content, http_content_type='text/html')
+        detected = detect_mime_type(content, http_content_type='text/html')
 
         # Should trust the HTTP header
         assert detected == 'text/html'
 
-    @patch('magic.from_buffer')
-    def test_detect_mime_type_fallback_to_http_header(self, mock_magic, download_service):
+    @patch('app.utils.mime_handling.magic.from_buffer')
+    def test_detect_mime_type_fallback_to_http_header(self, mock_magic):
         """Test fallback to HTTP Content-Type header when magic detection fails."""
         # Simulate magic incorrectly detecting a PDF
         mock_magic.return_value = 'application/octet-stream'
 
         content = b'%PDF-1.4\r\n...'
 
-        detected = download_service._detect_mime_type(content, http_content_type='application/pdf')
+        detected = detect_mime_type(content, http_content_type='application/pdf')
 
         # Should fall back to HTTP header
         assert detected == 'application/pdf'
 
-    @patch('magic.from_buffer')
-    def test_detect_mime_type_http_header_with_charset(self, mock_magic, download_service):
+    @patch('app.utils.mime_handling.magic.from_buffer')
+    def test_detect_mime_type_http_header_with_charset(self, mock_magic):
         """Test that charset is stripped from HTTP Content-Type header."""
         mock_magic.return_value = 'application/octet-stream'
 
         content = b'<!DOCTYPE html>\r\n<html></html>'
 
-        detected = download_service._detect_mime_type(
+        detected = detect_mime_type(
             content,
             http_content_type='text/html; charset=utf-8'
         )
@@ -432,33 +433,33 @@ class TestDownloadCacheService:
         # Should extract just 'text/html' from header
         assert detected == 'text/html'
 
-    def test_detect_mime_type_trusts_image_header(self, download_service):
+    def test_detect_mime_type_trusts_image_header(self):
         """Test that HTTP Content-Type header is trusted for images."""
         # Header says JPEG, trust it
         content = b'some content'
 
-        detected = download_service._detect_mime_type(content, http_content_type='image/jpeg')
+        detected = detect_mime_type(content, http_content_type='image/jpeg')
 
         assert detected == 'image/jpeg'
 
-    def test_detect_mime_type_trusts_pdf_header(self, download_service):
+    def test_detect_mime_type_trusts_pdf_header(self):
         """Test that HTTP Content-Type header is trusted for PDFs."""
         # Header says PDF, trust it
         content = b'some content'
 
-        detected = download_service._detect_mime_type(content, http_content_type='application/pdf')
+        detected = detect_mime_type(content, http_content_type='application/pdf')
 
         assert detected == 'application/pdf'
 
-    @patch('magic.from_buffer')
-    def test_detect_mime_type_falls_back_to_magic_for_other_types(self, mock_magic, download_service):
+    @patch('app.utils.mime_handling.magic.from_buffer')
+    def test_detect_mime_type_falls_back_to_magic_for_other_types(self, mock_magic):
         """Test that magic detection is used when header is not a common web type."""
         mock_magic.return_value = 'application/json'
 
         content = b'{"key": "value"}'
 
         # Header says something else, but it's not HTML/PDF/image, so use magic
-        detected = download_service._detect_mime_type(content, http_content_type='application/octet-stream')
+        detected = detect_mime_type(content, http_content_type='application/octet-stream')
 
         # Should use magic detection for non-web types
         assert detected == 'application/json'
