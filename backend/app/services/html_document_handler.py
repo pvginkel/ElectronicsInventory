@@ -4,7 +4,6 @@ import io
 import logging
 from urllib.parse import urljoin, urlparse
 
-import magic
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from PIL import Image
@@ -13,6 +12,7 @@ from app.config import Settings
 from app.schemas.upload_document import DocumentContentSchema
 from app.services.download_cache_service import DownloadCacheService
 from app.services.image_service import ImageService
+from app.utils.mime_handling import detect_mime_type
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +194,7 @@ class HtmlDocumentHandler:
             content = download_result.content
 
             # Check content type with magic
-            content_type = magic.from_buffer(content, mime=True)
+            content_type = detect_mime_type(content, download_result.content_type)
 
             # If it's not in allowed types but magic detected it as an image, try to convert it
             if content_type not in self.settings.ALLOWED_IMAGE_TYPES:

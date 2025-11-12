@@ -3,10 +3,10 @@
 import logging
 from typing import NamedTuple
 
-import magic
 import requests
 import validators
 
+from app.utils.mime_handling import detect_mime_type
 from app.utils.temp_file_manager import TempFileManager
 
 logger = logging.getLogger(__name__)
@@ -150,7 +150,7 @@ class DownloadCacheService:
                     )
 
             # Detect actual MIME type using python-magic with improved heuristics
-            detected_type = self._detect_mime_type(content, response.headers.get('content-type'))
+            detected_type = detect_mime_type(content, response.headers.get('content-type'))
 
             logger.debug(
                 f"Downloaded {len(content)} bytes from {url}, "
@@ -165,31 +165,3 @@ class DownloadCacheService:
         except Exception as e:
             logger.error(f"Unexpected error downloading from {url}: {e}")
             raise ValueError(f"Download failed: {e}") from e
-
-    def _detect_mime_type(self, content: bytes, http_content_type: str | None = None) -> str:
-        """
-        Detect MIME type, trusting HTTP Content-Type header for common web content.
-
-        The HTTP Content-Type header is authoritative - if the server says it's serving
-        HTML, PDF, or an image, we trust that. Otherwise we fall back to magic detection.
-
-        Args:
-            content: Downloaded content bytes
-            http_content_type: Optional Content-Type header from HTTP response
-
-        Returns:
-            Detected MIME type string
-        """
-        # If server provides a Content-Type header for common web content, trust it
-        if http_content_type:
-            # Extract just the MIME type (strip charset and other parameters)
-            header_mime = http_content_type.split(';')[0].strip().lower()
-
-            # Trust the server for HTML, PDF, and images
-            if header_mime == 'text/html' or header_mime == 'application/pdf' or header_mime.startswith('image/'):
-                return header_mime
-
-        # Fall back to magic detection for everything else
-        # Strip leading whitespace for better detection (some sites add blank lines before <!DOCTYPE>)
-        stripped_content = content.lstrip()
-        return magic.from_buffer(stripped_content, mime=True)
