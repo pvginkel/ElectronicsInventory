@@ -133,7 +133,13 @@ export interface ListLoadingTestEvent extends BaseTestEvent {
   kind: 'list_loading';
   scope: string;
   phase: 'loading' | 'ready' | 'error' | 'aborted' | 'filtered' | 'cleared';
-  metadata?: Record<string, unknown>;
+  metadata?: {
+    paginationInfo?: {
+      pagesFetched: number;
+      limit: number;
+    };
+    [key: string]: unknown;
+  };
 }
 
 /**

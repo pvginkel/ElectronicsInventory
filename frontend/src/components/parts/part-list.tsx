@@ -8,7 +8,8 @@ import { Card } from '@/components/ui/card';
 import { CollectionGrid, EmptyState } from '@/components/ui';
 import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useGetPartsWithLocations, useGetTypes, type PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema } from '@/lib/api/generated/hooks';
+import { useGetTypes, type PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema } from '@/lib/api/generated/hooks';
+import { useAllPartsWithLocations } from '@/hooks/use-all-parts-with-locations';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { useShoppingListMembershipIndicators } from '@/hooks/use-part-shopping-list-memberships';
@@ -32,7 +33,8 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
     isLoading: partsLoading,
     isFetching: partsFetching,
     error: partsError,
-  } = useGetPartsWithLocations();
+    pagesFetched,
+  } = useAllPartsWithLocations();
   const {
     data: types = [],
     isLoading: typesLoading,
@@ -46,6 +48,7 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
   const hideLoadingTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
+    // Trigger invalidation for parts pagination hook
     queryClient.invalidateQueries({ queryKey: ['getPartsWithLocations'] });
     queryClient.invalidateQueries({ queryKey: ['getTypes'] });
   }, [queryClient]);
@@ -176,6 +179,10 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
       ...(typeof filteredCount === 'number' ? { filteredCount } : {}),
       searchTerm: searchActive ? searchTerm : null,
       activeFilters,
+      paginationInfo: {
+        pagesFetched,
+        limit: 1000,
+      },
     }),
     getErrorMetadata: () => {
       const metadata: Record<string, unknown> = {

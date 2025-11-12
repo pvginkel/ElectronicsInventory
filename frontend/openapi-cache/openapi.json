@@ -11328,16 +11328,6 @@
         "tags": []
       }
     },
-    "/api/health": {
-      "get": {
-        "description": "",
-        "operationId": "get__api_health",
-        "parameters": [],
-        "responses": {},
-        "summary": "Health check endpoint for container orchestration.",
-        "tags": []
-      }
-    },
     "/api/health/drain": {
       "get": {
         "description": "Requires bearer token authentication against DRAIN_AUTH_KEY config setting. Calls drain() on the shutdown coordinator and returns health status.",
