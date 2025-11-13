@@ -500,3 +500,131 @@ class TestPartService:
 
             with pytest.raises(RecordNotFoundException, match=f"Part {unknown_key} was not found"):
                 part_service.get_part_ids_by_keys([part.key, unknown_key])
+
+
+def test_get_all_parts_for_search_returns_all_parts(session: Session):
+    """Test get_all_parts_for_search returns all parts with proper structure."""
+    from app.models.part import Part
+    from app.models.type import Type
+    from app.services.part_service import PartService
+
+    # Create sample types
+    relay_type = Type(name="Relay")
+    micro_type = Type(name="Microcontroller")
+    session.add_all([relay_type, micro_type])
+    session.flush()
+
+    # Create sample parts
+    part1 = Part(
+        key="ABCD",
+        description="Test relay",
+        manufacturer_code="G5Q-1A4",
+        manufacturer="OMRON",
+        type=relay_type,
+        package="DIP-8",
+        pin_count=8,
+        pin_pitch="2.54mm",
+        voltage_rating="12V",
+        series="G5Q"
+    )
+    part2 = Part(
+        key="EFGH",
+        description="Arduino board",
+        manufacturer_code="A000066",
+        manufacturer="Arduino",
+        type=micro_type
+    )
+    part3 = Part(
+        key="IJKL",
+        description="Minimal part",
+        # All optional fields are None
+    )
+    session.add_all([part1, part2, part3])
+    session.flush()
+
+    # Get parts for search
+    service = PartService(db=session)
+    result = service.get_all_parts_for_search()
+
+    # Verify all parts returned
+    assert len(result) == 3
+
+    # Verify part1 structure (full data)
+    part1_data = next(p for p in result if p["key"] == "ABCD")
+    assert part1_data["manufacturer_code"] == "G5Q-1A4"
+    assert part1_data["manufacturer"] == "OMRON"
+    assert part1_data["type_name"] == "Relay"
+    assert part1_data["description"] == "Test relay"
+    assert part1_data["package"] == "DIP-8"
+    assert part1_data["pin_count"] == 8
+    assert part1_data["pin_pitch"] == "2.54mm"
+    assert part1_data["voltage_rating"] == "12V"
+    assert part1_data["series"] == "G5Q"
+    assert part1_data["tags"] == []
+
+    # Verify part3 structure (minimal data with nulls)
+    part3_data = next(p for p in result if p["key"] == "IJKL")
+    assert part3_data["manufacturer_code"] is None
+    assert part3_data["manufacturer"] is None
+    assert part3_data["type_name"] is None
+    assert part3_data["package"] is None
+    assert part3_data["pin_count"] is None
+
+
+def test_get_all_parts_for_search_handles_empty_database(session: Session):
+    """Test get_all_parts_for_search with empty database."""
+    from app.services.part_service import PartService
+
+    service = PartService(db=session)
+    result = service.get_all_parts_for_search()
+
+    assert result == []
+
+
+def test_get_all_parts_for_search_handles_tags(session: Session):
+    """Test get_all_parts_for_search properly includes tags."""
+    from app.models.part import Part
+    from app.services.part_service import PartService
+
+    # Create part with tags
+    part = Part(
+        key="TEST",
+        description="Part with tags",
+        tags=["SMD", "0603", "10k"]
+    )
+    session.add(part)
+    session.flush()
+
+    # Get parts for search
+    service = PartService(db=session)
+    result = service.get_all_parts_for_search()
+
+    assert len(result) == 1
+    assert result[0]["tags"] == ["SMD", "0603", "10k"]
+
+
+def test_get_all_parts_for_search_excludes_quantity_and_images(session: Session):
+    """Test that search data excludes quantity, locations, images, and documents."""
+    from app.models.part import Part
+    from app.services.part_service import PartService
+
+    # Create part (quantity tracked separately in part_locations)
+    part = Part(
+        key="TEST",
+        description="Test part"
+    )
+    session.add(part)
+    session.flush()
+
+    # Get parts for search
+    service = PartService(db=session)
+    result = service.get_all_parts_for_search()
+
+    # Verify excluded fields are not present
+    assert len(result) == 1
+    assert "quantity" not in result[0]
+    assert "locations" not in result[0]
+    assert "images" not in result[0]
+    assert "documents" not in result[0]
+    assert "created_at" not in result[0]
+    assert "updated_at" not in result[0]

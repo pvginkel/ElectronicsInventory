@@ -78,10 +78,19 @@ class AIPartAnalysisTask(BaseSessionTask):
             # Phase 3: Document processing already happened in AI service (80-95%)
             progress_handle.send_progress("Processing downloaded documentation", 0.8)
 
-            # Check if any documents were downloaded
-            doc_count = len(analysis_result.documents)
-            if doc_count > 0:
-                logger.info(f"Successfully downloaded {doc_count} documents")
+            # Handle response structure (can have one or both fields populated)
+            if analysis_result.duplicate_parts is not None:
+                dup_count = len(analysis_result.duplicate_parts)
+                logger.info(f"AI analysis found {dup_count} potential duplicate(s)")
+
+            if analysis_result.analysis_result is not None:
+                doc_count = len(analysis_result.analysis_result.documents)
+                if doc_count > 0:
+                    logger.info(f"Successfully downloaded {doc_count} documents")
+
+            if analysis_result.duplicate_parts is None and analysis_result.analysis_result is None:
+                # Edge case: Neither field populated (shouldn't happen with schema validation)
+                logger.warning("AI analysis returned neither analysis_result nor duplicate_parts")
 
             if self.is_cancelled:
                 return AIPartAnalysisTaskCancelledResultSchema()
@@ -89,9 +98,20 @@ class AIPartAnalysisTask(BaseSessionTask):
             # Phase 4: Finalization (95-100%)
             progress_handle.send_progress("Finalizing suggestions", 0.95)
 
-            # Log analysis summary
-            logger.info(f"AI analysis completed - Type: {analysis_result.type}, "
-                       f"Documents: {len(analysis_result.documents)}")
+            # Log analysis summary (can include both duplicates and analysis)
+            summary_parts = []
+            if analysis_result.duplicate_parts is not None:
+                high_conf = sum(1 for d in analysis_result.duplicate_parts if d.confidence == "high")
+                summary_parts.append(f"Found {len(analysis_result.duplicate_parts)} duplicates ({high_conf} high confidence)")
+
+            if analysis_result.analysis_result is not None:
+                summary_parts.append(f"Type: {analysis_result.analysis_result.type}, "
+                                   f"Documents: {len(analysis_result.analysis_result.documents)}")
+
+            if summary_parts:
+                logger.info(f"AI analysis completed - {'; '.join(summary_parts)}")
+            else:
+                logger.warning("AI analysis completed with no result")
 
             progress_handle.send_progress("Analysis complete", 1.0)
 

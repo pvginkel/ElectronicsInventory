@@ -9,6 +9,7 @@ from app.schemas.ai_part_analysis import (
     AIPartAnalysisResultSchema,
     AIPartAnalysisTaskCancelledResultSchema,
     AIPartAnalysisTaskResultSchema,
+    PartAnalysisDetailsSchema,
 )
 from app.services.ai_part_analysis_task import AIPartAnalysisTask
 
@@ -54,13 +55,16 @@ class TestAIPartAnalysisTask:
         """Test successful task execution with text input only."""
         # Mock AI service response
         mock_analysis_result = AIPartAnalysisResultSchema(
-            manufacturer_code="TEST123",
-            type="Relay",
-            description="Test relay",
-            tags=["relay", "12V"],
-            type_is_existing=True,
-            existing_type_id=1,
-            documents=[]
+            analysis_result=PartAnalysisDetailsSchema(
+                manufacturer_code="TEST123",
+                type="Relay",
+                description="Test relay",
+                tags=["relay", "12V"],
+                type_is_existing=True,
+                existing_type_id=1,
+                documents=[]
+            ),
+            duplicate_parts=None
         )
         mock_ai_service.analyze_part.return_value = mock_analysis_result
 
@@ -75,7 +79,8 @@ class TestAIPartAnalysisTask:
         assert isinstance(result, AIPartAnalysisTaskResultSchema)
         assert result.success is True
         assert result.analysis is not None
-        assert result.analysis.manufacturer_code == "TEST123"
+        assert result.analysis.analysis_result is not None
+        assert result.analysis.analysis_result.manufacturer_code == "TEST123"
         assert result.error_message is None
 
         # Verify AI service was called correctly
@@ -98,18 +103,21 @@ class TestAIPartAnalysisTask:
         """Test successful task execution with image input."""
         # Mock AI service response
         mock_analysis_result = AIPartAnalysisResultSchema(
-            manufacturer_code="IMG123",
-            type="Microcontroller",
-            description="Arduino board",
-            tags=["microcontroller", "arduino"],
-            type_is_existing=True,
-            existing_type_id=2,
-            documents=[{
-                "url": "https://example.com/datasheet.pdf",
-                "url_type": "link",
-                "document_type": "datasheet",
-                "description": "Complete datasheet"
-            }]
+            analysis_result=PartAnalysisDetailsSchema(
+                manufacturer_code="IMG123",
+                type="Microcontroller",
+                description="Arduino board",
+                tags=["microcontroller", "arduino"],
+                type_is_existing=True,
+                existing_type_id=2,
+                documents=[{
+                    "url": "https://example.com/datasheet.pdf",
+                    "url_type": "link",
+                    "document_type": "datasheet",
+                    "description": "Complete datasheet"
+                }]
+            ),
+            duplicate_parts=None
         )
         mock_ai_service.analyze_part.return_value = mock_analysis_result
 
@@ -126,7 +134,8 @@ class TestAIPartAnalysisTask:
         assert isinstance(result, AIPartAnalysisTaskResultSchema)
         assert result.success is True
         assert result.analysis is not None
-        assert len(result.analysis.documents) == 1
+        assert result.analysis.analysis_result is not None
+        assert len(result.analysis.analysis_result.documents) == 1
 
         # Verify AI service was called with all parameters
         mock_ai_service.analyze_part.assert_called_once_with(
@@ -196,10 +205,14 @@ class TestAIPartAnalysisTask:
         def mock_analyze_part(*args, **kwargs):
             # Simulate cancellation during analysis
             return AIPartAnalysisResultSchema(
-                manufacturer_code="CANCELLED",
-                type="Test",
-                description="Test part",
-                type_is_existing=False
+                analysis_result=PartAnalysisDetailsSchema(
+                    manufacturer_code="CANCELLED",
+                    type="Test",
+                    description="Test part",
+                    type_is_existing=False,
+                    documents=[]
+                ),
+                duplicate_parts=None
             )
 
         mock_ai_service.analyze_part.side_effect = mock_analyze_part
@@ -243,11 +256,14 @@ class TestAIPartAnalysisTask:
         """Test that progress is reported in the correct sequence and ranges."""
         # Mock AI service response
         mock_analysis_result = AIPartAnalysisResultSchema(
-            manufacturer_code="PROG123",
-            type="Sensor",
-            description="Test sensor",
-            type_is_existing=False,
-            documents=[]
+            analysis_result=PartAnalysisDetailsSchema(
+                manufacturer_code="PROG123",
+                type="Sensor",
+                description="Test sensor",
+                type_is_existing=False,
+                documents=[]
+            ),
+            duplicate_parts=None
         )
         mock_ai_service.analyze_part.return_value = mock_analysis_result
 
@@ -292,24 +308,27 @@ class TestAIPartAnalysisTask:
         """Test logging when documents are successfully downloaded."""
         # Mock AI service response with documents
         mock_analysis_result = AIPartAnalysisResultSchema(
-            manufacturer_code="DOC123",
-            type="Component",
-            description="Component with docs",
-            type_is_existing=False,
-            documents=[
-                {
-                    "url": "https://example.com/datasheet1.pdf",
-                    "url_type": "link",
-                    "document_type": "datasheet",
-                    "description": None
-                },
-                {
-                    "url": "https://example.com/manual.pdf",
-                    "url_type": "link",
-                    "document_type": "manual",
-                    "description": "User manual"
-                }
-            ]
+            analysis_result=PartAnalysisDetailsSchema(
+                manufacturer_code="DOC123",
+                type="Component",
+                description="Component with docs",
+                type_is_existing=False,
+                documents=[
+                    {
+                        "url": "https://example.com/datasheet1.pdf",
+                        "url_type": "link",
+                        "document_type": "datasheet",
+                        "description": None
+                    },
+                    {
+                        "url": "https://example.com/manual.pdf",
+                        "url_type": "link",
+                        "document_type": "manual",
+                        "description": "User manual"
+                    }
+                ]
+            ),
+            duplicate_parts=None
         )
         mock_ai_service.analyze_part.return_value = mock_analysis_result
 
@@ -323,7 +342,8 @@ class TestAIPartAnalysisTask:
 
             # Verify successful execution
             assert result.success is True
-            assert len(result.analysis.documents) == 2
+            assert result.analysis.analysis_result is not None
+            assert len(result.analysis.analysis_result.documents) == 2
 
             # Check that document download was logged
             info_calls = [call.args[0] for call in mock_logger.info.call_args_list]

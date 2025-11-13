@@ -1,8 +1,9 @@
 """AI part analysis schemas for request/response validation."""
 
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.duplicate_search import DuplicateMatchEntry
 from app.schemas.url_preview import UrlPreviewResponseSchema
 
 
@@ -29,8 +30,8 @@ class DocumentSuggestionSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class AIPartAnalysisResultSchema(BaseModel):
-    """Schema for AI analysis result containing all part suggestions."""
+class PartAnalysisDetailsSchema(BaseModel):
+    """Schema for full AI part analysis details."""
 
     manufacturer_code: str | None = Field(
         default=None,
@@ -128,6 +129,51 @@ class AIPartAnalysisResultSchema(BaseModel):
         description="ID of existing type if type_is_existing is True",
         json_schema_extra={"example": 5}
     )
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AIPartAnalysisResultSchema(BaseModel):
+    """Schema for AI analysis result with flexible response paths.
+
+    The LLM can populate:
+    - Only analysis_result (full analysis, no duplicates found)
+    - Only duplicate_parts (high-confidence duplicates found, no analysis needed)
+    - Both fields (medium-confidence duplicates found, full analysis also performed)
+
+    Both fields are optional; LLM prompt guidance determines which to populate.
+    """
+
+    analysis_result: PartAnalysisDetailsSchema | None = Field(
+        default=None,
+        description="Full part analysis when no high-confidence duplicates found or duplicate search not performed"
+    )
+    duplicate_parts: list[DuplicateMatchEntry] | None = Field(
+        default=None,
+        description="List of potential duplicate parts when duplicates are found (includes high and medium confidence matches)"
+    )
+
+    @model_validator(mode='after')
+    def validate_at_least_one_path(self) -> 'AIPartAnalysisResultSchema':
+        """Validate that at least one of analysis_result or duplicate_parts is populated.
+
+        This ensures the LLM provided some result without being overly restrictive.
+        Both fields can be populated (e.g., when medium-confidence duplicates are found
+        alongside full analysis).
+
+        Raises:
+            ValueError: If both fields are None
+        """
+        has_analysis = self.analysis_result is not None
+        has_duplicates = self.duplicate_parts is not None
+
+        if not (has_analysis or has_duplicates):
+            raise ValueError(
+                "At least one of analysis_result or duplicate_parts must be populated. "
+                f"Got: analysis_result={has_analysis}, duplicate_parts={has_duplicates}"
+            )
+
+        return self
 
     model_config = ConfigDict(from_attributes=True)
 

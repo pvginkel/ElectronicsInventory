@@ -44,7 +44,7 @@ class AIFunction(ABC):
     def get_function_tool(self) -> FunctionToolParam:
         return {
             "type": "function",
-            "name": "classify_urls",
+            "name": self.get_name(),
             "strict": True,
             "description": self.get_description(),
             "parameters": self.get_model().model_json_schema()
@@ -76,9 +76,17 @@ class AIResponse(BaseModel):
     reasoning_tokens: int
     cost: float | None
 
+class NoProgressHandle:
+    def send_progress_text(self, text: str) -> None:
+        pass
+    def send_progress_value(self, value: float) -> None:
+        pass
+    def send_progress(self, text: str, value: float) -> None:
+        pass
+
 
 class AIRunner:
-    def __init__(self, api_key: str, metrics_service: MetricsServiceProtocol):
+    def __init__(self, api_key: str, metrics_service: MetricsServiceProtocol | None = None):
         def on_request(request):
             logger.info(f"Sending request to URL {request.method} {request.url}")
             logger.info(f"Body {request.content}")
@@ -91,7 +99,10 @@ class AIRunner:
         self.client = OpenAI(api_key=api_key, http_client=self.http_client)
         self.metrics_service = metrics_service
 
-    def run(self, request: AIRequest, function_tools: list[AIFunction], progress_handle: ProgressHandle, streaming: bool) -> AIResponse:
+    def run(self, request: AIRequest, function_tools: list[AIFunction], progress_handle: ProgressHandle | None = None, streaming: bool = False) -> AIResponse:
+        if not progress_handle:
+            progress_handle = NoProgressHandle()
+
         # Build input and instructions for Responses API
         input_content: list[Any] = self._build_responses_api_input(request)
 
@@ -122,7 +133,9 @@ class AIRunner:
 
         elapsed_time = int(time.perf_counter() - start)
 
-        logger.info(f"OpenAI response status: {response.status}, duration {elapsed_time}, incomplete details: {response.incomplete_details}")
+        cost = self._calculate_cost(request.model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
+
+        logger.info(f"OpenAI response status: {response.status}, duration {elapsed_time}, incomplete details: {response.incomplete_details}, cost {cost:.3f}")
         logger.info(f"Output text: {response.output_text}")
 
         parsed_response = response.output_parsed
@@ -137,7 +150,7 @@ class AIRunner:
             cached_input_tokens=cached_input_tokens,
             output_tokens=output_tokens,
             reasoning_tokens=reasoning_tokens,
-            cost=self._calculate_cost(request.model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
+            cost=cost
         )
 
     def _handle_function_call(
@@ -201,36 +214,38 @@ class AIRunner:
                     reasoning_tokens = response.usage.output_tokens_details.reasoning_tokens
                     cost = self._calculate_cost(request.model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
 
-                    self.metrics_service.record_ai_analysis(
-                        status="success",
-                        model=request.model,
-                        verbosity=request.verbosity,
-                        reasoning_effort=request.reasoning_effort or "none",
-                        duration=duration,
-                        tokens_input=input_tokens,
-                        tokens_output=output_tokens,
-                        tokens_reasoning=reasoning_tokens,
-                        tokens_cached_input=cached_input_tokens,
-                        cost_dollars=cost or 0.0
-                    )
+                    if self.metrics_service:
+                        self.metrics_service.record_ai_analysis(
+                            status="success",
+                            model=request.model,
+                            verbosity=request.verbosity,
+                            reasoning_effort=request.reasoning_effort or "none",
+                            duration=duration,
+                            tokens_input=input_tokens,
+                            tokens_output=output_tokens,
+                            tokens_reasoning=reasoning_tokens,
+                            tokens_cached_input=cached_input_tokens,
+                            cost_dollars=cost or 0.0
+                        )
 
                 return response
 
             except APIError as e:
                 # Record failed API call metrics
                 duration = time.perf_counter() - start
-                self.metrics_service.record_ai_analysis(
-                    status="error",
-                    model=request.model,
-                    verbosity=request.verbosity,
-                    reasoning_effort=request.reasoning_effort or "none",
-                    duration=duration,
-                    tokens_input=0,
-                    tokens_output=0,
-                    tokens_reasoning=0,
-                    tokens_cached_input=0,
-                    cost_dollars=0.0
-                )
+                if self.metrics_service:
+                    self.metrics_service.record_ai_analysis(
+                        status="error",
+                        model=request.model,
+                        verbosity=request.verbosity,
+                        reasoning_effort=request.reasoning_effort or "none",
+                        duration=duration,
+                        tokens_input=0,
+                        tokens_output=0,
+                        tokens_reasoning=0,
+                        tokens_cached_input=0,
+                        cost_dollars=0.0
+                    )
 
                 if attempt >= 3:
                     raise
@@ -382,6 +397,7 @@ class AIRunner:
                 cached_input_pm = 0.2
                 output_pm = 3.2
             case _:
+                raise Exception("hi")
                 return None
 
         return (

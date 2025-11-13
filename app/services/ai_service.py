@@ -14,7 +14,9 @@ from app.models.part_attachment import AttachmentType
 from app.schemas.ai_part_analysis import (
     AIPartAnalysisResultSchema,
     DocumentSuggestionSchema,
+    PartAnalysisDetailsSchema,
 )
+from app.schemas.duplicate_search import DuplicateMatchEntry
 from app.services.ai_model import PartAnalysisSuggestion
 from app.services.base import BaseService
 from app.services.base_task import ProgressHandle
@@ -22,7 +24,7 @@ from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
 from app.services.metrics_service import MetricsServiceProtocol
 from app.services.type_service import TypeService
-from app.utils.ai.ai_runner import AIRequest, AIRunner
+from app.utils.ai.ai_runner import AIFunction, AIRequest, AIRunner
 from app.utils.ai.url_classification import (
     ClassifyUrlsEntry,
     ClassifyUrlsRequest,
@@ -37,7 +39,17 @@ logger = logging.getLogger(__name__)
 class AIService(BaseService):
     """Service for AI-powered part analysis using OpenAI."""
 
-    def __init__(self, db, config: Settings, temp_file_manager: TempFileManager, type_service: TypeService, download_cache_service: DownloadCacheService, document_service: DocumentService, metrics_service: MetricsServiceProtocol):
+    def __init__(
+        self,
+        db,
+        config: Settings,
+        temp_file_manager: TempFileManager,
+        type_service: TypeService,
+        download_cache_service: DownloadCacheService,
+        document_service: DocumentService,
+        metrics_service: MetricsServiceProtocol,
+        duplicate_search_function: AIFunction,
+    ):
         super().__init__(db)
         self.config = config
         self.temp_file_manager = temp_file_manager
@@ -45,6 +57,7 @@ class AIService(BaseService):
         self.download_cache_service = download_cache_service
         self.document_service = document_service
         self.url_classifier_function = URLClassifierFunctionImpl(download_cache_service, document_service)
+        self.duplicate_search_function = duplicate_search_function
         self.real_ai_allowed = config.real_ai_allowed
         self.runner: AIRunner | None = None
 
@@ -109,67 +122,101 @@ class AIService(BaseService):
                     response_model=PartAnalysisSuggestion,
                 )
 
-                response = self.runner.run(request, [self.url_classifier_function], progress_handle, True)
+                # Pass both url_classifier and duplicate_search functions to the runner
+                response = self.runner.run(
+                    request,
+                    [self.url_classifier_function, self.duplicate_search_function],
+                    progress_handle,
+                    True
+                )
 
                 ai_response = cast(PartAnalysisSuggestion, response.response)
 
-            # Download documents if URLs provided
-            documents : list[DocumentSuggestionSchema] = []
+            # Convert LLM response to API schema
+            # The LLM can populate:
+            # - Only duplicate_parts (high-confidence duplicates, no analysis)
+            # - Only analysis_result (no duplicates or search not performed)
+            # - Both fields (medium-confidence duplicates with full analysis)
 
-            for urls, type in [
-                (ai_response.product_page_urls, 'product_page'),
-                (ai_response.datasheet_urls, 'datasheet'),
-                (ai_response.pinout_urls, 'pinout'),
-            ]:
-                for url in urls:
-                    document = self._document_from_link(url, type)
-                    if document:
-                        documents.append(document)
+            # Convert duplicate matches if present
+            duplicate_entries: list[DuplicateMatchEntry] | None = None
+            if ai_response.duplicate_parts is not None:
+                logger.info(f"LLM returned {len(ai_response.duplicate_parts)} duplicate matches")
+                duplicate_entries = [
+                    DuplicateMatchEntry(
+                        part_key=match.part_key,
+                        confidence=match.confidence,
+                        reasoning=match.reasoning
+                    )
+                    for match in ai_response.duplicate_parts
+                ]
 
-            # Determine if type is existing or new
-            suggested_type = ai_response.product_category
-            type_is_existing = False
-            existing_type_id = None
+            # Convert analysis result if present
+            analysis_result_entry: PartAnalysisDetailsSchema | None = None
+            if ai_response.analysis_result is not None:
+                logger.info("LLM returned full part analysis")
+                analysis_details = ai_response.analysis_result
 
-            if suggested_type:
-                proposed_prefix = "Proposed:"
-                if suggested_type.startswith(proposed_prefix):
-                    suggested_type = suggested_type[len(proposed_prefix):].strip()
+                # Download documents if URLs provided
+                documents: list[DocumentSuggestionSchema] = []
 
-                for type_obj in existing_types:
-                    if type_obj.name.lower() == suggested_type.lower():
-                        type_is_existing = True
-                        existing_type_id = type_obj.id
-                        break
+                for urls, type in [
+                    (analysis_details.product_page_urls, 'product_page'),
+                    (analysis_details.datasheet_urls, 'datasheet'),
+                    (analysis_details.pinout_urls, 'pinout'),
+                ]:
+                    for url in urls:
+                        document = self._document_from_link(url, type)
+                        if document:
+                            documents.append(document)
 
-            # Build result schema
+                # Determine if type is existing or new
+                suggested_type = analysis_details.product_category
+                type_is_existing = False
+                existing_type_id = None
 
-            product_page : str | None = None
-            if len(ai_response.product_page_urls) > 0:
-                product_page = ai_response.product_page_urls[0]
+                if suggested_type:
+                    proposed_prefix = "Proposed:"
+                    if suggested_type.startswith(proposed_prefix):
+                        suggested_type = suggested_type[len(proposed_prefix):].strip()
 
-            result = AIPartAnalysisResultSchema(
-                manufacturer_code=ai_response.manufacturer_part_number,
-                type=suggested_type,
-                description=ai_response.product_name,
-                tags=ai_response.tags,
-                manufacturer=ai_response.manufacturer,
-                product_page=product_page,
-                package=ai_response.package_type,
-                pin_count=ai_response.part_pin_count,
-                pin_pitch=ai_response.part_pin_pitch,
-                voltage_rating=ai_response.voltage_rating,
-                input_voltage=ai_response.input_voltage,
-                output_voltage=ai_response.output_voltage,
-                mounting_type=ai_response.mounting_type,
-                series=ai_response.product_family,
-                dimensions=ai_response.physical_dimensions,
-                documents=documents,
-                type_is_existing=type_is_existing,
-                existing_type_id=existing_type_id
+                    for type_obj in existing_types:
+                        if type_obj.name.lower() == suggested_type.lower():
+                            type_is_existing = True
+                            existing_type_id = type_obj.id
+                            break
+
+                # Build analysis details schema
+                product_page: str | None = None
+                if len(analysis_details.product_page_urls) > 0:
+                    product_page = analysis_details.product_page_urls[0]
+
+                analysis_result_entry = PartAnalysisDetailsSchema(
+                    manufacturer_code=analysis_details.manufacturer_part_number,
+                    type=suggested_type,
+                    description=analysis_details.product_name,
+                    tags=analysis_details.tags,
+                    manufacturer=analysis_details.manufacturer,
+                    product_page=product_page,
+                    package=analysis_details.package_type,
+                    pin_count=analysis_details.part_pin_count,
+                    pin_pitch=analysis_details.part_pin_pitch,
+                    voltage_rating=analysis_details.voltage_rating,
+                    input_voltage=analysis_details.input_voltage,
+                    output_voltage=analysis_details.output_voltage,
+                    mounting_type=analysis_details.mounting_type,
+                    series=analysis_details.product_family,
+                    dimensions=analysis_details.physical_dimensions,
+                    documents=documents,
+                    type_is_existing=type_is_existing,
+                    existing_type_id=existing_type_id
+                )
+
+            # Return both fields (either or both can be populated based on LLM response)
+            return AIPartAnalysisResultSchema(
+                analysis_result=analysis_result_entry,
+                duplicate_parts=duplicate_entries
             )
-
-            return result
 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse OpenAI response as JSON: {e}")
