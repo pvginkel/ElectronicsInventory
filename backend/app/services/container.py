@@ -9,6 +9,7 @@ from app.services.box_service import BoxService
 from app.services.dashboard_service import DashboardService
 from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
+from app.services.duplicate_search_service import DuplicateSearchService
 from app.services.html_document_handler import HtmlDocumentHandler
 from app.services.image_service import ImageService
 from app.services.inventory_service import InventoryService
@@ -29,6 +30,8 @@ from app.services.testing_service import TestingService
 from app.services.type_service import TypeService
 from app.services.url_transformers import LCSCInterceptor, URLInterceptorRegistry
 from app.services.version_service import VersionService
+from app.utils.ai.ai_runner import AIRunner
+from app.utils.ai.duplicate_search import DuplicateSearchFunction
 from app.utils.reset_lock import ResetLock
 from app.utils.shutdown_coordinator import ShutdownCoordinator
 from app.utils.temp_file_manager import TempFileManager
@@ -167,6 +170,28 @@ class ServiceContainer(containers.DeclarativeContainer):
         cleanup_interval=config.provided.TASK_CLEANUP_INTERVAL_SECONDS
     )
 
+    # AI runner - conditional singleton (only when real AI is enabled)
+    ai_runner = providers.Singleton(
+        lambda cfg, metrics: AIRunner(cfg.OPENAI_API_KEY, metrics) if cfg.real_ai_allowed and cfg.OPENAI_API_KEY else None,
+        cfg=config,
+        metrics=metrics_service
+    )
+
+    # Duplicate search service
+    duplicate_search_service = providers.Factory(
+        DuplicateSearchService,
+        config=config,
+        part_service=part_service,
+        ai_runner=ai_runner,
+        metrics_service=metrics_service
+    )
+
+    # Duplicate search function
+    duplicate_search_function = providers.Factory(
+        DuplicateSearchFunction,
+        duplicate_search_service=duplicate_search_service
+    )
+
     # AI service
     ai_service = providers.Factory(
         AIService,
@@ -176,7 +201,8 @@ class ServiceContainer(containers.DeclarativeContainer):
         type_service=type_service,
         download_cache_service=download_cache_service,
         document_service=document_service,
-        metrics_service=metrics_service
+        metrics_service=metrics_service,
+        duplicate_search_function=duplicate_search_function
     )
 
     # Version service - Singleton managing SSE subscribers

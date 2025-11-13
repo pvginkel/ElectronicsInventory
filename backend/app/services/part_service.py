@@ -148,3 +148,40 @@ class PartService(BaseService):
         ).where(Part.key == part_key)
         result = self.db.execute(stmt).scalar()
         return result or 0
+
+    def get_all_parts_for_search(self) -> list[dict]:
+        """Get all parts in search-optimized format for duplicate detection.
+
+        Returns a list of dictionaries with only the pertinent fields for matching:
+        - key identifiers (key, manufacturer_code, manufacturer)
+        - type information
+        - descriptive text (description, tags)
+        - technical specifications (package, series, voltage_rating, pin_count)
+
+        Excludes quantity, location, images, and documents to keep context size manageable.
+        """
+        stmt = select(Part).order_by(Part.created_at.desc())
+        parts = self.db.execute(stmt).scalars().all()
+
+        # Build search-optimized part summaries
+        result = []
+        for part in parts:
+            # Type name from relationship if available
+            type_name = part.type.name if part.type else None
+
+            part_summary = {
+                "key": part.key,
+                "manufacturer_code": part.manufacturer_code,
+                "type_name": type_name,
+                "description": part.description,
+                "tags": part.tags or [],
+                "manufacturer": part.manufacturer,
+                "package": part.package,
+                "series": part.series,
+                "voltage_rating": part.voltage_rating,
+                "pin_count": part.pin_count,
+                "pin_pitch": part.pin_pitch,
+            }
+            result.append(part_summary)
+
+        return result

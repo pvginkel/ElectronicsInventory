@@ -13,7 +13,12 @@ from app.exceptions import InvalidOperationException
 from app.models.part_attachment import AttachmentType
 from app.models.type import Type
 from app.schemas.ai_part_analysis import DocumentSuggestionSchema
-from app.services.ai_service import AIService, PartAnalysisSuggestion
+from app.services.ai_model import (
+    DuplicatePartMatch,
+    PartAnalysisDetails,
+    PartAnalysisSuggestion,
+)
+from app.services.ai_service import AIService
 from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
 from app.services.type_service import TypeService
@@ -84,6 +89,13 @@ def ai_service(session: Session, ai_test_settings: Settings,
                mock_download_cache_service: DownloadCacheService,
                mock_document_service: DocumentService, mock_metrics_service):
     """Create AI service instance for testing."""
+    from unittest.mock import Mock
+
+    from app.utils.ai.ai_runner import AIFunction
+
+    # Create mock duplicate search function
+    mock_duplicate_search_function = Mock(spec=AIFunction)
+
     return AIService(
         db=session,
         config=ai_test_settings,
@@ -91,14 +103,15 @@ def ai_service(session: Session, ai_test_settings: Settings,
         type_service=mock_type_service,
         download_cache_service=mock_download_cache_service,
         document_service=mock_document_service,
-        metrics_service=mock_metrics_service
+        metrics_service=mock_metrics_service,
+        duplicate_search_function=mock_duplicate_search_function
     )
 
 
 def create_mock_ai_response(**kwargs):
     """Helper to create a properly structured mock AI response."""
-    # Set default values that match PartAnalysisSuggestion schema
-    defaults = {
+    # Set default values that match PartAnalysisDetails schema (nested under analysis_result)
+    details_defaults = {
         'product_name': None,
         'product_family': None,
         'product_category': None,
@@ -119,10 +132,12 @@ def create_mock_ai_response(**kwargs):
     }
 
     # Update with provided values
-    defaults.update(kwargs)
+    details_defaults.update(kwargs)
 
-    # Create PartAnalysisSuggestion instance
-    return PartAnalysisSuggestion(**defaults)
+    # Create PartAnalysisDetails and wrap in PartAnalysisSuggestion
+    # This simulates the normal analysis path (no duplicates found)
+    analysis_details = PartAnalysisDetails(**details_defaults)
+    return PartAnalysisSuggestion(analysis_result=analysis_details, duplicate_parts=None)
 
 
 class TestAIService:
@@ -133,6 +148,11 @@ class TestAIService:
                                   mock_download_cache_service: DownloadCacheService,
                                   mock_document_service: DocumentService, mock_metrics_service):
         """Test AI service initialization without API key."""
+        from unittest.mock import Mock
+
+        from app.utils.ai.ai_runner import AIFunction
+
+        mock_duplicate_search_function = Mock(spec=AIFunction)
         settings = Settings(DATABASE_URL="sqlite:///:memory:", OPENAI_API_KEY="")
         with pytest.raises(ValueError, match="OPENAI_API_KEY configuration is required"):
             AIService(
@@ -142,7 +162,8 @@ class TestAIService:
                 type_service=mock_type_service,
                 download_cache_service=mock_download_cache_service,
                 document_service=mock_document_service,
-                metrics_service=mock_metrics_service
+                metrics_service=mock_metrics_service,
+                duplicate_search_function=mock_duplicate_search_function
             )
 
     def test_analyze_part_no_input(self, ai_service: AIService):
@@ -179,12 +200,14 @@ class TestAIService:
         result = ai_service.analyze_part("Test relay 12V", None, None, mock_progress)
 
         # Verify result - these are fields from AIPartAnalysisResultSchema
-        assert result.manufacturer_code == "TEST123"
-        assert result.type == "Relay"  # This should be matched to existing type
-        assert result.description == "Test relay component"
-        assert result.tags == ["relay", "12V"]
-        assert result.type_is_existing is True
-        assert result.existing_type_id is not None
+        assert result.analysis_result is not None
+        assert result.analysis_result.manufacturer_code == "TEST123"
+        assert result.analysis_result.type == "Relay"  # This should be matched to existing type
+        assert result.analysis_result.description == "Test relay component"
+        assert result.analysis_result.tags == ["relay", "12V"]
+        assert result.analysis_result.type_is_existing is True
+        assert result.analysis_result.existing_type_id is not None
+        assert result.duplicate_parts is None
 
         # Verify the runner was called once
         mock_run.assert_called_once()
@@ -214,10 +237,12 @@ class TestAIService:
         result = ai_service.analyze_part("12V power supply", None, None, mock_progress)
 
         # Verify result - this type should not match existing types
-        assert result.type == "Power Supply"
-        assert result.type_is_existing is False
-        assert result.existing_type_id is None
-        assert result.description == "Switching power supply"
+        assert result.analysis_result is not None
+        assert result.analysis_result.type == "Power Supply"
+        assert result.analysis_result.type_is_existing is False
+        assert result.analysis_result.existing_type_id is None
+        assert result.analysis_result.description == "Switching power supply"
+        assert result.duplicate_parts is None
 
         # Verify the runner was called once
         mock_run.assert_called_once()
@@ -256,12 +281,14 @@ class TestAIService:
             result = ai_service.analyze_part("Test relay with docs", None, None, mock_progress)
 
             # Verify result includes documents
-            assert result.manufacturer_code == "DOC123"
-            assert result.type == "Relay"
-            assert result.description == "Relay with datasheet"
-            assert len(result.documents) == 1  # Only datasheet URL should be processed
-            assert result.documents[0].url == "https://example.com/datasheet.pdf"
-            assert result.documents[0].document_type == "datasheet"
+            assert result.analysis_result is not None
+            assert result.analysis_result.manufacturer_code == "DOC123"
+            assert result.analysis_result.type == "Relay"
+            assert result.analysis_result.description == "Relay with datasheet"
+            assert len(result.analysis_result.documents) == 1  # Only datasheet URL should be processed
+            assert result.analysis_result.documents[0].url == "https://example.com/datasheet.pdf"
+            assert result.analysis_result.documents[0].document_type == "datasheet"
+            assert result.duplicate_parts is None
 
             # Verify the runner was called once and _document_from_link was called
             mock_run.assert_called_once()
@@ -298,6 +325,8 @@ class TestAIService:
             OPENAI_DUMMY_RESPONSE_PATH=None,
         )
 
+        mock_duplicate_search_function = Mock()
+
         service = AIService(
             db=session,
             config=settings,
@@ -306,6 +335,7 @@ class TestAIService:
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
             metrics_service=mock_metrics_service,
+            duplicate_search_function=mock_duplicate_search_function,
         )
 
         mock_progress = Mock()
@@ -339,6 +369,8 @@ class TestAIService:
             OPENAI_DUMMY_RESPONSE_PATH=str(dummy_path),
         )
 
+        mock_duplicate_search_function = Mock()
+
         service = AIService(
             db=session,
             config=settings,
@@ -347,15 +379,18 @@ class TestAIService:
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
             metrics_service=mock_metrics_service,
+            duplicate_search_function=mock_duplicate_search_function,
         )
 
         mock_progress = Mock()
 
         result = service.analyze_part("Test prompt", None, None, mock_progress)
 
-        assert result.manufacturer_code == "DUMMY123"
-        assert result.type == "Relay"
-        assert result.description == "Dummy component"
+        assert result.analysis_result is not None
+        assert result.analysis_result.manufacturer_code == "DUMMY123"
+        assert result.analysis_result.type == "Relay"
+        assert result.analysis_result.description == "Dummy component"
+        assert result.duplicate_parts is None
 
     @patch('app.utils.ai.ai_runner.AIRunner.run')
     def test_analyze_part_invalid_json_response(self, mock_run, ai_service: AIService):
@@ -555,6 +590,102 @@ class TestAIService:
         mock_run.assert_called_once()
 
         # Verify final result
-        assert result.manufacturer_code == "FUNC123"
-        assert result.type == "Relay"
-        assert result.description == "Function call test relay"
+        assert result.analysis_result is not None
+        assert result.analysis_result.manufacturer_code == "FUNC123"
+        assert result.analysis_result.type == "Relay"
+        assert result.analysis_result.description == "Function call test relay"
+        assert result.duplicate_parts is None
+
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_analyze_part_returns_duplicates(self, mock_run, ai_service: AIService):
+        """Test analyze_part returns duplicate_parts path when LLM finds high-confidence duplicates."""
+        from app.utils.ai.ai_runner import AIResponse
+
+        # Mock LLM returning duplicate_parts path with high-confidence match
+        mock_response = PartAnalysisSuggestion(
+            analysis_result=None,
+            duplicate_parts=[
+                DuplicatePartMatch(part_key="ABCD", confidence="high", reasoning="Exact MPN match"),
+                DuplicatePartMatch(part_key="EFGH", confidence="medium", reasoning="Similar specs")
+            ]
+        )
+        mock_run.return_value = AIResponse(
+            response=mock_response,
+            output_text="Found duplicates",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
+        )
+
+        # Execute
+        mock_progress = Mock()
+        result = ai_service.analyze_part("OMRON G5Q-1A4", None, None, mock_progress)
+
+        # Verify duplicate_parts path is returned
+        assert result.duplicate_parts is not None
+        assert len(result.duplicate_parts) == 2
+        assert result.duplicate_parts[0].part_key == "ABCD"
+        assert result.duplicate_parts[0].confidence == "high"
+        assert result.duplicate_parts[1].part_key == "EFGH"
+        assert result.duplicate_parts[1].confidence == "medium"
+        assert result.analysis_result is None
+
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_analyze_part_duplicates_without_high_confidence_falls_through(
+        self, mock_run, ai_service: AIService
+    ):
+        """Test that medium-confidence duplicates are included alongside full analysis."""
+        from app.utils.ai.ai_runner import AIResponse
+
+        # Mock LLM returning medium-confidence duplicates with full analysis
+        # This is the expected behavior for medium-confidence matches
+        mock_response_duplicates = PartAnalysisSuggestion(
+            analysis_result=PartAnalysisDetails(
+                product_name="Fallback relay",
+                product_family=None,
+                product_category="Relay",
+                manufacturer=None,
+                manufacturer_part_number="SAFE123",
+                package_type=None,
+                mounting_type=None,
+                part_pin_count=None,
+                part_pin_pitch=None,
+                voltage_rating=None,
+                input_voltage=None,
+                output_voltage=None,
+                physical_dimensions=None,
+                tags=[],
+                product_page_urls=[],
+                datasheet_urls=[],
+                pinout_urls=[]
+            ),
+            duplicate_parts=[
+                DuplicatePartMatch(part_key="WXYZ", confidence="medium", reasoning="Weak match")
+            ]
+        )
+        mock_run.return_value = AIResponse(
+            response=mock_response_duplicates,
+            output_text="Medium confidence only",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
+        )
+
+        # Execute - should return both analysis and duplicates
+        mock_progress = Mock()
+        result = ai_service.analyze_part("Test part", None, None, mock_progress)
+
+        # Both fields should be populated (medium-confidence case)
+        assert result.analysis_result is not None
+        assert result.analysis_result.manufacturer_code == "SAFE123"
+        assert result.duplicate_parts is not None
+        assert len(result.duplicate_parts) == 1
+        assert result.duplicate_parts[0].part_key == "WXYZ"
+        assert result.duplicate_parts[0].confidence == "medium"
+

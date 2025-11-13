@@ -1,7 +1,10 @@
+import json
 import logging
 import os
 import threading
+import time
 import traceback
+import re
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -9,14 +12,21 @@ from dotenv import load_dotenv
 from jinja2 import Environment
 from pydantic import BaseModel
 
+from app.schemas.duplicate_search import (
+    DuplicateMatchLLMResponse,
+    DuplicateSearchRequest,
+    DuplicateSearchResponse,
+)
+from app.services.ai_model import PartAnalysisSuggestion
 from app.services.base_task import ProgressHandle
+from app.services.metrics_service import MetricsServiceProtocol
 from app.utils.ai.ai_runner import AIFunction, AIRequest, AIRunner
+from app.utils.ai.duplicate_search import DuplicateSearchFunction
 from app.utils.file_parsers import get_types_from_setup
 from tools.prompttester.model import (
     AllUrlsSchema,
     BasicInformationSchema,
     PartDetailsSchema,
-    PartFullSchema,
     UrlsSchema,
 )
 from tools.prompttester.url_classifier import URLClassifierFunctionImpl
@@ -93,6 +103,82 @@ class ProgressImpl(ProgressHandle):
         logger.info(f"Progress: {int(value * 100)}% - {text}")
 
 
+class MockDuplicateSearchService:
+    """Mock duplicate search service for standalone prompt tester.
+
+    Uses mock inventory data and makes real AI calls to test duplicate detection.
+    """
+
+    def __init__(self, ai_runner: AIRunner, mock_inventory: list[dict], model: str):
+        """Initialize mock duplicate search service.
+
+        Args:
+            ai_runner: AIRunner instance for making LLM calls
+            mock_inventory: Mock inventory data from get_mock_inventory()
+            model: AI model to use for duplicate search (default: gpt-4o)
+        """
+        self.ai_runner = ai_runner
+        self.model = model
+
+        # Load and cache prompt template
+        prompt_path = os.path.join(os.path.dirname(__file__), "prompt_duplicate_search.md")
+        with open(prompt_path) as f:
+            template_str = f.read()
+        env = Environment()
+        
+        # Build prompt with mock inventory
+        prompt_template = env.from_string(template_str)
+
+        parts_json = json.dumps(mock_inventory, indent=2)
+        self.system_prompt = prompt_template.render(parts_json=parts_json)
+
+    def search_duplicates(self, request: DuplicateSearchRequest) -> DuplicateSearchResponse:
+        """Search for duplicate parts using LLM-based matching against mock inventory.
+
+        Args:
+            request: Search request with component description
+
+        Returns:
+            Response with list of potential duplicate matches
+        """
+        start_time = time.perf_counter()
+
+        try:
+            # Call LLM
+            ai_request = AIRequest(
+                system_prompt=self.system_prompt,
+                user_prompt=request.search,
+                model=self.model,
+                verbosity="low",
+                reasoning_effort=None,
+                reasoning_summary="auto",
+                response_model=DuplicateMatchLLMResponse,
+            )
+
+            response = self.ai_runner.run(ai_request, [])
+            llm_response = response.response
+
+            # Convert LLM response
+            if isinstance(llm_response, DuplicateMatchLLMResponse):
+                matches = llm_response.matches
+            else:
+                logger.warning(f"Unexpected LLM response type: {type(llm_response)}")
+                matches = []
+
+            duration = time.perf_counter() - start_time
+            logger.info(
+                f"Mock duplicate search completed in {duration:.3f}s - "
+                f"matches: {len(matches)}"
+            )
+
+            return DuplicateSearchResponse(matches=matches)
+
+        except Exception as e:
+            duration = time.perf_counter() - start_time
+            logger.error(f"Mock duplicate search failed after {duration:.3f}s: {e}", exc_info=True)
+            return DuplicateSearchResponse(matches=[])
+
+
 @dataclass
 class RunParameters:
     runner: AIRunner
@@ -101,8 +187,20 @@ class RunParameters:
     output_path: str
     filename_prefix: str
     url_classifier: AIFunction
+    duplicate_search: AIFunction
     progress_handle: ProgressImpl
 
+
+def slugify(name: str) -> str:
+    # Lowercase
+    s = name.lower()
+    # Replace any non-alphanumeric with hyphens
+    s = re.sub(r'[^a-z0-9]+', '-', s)
+    # Collapse multiple hyphens
+    s = re.sub(r'-+', '-', s)
+    # Strip leading/trailing hyphens
+    s = s.strip('-')
+    return s
 
 def render_template(prompt_template: str, context: dict[str, Any] | None = None) -> str:
     with open(os.path.join(os.path.dirname(__file__), prompt_template)) as f:
@@ -113,7 +211,14 @@ def render_template(prompt_template: str, context: dict[str, Any] | None = None)
 
     return template_inline.render(**(context or {}))
 
-def run_tests(queries: list[tuple[str, str]], models: dict[str, list[str] | None], runs: int = 1):
+def get_duplicate_search_service(runner: AIRunner, model: str) -> MockDuplicateSearchService:
+    # Load mock inventory for duplicate search
+    mock_inventory = get_mock_inventory()
+
+    # Create mock duplicate search service with real AI calls
+    return MockDuplicateSearchService(runner, mock_inventory, model)
+
+def run_full_tests(queries: list[str], models: dict[str, list[str] | None], runs: int = 1):
     tmp_path = os.path.join(os.path.dirname(__file__), "tmp")
     os.makedirs(tmp_path, exist_ok=True)
 
@@ -122,13 +227,17 @@ def run_tests(queries: list[tuple[str, str]], models: dict[str, list[str] | None
     output_path = os.path.join(os.path.dirname(__file__), "output")
     os.makedirs(output_path, exist_ok=True)
 
+    duplicate_search = DuplicateSearchFunction(get_duplicate_search_service(runner, "gpt-5-mini")) # type: ignore
+
     progress_handle = ProgressImpl()
     url_classifier = URLClassifierFunctionImpl(tmp_path)
 
-    for query, query_key in queries:
+    for query in queries:
         for model, reasoning_efforts in models.items():
-            for reasoning_effort in reasoning_efforts if reasoning_efforts else [None]:
+            efforts_to_test = reasoning_efforts if reasoning_efforts else [None]  # type: ignore[list-item]
+            for reasoning_effort in efforts_to_test:
                 for run in range(0, runs):
+                    query_key = slugify(query)
                     filename_prefix = f"{query_key}_{model}"
                     if reasoning_effort:
                         filename_prefix += f"_{reasoning_effort}"
@@ -144,6 +253,7 @@ def run_tests(queries: list[tuple[str, str]], models: dict[str, list[str] | None
                             output_path=output_path,
                             filename_prefix=filename_prefix,
                             url_classifier=url_classifier,
+                            duplicate_search=duplicate_search,
                             progress_handle=progress_handle
                         )
 
@@ -178,7 +288,7 @@ def single_run(query: str, run_parameters: RunParameters) -> None:
     #         # propagate exceptions early (or handle/log here)
     #         f.result()
 
-def get_full_schema(query: str, run_parameters: RunParameters) -> PartFullSchema:
+def get_full_schema(query: str, run_parameters: RunParameters) -> PartAnalysisSuggestion:
     system_prompt = render_template("prompt_full_schema.md", {
         "categories": get_types_from_setup()
     })
@@ -188,12 +298,12 @@ def get_full_schema(query: str, run_parameters: RunParameters) -> PartFullSchema
         system_prompt,
         user_prompt,
         run_parameters,
-        [run_parameters.url_classifier],
-        PartFullSchema,
+        [run_parameters.url_classifier, run_parameters.duplicate_search],
+        PartAnalysisSuggestion,
         f"{run_parameters.filename_prefix}_full-schema"
     )
 
-    return cast(PartFullSchema, response)
+    return cast(PartAnalysisSuggestion, response)
 
 def get_basic_information(query: str, run_parameters: RunParameters) -> BasicInformationSchema:
     system_prompt = render_template("prompt_basic_information.md")
@@ -314,7 +424,134 @@ def call_ai(system_prompt: str, user_prompt: str, run_parameters: RunParameters,
 
     return response.response
 
-def main():
+def get_mock_inventory() -> list[dict]:
+    """Load mock inventory dataset from test data for duplicate search testing.
+
+    Loads from app/data/test_data/parts.json and transforms to match
+    PartService.get_all_parts_for_search() output structure exactly.
+    Reference: /work/backend/app/services/part_service.py:172-185
+    """
+    # Load parts from test data JSON
+    test_data_path = os.path.join(
+        os.path.dirname(__file__), "..", "..", "app", "data", "test_data", "parts.json"
+    )
+    with open(test_data_path, encoding="utf-8") as f:
+        parts_data = json.load(f)
+
+    # Transform to match get_all_parts_for_search() structure
+    # Keep only fields: key, manufacturer_code, type_name, description, tags,
+    # manufacturer, package, series, voltage_rating, pin_count, pin_pitch
+    inventory = []
+    for part in parts_data:
+        inventory.append({
+            "key": part["key"],
+            "manufacturer_code": part.get("manufacturer_code"),
+            "type_name": part.get("type"),  # Rename "type" -> "type_name"
+            "description": part.get("description"),
+            "tags": part.get("tags", []),
+            "manufacturer": part.get("manufacturer"),
+            "package": part.get("package"),
+            "series": part.get("series"),
+            "voltage_rating": part.get("voltage_rating"),
+            "pin_count": part.get("pin_count"),
+            "pin_pitch": part.get("pin_pitch"),
+        })
+
+    return inventory
+
+
+def run_duplicate_search_tests(
+    queries: list[tuple[str, list[tuple[str, str]]]],
+    models: list[str],
+    runs: int = 1
+):
+    """Run duplicate search tests against mock inventory.
+
+    Args:
+        queries: List of (query_string, expected_matches) tuples where expected_matches
+                is a list of (part_key, confidence_level) tuples
+        models: Model configurations (defaults to gpt-5-mini with medium reasoning)
+        runs: Number of runs per query/model combination
+    """
+
+    # Create output directory
+    output_path = os.path.join(os.path.dirname(__file__), "output")
+    os.makedirs(output_path, exist_ok=True)
+
+    # Initialize AI runner with stub metrics service
+    runner = AIRunner(os.getenv("OPENAI_API_KEY")) # type: ignore
+
+    # Run tests for each query/model/reasoning/run combination
+    for query, expected_matches in queries:
+        # Generate query key from the query string (sanitize for filename)
+        query_key = query.lower().replace(" ", "-").replace("/", "-")[:30]
+
+        for model in models:
+            for run in range(runs):
+                filename_prefix = f"dup_{query_key}_{model}"
+                filename_prefix += f"_{run + 1}"
+
+                try:
+                    logger.info(f"Duplicate search test: query '{query}', model {model}")
+
+                    # Check if output already exists (idempotency)
+                    json_filename = os.path.join(output_path, f"{filename_prefix}.json")
+                    if os.path.exists(json_filename):
+                        logger.info(f"Skipping test (output exists): {filename_prefix}")
+                        continue
+
+                    # Clear log buffer for this test run
+                    log_interceptor.clear()
+
+                    search_service = get_duplicate_search_service(runner, model)
+
+                    # Save prompt to file
+                    with open(
+                        os.path.join(output_path, f"{filename_prefix}_prompt.txt"),
+                        "w",
+                        encoding="utf-8"
+                    ) as f:
+                        f.write("System prompt:\n\n")
+                        f.write(search_service.system_prompt)
+                        f.write("\n\n")
+                        f.write("User prompt:\n\n")
+                        f.write(query)
+                        f.write("\n\n")
+                        f.write("Expected matches:\n")
+                        for part_key, confidence in expected_matches:
+                            f.write(f"  - {part_key} ({confidence} confidence)\n")
+
+                    response = search_service.search_duplicates(DuplicateSearchRequest(search=query))
+
+                    # Save response JSON
+                    with open(json_filename, "w", encoding="utf-8") as f:
+                        f.write(response.model_dump_json(indent=4))
+
+                    # Save captured logs
+                    with open(
+                        os.path.join(output_path, f"{filename_prefix}.log"),
+                        "w",
+                        encoding="utf-8"
+                    ) as f:
+                        f.write("\n".join(log_interceptor.get_logs()))
+
+                    logger.info(f"Test completed: {filename_prefix}")
+
+                except Exception as e:
+                    logger.error(f"Test failed: {filename_prefix}", exc_info=True)
+
+                    # Save error details
+                    with open(
+                        os.path.join(output_path, f"{filename_prefix}.err"),
+                        "w",
+                        encoding="utf-8"
+                    ) as f:
+                        f.write(f"Exception type: {type(e).__name__}\n")
+                        f.write(f"Message: {str(e)}\n\n")
+                        f.write("Stack trace:\n")
+                        f.write("".join(traceback.format_exception(type(e), e, e.__traceback__)))
+
+def full_tests():
     reasoning_efforts : list[str] = [
         # "low",
         "medium",
@@ -333,18 +570,44 @@ def main():
         # "o4-mini",: reasoning_efforts,
     }
     queries = [
-        ("HLK PM24", "hlk-pm24"),
-        # ("ESP32-S3FN8", "esp32-s3fn8"),
-        ("Arduino Nano Every", "arduino-nano-every"),
-        # ("DFRobot Gravity SGP40", "dfrobot-gravity-sgp40"),
-        ("generic tht resistor 1/4w 1% 10k", "generic-resistor-10k"),
+        # "HLK PM24",
+        "relay 12V SPDT 5A",
+        # "SN74HC595N",
+        # "ESP32-S3FN8",
+        # "Arduino Nano Every",
+        # "DFRobot Gravity SGP40",
+        # "generic tht resistor 1/4w 1% 10k"
     ]
 
-    run_tests(
+    run_full_tests(
         queries,
         models,
         1
     )
+
+def duplicate_search_tests():
+    queries = [
+        ("Part number SN74HC595N", [
+            ("ABCD", "high"), # 8-bit shift register with output latches; exact MPN match
+        ]),
+        ("10k resistor", [
+            ("CDEF", "medium"), # 10kΩ carbon film resistor 1/4W THT
+            ("IJMN", "medium")  # 10kΩ SMD resistor 0805 package
+        ]),
+        ("10k SMD resistor", [
+            ("IJMN", "high") # 10kΩ SMD resistor 0805 package - specific match
+        ]),
+        ("ESP32 WiFi module", [
+            ("IJKL", "high") # ESP32-WROOM-32 WiFi & Bluetooth module
+        ]),
+        ("Generic THT diode", []) # No specific match expected (too generic)
+    ]
+
+    run_duplicate_search_tests(queries, ["gpt-5-mini"])
+
+def main():
+    full_tests()
+    # duplicate_search_tests()
 
 if __name__ == "__main__":
     main()

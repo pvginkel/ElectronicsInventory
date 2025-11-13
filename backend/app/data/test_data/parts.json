@@ -1086,5 +1086,80 @@
     "pin_pitch": "2.54mm",
     "input_voltage": "2.3V-5.5V",
     "output_voltage": "3.3V"
+  },
+  {
+    "key": "MEDA",
+    "manufacturer_code": "CD4094BE",
+    "description": "8-bit shift register with output latches CMOS",
+    "type": "Logic IC (74xx/4000)",
+    "tags": [
+      "DIP-16",
+      "Logic",
+      "4000 Series",
+      "Shift Register"
+    ],
+    "manufacturer": "Texas Instruments",
+    "product_page": "https://www.ti.com/product/CD4094B",
+    "seller_id": 4,
+    "seller_link": "https://www.digikey.com/en/products/detail/texas-instruments/CD4094BE/67332",
+    "package": "DIP-16",
+    "pin_count": 16,
+    "voltage_rating": null,
+    "mounting_type": "Through-hole",
+    "series": "4000",
+    "dimensions": "19.05x6.35mm",
+    "pin_pitch": "2.54mm",
+    "input_voltage": "3V-18V",
+    "output_voltage": "3V-18V"
+  },
+  {
+    "key": "MEDB",
+    "manufacturer_code": "ESP8266-12E",
+    "description": "WiFi module with TCP/IP stack",
+    "type": "Microcontroller",
+    "tags": [
+      "WiFi",
+      "ESP8266",
+      "802.11",
+      "Module"
+    ],
+    "manufacturer": "Espressif Systems",
+    "product_page": "https://www.espressif.com/en/products/socs/esp8266",
+    "seller_id": 1,
+    "seller_link": "https://www.adafruit.com/product/2491",
+    "package": "ESP-12E",
+    "pin_count": 22,
+    "voltage_rating": null,
+    "mounting_type": "Surface Mount",
+    "series": "ESP8266",
+    "dimensions": "24x16x3mm",
+    "pin_pitch": "2.0mm",
+    "input_voltage": "3.0V-3.6V",
+    "output_voltage": "3.3V"
+  },
+  {
+    "key": "MEDC",
+    "manufacturer_code": "G5LE-1",
+    "description": "5V relay SPST-NO 10A PCB mount",
+    "type": "Relay (Electromechanical)",
+    "tags": [
+      "5V",
+      "SPST",
+      "10A",
+      "PCB Mount"
+    ],
+    "manufacturer": "OMRON",
+    "product_page": "https://www.omron.com/ecb/products/sw/12/g5le.html",
+    "seller_id": 4,
+    "seller_link": "https://www.digikey.com/en/products/detail/omron-electronics-inc-emc-div/G5LE-1-DC5/368820",
+    "package": "G5LE",
+    "pin_count": 4,
+    "voltage_rating": "250V",
+    "mounting_type": "PCB Mount",
+    "series": "G5LE",
+    "dimensions": "20.0x10.0x15.5mm",
+    "pin_pitch": "5.0mm",
+    "input_voltage": "5V",
+    "output_voltage": null
   }
 ]

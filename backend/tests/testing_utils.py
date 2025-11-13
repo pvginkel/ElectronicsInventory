@@ -95,7 +95,14 @@ class StubMetricsService(MetricsServiceProtocol):
 
     def __init__(self):
         """Initialize stub metrics service."""
-        pass
+        # Add mock Prometheus metrics for services that need them
+        from unittest.mock import Mock
+
+        # AI Duplicate Search Metrics (needed by DuplicateSearchService)
+        self.ai_duplicate_search_requests_total = Mock()
+        self.ai_duplicate_search_duration_seconds = Mock()
+        self.ai_duplicate_search_matches_found = Mock()
+        self.ai_duplicate_search_parts_dump_size = Mock()
 
     def initialize_metrics(self):
         """No-op metric initialization."""

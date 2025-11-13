@@ -396,6 +396,29 @@ class MetricsService(MetricsServiceProtocol):
             ['model', 'verbosity', 'reasoning_effort']
         )
 
+        # AI Duplicate Search Metrics
+        self.ai_duplicate_search_requests_total = Counter(
+            'ai_duplicate_search_requests_total',
+            'Total duplicate search requests',
+            ['outcome']
+        )
+
+        self.ai_duplicate_search_duration_seconds = Histogram(
+            'ai_duplicate_search_duration_seconds',
+            'Duplicate search duration'
+        )
+
+        self.ai_duplicate_search_matches_found = Histogram(
+            'ai_duplicate_search_matches_found',
+            'Number of duplicate matches found',
+            ['confidence']
+        )
+
+        self.ai_duplicate_search_parts_dump_size = Gauge(
+            'ai_duplicate_search_parts_dump_size',
+            'Number of parts in inventory dump for duplicate search'
+        )
+
         # Shutdown Metrics
         self.application_shutting_down = Gauge(
             'application_shutting_down',

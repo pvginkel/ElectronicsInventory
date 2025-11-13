@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -50,24 +51,3 @@ class AllUrlsSchema(BaseModel):
     datasheet_urls: list[str] = Field(...)
     pinout_urls: list[str] = Field(...)
     confidence: float = Field(..., ge=0.0, le=1.0)
-
-class PartFullSchema(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    product_name: str | None = Field(...)
-    product_family: str | None = Field(...)
-    product_category: str | None = Field(...)
-    manufacturer: str | None = Field(...)
-    manufacturer_part_number: str | None = Field(...)
-    package_type: str | None = Field(...)
-    mounting_type: MountingTypeEnum | None = Field(...)
-    part_pin_count: int | None = Field(...)
-    part_pin_pitch: str | None = Field(...)
-    voltage_rating: str | None = Field(...)
-    input_voltage: str | None = Field(...)
-    output_voltage: str | None = Field(...)
-    physical_dimensions: str | None = Field(...)
-    tags: list[str] = Field(...)
-    product_page_urls: list[str] = Field(...)
-    datasheet_urls: list[str] = Field(...)
-    pinout_urls: list[str] = Field(...)
