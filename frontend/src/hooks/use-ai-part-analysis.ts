@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { components } from '@/lib/api/generated/types';
+import type { TransformedAIPartAnalysisResult } from '@/types/ai-parts';
 import { useSSETask } from './use-sse-task';
 import { transformAIPartAnalysisResult } from '@/lib/utils/ai-parts';
 import { emitComponentError } from '@/lib/test/error-instrumentation';
@@ -8,7 +9,7 @@ type AIPartAnalysisResult = components['schemas']['AIPartAnalysisTaskResultSchem
 
 interface UseAIPartAnalysisOptions {
   onProgress?: (message: string, percentage?: number) => void;
-  onSuccess?: (result: ReturnType<typeof transformAIPartAnalysisResult>) => void;
+  onSuccess?: (result: TransformedAIPartAnalysisResult) => void;
   onError?: (error: string) => void;
 }
 
@@ -17,7 +18,7 @@ interface UseAIPartAnalysisReturn {
   cancelAnalysis: () => void;
   isAnalyzing: boolean;
   progress: { message: string; percentage?: number } | null;
-  result: ReturnType<typeof transformAIPartAnalysisResult> | null;
+  result: TransformedAIPartAnalysisResult | null;
   error: string | null;
 }
 

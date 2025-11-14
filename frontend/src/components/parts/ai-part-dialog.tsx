@@ -3,11 +3,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { AIPartInputStep } from './ai-part-input-step';
 import { AIPartProgressStep } from './ai-part-progress-step';
 import { AIPartReviewStep } from './ai-part-review-step';
+import { AIPartDuplicatesOnlyStep } from './ai-duplicates-only-step';
 import { useAIPartAnalysis } from '@/hooks/use-ai-part-analysis';
 import { transformToCreateSchema } from '@/lib/utils/ai-parts';
 import { usePostAiPartsCreate } from '@/lib/api/generated/hooks';
 
-type DialogStep = 'input' | 'progress' | 'review';
+type DialogStep = 'input' | 'progress' | 'review' | 'duplicates';
 
 interface AIPartDialogProps {
   open: boolean;
@@ -30,8 +31,20 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
     result: analysisResult,
     error: analysisError
   } = useAIPartAnalysis({
-    onSuccess: () => {
-      setCurrentStep('review');
+    onSuccess: (result) => {
+      // Route based on result structure:
+      // - duplicates only (no description) → duplicates step
+      // - analysis (with or without duplicates) → review step
+      const hasAnalysis = !!result.description;
+      const hasDuplicates = !!result.duplicateParts && result.duplicateParts.length > 0;
+
+      if (hasDuplicates && !hasAnalysis) {
+        // Duplicates-only result
+        setCurrentStep('duplicates');
+      } else {
+        // Analysis result (with or without duplicates)
+        setCurrentStep('review');
+      }
     },
     onError: (error) => {
       console.error('Analysis failed:', error);
@@ -119,7 +132,7 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
             initialText={lastSearchText}
           />
         );
-        
+
       case 'progress':
         return (
           <AIPartProgressStep
@@ -129,7 +142,20 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
             onRetry={handleRetryAnalysis}
           />
         );
-        
+
+      case 'duplicates':
+        if (!analysisResult?.duplicateParts) {
+          // Fallback - should not happen
+          setCurrentStep('input');
+          return null;
+        }
+        return (
+          <AIPartDuplicatesOnlyStep
+            duplicateParts={analysisResult.duplicateParts}
+            onBack={handleBackToInput}
+          />
+        );
+
       case 'review':
         if (!analysisResult) {
           // Fallback - should not happen
@@ -144,22 +170,23 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
             isCreating={isCreatingPart}
           />
         );
-        
+
       default:
         return null;
     }
   };
 
-  const isReviewStep = currentStep === 'review';
-  
+  // Both review and duplicates steps need full-screen dialog
+  const isFullScreenStep = currentStep === 'review' || currentStep === 'duplicates';
+
   return (
-    <Dialog 
-      open={open} 
-      onOpenChange={handleDialogClose} 
-      className={isReviewStep ? "w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h" : undefined}
+    <Dialog
+      open={open}
+      onOpenChange={handleDialogClose}
+      className={isFullScreenStep ? "w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h" : undefined}
     >
       <DialogContent
-        className={isReviewStep ? "h-full flex flex-col" : ""}
+        className={isFullScreenStep ? "h-full flex flex-col" : ""}
         data-testid="parts.ai.dialog"
         data-step={currentStep}
       >

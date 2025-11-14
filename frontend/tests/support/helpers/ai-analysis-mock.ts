@@ -16,6 +16,12 @@ interface AiAnalysisDocument {
   preview: AiAnalysisDocumentPreview;
 }
 
+export interface AiAnalysisDuplicateEntry {
+  part_key: string;
+  confidence: 'high' | 'medium';
+  reasoning: string;
+}
+
 export interface AiAnalysisResult {
   description: string;
   manufacturer: string | null;
@@ -43,6 +49,7 @@ export interface AiAnalysisResult {
 export interface AiAnalysisCompletionOverrides {
   success?: boolean;
   analysis?: Partial<AiAnalysisResult> | null;
+  duplicate_parts?: AiAnalysisDuplicateEntry[] | null;
   error_message?: string | null;
 }
 
@@ -214,9 +221,18 @@ export async function createAiAnalysisMock(
       ? null
       : mergeAnalysis(analysisTemplate, analysisOverride);
 
+    // Support new nested structure with analysis_result and duplicate_parts
+    const analysisResult = analysisPayload ? {
+      analysis_result: analysisPayload,
+      duplicate_parts: overrides?.duplicate_parts ?? null,
+    } : {
+      analysis_result: null,
+      duplicate_parts: overrides?.duplicate_parts ?? null,
+    };
+
     const completion = {
       success: overrides?.success ?? true,
-      analysis: analysisPayload,
+      analysis: analysisResult,
       error_message: overrides?.error_message ?? null,
     };
 

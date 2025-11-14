@@ -44,7 +44,118 @@
         "type": "object"
       },
       "AIPartAnalysisTaskResultSchema.63ff6da.AIPartAnalysisResultSchema": {
-        "description": "Schema for AI analysis result containing all part suggestions.",
+        "description": "Schema for AI analysis result with two mutually exclusive paths.\n\nThe LLM populates either analysis_result (full analysis) OR duplicate_parts (duplicates found).\nBoth fields are optional in the schema; LLM prompt guidance ensures appropriate population.",
+        "properties": {
+          "analysis_result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AIPartAnalysisTaskResultSchema.63ff6da.PartAnalysisDetailsSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Full part analysis when no high-confidence duplicates found or duplicate search not performed"
+          },
+          "duplicate_parts": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AIPartAnalysisTaskResultSchema.63ff6da.DuplicateMatchEntry"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "List of potential duplicate parts when duplicates are found (includes high and medium confidence matches)",
+            "title": "Duplicate Parts"
+          }
+        },
+        "title": "AIPartAnalysisResultSchema",
+        "type": "object"
+      },
+      "AIPartAnalysisTaskResultSchema.63ff6da.DocumentSuggestionSchema": {
+        "description": "Schema for AI-suggested document.",
+        "properties": {
+          "document_type": {
+            "description": "Type of document (datasheet, manual, schematic, etc.)",
+            "example": "datasheet",
+            "title": "Document Type",
+            "type": "string"
+          },
+          "is_cover_image": {
+            "default": false,
+            "description": "Image to become the cover image",
+            "title": "Is Cover Image",
+            "type": "boolean"
+          },
+          "preview": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AIPartAnalysisTaskResultSchema.63ff6da.UrlPreviewResponseSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "URL preview metadata including title and image URL"
+          },
+          "url": {
+            "description": "Original URL from which the document was downloaded",
+            "example": "https://www.example.com/datasheet.pdf",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "document_type"
+        ],
+        "title": "DocumentSuggestionSchema",
+        "type": "object"
+      },
+      "AIPartAnalysisTaskResultSchema.63ff6da.DuplicateMatchEntry": {
+        "additionalProperties": false,
+        "description": "Schema for a single duplicate match result.",
+        "properties": {
+          "confidence": {
+            "description": "Confidence level of the match (high or medium only)",
+            "enum": [
+              "high",
+              "medium"
+            ],
+            "example": "high",
+            "title": "Confidence",
+            "type": "string"
+          },
+          "part_key": {
+            "description": "4-character key of the potentially duplicate part",
+            "example": "ABCD",
+            "title": "Part Key",
+            "type": "string"
+          },
+          "reasoning": {
+            "description": "Explanation of why this part matches",
+            "example": "Exact manufacturer part number match with same manufacturer",
+            "title": "Reasoning",
+            "type": "string"
+          }
+        },
+        "required": [
+          "part_key",
+          "confidence",
+          "reasoning"
+        ],
+        "title": "DuplicateMatchEntry",
+        "type": "object"
+      },
+      "AIPartAnalysisTaskResultSchema.63ff6da.PartAnalysisDetailsSchema": {
+        "description": "Schema for full AI part analysis details.",
         "properties": {
           "description": {
             "anyOf": [
@@ -289,48 +400,7 @@
             "title": "Voltage Rating"
           }
         },
-        "title": "AIPartAnalysisResultSchema",
-        "type": "object"
-      },
-      "AIPartAnalysisTaskResultSchema.63ff6da.DocumentSuggestionSchema": {
-        "description": "Schema for AI-suggested document.",
-        "properties": {
-          "document_type": {
-            "description": "Type of document (datasheet, manual, schematic, etc.)",
-            "example": "datasheet",
-            "title": "Document Type",
-            "type": "string"
-          },
-          "is_cover_image": {
-            "default": false,
-            "description": "Image to become the cover image",
-            "title": "Is Cover Image",
-            "type": "boolean"
-          },
-          "preview": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AIPartAnalysisTaskResultSchema.63ff6da.UrlPreviewResponseSchema"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "URL preview metadata including title and image URL"
-          },
-          "url": {
-            "description": "Original URL from which the document was downloaded",
-            "example": "https://www.example.com/datasheet.pdf",
-            "title": "Url",
-            "type": "string"
-          }
-        },
-        "required": [
-          "url",
-          "document_type"
-        ],
-        "title": "DocumentSuggestionSchema",
+        "title": "PartAnalysisDetailsSchema",
         "type": "object"
       },
       "AIPartAnalysisTaskResultSchema.63ff6da.UrlPreviewResponseSchema": {

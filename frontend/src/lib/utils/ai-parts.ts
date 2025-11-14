@@ -1,51 +1,91 @@
 import type { components } from '@/lib/api/generated/types';
+import type { DuplicatePartEntry, TransformedAIPartAnalysisResult } from '@/types/ai-parts';
 
 type DocumentSuggestionSchema = components['schemas']['AIPartCreateSchema.63ff6da.DocumentSuggestionSchema'];
+type AIPartAnalysisResultSchema = components['schemas']['AIPartAnalysisTaskResultSchema.63ff6da.AIPartAnalysisResultSchema'];
+type DuplicateMatchEntry = components['schemas']['AIPartAnalysisTaskResultSchema.63ff6da.DuplicateMatchEntry'];
 
 /**
  * Deduplicate documents by URL to prevent duplicate downloads and storage
  */
 export function deduplicateDocuments(documents: DocumentSuggestionSchema[]): DocumentSuggestionSchema[] {
   const urlMap = new Map<string, DocumentSuggestionSchema>();
-  
+
   for (const document of documents) {
     if (!urlMap.has(document.url)) {
       urlMap.set(document.url, document);
     }
   }
-  
+
   return Array.from(urlMap.values());
 }
 
 /**
- * Transform API response data for frontend use
+ * Transform duplicate match entries from snake_case API to camelCase frontend model
+ */
+function transformDuplicateEntries(entries: DuplicateMatchEntry[]): DuplicatePartEntry[] {
+  return entries
+    .filter(e => e != null)
+    .map(entry => ({
+      partKey: entry.part_key,
+      confidence: entry.confidence,
+      reasoning: entry.reasoning,
+    }));
+}
+
+/**
+ * Transform API response data for frontend use.
+ * Handles nested analysis_result and duplicate_parts structure from backend.
  */
 export function transformAIPartAnalysisResult(
-  result: components['schemas']['AIPartAnalysisTaskResultSchema.63ff6da.AIPartAnalysisResultSchema']
-) {
-  return {
-    description: result.description,
-    manufacturer: result.manufacturer,
-    manufacturerCode: result.manufacturer_code,
-    type: result.type,
-    typeIsExisting: result.type_is_existing,
-    existingTypeId: result.existing_type_id,
-    tags: result.tags || [],
-    documents: deduplicateDocuments(result.documents || []),
-    // Additional fields
-    dimensions: result.dimensions,
-    voltageRating: result.voltage_rating,
-    mountingType: result.mounting_type,
-    package: result.package,
-    pinCount: result.pin_count,
-    pinPitch: result.pin_pitch,
-    series: result.series,
-    inputVoltage: result.input_voltage,
-    outputVoltage: result.output_voltage,
-    productPageUrl: result.product_page,
+  result: AIPartAnalysisResultSchema
+): TransformedAIPartAnalysisResult {
+  // Backend contract: at least one of analysis_result or duplicate_parts must be populated
+  if (!result.analysis_result && !result.duplicate_parts) {
+    throw new Error(
+      `Invalid analysis result: neither analysis_result nor duplicate_parts populated. ` +
+      `Received: ${JSON.stringify({
+        hasAnalysis: !!result.analysis_result,
+        hasDuplicates: !!result.duplicate_parts
+      })}`
+    );
+  }
+
+  // Extract nested analysis fields if present
+  const analysis = result.analysis_result;
+
+  // Build transformed result
+  const transformed: TransformedAIPartAnalysisResult = {
+    // Analysis fields (optional, present when analysis_result populated)
+    description: analysis?.description ?? undefined,
+    manufacturer: analysis?.manufacturer ?? undefined,
+    manufacturerCode: analysis?.manufacturer_code ?? undefined,
+    type: analysis?.type ?? undefined,
+    typeIsExisting: analysis?.type_is_existing ?? undefined,
+    existingTypeId: analysis?.existing_type_id ?? undefined,
+    tags: analysis?.tags ?? undefined,
+    documents: analysis?.documents ? deduplicateDocuments(analysis.documents) : undefined,
+    // Additional analysis fields
+    dimensions: analysis?.dimensions ?? undefined,
+    voltageRating: analysis?.voltage_rating ?? undefined,
+    mountingType: analysis?.mounting_type ?? undefined,
+    package: analysis?.package ?? undefined,
+    pinCount: analysis?.pin_count ?? undefined,
+    pinPitch: analysis?.pin_pitch ?? undefined,
+    series: analysis?.series ?? undefined,
+    inputVoltage: analysis?.input_voltage ?? undefined,
+    outputVoltage: analysis?.output_voltage ?? undefined,
+    productPageUrl: analysis?.product_page ?? undefined,
     seller: null, // Seller info not provided by AI analysis
     sellerLink: null, // Must be provided by user
   };
+
+  // Add duplicate parts if present
+  if (result.duplicate_parts && result.duplicate_parts.length > 0) {
+    transformed.duplicateParts = transformDuplicateEntries(result.duplicate_parts);
+  }
+
+  return transformed;
 }
 
 /**

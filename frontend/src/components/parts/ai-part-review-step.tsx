@@ -9,14 +9,15 @@ import { SellerSelector } from '@/components/sellers/seller-selector';
 import { TagsInput } from './tags-input';
 import { MountingTypeSelector } from './mounting-type-selector';
 import { AIDocumentGridWrapper } from './ai-document-grid-wrapper';
-import { transformAIPartAnalysisResult, transformToCreateSchema } from '@/lib/utils/ai-parts';
+import { AIPartDuplicateBar } from './ai-duplicate-bar';
+import { transformToCreateSchema } from '@/lib/utils/ai-parts';
 import { useCreateType } from '@/hooks/use-types';
 import type { components } from '@/lib/api/generated/types';
+import type { TransformedAIPartAnalysisResult } from '@/types/ai-parts';
 import { ExternalLink } from '@/components/ui';
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
 
 type DocumentSuggestionSchema = components['schemas']['AIPartCreateSchema.63ff6da.DocumentSuggestionSchema'];
-type TransformedResult = ReturnType<typeof transformAIPartAnalysisResult>;
 
 interface PartFormData {
   description: string;
@@ -44,7 +45,7 @@ interface PartFormData {
 }
 
 interface AIPartReviewStepProps {
-  analysisResult: TransformedResult;
+  analysisResult: TransformedAIPartAnalysisResult;
   onCreatePart: (data: ReturnType<typeof transformToCreateSchema>, createAnother: boolean) => void;
   onBack?: () => void;
   isCreating?: boolean;
@@ -205,6 +206,11 @@ export function AIPartReviewStep({
       </div>
 
       <div className="flex-1 overflow-y-auto pb-4 min-h-0">
+        {/* Duplicate Bar (shown when analysis includes duplicates) */}
+        {analysisResult.duplicateParts && analysisResult.duplicateParts.length > 0 && (
+          <AIPartDuplicateBar duplicateParts={analysisResult.duplicateParts} />
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {/* Part Information */}
         <Card className="p-6">
