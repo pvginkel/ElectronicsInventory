@@ -7,6 +7,7 @@ import { AIPartDuplicatesOnlyStep } from './ai-duplicates-only-step';
 import { useAIPartAnalysis } from '@/hooks/use-ai-part-analysis';
 import { transformToCreateSchema } from '@/lib/utils/ai-parts';
 import { usePostAiPartsCreate } from '@/lib/api/generated/hooks';
+import { cn } from '@/lib/utils';
 
 type DialogStep = 'input' | 'progress' | 'review' | 'duplicates';
 
@@ -179,17 +180,17 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
     }
   };
 
-  // Both review and duplicates steps need full-screen dialog
-  const isFullScreenStep = currentStep === 'review' || currentStep === 'duplicates';
-
   return (
     <Dialog
       open={open}
       onOpenChange={handleDialogClose}
-      className={isFullScreenStep ? "w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h" : undefined}
+      className={cn(
+        currentStep === 'review' && "w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h",
+        currentStep === 'duplicates' && "max-w-[800px]"
+      )}
     >
       <DialogContent
-        className={isFullScreenStep ? "h-full flex flex-col" : ""}
+        className={cn(currentStep === 'review' &&  "h-full flex flex-col")}
         data-testid="parts.ai.dialog"
         data-step={currentStep}
       >

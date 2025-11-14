@@ -3,28 +3,11 @@ import { AIPartDuplicateCard } from './ai-duplicate-card';
 import { useSortedDuplicates } from '@/hooks/use-sorted-duplicates';
 import { useDuplicatePartDetails } from '@/hooks/use-duplicate-part-details';
 import type { DuplicatePartEntry } from '@/types/ai-parts';
-import { cn } from '@/lib/utils';
 
 interface AIPartDuplicatesOnlyStepProps {
   duplicateParts: DuplicatePartEntry[];
   onBack?: () => void;
   onCancel?: () => void;
-}
-
-/**
- * Calculate grid column classes based on duplicate count.
- * Layout preference: wider over taller (1x1 → 2x1 → 3x1 → 3x2 → 4x2 → 4x3 → 5x3 → 5x4)
- */
-function getGridClasses(count: number): string {
-  if (count <= 1) return 'grid-cols-1';
-  if (count === 2) return 'grid-cols-2';
-  if (count === 3) return 'grid-cols-3';
-  if (count <= 6) return 'grid-cols-3'; // 4-6
-  if (count <= 8) return 'grid-cols-4'; // 7-8
-  if (count <= 12) return 'grid-cols-4'; // 9-12
-  if (count <= 15) return 'grid-cols-5'; // 13-15
-  if (count <= 20) return 'grid-cols-5'; // 16-20
-  return 'grid-cols-5'; // 21+
 }
 
 /**
@@ -45,12 +28,10 @@ export function AIPartDuplicatesOnlyStep({
   // Guidepost: Fetch and sort duplicates by confidence and description
   const { sortedDuplicates } = useSortedDuplicates(duplicateParts);
 
-  const gridClasses = getGridClasses(sortedDuplicates.length);
-
   return (
-    <div className="flex flex-col h-full" data-testid="parts.ai.duplicates-only-step">
+    <div className="flex flex-col h-full space-y-6" data-testid="parts.ai.duplicates-only-step">
       {/* Header */}
-      <div className="flex-shrink-0 text-center mb-6">
+      <div className="flex-shrink-0 text-center">
         <h2 className="text-2xl font-semibold mb-2">Potential Duplicates Found</h2>
         <p className="text-muted-foreground">
           These parts may already exist in your inventory. Click any card to review the details, or go
@@ -59,8 +40,8 @@ export function AIPartDuplicatesOnlyStep({
       </div>
 
       {/* Scrollable Grid with padding to prevent card hover clipping */}
-      <div className="flex-1 overflow-y-auto pb-4 min-h-0">
-        <div className={cn('grid gap-4 p-1', gridClasses)}>
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="grid gap-4 p-1 grid-cols-4">
           {sortedDuplicates.map((duplicate) => (
             <DuplicateCardWithData key={duplicate.partKey} duplicate={duplicate} />
           ))}
@@ -68,7 +49,7 @@ export function AIPartDuplicatesOnlyStep({
       </div>
 
       {/* Actions - Sticky Footer */}
-      <div className="flex-shrink-0 mt-8 pt-6 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex-shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex justify-between items-center">
           {onBack && (
             <Button

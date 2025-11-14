@@ -10,13 +10,14 @@ import { cn } from '@/lib/utils';
 export interface LinkChipProps {
   // Navigation
   to: string;
+  openInNewTab?: boolean;
   params: Record<string, string>;
   search?: Record<string, unknown>;
 
   // Content
   label: string;
   icon?: ReactNode;
-  statusBadgeColor: 'active' | 'inactive';
+  statusBadgeColor: 'active' | 'inactive' | 'success' | 'warning';
   statusBadgeLabel: string;
 
   // Accessibility
@@ -72,6 +73,7 @@ export interface LinkChipProps {
  */
 export function LinkChip({
   to,
+  openInNewTab,
   params,
   search,
   label,
@@ -117,16 +119,15 @@ export function LinkChip({
       )}
       data-testid={resolvedWrapperTestId}
       aria-label={accessibilityLabel}
-      title={accessibilityLabel}
     >
       <Link
         to={to as any}
+        target={openInNewTab ? "_blank" : undefined}
         params={params as any}
         search={search as any}
         className="flex min-w-0 flex-1 items-center gap-2 rounded-full px-1 py-0.5 transition-colors hover:text-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
         data-testid={testId}
         aria-label={accessibilityLabel}
-        title={accessibilityLabel}
         onClick={(event) => event.stopPropagation()}
       >
         <span className="flex items-center gap-2 min-w-0">

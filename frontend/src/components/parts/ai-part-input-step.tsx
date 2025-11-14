@@ -59,15 +59,7 @@ export function AIPartInputStep({ onSubmit, onCancel, isLoading = false, initial
 
 
         {/* Action Buttons */}
-        <div className="flex gap-3">
-          <Button
-            type="submit"
-            disabled={!canSubmit}
-            className="flex-1"
-            data-testid="parts.ai.input.submit"
-          >
-            {isLoading ? 'Analyzing...' : 'Analyze Part'}
-          </Button>
+        <div className="flex gap-3 justify-end">
           {onCancel && (
             <Button
               type="button"
@@ -78,6 +70,13 @@ export function AIPartInputStep({ onSubmit, onCancel, isLoading = false, initial
               Cancel
             </Button>
           )}
+          <Button
+            type="submit"
+            disabled={!canSubmit}
+            data-testid="parts.ai.input.submit"
+          >
+            {isLoading ? 'Analyzing...' : 'Analyze Part'}
+          </Button>
         </div>
       </form>
 

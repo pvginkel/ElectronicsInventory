@@ -6,7 +6,8 @@ import { cn } from '@/lib/utils';
 const COLOR_CLASSES = {
   inactive: 'bg-slate-400 text-slate-700',
   active: 'bg-blue-600 text-white',
-  success: 'bg-emerald-600 text-white',
+  success: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  warning: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
 } as const;
 
 // Size variants for different contexts

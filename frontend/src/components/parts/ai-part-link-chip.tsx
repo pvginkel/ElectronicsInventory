@@ -1,11 +1,10 @@
 import { Wrench, Info } from 'lucide-react';
 
-import { StatusBadge } from '@/components/ui';
+import { LinkChip } from '@/components/ui/link-chip';
 import { Tooltip } from '@/components/ui/tooltip';
 import { AIPartDuplicateCard } from './ai-duplicate-card';
 import { useDuplicatePartDetails } from '@/hooks/use-duplicate-part-details';
 import { formatPartForDisplay } from '@/lib/utils/parts';
-import { cn } from '@/lib/utils';
 import type { DuplicatePartEntry } from '@/types/ai-parts';
 
 interface AIPartLinkChipProps {
@@ -16,14 +15,12 @@ interface AIPartLinkChipProps {
 /**
  * AIPartLinkChip — Domain-specific chip for duplicate parts in AI analysis
  *
- * Maps DuplicatePartEntry to chip UI and provides:
+ * Maps DuplicatePartEntry to LinkChip UI and provides:
  * - Wrench icon
  * - Confidence badge (high/medium)
- * - Info icon with hover card showing full duplicate card
- * - Click opens part detail page in new tab (uses window.open, not LinkChip)
- *
- * Note: Uses custom button implementation instead of LinkChip because LinkChip's
- * TanStack Router Link doesn't support target="_blank" for new tab navigation.
+ * - Info icon with reasoning tooltip
+ * - Chip hover shows full duplicate card
+ * - Click opens part detail page in new tab
  */
 export function AIPartLinkChip({ duplicate, testId }: AIPartLinkChipProps) {
   // Fetch part details for display
@@ -47,8 +44,8 @@ export function AIPartLinkChip({ duplicate, testId }: AIPartLinkChipProps) {
   // Guidepost: Loading state - show partKey as label
   const chipLabel = isLoading ? duplicate.partKey : displayDescription;
 
-  // Guidepost: Info tooltip content - render full duplicate card
-  const infoTooltipContent = (
+  // Guidepost: Card tooltip content - render full duplicate card on chip hover
+  const cardTooltipContent = (
     <div className="max-w-[180px]">
       <AIPartDuplicateCard
         duplicate={duplicate}
@@ -56,70 +53,52 @@ export function AIPartLinkChip({ duplicate, testId }: AIPartLinkChipProps) {
         isLoading={isLoading}
         isError={isError}
         onClick={undefined} // Disable click in tooltip context
+        inTooltip={true} // Remove card border to avoid double-border with tooltip
       />
     </div>
   );
 
-  // Guidepost: Handle chip click - open in new tab
-  const handleClick = () => {
+  // Guidepost: Reasoning tooltip content - show why part was matched
+  const reasoningTooltipContent = (
+    <div className="text-xs max-w-xs">{duplicate.reasoning}</div>
+  );
+
+  // Guidepost: Handle wrapper click - open in new tab
+  const handleWrapperClick = () => {
     window.open(`/parts/${duplicate.partKey}`, '_blank');
   };
 
-  // Guidepost: Handle info icon click - prevent propagation
-  const handleInfoClick = (event: React.MouseEvent) => {
-    event.stopPropagation();
-  };
-
   return (
-    <div
-      className={cn(
-        'group inline-flex items-center gap-2 rounded-full border border-input bg-muted/40 px-2 py-1 text-sm transition-all hover:border-primary cursor-pointer',
-      )}
-      data-testid={testId}
-      aria-label={accessibilityLabel}
-      title={accessibilityLabel}
-      onClick={handleClick}
-    >
-      <button
-        type="button"
-        className="flex min-w-0 flex-1 items-center gap-2 rounded-full px-1 py-0.5 transition-colors hover:text-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
-        aria-label={accessibilityLabel}
-        title={accessibilityLabel}
-      >
-        <span className="flex items-center gap-2 min-w-0">
-          <Wrench className="h-4 w-4 flex-shrink-0 text-muted-foreground transition-colors group-hover:text-primary" aria-hidden="true" />
-          <span className="truncate">{chipLabel}</span>
-        </span>
-        <StatusBadge
-          color={confidenceBadgeProps.color}
-          label={confidenceBadgeProps.label}
-          size="default"
-          testId=""
+    <Tooltip content={cardTooltipContent} placement="bottom" testId={testId}>
+      <div onClick={handleWrapperClick} className="cursor-pointer">
+        <LinkChip
+          to="/parts/$partKey"
+          openInNewTab={true}
+          params={{ partKey: duplicate.partKey }}
+          label={chipLabel}
+          icon={<Wrench className="h-4 w-4" />}
+          statusBadgeColor={confidenceBadgeProps.color}
+          statusBadgeLabel={confidenceBadgeProps.label}
+          accessibilityLabel={accessibilityLabel}
+          testId={testId}
+          infoIcon={<Info className="h-4 w-4" />}
+          infoTooltip={reasoningTooltipContent}
+          infoIconTestId={`${testId}.info`}
         />
-      </button>
-      {/* Info icon renders outside button to prevent navigation on hover/click */}
-      <Tooltip content={infoTooltipContent} placement="auto" testId={`${testId}.info`}>
-        <span
-          className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors cursor-help"
-          onClick={handleInfoClick}
-          data-testid={`${testId}.info`}
-        >
-          <Info className="h-4 w-4" />
-        </span>
-      </Tooltip>
-    </div>
+      </div>
+    </Tooltip>
   );
 }
 
 // Guidepost: Map confidence level to badge props
 function getConfidenceBadgeProps(confidence: 'high' | 'medium'): {
-  color: 'active' | 'inactive';
+  color: 'success' | 'warning';
   label: string;
 } {
   switch (confidence) {
     case 'high':
-      return { color: 'active', label: 'High' };
+      return { color: 'success', label: 'High' };
     case 'medium':
-      return { color: 'inactive', label: 'Medium' };
+      return { color: 'warning', label: 'Medium' };
   }
 }

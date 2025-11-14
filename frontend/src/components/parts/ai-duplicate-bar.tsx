@@ -31,14 +31,14 @@ export function AIPartDuplicateBar({ duplicateParts }: AIPartDuplicateBarProps) 
       className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-border"
       data-testid="parts.ai.review.duplicate-bar"
     >
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex items-center gap-3">
         {/* Header label on the left */}
-        <h3 className="text-base font-semibold text-foreground">
+        <h3 className="text-base font-semibold text-foreground whitespace-nowrap text-lg">
           Potential Duplicates Found:
         </h3>
 
         {/* Chips on the right with wrapping */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 flex-1">
           {sortedDuplicates.map((duplicate) => (
             <AIPartLinkChip
               key={duplicate.partKey}

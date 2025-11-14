@@ -15,6 +15,7 @@ interface AIPartDuplicateCardProps {
   isLoading?: boolean;
   isError?: boolean;
   onClick?: () => void;
+  inTooltip?: boolean; // If true, remove border to avoid double-border with tooltip
 }
 
 /**
@@ -27,6 +28,7 @@ export function AIPartDuplicateCard({
   isLoading,
   isError,
   onClick,
+  inTooltip = false,
 }: AIPartDuplicateCardProps) {
   // Format part display data using shared utility
   const { displayDescription } = part
@@ -50,7 +52,7 @@ export function AIPartDuplicateCard({
   if (isLoading) {
     return (
       <Card
-        variant="grid-tile-disabled"
+        variant={inTooltip ? "slim" : "grid-tile-disabled"}
         className="flex flex-col h-full animate-pulse max-w-[180px]"
         data-testid={`parts.ai.duplicates.card.${duplicate.partKey}`}
       >
@@ -68,7 +70,7 @@ export function AIPartDuplicateCard({
   if (isError || !part) {
     return (
       <Card
-        variant="grid-tile"
+        variant={inTooltip ? "slim" : "grid-tile"}
         onClick={handleClick}
         className="flex flex-col h-full max-w-[180px]"
         data-testid={`parts.ai.duplicates.card.${duplicate.partKey}`}
@@ -95,12 +97,12 @@ export function AIPartDuplicateCard({
         <div className="mt-auto flex items-center gap-2">
           <AIPartConfidenceBadge confidence={duplicate.confidence} />
           {/* Tooltip testId uses .card. prefix to distinguish from bar context */}
-          <Tooltip
+          {inTooltip || <Tooltip
             content={<div className="text-xs max-w-xs">{duplicate.reasoning}</div>}
             testId={`parts.ai.duplicate-reasoning.card.${duplicate.partKey}`}
           >
             <Info className="h-4 w-4 text-muted-foreground" />
-          </Tooltip>
+          </Tooltip>}
         </div>
       </Card>
     );
@@ -109,7 +111,7 @@ export function AIPartDuplicateCard({
   // Success state with loaded part data
   return (
     <Card
-      variant="grid-tile"
+      variant={inTooltip ? "slim" : "grid-tile"}
       onClick={handleClick}
       className="flex flex-col h-full max-w-[180px]"
       data-testid={`parts.ai.duplicates.card.${duplicate.partKey}`}
@@ -146,12 +148,12 @@ export function AIPartDuplicateCard({
       <div className="mt-auto flex items-center gap-2">
         <AIPartConfidenceBadge confidence={duplicate.confidence} />
         {/* Tooltip testId uses .card. prefix to distinguish from bar context */}
-        <Tooltip
+        {inTooltip || <Tooltip
           content={<div className="text-xs max-w-xs">{duplicate.reasoning}</div>}
           testId={`parts.ai.duplicate-reasoning.card.${duplicate.partKey}`}
         >
           <Info className="h-4 w-4 text-muted-foreground" />
-        </Tooltip>
+        </Tooltip>}
       </div>
     </Card>
   );
