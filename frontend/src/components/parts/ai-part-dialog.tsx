@@ -128,6 +128,7 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
         return (
           <AIPartInputStep
             onSubmit={handleInputSubmit}
+            onCancel={handleDialogClose}
             isLoading={false}
             initialText={lastSearchText}
           />
@@ -153,6 +154,7 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
           <AIPartDuplicatesOnlyStep
             duplicateParts={analysisResult.duplicateParts}
             onBack={handleBackToInput}
+            onCancel={handleDialogClose}
           />
         );
 
@@ -167,6 +169,7 @@ export function AIPartDialog({ open, onClose, onPartCreated }: AIPartDialogProps
             analysisResult={analysisResult}
             onCreatePart={handleCreatePart}
             onBack={handleBackToInput}
+            onCancel={handleDialogClose}
             isCreating={isCreatingPart}
           />
         );

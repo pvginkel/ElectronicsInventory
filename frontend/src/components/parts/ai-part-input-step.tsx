@@ -5,11 +5,12 @@ import { Label } from '@/components/ui/label';
 
 interface AIPartInputStepProps {
   onSubmit: (data: { text: string }) => void;
+  onCancel?: () => void;
   isLoading?: boolean;
   initialText?: string;
 }
 
-export function AIPartInputStep({ onSubmit, isLoading = false, initialText }: AIPartInputStepProps) {
+export function AIPartInputStep({ onSubmit, onCancel, isLoading = false, initialText }: AIPartInputStepProps) {
   const [textInput, setTextInput] = useState(initialText || '');
 
 
@@ -57,15 +58,27 @@ export function AIPartInputStep({ onSubmit, isLoading = false, initialText }: AI
         </div>
 
 
-        {/* Submit Button */}
-        <Button
-          type="submit"
-          disabled={!canSubmit}
-          className="w-full"
-          data-testid="parts.ai.input.submit"
-        >
-          {isLoading ? 'Analyzing...' : 'Analyze Part'}
-        </Button>
+        {/* Action Buttons */}
+        <div className="flex gap-3">
+          <Button
+            type="submit"
+            disabled={!canSubmit}
+            className="flex-1"
+            data-testid="parts.ai.input.submit"
+          >
+            {isLoading ? 'Analyzing...' : 'Analyze Part'}
+          </Button>
+          {onCancel && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              data-testid="parts.ai.input.cancel"
+            >
+              Cancel
+            </Button>
+          )}
+        </div>
       </form>
 
     </div>

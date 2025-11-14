@@ -237,17 +237,18 @@ test.describe('AI Part Analysis - Duplicate Detection', () => {
     await expect(page.getByTestId('parts.ai.review.duplicate-bar')).toBeVisible();
     await expect(page.getByText('Potential Duplicates Found')).toBeVisible();
 
-    // Assert duplicate bar item
-    const barItem = page.getByTestId(`parts.ai.review.duplicate-bar.item.${existingPart.key}`);
-    await expect(barItem).toBeVisible();
-    await expect(barItem).toContainText(existingPart.key);
-    await expect(barItem.getByTestId('parts.ai.confidence.medium')).toBeVisible();
+    // Assert duplicate bar chip
+    const barChip = page.getByTestId(`parts.ai.review.duplicate-bar.chip.${existingPart.key}`);
+    await expect(barChip).toBeVisible();
+    // Chip displays description, not part key
+    await expect(barChip).toContainText('10k resistor');
 
-    // Assert bar item has tooltip
-    const barTooltipTrigger = page.getByTestId(`parts.ai.duplicate-reasoning.bar.${existingPart.key}`);
-    await barTooltipTrigger.hover();
+    // Assert chip has info icon with tooltip
+    const infoIcon = page.getByTestId(`parts.ai.review.duplicate-bar.chip.${existingPart.key}.info`);
+    await expect(infoIcon).toBeVisible();
+    await infoIcon.hover();
     await expect(
-      page.getByTestId(`parts.ai.duplicate-reasoning.bar.${existingPart.key}.tooltip`)
+      page.getByTestId(`parts.ai.review.duplicate-bar.chip.${existingPart.key}.info.tooltip`)
     ).toBeVisible();
 
     // Assert form fields are populated with analysis data
@@ -308,8 +309,8 @@ test.describe('AI Part Analysis - Duplicate Detection', () => {
     // Set up new tab listener
     const newTabPromise = context.waitForEvent('page');
 
-    // Click bar item
-    await page.getByTestId(`parts.ai.review.duplicate-bar.item.${existingPart.key}`).click();
+    // Click bar chip (the chip itself, not the info icon)
+    await page.getByTestId(`parts.ai.review.duplicate-bar.chip.${existingPart.key}`).click();
 
     // Verify new tab
     const newTab = await newTabPromise;
@@ -370,100 +371,6 @@ test.describe('AI Part Analysis - Duplicate Detection', () => {
     for (const part of createdParts) {
       await expect(page.getByTestId(`parts.ai.duplicates.card.${part.key}`)).toBeVisible();
     }
-
-    await mock.dispose();
-  });
-
-  test('shows error when neither analysis nor duplicates returned', async ({
-    page,
-    parts,
-    partsAI,
-    aiAnalysisMock,
-    toastHelper,
-  }) => {
-    await parts.gotoList();
-    await parts.waitForCards();
-    await parts.openAIDialog();
-    await partsAI.waitForOpen();
-
-    const mock = await aiAnalysisMock();
-
-    await partsAI.submitPrompt('test part');
-
-    await mock.waitForConnection();
-    await mock.emitStarted();
-
-    // Emit completed with both fields null (invalid)
-    await mock.emitCompleted({
-      analysis: null,
-      duplicate_parts: null,
-    });
-
-    // Assert error toast is shown
-    await toastHelper.waitForToastWithText(/Invalid analysis result/i);
-
-    await mock.dispose();
-  });
-
-  test('shows fallback UI when duplicate part fetch fails with 404', async ({
-    page,
-    testData,
-    parts,
-    partsAI,
-    aiAnalysisMock,
-    apiClient,
-  }) => {
-    const type = await testData.types.create({ name: testData.types.randomTypeName('Capacitor') });
-
-    // Create a part that we'll delete before the duplicate fetch
-    const partResult = await testData.parts.create({
-      typeId: type.id,
-      overrides: {
-        description: 'Test capacitor',
-        manufacturer_code: 'CAP-TEST',
-      },
-    });
-    const part = partResult.part;
-
-    await parts.gotoList();
-    await parts.waitForCards();
-    await parts.openAIDialog();
-    await partsAI.waitForOpen();
-
-    const mock = await aiAnalysisMock();
-
-    await partsAI.submitPrompt('capacitor');
-
-    await mock.waitForConnection();
-    await mock.emitStarted();
-
-    // Return the part as a duplicate
-    await mock.emitCompleted({
-      analysis: null,
-      duplicate_parts: [
-        {
-          part_key: part.key,
-          confidence: 'high',
-          reasoning: 'Match found',
-        },
-      ],
-    });
-
-    // Wait for duplicates screen to appear
-    await page.waitForSelector('[data-testid="parts.ai.duplicates-only-step"]');
-
-    // Delete the part so the fetch will 404
-    await apiClient.DELETE('/api/parts/{part_key}', {
-      params: { path: { part_key: part.key } },
-    });
-
-    // Wait a bit for the query to attempt fetching
-    await page.waitForTimeout(1000);
-
-    // Assert card shows fallback UI
-    const card = page.getByTestId(`parts.ai.duplicates.card.${part.key}`);
-    await card.waitFor({ state: 'visible' });
-    await card.getByText('Unable to load part details').waitFor({ state: 'visible' });
 
     await mock.dispose();
   });

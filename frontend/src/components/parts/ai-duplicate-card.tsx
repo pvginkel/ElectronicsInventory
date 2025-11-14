@@ -51,7 +51,7 @@ export function AIPartDuplicateCard({
     return (
       <Card
         variant="grid-tile-disabled"
-        className="flex flex-col h-full animate-pulse"
+        className="flex flex-col h-full animate-pulse max-w-[180px]"
         data-testid={`parts.ai.duplicates.card.${duplicate.partKey}`}
       >
         <div className="flex-shrink-0 mb-2">
@@ -70,7 +70,7 @@ export function AIPartDuplicateCard({
       <Card
         variant="grid-tile"
         onClick={handleClick}
-        className="flex flex-col h-full"
+        className="flex flex-col h-full max-w-[180px]"
         data-testid={`parts.ai.duplicates.card.${duplicate.partKey}`}
         data-part-key={duplicate.partKey}
       >
@@ -111,7 +111,7 @@ export function AIPartDuplicateCard({
     <Card
       variant="grid-tile"
       onClick={handleClick}
-      className="flex flex-col h-full"
+      className="flex flex-col h-full max-w-[180px]"
       data-testid={`parts.ai.duplicates.card.${duplicate.partKey}`}
       data-part-key={duplicate.partKey}
     >

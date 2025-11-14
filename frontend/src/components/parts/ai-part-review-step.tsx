@@ -48,14 +48,16 @@ interface AIPartReviewStepProps {
   analysisResult: TransformedAIPartAnalysisResult;
   onCreatePart: (data: ReturnType<typeof transformToCreateSchema>, createAnother: boolean) => void;
   onBack?: () => void;
+  onCancel?: () => void;
   isCreating?: boolean;
 }
 
-export function AIPartReviewStep({ 
-  analysisResult, 
-  onCreatePart, 
+export function AIPartReviewStep({
+  analysisResult,
+  onCreatePart,
   onBack,
-  isCreating = false 
+  onCancel,
+  isCreating = false
 }: AIPartReviewStepProps) {
   const [formData, setFormData] = useState<PartFormData>(() => ({
     description: analysisResult.description || '',
@@ -498,18 +500,30 @@ export function AIPartReviewStep({
       {/* Actions - Sticky Footer */}
       <div className="flex-shrink-0 mt-8 pt-6 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60" data-testid="parts.ai.review-actions">
         <div className="flex justify-between items-center">
-          {onBack && (
-            <Button
-              variant="outline"
-              onClick={onBack}
-              disabled={isCreating}
-              data-testid="parts.ai.review.back"
-            >
-              Go Back
-            </Button>
-          )}
-          
           <div className="flex gap-3">
+            {onBack && (
+              <Button
+                variant="outline"
+                onClick={onBack}
+                disabled={isCreating}
+                data-testid="parts.ai.review.back"
+              >
+                Go Back
+              </Button>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            {onCancel && (
+              <Button
+                variant="outline"
+                onClick={onCancel}
+                disabled={isCreating}
+                data-testid="parts.ai.review.cancel"
+              >
+                Cancel
+              </Button>
+            )}
             <Button
               onClick={() => handleCreatePart(false)}
               disabled={isCreating}

@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { AIPartDuplicateCard } from './ai-duplicate-card';
+import { useSortedDuplicates } from '@/hooks/use-sorted-duplicates';
 import { useDuplicatePartDetails } from '@/hooks/use-duplicate-part-details';
 import type { DuplicatePartEntry } from '@/types/ai-parts';
 import { cn } from '@/lib/utils';
@@ -7,6 +8,7 @@ import { cn } from '@/lib/utils';
 interface AIPartDuplicatesOnlyStepProps {
   duplicateParts: DuplicatePartEntry[];
   onBack?: () => void;
+  onCancel?: () => void;
 }
 
 /**
@@ -28,12 +30,22 @@ function getGridClasses(count: number): string {
 /**
  * Duplicate-only step component shown when AI analysis returns only duplicate matches.
  * Displays grid of potential duplicate parts with cover images, confidence badges, and reasoning tooltips.
+ *
+ * Updated design:
+ * - Cards sorted by confidence (high > medium) then alphabetically
+ * - Cards have 180px max-width
+ * - Container has padding to prevent hover animation clipping
+ * - Cancel button added to footer
  */
 export function AIPartDuplicatesOnlyStep({
   duplicateParts,
   onBack,
+  onCancel,
 }: AIPartDuplicatesOnlyStepProps) {
-  const gridClasses = getGridClasses(duplicateParts.length);
+  // Guidepost: Fetch and sort duplicates by confidence and description
+  const { sortedDuplicates } = useSortedDuplicates(duplicateParts);
+
+  const gridClasses = getGridClasses(sortedDuplicates.length);
 
   return (
     <div className="flex flex-col h-full" data-testid="parts.ai.duplicates-only-step">
@@ -46,19 +58,19 @@ export function AIPartDuplicatesOnlyStep({
         </p>
       </div>
 
-      {/* Scrollable Grid */}
+      {/* Scrollable Grid with padding to prevent card hover clipping */}
       <div className="flex-1 overflow-y-auto pb-4 min-h-0">
-        <div className={cn('grid gap-4', gridClasses)}>
-          {duplicateParts.map((duplicate) => (
+        <div className={cn('grid gap-4 p-1', gridClasses)}>
+          {sortedDuplicates.map((duplicate) => (
             <DuplicateCardWithData key={duplicate.partKey} duplicate={duplicate} />
           ))}
         </div>
       </div>
 
       {/* Actions - Sticky Footer */}
-      {onBack && (
-        <div className="flex-shrink-0 mt-8 pt-6 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex justify-between items-center">
+      <div className="flex-shrink-0 mt-8 pt-6 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex justify-between items-center">
+          {onBack && (
             <Button
               variant="outline"
               onClick={onBack}
@@ -66,9 +78,18 @@ export function AIPartDuplicatesOnlyStep({
             >
               Go Back
             </Button>
-          </div>
+          )}
+          {onCancel && (
+            <Button
+              variant="outline"
+              onClick={onCancel}
+              data-testid="parts.ai.duplicates.cancel"
+            >
+              Cancel
+            </Button>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

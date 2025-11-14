@@ -4,6 +4,7 @@ import { Unlink } from 'lucide-react';
 
 import { StatusBadge } from '@/components/ui';
 import { Button } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 export interface LinkChipProps {
@@ -26,6 +27,11 @@ export interface LinkChipProps {
   wrapperTestId?: string;
   iconTestId?: string;
   badgeTestId?: string;
+
+  // Info icon (optional - shows tooltip on hover)
+  infoIcon?: ReactNode;
+  infoTooltip?: ReactNode;
+  infoIconTestId?: string;
 
   // Unlink behavior
   onUnlink?: () => void;
@@ -77,6 +83,9 @@ export function LinkChip({
   wrapperTestId,
   iconTestId,
   badgeTestId,
+  infoIcon,
+  infoTooltip,
+  infoIconTestId,
   onUnlink,
   unlinkDisabled,
   unlinkLoading,
@@ -92,6 +101,11 @@ export function LinkChip({
     event.preventDefault();
     event.stopPropagation();
     onUnlink?.();
+  };
+
+  // Guidepost: Handle info icon click — prevent propagation to avoid triggering navigation
+  const handleInfoIconClick = (event: MouseEvent<HTMLSpanElement>) => {
+    event.stopPropagation();
   };
 
   return (
@@ -134,6 +148,18 @@ export function LinkChip({
           testId={badgeTestId ?? ''}
         />
       </Link>
+      {/* Guidepost: Info icon renders OUTSIDE Link element to prevent navigation on hover/click */}
+      {infoIcon && infoTooltip && (
+        <Tooltip content={infoTooltip} placement="auto" testId={infoIconTestId}>
+          <span
+            className="flex-shrink-0 text-muted-foreground hover:text-primary transition-colors cursor-help"
+            onClick={handleInfoIconClick}
+            data-testid={infoIconTestId}
+          >
+            {infoIcon}
+          </span>
+        </Tooltip>
+      )}
       {onUnlink ? (
         <Button
           type="button"
