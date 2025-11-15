@@ -689,3 +689,177 @@ class TestAIService:
         assert result.duplicate_parts[0].part_key == "WXYZ"
         assert result.duplicate_parts[0].confidence == "medium"
 
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_analyze_part_returns_failure_reason_only(self, mock_run, ai_service: AIService):
+        """Test analyze_part returns failure_reason when query is too vague."""
+        from app.utils.ai.ai_runner import AIResponse
+
+        # Mock LLM returning only failure_reason (no analysis or duplicates)
+        mock_response = PartAnalysisSuggestion(
+            analysis_result=None,
+            duplicate_parts=None,
+            analysis_failure_reason="Please be more specific - do you need an SMD or through-hole resistor?"
+        )
+        mock_run.return_value = AIResponse(
+            response=mock_response,
+            output_text="Query too vague",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
+        )
+
+        # Execute
+        mock_progress = Mock()
+        result = ai_service.analyze_part("10k resistor", None, None, mock_progress)
+
+        # Verify only failure_reason is returned
+        assert result.analysis_failure_reason is not None
+        assert result.analysis_failure_reason == "Please be more specific - do you need an SMD or through-hole resistor?"
+        assert result.analysis_result is None
+        assert result.duplicate_parts is None
+
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_analyze_part_returns_analysis_with_failure_reason(self, mock_run, ai_service: AIService):
+        """Test analyze_part returns both analysis and failure_reason for partial info."""
+        from app.utils.ai.ai_runner import AIResponse
+
+        # Mock LLM returning partial analysis with failure_reason
+        mock_response = PartAnalysisSuggestion(
+            analysis_result=PartAnalysisDetails(
+                product_name="Generic resistor",
+                product_family=None,
+                product_category="Resistor",
+                manufacturer=None,
+                manufacturer_part_number=None,
+                package_type=None,
+                mounting_type=None,
+                part_pin_count=None,
+                part_pin_pitch=None,
+                voltage_rating=None,
+                input_voltage=None,
+                output_voltage=None,
+                physical_dimensions=None,
+                tags=["resistor", "10k"],
+                product_page_urls=[],
+                datasheet_urls=[],
+                pinout_urls=[]
+            ),
+            duplicate_parts=None,
+            analysis_failure_reason="Partial info available but please specify package type and tolerance"
+        )
+        mock_run.return_value = AIResponse(
+            response=mock_response,
+            output_text="Partial analysis",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
+        )
+
+        # Execute
+        mock_progress = Mock()
+        result = ai_service.analyze_part("10k resistor", None, None, mock_progress)
+
+        # Verify both fields are populated
+        assert result.analysis_result is not None
+        assert result.analysis_result.description == "Generic resistor"
+        assert result.analysis_result.type == "Resistor"
+        assert result.analysis_failure_reason is not None
+        assert result.analysis_failure_reason == "Partial info available but please specify package type and tolerance"
+        assert result.duplicate_parts is None
+
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_analyze_part_returns_duplicates_with_failure_reason(self, mock_run, ai_service: AIService):
+        """Test analyze_part returns duplicates and failure_reason for uncertain matches."""
+        from app.utils.ai.ai_runner import AIResponse
+
+        # Mock LLM returning duplicates with failure_reason (no full analysis)
+        mock_response = PartAnalysisSuggestion(
+            analysis_result=None,
+            duplicate_parts=[
+                DuplicatePartMatch(part_key="RELA", confidence="medium", reasoning="Similar relay specs but uncertain")
+            ],
+            analysis_failure_reason="Matches found but may not be exact - please clarify relay coil voltage"
+        )
+        mock_run.return_value = AIResponse(
+            response=mock_response,
+            output_text="Uncertain duplicates",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
+        )
+
+        # Execute
+        mock_progress = Mock()
+        result = ai_service.analyze_part("relay", None, None, mock_progress)
+
+        # Verify both duplicates and failure_reason are populated
+        assert result.duplicate_parts is not None
+        assert len(result.duplicate_parts) == 1
+        assert result.duplicate_parts[0].part_key == "RELA"
+        assert result.analysis_failure_reason is not None
+        assert result.analysis_failure_reason == "Matches found but may not be exact - please clarify relay coil voltage"
+        assert result.analysis_result is None
+
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_analyze_part_all_three_fields_populated(self, mock_run, ai_service: AIService):
+        """Test analyze_part with all three fields populated (edge case)."""
+        from app.utils.ai.ai_runner import AIResponse
+
+        # Mock LLM returning all three fields
+        mock_response = PartAnalysisSuggestion(
+            analysis_result=PartAnalysisDetails(
+                product_name="Generic relay",
+                product_family=None,
+                product_category="Relay",
+                manufacturer=None,
+                manufacturer_part_number=None,
+                package_type=None,
+                mounting_type=None,
+                part_pin_count=None,
+                part_pin_pitch=None,
+                voltage_rating=None,
+                input_voltage=None,
+                output_voltage=None,
+                physical_dimensions=None,
+                tags=["relay"],
+                product_page_urls=[],
+                datasheet_urls=[],
+                pinout_urls=[]
+            ),
+            duplicate_parts=[
+                DuplicatePartMatch(part_key="RLAY", confidence="medium", reasoning="Possible match")
+            ],
+            analysis_failure_reason="Check these similar parts but please verify specifications"
+        )
+        mock_run.return_value = AIResponse(
+            response=mock_response,
+            output_text="All fields",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
+        )
+
+        # Execute
+        mock_progress = Mock()
+        result = ai_service.analyze_part("relay", None, None, mock_progress)
+
+        # Verify all three fields are populated
+        assert result.analysis_result is not None
+        assert result.analysis_result.description == "Generic relay"
+        assert result.duplicate_parts is not None
+        assert len(result.duplicate_parts) == 1
+        assert result.analysis_failure_reason is not None
+        assert result.analysis_failure_reason == "Check these similar parts but please verify specifications"
+

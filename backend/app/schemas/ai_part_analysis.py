@@ -139,9 +139,10 @@ class AIPartAnalysisResultSchema(BaseModel):
     The LLM can populate:
     - Only analysis_result (full analysis, no duplicates found)
     - Only duplicate_parts (high-confidence duplicates found, no analysis needed)
-    - Both fields (medium-confidence duplicates found, full analysis also performed)
+    - Only analysis_failure_reason (query too vague/ambiguous, cannot proceed)
+    - Multiple fields (e.g., medium-confidence duplicates with full analysis, or partial analysis with failure reason)
 
-    Both fields are optional; LLM prompt guidance determines which to populate.
+    All fields are optional; LLM prompt guidance determines which to populate.
     """
 
     analysis_result: PartAnalysisDetailsSchema | None = Field(
@@ -152,25 +153,37 @@ class AIPartAnalysisResultSchema(BaseModel):
         default=None,
         description="List of potential duplicate parts when duplicates are found (includes high and medium confidence matches)"
     )
+    analysis_failure_reason: str | None = Field(
+        default=None,
+        description="Explanation when the query lacks sufficient information to identify a specific part"
+    )
 
     @model_validator(mode='after')
     def validate_at_least_one_path(self) -> 'AIPartAnalysisResultSchema':
-        """Validate that at least one of analysis_result or duplicate_parts is populated.
+        """Validate that at least one field is meaningfully populated.
 
         This ensures the LLM provided some result without being overly restrictive.
-        Both fields can be populated (e.g., when medium-confidence duplicates are found
-        alongside full analysis).
+        Multiple fields can be populated (e.g., when medium-confidence duplicates are found
+        alongside full analysis, or partial analysis with a failure reason).
 
         Raises:
-            ValueError: If both fields are None
+            ValueError: If all fields are None or if analysis_failure_reason is an empty/whitespace-only string
         """
         has_analysis = self.analysis_result is not None
         has_duplicates = self.duplicate_parts is not None
 
-        if not (has_analysis or has_duplicates):
+        # For failure_reason, reject empty strings and whitespace-only strings
+        has_failure_reason = (
+            self.analysis_failure_reason is not None
+            and isinstance(self.analysis_failure_reason, str)
+            and self.analysis_failure_reason.strip() != ""
+        )
+
+        if not (has_analysis or has_duplicates or has_failure_reason):
             raise ValueError(
-                "At least one of analysis_result or duplicate_parts must be populated. "
-                f"Got: analysis_result={has_analysis}, duplicate_parts={has_duplicates}"
+                "At least one of analysis_result, duplicate_parts, or analysis_failure_reason must be populated. "
+                f"Got: analysis_result={has_analysis}, duplicate_parts={has_duplicates}, "
+                f"analysis_failure_reason={has_failure_reason}"
             )
 
         return self

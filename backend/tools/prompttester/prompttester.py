@@ -1,10 +1,10 @@
 import json
 import logging
 import os
+import re
 import threading
 import time
 import traceback
-import re
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -19,7 +19,6 @@ from app.schemas.duplicate_search import (
 )
 from app.services.ai_model import PartAnalysisSuggestion
 from app.services.base_task import ProgressHandle
-from app.services.metrics_service import MetricsServiceProtocol
 from app.utils.ai.ai_runner import AIFunction, AIRequest, AIRunner
 from app.utils.ai.duplicate_search import DuplicateSearchFunction
 from app.utils.file_parsers import get_types_from_setup
@@ -125,7 +124,7 @@ class MockDuplicateSearchService:
         with open(prompt_path) as f:
             template_str = f.read()
         env = Environment()
-        
+
         # Build prompt with mock inventory
         prompt_template = env.from_string(template_str)
 
@@ -565,18 +564,20 @@ def full_tests():
         # "gpt-4o-mini": None,
         # "gpt-5": reasoning_efforts,
         "gpt-5-mini": reasoning_efforts,
+        # "gpt-5.1-mini": reasoning_efforts,
         # "gpt-5-nano": reasoning_efforts,
         # "o3": reasoning_efforts,
         # "o4-mini",: reasoning_efforts,
     }
     queries = [
         # "HLK PM24",
-        "relay 12V SPDT 5A",
+        # "relay 12V SPDT 5A",
         # "SN74HC595N",
         # "ESP32-S3FN8",
         # "Arduino Nano Every",
         # "DFRobot Gravity SGP40",
-        # "generic tht resistor 1/4w 1% 10k"
+        # "generic tht resistor 1/4w 1% 10k",
+        "banana"
     ]
 
     run_full_tests(

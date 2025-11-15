@@ -46,13 +46,21 @@ class PartAnalysisDetails(BaseModel):
 
 
 class PartAnalysisSuggestion(BaseModel):
-    """LLM response with two mutually exclusive paths.
+    """LLM response with flexible paths.
 
-    The LLM populates either analysis_result (full analysis) OR duplicate_parts (duplicates found).
-    Both fields are optional; LLM prompt guidance ensures appropriate population.
+    The LLM can populate:
+    - analysis_result (full analysis)
+    - duplicate_parts (duplicates found)
+    - analysis_failure_reason (query too vague/ambiguous)
+
+    All fields are optional; LLM prompt guidance ensures appropriate population.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     analysis_result: PartAnalysisDetails | None = Field(default=None)
     duplicate_parts: list[DuplicatePartMatch] | None = Field(default=None)
+    analysis_failure_reason: str | None = Field(
+        default=None,
+        description="Explanation of why it's not possible to find a match"
+    )

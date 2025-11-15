@@ -367,3 +367,102 @@ class TestAIPartAnalysisTask:
         # Should be cancellable
         task.cancel()
         assert task.is_cancelled
+
+    def test_execute_with_failure_reason_only(self, mock_container, mock_ai_service, mock_progress_handle):
+        """Test task execution when LLM returns only failure_reason (query too vague)."""
+        # Mock AI service response with only failure_reason
+        mock_analysis_result = AIPartAnalysisResultSchema(
+            analysis_result=None,
+            duplicate_parts=None,
+            analysis_failure_reason="Please be more specific - do you need an SMD or through-hole resistor?"
+        )
+        mock_ai_service.analyze_part.return_value = mock_analysis_result
+
+        task = AIPartAnalysisTask(mock_container)
+
+        result = task.execute(
+            mock_progress_handle,
+            text_input="10k resistor"
+        )
+
+        # Verify successful task but with failure_reason in analysis
+        assert isinstance(result, AIPartAnalysisTaskResultSchema)
+        assert result.success is True
+        assert result.analysis is not None
+        assert result.analysis.analysis_failure_reason is not None
+        assert result.analysis.analysis_failure_reason == "Please be more specific - do you need an SMD or through-hole resistor?"
+        assert result.analysis.analysis_result is None
+        assert result.analysis.duplicate_parts is None
+        assert result.error_message is None
+
+    def test_execute_with_analysis_and_failure_reason(self, mock_container, mock_ai_service, mock_progress_handle):
+        """Test task execution when LLM returns both analysis and failure_reason."""
+        # Mock AI service response with partial analysis and failure_reason
+        mock_analysis_result = AIPartAnalysisResultSchema(
+            analysis_result=PartAnalysisDetailsSchema(
+                manufacturer_code=None,
+                type="Resistor",
+                description="Generic resistor",
+                tags=["resistor", "10k"],
+                type_is_existing=True,
+                existing_type_id=1,
+                documents=[]
+            ),
+            duplicate_parts=None,
+            analysis_failure_reason="Partial info available but please specify package type"
+        )
+        mock_ai_service.analyze_part.return_value = mock_analysis_result
+
+        task = AIPartAnalysisTask(mock_container)
+
+        result = task.execute(
+            mock_progress_handle,
+            text_input="10k resistor"
+        )
+
+        # Verify successful task with both fields populated
+        assert isinstance(result, AIPartAnalysisTaskResultSchema)
+        assert result.success is True
+        assert result.analysis is not None
+        assert result.analysis.analysis_result is not None
+        assert result.analysis.analysis_result.description == "Generic resistor"
+        assert result.analysis.analysis_failure_reason is not None
+        assert result.analysis.analysis_failure_reason == "Partial info available but please specify package type"
+        assert result.error_message is None
+
+    def test_execute_with_duplicates_and_failure_reason(self, mock_container, mock_ai_service, mock_progress_handle):
+        """Test task execution when LLM returns both duplicates and failure_reason."""
+        from app.schemas.duplicate_search import DuplicateMatchEntry
+
+        # Mock AI service response with duplicates and failure_reason
+        mock_analysis_result = AIPartAnalysisResultSchema(
+            analysis_result=None,
+            duplicate_parts=[
+                DuplicateMatchEntry(
+                    part_key="RLAY",
+                    confidence="medium",
+                    reasoning="Similar specs but uncertain"
+                )
+            ],
+            analysis_failure_reason="Matches found but may not be exact - please clarify relay specifications"
+        )
+        mock_ai_service.analyze_part.return_value = mock_analysis_result
+
+        task = AIPartAnalysisTask(mock_container)
+
+        result = task.execute(
+            mock_progress_handle,
+            text_input="relay"
+        )
+
+        # Verify successful task with both duplicates and failure_reason
+        assert isinstance(result, AIPartAnalysisTaskResultSchema)
+        assert result.success is True
+        assert result.analysis is not None
+        assert result.analysis.duplicate_parts is not None
+        assert len(result.analysis.duplicate_parts) == 1
+        assert result.analysis.duplicate_parts[0].part_key == "RLAY"
+        assert result.analysis.analysis_failure_reason is not None
+        assert result.analysis.analysis_failure_reason == "Matches found but may not be exact - please clarify relay specifications"
+        assert result.analysis.analysis_result is None
+        assert result.error_message is None

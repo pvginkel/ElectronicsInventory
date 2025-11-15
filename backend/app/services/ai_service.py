@@ -136,7 +136,15 @@ class AIService(BaseService):
             # The LLM can populate:
             # - Only duplicate_parts (high-confidence duplicates, no analysis)
             # - Only analysis_result (no duplicates or search not performed)
-            # - Both fields (medium-confidence duplicates with full analysis)
+            # - Only analysis_failure_reason (query too vague/ambiguous)
+            # - Multiple fields (e.g., medium-confidence duplicates with full analysis)
+
+            # Extract failure reason if present
+            failure_reason: str | None = ai_response.analysis_failure_reason
+            if failure_reason:
+                logger.info(
+                    f"LLM returned analysis failure reason: {failure_reason[:100]}{'...' if len(failure_reason) > 100 else ''}"
+                )
 
             # Convert duplicate matches if present
             duplicate_entries: list[DuplicateMatchEntry] | None = None
@@ -212,10 +220,11 @@ class AIService(BaseService):
                     existing_type_id=existing_type_id
                 )
 
-            # Return both fields (either or both can be populated based on LLM response)
+            # Return all fields (any combination can be populated based on LLM response)
             return AIPartAnalysisResultSchema(
                 analysis_result=analysis_result_entry,
-                duplicate_parts=duplicate_entries
+                duplicate_parts=duplicate_entries,
+                analysis_failure_reason=failure_reason
             )
 
         except json.JSONDecodeError as e:
@@ -227,7 +236,10 @@ class AIService(BaseService):
             "categories": categories
         }
 
-        with open(os.path.join(os.path.dirname(__file__), "prompt.md")) as f:
+        prompt_path = os.path.join(
+            os.path.dirname(__file__), "prompts", "part_search.md"
+        )
+        with open(prompt_path) as f:
             template_str = f.read()
 
         env_inline = Environment()
