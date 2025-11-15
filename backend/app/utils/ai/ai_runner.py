@@ -160,6 +160,8 @@ class AIRunner:
         input_content: list[Any],
         progress_handle: ProgressHandle,
     ) -> bool:
+        had_function_call = False
+
         for item in response.output:
             if item.type == "function_call":
                 for function in function_tools:
@@ -183,9 +185,9 @@ class AIRunner:
                         })
 
                         progress_handle.send_progress_text("Continuing analysis")
-                        return True
+                        had_function_call = True
 
-        return False
+        return had_function_call
 
     def _call_openai_api(
         self,
@@ -376,7 +378,7 @@ class AIRunner:
         output_pm: float
 
         match model:
-            case "gpt-5":
+            case "gpt-5" | "gpt-5.1":
                 input_tokens_pm = 1.25
                 cached_input_pm = 0.125
                 output_pm = 10
@@ -397,7 +399,6 @@ class AIRunner:
                 cached_input_pm = 0.2
                 output_pm = 3.2
             case _:
-                raise Exception("hi")
                 return None
 
         return (
