@@ -12,10 +12,10 @@ Before performing full analysis, check if the part already exists in the invento
    - **If ONLY medium confidence matches** (no high confidence): Proceed with full analysis. Populate the `analysis_result` field normally AND include any medium-confidence matches in the `duplicate_parts` field (both fields populated).
    - **If NO matches found**: Proceed with full analysis normally. Populate ONLY the `analysis_result` field. Set `duplicate_parts` to null.
 
-4. **Response structure**: Your response must have TWO top-level fields:
+4. **Response structure**: Your response must have THREE top-level fields:
    - `analysis_result`: Populated when doing full analysis
    - `duplicate_parts`: Populated when duplicates found (high or medium confidence)
-   - Both fields can be populated when medium-confidence matches are found alongside full analysis.
+   - `analysis_failure_reason`: Populated when it's not possible to complete the analysis
 
 # Goals
 - Identify the exact part (manufacturer + manufacturer part number) when possible.
@@ -59,26 +59,4 @@ Before performing full analysis, check if the part already exists in the invento
 - Tags must be at most five words in length, lower case with hyphens. Do not include quantitative aspects.
 
 ## Disambiguation & uncertainty
-- If multiple variants match the query, choose the closest exact match; if uncertain, set ambiguous fields to null and add a clarifying note in `tags` (e.g., "variant-dependent-pin-count").
-
-# Examples
-
-## Example 1: High confidence duplicate found
-User: "OMRON G5Q-1A4"
-- Call `find_duplicates` with: "OMRON G5Q-1A4 relay"
-- Function returns: `[{"part_key": "ABCD", "confidence": "high", "reasoning": "Exact MPN match"}]`
-- Response: `{"analysis_result": null, "duplicate_parts": [{"part_key": "ABCD", "confidence": "high", "reasoning": "Exact MPN match"}]}`
-
-## Example 2: Only medium confidence matches (proceed with analysis, populate both fields)
-User: "5V relay, SPST, THT"
-- Call `find_duplicates` with: "5V relay, SPST, THT package"
-- Function returns: `[{"part_key": "XYZW", "confidence": "medium", "reasoning": "Same type and voltage but different manufacturer"}]`
-- Proceed with full analysis
-- Response: `{"analysis_result": {<full analysis fields>}, "duplicate_parts": [{"part_key": "XYZW", "confidence": "medium", "reasoning": "Same type and voltage but different manufacturer"}]}`
-
-## Example 3: No duplicates found
-User: "ESP32-S3-WROOM-1"
-- Call `find_duplicates` with: "ESP32-S3-WROOM-1 Espressif WiFi module"
-- Function returns: `{"matches": []}`
-- Proceed with full analysis
-- Response: `{"analysis_result": {<full analysis fields>}, "duplicate_parts": null}`
+- If multiple variants match the query, choose the closest exact match; if uncertain, bail out of AI analysis and return a failure reason.

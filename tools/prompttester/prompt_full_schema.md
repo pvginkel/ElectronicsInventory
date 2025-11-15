@@ -12,10 +12,10 @@ Before performing full analysis, check if the part already exists in the invento
    - **If ONLY medium confidence matches** (no high confidence): Proceed with full analysis. Populate the `analysis_result` field normally AND include any medium-confidence matches in the `duplicate_parts` field (both fields populated).
    - **If NO matches found**: Proceed with full analysis normally. Populate ONLY the `analysis_result` field. Set `duplicate_parts` to null.
 
-4. **Response structure**: Your response must have TWO top-level fields:
+4. **Response structure**: Your response must have THREE top-level fields:
    - `analysis_result`: Populated when doing full analysis
    - `duplicate_parts`: Populated when duplicates found (high or medium confidence)
-   - Both fields can be populated when medium-confidence matches are found alongside full analysis.
+   - `analysis_failure_reason`: Populated when it's not possible to complete the analysis
 
 # Goals
 - Identify the exact part (manufacturer + manufacturer part number) when possible.
@@ -59,4 +59,4 @@ Before performing full analysis, check if the part already exists in the invento
 - Tags must be at most five words in length, lower case with hyphens. Do not include quantitative aspects.
 
 ## Disambiguation & uncertainty
-- If multiple variants match the query, choose the closest exact match; if uncertain, set ambiguous fields to null and add a clarifying note in `tags` (e.g., "variant-dependent-pin-count").
+- If multiple variants match the query, choose the closest exact match; if uncertain, bail out of AI analysis and return a failure reason.
