@@ -69,7 +69,7 @@ export function AIPartLinkChip({ duplicate, testId }: AIPartLinkChipProps) {
   };
 
   return (
-    <Tooltip content={cardTooltipContent} placement="bottom" testId={testId}>
+    <Tooltip content={cardTooltipContent} placement="bottom">
       <div onClick={handleWrapperClick} className="cursor-pointer">
         <LinkChip
           to="/parts/$partKey"

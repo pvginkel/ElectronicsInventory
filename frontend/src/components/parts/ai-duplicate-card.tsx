@@ -97,7 +97,7 @@ export function AIPartDuplicateCard({
         <div className="mt-auto flex items-center gap-2">
           <AIPartConfidenceBadge confidence={duplicate.confidence} />
           {/* Tooltip testId uses .card. prefix to distinguish from bar context */}
-          {inTooltip || <Tooltip
+          {!inTooltip && <Tooltip
             content={<div className="text-xs max-w-xs">{duplicate.reasoning}</div>}
             testId={`parts.ai.duplicate-reasoning.card.${duplicate.partKey}`}
           >
@@ -148,7 +148,7 @@ export function AIPartDuplicateCard({
       <div className="mt-auto flex items-center gap-2">
         <AIPartConfidenceBadge confidence={duplicate.confidence} />
         {/* Tooltip testId uses .card. prefix to distinguish from bar context */}
-        {inTooltip || <Tooltip
+        {!inTooltip && <Tooltip
           content={<div className="text-xs max-w-xs">{duplicate.reasoning}</div>}
           testId={`parts.ai.duplicate-reasoning.card.${duplicate.partKey}`}
         >
