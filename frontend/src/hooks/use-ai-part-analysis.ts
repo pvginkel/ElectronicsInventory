@@ -24,22 +24,36 @@ interface UseAIPartAnalysisReturn {
 
 export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAIPartAnalysisReturn {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  
+  const [error, setError] = useState<string | null>(null);
+
   const {
     connect: connectSSE,
     disconnect: disconnectSSE,
     progress,
-    result: sseResult,
-    error: sseError
+    result: sseResult
   } = useSSETask<AIPartAnalysisResult>({
     onProgress: options.onProgress,
     onResult: <T>(data: T) => {
       const transformedResult = transformAIPartAnalysisResult(data as AIPartAnalysisResult);
+
+      // Check for analysis failure reason (AI unable to fulfill request)
+      if (transformedResult.analysisFailureReason?.trim()) {
+        const failureMessage = transformedResult.analysisFailureReason;
+        emitComponentError(new Error(failureMessage), 'ai-part-analysis');
+        setError(failureMessage);
+        options.onError?.(failureMessage);
+        setIsAnalyzing(false);
+        return;
+      }
+
+      // Success path: route to review/duplicates
+      setError(null);
       options.onSuccess?.(transformedResult);
       setIsAnalyzing(false);
     },
     onError: (message) => {
       emitComponentError(new Error(message), 'ai-part-analysis');
+      setError(message);
       options.onError?.(message);
       setIsAnalyzing(false);
     }
@@ -51,12 +65,15 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
     }
 
     if (!data.text && !data.image) {
-      options.onError?.('Either text or image must be provided');
+      const errorMessage = 'Either text or image must be provided';
+      setError(errorMessage);
+      options.onError?.(errorMessage);
       return;
     }
 
     try {
       setIsAnalyzing(true);
+      setError(null);
       
       // Create FormData for multipart submission
       const formData = new FormData();
@@ -107,24 +124,26 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
       
     } catch (error) {
       console.error('Failed to submit analysis request:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to start analysis';
       setIsAnalyzing(false);
+      setError(errorMessage);
       if (error instanceof Error) {
         emitComponentError(error, 'ai-part-analysis');
       } else {
         emitComponentError(new Error(String(error)), 'ai-part-analysis');
       }
-      options.onError?.(error instanceof Error ? error.message : 'Failed to start analysis');
+      options.onError?.(errorMessage);
     }
   }, [isAnalyzing, connectSSE, options]);
 
   const cancelAnalysis = useCallback(() => {
     disconnectSSE();
     setIsAnalyzing(false);
+    setError(null);
   }, [disconnectSSE]);
 
   // Transform SSE result when available
   const result = sseResult ? transformAIPartAnalysisResult(sseResult) : null;
-  const error = sseError;
 
   return {
     analyzePartFromData,

@@ -40,13 +40,14 @@ function transformDuplicateEntries(entries: DuplicateMatchEntry[]): DuplicatePar
 export function transformAIPartAnalysisResult(
   result: AIPartAnalysisResultSchema
 ): TransformedAIPartAnalysisResult {
-  // Backend contract: at least one of analysis_result or duplicate_parts must be populated
-  if (!result.analysis_result && !result.duplicate_parts) {
+  // Backend contract: at least one of analysis_result, duplicate_parts, or analysis_failure_reason must be populated
+  if (!result.analysis_result && !result.duplicate_parts && !result.analysis_failure_reason) {
     throw new Error(
-      `Invalid analysis result: neither analysis_result nor duplicate_parts populated. ` +
+      `Invalid analysis result: at least one of analysis_result, duplicate_parts, or analysis_failure_reason must be populated. ` +
       `Received: ${JSON.stringify({
         hasAnalysis: !!result.analysis_result,
-        hasDuplicates: !!result.duplicate_parts
+        hasDuplicates: !!result.duplicate_parts,
+        hasFailureReason: !!result.analysis_failure_reason
       })}`
     );
   }
@@ -83,6 +84,11 @@ export function transformAIPartAnalysisResult(
   // Add duplicate parts if present
   if (result.duplicate_parts && result.duplicate_parts.length > 0) {
     transformed.duplicateParts = transformDuplicateEntries(result.duplicate_parts);
+  }
+
+  // Add analysis failure reason if present (trim to only include non-whitespace content)
+  if (result.analysis_failure_reason) {
+    transformed.analysisFailureReason = result.analysis_failure_reason.trim() || undefined;
   }
 
   return transformed;

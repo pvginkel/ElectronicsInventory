@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
+import { expectConsoleError } from '../../support/helpers';
 
 const streamPath = '/tests/ai-stream/task-123';
 
@@ -127,5 +128,57 @@ test.describe('Parts - AI assisted creation', () => {
 
     expect(data?.tags).toContain('relay');
     expect(data?.manufacturer_code).toBe(analysisResult.manufacturer_code);
+  });
+
+  test('displays error when AI returns analysis failure reason', async ({
+    page,
+    parts,
+    partsAI,
+    aiAnalysisMock,
+    sseTimeout,
+  }) => {
+    const failureMessage = 'Could not identify a specific electronic component from the provided text. Please provide more details such as manufacturer name, part number, or component type.';
+
+    const aiSession = await aiAnalysisMock({
+      taskId: 'task-failure-123',
+      streamPath: '/tests/ai-stream/task-failure-123',
+    });
+
+    await parts.gotoList();
+    await parts.waitForCards();
+    await parts.openAIDialog();
+    await partsAI.waitForOpen();
+
+    // Mark the analysis failure as an expected console error
+    await expectConsoleError(page, /Analysis failed:/);
+
+    await partsAI.submitPrompt('a thing');
+
+    await aiSession.waitForConnection({ timeout: sseTimeout });
+    await aiSession.emitStarted();
+    await aiSession.emitProgress('Analyzing input', 0.5);
+    await partsAI.waitForProgress(/Analyzing input/);
+
+    // Emit completion with analysis_failure_reason (no analysis_result or duplicate_parts)
+    await aiSession.emitCompleted({
+      success: true,
+      analysis: null,
+      duplicate_parts: null,
+      analysis_failure_reason: failureMessage,
+    });
+
+    // Assert progress step shows error state
+    await partsAI.waitForError(failureMessage);
+    await expect(partsAI.progressStep).toHaveAttribute('data-state', 'error');
+    await expect(partsAI.progressErrorMessage).toHaveText(failureMessage);
+
+    // Verify dialog stayed on progress step (data-step attribute)
+    await expect(partsAI.dialog).toHaveAttribute('data-step', 'progress');
+
+    // Click retry button and verify return to input with preserved text
+    await partsAI.retry();
+    await expect(partsAI.inputField).toHaveValue('a thing');
+
+    await aiSession.dispose();
   });
 });

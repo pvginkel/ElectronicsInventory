@@ -44,8 +44,21 @@
         "type": "object"
       },
       "AIPartAnalysisTaskResultSchema.63ff6da.AIPartAnalysisResultSchema": {
-        "description": "Schema for AI analysis result with two mutually exclusive paths.\n\nThe LLM populates either analysis_result (full analysis) OR duplicate_parts (duplicates found).\nBoth fields are optional in the schema; LLM prompt guidance ensures appropriate population.",
+        "description": "Schema for AI analysis result with flexible response paths.\n\nThe LLM can populate:\n- Only analysis_result (full analysis, no duplicates found)\n- Only duplicate_parts (high-confidence duplicates found, no analysis needed)\n- Only analysis_failure_reason (query too vague/ambiguous, cannot proceed)\n- Multiple fields (e.g., medium-confidence duplicates with full analysis, or partial analysis with failure reason)\n\nAll fields are optional; LLM prompt guidance determines which to populate.",
         "properties": {
+          "analysis_failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Explanation when the query lacks sufficient information to identify a specific part",
+            "title": "Analysis Failure Reason"
+          },
           "analysis_result": {
             "anyOf": [
               {

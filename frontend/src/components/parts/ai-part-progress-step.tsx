@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Card } from '@/components/ui/card';
 import { IconBadge } from '@/components/ui';
-import { Loader2, X } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 
 interface AIPartProgressStepProps {
   progress: {
@@ -24,39 +24,33 @@ export function AIPartProgressStep({
     return (
       <div className="space-y-6" data-testid="parts.ai.progress-step" data-state="error">
         <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-2">Analysis Failed</h2>
+          <h2 className="text-2xl font-semibold mb-2">
+            Analysis Failed
+          </h2>
           <p className="text-muted-foreground">
             Something went wrong while analyzing your part
           </p>
         </div>
 
-        <Card className="p-6" data-testid="parts.ai.progress-error">
-          <div className="text-center space-y-4">
-            <div className="mx-auto">
-              <IconBadge size="xl" variant="destructive">
-                <X className="h-8 w-8" />
-              </IconBadge>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-medium mb-2">Analysis Error</h3>
-              <p className="text-sm text-muted-foreground" data-testid="parts.ai.progress-error-message">{error}</p>
-            </div>
-            
-            <div className="flex gap-3 justify-center">
-              {onRetry && (
-                <Button onClick={onRetry}>
-                  Retry Analysis
-                </Button>
-              )}
-              {onCancel && (
-                <Button variant="outline" onClick={onCancel}>
-                  Cancel Analysis
-                </Button>
-              )}
-            </div>
+        <div className="space-y-6" data-testid="parts.ai.progress-error">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-6 w-6 text-destructive flex-shrink-0" />
+            <p className="text-sm text-muted-foreground" data-testid="parts.ai.progress-error-message">{error}</p>
           </div>
-        </Card>
+
+          <div className="flex gap-3 justify-end">
+            {onCancel && (
+              <Button variant="outline" onClick={onCancel}>
+                Cancel
+              </Button>
+            )}
+            {onRetry && (
+              <Button onClick={onRetry}>
+                Retry Analysis
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
     );
   }

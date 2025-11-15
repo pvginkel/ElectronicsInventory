@@ -44,4 +44,7 @@ export interface TransformedAIPartAnalysisResult {
 
   // Duplicate detection field (present when duplicate_parts populated)
   duplicateParts?: DuplicatePartEntry[];
+
+  // Analysis failure reason (present when AI cannot fulfill the request)
+  analysisFailureReason?: string;
 }

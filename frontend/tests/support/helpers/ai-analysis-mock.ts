@@ -50,6 +50,7 @@ export interface AiAnalysisCompletionOverrides {
   success?: boolean;
   analysis?: Partial<AiAnalysisResult> | null;
   duplicate_parts?: AiAnalysisDuplicateEntry[] | null;
+  analysis_failure_reason?: string | null;
   error_message?: string | null;
 }
 
@@ -221,13 +222,15 @@ export async function createAiAnalysisMock(
       ? null
       : mergeAnalysis(analysisTemplate, analysisOverride);
 
-    // Support new nested structure with analysis_result and duplicate_parts
+    // Support nested structure with analysis_result, duplicate_parts, and analysis_failure_reason
     const analysisResult = analysisPayload ? {
       analysis_result: analysisPayload,
       duplicate_parts: overrides?.duplicate_parts ?? null,
+      analysis_failure_reason: overrides?.analysis_failure_reason ?? null,
     } : {
       analysis_result: null,
       duplicate_parts: overrides?.duplicate_parts ?? null,
+      analysis_failure_reason: overrides?.analysis_failure_reason ?? null,
     };
 
     const completion = {
