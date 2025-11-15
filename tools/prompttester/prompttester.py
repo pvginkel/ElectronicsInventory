@@ -564,20 +564,22 @@ def full_tests():
         # "gpt-4o-mini": None,
         # "gpt-5": reasoning_efforts,
         "gpt-5-mini": reasoning_efforts,
-        # "gpt-5.1-mini": reasoning_efforts,
+        "gpt-5.1": reasoning_efforts,
+        "gpt-5.1-codex": reasoning_efforts,
+        "gpt-5.1-codex-mini": reasoning_efforts,
         # "gpt-5-nano": reasoning_efforts,
         # "o3": reasoning_efforts,
         # "o4-mini",: reasoning_efforts,
     }
     queries = [
-        # "HLK PM24",
+        "HLK PM24",
         # "relay 12V SPDT 5A",
         # "SN74HC595N",
         # "ESP32-S3FN8",
         # "Arduino Nano Every",
         # "DFRobot Gravity SGP40",
-        # "generic tht resistor 1/4w 1% 10k",
-        "banana"
+        "generic tht resistor 1/4w 1% 10k",
+        # "banana"
     ]
 
     run_full_tests(

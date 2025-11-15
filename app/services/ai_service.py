@@ -318,11 +318,11 @@ class AIService(BaseService):
         output_pm: float
 
         match self.config.OPENAI_MODEL:
-            case "gpt-5":
+            case "gpt-5" | "gpt-5.1" | "gpt-5-codex" | "gpt-5.1-codex":
                 input_tokens_pm = 1.25
                 cached_input_pm = 0.125
                 output_pm = 10
-            case "gpt-5-mini":
+            case "gpt-5-mini" | "gpt-5.1-mini" | "gpt-5.1-codex-mini":
                 input_tokens_pm = 0.25
                 cached_input_pm = 0.025
                 output_pm = 2
