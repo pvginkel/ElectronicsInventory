@@ -181,4 +181,80 @@ test.describe('Parts - AI assisted creation', () => {
 
     await aiSession.dispose();
   });
+
+  test('displays warning bar when AI returns partial results with failure reason', async ({
+    parts,
+    partsAI,
+    aiAnalysisMock,
+    testData,
+    sseTimeout,
+  }) => {
+    const relayTypeName = testData.types.randomTypeName('Relay');
+    const relayType = await testData.types.create({ name: relayTypeName });
+
+    const warningMessage = 'Could not find a datasheet for this part, but analysis was completed based on the part number.';
+
+    const aiSession = await aiAnalysisMock({
+      taskId: 'task-warning-123',
+      streamPath: '/tests/ai-stream/task-warning-123',
+      analysisOverrides: {
+        description: 'OMRON G5Q-1A4 relay',
+        manufacturer: 'Omron',
+        manufacturer_code: 'G5Q-1A4',
+        type: relayTypeName,
+        type_is_existing: true,
+        existing_type_id: relayType.id,
+        tags: ['relay', '5V'],
+        documents: [],
+        dimensions: '29x12.7x15.8mm',
+        voltage_rating: '5V',
+        mounting_type: 'Through-hole',
+        package: 'DIP',
+        pin_count: 5,
+        pin_pitch: '2.54mm',
+        series: 'G5Q',
+      },
+    });
+
+    await parts.gotoList();
+    await parts.waitForCards();
+    await parts.openAIDialog();
+    await partsAI.waitForOpen();
+
+    await partsAI.submitPrompt('OMRON G5Q-1A4');
+
+    await aiSession.waitForConnection({ timeout: sseTimeout });
+    await aiSession.emitStarted();
+    await aiSession.emitProgress('Analyzing part number', 0.7);
+    await partsAI.waitForProgress(/Analyzing part number/);
+
+    // Emit completion with both analysis_result AND analysis_failure_reason
+    await aiSession.emitCompleted({
+      success: true,
+      analysis: aiSession.analysisTemplate,
+      duplicate_parts: null,
+      analysis_failure_reason: warningMessage,
+    });
+
+    // Assert dialog transitions to review step (not error state)
+    await partsAI.waitForReview();
+    await expect(partsAI.dialog).toHaveAttribute('data-step', 'review');
+
+    // Assert warning bar is visible with correct message
+    await expect(partsAI.warningBar).toBeVisible();
+    await expect(partsAI.warningMessage).toHaveText(warningMessage);
+
+    // Verify analysis fields are populated despite warning
+    await expect(partsAI.reviewStep.getByLabel('Description *', { exact: true }))
+      .toHaveValue('OMRON G5Q-1A4 relay');
+    await expect(partsAI.reviewStep.getByLabel('Manufacturer', { exact: true }))
+      .toHaveValue('Omron');
+    await expect(partsAI.reviewStep.getByLabel('Manufacturer Code', { exact: true }))
+      .toHaveValue('G5Q-1A4');
+
+    // Verify user can still create part despite warning
+    await expect(partsAI.reviewSubmit).toBeEnabled();
+
+    await aiSession.dispose();
+  });
 });

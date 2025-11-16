@@ -74,7 +74,7 @@ export interface AlertProps {
  *
  * Variant-to-style mapping:
  * - error: border-destructive/50 bg-destructive/10 text-destructive
- * - warning: border-amber-300 bg-amber-50 text-amber-900
+ * - warning: border-amber-300 bg-amber-50 text-amber-900 (light) / border-amber-500/50 bg-amber-500/10 text-amber-400 (dark)
  * - info: border-blue-300 bg-blue-50 text-blue-900
  * - success: border-green-300 bg-green-50 text-green-900
  *
@@ -123,7 +123,7 @@ export const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
     // Map variant to color classes
     const variantClasses = {
       error: 'border-destructive/50 bg-destructive/10 text-destructive',
-      warning: 'border-amber-300 bg-amber-50 text-amber-900',
+      warning: 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/50 dark:bg-amber-500/10 dark:text-amber-400',
       info: 'border-blue-300 bg-blue-50 text-blue-900',
       success: 'border-green-300 bg-green-50 text-green-900',
     };

@@ -36,9 +36,16 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
     onResult: <T>(data: T) => {
       const transformedResult = transformAIPartAnalysisResult(data as AIPartAnalysisResult);
 
-      // Check for analysis failure reason (AI unable to fulfill request)
-      if (transformedResult.analysisFailureReason?.trim()) {
-        const failureMessage = transformedResult.analysisFailureReason;
+      // Guidepost: Differentiate between hard and soft failures
+      // - Hard failure: analysisFailureReason present AND no analysis data (description absent)
+      // - Soft failure: analysisFailureReason present BUT analysis data exists (description present)
+
+      const hasFailureReason = !!transformedResult.analysisFailureReason?.trim();
+      const hasAnalysisData = !!transformedResult.description;
+
+      // Route to error only for hard failures (failure reason without analysis data)
+      if (hasFailureReason && !hasAnalysisData) {
+        const failureMessage = transformedResult.analysisFailureReason!;
         emitComponentError(new Error(failureMessage), 'ai-part-analysis');
         setError(failureMessage);
         options.onError?.(failureMessage);
@@ -47,6 +54,7 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
       }
 
       // Success path: route to review/duplicates
+      // This includes both normal success and soft failures (partial results with warning)
       setError(null);
       options.onSuccess?.(transformedResult);
       setIsAnalyzing(false);

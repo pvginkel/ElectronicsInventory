@@ -13,6 +13,8 @@ export class AIDialogPage extends BasePage {
   readonly retryButton: Locator;
   readonly reviewStep: Locator;
   readonly reviewSubmit: Locator;
+  readonly warningBar: Locator;
+  readonly warningMessage: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -27,6 +29,8 @@ export class AIDialogPage extends BasePage {
     this.retryButton = page.getByRole('button', { name: /retry analysis/i });
     this.reviewStep = page.getByTestId('parts.ai.review-step');
     this.reviewSubmit = page.getByTestId('parts.ai.review.submit');
+    this.warningBar = page.getByTestId('parts.ai.review.warning-bar');
+    this.warningMessage = page.getByTestId('parts.ai.review.warning-message');
   }
 
   async waitForOpen(): Promise<void> {

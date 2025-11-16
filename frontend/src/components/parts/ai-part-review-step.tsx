@@ -10,12 +10,14 @@ import { TagsInput } from './tags-input';
 import { MountingTypeSelector } from './mounting-type-selector';
 import { AIDocumentGridWrapper } from './ai-document-grid-wrapper';
 import { AIPartDuplicateBar } from './ai-duplicate-bar';
+import { Alert } from '@/components/ui/alert';
 import { transformToCreateSchema } from '@/lib/utils/ai-parts';
 import { useCreateType } from '@/hooks/use-types';
 import type { components } from '@/lib/api/generated/types';
 import type { TransformedAIPartAnalysisResult } from '@/types/ai-parts';
 import { ExternalLink } from '@/components/ui';
 import { ClearButtonIcon } from '@/components/icons/clear-button-icon';
+import { Bot } from 'lucide-react';
 
 type DocumentSuggestionSchema = components['schemas']['AIPartCreateSchema.63ff6da.DocumentSuggestionSchema'];
 
@@ -208,6 +210,20 @@ export function AIPartReviewStep({
       </div>
 
       <div className="flex-1 overflow-y-auto pb-4 min-h-0">
+        {/* Warning Bar (shown when AI encountered issues but produced partial results) */}
+        {analysisResult.analysisFailureReason && (
+          <Alert
+            variant="warning"
+            icon={<Bot className="h-5 w-5 flex-shrink-0" />}
+            testId="parts.ai.review.warning-bar"
+            className="mb-6"
+          >
+            <span data-testid="parts.ai.review.warning-message">
+              {analysisResult.analysisFailureReason}
+            </span>
+          </Alert>
+        )}
+
         {/* Duplicate Bar (shown when analysis includes duplicates) */}
         {analysisResult.duplicateParts && analysisResult.duplicateParts.length > 0 && (
           <AIPartDuplicateBar duplicateParts={analysisResult.duplicateParts} />
