@@ -44,7 +44,8 @@ class TaskProgressHandle:
     def send_progress(self, text: str, value: float) -> None:
         """Send both text and progress value update to connected clients."""
         self.progress_text = text
-        self.progress = value
+        if value > self.progress:
+            self.progress = value
 
         self._send_progress_event(TaskProgressUpdate(text=text, value=value))
 

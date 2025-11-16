@@ -97,7 +97,8 @@ class ProgressImpl(ProgressHandle):
         """Send both text and progress value update to connected clients."""
 
         self.text = text
-        self.value = value
+        if value > self.value:
+            self.value = value
 
         logger.info(f"Progress: {int(value * 100)}% - {text}")
 
@@ -580,10 +581,11 @@ def full_tests():
         # "DFRobot Gravity SGP40",
         # "generic tht resistor 1/4w 1% 10k",
         # "banana",
-        "sharp c n12 pc817",
-        "IRLZ44N",
-        "Ben's electronics Oled i2c 0.96 inch geel blauw 128*64",
-        "Ben's Electronics SKU KO70"
+        # "sharp c n12 pc817",
+        # "IRLZ44N",
+        # "Ben's electronics Oled i2c 0.96 inch geel blauw 128*64",
+        # "Ben's Electronics SKU KO70",
+        "TCRT5000"
     ]
 
     run_full_tests(
