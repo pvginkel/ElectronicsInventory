@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Alert,
-  CodeBadge,
   KeyValueBadge,
   ExternalLink,
   DescriptionList,
@@ -266,6 +265,12 @@ export function PartDetails({ partId }: PartDetailsProps) {
   const metadataRow = part ? (
     <>
       <KeyValueBadge
+        label="Key"
+        value={part.key}
+        color="neutral"
+        testId="parts.detail.metadata.key"
+      />
+      <KeyValueBadge
         label="Type"
         value={part.type?.name ?? 'Unassigned'}
         color="neutral"
@@ -451,7 +456,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
       );
     }
 
-    const { displayId, displayManufacturerCode, displayManufacturer, displayProductPage } =
+    const { displayManufacturerCode, displayManufacturer, displayProductPage } =
       formattedPart;
 
     const linkedBadges = renderLinkBadges();
@@ -476,212 +481,205 @@ export function PartDetails({ partId }: PartDetailsProps) {
                 <CardTitle>Part Information</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="mb-4 flex items-start justify-between">
-                  <div className="flex-1">
-                    <DescriptionItem
-                      label="Part ID"
-                      value={<CodeBadge code={displayId} />}
-                      variant="prominent"
-                    />
+                <div className="mb-4 flex items-start gap-6">
+
+                  <div className="flex-1 grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <div className="space-y-4">
+                      {(displayManufacturer || displayProductPage) && (
+                        <div>
+                          <SectionHeading>Manufacturer Information</SectionHeading>
+                          <DescriptionList spacing="default">
+                            {displayManufacturer ? (
+                              <DescriptionItem
+                                label="Manufacturer"
+                                value={displayManufacturer}
+                              />
+                            ) : null}
+
+                            {displayProductPage ? (
+                              <DescriptionItem label="Product Page" variant="compact">
+                                <ExternalLink
+                                  href={displayProductPage}
+                                  className="break-all"
+                                >
+                                  {displayProductPage}
+                                </ExternalLink>
+                              </DescriptionItem>
+                            ) : null}
+                          </DescriptionList>
+                        </div>
+                      )}
+
+                      {(part.seller || part.seller_link) && (
+                        <div>
+                          <SectionHeading>Seller Information</SectionHeading>
+                          <DescriptionList spacing="default">
+                            {part.seller ? (
+                              <DescriptionItem label="Seller" value={part.seller.name} />
+                            ) : null}
+
+                            {part.seller_link ? (
+                              <DescriptionItem label="Product Page" variant="compact">
+                                <ExternalLink href={part.seller_link}>
+                                  {part.seller_link}
+                                </ExternalLink>
+                              </DescriptionItem>
+                            ) : null}
+                          </DescriptionList>
+                        </div>
+                      )}
+
+                      {displayManufacturerCode ? (
+                        <DescriptionItem
+                          label="Manufacturer Code"
+                          value={displayManufacturerCode}
+                        />
+                      ) : null}
+
+                      <DescriptionItem
+                        label="Type"
+                        value={part.type?.name ?? 'No type assigned'}
+                      />
+
+                      <div>
+                        <div className="text-sm font-medium">Tags</div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {part.tags && part.tags.length > 0 ? (
+                            part.tags.map((tag: string, index: number) => (
+                              <span
+                                key={index}
+                                className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground"
+                              >
+                                {tag}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-sm text-muted-foreground">No tags</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <DescriptionItem
+                        label="Created"
+                        value={new Date(part.created_at).toLocaleDateString()}
+                        variant="muted"
+                      />
+                    </div>
+
+                    {(part.dimensions ||
+                      part.mounting_type ||
+                      part.package ||
+                      part.pin_count ||
+                      part.pin_pitch ||
+                      part.series ||
+                      part.voltage_rating ||
+                      part.input_voltage ||
+                      part.output_voltage) && (
+                      <div>
+                        <SectionHeading variant="section">Technical Specifications</SectionHeading>
+
+                        {(part.dimensions ||
+                          part.package ||
+                          part.pin_count ||
+                          part.pin_pitch ||
+                          part.mounting_type) && (
+                          <div className="mb-4">
+                            <SectionHeading>Physical</SectionHeading>
+                            <DescriptionList spacing="default">
+                              {part.dimensions ? (
+                                <DescriptionItem
+                                  label="Dimensions"
+                                  value={part.dimensions}
+                                  variant="compact"
+                                />
+                              ) : null}
+
+                              {part.package ? (
+                                <DescriptionItem
+                                  label="Package"
+                                  value={part.package}
+                                  variant="compact"
+                                />
+                              ) : null}
+
+                              {part.pin_count ? (
+                                <DescriptionItem
+                                  label="Pin Count"
+                                  value={part.pin_count}
+                                  variant="compact"
+                                />
+                              ) : null}
+
+                              {part.pin_pitch ? (
+                                <DescriptionItem
+                                  label="Pin Pitch"
+                                  value={part.pin_pitch}
+                                  variant="compact"
+                                />
+                              ) : null}
+
+                              {part.mounting_type ? (
+                                <DescriptionItem
+                                  label="Mounting Type"
+                                  value={part.mounting_type}
+                                  variant="compact"
+                                />
+                              ) : null}
+                            </DescriptionList>
+                          </div>
+                        )}
+
+                        {(part.voltage_rating ||
+                          part.input_voltage ||
+                          part.output_voltage ||
+                          part.series) && (
+                          <div className="mb-4">
+                            <SectionHeading>Electrical / Technical</SectionHeading>
+                            <DescriptionList spacing="default">
+                              {part.voltage_rating ? (
+                                <DescriptionItem
+                                  label="Voltage Rating"
+                                  value={part.voltage_rating}
+                                  variant="compact"
+                                />
+                              ) : null}
+
+                              {part.input_voltage ? (
+                                <DescriptionItem
+                                  label="Input Voltage"
+                                  value={part.input_voltage}
+                                  variant="compact"
+                                />
+                              ) : null}
+
+                              {part.output_voltage ? (
+                                <DescriptionItem
+                                  label="Output Voltage"
+                                  value={part.output_voltage}
+                                  variant="compact"
+                                />
+                              ) : null}
+
+                              {part.series ? (
+                                <DescriptionItem
+                                  label="Series"
+                                  value={part.series}
+                                  variant="compact"
+                                />
+                              ) : null}
+                            </DescriptionList>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
+                  
                   <CoverImageDisplay
                     partId={partId}
                     hasCoverAttachment={hasCoverAttachment}
                     size="medium"
-                    className="ml-4"
                     showPlaceholder={false}
                   />
-                </div>
-
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  <div className="space-y-4">
-                    {(displayManufacturer || displayProductPage) && (
-                      <div>
-                        <SectionHeading>Manufacturer Information</SectionHeading>
-                        <DescriptionList spacing="default">
-                          {displayManufacturer ? (
-                            <DescriptionItem
-                              label="Manufacturer"
-                              value={displayManufacturer}
-                            />
-                          ) : null}
-
-                          {displayProductPage ? (
-                            <DescriptionItem label="Product Page" variant="compact">
-                              <ExternalLink
-                                href={displayProductPage}
-                                className="break-all"
-                              >
-                                {displayProductPage}
-                              </ExternalLink>
-                            </DescriptionItem>
-                          ) : null}
-                        </DescriptionList>
-                      </div>
-                    )}
-
-                    {(part.seller || part.seller_link) && (
-                      <div>
-                        <SectionHeading>Seller Information</SectionHeading>
-                        <DescriptionList spacing="default">
-                          {part.seller ? (
-                            <DescriptionItem label="Seller" value={part.seller.name} />
-                          ) : null}
-
-                          {part.seller_link ? (
-                            <DescriptionItem label="Product Page" variant="compact">
-                              <ExternalLink href={part.seller_link}>
-                                {part.seller_link}
-                              </ExternalLink>
-                            </DescriptionItem>
-                          ) : null}
-                        </DescriptionList>
-                      </div>
-                    )}
-
-                    {displayManufacturerCode ? (
-                      <DescriptionItem
-                        label="Manufacturer Code"
-                        value={displayManufacturerCode}
-                      />
-                    ) : null}
-
-                    <DescriptionItem
-                      label="Type"
-                      value={part.type?.name ?? 'No type assigned'}
-                    />
-
-                    <div>
-                      <div className="text-sm font-medium">Tags</div>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {part.tags && part.tags.length > 0 ? (
-                          part.tags.map((tag: string, index: number) => (
-                            <span
-                              key={index}
-                              className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground"
-                            >
-                              {tag}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-sm text-muted-foreground">No tags</span>
-                        )}
-                      </div>
-                    </div>
-
-                    <DescriptionItem
-                      label="Created"
-                      value={new Date(part.created_at).toLocaleDateString()}
-                      variant="muted"
-                    />
-                  </div>
-
-                  {(part.dimensions ||
-                    part.mounting_type ||
-                    part.package ||
-                    part.pin_count ||
-                    part.pin_pitch ||
-                    part.series ||
-                    part.voltage_rating ||
-                    part.input_voltage ||
-                    part.output_voltage) && (
-                    <div>
-                      <SectionHeading variant="section">Technical Specifications</SectionHeading>
-
-                      {(part.dimensions ||
-                        part.package ||
-                        part.pin_count ||
-                        part.pin_pitch ||
-                        part.mounting_type) && (
-                        <div className="mb-4">
-                          <SectionHeading>Physical</SectionHeading>
-                          <DescriptionList spacing="default">
-                            {part.dimensions ? (
-                              <DescriptionItem
-                                label="Dimensions"
-                                value={part.dimensions}
-                                variant="compact"
-                              />
-                            ) : null}
-
-                            {part.package ? (
-                              <DescriptionItem
-                                label="Package"
-                                value={part.package}
-                                variant="compact"
-                              />
-                            ) : null}
-
-                            {part.pin_count ? (
-                              <DescriptionItem
-                                label="Pin Count"
-                                value={part.pin_count}
-                                variant="compact"
-                              />
-                            ) : null}
-
-                            {part.pin_pitch ? (
-                              <DescriptionItem
-                                label="Pin Pitch"
-                                value={part.pin_pitch}
-                                variant="compact"
-                              />
-                            ) : null}
-
-                            {part.mounting_type ? (
-                              <DescriptionItem
-                                label="Mounting Type"
-                                value={part.mounting_type}
-                                variant="compact"
-                              />
-                            ) : null}
-                          </DescriptionList>
-                        </div>
-                      )}
-
-                      {(part.voltage_rating ||
-                        part.input_voltage ||
-                        part.output_voltage ||
-                        part.series) && (
-                        <div className="mb-4">
-                          <SectionHeading>Electrical / Technical</SectionHeading>
-                          <DescriptionList spacing="default">
-                            {part.voltage_rating ? (
-                              <DescriptionItem
-                                label="Voltage Rating"
-                                value={part.voltage_rating}
-                                variant="compact"
-                              />
-                            ) : null}
-
-                            {part.input_voltage ? (
-                              <DescriptionItem
-                                label="Input Voltage"
-                                value={part.input_voltage}
-                                variant="compact"
-                              />
-                            ) : null}
-
-                            {part.output_voltage ? (
-                              <DescriptionItem
-                                label="Output Voltage"
-                                value={part.output_voltage}
-                                variant="compact"
-                              />
-                            ) : null}
-
-                            {part.series ? (
-                              <DescriptionItem
-                                label="Series"
-                                value={part.series}
-                                variant="compact"
-                              />
-                            ) : null}
-                          </DescriptionList>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
