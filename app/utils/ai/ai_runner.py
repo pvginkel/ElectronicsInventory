@@ -20,6 +20,7 @@ from pydantic import BaseModel
 
 from app.services.base_task import ProgressHandle
 from app.services.metrics_service import MetricsServiceProtocol
+from app.utils.ai.cost_calculation import calculate_cost
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +134,7 @@ class AIRunner:
 
         elapsed_time = int(time.perf_counter() - start)
 
-        cost = self._calculate_cost(request.model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
+        cost = calculate_cost(request.model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
 
         logger.info(f"OpenAI response status: {response.status}, duration {elapsed_time}, incomplete details: {response.incomplete_details}, cost {cost:.3f}")
         logger.info(f"Output text: {response.output_text}")
@@ -214,7 +215,7 @@ class AIRunner:
                     cached_input_tokens = response.usage.input_tokens_details.cached_tokens
                     output_tokens = response.usage.output_tokens
                     reasoning_tokens = response.usage.output_tokens_details.reasoning_tokens
-                    cost = self._calculate_cost(request.model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
+                    cost = calculate_cost(request.model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens)
 
                     if self.metrics_service:
                         self.metrics_service.record_ai_analysis(
@@ -371,41 +372,6 @@ class AIRunner:
                 ]
             }
         ]
-
-    def _calculate_cost(self, model: str, input_tokens: int, cached_input_tokens: int, output_tokens: int, reasoning_tokens: int) -> float | None:
-        input_tokens_pm: float
-        cached_input_pm: float
-        output_pm: float
-
-        match model:
-            case "gpt-5" | "gpt-5.1":
-                input_tokens_pm = 1.25
-                cached_input_pm = 0.125
-                output_pm = 10
-            case "gpt-5-mini":
-                input_tokens_pm = 0.25
-                cached_input_pm = 0.025
-                output_pm = 2
-            case "gpt-5-nano":
-                input_tokens_pm = 0.05
-                cached_input_pm = 0.005
-                output_pm = 0.4
-            case "gpt-4.1":
-                input_tokens_pm = 3
-                cached_input_pm = 0.75
-                output_pm = 12
-            case "gpt-4.1-mini":
-                input_tokens_pm = 0.8
-                cached_input_pm = 0.2
-                output_pm = 3.2
-            case _:
-                return None
-
-        return (
-            cached_input_tokens * (cached_input_pm / 1_000_000) +
-            (input_tokens - cached_input_tokens) * (input_tokens_pm / 1_000_000) +
-            output_tokens * (output_pm / 1_000_000)
-        )
 
     def _count_web_searches(self, response: ParsedResponse) -> int:
         """Count the number of web searches performed during AI analysis."""
