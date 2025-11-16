@@ -339,13 +339,13 @@ class AIRunner:
                             if event.item.action.query:
                                 progress_handle.send_progress(f"Searched for {event.item.action.query}", 0.2)
                 if isinstance(event, ResponseContentPartAddedEvent):
-                    progress_handle.send_progress("Writing response", 0.5)
+                    progress_handle.send_progress("Writing response", 0.7)
                 if isinstance(event, ResponseReasoningSummaryTextDoneEvent):
                     logger.info(f"Reasoning summary: {event.text}")
 
                     match = re.match(r"^\*\*([^\n]*)\*\*\r?\n", event.text)
                     if match:
-                        progress_handle.send_progress(match.group(1), 0.2)
+                        progress_handle.send_progress_text(match.group(1))
                 if isinstance(event, ResponseCompletedEvent):
                     return event.response
 

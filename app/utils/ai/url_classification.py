@@ -37,6 +37,8 @@ class URLClassifierFunction(AIFunction):
         return ClassifyUrlsRequest
 
     def execute(self, request: BaseModel, progress_handle: ProgressHandle) -> BaseModel:
+        progress_handle.send_progress_value(0.5)
+
         return self.classify_url(cast(ClassifyUrlsRequest, request), progress_handle)
 
     @abstractmethod
