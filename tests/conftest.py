@@ -1,7 +1,11 @@
 """Pytest configuration and fixtures."""
 
+import socket
 import sqlite3
-from collections.abc import Generator
+import threading
+import time
+from collections.abc import Callable, Generator
+from typing import Any
 
 import pytest
 from flask import Flask
@@ -193,3 +197,164 @@ from .test_document_fixtures import (  # noqa
     sample_pdf_file,
     temp_thumbnail_dir,
 )
+
+
+# SSE Integration Test Fixtures
+
+
+def _find_free_port() -> int:
+    """Find a free port on localhost."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("", 0))
+        s.listen(1)
+        port = s.getsockname()[1]
+    return port
+
+
+@pytest.fixture(scope="session")
+def sse_server(template_connection: sqlite3.Connection) -> Generator[str, None, None]:
+    """Start a real Flask development server for SSE integration tests.
+
+    Returns the base URL (e.g., http://localhost:5001) where the server is running.
+    The server runs in a background thread and is cleaned up after the session.
+    """
+    # Find a free port
+    port = _find_free_port()
+
+    # Create Flask app with template database clone for SSE tests
+    clone_conn = sqlite3.connect(":memory:", check_same_thread=False)
+    template_connection.backup(clone_conn)
+
+    settings = _build_test_settings().model_copy()
+    settings.DATABASE_URL = "sqlite://"
+    settings.FLASK_ENV = "testing"  # Enable testing API endpoints
+    settings.SQLALCHEMY_ENGINE_OPTIONS = {
+        "poolclass": StaticPool,
+        "creator": lambda: clone_conn,
+    }
+
+    app = create_app(settings)
+
+    # Mock version service to avoid external frontend dependency
+    from unittest.mock import patch
+    version_json = '{"version": "test-1.0.0", "environment": "test", "git_commit": "abc123"}'
+    version_mock = patch.object(
+        app.container.version_service(),
+        'fetch_frontend_version',
+        return_value=version_json
+    )
+    version_mock.start()
+
+    # Start Flask development server in background thread
+    # Note: Using Flask dev server instead of waitress for simplicity in tests
+    def run_server() -> None:
+        """Run Flask development server."""
+        try:
+            app.run(host="127.0.0.1", port=port, threaded=True, use_reloader=False)
+        except Exception as e:
+            # Server stopped (expected during cleanup)
+            import logging
+            logging.getLogger(__name__).debug(f"Server thread stopped: {e}")
+
+    server_thread = threading.Thread(target=run_server, daemon=True)
+    server_thread.start()
+
+    # Give server time to start and bind to the port
+    time.sleep(1.5)
+
+    # Build base URL
+    base_url = f"http://127.0.0.1:{port}"
+
+    # Wait for server to be ready (poll health endpoint)
+    import requests
+
+    max_attempts = 20
+    for _ in range(max_attempts):
+        try:
+            resp = requests.get(f"{base_url}/api/health/healthz", timeout=1.0)
+            if resp.status_code == 200:
+                break
+        except requests.RequestException:
+            pass
+        time.sleep(0.5)
+    else:
+        pytest.fail(f"SSE test server did not become ready after {max_attempts} attempts")
+
+    try:
+        yield base_url
+    finally:
+        # Stop version service mock
+        version_mock.stop()
+
+        # Server cleanup: waitress doesn't have a graceful shutdown API when run in thread
+        # The daemon thread will be terminated when the process exits
+        # Clean up database connection
+        with app.app_context():
+            from app.extensions import db as flask_db
+
+            flask_db.session.remove()
+
+        clone_conn.close()
+
+
+@pytest.fixture
+def background_task_runner() -> Generator[Callable[[Callable[[], Any]], Any], None, None]:
+    """Provide a helper to run background tasks concurrently with SSE tests.
+
+    Returns a function that takes a callable and runs it in a background thread.
+    The thread is joined automatically during teardown.
+
+    Example:
+        def test_sse_with_background_task(background_task_runner):
+            def my_task():
+                # Do work that generates SSE events
+                pass
+
+            background_task_runner(my_task)
+            # Now connect to SSE stream and receive events
+    """
+    threads: list[threading.Thread] = []
+
+    def run_in_background(func: Callable[[], Any]) -> threading.Thread:
+        """Run function in background thread."""
+        thread = threading.Thread(target=func, daemon=False)
+        threads.append(thread)
+        thread.start()
+        return thread
+
+    yield run_in_background
+
+    # Cleanup: join all background threads
+    for thread in threads:
+        thread.join(timeout=5.0)
+
+
+@pytest.fixture
+def sse_client_factory(sse_server: str):
+    """Factory for creating SSE client instances for testing.
+
+    Returns a function that creates configured SSEClient instances with the
+    SSE server base URL and strict mode enabled by default.
+
+    Example:
+        def test_sse_stream(sse_client_factory):
+            client = sse_client_factory("/api/tasks/123/stream")
+            for event in client.connect():
+                print(event)
+    """
+    from tests.integration.sse_client_helper import SSEClient
+
+    def create_client(endpoint: str, strict: bool = True) -> SSEClient:
+        """Create SSE client for given endpoint.
+
+        Args:
+            endpoint: API endpoint path (e.g., "/api/tasks/123/stream")
+            strict: Enable strict parsing mode (default True for baseline tests)
+
+        Returns:
+            Configured SSEClient instance
+        """
+        url = f"{sse_server}{endpoint}"
+        return SSEClient(url, strict=strict)
+
+    return create_client

@@ -9,11 +9,11 @@ from typing import Any
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request, stream_with_context
 
+from app.config import Settings
 from app.services.container import ServiceContainer
 from app.services.version_service import VersionService
 from app.utils import ensure_request_id_from_query, get_current_correlation_id
 from app.utils.error_handling import handle_api_errors
-from app.utils.settings import Settings  # type: ignore[import-untyped]
 from app.utils.shutdown_coordinator import LifetimeEvent, ShutdownCoordinatorProtocol
 from app.utils.sse_utils import create_sse_response, format_sse_event
 
