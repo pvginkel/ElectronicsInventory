@@ -3,6 +3,7 @@
 import logging
 import time
 from queue import Empty, Queue
+from typing import Any
 
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, current_app, jsonify, request
@@ -19,6 +20,7 @@ from app.schemas.testing import (
 )
 from app.services.container import ServiceContainer
 from app.services.testing_service import TestingService
+from app.services.version_service import VersionService
 from app.utils import ensure_request_id_from_query, get_current_correlation_id
 from app.utils.error_handling import handle_api_errors
 from app.utils.log_capture import LogCaptureHandler
@@ -31,7 +33,7 @@ testing_bp = Blueprint("testing", __name__, url_prefix="/api/testing")
 
 
 @testing_bp.before_request
-def check_testing_mode():
+def check_testing_mode() -> Any:
     """Check if the server is running in testing mode before processing any testing endpoint."""
     from app.utils.error_handling import _build_error_response
 
@@ -55,7 +57,7 @@ def check_testing_mode():
 @inject
 def reset_database(
     testing_service: TestingService = Provide[ServiceContainer.testing_service]
-):
+) -> Any:
     """
     Reset database to clean state with optional test data seeding.
 
@@ -84,7 +86,7 @@ def reset_database(
 
 @testing_bp.route("/logs/stream", methods=["GET"])
 @handle_api_errors
-def stream_logs():
+def stream_logs() -> Any:
     """
     SSE endpoint for streaming backend application logs in real-time.
 
@@ -102,18 +104,18 @@ def stream_logs():
     """
     ensure_request_id_from_query(request.args.get("request_id"))
 
-    def log_stream():
+    def log_stream() -> Any:
         # Get correlation ID for this request
         correlation_id = get_current_correlation_id()
 
         # Set up event queue for receiving log events
-        event_queue: Queue = Queue()
+        event_queue: Queue[tuple[str, dict[str, Any]]] = Queue()
         # Custom client class that works with queue
         class QueueLogClient:
-            def __init__(self, queue: Queue):
+            def __init__(self, queue: Queue[tuple[str, dict[str, Any]]]):
                 self.queue = queue
 
-            def put(self, event_data):
+            def put(self, event_data: tuple[str, dict[str, Any]]) -> None:
                 """Receive event from log handler."""
                 self.queue.put(event_data)
 
@@ -177,7 +179,7 @@ def stream_logs():
 @inject
 def generate_content_image(
     testing_service: TestingService = Provide[ServiceContainer.testing_service]
-):
+) -> Any:
     """Return a deterministic PNG image for Playwright fixtures."""
     query = ContentImageQuerySchema.model_validate(request.args.to_dict())
     image_bytes = testing_service.create_fake_image(query.text)
@@ -195,7 +197,7 @@ def generate_content_image(
 @inject
 def generate_content_pdf(
     testing_service: TestingService = Provide[ServiceContainer.testing_service]
-):
+) -> Any:
     """Return the bundled deterministic PDF asset."""
     pdf_bytes = testing_service.get_pdf_fixture()
 
@@ -213,7 +215,7 @@ def generate_content_pdf(
 @inject
 def generate_content_html(
     testing_service: TestingService = Provide[ServiceContainer.testing_service]
-):
+) -> Any:
     """Return deterministic HTML content without deployment banner."""
     query = ContentHtmlQuerySchema.model_validate(request.args.to_dict())
     html_doc = testing_service.render_html_fixture(query.title, include_banner=False)
@@ -233,7 +235,7 @@ def generate_content_html(
 @inject
 def generate_content_html_with_banner(
     testing_service: TestingService = Provide[ServiceContainer.testing_service]
-):
+) -> Any:
     """Return deterministic HTML content that includes a deployment banner wrapper."""
     query = ContentHtmlQuerySchema.model_validate(request.args.to_dict())
     html_doc = testing_service.render_html_fixture(query.title, include_banner=True)
@@ -252,8 +254,8 @@ def generate_content_html_with_banner(
 @handle_api_errors
 @inject
 def trigger_version_deployment(
-    version_service=Provide[ServiceContainer.version_service]
-):
+    version_service: VersionService = Provide[ServiceContainer.version_service]
+) -> Any:
     """Trigger a deterministic version deployment notification for Playwright."""
     payload = DeploymentTriggerRequestSchema.model_validate(request.get_json() or {})
 

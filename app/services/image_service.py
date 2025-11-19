@@ -32,7 +32,7 @@ class ImageService(BaseService):
         self.settings = settings
         self._ensure_thumbnail_directory()
 
-    def _ensure_thumbnail_directory(self):
+    def _ensure_thumbnail_directory(self) -> None:
         """Ensure thumbnail storage directory exists."""
         thumbnail_path = Path(self.settings.THUMBNAIL_STORAGE_PATH)
         thumbnail_path.mkdir(parents=True, exist_ok=True)
@@ -140,7 +140,7 @@ class ImageService(BaseService):
         except Exception as e:
             raise InvalidOperationException("get link icon data", f"failed to read link icon: {str(e)}") from e
 
-    def cleanup_thumbnails(self, attachment_id: int):
+    def cleanup_thumbnails(self, attachment_id: int) -> None:
         """Clean up all thumbnails for an attachment.
 
         Args:

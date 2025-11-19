@@ -1,9 +1,11 @@
 from datetime import UTC, datetime
+from typing import Any
 
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, jsonify
 
 from app.services.container import ServiceContainer
+from app.services.task_service import TaskService
 from app.utils import get_current_correlation_id
 from app.utils.error_handling import handle_api_errors
 from app.utils.sse_utils import create_sse_response, format_sse_event
@@ -14,14 +16,14 @@ tasks_bp = Blueprint("tasks", __name__, url_prefix="/tasks")
 @tasks_bp.route("/<task_id>/stream", methods=["GET"])
 @handle_api_errors
 @inject
-def get_task_stream(task_id: str, task_service=Provide[ServiceContainer.task_service]):
+def get_task_stream(task_id: str, task_service: TaskService = Provide[ServiceContainer.task_service]) -> Any:
     """
     SSE endpoint for monitoring specific task progress.
 
     Returns:
         Server-Sent Events stream with task progress updates
     """
-    def generate_events():
+    def generate_events() -> Any:
         """Generate SSE events for the task."""
         correlation_id = get_current_correlation_id()
 
@@ -72,7 +74,7 @@ def get_task_stream(task_id: str, task_service=Provide[ServiceContainer.task_ser
 @tasks_bp.route("/<task_id>/status", methods=["GET"])
 @handle_api_errors
 @inject
-def get_task_status(task_id: str, task_service=Provide[ServiceContainer.task_service]):
+def get_task_status(task_id: str, task_service: TaskService = Provide[ServiceContainer.task_service]) -> Any:
     """
     Get current status of a task.
 
@@ -89,7 +91,7 @@ def get_task_status(task_id: str, task_service=Provide[ServiceContainer.task_ser
 @tasks_bp.route("/<task_id>/cancel", methods=["POST"])
 @handle_api_errors
 @inject
-def cancel_task(task_id: str, task_service=Provide[ServiceContainer.task_service]):
+def cancel_task(task_id: str, task_service: TaskService = Provide[ServiceContainer.task_service]) -> Any:
     """
     Cancel a running task.
 
@@ -106,7 +108,7 @@ def cancel_task(task_id: str, task_service=Provide[ServiceContainer.task_service
 @tasks_bp.route("/<task_id>", methods=["DELETE"])
 @handle_api_errors
 @inject
-def remove_task(task_id: str, task_service=Provide[ServiceContainer.task_service]):
+def remove_task(task_id: str, task_service: TaskService = Provide[ServiceContainer.task_service]) -> Any:
     """
     Remove a completed task from registry.
 

@@ -1,6 +1,7 @@
 """AI-powered part creation API endpoints."""
 
 import logging
+from typing import Any
 
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, jsonify, request
@@ -38,10 +39,10 @@ ai_parts_bp = Blueprint("ai_parts", __name__, url_prefix="/ai-parts")
 @handle_api_errors
 @inject
 def analyze_part(
-    task_service : TaskService = Provide[ServiceContainer.task_service],
-    container : ServiceContainer = Provide[ServiceContainer],
+    task_service: TaskService = Provide[ServiceContainer.task_service],
+    container: ServiceContainer = Provide[ServiceContainer],
     settings: Settings = Provide[ServiceContainer.config],
-):
+) -> Any:
     """
     Start AI analysis task for part creation.
 
@@ -128,9 +129,9 @@ def analyze_part(
 @handle_api_errors
 @inject
 def create_part_from_ai_analysis(
-    part_service : PartService = Provide[ServiceContainer.part_service],
-    document_service : DocumentService = Provide[ServiceContainer.document_service],
-):
+    part_service: PartService = Provide[ServiceContainer.part_service],
+    document_service: DocumentService = Provide[ServiceContainer.document_service],
+) -> Any:
     """
     Create a new part from AI analysis suggestions.
 
@@ -199,8 +200,8 @@ def create_part_from_ai_analysis(
 @inject
 def get_analysis_result(
     task_id: str,
-    task_service = Provide[ServiceContainer.task_service],
-):
+    task_service: TaskService = Provide[ServiceContainer.task_service],
+) -> Any:
     """
     Get the result of a completed AI part analysis task.
 

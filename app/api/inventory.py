@@ -1,5 +1,7 @@
 """Inventory management API endpoints."""
 
+from typing import Any
+
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request
 from spectree import Response as SpectreeResponse
@@ -13,6 +15,8 @@ from app.schemas.inventory import (
 )
 from app.schemas.part import PartLocationResponseSchema
 from app.services.container import ServiceContainer
+from app.services.inventory_service import InventoryService
+from app.services.part_service import PartService
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
@@ -23,7 +27,7 @@ inventory_bp = Blueprint("inventory", __name__, url_prefix="/inventory")
 @api.validate(json=AddStockSchema, resp=SpectreeResponse(HTTP_201=PartLocationResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def add_stock(part_key: str, part_service=Provide[ServiceContainer.part_service], inventory_service=Provide[ServiceContainer.inventory_service]):
+def add_stock(part_key: str, part_service: PartService = Provide[ServiceContainer.part_service], inventory_service: InventoryService = Provide[ServiceContainer.inventory_service]) -> Any:
     """Add stock to a location."""
     # Check if part exists (this will raise RecordNotFoundException if not found)
     part = part_service.get_part(part_key)
@@ -46,7 +50,7 @@ def add_stock(part_key: str, part_service=Provide[ServiceContainer.part_service]
 @api.validate(json=RemoveStockSchema, resp=SpectreeResponse(HTTP_204=None, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def remove_stock(part_key: str, part_service=Provide[ServiceContainer.part_service], inventory_service=Provide[ServiceContainer.inventory_service]):
+def remove_stock(part_key: str, part_service: PartService = Provide[ServiceContainer.part_service], inventory_service: InventoryService = Provide[ServiceContainer.inventory_service]) -> Any:
     """Remove stock from a location."""
     # Check if part exists (this will raise RecordNotFoundException if not found)
     part_service.get_part(part_key)
@@ -63,7 +67,7 @@ def remove_stock(part_key: str, part_service=Provide[ServiceContainer.part_servi
 @api.validate(json=MoveStockSchema, resp=SpectreeResponse(HTTP_204=None, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def move_stock(part_key: str, part_service=Provide[ServiceContainer.part_service], inventory_service=Provide[ServiceContainer.inventory_service]):
+def move_stock(part_key: str, part_service: PartService = Provide[ServiceContainer.part_service], inventory_service: InventoryService = Provide[ServiceContainer.inventory_service]) -> Any:
     """Move stock between locations."""
     # Check if part exists (this will raise RecordNotFoundException if not found)
     part_service.get_part(part_key)
@@ -85,7 +89,7 @@ def move_stock(part_key: str, part_service=Provide[ServiceContainer.part_service
 @api.validate(resp=SpectreeResponse(HTTP_200=LocationSuggestionSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_location_suggestion(type_id: int, inventory_service=Provide[ServiceContainer.inventory_service]):
+def get_location_suggestion(type_id: int, inventory_service: InventoryService = Provide[ServiceContainer.inventory_service]) -> Any:
     """Get location suggestions for part type."""
     box_no, loc_no = inventory_service.suggest_location(type_id)
     return LocationSuggestionSchema(box_no=box_no, loc_no=loc_no).model_dump()

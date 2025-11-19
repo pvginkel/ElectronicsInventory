@@ -1,13 +1,15 @@
 """Shared SSE utility functions for both tasks and version endpoints."""
 
 import json
+from collections.abc import Generator
+from typing import Any
 
 from flask import Response
 
 SSE_HEARTBEAT_INTERVAL = 5  # Will be overridden by config
 
 
-def format_sse_event(event: str, data: dict | str, correlation_id: str | None = None) -> str:
+def format_sse_event(event: str, data: dict[str, Any] | str, correlation_id: str | None = None) -> str:
     """Format event name and data into SSE format.
 
     Args:
@@ -27,7 +29,7 @@ def format_sse_event(event: str, data: dict | str, correlation_id: str | None = 
     return f"event: {event}\ndata: {data}\n\n"
 
 
-def create_sse_response(generator) -> Response:
+def create_sse_response(generator: Generator[str, None, None]) -> Response:
     """Create Response with standard SSE headers.
 
     Args:

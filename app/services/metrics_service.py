@@ -21,37 +21,37 @@ class MetricsServiceProtocol(ABC):
     """Protocol for metrics service implementations."""
 
     @abstractmethod
-    def initialize_metrics(self):
+    def initialize_metrics(self) -> None:
         """Initialize metric objects."""
         pass
 
     @abstractmethod
-    def update_inventory_metrics(self):
+    def update_inventory_metrics(self) -> None:
         """Update inventory-related metrics."""
         pass
 
     @abstractmethod
-    def update_storage_metrics(self):
+    def update_storage_metrics(self) -> None:
         """Update storage-related metrics."""
         pass
 
     @abstractmethod
-    def update_activity_metrics(self):
+    def update_activity_metrics(self) -> None:
         """Update activity-related metrics."""
         pass
 
     @abstractmethod
-    def update_category_metrics(self):
+    def update_category_metrics(self) -> None:
         """Update category-related metrics."""
         pass
 
     @abstractmethod
-    def record_quantity_change(self, operation: str, delta: int):
+    def record_quantity_change(self, operation: str, delta: int) -> None:
         """Record quantity change events."""
         pass
 
     @abstractmethod
-    def record_task_execution(self, task_type: str, duration: float, status: str):
+    def record_task_execution(self, task_type: str, duration: float, status: str) -> None:
         """Record task execution metrics."""
         pass
 
@@ -142,12 +142,12 @@ class MetricsServiceProtocol(ABC):
         tokens_reasoning: int = 0,
         tokens_cached_input: int = 0,
         cost_dollars: float = 0.0
-    ):
+    ) -> None:
         """Record AI analysis metrics."""
         pass
 
     @abstractmethod
-    def start_background_updater(self, interval_seconds: int = 60):
+    def start_background_updater(self, interval_seconds: int = 60) -> None:
         """Start background metric updater."""
         pass
 
@@ -157,17 +157,17 @@ class MetricsServiceProtocol(ABC):
         pass
 
     @abstractmethod
-    def set_shutdown_state(self, is_shutting_down: bool):
+    def set_shutdown_state(self, is_shutting_down: bool) -> None:
         """Set the shutdown state metric."""
         pass
 
     @abstractmethod
-    def record_shutdown_duration(self, duration: float):
+    def record_shutdown_duration(self, duration: float) -> None:
         """Record the duration of graceful shutdown."""
         pass
 
     @abstractmethod
-    def record_active_tasks_at_shutdown(self, count: int):
+    def record_active_tasks_at_shutdown(self, count: int) -> None:
         """Record the number of active tasks when shutdown initiated."""
         pass
 
@@ -202,7 +202,7 @@ class MetricsService(MetricsServiceProtocol):
         # Register shutdown notification
         self.shutdown_coordinator.register_lifetime_notification(self._on_lifetime_event)
 
-    def initialize_metrics(self):
+    def initialize_metrics(self) -> None:
         """Define all Prometheus metric objects."""
         # Check if already initialized (for container singleton reuse)
         if hasattr(self, 'inventory_total_parts'):
@@ -435,7 +435,7 @@ class MetricsService(MetricsServiceProtocol):
             'Number of active tasks when shutdown initiated'
         )
 
-    def update_inventory_metrics(self):
+    def update_inventory_metrics(self) -> None:
         """Update inventory-related gauges with current database values."""
         if not self.container:
             return
@@ -466,7 +466,7 @@ class MetricsService(MetricsServiceProtocol):
         finally:
             self.container.db_session.reset()
 
-    def update_storage_metrics(self):
+    def update_storage_metrics(self) -> None:
         """Update box utilization metrics with current database values."""
         if not self.container:
             return
@@ -499,13 +499,13 @@ class MetricsService(MetricsServiceProtocol):
         finally:
             self.container.db_session.reset()
 
-    def update_activity_metrics(self):
+    def update_activity_metrics(self) -> None:
         """Update activity-related metrics."""
         # Activity metrics are primarily updated by event-driven methods
         # This method is reserved for any periodic activity metric updates
         pass
 
-    def update_category_metrics(self):
+    def update_category_metrics(self) -> None:
         """Update category distribution metrics."""
         if not self.container:
             return
@@ -535,7 +535,7 @@ class MetricsService(MetricsServiceProtocol):
         finally:
             self.container.db_session.reset()
 
-    def record_quantity_change(self, operation: str, delta: int):
+    def record_quantity_change(self, operation: str, delta: int) -> None:
         """Record quantity change events.
 
         Args:
@@ -547,7 +547,7 @@ class MetricsService(MetricsServiceProtocol):
         except Exception as e:
             logger.error(f"Error recording quantity change: {e}")
 
-    def record_task_execution(self, task_type: str, duration: float, status: str):
+    def record_task_execution(self, task_type: str, duration: float, status: str) -> None:
         """Record task execution metrics.
 
         Args:
@@ -745,7 +745,7 @@ class MetricsService(MetricsServiceProtocol):
         tokens_reasoning: int = 0,
         tokens_cached_input: int = 0,
         cost_dollars: float = 0.0
-    ):
+    ) -> None:
         """Record comprehensive AI analysis metrics with labels.
 
         Args:
@@ -820,7 +820,7 @@ class MetricsService(MetricsServiceProtocol):
         except Exception as e:
             logger.error(f"Error recording AI analysis metrics: {e}")
 
-    def start_background_updater(self, interval_seconds: int = 60):
+    def start_background_updater(self, interval_seconds: int = 60) -> None:
         """Start background thread for periodic metric updates.
 
         Args:
@@ -837,13 +837,13 @@ class MetricsService(MetricsServiceProtocol):
         )
         self._updater_thread.start()
 
-    def _stop_background_updater(self):
+    def _stop_background_updater(self) -> None:
         """Stop the background metric updater thread."""
         self._stop_event.set()
         if self._updater_thread:
             self._updater_thread.join(timeout=5)
 
-    def _background_update_loop(self, interval_seconds: int):
+    def _background_update_loop(self, interval_seconds: int) -> None:
         """Background loop for periodic metric updates.
 
         Args:
@@ -869,7 +869,7 @@ class MetricsService(MetricsServiceProtocol):
         """
         return generate_latest().decode('utf-8')
 
-    def set_shutdown_state(self, is_shutting_down: bool):
+    def set_shutdown_state(self, is_shutting_down: bool) -> None:
         """Set the shutdown state metric.
 
         Args:
@@ -882,7 +882,7 @@ class MetricsService(MetricsServiceProtocol):
         except Exception as e:
             logger.error(f"Error setting shutdown state: {e}")
 
-    def record_shutdown_duration(self, duration: float):
+    def record_shutdown_duration(self, duration: float) -> None:
         """Record the duration of graceful shutdown.
 
         Args:
@@ -893,7 +893,7 @@ class MetricsService(MetricsServiceProtocol):
         except Exception as e:
             logger.error(f"Error recording shutdown duration: {e}")
 
-    def record_active_tasks_at_shutdown(self, count: int):
+    def record_active_tasks_at_shutdown(self, count: int) -> None:
         """Record the number of active tasks when shutdown initiated.
 
         Args:

@@ -96,13 +96,13 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
         with self._shutdown_lock:
             return self._shutting_down
 
-    def _handle_sigterm(self, signum: int, frame) -> None:
+    def _handle_sigterm(self, signum: int, frame: object) -> None:
         """SIGTERM signal handler that performs complete graceful shutdown."""
         logger.info(f"Received signal {signum}, initiating graceful shutdown")
 
         self.shutdown()
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Implements the shutdown process."""
         with self._shutdown_lock:
             if self._shutting_down:

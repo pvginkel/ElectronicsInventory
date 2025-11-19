@@ -2,7 +2,7 @@
 
 import uuid
 from io import BytesIO
-from typing import BinaryIO
+from typing import Any, BinaryIO
 
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
@@ -195,7 +195,7 @@ class S3Service(BaseService):
                 return False
             raise InvalidOperationException("check file existence in S3", str(e)) from e
 
-    def get_file_metadata(self, s3_key: str) -> dict:
+    def get_file_metadata(self, s3_key: str) -> dict[str, Any]:
         """Get file metadata from S3.
 
         Args:

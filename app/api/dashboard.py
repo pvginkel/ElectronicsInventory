@@ -1,5 +1,7 @@
 """Dashboard API endpoints for aggregated inventory statistics."""
 
+from typing import Any
+
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request
 from spectree import Response as SpectreeResponse
@@ -14,6 +16,7 @@ from app.schemas.dashboard import (
     UndocumentedPartsSchema,
 )
 from app.services.container import ServiceContainer
+from app.services.dashboard_service import DashboardService
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
@@ -24,7 +27,7 @@ dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 @api.validate(resp=SpectreeResponse(HTTP_200=DashboardStatsSchema, HTTP_500=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_dashboard_stats(dashboard_service=Provide[ServiceContainer.dashboard_service]):
+def get_dashboard_stats(dashboard_service: DashboardService = Provide[ServiceContainer.dashboard_service]) -> Any:
     """Get aggregated dashboard statistics.
 
     Returns:
@@ -39,7 +42,7 @@ def get_dashboard_stats(dashboard_service=Provide[ServiceContainer.dashboard_ser
 @api.validate(resp=SpectreeResponse(HTTP_200=list[RecentActivitySchema], HTTP_500=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_recent_activity(dashboard_service=Provide[ServiceContainer.dashboard_service]):
+def get_recent_activity(dashboard_service: DashboardService = Provide[ServiceContainer.dashboard_service]) -> Any:
     """Get recent stock changes and activity.
 
     Query Parameters:
@@ -70,7 +73,7 @@ def get_recent_activity(dashboard_service=Provide[ServiceContainer.dashboard_ser
 @api.validate(resp=SpectreeResponse(HTTP_200=list[StorageSummarySchema], HTTP_500=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_storage_summary(dashboard_service=Provide[ServiceContainer.dashboard_service]):
+def get_storage_summary(dashboard_service: DashboardService = Provide[ServiceContainer.dashboard_service]) -> Any:
     """Get storage box utilization summary.
 
     Returns:
@@ -86,7 +89,7 @@ def get_storage_summary(dashboard_service=Provide[ServiceContainer.dashboard_ser
 @api.validate(resp=SpectreeResponse(HTTP_200=list[LowStockItemSchema], HTTP_500=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_low_stock_items(dashboard_service=Provide[ServiceContainer.dashboard_service]):
+def get_low_stock_items(dashboard_service: DashboardService = Provide[ServiceContainer.dashboard_service]) -> Any:
     """Get parts with low stock quantities.
 
     Query Parameters:
@@ -117,7 +120,7 @@ def get_low_stock_items(dashboard_service=Provide[ServiceContainer.dashboard_ser
 @api.validate(resp=SpectreeResponse(HTTP_200=list[CategoryDistributionSchema], HTTP_500=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_category_distribution(dashboard_service=Provide[ServiceContainer.dashboard_service]):
+def get_category_distribution(dashboard_service: DashboardService = Provide[ServiceContainer.dashboard_service]) -> Any:
     """Get part count distribution by category/type.
 
     Returns:
@@ -133,7 +136,7 @@ def get_category_distribution(dashboard_service=Provide[ServiceContainer.dashboa
 @api.validate(resp=SpectreeResponse(HTTP_200=UndocumentedPartsSchema, HTTP_500=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_parts_without_documents(dashboard_service=Provide[ServiceContainer.dashboard_service]):
+def get_parts_without_documents(dashboard_service: DashboardService = Provide[ServiceContainer.dashboard_service]) -> Any:
     """Get count and sample of parts without attached documents.
 
     Returns:

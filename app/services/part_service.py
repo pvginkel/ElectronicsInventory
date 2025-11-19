@@ -3,6 +3,7 @@
 import random
 import string
 from collections.abc import Sequence
+from typing import Any
 
 from sqlalchemy import func, select
 
@@ -111,7 +112,7 @@ class PartService(BaseService):
         stmt = stmt.limit(limit).offset(offset)
         return list(self.db.execute(stmt).scalars().all())
 
-    def update_part_details(self, part_key: str, **updates) -> Part:
+    def update_part_details(self, part_key: str, **updates: Any) -> Part:
         """Update part details with only provided fields."""
         stmt = select(Part).where(Part.key == part_key)
         part = self.db.execute(stmt).scalar_one_or_none()
@@ -149,7 +150,7 @@ class PartService(BaseService):
         result = self.db.execute(stmt).scalar()
         return result or 0
 
-    def get_all_parts_for_search(self) -> list[dict]:
+    def get_all_parts_for_search(self) -> list[dict[str, Any]]:
         """Get all parts in search-optimized format for duplicate detection.
 
         Returns a list of dictionaries with only the pertinent fields for matching:

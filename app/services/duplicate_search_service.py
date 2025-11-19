@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import time
+from typing import Any
 
 from jinja2 import Environment
 from pydantic import ValidationError
@@ -167,7 +168,7 @@ class DuplicateSearchService:
             # Return empty matches to allow graceful degradation
             return DuplicateSearchResponse(matches=[])
 
-    def _build_prompt(self, parts_data: list[dict]) -> str:
+    def _build_prompt(self, parts_data: list[dict[str, Any]]) -> str:
         """Build the system prompt with inventory data.
 
         Args:
