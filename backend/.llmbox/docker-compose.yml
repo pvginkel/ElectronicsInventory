@@ -21,5 +21,7 @@ services:
       - ../backend/.git:/work/backend/.git:ro
       - ../frontend:/work/frontend:rw
       - ../frontend/.git:/work/frontend/.git:ro
+      - ../../SSEGateway:/work/ssegateway:rw
+      - ../../SSEGateway/.git:/work/ssegateway/.git:ro
     # Required for Chromium
     shm_size: 1G
