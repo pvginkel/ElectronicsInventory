@@ -36,18 +36,22 @@ import type {
   AiAnalysisMockSession,
 } from './helpers/ai-analysis-mock';
 import { FileUploadHelper, createFileUploadHelper } from './helpers/file-upload';
-import { startBackend, startFrontend } from './process/servers';
+import { startBackend, startFrontend, startSSEGateway } from './process/servers';
 import {
   createBackendLogCollector,
   createFrontendLogCollector,
+  createGatewayLogCollector,
   type BackendLogCollector,
   type FrontendLogCollector,
+  type GatewayLogCollector,
 } from './process/backend-logs';
 
 type ServiceManager = {
   backendUrl: string;
+  gatewayUrl: string;
   frontendUrl: string;
   backendLogs: BackendLogCollector;
+  gatewayLogs: GatewayLogCollector;
   frontendLogs: FrontendLogCollector;
   sqliteDbPath?: string;
   disposeServices(): Promise<void>;
@@ -56,7 +60,9 @@ type ServiceManager = {
 type TestFixtures = {
   frontendUrl: string;
   backendUrl: string;
+  gatewayUrl: string;
   backendLogs: BackendLogCollector;
+  gatewayLogs: GatewayLogCollector;
   frontendLogs: FrontendLogCollector;
   sseTimeout: number;
   apiClient: ReturnType<typeof createApiClient>;
@@ -96,11 +102,27 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
       await use(_serviceManager.backendUrl);
     },
 
+    gatewayUrl: async ({ _serviceManager }, use) => {
+      await use(_serviceManager.gatewayUrl);
+    },
+
     backendLogs: [
       async ({ _serviceManager }, use, testInfo) => {
         const attachment = await _serviceManager.backendLogs.attachToTest(testInfo);
         try {
           await use(_serviceManager.backendLogs);
+        } finally {
+          await attachment.stop();
+        }
+      },
+      { auto: true },
+    ],
+
+    gatewayLogs: [
+      async ({ _serviceManager }, use, testInfo) => {
+        const attachment = await _serviceManager.gatewayLogs.attachToTest(testInfo);
+        try {
+          await use(_serviceManager.gatewayLogs);
         } finally {
           await attachment.stop();
         }
@@ -150,6 +172,7 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
         phase: 'ready',
         metadata: {
           backendUrl: _serviceManager.backendUrl,
+          gatewayUrl: _serviceManager.gatewayUrl,
           frontendUrl: _serviceManager.frontendUrl,
         },
         timestamp: new Date().toISOString(),
@@ -280,6 +303,7 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
         phase: 'ready',
         metadata: {
           backendUrl: _serviceManager.backendUrl,
+          gatewayUrl: _serviceManager.gatewayUrl,
           frontendUrl: _serviceManager.frontendUrl,
         },
         timestamp: new Date().toISOString(),
@@ -345,15 +369,19 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
     },
     _serviceManager: [
       async ({}, use: (value: ServiceManager) => Promise<void>, workerInfo: WorkerInfo) => {
-        const managedServices =
-          process.env.PLAYWRIGHT_MANAGED_SERVICES !== 'false';
         const backendStreamLogs =
           process.env.PLAYWRIGHT_BACKEND_LOG_STREAM === 'true';
+        const gatewayStreamLogs =
+          process.env.PLAYWRIGHT_GATEWAY_LOG_STREAM === 'true';
         const frontendStreamLogs =
           process.env.PLAYWRIGHT_FRONTEND_LOG_STREAM === 'true';
         const backendLogs = createBackendLogCollector({
           workerIndex: workerInfo.workerIndex,
           streamToConsole: backendStreamLogs,
+        });
+        const gatewayLogs = createGatewayLogCollector({
+          workerIndex: workerInfo.workerIndex,
+          streamToConsole: gatewayStreamLogs,
         });
         const frontendLogs = createFrontendLogCollector({
           workerIndex: workerInfo.workerIndex,
@@ -361,6 +389,7 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
         });
 
         const previousBackend = process.env.BACKEND_URL;
+        const previousGateway = process.env.SSE_GATEWAY_URL;
         const previousFrontend = process.env.FRONTEND_URL;
 
         let workerDbDir: string | undefined;
@@ -383,49 +412,10 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
           }
         };
 
-        if (!managedServices) {
-          const backendUrl =
-            process.env.BACKEND_URL || 'http://localhost:5100';
-          const frontendUrl =
-            process.env.FRONTEND_URL || 'http://localhost:3100';
-
-          const message =
-            'PLAYWRIGHT_MANAGED_SERVICES=false; using externally managed services.';
-
-          backendLogs.log(message);
-          frontendLogs.log(message);
-
-          process.env.BACKEND_URL = backendUrl;
-          process.env.FRONTEND_URL = frontendUrl;
-
-          if (workerInfo.project?.use) {
-            const projectUse = workerInfo.project.use as { baseURL?: string };
-            projectUse.baseURL = frontendUrl;
-          }
-
-          const serviceManager: ServiceManager = {
-            backendUrl,
-            frontendUrl,
-            backendLogs,
-            frontendLogs,
-            sqliteDbPath: undefined,
-            disposeServices: async () => {},
-          };
-
-          try {
-            await use(serviceManager);
-          } finally {
-            process.env.BACKEND_URL = previousBackend;
-            process.env.FRONTEND_URL = previousFrontend;
-            backendLogs.dispose();
-            frontendLogs.dispose();
-          }
-          return;
-        }
-
         const seedDbPath = process.env.PLAYWRIGHT_SEEDED_SQLITE_DB;
         if (!seedDbPath) {
           backendLogs.dispose();
+          gatewayLogs.dispose();
           frontendLogs.dispose();
           await cleanupWorkerDb();
           throw new Error(
@@ -442,13 +432,15 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
           backendLogs.log(`Using SQLite database copy at ${workerDbPath}`);
         } catch (error) {
           backendLogs.dispose();
+          gatewayLogs.dispose();
           frontendLogs.dispose();
           await cleanupWorkerDb();
           throw error;
         }
 
         const backendPort = await getPort();
-        const frontendPort = await getPort({ exclude: [backendPort] });
+        const gatewayPort = await getPort({ exclude: [backendPort] });
+        const frontendPort = await getPort({ exclude: [backendPort, gatewayPort] });
 
         const backendPromise = startBackend(workerInfo.workerIndex, {
           sqliteDbPath: workerDbPath,
@@ -463,21 +455,49 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
           return backendHandle;
         });
 
-        const frontendPromise = backendReadyPromise.then(async backendHandle => {
-          frontendLogs.log(`Starting frontend against backend ${backendHandle.url}`);
+        const gatewayPromise = backendReadyPromise.then(async backendHandle => {
+          gatewayLogs.log(`Starting SSE Gateway with callback to ${backendHandle.url}`);
+          try {
+            const gatewayHandle = await startSSEGateway({
+              workerIndex: workerInfo.workerIndex,
+              backendUrl: backendHandle.url,
+              excludePorts: [backendHandle.port],
+              port: gatewayPort,
+              streamLogs: gatewayStreamLogs,
+            });
+            gatewayLogs.attachStream(gatewayHandle.process.stdout, 'stdout');
+            gatewayLogs.attachStream(gatewayHandle.process.stderr, 'stderr');
+            gatewayLogs.log(`SSE Gateway listening on ${gatewayHandle.url}`);
+            return { backendHandle, gatewayHandle };
+          } catch (error) {
+            await backendHandle.dispose();
+            gatewayLogs.log(
+              `SSE Gateway failed to start: ${(error as Error)?.message ?? String(error)}`
+            );
+            throw error;
+          }
+        });
+
+        const frontendPromise = gatewayPromise.then(async ({ backendHandle, gatewayHandle }) => {
+          frontendLogs.log(`Starting frontend against backend ${backendHandle.url} and gateway ${gatewayHandle.url}`);
+
+          // Set SSE_GATEWAY_URL before starting frontend so Vite can read it
+          process.env.SSE_GATEWAY_URL = gatewayHandle.url;
+
           try {
             const frontendHandle = await startFrontend({
               workerIndex: workerInfo.workerIndex,
               backendUrl: backendHandle.url,
-              excludePorts: [backendHandle.port],
+              excludePorts: [backendHandle.port, gatewayHandle.port],
               port: frontendPort,
               streamLogs: frontendStreamLogs,
             });
             frontendLogs.attachStream(frontendHandle.process.stdout, 'stdout');
             frontendLogs.attachStream(frontendHandle.process.stderr, 'stderr');
             frontendLogs.log(`Frontend listening on ${frontendHandle.url}`);
-            return frontendHandle;
+            return { backendHandle, gatewayHandle, frontendHandle };
           } catch (error) {
+            await gatewayHandle.dispose();
             await backendHandle.dispose();
             frontendLogs.log(
               `Frontend failed to start: ${(error as Error)?.message ?? String(error)}`
@@ -489,24 +509,29 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
         let backend:
           | Awaited<ReturnType<typeof startBackend>>
           | undefined;
+        let gateway:
+          | Awaited<ReturnType<typeof startSSEGateway>>
+          | undefined;
         let frontend:
           | Awaited<ReturnType<typeof startFrontend>>
           | undefined;
 
         try {
-          [backend, frontend] = await Promise.all([
-            backendReadyPromise,
-            frontendPromise,
-          ]);
+          const result = await frontendPromise;
+          backend = result.backendHandle;
+          gateway = result.gatewayHandle;
+          frontend = result.frontendHandle;
         } catch (error) {
           backendLogs.dispose();
+          gatewayLogs.dispose();
           frontendLogs.dispose();
           await cleanupWorkerDb();
           throw error;
         }
 
-        if (!backend || !frontend) {
+        if (!backend || !gateway || !frontend) {
           backendLogs.dispose();
+          gatewayLogs.dispose();
           frontendLogs.dispose();
           await cleanupWorkerDb();
           throw new Error(
@@ -515,6 +540,7 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
         }
 
         process.env.BACKEND_URL = backend.url;
+        process.env.SSE_GATEWAY_URL = gateway.url;
         process.env.FRONTEND_URL = frontend.url;
 
         if (workerInfo.project?.use) {
@@ -529,6 +555,7 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
           }
           disposed = true;
 
+          // Dispose in reverse order: frontend -> gateway -> backend
           if (frontend) {
             try {
               await frontend.dispose();
@@ -539,14 +566,26 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
               );
             }
           }
+          if (gateway) {
+            try {
+              await gateway.dispose();
+            } catch (error) {
+              console.warn(
+                `[worker-${workerInfo.workerIndex}] Failed to dispose gateway:`,
+                error
+              );
+            }
+          }
           await backend.dispose();
           await cleanupWorkerDb();
         };
 
         const serviceManager: ServiceManager = {
           backendUrl: backend.url,
+          gatewayUrl: gateway.url,
           frontendUrl: frontend.url,
           backendLogs,
+          gatewayLogs,
           frontendLogs,
           disposeServices,
           sqliteDbPath: workerDbPath,
@@ -557,8 +596,10 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
         } finally {
           await disposeServices();
           process.env.BACKEND_URL = previousBackend;
+          process.env.SSE_GATEWAY_URL = previousGateway;
           process.env.FRONTEND_URL = previousFrontend;
           backendLogs.dispose();
+          gatewayLogs.dispose();
           frontendLogs.dispose();
         }
       },

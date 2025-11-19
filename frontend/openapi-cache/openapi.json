@@ -15665,6 +15665,16 @@
         "tags": []
       }
     },
+    "/api/sse/callback": {
+      "post": {
+        "description": "Authenticates via SSE_CALLBACK_SECRET query parameter (mandatory in production, optional in dev/test). Routes callbacks to appropriate service based on URL pattern.\n\nReturns:     For connect callbacks:         - HTTP 200 with optional JSON body for task/version streams         - HTTP 401 if authentication fails         - HTTP 404 if resource not found         - HTTP 503 if shutting down\n\n    For disconnect callbacks:         - HTTP 200 (idempotent cleanup)",
+        "operationId": "post__api_sse_callback",
+        "parameters": [],
+        "responses": {},
+        "summary": "Handle SSE Gateway connect/disconnect callbacks.",
+        "tags": []
+      }
+    },
     "/api/tasks/{task_id}": {
       "delete": {
         "description": "Returns:     JSON with removal result",
@@ -15722,26 +15732,6 @@
         ],
         "responses": {},
         "summary": "Get current status of a task.",
-        "tags": []
-      }
-    },
-    "/api/tasks/{task_id}/stream": {
-      "get": {
-        "description": "Returns:     Server-Sent Events stream with task progress updates",
-        "operationId": "get__api_tasks_{task_id}_stream",
-        "parameters": [
-          {
-            "description": "",
-            "in": "path",
-            "name": "task_id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {},
-        "summary": "SSE endpoint for monitoring specific task progress.",
         "tags": []
       }
     },
@@ -16154,16 +16144,6 @@
           }
         },
         "summary": "Update type name.",
-        "tags": []
-      }
-    },
-    "/api/utils/version/stream": {
-      "get": {
-        "description": "",
-        "operationId": "get__api_utils_version_stream",
-        "parameters": [],
-        "responses": {},
-        "summary": "SSE stream for frontend version notifications - infrastructure utility endpoint.",
         "tags": []
       }
     }

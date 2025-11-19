@@ -1,75 +1,27 @@
-import { chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getBackendUrl } from './backend-url';
 
 async function globalSetup() {
-  const playwrightManagedServices = process.env.PLAYWRIGHT_MANAGED_SERVICES !== 'false';
+  // External services mode has been removed. All tests now use per-worker managed services.
+  if (process.env.PLAYWRIGHT_MANAGED_SERVICES === 'false') {
+    throw new Error(
+      'PLAYWRIGHT_MANAGED_SERVICES=false is no longer supported. ' +
+      'The external services mode has been removed. ' +
+      'Please remove this environment variable. ' +
+      'All tests now use per-worker managed services (backend, SSE gateway, and frontend) for isolation.'
+    );
+  }
 
   console.log('🔧 Setting up Playwright tests...');
-  console.log(
-    `Service management: ${playwrightManagedServices ? 'Per-worker (Playwright managed)' : 'External'}`
-  );
+  console.log('Service management: Per-worker (Playwright managed)');
 
-  // Skip health checks when worker fixtures handle process orchestration.
-  if (playwrightManagedServices) {
-    const seededDbPath = await initializeSeedDatabase();
-    process.env.PLAYWRIGHT_SEEDED_SQLITE_DB = seededDbPath;
-    console.log(`🗃️  Seeded Playwright SQLite database: ${seededDbPath}`);
-    console.log('⏭️  Skipping health checks - worker fixtures boot services on demand');
-    return;
-  }
-
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3100';
-  const backendUrl = getBackendUrl();
-  
-  console.log(`Frontend URL: ${frontendUrl}`);
-  console.log(`Backend URL: ${backendUrl}`);
-
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
-
-  console.log('🌐 Checking service readiness...');
-
-  // Check backend health
-  try {
-    const response = await page.goto(`${backendUrl}/api/health/readyz`, {
-      waitUntil: 'networkidle',
-      timeout: 30000
-    });
-
-    if (!response?.ok()) {
-      throw new Error(`Backend health check failed: ${response?.status()}`);
-    }
-    console.log('✅ Backend is ready');
-  } catch (error) {
-    console.error('❌ Backend health check failed:', error);
-    await browser.close();
-    throw error;
-  }
-
-  // Check frontend
-  try {
-    const response = await page.goto(frontendUrl, {
-      waitUntil: 'networkidle',
-      timeout: 30000
-    });
-
-    if (!response?.ok()) {
-      throw new Error(`Frontend check failed: ${response?.status()}`);
-    }
-    console.log('✅ Frontend is ready');
-  } catch (error) {
-    console.error('❌ Frontend check failed:', error);
-    await browser.close();
-    throw error;
-  }
-
-  await browser.close();
-  console.log('🚀 All services ready, starting tests...');
+  const seededDbPath = await initializeSeedDatabase();
+  process.env.PLAYWRIGHT_SEEDED_SQLITE_DB = seededDbPath;
+  console.log(`🗃️  Seeded Playwright SQLite database: ${seededDbPath}`);
+  console.log('⏭️  Worker fixtures will boot backend, SSE gateway, and frontend on demand');
 }
 
 export default globalSetup;

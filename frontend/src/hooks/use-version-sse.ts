@@ -86,8 +86,8 @@ export function useVersionSSE(): UseVersionSSEReturn {
 
     const queryString = params.toString();
     const url = queryString
-      ? `/api/utils/version/stream?${queryString}`
-      : '/api/utils/version/stream';
+      ? `/api/sse/utils/version?${queryString}`
+      : '/api/sse/utils/version';
 
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;

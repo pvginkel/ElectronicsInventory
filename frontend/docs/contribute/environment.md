@@ -6,28 +6,31 @@ This document captures the environment variables, port conventions, and configur
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `FRONTEND_URL` | `http://localhost:3100` (tests) / Vite default `http://localhost:3000` (dev) | Base URL the Playwright suite points to. Managed automatically when using `scripts/testing-server.sh`. |
-| `BACKEND_URL` | `http://localhost:5100` (tests) / `http://localhost:5000` (dev proxy default) | Backend origin used by Node-side tooling and the Vite `/api` proxy. |
-| `VITE_TEST_MODE` | `false` | Toggles frontend test instrumentation and test-event emission. Set to `true` automatically when running `scripts/testing-server.sh`. |
-| `PLAYWRIGHT_MANAGED_SERVICES` | `true` | When not explicitly set to `false`, Playwright starts the frontend/backend via `scripts/testing-server.sh`. Set to `false` when you manage servers manually. |
-| `APP_START_SCRIPT` / `APP_STOP_SCRIPT` | unset | Optional hook executed by Playwright before/after tests. Accepts `start` and `stop` args. |
-| `WEB_START_SCRIPT` / `WEB_STOP_SCRIPT` | unset | Alternate hook for frontend orchestration. |
+| `BACKEND_URL` | `http://localhost:5000` (dev) | Backend origin used by Node-side tooling and the Vite `/api` proxy. Managed automatically by Playwright fixtures. |
+| `SSE_GATEWAY_URL` | `http://localhost:3001` (dev) | SSE Gateway origin used by the Vite `/sse` proxy. Managed automatically by Playwright fixtures. |
+| `FRONTEND_URL` | `http://localhost:3000` (dev) | Base URL for the frontend. Managed automatically by Playwright fixtures. |
+| `VITE_TEST_MODE` | `false` | Toggles frontend test instrumentation and test-event emission. Set to `true` automatically by Playwright fixtures. |
+| `SSE_GATEWAY_ROOT` | `../ssegateway` | Path to the SSE Gateway repository. Override if the gateway is not at the default location. |
+| `PLAYWRIGHT_BACKEND_LOG_STREAM` | `false` | Set to `true` to stream backend logs to console during test runs. |
+| `PLAYWRIGHT_GATEWAY_LOG_STREAM` | `false` | Set to `true` to stream SSE Gateway logs to console during test runs. |
+| `PLAYWRIGHT_FRONTEND_LOG_STREAM` | `false` | Set to `true` to stream frontend logs to console during test runs. |
 
 ## Environment Files
 
-- `.env` – consumed by Vite during local development. Override `BACKEND_URL` here if your backend is not running on `http://localhost:5000`.
-- `.env.test` – automatically loaded by `playwright.config.ts` via `dotenv`. Use this to override Playwright-specific values such as `FRONTEND_URL`, `BACKEND_URL`, or toggling `PLAYWRIGHT_MANAGED_SERVICES`.
+- `.env` – consumed by Vite during local development. Override `BACKEND_URL` or `SSE_GATEWAY_URL` here if your services are not running on default ports.
+- `.env.test` – automatically loaded by `playwright.config.ts` via `dotenv`. Use this to override Playwright-specific values such as `SSE_GATEWAY_ROOT` or enable log streaming.
 
 > `.env.test` is ignored by git; commit durable defaults to documentation and keep machine-specific overrides local.
 
-## Vite API Proxy & Managed Services
+## Vite Proxy & Per-Worker Managed Services
 
-- **API Proxy**: Vite forwards browser requests matching `/api/**` to the backend. During regular development the proxy targets `http://localhost:5000` unless `BACKEND_URL` is set. The Playwright testing harness exports `BACKEND_URL=http://localhost:5100` before starting Vite so the proxy points at the testing backend automatically.
-- **Frontend (test mode)**: `scripts/testing-server.sh` starts Vite on port **3100** with `VITE_TEST_MODE=true`.
-- **Backend (test mode)**: `../backend/scripts/testing-server.sh` starts the Flask API on port **5100** with `FLASK_ENV=testing`.
-- Playwright waits for both services to report healthy before running tests. See [CI & Execution](./testing/ci_and_execution.md) for health check details.
+- **API Proxy**: Vite forwards browser requests matching `/api/**` to the backend. During regular development the proxy targets `http://localhost:5000` unless `BACKEND_URL` is set.
+- **SSE Proxy**: Vite forwards browser requests matching `/sse/**` to the SSE Gateway, stripping the `/sse` prefix. During regular development the proxy targets `http://localhost:3001` unless `SSE_GATEWAY_URL` is set.
+- **Per-Worker Services**: Each Playwright worker starts its own isolated backend, SSE Gateway, and frontend on dynamically allocated ports. This ensures test isolation and prevents cross-worker interference.
+- **Service Startup Order**: Backend → SSE Gateway → Frontend. The gateway receives the backend callback URL, and the frontend receives both backend and gateway URLs via environment variables.
+- Playwright waits for all three services to report healthy before running tests. See [CI & Execution](./testing/ci_and_execution.md) for health check details.
 
-If you prefer to launch services manually, export `PLAYWRIGHT_MANAGED_SERVICES=false` and ensure the URLs above respond before invoking `pnpm playwright test`.
+The external services mode (`PLAYWRIGHT_MANAGED_SERVICES=false`) has been removed. All tests now use per-worker managed services.
 
 ## Test Mode Responsibilities
 

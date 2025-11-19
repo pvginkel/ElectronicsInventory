@@ -7,8 +7,10 @@ import split2 from 'split2';
 
 const BACKEND_READY_PATH = '/api/health/readyz';
 const FRONTEND_READY_PATH = '/';
+const GATEWAY_READY_PATH = '/readyz';
 const BACKEND_STARTUP_TIMEOUT_MS = 30_000;
 const FRONTEND_STARTUP_TIMEOUT_MS = 90_000;
+const GATEWAY_STARTUP_TIMEOUT_MS = 30_000;
 const POLL_INTERVAL_MS = 200;
 const HOSTNAME = '127.0.0.1';
 
@@ -21,6 +23,7 @@ type ServerHandle = {
 
 export type BackendServerHandle = ServerHandle;
 export type FrontendServerHandle = ServerHandle;
+export type SSEGatewayServerHandle = ServerHandle;
 
 export async function startBackend(
   workerIndex: number,
@@ -107,7 +110,40 @@ export async function startFrontend(options: {
   });
 }
 
-type ServiceLabel = 'backend' | 'frontend';
+export async function startSSEGateway(options: {
+  workerIndex: number;
+  backendUrl: string;
+  excludePorts?: number[];
+  streamLogs?: boolean;
+  port?: number;
+}): Promise<SSEGatewayServerHandle> {
+  const port =
+    typeof options.port === 'number'
+      ? options.port
+      : await getPort({
+          exclude: options.excludePorts ?? [],
+        });
+
+  const scriptPath = resolve(getSSEGatewayRepoRoot(), './scripts/run-gateway.sh');
+  const callbackUrl = `${options.backendUrl}/api/sse/callback`;
+  const args = ['--port', String(port), '--callback-url', callbackUrl];
+
+  return startService({
+    workerIndex: options.workerIndex,
+    port,
+    serviceLabel: 'sse-gateway',
+    scriptPath,
+    args,
+    readinessPath: GATEWAY_READY_PATH,
+    startupTimeoutMs: GATEWAY_STARTUP_TIMEOUT_MS,
+    streamLogs: options.streamLogs === true,
+    env: {
+      ...process.env,
+    },
+  });
+}
+
+type ServiceLabel = 'backend' | 'frontend' | 'sse-gateway';
 
 type StartServiceOptions = {
   workerIndex: number;
@@ -306,6 +342,9 @@ function serviceShouldLogLifecycle(serviceLabel: ServiceLabel): boolean {
   if (serviceLabel === 'frontend') {
     return process.env.PLAYWRIGHT_FRONTEND_LOG_STREAM === 'true';
   }
+  if (serviceLabel === 'sse-gateway') {
+    return process.env.PLAYWRIGHT_GATEWAY_LOG_STREAM === 'true';
+  }
   return false;
 }
 
@@ -334,6 +373,7 @@ async function waitForExit(
 
 let frontendRepoRootCache: string | undefined;
 let backendRepoRootCache: string | undefined;
+let sseGatewayRepoRootCache: string | undefined;
 
 function getFrontendRepoRoot(): string {
   if (!frontendRepoRootCache) {
@@ -348,6 +388,14 @@ function getBackendRepoRoot(): string {
     backendRepoRootCache = resolve(getFrontendRepoRoot(), '../backend');
   }
   return backendRepoRootCache;
+}
+
+function getSSEGatewayRepoRoot(): string {
+  if (!sseGatewayRepoRootCache) {
+    const envRoot = process.env.SSE_GATEWAY_ROOT;
+    sseGatewayRepoRootCache = envRoot || resolve(getFrontendRepoRoot(), '../ssegateway');
+  }
+  return sseGatewayRepoRootCache;
 }
 
 const activeChildren = new Set<ChildProcessWithoutNullStreams>();
