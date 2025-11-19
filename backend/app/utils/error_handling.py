@@ -26,7 +26,7 @@ from app.utils import get_current_correlation_id
 logger = logging.getLogger(__name__)
 
 
-def _build_error_response(error: str, details: dict, code: str | None = None, status_code: int = 400) -> tuple[Response, int]:
+def _build_error_response(error: str, details: dict[str, Any], code: str | None = None, status_code: int = 400) -> tuple[Response, int]:
     """Build error response with correlation ID and optional error code."""
     response_data = {
         "error": error,

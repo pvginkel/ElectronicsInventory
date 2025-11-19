@@ -12,7 +12,7 @@ from app.config import get_settings
 from app.utils.shutdown_coordinator import LifetimeEvent
 
 
-def main():
+def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -38,7 +38,7 @@ def main():
         if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
             shutdown_coordinator.initialize()
 
-        def signal_shutdown(lifetime_event: LifetimeEvent):
+        def signal_shutdown(lifetime_event: LifetimeEvent) -> None:
             if lifetime_event == LifetimeEvent.AFTER_SHUTDOWN:
                 # Need to call. os._exit. sys.exit doesn't work with the
                 # reloader is exit.
@@ -50,7 +50,7 @@ def main():
     else:
         shutdown_coordinator.initialize()
 
-        def runner():
+        def runner() -> None:
             # Production: Use Waitress WSGI server
             wsgi = TransLogger(app, setup_console_handler=False)
 
@@ -65,11 +65,11 @@ def main():
 
         event = threading.Event()
 
-        def signal_shutdown(lifetime_event: LifetimeEvent):
+        def signal_shutdown_prod(lifetime_event: LifetimeEvent) -> None:
             if lifetime_event == LifetimeEvent.AFTER_SHUTDOWN:
                 event.set()
 
-        shutdown_coordinator.register_lifetime_notification(signal_shutdown)
+        shutdown_coordinator.register_lifetime_notification(signal_shutdown_prod)
 
         event.wait()
 

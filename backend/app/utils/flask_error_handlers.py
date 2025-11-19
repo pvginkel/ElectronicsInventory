@@ -1,5 +1,7 @@
 """Flask application error handlers."""
 
+from typing import Any
+
 from flask import Flask, jsonify
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -9,7 +11,7 @@ def register_error_handlers(app: Flask) -> None:
     """Register Flask error handlers for common exceptions."""
 
     @app.errorhandler(ValidationError)
-    def handle_validation_error(error: ValidationError):
+    def handle_validation_error(error: ValidationError) -> tuple[Any, int]:
         """Handle Pydantic validation errors."""
         error_details = []
         for err in error.errors():
@@ -23,7 +25,7 @@ def register_error_handlers(app: Flask) -> None:
         }), 400
 
     @app.errorhandler(IntegrityError)
-    def handle_integrity_error(error: IntegrityError):
+    def handle_integrity_error(error: IntegrityError) -> tuple[Any, int]:
         """Handle database integrity constraint violations."""
         error_msg = str(error.orig) if hasattr(error, 'orig') else str(error)
 
@@ -50,7 +52,7 @@ def register_error_handlers(app: Flask) -> None:
             }), 400
 
     @app.errorhandler(404)
-    def handle_not_found(error):
+    def handle_not_found(error: Any) -> tuple[Any, int]:
         """Handle 404 Not Found errors."""
         return jsonify({
             "error": "Resource not found",
@@ -58,7 +60,7 @@ def register_error_handlers(app: Flask) -> None:
         }), 404
 
     @app.errorhandler(405)
-    def handle_method_not_allowed(error):
+    def handle_method_not_allowed(error: Any) -> tuple[Any, int]:
         """Handle 405 Method Not Allowed errors."""
         return jsonify({
             "error": "Method not allowed",
@@ -66,7 +68,7 @@ def register_error_handlers(app: Flask) -> None:
         }), 405
 
     @app.errorhandler(500)
-    def handle_internal_server_error(error):
+    def handle_internal_server_error(error: Any) -> tuple[Any, int]:
         """Handle 500 Internal Server Error."""
         return jsonify({
             "error": "Internal server error",

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import Session, selectinload
 
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.part import Part
@@ -28,7 +28,7 @@ class ShoppingListLineService(BaseService):
 
     def __init__(
         self,
-        db,
+        db: Session,
         seller_service: SellerService,
         inventory_service: "InventoryService",
         metrics_service: "MetricsService | None" = None,

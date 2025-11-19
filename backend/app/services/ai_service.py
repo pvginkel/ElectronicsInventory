@@ -7,6 +7,7 @@ from typing import cast
 from urllib.parse import quote
 
 from jinja2 import Environment
+from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.exceptions import InvalidOperationException
@@ -41,7 +42,7 @@ class AIService(BaseService):
 
     def __init__(
         self,
-        db,
+        db: Session,
         config: Settings,
         temp_file_manager: TempFileManager,
         type_service: TypeService,
@@ -49,7 +50,7 @@ class AIService(BaseService):
         document_service: DocumentService,
         metrics_service: MetricsServiceProtocol,
         duplicate_search_function: AIFunction,
-    ):
+    ) -> None:
         super().__init__(db)
         self.config = config
         self.temp_file_manager = temp_file_manager

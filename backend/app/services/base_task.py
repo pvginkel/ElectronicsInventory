@@ -1,6 +1,6 @@
 import threading
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -28,11 +28,11 @@ class ProgressHandle(Protocol):
 class BaseTask(ABC):
     """Abstract base class for background tasks with progress reporting capabilities."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._cancelled = threading.Event()
 
     @abstractmethod
-    def execute(self, progress_handle: ProgressHandle, **kwargs) -> BaseModel:
+    def execute(self, progress_handle: ProgressHandle, **kwargs: Any) -> BaseModel:
         """
         Execute the task with progress reporting.
 
@@ -65,7 +65,7 @@ class BaseSessionTask(BaseTask):
 
         self.container = container
 
-    def execute(self, progress_handle: ProgressHandle, **kwargs) -> BaseModel:
+    def execute(self, progress_handle: ProgressHandle, **kwargs: Any) -> BaseModel:
         """
         Execute the task with a database session and progress reporting.
 
@@ -97,7 +97,7 @@ class BaseSessionTask(BaseTask):
         return result
 
     @abstractmethod
-    def execute_session(self, session: Session, progress_handle: ProgressHandle, **kwargs) -> BaseModel:
+    def execute_session(self, session: Session, progress_handle: ProgressHandle, **kwargs: Any) -> BaseModel:
         """
         Execute the task logic with a database session.
 

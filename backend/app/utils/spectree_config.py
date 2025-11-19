@@ -1,6 +1,8 @@
 """
 Spectree configuration with Pydantic v2 compatibility.
 """
+from typing import Any
+
 from flask import Flask
 from spectree import SpecTree
 
@@ -38,7 +40,7 @@ def configure_spectree(app: Flask) -> SpecTree:
 
     @app.route("/api/docs")
     @app.route("/api/docs/")
-    def docs_redirect():
+    def docs_redirect() -> Any:
         return redirect("/api/docs/swagger/", code=302)
 
     return api

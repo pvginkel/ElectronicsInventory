@@ -1,6 +1,7 @@
 """AI part analysis background task."""
 
 import logging
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -20,7 +21,7 @@ class AIPartAnalysisTask(BaseSessionTask):
     def __init__(self, container: ServiceContainer):
         super().__init__(container)
 
-    def execute_session(self, session: Session, progress_handle: ProgressHandle, **kwargs) -> AIPartAnalysisTaskResultSchema | AIPartAnalysisTaskCancelledResultSchema:
+    def execute_session(self, session: Session, progress_handle: ProgressHandle, **kwargs: Any) -> AIPartAnalysisTaskResultSchema | AIPartAnalysisTaskCancelledResultSchema:
         """
         Execute AI part analysis with progress reporting.
 

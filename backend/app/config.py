@@ -174,7 +174,7 @@ class Settings(BaseSettings):
     )
 
     @model_validator(mode="after")
-    def configure_environment_defaults(self):
+    def configure_environment_defaults(self) -> "Settings":
         """Apply environment-specific defaults after validation."""
         if self.FLASK_ENV == "production":
             self.SSE_HEARTBEAT_INTERVAL = 30

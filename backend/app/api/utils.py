@@ -4,14 +4,17 @@ import json
 import threading
 import time
 from queue import Empty
+from typing import Any
 
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request, stream_with_context
 
 from app.services.container import ServiceContainer
+from app.services.version_service import VersionService
 from app.utils import ensure_request_id_from_query, get_current_correlation_id
 from app.utils.error_handling import handle_api_errors
-from app.utils.shutdown_coordinator import LifetimeEvent
+from app.utils.settings import Settings  # type: ignore[import-untyped]
+from app.utils.shutdown_coordinator import LifetimeEvent, ShutdownCoordinatorProtocol
 from app.utils.sse_utils import create_sse_response, format_sse_event
 
 utils_bp = Blueprint("utils", __name__, url_prefix="/utils")
@@ -21,14 +24,14 @@ utils_bp = Blueprint("utils", __name__, url_prefix="/utils")
 @handle_api_errors
 @inject
 def version_stream(
-    version_service=Provide[ServiceContainer.version_service],
-    shutdown_coordinator=Provide[ServiceContainer.shutdown_coordinator],
-    settings=Provide[ServiceContainer.config]
-):
+    version_service: VersionService = Provide[ServiceContainer.version_service],
+    shutdown_coordinator: ShutdownCoordinatorProtocol = Provide[ServiceContainer.shutdown_coordinator],
+    settings: Settings = Provide[ServiceContainer.config]
+) -> Any:
     """SSE stream for frontend version notifications - infrastructure utility endpoint."""
     ensure_request_id_from_query(request.args.get("request_id"))
 
-    def generate_events():
+    def generate_events() -> Any:
         subscriber_queue = None
         registered_with_service = False
         correlation_id = get_current_correlation_id()

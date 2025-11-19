@@ -1,6 +1,7 @@
 """Health check endpoints for Kubernetes probes."""
 
 import logging
+from typing import Any
 
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, jsonify, request
@@ -23,7 +24,7 @@ health_bp = Blueprint("health", __name__, url_prefix="/health")
 @inject
 def readyz(
     shutdown_coordinator: ShutdownCoordinatorProtocol = Provide[ServiceContainer.shutdown_coordinator]
-):
+) -> Any:
     """Readiness probe endpoint for Kubernetes.
 
     Returns 503 when the application is shutting down, database is not ready,
@@ -63,7 +64,7 @@ def readyz(
 
 @health_bp.route("/healthz", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=HealthResponse))
-def healthz():
+def healthz() -> Any:
     """Liveness probe endpoint for Kubernetes.
 
     Always returns 200 to indicate the application is alive.
@@ -78,7 +79,7 @@ def healthz():
 def drain(
     shutdown_coordinator: ShutdownCoordinatorProtocol = Provide[ServiceContainer.shutdown_coordinator],
     settings: Settings = Provide[ServiceContainer.config]
-):
+) -> Any:
     """Drain endpoint for manual graceful shutdown initiation.
 
     Requires bearer token authentication against DRAIN_AUTH_KEY config setting.

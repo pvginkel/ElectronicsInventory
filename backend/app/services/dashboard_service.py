@@ -1,7 +1,7 @@
 """Dashboard service for aggregating dashboard statistics and data."""
 
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import func, select
 
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class DashboardService(BaseService):
     """Service class for dashboard data aggregation operations."""
 
-    def get_dashboard_stats(self) -> dict:
+    def get_dashboard_stats(self) -> dict[str, Any]:
         """Returns aggregated dashboard statistics.
 
         Returns:
@@ -82,7 +82,7 @@ class DashboardService(BaseService):
             'low_stock_count': low_stock_count
         }
 
-    def get_recent_activity(self, limit: int = 20) -> list[dict]:
+    def get_recent_activity(self, limit: int = 20) -> list[dict[str, Any]]:
         """Returns recent stock changes.
 
         Args:
@@ -110,7 +110,7 @@ class DashboardService(BaseService):
 
         return activities
 
-    def get_storage_summary(self) -> list[dict]:
+    def get_storage_summary(self) -> list[dict[str, Any]]:
         """Returns box utilization summary.
 
         Returns:
@@ -146,7 +146,7 @@ class DashboardService(BaseService):
 
         return storage_data
 
-    def get_low_stock_items(self, threshold: int = 5) -> list[dict]:
+    def get_low_stock_items(self, threshold: int = 5) -> list[dict[str, Any]]:
         """Returns parts below threshold quantity.
 
         Args:
@@ -189,7 +189,7 @@ class DashboardService(BaseService):
 
         return low_stock_items
 
-    def get_category_distribution(self) -> list[dict]:
+    def get_category_distribution(self) -> list[dict[str, Any]]:
         """Returns part counts by type/category.
 
         Returns:
@@ -211,7 +211,7 @@ class DashboardService(BaseService):
         distribution.sort(key=lambda x: cast(int, x['part_count']), reverse=True)
         return distribution
 
-    def get_parts_without_documents(self) -> dict:
+    def get_parts_without_documents(self) -> dict[str, Any]:
         """Returns count and sample of parts without documents.
 
         Returns:

@@ -1,5 +1,7 @@
 """Shopping list line item API endpoints."""
 
+from typing import Any
+
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request
 from spectree import Response as SpectreeResponse
@@ -20,6 +22,7 @@ from app.schemas.shopping_list_line import (
     ShoppingListLineUpdateSchema,
 )
 from app.services.container import ServiceContainer
+from app.services.shopping_list_line_service import ShoppingListLineService
 from app.utils.error_handling import handle_api_errors
 from app.utils.request_parsing import parse_bool_query_param
 from app.utils.spectree_config import api
@@ -39,8 +42,8 @@ shopping_list_lines_bp = Blueprint("shopping_list_lines", __name__)
 @inject
 def add_shopping_list_line(
     list_id: int,
-    shopping_list_line_service=Provide[ServiceContainer.shopping_list_line_service],
-):
+    shopping_list_line_service: ShoppingListLineService = Provide[ServiceContainer.shopping_list_line_service],
+) -> Any:
     """Create a shopping list line item."""
     data = ShoppingListLineCreateSchema.model_validate(request.get_json())
     line = shopping_list_line_service.add_line(
@@ -70,8 +73,8 @@ def add_shopping_list_line(
 @inject
 def update_shopping_list_line(
     line_id: int,
-    shopping_list_line_service=Provide[ServiceContainer.shopping_list_line_service],
-):
+    shopping_list_line_service: ShoppingListLineService = Provide[ServiceContainer.shopping_list_line_service],
+) -> Any:
     """Update an existing shopping list line."""
     data = ShoppingListLineUpdateSchema.model_validate(request.get_json())
     updates = data.model_dump(exclude_unset=True)
@@ -96,8 +99,8 @@ def update_shopping_list_line(
 @inject
 def delete_shopping_list_line(
     line_id: int,
-    shopping_list_line_service=Provide[ServiceContainer.shopping_list_line_service],
-):
+    shopping_list_line_service: ShoppingListLineService = Provide[ServiceContainer.shopping_list_line_service],
+) -> Any:
     """Delete a shopping list line."""
     shopping_list_line_service.delete_line(line_id)
     return "", 204
@@ -114,8 +117,8 @@ def delete_shopping_list_line(
 @inject
 def list_shopping_list_lines(
     list_id: int,
-    shopping_list_line_service=Provide[ServiceContainer.shopping_list_line_service],
-):
+    shopping_list_line_service: ShoppingListLineService = Provide[ServiceContainer.shopping_list_line_service],
+) -> Any:
     """List line items for a shopping list."""
     include_done = parse_bool_query_param(
         request.args.get("include_done"),
@@ -150,8 +153,8 @@ def list_shopping_list_lines(
 @inject
 def mark_line_ordered(
     line_id: int,
-    shopping_list_line_service=Provide[ServiceContainer.shopping_list_line_service],
-):
+    shopping_list_line_service: ShoppingListLineService = Provide[ServiceContainer.shopping_list_line_service],
+) -> Any:
     """Mark a single shopping list line as ordered."""
     data = ShoppingListLineOrderSchema.model_validate(request.get_json() or {})
     line = shopping_list_line_service.set_line_ordered(
@@ -179,8 +182,8 @@ def mark_line_ordered(
 @inject
 def revert_line_to_new(
     line_id: int,
-    shopping_list_line_service=Provide[ServiceContainer.shopping_list_line_service],
-):
+    shopping_list_line_service: ShoppingListLineService = Provide[ServiceContainer.shopping_list_line_service],
+) -> Any:
     """Revert an ordered line back to NEW status."""
     data = ShoppingListLineStatusUpdateSchema.model_validate(request.get_json())
     if data.status != ShoppingListLineStatus.NEW:
@@ -210,8 +213,8 @@ def revert_line_to_new(
 def mark_group_ordered(
     list_id: int,
     group_ref: str,
-    shopping_list_line_service=Provide[ServiceContainer.shopping_list_line_service],
-):
+    shopping_list_line_service: ShoppingListLineService = Provide[ServiceContainer.shopping_list_line_service],
+) -> Any:
     """Mark all lines in a seller grouping as ordered."""
     data = ShoppingListGroupOrderSchema.model_validate(request.get_json())
     if group_ref == "ungrouped":
@@ -254,8 +257,8 @@ def mark_group_ordered(
 @inject
 def receive_shopping_list_line_stock(
     line_id: int,
-    shopping_list_line_service=Provide[ServiceContainer.shopping_list_line_service],
-):
+    shopping_list_line_service: ShoppingListLineService = Provide[ServiceContainer.shopping_list_line_service],
+) -> Any:
     """Receive stock for an ordered shopping list line."""
     payload = ShoppingListLineReceiveSchema.model_validate(request.get_json())
     allocations = [allocation.model_dump() for allocation in payload.allocations]
@@ -284,8 +287,8 @@ def receive_shopping_list_line_stock(
 @inject
 def complete_shopping_list_line(
     line_id: int,
-    shopping_list_line_service=Provide[ServiceContainer.shopping_list_line_service],
-):
+    shopping_list_line_service: ShoppingListLineService = Provide[ServiceContainer.shopping_list_line_service],
+) -> Any:
     """Mark an ordered shopping list line as completed."""
     payload = ShoppingListLineCompleteSchema.model_validate(request.get_json() or {})
     line = shopping_list_line_service.complete_line(

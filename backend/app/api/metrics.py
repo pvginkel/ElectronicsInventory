@@ -1,9 +1,12 @@
 """Metrics API for Prometheus scraping endpoint."""
 
+from typing import Any
+
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, Response
 
 from app.services.container import ServiceContainer
+from app.services.metrics_service import MetricsService
 from app.utils.error_handling import handle_api_errors
 
 metrics_bp = Blueprint("metrics", __name__, url_prefix="/metrics")
@@ -12,7 +15,7 @@ metrics_bp = Blueprint("metrics", __name__, url_prefix="/metrics")
 @metrics_bp.route("", methods=["GET"])
 @handle_api_errors
 @inject
-def get_metrics(metrics_service=Provide[ServiceContainer.metrics_service]):
+def get_metrics(metrics_service: MetricsService = Provide[ServiceContainer.metrics_service]) -> Any:
     """Return metrics in Prometheus text format.
 
     Returns:

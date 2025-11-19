@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class URLInterceptorRegistry:
     """Registry that manages URL interceptors and builds interceptor chains."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize empty registry."""
         self._interceptors: list[URLInterceptor] = []
 

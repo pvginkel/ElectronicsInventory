@@ -112,7 +112,7 @@ def create_app(settings: "Settings | None" = None) -> App:
     app.register_blueprint(testing_bp)
 
     @app.teardown_request
-    def close_session(exc):
+    def close_session(exc: Exception | None) -> None:
         try:
             """Close the database session after each request."""
             db_session = container.db_session()

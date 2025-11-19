@@ -1,11 +1,13 @@
 """Parts management API endpoints."""
 
+from typing import Any
+
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request
 from spectree import Response as SpectreeResponse
 
 from app.schemas.common import ErrorResponseSchema
-from app.schemas.kit_reservations import PartKitReservationsResponseSchema
+from app.schemas.kit_reservations import KitReservationEntrySchema, PartKitReservationsResponseSchema
 from app.schemas.part import (
     PartCreateSchema,
     PartLocationListSchema,
@@ -25,13 +27,19 @@ from app.schemas.part_shopping_list import (
 )
 from app.schemas.quantity_history import QuantityHistoryResponseSchema
 from app.services.container import ServiceContainer
+from app.services.inventory_service import InventoryService
+from app.services.kit_reservation_service import KitReservationService
+from app.services.metrics_service import MetricsService
+from app.services.part_service import PartService
+from app.services.shopping_list_line_service import ShoppingListLineService
+from app.services.shopping_list_service import ShoppingListService
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
 parts_bp = Blueprint("parts", __name__, url_prefix="/parts")
 
 
-def _convert_part_to_schema_data(part, total_quantity: int) -> dict:
+def _convert_part_to_schema_data(part: Any, total_quantity: int) -> dict[str, Any]:
     """Convert Part model to PartWithTotalSchema data dict."""
     # Convert seller relationship to proper schema format
     seller_data = None
@@ -71,7 +79,7 @@ def _convert_part_to_schema_data(part, total_quantity: int) -> dict:
 @api.validate(json=PartCreateSchema, resp=SpectreeResponse(HTTP_201=PartResponseSchema, HTTP_400=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def create_part(part_service=Provide[ServiceContainer.part_service]):
+def create_part(part_service: PartService = Provide[ServiceContainer.part_service]) -> Any:
     """Create new part."""
     data = PartCreateSchema.model_validate(request.get_json())
     part = part_service.create_part(
@@ -101,7 +109,7 @@ def create_part(part_service=Provide[ServiceContainer.part_service]):
 @api.validate(resp=SpectreeResponse(HTTP_200=list[PartWithTotalSchema]))
 @handle_api_errors
 @inject
-def list_parts(inventory_service=Provide[ServiceContainer.inventory_service]):
+def list_parts(inventory_service: InventoryService = Provide[ServiceContainer.inventory_service]) -> Any:
     """List parts with pagination and total quantities."""
     limit = int(request.args.get("limit", 50))
     offset = int(request.args.get("offset", 0))
@@ -126,7 +134,7 @@ def list_parts(inventory_service=Provide[ServiceContainer.inventory_service]):
 @api.validate(resp=SpectreeResponse(HTTP_200=list[PartWithTotalAndLocationsSchema]))
 @handle_api_errors
 @inject
-def list_parts_with_locations(inventory_service=Provide[ServiceContainer.inventory_service]):
+def list_parts_with_locations(inventory_service: InventoryService = Provide[ServiceContainer.inventory_service]) -> Any:
     """List parts with pagination, total quantities, and location details."""
     limit = int(request.args.get("limit", 50))
     offset = int(request.args.get("offset", 0))
@@ -165,9 +173,9 @@ def list_parts_with_locations(inventory_service=Provide[ServiceContainer.invento
 @inject
 def get_part(
     part_key: str,
-    part_service=Provide[ServiceContainer.part_service],
-    kit_reservation_service=Provide[ServiceContainer.kit_reservation_service],
-):
+    part_service: PartService = Provide[ServiceContainer.part_service],
+    kit_reservation_service: KitReservationService = Provide[ServiceContainer.kit_reservation_service],
+) -> Any:
     """Get single part with full details."""
     part = part_service.get_part(part_key)
     reservations = kit_reservation_service.list_active_reservations_for_part(part.id)
@@ -188,9 +196,9 @@ def get_part(
 @inject
 def list_part_kits(
     part_key: str,
-    kit_reservation_service=Provide[ServiceContainer.kit_reservation_service],
-    metrics_service=Provide[ServiceContainer.metrics_service],
-):
+    kit_reservation_service: KitReservationService = Provide[ServiceContainer.kit_reservation_service],
+    metrics_service: MetricsService = Provide[ServiceContainer.metrics_service],
+) -> Any:
     """List active kits consuming the specified part."""
     usage_entries = kit_reservation_service.list_kits_for_part(part_key)
     has_results = bool(usage_entries)
@@ -213,9 +221,9 @@ def list_part_kits(
 @inject
 def get_part_kit_reservations(
     part_key: str,
-    part_service=Provide[ServiceContainer.part_service],
-    kit_reservation_service=Provide[ServiceContainer.kit_reservation_service],
-):
+    part_service: PartService = Provide[ServiceContainer.part_service],
+    kit_reservation_service: KitReservationService = Provide[ServiceContainer.kit_reservation_service],
+) -> Any:
     """Return active kit reservations for the specified part."""
     part = part_service.get_part(part_key)
     reservations = kit_reservation_service.list_active_reservations_for_part(
@@ -226,7 +234,9 @@ def get_part_kit_reservations(
         part_key=part.key,
         part_description=part.description,
         total_reserved=sum(entry.reserved_quantity for entry in reservations),
-        active_reservations=reservations,
+        active_reservations=[
+            KitReservationEntrySchema.model_validate(entry) for entry in reservations
+        ],
     )
     return response.model_dump()
 
@@ -235,7 +245,7 @@ def get_part_kit_reservations(
 @api.validate(json=PartUpdateSchema, resp=SpectreeResponse(HTTP_200=PartResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def update_part(part_key: str, part_service=Provide[ServiceContainer.part_service]):
+def update_part(part_key: str, part_service: PartService = Provide[ServiceContainer.part_service]) -> Any:
     """Update part details."""
     data = PartUpdateSchema.model_validate(request.get_json())
 
@@ -250,7 +260,7 @@ def update_part(part_key: str, part_service=Provide[ServiceContainer.part_servic
 @api.validate(resp=SpectreeResponse(HTTP_204=None, HTTP_404=ErrorResponseSchema, HTTP_409=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def delete_part(part_key: str, part_service=Provide[ServiceContainer.part_service]):
+def delete_part(part_key: str, part_service: PartService = Provide[ServiceContainer.part_service]) -> Any:
     """Delete part if total quantity is zero."""
     part_service.delete_part(part_key)
     return "", 204
@@ -268,9 +278,9 @@ def delete_part(part_key: str, part_service=Provide[ServiceContainer.part_servic
 @handle_api_errors
 @inject
 def query_part_shopping_list_memberships(
-    part_service=Provide[ServiceContainer.part_service],
-    shopping_list_service=Provide[ServiceContainer.shopping_list_service],
-):
+    part_service: PartService = Provide[ServiceContainer.part_service],
+    shopping_list_service: ShoppingListService = Provide[ServiceContainer.shopping_list_service],
+) -> Any:
     """Bulk lookup of shopping list memberships for multiple parts."""
     payload = PartShoppingListMembershipQueryRequestSchema.model_validate(request.get_json())
 
@@ -314,9 +324,9 @@ def query_part_shopping_list_memberships(
 @inject
 def list_part_shopping_list_memberships(
     part_key: str,
-    part_service=Provide[ServiceContainer.part_service],
-    shopping_list_service=Provide[ServiceContainer.shopping_list_service],
-):
+    part_service: PartService = Provide[ServiceContainer.part_service],
+    shopping_list_service: ShoppingListService = Provide[ServiceContainer.shopping_list_service],
+) -> Any:
     """List active shopping list memberships for a part."""
     part = part_service.get_part(part_key)
     memberships = shopping_list_service.list_part_memberships(part.id)
@@ -340,9 +350,9 @@ def list_part_shopping_list_memberships(
 @inject
 def add_part_shopping_list_membership(
     part_key: str,
-    part_service=Provide[ServiceContainer.part_service],
-    shopping_list_line_service=Provide[ServiceContainer.shopping_list_line_service],
-):
+    part_service: PartService = Provide[ServiceContainer.part_service],
+    shopping_list_line_service: ShoppingListLineService = Provide[ServiceContainer.shopping_list_line_service],
+) -> Any:
     """Add a part to a Concept shopping list and return the new membership."""
     payload = PartShoppingListMembershipCreateSchema.model_validate(request.get_json())
     part = part_service.get_part(part_key)
@@ -361,7 +371,7 @@ def add_part_shopping_list_membership(
 @api.validate(resp=SpectreeResponse(HTTP_200=list[PartLocationResponseSchema], HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_part_locations(part_key: str, part_service=Provide[ServiceContainer.part_service], inventory_service=Provide[ServiceContainer.inventory_service]):
+def get_part_locations(part_key: str, part_service: PartService = Provide[ServiceContainer.part_service], inventory_service: InventoryService = Provide[ServiceContainer.inventory_service]) -> Any:
     """Get all locations for a part."""
     # Ensure part exists
     part = part_service.get_part(part_key)
@@ -382,7 +392,7 @@ def get_part_locations(part_key: str, part_service=Provide[ServiceContainer.part
 @api.validate(resp=SpectreeResponse(HTTP_200=list[QuantityHistoryResponseSchema], HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_part_history(part_key: str, part_service=Provide[ServiceContainer.part_service]):
+def get_part_history(part_key: str, part_service: PartService = Provide[ServiceContainer.part_service]) -> Any:
     """Get quantity change history for a part."""
     # Ensure part exists first
     part = part_service.get_part(part_key)

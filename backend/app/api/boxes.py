@@ -1,5 +1,6 @@
 """Box management API endpoints."""
 
+from typing import Any
 
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request
@@ -19,6 +20,7 @@ from app.schemas.location import (
     LocationWithPartResponseSchema,
     PartAssignmentSchema,
 )
+from app.services.box_service import BoxService
 from app.services.container import ServiceContainer
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
@@ -30,7 +32,7 @@ boxes_bp = Blueprint("boxes", __name__, url_prefix="/boxes")
 @api.validate(json=BoxCreateSchema, resp=SpectreeResponse(HTTP_201=BoxResponseSchema, HTTP_400=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def create_box(box_service=Provide[ServiceContainer.box_service]):
+def create_box(box_service: BoxService = Provide[ServiceContainer.box_service]) -> Any:
     """Create new box with specified capacity."""
     # Spectree validates the request, but we still need to access the data
     data = BoxCreateSchema.model_validate(request.get_json())
@@ -42,7 +44,7 @@ def create_box(box_service=Provide[ServiceContainer.box_service]):
 @api.validate(resp=SpectreeResponse(HTTP_200=list[BoxWithUsageSchema]))
 @handle_api_errors
 @inject
-def list_boxes(box_service=Provide[ServiceContainer.box_service]):
+def list_boxes(box_service: BoxService = Provide[ServiceContainer.box_service]) -> Any:
     """List all boxes with usage statistics."""
     # Check if client wants usage stats
     include_usage = request.args.get("include_usage", "true").lower() == "true"
@@ -75,7 +77,7 @@ def list_boxes(box_service=Provide[ServiceContainer.box_service]):
 @api.validate(resp=SpectreeResponse(HTTP_200=BoxResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_box_details(box_no: int, box_service=Provide[ServiceContainer.box_service]):
+def get_box_details(box_no: int, box_service: BoxService = Provide[ServiceContainer.box_service]) -> Any:
     """Get box details."""
     box = box_service.get_box(box_no)
     return BoxResponseSchema.model_validate(box).model_dump()
@@ -85,7 +87,7 @@ def get_box_details(box_no: int, box_service=Provide[ServiceContainer.box_servic
 @api.validate(json=BoxUpdateSchema, resp=SpectreeResponse(HTTP_200=BoxResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def update_box(box_no: int, box_service=Provide[ServiceContainer.box_service]):
+def update_box(box_no: int, box_service: BoxService = Provide[ServiceContainer.box_service]) -> Any:
     """Update box (capacity changes require validation)."""
     # Spectree validates the request, but we still need to access the data
     data = BoxUpdateSchema.model_validate(request.get_json())
@@ -98,7 +100,7 @@ def update_box(box_no: int, box_service=Provide[ServiceContainer.box_service]):
 @api.validate(resp=SpectreeResponse(HTTP_204=None, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def delete_box(box_no: int, box_service=Provide[ServiceContainer.box_service]):
+def delete_box(box_no: int, box_service: BoxService = Provide[ServiceContainer.box_service]) -> Any:
     """Delete empty box."""
     box_service.delete_box(box_no)
     return "", 204
@@ -108,7 +110,7 @@ def delete_box(box_no: int, box_service=Provide[ServiceContainer.box_service]):
 @api.validate(resp=SpectreeResponse(HTTP_200=BoxUsageStatsSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_box_usage(box_no: int, box_service=Provide[ServiceContainer.box_service]):
+def get_box_usage(box_no: int, box_service: BoxService = Provide[ServiceContainer.box_service]) -> Any:
     """Get usage statistics for a specific box."""
     usage_stats = box_service.calculate_box_usage(box_no)
     return BoxUsageStatsSchema(
@@ -124,7 +126,7 @@ def get_box_usage(box_no: int, box_service=Provide[ServiceContainer.box_service]
 @api.validate(resp=SpectreeResponse(HTTP_200=list[LocationResponseSchema], HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_box_locations(box_no: int, box_service=Provide[ServiceContainer.box_service]):
+def get_box_locations(box_no: int, box_service: BoxService = Provide[ServiceContainer.box_service]) -> Any:
     """Get all locations in box.
 
     Query parameters:

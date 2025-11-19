@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request
@@ -23,16 +24,21 @@ from app.schemas.kit import (
     KitShoppingListChipSchema,
     KitShoppingListLinkResponseSchema,
     KitShoppingListLinkSchema,
+    KitShoppingListMembershipQueryItemSchema,
     KitShoppingListMembershipQueryResponseSchema,
     KitShoppingListRequestSchema,
     KitSummarySchema,
     KitUpdateSchema,
 )
 from app.schemas.pick_list import (
+    KitPickListMembershipQueryItemSchema,
     KitPickListMembershipQueryResponseSchema,
     KitPickListMembershipSchema,
 )
 from app.services.container import ServiceContainer
+from app.services.kit_pick_list_service import KitPickListService
+from app.services.kit_service import KitService
+from app.services.kit_shopping_list_service import KitShoppingListService
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
@@ -40,7 +46,7 @@ kits_bp = Blueprint("kits", __name__, url_prefix="/kits")
 logger = logging.getLogger(__name__)
 
 
-def _ensure_badge_attributes(kit) -> None:
+def _ensure_badge_attributes(kit: Any) -> None:
     """Helper to guarantee badge counts exist before schema conversion."""
     if not hasattr(kit, "shopping_list_badge_count"):
         kit.shopping_list_badge_count = 0
@@ -48,7 +54,7 @@ def _ensure_badge_attributes(kit) -> None:
         kit.pick_list_badge_count = 0
 
 
-def _fetch_content_detail(kit_service, kit_id: int, content_id: int):
+def _fetch_content_detail(kit_service: KitService, kit_id: int, content_id: int) -> tuple[Any, Any]:
     """Return kit detail payload alongside a specific content row."""
     kit = kit_service.get_kit_detail(kit_id)
     _ensure_badge_attributes(kit)
@@ -71,8 +77,8 @@ def _fetch_content_detail(kit_service, kit_id: int, content_id: int):
 @handle_api_errors
 @inject
 def list_kits(
-    kit_service=Provide[ServiceContainer.kit_service],
-):
+    kit_service: KitService = Provide[ServiceContainer.kit_service],
+) -> Any:
     """List kits filtered by status and optional text query."""
     query_params = KitListQuerySchema.model_validate(request.args.to_dict())
     status = KitStatus(query_params.status.value)
@@ -100,8 +106,8 @@ def list_kits(
 @handle_api_errors
 @inject
 def create_kit(
-    kit_service=Provide[ServiceContainer.kit_service],
-):
+    kit_service: KitService = Provide[ServiceContainer.kit_service],
+) -> Any:
     """Create a new kit definition."""
     payload = KitCreateSchema.model_validate(request.get_json())
     kit = kit_service.create_kit(
@@ -124,8 +130,8 @@ def create_kit(
 @inject
 def get_kit_detail(
     kit_id: int,
-    kit_service=Provide[ServiceContainer.kit_service],
-):
+    kit_service: KitService = Provide[ServiceContainer.kit_service],
+) -> Any:
     """Return the kit detail workspace payload."""
     kit = kit_service.get_kit_detail(kit_id)
     _ensure_badge_attributes(kit)
@@ -146,8 +152,8 @@ def get_kit_detail(
 @inject
 def update_kit(
     kit_id: int,
-    kit_service=Provide[ServiceContainer.kit_service],
-):
+    kit_service: KitService = Provide[ServiceContainer.kit_service],
+) -> Any:
     """Update the metadata for an active kit."""
     payload = KitUpdateSchema.model_validate(request.get_json())
     updates = payload.model_dump(exclude_unset=True)
@@ -176,8 +182,8 @@ def update_kit(
 @inject
 def create_kit_content(
     kit_id: int,
-    kit_service=Provide[ServiceContainer.kit_service],
-):
+    kit_service: KitService = Provide[ServiceContainer.kit_service],
+) -> Any:
     """Create a new kit content entry."""
     payload = KitContentCreateSchema.model_validate(request.get_json())
     content = kit_service.create_content(
@@ -212,8 +218,8 @@ def create_kit_content(
 def update_kit_content(
     kit_id: int,
     content_id: int,
-    kit_service=Provide[ServiceContainer.kit_service],
-):
+    kit_service: KitService = Provide[ServiceContainer.kit_service],
+) -> Any:
     """Update an existing kit content row."""
     payload = KitContentUpdateSchema.model_validate(request.get_json())
     updates = payload.model_dump(exclude_unset=True)
@@ -249,8 +255,8 @@ def update_kit_content(
 def delete_kit_content(
     kit_id: int,
     content_id: int,
-    kit_service=Provide[ServiceContainer.kit_service],
-):
+    kit_service: KitService = Provide[ServiceContainer.kit_service],
+) -> Any:
     """Remove a kit content entry."""
     kit_service.delete_content(kit_id, content_id)
     return "", 204
@@ -268,9 +274,9 @@ def delete_kit_content(
 @handle_api_errors
 @inject
 def query_shopping_list_memberships_for_kits(
-    kit_service=Provide[ServiceContainer.kit_service],
-    kit_shopping_list_service=Provide[ServiceContainer.kit_shopping_list_service],
-):
+    kit_service: KitService = Provide[ServiceContainer.kit_service],
+    kit_shopping_list_service: KitShoppingListService = Provide[ServiceContainer.kit_shopping_list_service],
+) -> Any:
     """Return shopping list memberships for the requested kits."""
     payload = KitMembershipBulkQueryRequestSchema.model_validate(request.get_json())
     kit_ids = payload.kit_ids
@@ -292,13 +298,13 @@ def query_shopping_list_memberships_for_kits(
     )
     response_model = KitShoppingListMembershipQueryResponseSchema(
         memberships=[
-            {
-                "kit_id": kit_id,
-                "memberships": [
-                    KitShoppingListLinkSchema.model_validate(link).model_dump()
+            KitShoppingListMembershipQueryItemSchema(
+                kit_id=kit_id,
+                memberships=[
+                    KitShoppingListLinkSchema.model_validate(link)
                     for link in memberships.get(kit_id, [])
                 ],
-            }
+            )
             for kit_id in kit_ids
         ],
     )
@@ -317,9 +323,9 @@ def query_shopping_list_memberships_for_kits(
 @handle_api_errors
 @inject
 def query_pick_list_memberships_for_kits(
-    kit_service=Provide[ServiceContainer.kit_service],
-    kit_pick_list_service=Provide[ServiceContainer.kit_pick_list_service],
-):
+    kit_service: KitService = Provide[ServiceContainer.kit_service],
+    kit_pick_list_service: KitPickListService = Provide[ServiceContainer.kit_pick_list_service],
+) -> Any:
     """Return pick list memberships for the requested kits."""
     payload = KitMembershipBulkQueryRequestSchema.model_validate(request.get_json())
     kit_ids = payload.kit_ids
@@ -341,13 +347,13 @@ def query_pick_list_memberships_for_kits(
     )
     response_model = KitPickListMembershipQueryResponseSchema(
         memberships=[
-            {
-                "kit_id": kit_id,
-                "pick_lists": [
-                    KitPickListMembershipSchema.model_validate(pick_list).model_dump()
+            KitPickListMembershipQueryItemSchema(
+                kit_id=kit_id,
+                pick_lists=[
+                    KitPickListMembershipSchema.model_validate(pick_list)
                     for pick_list in pick_lists.get(kit_id, [])
                 ],
-            }
+            )
             for kit_id in kit_ids
         ],
     )
@@ -365,8 +371,8 @@ def query_pick_list_memberships_for_kits(
 @inject
 def list_kit_shopping_lists(
     kit_id: int,
-    kit_shopping_list_service=Provide[ServiceContainer.kit_shopping_list_service],
-):
+    kit_shopping_list_service: KitShoppingListService = Provide[ServiceContainer.kit_shopping_list_service],
+) -> Any:
     """Return shopping list chips linked to the specified kit."""
     links = kit_shopping_list_service.list_links_for_kit(kit_id)
     return [
@@ -390,9 +396,9 @@ def list_kit_shopping_lists(
 @inject
 def push_kit_to_shopping_list(
     kit_id: int,
-    kit_service=Provide[ServiceContainer.kit_service],
-    kit_shopping_list_service=Provide[ServiceContainer.kit_shopping_list_service],
-):
+    kit_service: KitService = Provide[ServiceContainer.kit_service],
+    kit_shopping_list_service: KitShoppingListService = Provide[ServiceContainer.kit_shopping_list_service],
+) -> Any:
     """Create or append a shopping list from kit contents."""
     payload = KitShoppingListRequestSchema.model_validate(request.get_json())
     kit_service.get_active_kit_for_flow(
@@ -425,8 +431,8 @@ def push_kit_to_shopping_list(
 @inject
 def archive_kit(
     kit_id: int,
-    kit_service=Provide[ServiceContainer.kit_service],
-):
+    kit_service: KitService = Provide[ServiceContainer.kit_service],
+) -> Any:
     """Archive a kit."""
     kit = kit_service.archive_kit(kit_id)
     _ensure_badge_attributes(kit)
@@ -445,8 +451,8 @@ def archive_kit(
 @inject
 def unarchive_kit(
     kit_id: int,
-    kit_service=Provide[ServiceContainer.kit_service],
-):
+    kit_service: KitService = Provide[ServiceContainer.kit_service],
+) -> Any:
     """Restore a kit to active status."""
     kit = kit_service.unarchive_kit(kit_id)
     _ensure_badge_attributes(kit)
@@ -464,8 +470,8 @@ def unarchive_kit(
 @inject
 def delete_kit(
     kit_id: int,
-    kit_service=Provide[ServiceContainer.kit_service],
-):
+    kit_service: KitService = Provide[ServiceContainer.kit_service],
+) -> Any:
     """Permanently delete a kit and all child records."""
     kit_service.delete_kit(kit_id)
     return "", 204

@@ -91,7 +91,7 @@ class TaskService:
         self.shutdown_coordinator = shutdown_coordinator
         self._tasks: dict[str, TaskInfo] = {}
         self._task_instances: dict[str, BaseTask] = {}
-        self._event_queues: dict[str, Queue] = {}
+        self._event_queues: dict[str, Queue[TaskEvent]] = {}
         self._executor = ThreadPoolExecutor(max_workers=max_workers)
         self._lock = threading.RLock()
         self._shutdown_event = threading.Event()
@@ -108,7 +108,7 @@ class TaskService:
 
         logger.info(f"TaskService initialized: max_workers={max_workers}, timeout={task_timeout}s, cleanup_interval={cleanup_interval}s")
 
-    def start_task(self, task: BaseTask, **kwargs) -> TaskStartResponse:
+    def start_task(self, task: BaseTask, **kwargs: Any) -> TaskStartResponse:
         """
         Start a background task and return task info with SSE stream URL.
 

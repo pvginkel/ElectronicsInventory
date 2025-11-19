@@ -1,5 +1,7 @@
 """Pydantic schemas for testing API endpoints."""
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -24,7 +26,7 @@ class LogEventSchema(BaseModel):
     logger: str = Field(..., description="Logger name", examples=["app.services.type_service"])
     message: str = Field(..., description="Log message", examples=["Failed to delete type"])
     correlation_id: str | None = Field(None, description="Request correlation ID", examples=["abc-123"])
-    extra: dict | None = Field(None, description="Additional log data")
+    extra: dict[str, Any] | None = Field(None, description="Additional log data")
 
 
 class TestErrorResponseSchema(BaseModel):

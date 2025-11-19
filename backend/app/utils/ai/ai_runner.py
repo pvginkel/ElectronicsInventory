@@ -88,7 +88,7 @@ class NoProgressHandle:
 
 class AIRunner:
     def __init__(self, api_key: str, metrics_service: MetricsServiceProtocol | None = None):
-        def on_request(request):
+        def on_request(request: Any) -> None:
             logger.info(f"Sending request to URL {request.method} {request.url}")
             logger.info(f"Body {request.content}")
 
@@ -156,7 +156,7 @@ class AIRunner:
 
     def _handle_function_call(
         self,
-        response: ParsedResponse,
+        response: ParsedResponse[Any],
         function_tools: list[AIFunction],
         input_content: list[Any],
         progress_handle: ProgressHandle,
@@ -197,7 +197,7 @@ class AIRunner:
         function_tools: list[AIFunction],
         input_content: list[Any],
         progress_handle: ProgressHandle,
-    ) -> ParsedResponse:
+    ) -> ParsedResponse[Any]:
         attempt = 1
 
         while True:
@@ -263,7 +263,7 @@ class AIRunner:
         function_tools: list[AIFunction],
         input_content: list[Any],
         progress_handle: ProgressHandle,
-    ) -> ParsedResponse:
+    ) -> ParsedResponse[Any]:
         # Call OpenAI Responses API with structured output
         reasoning_payload: dict[str, str] | None = None
         if request.reasoning_effort is not None:
@@ -291,7 +291,7 @@ class AIRunner:
         function_tools: list[AIFunction],
         input_content: list[Any],
         progress_handle: ProgressHandle,
-    ) -> ParsedResponse:
+    ) -> ParsedResponse[Any]:
         """Call OpenAI Responses API and handle streaming response.
 
         Args:
@@ -373,7 +373,7 @@ class AIRunner:
             }
         ]
 
-    def _count_web_searches(self, response: ParsedResponse) -> int:
+    def _count_web_searches(self, response: ParsedResponse[Any]) -> int:
         """Count the number of web searches performed during AI analysis."""
         search_count = 0
         for item in response.output:

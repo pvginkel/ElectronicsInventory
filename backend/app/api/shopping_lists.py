@@ -1,5 +1,7 @@
 """Shopping list API endpoints."""
 
+from typing import Any
+
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request
 from spectree import Response as SpectreeResponse
@@ -21,6 +23,8 @@ from app.schemas.shopping_list_seller_note import (
     ShoppingListSellerOrderNoteUpdateSchema,
 )
 from app.services.container import ServiceContainer
+from app.services.kit_shopping_list_service import KitShoppingListService
+from app.services.shopping_list_service import ShoppingListService
 from app.utils.error_handling import handle_api_errors
 from app.utils.request_parsing import (
     parse_bool_query_param,
@@ -41,8 +45,8 @@ shopping_lists_bp = Blueprint("shopping_lists", __name__, url_prefix="/shopping-
 @handle_api_errors
 @inject
 def create_shopping_list(
-    shopping_list_service=Provide[ServiceContainer.shopping_list_service],
-):
+    shopping_list_service: ShoppingListService = Provide[ServiceContainer.shopping_list_service],
+) -> Any:
     """Create a new shopping list."""
     data = ShoppingListCreateSchema.model_validate(request.get_json())
     shopping_list = shopping_list_service.create_list(
@@ -65,8 +69,8 @@ def create_shopping_list(
 @handle_api_errors
 @inject
 def list_shopping_lists(
-    shopping_list_service=Provide[ServiceContainer.shopping_list_service],
-):
+    shopping_list_service: ShoppingListService = Provide[ServiceContainer.shopping_list_service],
+) -> Any:
     """List shopping lists, optionally including completed ones."""
     include_done = parse_bool_query_param(
         request.args.get("include_done"),
@@ -105,8 +109,8 @@ def list_shopping_lists(
 @inject
 def list_kits_for_shopping_list(
     list_id: int,
-    kit_shopping_list_service=Provide[ServiceContainer.kit_shopping_list_service],
-):
+    kit_shopping_list_service: KitShoppingListService = Provide[ServiceContainer.kit_shopping_list_service],
+) -> Any:
     """Return kits linked to a shopping list."""
     links = kit_shopping_list_service.list_kits_for_shopping_list(list_id)
     return [
@@ -126,8 +130,8 @@ def list_kits_for_shopping_list(
 @inject
 def get_shopping_list(
     list_id: int,
-    shopping_list_service=Provide[ServiceContainer.shopping_list_service],
-):
+    shopping_list_service: ShoppingListService = Provide[ServiceContainer.shopping_list_service],
+) -> Any:
     """Fetch a shopping list and its line items."""
     shopping_list = shopping_list_service.get_list(list_id)
     return ShoppingListResponseSchema.model_validate(shopping_list).model_dump()
@@ -147,8 +151,8 @@ def get_shopping_list(
 @inject
 def update_shopping_list(
     list_id: int,
-    shopping_list_service=Provide[ServiceContainer.shopping_list_service],
-):
+    shopping_list_service: ShoppingListService = Provide[ServiceContainer.shopping_list_service],
+) -> Any:
     """Update the metadata for a shopping list."""
     data = ShoppingListUpdateSchema.model_validate(request.get_json())
     updates = data.model_dump(exclude_unset=True)
@@ -171,8 +175,8 @@ def update_shopping_list(
 @inject
 def delete_shopping_list(
     list_id: int,
-    shopping_list_service=Provide[ServiceContainer.shopping_list_service],
-):
+    shopping_list_service: ShoppingListService = Provide[ServiceContainer.shopping_list_service],
+) -> Any:
     """Delete a shopping list and its line items."""
     shopping_list_service.delete_list(list_id)
     return "", 204
@@ -192,8 +196,8 @@ def delete_shopping_list(
 @inject
 def update_shopping_list_status(
     list_id: int,
-    shopping_list_service=Provide[ServiceContainer.shopping_list_service],
-):
+    shopping_list_service: ShoppingListService = Provide[ServiceContainer.shopping_list_service],
+) -> Any:
     """Update the workflow status for a shopping list."""
     data = ShoppingListStatusUpdateSchema.model_validate(request.get_json())
     shopping_list = shopping_list_service.set_list_status(
@@ -222,8 +226,8 @@ def update_shopping_list_status(
 def upsert_seller_order_note(
     list_id: int,
     seller_id: int,
-    shopping_list_service=Provide[ServiceContainer.shopping_list_service],
-):
+    shopping_list_service: ShoppingListService = Provide[ServiceContainer.shopping_list_service],
+) -> Any:
     """Create, update, or delete a seller order note for a Ready view seller group."""
     data = ShoppingListSellerOrderNoteUpdateSchema.model_validate(
         request.get_json()

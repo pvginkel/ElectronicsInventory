@@ -172,7 +172,7 @@ class DocumentService(BaseService):
         except Exception as e:
             raise InvalidOperationException("validate file type", f"validation failed: {str(e)}") from e
 
-    def _validate_file_size(self, file_size: int, is_image: bool = False):
+    def _validate_file_size(self, file_size: int, is_image: bool = False) -> None:
         """Validate file size against limits.
 
         Args:
@@ -402,7 +402,7 @@ class DocumentService(BaseService):
         self.db.flush()
         return attachment
 
-    def delete_attachment(self, attachment_id: int):
+    def delete_attachment(self, attachment_id: int) -> None:
         """Delete attachment and clean up files.
 
         Args:
@@ -558,7 +558,7 @@ class DocumentService(BaseService):
             # Failed to get preview
             return None
 
-    def set_part_cover_attachment(self, part_key: str, attachment_id: int | None):
+    def set_part_cover_attachment(self, part_key: str, attachment_id: int | None) -> None:
         """Set or clear part cover attachment.
 
         Args:

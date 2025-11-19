@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request
 from spectree import Response as SpectreeResponse
@@ -13,6 +15,7 @@ from app.schemas.pick_list import (
     KitPickListSummarySchema,
 )
 from app.services.container import ServiceContainer
+from app.services.kit_pick_list_service import KitPickListService
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
@@ -33,8 +36,8 @@ pick_lists_bp = Blueprint("pick_lists", __name__)
 @inject
 def create_pick_list(
     kit_id: int,
-    kit_pick_list_service=Provide[ServiceContainer.kit_pick_list_service],
-):
+    kit_pick_list_service: KitPickListService = Provide[ServiceContainer.kit_pick_list_service],
+) -> Any:
     """Create a pick list for the specified kit."""
     payload = KitPickListCreateSchema.model_validate(request.get_json())
     pick_list = kit_pick_list_service.create_pick_list(
@@ -59,8 +62,8 @@ def create_pick_list(
 @inject
 def list_pick_lists_for_kit(
     kit_id: int,
-    kit_pick_list_service=Provide[ServiceContainer.kit_pick_list_service],
-):
+    kit_pick_list_service: KitPickListService = Provide[ServiceContainer.kit_pick_list_service],
+) -> Any:
     """Return pick list summaries for a kit."""
     pick_lists = kit_pick_list_service.list_pick_lists_for_kit(kit_id)
     return [
@@ -80,8 +83,8 @@ def list_pick_lists_for_kit(
 @inject
 def get_pick_list_detail(
     pick_list_id: int,
-    kit_pick_list_service=Provide[ServiceContainer.kit_pick_list_service],
-):
+    kit_pick_list_service: KitPickListService = Provide[ServiceContainer.kit_pick_list_service],
+) -> Any:
     """Return a detailed pick list payload with line allocations."""
     pick_list = kit_pick_list_service.get_pick_list_detail(pick_list_id)
     return KitPickListDetailSchema.model_validate(pick_list).model_dump()
@@ -98,8 +101,8 @@ def get_pick_list_detail(
 @inject
 def delete_pick_list(
     pick_list_id: int,
-    kit_pick_list_service=Provide[ServiceContainer.kit_pick_list_service],
-):
+    kit_pick_list_service: KitPickListService = Provide[ServiceContainer.kit_pick_list_service],
+) -> Any:
     """Delete a pick list."""
     kit_pick_list_service.delete_pick_list(pick_list_id)
     return "", 204
@@ -121,8 +124,8 @@ def delete_pick_list(
 def pick_pick_list_line(
     pick_list_id: int,
     line_id: int,
-    kit_pick_list_service=Provide[ServiceContainer.kit_pick_list_service],
-):
+    kit_pick_list_service: KitPickListService = Provide[ServiceContainer.kit_pick_list_service],
+) -> Any:
     """Mark a pick list line as picked and return updated detail payload."""
     kit_pick_list_service.pick_line(pick_list_id, line_id)
     detail = kit_pick_list_service.get_pick_list_detail(pick_list_id)
@@ -145,8 +148,8 @@ def pick_pick_list_line(
 def undo_pick_list_line(
     pick_list_id: int,
     line_id: int,
-    kit_pick_list_service=Provide[ServiceContainer.kit_pick_list_service],
-):
+    kit_pick_list_service: KitPickListService = Provide[ServiceContainer.kit_pick_list_service],
+) -> Any:
     """Undo a pick list line and return the refreshed detail payload."""
     kit_pick_list_service.undo_line(pick_list_id, line_id)
     detail = kit_pick_list_service.get_pick_list_detail(pick_list_id)

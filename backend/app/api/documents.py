@@ -3,7 +3,7 @@
 import io
 import logging
 from io import BytesIO
-from typing import BinaryIO, cast
+from typing import Any, BinaryIO, cast
 from urllib.parse import quote
 
 from dependency_injector.wiring import Provide, inject
@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 @api.validate(json=SetCoverAttachmentSchema, resp=SpectreeResponse(HTTP_200=CoverAttachmentResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def set_part_cover(part_key: str, document_service : DocumentService = Provide[ServiceContainer.document_service]):
+def set_part_cover(part_key: str, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """Set or clear part cover attachment."""
     data = SetCoverAttachmentSchema.model_validate(request.get_json())
     document_service.set_part_cover_attachment(part_key, data.attachment_id)
@@ -61,7 +61,7 @@ def set_part_cover(part_key: str, document_service : DocumentService = Provide[S
 @api.validate(resp=SpectreeResponse(HTTP_200=CoverAttachmentResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def clear_part_cover(part_key: str, document_service : DocumentService = Provide[ServiceContainer.document_service]):
+def clear_part_cover(part_key: str, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """Clear part cover attachment."""
     document_service.set_part_cover_attachment(part_key, None)
 
@@ -77,7 +77,7 @@ def clear_part_cover(part_key: str, document_service : DocumentService = Provide
 @api.validate(resp=SpectreeResponse(HTTP_200=CoverAttachmentResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_part_cover(part_key: str, document_service : DocumentService = Provide[ServiceContainer.document_service]):
+def get_part_cover(part_key: str, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """Get part cover attachment details."""
     cover_attachment = document_service.get_part_cover_attachment(part_key)
 
@@ -92,7 +92,7 @@ def get_part_cover(part_key: str, document_service : DocumentService = Provide[S
 @documents_bp.route("/<part_key>/cover/thumbnail", methods=["GET"])
 @handle_api_errors
 @inject
-def get_part_cover_thumbnail(part_key: str, document_service : DocumentService = Provide[ServiceContainer.document_service]):
+def get_part_cover_thumbnail(part_key: str, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """Get part cover thumbnail."""
     size = int(request.args.get('size', 150))
 
@@ -121,7 +121,7 @@ def get_part_cover_thumbnail(part_key: str, document_service : DocumentService =
 @documents_bp.route("/<part_key>/attachments", methods=["POST"])
 @handle_api_errors
 @inject
-def create_attachment(part_key: str, document_service : DocumentService = Provide[ServiceContainer.document_service]):
+def create_attachment(part_key: str, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """Create a new attachment (file upload or URL)."""
     content_type = request.content_type
 
@@ -167,7 +167,7 @@ def create_attachment(part_key: str, document_service : DocumentService = Provid
 @api.validate(resp=SpectreeResponse(HTTP_200=list[PartAttachmentListSchema], HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def list_attachments(part_key: str, document_service : DocumentService = Provide[ServiceContainer.document_service]):
+def list_attachments(part_key: str, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """List all attachments for a part."""
     attachments = document_service.get_part_attachments(part_key)
     return [PartAttachmentListSchema.model_validate(attachment).model_dump() for attachment in attachments], 200
@@ -177,7 +177,7 @@ def list_attachments(part_key: str, document_service : DocumentService = Provide
 @api.validate(resp=SpectreeResponse(HTTP_200=PartAttachmentResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def get_attachment(part_key: str, attachment_id: int, document_service : DocumentService = Provide[ServiceContainer.document_service]):
+def get_attachment(part_key: str, attachment_id: int, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """Get attachment details."""
     attachment = document_service.get_attachment(attachment_id)
     return PartAttachmentResponseSchema.model_validate(attachment).model_dump(), 200
@@ -186,7 +186,7 @@ def get_attachment(part_key: str, attachment_id: int, document_service : Documen
 @documents_bp.route("/<part_key>/attachments/<int:attachment_id>/download", methods=["GET"])
 @handle_api_errors
 @inject
-def download_attachment(part_key: str, attachment_id: int, document_service : DocumentService = Provide[ServiceContainer.document_service]):
+def download_attachment(part_key: str, attachment_id: int, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """Download or stream attachment file."""
     file_payload = document_service.get_attachment_file_data(attachment_id)
     if file_payload is None:
@@ -208,7 +208,7 @@ def download_attachment(part_key: str, attachment_id: int, document_service : Do
 @documents_bp.route("/<part_key>/attachments/<int:attachment_id>/thumbnail", methods=["GET"])
 @handle_api_errors
 @inject
-def get_attachment_thumbnail(part_key: str, attachment_id: int, document_service : DocumentService = Provide[ServiceContainer.document_service]):
+def get_attachment_thumbnail(part_key: str, attachment_id: int, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """Get attachment thumbnail."""
     size = int(request.args.get('size', 150))
 
@@ -233,7 +233,7 @@ def get_attachment_thumbnail(part_key: str, attachment_id: int, document_service
 @api.validate(json=PartAttachmentUpdateSchema, resp=SpectreeResponse(HTTP_200=PartAttachmentResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def update_attachment(part_key: str, attachment_id: int, document_service : DocumentService = Provide[ServiceContainer.document_service]):
+def update_attachment(part_key: str, attachment_id: int, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """Update attachment metadata."""
     data = PartAttachmentUpdateSchema.model_validate(request.get_json())
     attachment = document_service.update_attachment(attachment_id, data.title)
@@ -245,7 +245,7 @@ def update_attachment(part_key: str, attachment_id: int, document_service : Docu
 @api.validate(resp=SpectreeResponse(HTTP_204=None, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def delete_attachment(part_key: str, attachment_id: int, document_service : DocumentService = Provide[ServiceContainer.document_service]):
+def delete_attachment(part_key: str, attachment_id: int, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """Delete attachment."""
     document_service.delete_attachment(attachment_id)
 
@@ -257,7 +257,7 @@ def delete_attachment(part_key: str, attachment_id: int, document_service : Docu
 @api.validate(json=CopyAttachmentRequestSchema, resp=SpectreeResponse(HTTP_200=CopyAttachmentResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def copy_attachment(document_service: DocumentService = Provide[ServiceContainer.document_service]):
+def copy_attachment(document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """Copy an individual attachment from one part to another."""
     data = CopyAttachmentRequestSchema.model_validate(request.get_json())
 
@@ -281,7 +281,7 @@ def copy_attachment(document_service: DocumentService = Provide[ServiceContainer
 @api.validate(json=UrlPreviewRequestSchema, resp=SpectreeResponse(HTTP_200=UrlPreviewResponseSchema, HTTP_400=ErrorResponseSchema))
 @handle_api_errors
 @inject
-def attachment_preview(document_service : DocumentService = Provide[ServiceContainer.document_service]):
+def attachment_preview(document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """Get URL preview metadata (title and backend image endpoint URL)."""
     data = UrlPreviewRequestSchema.model_validate(request.get_json())
 
@@ -323,7 +323,7 @@ def attachment_preview(document_service : DocumentService = Provide[ServiceConta
 @documents_bp.route("/attachment-preview/image", methods=["GET"])
 @handle_api_errors
 @inject
-def attachment_preview_image(document_service : DocumentService = Provide[ServiceContainer.document_service]):
+def attachment_preview_image(document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """Get preview image for URL."""
     url = request.args.get('url')
     if not url:
@@ -350,9 +350,9 @@ def attachment_preview_image(document_service : DocumentService = Provide[Servic
 @handle_api_errors
 @inject
 def attachment_proxy_content(
-    document_service : DocumentService = Provide[ServiceContainer.document_service],
-    url_interceptor_registry : URLInterceptorRegistry = Provide[ServiceContainer.url_interceptor_registry]
-):
+    document_service: DocumentService = Provide[ServiceContainer.document_service],
+    url_interceptor_registry: URLInterceptorRegistry = Provide[ServiceContainer.url_interceptor_registry]
+) -> Any:
     """Proxy external URL content to avoid CORS issues when displaying PDFs and images in iframes."""
     url = request.args.get('url')
     if not url:
