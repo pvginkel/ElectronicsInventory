@@ -20,10 +20,10 @@ from app.exceptions import InvalidOperationException
 from app.services.container import ServiceContainer
 
 
-@pytest.fixture(autouse=True)
-def clear_prometheus_registry():
-    """Clear Prometheus registry before each test to avoid conflicts."""
-    # Clear all collectors from the global registry
+@pytest.fixture(scope="session", autouse=True)
+def clear_prometheus_registry_session():
+    """Clear Prometheus registry at session start for integration tests."""
+    # Clear all collectors from the global registry before session starts
     collectors = list(REGISTRY._collector_to_names.keys())
     for collector in collectors:
         try:
@@ -32,13 +32,21 @@ def clear_prometheus_registry():
             # Collector may have already been unregistered
             pass
     yield
-    # Clean up after test too
+    # Clean up after session too
     collectors = list(REGISTRY._collector_to_names.keys())
     for collector in collectors:
         try:
             REGISTRY.unregister(collector)
         except KeyError:
             pass
+
+
+@pytest.fixture(autouse=True)
+def clear_prometheus_registry():
+    """Clear Prometheus registry before each test to avoid conflicts (for unit tests)."""
+    # For unit tests that create their own app instances
+    # Skip if already cleaned by session fixture
+    yield
 
 
 def _build_test_settings() -> Settings:
@@ -97,6 +105,15 @@ def template_connection() -> Generator[sqlite3.Connection, None, None]:
     with template_app.app_context():
         upgrade_database(recreate=True)
         _assert_s3_available(template_app)
+
+    # Clear Prometheus registry after template app creation
+    # This prevents conflicts when sse_server creates its own app
+    collectors = list(REGISTRY._collector_to_names.keys())
+    for collector in collectors:
+        try:
+            REGISTRY.unregister(collector)
+        except KeyError:
+            pass
 
     yield conn
 
@@ -358,3 +375,37 @@ def sse_client_factory(sse_server: str):
         return SSEClient(url, strict=strict)
 
     return create_client
+
+
+@pytest.fixture(scope="session")
+def sse_gateway_server(sse_server: str) -> Generator[str, None, None]:
+    """Start SSE Gateway subprocess for integration tests.
+
+    Returns the base URL for the gateway (e.g., http://localhost:3001).
+    The gateway routes SSE connections and makes callbacks to the Python backend
+    (sse_server) for connection lifecycle events.
+
+    The gateway runs in a subprocess and is cleaned up after the session.
+    """
+    from tests.integration.sse_gateway_helper import SSEGatewayProcess
+
+    # Find a free port for gateway
+    gateway_port = _find_free_port()
+
+    # Build callback URL with test secret
+    callback_url = f"{sse_server}/api/sse/callback?secret=test-secret"
+
+    # Start gateway subprocess
+    gateway = SSEGatewayProcess(
+        callback_url=callback_url,
+        port=gateway_port,
+        startup_timeout=10.0,
+        health_check_interval=0.5,
+        shutdown_timeout=5.0,
+    )
+
+    try:
+        gateway.start()
+        yield gateway.get_base_url()
+    finally:
+        gateway.stop()
