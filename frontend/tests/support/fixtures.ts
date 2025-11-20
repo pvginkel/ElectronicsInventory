@@ -442,6 +442,10 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
         const gatewayPort = await getPort({ exclude: [backendPort] });
         const frontendPort = await getPort({ exclude: [backendPort, gatewayPort] });
 
+        // Set gateway URL for backend before it starts
+        const gatewayUrl = `http://127.0.0.1:${gatewayPort}`;
+        process.env.SSE_GATEWAY_URL = gatewayUrl;
+
         const backendPromise = startBackend(workerInfo.workerIndex, {
           sqliteDbPath: workerDbPath,
           streamLogs: backendStreamLogs,

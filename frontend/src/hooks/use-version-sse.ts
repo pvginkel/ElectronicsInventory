@@ -128,6 +128,11 @@ export function useVersionSSE(): UseVersionSSEReturn {
       }
     };
 
+    eventSource.addEventListener('connection_open', () => {
+      // Initial connection confirmation from backend
+      // No action needed - we already set isConnected in onopen
+    });
+
     eventSource.addEventListener('version', (event) => {
       try {
         const versionData: VersionEvent = JSON.parse(event.data);
@@ -157,13 +162,23 @@ export function useVersionSSE(): UseVersionSSEReturn {
       }
     });
 
-    eventSource.addEventListener('keepalive', () => {
-      // Ignore keepalive events - they're just for connection health
+    eventSource.addEventListener('connection_close', (event) => {
+      // Backend is closing the connection (e.g., idle timeout, shutdown)
+      try {
+        const data = JSON.parse(event.data);
+        console.debug('Connection closed by backend:', data.reason);
+      } catch {
+        // Ignore parse errors for connection_close
+      }
+      disconnect();
     });
 
-    // Note: We only handle 'version' and 'keepalive' events via addEventListener.
-    // Any other event types would need to be explicitly added.
-    // The generic onmessage handler is not used since we handle specific event types.
+    // Note: We handle specific named events via addEventListener:
+    // - connection_open: Initial connection confirmation
+    // - version: Version update notifications
+    // - connection_close: Backend-initiated disconnection
+    // The SSE Gateway sends comments (not named events) for connection health checks.
+    // The generic onmessage handler is not used since we handle all events explicitly.
 
     eventSource.onerror = (event) => {
       if (isTestMode()) {
