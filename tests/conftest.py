@@ -229,10 +229,10 @@ def _find_free_port() -> int:
 
 
 @pytest.fixture(scope="session")
-def sse_server(template_connection: sqlite3.Connection) -> Generator[str, None, None]:
+def sse_server(template_connection: sqlite3.Connection) -> Generator[tuple[str, Any], None, None]:
     """Start a real Flask development server for SSE integration tests.
 
-    Returns the base URL (e.g., http://localhost:5001) where the server is running.
+    Returns tuple of (base_url, app) where base_url is like http://localhost:5001.
     The server runs in a background thread and is cleaned up after the session.
     """
     # Find a free port
@@ -298,7 +298,7 @@ def sse_server(template_connection: sqlite3.Connection) -> Generator[str, None, 
         pytest.fail(f"SSE test server did not become ready after {max_attempts} attempts")
 
     try:
-        yield base_url
+        yield (base_url, app)
     finally:
         # Stop version service mock
         version_mock.stop()
@@ -347,7 +347,7 @@ def background_task_runner() -> Generator[Callable[[Callable[[], Any]], Any], No
 
 
 @pytest.fixture
-def sse_client_factory(sse_server: str):
+def sse_client_factory(sse_server: tuple[str, Any]):
     """Factory for creating SSE client instances for testing.
 
     Returns a function that creates configured SSEClient instances with the
@@ -361,6 +361,9 @@ def sse_client_factory(sse_server: str):
     """
     from tests.integration.sse_client_helper import SSEClient
 
+    # Unpack sse_server tuple
+    server_url, _ = sse_server
+
     def create_client(endpoint: str, strict: bool = True) -> SSEClient:
         """Create SSE client for given endpoint.
 
@@ -371,14 +374,14 @@ def sse_client_factory(sse_server: str):
         Returns:
             Configured SSEClient instance
         """
-        url = f"{sse_server}{endpoint}"
+        url = f"{server_url}{endpoint}"
         return SSEClient(url, strict=strict)
 
     return create_client
 
 
 @pytest.fixture(scope="session")
-def sse_gateway_server(sse_server: str) -> Generator[str, None, None]:
+def sse_gateway_server(sse_server: tuple[str, Any]) -> Generator[str, None, None]:
     """Start SSE Gateway subprocess for integration tests.
 
     Returns the base URL for the gateway (e.g., http://localhost:3001).
@@ -389,11 +392,14 @@ def sse_gateway_server(sse_server: str) -> Generator[str, None, None]:
     """
     from tests.integration.sse_gateway_helper import SSEGatewayProcess
 
+    # Unpack sse_server tuple
+    server_url, app = sse_server
+
     # Find a free port for gateway
     gateway_port = _find_free_port()
 
     # Build callback URL with test secret
-    callback_url = f"{sse_server}/api/sse/callback?secret=test-secret"
+    callback_url = f"{server_url}/api/sse/callback?secret=test-secret"
 
     # Start gateway subprocess
     gateway = SSEGatewayProcess(
@@ -406,6 +412,13 @@ def sse_gateway_server(sse_server: str) -> Generator[str, None, None]:
 
     try:
         gateway.start()
-        yield gateway.get_base_url()
+        gateway_url = gateway.get_base_url()
+
+        # Update Flask app's ConnectionManager with gateway URL
+        connection_manager = app.container.connection_manager()
+        connection_manager.gateway_url = gateway_url
+
+        yield gateway_url
     finally:
+        gateway.print_logs()  # Print logs before stopping for debugging
         gateway.stop()

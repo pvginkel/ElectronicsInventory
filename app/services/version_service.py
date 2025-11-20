@@ -54,7 +54,7 @@ class VersionService:
     def fetch_frontend_version(self) -> str:
         """Fetch `version.json` from the frontend service."""
         url = self.settings.FRONTEND_VERSION_URL
-        response = requests.get(url, timeout=5)
+        response = requests.get(url, timeout=2)
         response.raise_for_status()
         return response.text
 

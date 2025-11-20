@@ -163,7 +163,8 @@ def handle_callback(
                     data='{"status": "connected"}'
                 )
             )
-            return jsonify(response.model_dump(exclude_none=True)), 200
+            # Exclude None AND False values (SSE Gateway checks responseBody.close, false is falsy)
+            return jsonify(response.model_dump(exclude_none=True, exclude_defaults=True)), 200
 
         elif action == "disconnect":
             # Validate as disconnect callback

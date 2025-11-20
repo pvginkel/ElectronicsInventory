@@ -18,13 +18,14 @@ class TestSSEGatewayTasks:
     """Integration tests for /api/sse/tasks endpoint via SSE Gateway."""
 
     def test_connection_open_event_received_on_connect(
-        self, sse_server: str, sse_gateway_server: str
+        self, sse_server: tuple[str, any], sse_gateway_server: str
     ):
         """Test that connection_open event is received when client connects to gateway."""
+        server_url, _ = sse_server
         # Given a task that will run
         # Create a task via testing API (Python backend)
         resp = requests.post(
-            f"{sse_server}/api/testing/tasks/start",
+            f"{server_url}/api/testing/tasks/start",
             json={
                 "task_type": "demo_task",
                 "params": {"steps": 2, "delay": 0.1}
@@ -51,12 +52,13 @@ class TestSSEGatewayTasks:
         assert events[0]["data"]["status"] == "connected"
 
     def test_task_progress_events_received_via_gateway(
-        self, sse_server: str, sse_gateway_server: str
+        self, sse_server: tuple[str, any], sse_gateway_server: str
     ):
         """Test that progress_update events are received through SSE Gateway."""
         # Given a task with multiple steps
+        server_url, _ = sse_server
         resp = requests.post(
-            f"{sse_server}/api/testing/tasks/start",
+            f"{server_url}/api/testing/tasks/start",
             json={
                 "task_type": "demo_task",
                 "params": {"steps": 3, "delay": 0.05}
@@ -90,12 +92,13 @@ class TestSSEGatewayTasks:
             assert "data" in event["data"]
 
     def test_task_completed_event_closes_connection(
-        self, sse_server: str, sse_gateway_server: str
+        self, sse_server: tuple[str, any], sse_gateway_server: str
     ):
         """Test that task_completed event is sent with close=True, closing the connection."""
+        server_url, _ = sse_server
         # Given a simple task
         resp = requests.post(
-            f"{sse_server}/api/testing/tasks/start",
+            f"{server_url}/api/testing/tasks/start",
             json={
                 "task_type": "demo_task",
                 "params": {"steps": 1, "delay": 0.05}
@@ -164,12 +167,13 @@ class TestSSEGatewayTasks:
         assert events[-1]["data"]["reason"] == "task_not_found"
 
     def test_client_disconnect_triggers_callback(
-        self, sse_server: str, sse_gateway_server: str
+        self, sse_server: tuple[str, any], sse_gateway_server: str
     ):
         """Test that client disconnect triggers disconnect callback to Python."""
+        server_url, _ = sse_server
         # Given a long-running task
         resp = requests.post(
-            f"{sse_server}/api/testing/tasks/start",
+            f"{server_url}/api/testing/tasks/start",
             json={
                 "task_type": "demo_task",
                 "params": {"steps": 10, "delay": 1.0}  # Long task
@@ -202,12 +206,13 @@ class TestSSEGatewayTasks:
         # to run without errors even though the connection is gone
 
     def test_multiple_clients_connect_old_client_disconnected(
-        self, sse_server: str, sse_gateway_server: str
+        self, sse_server: tuple[str, any], sse_gateway_server: str
     ):
         """Test that when multiple clients connect to same task, old client is disconnected."""
+        server_url, _ = sse_server
         # Given a task that will run
         resp = requests.post(
-            f"{sse_server}/api/testing/tasks/start",
+            f"{server_url}/api/testing/tasks/start",
             json={
                 "task_type": "demo_task",
                 "params": {"steps": 5, "delay": 0.2}  # Moderate task

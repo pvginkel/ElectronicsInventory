@@ -191,6 +191,27 @@ class TaskService:
         # Register connection with ConnectionManager
         self.connection_manager.on_connect(identifier, token, url)
 
+        # Check if task exists
+        with self._lock:
+            task_exists = task_id in self._tasks
+
+        if not task_exists:
+            # Task not found - send error event and close
+            self.connection_manager.send_event(
+                identifier,
+                {"error": "Task not found", "task_id": task_id},
+                event_name="error",
+                close=False
+            )
+            # Send connection_close event with close=True
+            self.connection_manager.send_event(
+                identifier,
+                {"reason": "task_not_found"},
+                event_name="connection_close",
+                close=True
+            )
+            return
+
         # Send any queued events for this task
         event_queue = self._event_queues.get(task_id)
         if event_queue:
@@ -231,17 +252,30 @@ class TaskService:
         # Check if this is a terminal event
         is_terminal = event.event_type in [TaskEventType.TASK_COMPLETED, TaskEventType.TASK_FAILED]
 
-        # Send event via ConnectionManager
+        # Send event via ConnectionManager (don't close yet if terminal)
         # Use mode='json' to serialize datetime to ISO format string
         success = self.connection_manager.send_event(
             identifier,
             event.model_dump(mode='json'),
             event_name="task_event",
-            close=is_terminal
+            close=False
         )
 
         if not success:
             logger.warning(f"Failed to send event for {identifier}: {event.event_type}")
+
+        # If terminal event, send connection_close event and close the stream
+        if is_terminal:
+            # Determine close reason
+            reason = "task_completed" if event.event_type == TaskEventType.TASK_COMPLETED else "task_failed"
+
+            # Send connection_close event with close=True
+            self.connection_manager.send_event(
+                identifier,
+                {"reason": reason},
+                event_name="connection_close",
+                close=True
+            )
 
     def get_task_status(self, task_id: str) -> TaskInfo | None:
         """Get current status of a task."""
