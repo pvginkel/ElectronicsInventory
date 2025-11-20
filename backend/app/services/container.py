@@ -108,6 +108,7 @@ class ServiceContainer(containers.DeclarativeContainer):
         ConnectionManager,
         gateway_url=config.provided.SSE_GATEWAY_URL,
         metrics_service=metrics_service,
+        http_timeout=2.0,  # Short timeout to avoid exceeding SSE Gateway's 5s callback timeout
     )
 
     inventory_service = providers.Factory(

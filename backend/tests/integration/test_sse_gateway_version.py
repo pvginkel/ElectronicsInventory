@@ -19,11 +19,23 @@ class TestSSEGatewayVersion:
     """Integration tests for /api/sse/utils/version endpoint via SSE Gateway."""
 
     def test_connection_open_event_received_on_connect(
-        self, sse_gateway_server: str
+        self, sse_server: tuple[str, any], sse_gateway_server: str
     ):
         """Test that connection_open event is received when client connects to gateway."""
+        server_url, _ = sse_server
         # Given a unique request_id
         request_id = str(uuid.uuid4())
+
+        # Queue a version event BEFORE connecting (like task tests do)
+        resp = requests.post(
+            f"{server_url}/api/testing/deployments/version",
+            json={"request_id": request_id, "version": "test-version-connect"},
+            timeout=5.0
+        )
+        assert resp.status_code == 202
+
+        # Give backend time to queue the event
+        time.sleep(0.1)
 
         # When connecting to SSE Gateway endpoint
         # Note: Gateway routes /api/sse/utils/version to Python callback endpoint
@@ -33,14 +45,14 @@ class TestSSEGatewayVersion:
         )
         events = []
 
-        # Collect events (version stream sends version immediately after connection_open)
-        timeout = time.perf_counter() + 5.0
+        # Collect events (version stream sends queued version after connection_open)
+        timeout_ts = time.perf_counter() + 5.0
         for event in client.connect(timeout=5.0):
             events.append(event)
             # Version stream doesn't close automatically, so stop after receiving version
             if len(events) >= 2:  # connection_open + version
                 break
-            if time.perf_counter() > timeout:
+            if time.perf_counter() > timeout_ts:
                 break
 
         # Then connection_open is the first event (sent by Python in callback response)
@@ -48,26 +60,27 @@ class TestSSEGatewayVersion:
         assert events[0]["event"] == "connection_open"
         assert events[0]["data"]["status"] == "connected"
 
-        # Should also receive version event immediately
+        # Should also receive queued version event
         assert len(events) >= 2
         assert events[1]["event"] == "version"
         assert "version" in events[1]["data"]
 
     def test_pending_events_flushed_on_connect(
-        self, sse_server: str, sse_gateway_server: str
+        self, sse_server: tuple[str, any], sse_gateway_server: str
     ):
         """Test that events sent before connection are flushed when client connects."""
+        server_url, _ = sse_server
         # Given a unique request_id
         request_id = str(uuid.uuid4())
 
         # When queuing a version event BEFORE connecting
         # (This simulates the testing endpoint triggering version check before SSE connects)
         resp = requests.post(
-            f"{sse_server}/api/testing/deployments/version",
-            json={"request_id": request_id},
+            f"{server_url}/api/testing/deployments/version",
+            json={"request_id": request_id, "version": "test-version-1"},
             timeout=5.0
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 202
 
         # Give backend time to queue the pending event
         time.sleep(0.2)
@@ -100,13 +113,23 @@ class TestSSEGatewayVersion:
         assert len(version_events) >= 1, "Should receive at least one version event"
 
     def test_events_sent_after_connection_are_received(
-        self, sse_server: str, sse_gateway_server: str
+        self, sse_server: tuple[str, any], sse_gateway_server: str
     ):
         """Test that events sent after connection are received through gateway."""
-        # Given a unique request_id and an active connection
+        server_url, _ = sse_server
+        # Given a unique request_id
         request_id = str(uuid.uuid4())
 
-        # Connect to SSE Gateway first
+        # Queue initial version event BEFORE connecting
+        resp = requests.post(
+            f"{server_url}/api/testing/deployments/version",
+            json={"request_id": request_id, "version": "test-version-initial"},
+            timeout=5.0
+        )
+        assert resp.status_code == 202
+        time.sleep(0.1)
+
+        # Connect to SSE Gateway
         client = SSEClient(
             f"{sse_gateway_server}/api/sse/utils/version?request_id={request_id}",
             strict=True
@@ -120,17 +143,17 @@ class TestSSEGatewayVersion:
         events.append(next(gen))
         assert events[0]["event"] == "connection_open"
 
-        # Get initial version event
+        # Get initial version event (queued before connect)
         events.append(next(gen))
         assert events[1]["event"] == "version"
 
         # When triggering another version event AFTER connection is established
         resp = requests.post(
-            f"{sse_server}/api/testing/deployments/version",
-            json={"request_id": request_id},
+            f"{server_url}/api/testing/deployments/version",
+            json={"request_id": request_id, "version": "test-version-2"},
             timeout=5.0
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 202
 
         # Then we receive the new version event through the gateway
         # Wait for the event with timeout
@@ -151,11 +174,21 @@ class TestSSEGatewayVersion:
         assert len(version_events) >= 2, "Should receive at least 2 version events"
 
     def test_client_disconnect_triggers_callback(
-        self, sse_gateway_server: str
+        self, sse_server: tuple[str, any], sse_gateway_server: str
     ):
         """Test that client disconnect triggers disconnect callback to Python."""
+        server_url, _ = sse_server
         # Given a unique request_id
         request_id = str(uuid.uuid4())
+
+        # Queue version event before connecting
+        resp = requests.post(
+            f"{server_url}/api/testing/deployments/version",
+            json={"request_id": request_id, "version": "test-version-disconnect"},
+            timeout=5.0
+        )
+        assert resp.status_code == 202
+        time.sleep(0.1)
 
         # When client connects and then disconnects
         client = SSEClient(
@@ -185,11 +218,21 @@ class TestSSEGatewayVersion:
         # queued as pending (since connection is gone)
 
     def test_connection_replacement_works(
-        self, sse_server: str, sse_gateway_server: str
+        self, sse_server: tuple[str, any], sse_gateway_server: str
     ):
         """Test that new connection replaces old connection for same request_id."""
+        server_url, _ = sse_server
         # Given a unique request_id
         request_id = str(uuid.uuid4())
+
+        # Queue version event for first client
+        resp = requests.post(
+            f"{server_url}/api/testing/deployments/version",
+            json={"request_id": request_id, "version": "test-version-client1"},
+            timeout=5.0
+        )
+        assert resp.status_code == 202
+        time.sleep(0.1)
 
         # When first client connects
         client1 = SSEClient(
@@ -203,54 +246,49 @@ class TestSSEGatewayVersion:
         events1.append(next(gen1))  # Get connection_open
         assert events1[0]["event"] == "connection_open"
 
-        events1.append(next(gen1))  # Get initial version
+        events1.append(next(gen1))  # Get queued version
         assert events1[1]["event"] == "version"
 
         # Wait briefly
         time.sleep(0.2)
 
-        # When second client connects to same request_id
+        # When second client connects to same request_id (no version queued beforehand)
         client2 = SSEClient(
             f"{sse_gateway_server}/api/sse/utils/version?request_id={request_id}",
             strict=True
         )
         events2 = []
 
-        # Collect events from second client
+        # Collect connection_open event from second client
         gen2 = client2.connect(timeout=10.0)
-        for _ in range(2):  # connection_open + version
-            try:
-                events2.append(next(gen2))
-            except StopIteration:
-                break
+        events2.append(next(gen2))  # Get connection_open
 
-        # Then second client receives connection_open and version
-        assert len(events2) >= 2
+        # Then second client receives connection_open
+        assert len(events2) >= 1
         assert events2[0]["event"] == "connection_open"
-        assert events2[1]["event"] == "version"
 
         # When triggering a version event after second client connected
         resp = requests.post(
-            f"{sse_server}/api/testing/deployments/version",
-            json={"request_id": request_id},
+            f"{server_url}/api/testing/deployments/version",
+            json={"request_id": request_id, "version": "test-version-replacement"},
             timeout=5.0
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 202
 
-        # Then second client receives the new event
+        # Then second client receives the triggered version event
         timeout = time.perf_counter() + 3.0
         while time.perf_counter() < timeout:
             try:
                 event = next(gen2)
                 events2.append(event)
-                if event["event"] == "version" and len(events2) >= 3:
+                if event["event"] == "version" and len(events2) >= 2:
                     break
             except StopIteration:
                 break
 
         # Verify second client received the triggered event
         version_events_client2 = [e for e in events2 if e["event"] == "version"]
-        assert len(version_events_client2) >= 2, "Second client should receive initial + triggered version"
+        assert len(version_events_client2) >= 1, "Second client should receive triggered version"
 
         # Note: First client's connection should have been closed by gateway
         # when the second client connected (connection replacement).

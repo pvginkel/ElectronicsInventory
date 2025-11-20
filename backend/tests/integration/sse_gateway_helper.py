@@ -8,7 +8,9 @@ is health-checked before tests begin.
 import logging
 import signal
 import subprocess
+import tempfile
 import time
+from pathlib import Path
 
 import requests
 
@@ -55,8 +57,8 @@ class SSEGatewayProcess:
         self.shutdown_timeout = shutdown_timeout
 
         self.process: subprocess.Popen | None = None
-        self.stdout_data: list[str] = []
-        self.stderr_data: list[str] = []
+        self.stdout_file: tempfile.NamedTemporaryFile | None = None
+        self.stderr_file: tempfile.NamedTemporaryFile | None = None
 
     def start(self) -> None:
         """Start the SSE Gateway subprocess and wait for it to be ready.
@@ -79,15 +81,25 @@ class SSEGatewayProcess:
             "--port", str(self.port),
         ]
 
+        # Create temporary files for stdout/stderr
+        self.stdout_file = tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.log')
+        self.stderr_file = tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.log')
+
         try:
             self.process = subprocess.Popen(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=self.stdout_file,
+                stderr=self.stderr_file,
                 text=True,
-                bufsize=1,  # Line buffered
             )
         except Exception as e:
+            # Clean up temp files on error
+            if self.stdout_file:
+                self.stdout_file.close()
+                Path(self.stdout_file.name).unlink(missing_ok=True)
+            if self.stderr_file:
+                self.stderr_file.close()
+                Path(self.stderr_file.name).unlink(missing_ok=True)
             raise RuntimeError(f"Failed to start SSE Gateway subprocess: {e}") from e
 
         # Wait for gateway to be ready
@@ -98,7 +110,6 @@ class SSEGatewayProcess:
         while time.perf_counter() - start_time < self.startup_timeout:
             # Check if process crashed
             if self.process.poll() is not None:
-                self._capture_output()
                 raise RuntimeError(
                     f"SSE Gateway process exited with code {self.process.returncode} "
                     f"during startup.\nStdout: {self._get_stdout()}\nStderr: {self._get_stderr()}"
@@ -118,7 +129,6 @@ class SSEGatewayProcess:
             time.sleep(self.health_check_interval)
 
         # Timeout reached
-        self._capture_output()
         self.stop()  # Clean up
 
         raise RuntimeError(
@@ -138,7 +148,7 @@ class SSEGatewayProcess:
         # Check if already stopped
         if self.process.poll() is not None:
             logger.debug(f"SSE Gateway already stopped (exit code: {self.process.returncode})")
-            self._capture_output()
+            self._cleanup_temp_files()
             return
 
         # Send SIGTERM
@@ -147,7 +157,7 @@ class SSEGatewayProcess:
             self.process.send_signal(signal.SIGTERM)
         except ProcessLookupError:
             # Already dead
-            self._capture_output()
+            self._cleanup_temp_files()
             return
 
         # Wait for graceful shutdown
@@ -163,36 +173,65 @@ class SSEGatewayProcess:
             self.process.wait()
             logger.info(f"SSE Gateway killed (exit code: {self.process.returncode})")
 
-        self._capture_output()
+        self._cleanup_temp_files()
 
-    def _capture_output(self) -> None:
-        """Capture remaining stdout/stderr from process."""
-        if self.process is None:
-            return
-
-        # Read any remaining output
-        if self.process.stdout:
+    def _cleanup_temp_files(self) -> None:
+        """Clean up temporary log files."""
+        if self.stdout_file:
             try:
-                for line in self.process.stdout:
-                    self.stdout_data.append(line.strip())
-            except Exception:
-                pass
+                self.stdout_file.close()
+                Path(self.stdout_file.name).unlink(missing_ok=True)
+            except Exception as e:
+                logger.debug(f"Failed to clean up stdout file: {e}")
+            self.stdout_file = None
 
-        if self.process.stderr:
+        if self.stderr_file:
             try:
-                for line in self.process.stderr:
-                    self.stderr_data.append(line.strip())
-            except Exception:
-                pass
+                self.stderr_file.close()
+                Path(self.stderr_file.name).unlink(missing_ok=True)
+            except Exception as e:
+                logger.debug(f"Failed to clean up stderr file: {e}")
+            self.stderr_file = None
 
     def _get_stdout(self) -> str:
         """Get captured stdout as string."""
-        return "\n".join(self.stdout_data)
+        if not self.stdout_file:
+            return ""
+
+        try:
+            # Flush the file to ensure all buffered data is written
+            self.stdout_file.flush()
+            # Read from beginning of file
+            with open(self.stdout_file.name) as f:
+                return f.read()
+        except Exception as e:
+            logger.error(f"Failed to read stdout: {e}")
+            return ""
 
     def _get_stderr(self) -> str:
         """Get captured stderr as string."""
-        return "\n".join(self.stderr_data)
+        if not self.stderr_file:
+            return ""
+
+        try:
+            # Flush the file to ensure all buffered data is written
+            self.stderr_file.flush()
+            # Read from beginning of file
+            with open(self.stderr_file.name) as f:
+                return f.read()
+        except Exception as e:
+            logger.error(f"Failed to read stderr: {e}")
+            return ""
 
     def get_base_url(self) -> str:
         """Get base URL for the running gateway."""
         return f"http://localhost:{self.port}"
+
+    def print_logs(self) -> None:
+        """Print captured stdout and stderr logs."""
+        stdout = self._get_stdout()
+        stderr = self._get_stderr()
+        if stdout:
+            print(f"\n===== SSE Gateway STDOUT =====\n{stdout}")
+        if stderr:
+            print(f"\n===== SSE Gateway STDERR =====\n{stderr}")
