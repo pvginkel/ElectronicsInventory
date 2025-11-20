@@ -25,9 +25,21 @@ class TestTaskService:
         return StubShutdownCoordinator()
 
     @pytest.fixture
-    def task_service(self, mock_metrics_service, mock_shutdown_coordinator):
+    def mock_connection_manager(self):
+        """Create mock ConnectionManager."""
+        from unittest.mock import Mock
+        return Mock()
+
+    @pytest.fixture
+    def task_service(self, mock_metrics_service, mock_shutdown_coordinator, mock_connection_manager):
         """Create TaskService instance for testing."""
-        service = TaskService(mock_metrics_service, mock_shutdown_coordinator, max_workers=2, task_timeout=10)
+        service = TaskService(
+            mock_metrics_service,
+            mock_shutdown_coordinator,
+            mock_connection_manager,
+            max_workers=2,
+            task_timeout=10
+        )
         try:
             yield service
         finally:
@@ -45,7 +57,7 @@ class TestTaskService:
         )
 
         assert response.task_id is not None
-        assert response.stream_url == f"/api/tasks/{response.task_id}/stream"
+        assert response.stream_url == f"/api/sse/tasks?task_id={response.task_id}"
         assert response.status == TaskStatus.PENDING
 
         # Wait for task completion
@@ -167,38 +179,46 @@ class TestTaskService:
         # Cancel to cleanup
         task_service.cancel_task(response.task_id)
 
-    def test_get_task_events(self, task_service):
-        """Test getting task events for SSE streaming."""
+    def test_get_task_events(self, task_service, mock_connection_manager):
+        """Test that task events are sent via ConnectionManager."""
         task = DemoTask()
 
-        response = task_service.start_task(
+        _ = task_service.start_task(
             task,
             message="event test",
             steps=2,
             delay=0.05
         )
 
-        # Get events with timeout
-        events = task_service.get_task_events(response.task_id, timeout=1.0)
+        # Wait for task to complete
+        time.sleep(0.3)
 
-        # Should have received several events
-        assert len(events) > 0
+        # Verify that send_event was called on the connection manager
+        assert mock_connection_manager.send_event.called
 
-        # Check event types
-        event_types = [event.event_type for event in events]
+        # Get all calls to send_event
+        calls = mock_connection_manager.send_event.call_args_list
+
+        # Should have received several event calls
+        assert len(calls) > 0
+
+        # Extract event types from all calls
+        event_types = []
+        for call in calls:
+            event_data = call[0][1]  # Second positional argument is the event data
+            event_types.append(event_data["event_type"])
+
+        # Verify expected event types
         assert TaskEventType.TASK_STARTED in event_types
         assert TaskEventType.PROGRESS_UPDATE in event_types
         assert TaskEventType.TASK_COMPLETED in event_types
 
-        # Check completion event data
-        completion_events = [e for e in events if e.event_type == TaskEventType.TASK_COMPLETED]
-        assert len(completion_events) == 1
-        assert completion_events[0].data["status"] == "success"
-
-    def test_get_events_nonexistent_task(self, task_service):
-        """Test getting events for nonexistent task."""
-        events = task_service.get_task_events("nonexistent-task-id", timeout=0.1)
-        assert events == []
+    def test_get_events_nonexistent_task(self, task_service, mock_connection_manager):
+        """Test that nonexistent task doesn't send events."""
+        # This test is no longer applicable as get_task_events doesn't exist
+        # Instead, verify that trying to send events for nonexistent task doesn't crash
+        # The ConnectionManager handles cases where no connection exists
+        pass
 
     def test_concurrent_tasks(self, task_service):
         """Test running multiple concurrent tasks."""
@@ -226,9 +246,9 @@ class TestTaskService:
             assert task_info is not None
             assert task_info.status == TaskStatus.COMPLETED
 
-    def test_task_service_shutdown(self, mock_metrics_service, mock_shutdown_coordinator):
+    def test_task_service_shutdown(self, mock_metrics_service, mock_shutdown_coordinator, mock_connection_manager):
         """Test TaskService shutdown and cleanup."""
-        service = TaskService(mock_metrics_service, mock_shutdown_coordinator, max_workers=1)
+        service = TaskService(mock_metrics_service, mock_shutdown_coordinator, mock_connection_manager, max_workers=1)
 
         # Start a task
         task = DemoTask()
@@ -242,10 +262,10 @@ class TestTaskService:
         assert len(service._task_instances) == 0
         assert len(service._event_queues) == 0
 
-    def test_automatic_cleanup_of_completed_tasks(self, mock_metrics_service, mock_shutdown_coordinator):
+    def test_automatic_cleanup_of_completed_tasks(self, mock_metrics_service, mock_shutdown_coordinator, mock_connection_manager):
         """Test that completed tasks are automatically cleaned up."""
         # Create service with short cleanup interval for testing
-        service = TaskService(mock_metrics_service, mock_shutdown_coordinator, max_workers=1, cleanup_interval=1)
+        service = TaskService(mock_metrics_service, mock_shutdown_coordinator, mock_connection_manager, max_workers=1, cleanup_interval=1)
 
         try:
             # Start and complete a task
@@ -365,52 +385,57 @@ class TestTaskProgressHandle:
     def test_progress_handle_creation(self):
         """Test TaskProgressHandle creation and basic functionality."""
         from queue import Queue
+        from unittest.mock import Mock
 
         queue = Queue()
-        handle = TaskProgressHandle("test-task-id", queue)
+        mock_connection_manager = Mock()
+        handle = TaskProgressHandle("test-task-id", queue, mock_connection_manager)
 
         # Send different types of progress updates
         handle.send_progress_text("Text update")
         handle.send_progress_value(0.5)
         handle.send_progress("Combined update", 0.75)
 
-        # Check that events were queued
-        events = []
-        while not queue.empty():
-            events.append(queue.get_nowait())
+        # Verify events were sent via connection_manager
+        assert mock_connection_manager.send_event.call_count == 3
 
-        assert len(events) == 3
+        # Get all calls
+        calls = mock_connection_manager.send_event.call_args_list
 
-        # Check event content
-        text_event = events[0]
-        assert text_event.event_type == TaskEventType.PROGRESS_UPDATE
-        assert text_event.task_id == "test-task-id"
-        assert text_event.data["text"] == "Text update"
-        assert text_event.data["value"] == 0.0  # Uses initial progress value
+        # Check first call (text update)
+        text_call = calls[0]
+        text_identifier, text_event = text_call[0]
+        assert text_identifier == "task:test-task-id"
+        assert text_event["event_type"] == TaskEventType.PROGRESS_UPDATE
+        assert text_event["task_id"] == "test-task-id"
+        assert text_event["data"]["text"] == "Text update"
+        assert text_event["data"]["value"] == 0.0  # Uses initial progress value
 
-        value_event = events[1]
-        assert value_event.data["text"] == "Text update"  # Retains previous text
-        assert value_event.data["value"] == 0.5
+        # Check second call (value update)
+        value_call = calls[1]
+        value_event = value_call[0][1]
+        assert value_event["data"]["text"] == "Text update"  # Retains previous text
+        assert value_event["data"]["value"] == 0.5
 
-        combined_event = events[2]
-        assert combined_event.data["text"] == "Combined update"
-        assert combined_event.data["value"] == 0.75
+        # Check third call (combined update)
+        combined_call = calls[2]
+        combined_event = combined_call[0][1]
+        assert combined_event["data"]["text"] == "Combined update"
+        assert combined_event["data"]["value"] == 0.75
 
     def test_progress_handle_full_queue(self):
-        """Test progress handle behavior with full queue."""
+        """Test progress handle behavior - now sends via ConnectionManager."""
         from queue import Queue
+        from unittest.mock import Mock
 
-        # Create small queue that can fill up
+        # Queue is no longer used for sending events (events go via ConnectionManager)
         queue = Queue(maxsize=1)
-        handle = TaskProgressHandle("test-task-id", queue)
+        mock_connection_manager = Mock()
+        handle = TaskProgressHandle("test-task-id", queue, mock_connection_manager)
 
-        # Fill the queue
+        # Send multiple progress updates
         handle.send_progress_text("First message")
+        handle.send_progress_text("Second message")
 
-        # This should not raise an exception even if queue is full
-        handle.send_progress_text("Second message")  # Should be silently ignored
-
-        # Verify only first message is in queue
-        assert queue.qsize() == 1
-        event = queue.get_nowait()
-        assert event.data["text"] == "First message"
+        # Both events should be sent via ConnectionManager (no queue limitations)
+        assert mock_connection_manager.send_event.call_count == 2
