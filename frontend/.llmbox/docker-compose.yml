@@ -9,6 +9,7 @@ services:
     environment:
       TERM: ${TERM}
       COLORTERM: ${COLORTERM}
+      SSE_GATEWAY_ROOT: ../ssegateway
     volumes:
       - ${HOME}/.claude.json:/home/ubuntu/.claude.json:rw
       - ${HOME}/.claude:/home/ubuntu/.claude:rw
