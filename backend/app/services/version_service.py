@@ -11,6 +11,11 @@ from typing import Any
 import requests
 
 from app.config import Settings
+from app.schemas.sse_gateway_schema import (
+    SSEGatewayConnectCallback,
+    SSEGatewayDisconnectCallback,
+)
+from app.services.connection_manager import ConnectionManager
 from app.utils.shutdown_coordinator import LifetimeEvent, ShutdownCoordinatorProtocol
 
 logger = logging.getLogger(__name__)
@@ -21,10 +26,16 @@ VersionEvent = tuple[str, dict[str, Any]]
 class VersionService:
     """Service for managing frontend version notifications and subscribers."""
 
-    def __init__(self, settings: Settings, shutdown_coordinator: ShutdownCoordinatorProtocol):
+    def __init__(
+        self,
+        settings: Settings,
+        shutdown_coordinator: ShutdownCoordinatorProtocol,
+        connection_manager: ConnectionManager
+    ):
         """Initialize version service and subscribe to lifecycle events."""
         self.settings = settings
         self.shutdown_coordinator = shutdown_coordinator
+        self.connection_manager = connection_manager
 
         self._lock = threading.RLock()
         self._subscribers: dict[str, Queue[VersionEvent]] = {}
@@ -46,6 +57,64 @@ class VersionService:
         response = requests.get(url, timeout=5)
         response.raise_for_status()
         return response.text
+
+    def on_connect(self, callback: SSEGatewayConnectCallback, request_id: str) -> None:
+        """Handle SSE Gateway connect callback for version streams.
+
+        Args:
+            callback: Connect callback from SSE Gateway
+            request_id: Request ID extracted from callback URL
+        """
+        identifier = f"version:{request_id}"
+        token = callback.token
+        url = callback.request.url
+
+        logger.info(f"Version stream connection: request_id={request_id}, token={token}")
+
+        # Register connection with ConnectionManager
+        self.connection_manager.on_connect(identifier, token, url)
+
+        # Flush any pending events for this request_id
+        with self._lock:
+            pending_events = self._pending_events.pop(request_id, [])
+            failed_events = []
+            for event_name, event_data in pending_events:
+                success = self.connection_manager.send_event(
+                    identifier,
+                    event_data,
+                    event_name=event_name,
+                    close=False
+                )
+                if not success:
+                    # Re-queue failed event
+                    failed_events.append((event_name, event_data))
+                    logger.warning(
+                        f"Failed to send pending event '{event_name}' for request_id {request_id}; re-queuing"
+                    )
+
+            # Re-queue any failed events
+            if failed_events:
+                self._pending_events[request_id] = failed_events
+
+            if pending_events:
+                sent_count = len(pending_events) - len(failed_events)
+                logger.debug(
+                    f"Sent {sent_count}/{len(pending_events)} pending events for request_id {request_id}"
+                )
+
+    def on_disconnect(self, callback: SSEGatewayDisconnectCallback) -> None:
+        """Handle SSE Gateway disconnect callback for version streams.
+
+        Args:
+            callback: Disconnect callback from SSE Gateway
+        """
+        token = callback.token
+        reason = callback.reason
+
+        logger.debug(f"Version stream disconnected: token={token}, reason={reason}")
+
+        # Notify ConnectionManager
+        self.connection_manager.on_disconnect(token)
 
     def register_subscriber(self, request_id: str) -> Queue[VersionEvent]:
         """Register an SSE subscriber for deterministic event delivery."""
@@ -104,13 +173,24 @@ class VersionService:
                 )
                 return False
 
-            queue = self._subscribers.get(request_id)
-            if queue is not None:
-                queue.put_nowait(event)
-                self._last_activity[request_id] = time.perf_counter()
-                logger.debug("Delivered deployment event", extra={"request_id": request_id})
-                return True
+            # Check if connected via SSE Gateway
+            identifier = f"version:{request_id}"
+            if self.connection_manager.has_connection(identifier):
+                # Send via ConnectionManager
+                success = self.connection_manager.send_event(
+                    identifier,
+                    event_payload,
+                    event_name="version",
+                    close=False
+                )
+                if success:
+                    logger.debug("Sent version event via SSE Gateway", extra={"request_id": request_id})
+                    return True
+                else:
+                    logger.warning(f"Failed to send version event via SSE Gateway for {request_id}")
+                    # Fall through to queue it
 
+            # No connection yet, queue as pending
             backlog = self._pending_events.setdefault(request_id, [])
             backlog.append(event)
             logger.debug("Queued deployment event for dormant subscriber", extra={"request_id": request_id})

@@ -147,6 +147,36 @@ class MetricsServiceProtocol(ABC):
         pass
 
     @abstractmethod
+    def record_sse_gateway_connection(self, service: str, action: str) -> None:
+        """Record SSE Gateway connection lifecycle events.
+
+        Args:
+            service: Service type (task or version)
+            action: Action type (connect or disconnect)
+        """
+        pass
+
+    @abstractmethod
+    def record_sse_gateway_event(self, service: str, status: str) -> None:
+        """Record SSE Gateway event send attempts.
+
+        Args:
+            service: Service type (task or version)
+            status: Status (success or error)
+        """
+        pass
+
+    @abstractmethod
+    def record_sse_gateway_send_duration(self, service: str, duration: float) -> None:
+        """Record SSE Gateway HTTP send duration.
+
+        Args:
+            service: Service type (task or version)
+            duration: Duration in seconds
+        """
+        pass
+
+    @abstractmethod
     def start_background_updater(self, interval_seconds: int = 60) -> None:
         """Start background metric updater."""
         pass
@@ -433,6 +463,31 @@ class MetricsService(MetricsServiceProtocol):
         self.active_tasks_at_shutdown = Gauge(
             'active_tasks_at_shutdown',
             'Number of active tasks when shutdown initiated'
+        )
+
+        # SSE Gateway Metrics
+        self.sse_gateway_connections_total = Counter(
+            'sse_gateway_connections_total',
+            'Total SSE Gateway connection lifecycle events',
+            ['service', 'action']
+        )
+
+        self.sse_gateway_events_sent_total = Counter(
+            'sse_gateway_events_sent_total',
+            'Total events sent to SSE Gateway',
+            ['service', 'status']
+        )
+
+        self.sse_gateway_send_duration_seconds = Histogram(
+            'sse_gateway_send_duration_seconds',
+            'Duration of SSE Gateway HTTP send calls',
+            ['service']
+        )
+
+        self.sse_gateway_active_connections = Gauge(
+            'sse_gateway_active_connections',
+            'Current number of active SSE Gateway connections',
+            ['service']
         )
 
     def update_inventory_metrics(self) -> None:
@@ -819,6 +874,57 @@ class MetricsService(MetricsServiceProtocol):
 
         except Exception as e:
             logger.error(f"Error recording AI analysis metrics: {e}")
+
+    def record_sse_gateway_connection(self, service: str, action: str) -> None:
+        """Record SSE Gateway connection lifecycle events.
+
+        Args:
+            service: Service type (task or version)
+            action: Action type (connect or disconnect)
+        """
+        try:
+            self.sse_gateway_connections_total.labels(
+                service=service,
+                action=action
+            ).inc()
+
+            # Update active connection gauge
+            if action == "connect":
+                self.sse_gateway_active_connections.labels(service=service).inc()
+            elif action == "disconnect":
+                self.sse_gateway_active_connections.labels(service=service).dec()
+
+        except Exception as e:
+            logger.error(f"Error recording SSE Gateway connection metric: {e}")
+
+    def record_sse_gateway_event(self, service: str, status: str) -> None:
+        """Record SSE Gateway event send attempts.
+
+        Args:
+            service: Service type (task or version)
+            status: Status (success or error)
+        """
+        try:
+            self.sse_gateway_events_sent_total.labels(
+                service=service,
+                status=status
+            ).inc()
+        except Exception as e:
+            logger.error(f"Error recording SSE Gateway event metric: {e}")
+
+    def record_sse_gateway_send_duration(self, service: str, duration: float) -> None:
+        """Record SSE Gateway HTTP send duration.
+
+        Args:
+            service: Service type (task or version)
+            duration: Duration in seconds
+        """
+        try:
+            self.sse_gateway_send_duration_seconds.labels(
+                service=service
+            ).observe(duration)
+        except Exception as e:
+            logger.error(f"Error recording SSE Gateway send duration metric: {e}")
 
     def start_background_updater(self, interval_seconds: int = 60) -> None:
         """Start background thread for periodic metric updates.

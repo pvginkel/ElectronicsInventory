@@ -23,6 +23,7 @@ from app.api.pick_lists import pick_lists_bp  # noqa: E402
 from app.api.sellers import sellers_bp  # noqa: E402
 from app.api.shopping_list_lines import shopping_list_lines_bp  # noqa: E402
 from app.api.shopping_lists import shopping_lists_bp  # noqa: E402
+from app.api.sse import sse_bp  # noqa: E402
 from app.api.tasks import tasks_bp  # noqa: E402
 from app.api.types import types_bp  # noqa: E402
 from app.api.utils import utils_bp  # noqa: E402
@@ -42,6 +43,7 @@ api_bp.register_blueprint(parts_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(sellers_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(shopping_lists_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(shopping_list_lines_bp)  # type: ignore[attr-defined]
+api_bp.register_blueprint(sse_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(tasks_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(types_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(utils_bp)  # type: ignore[attr-defined]
