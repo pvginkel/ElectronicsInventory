@@ -2,7 +2,7 @@
 
 ## Status
 
-**DONE-WITH-CONDITIONS** - The plan was implemented successfully with all core functionality complete and tested. Integration tests with real SSE Gateway subprocess are deferred as immediate follow-up work before production deployment.
+**DONE-WITH-CONDITIONS** - The plan was implemented successfully with all core functionality complete and unit tested (53 unit/API tests passing). Integration tests with real SSE Gateway subprocess have been implemented but require SSE Gateway behavior fixes before they can pass (connection_open event not being forwarded from callback response).
 
 ---
 
@@ -19,7 +19,7 @@ Successfully implemented SSE Gateway integration, replacing Python-based Server-
 ✅ **Comprehensive unit tests**: 18 ConnectionManager tests + 17 SSE API tests + 18 updated TaskService tests = **53 tests passing**
 ✅ **Environment configuration** for SSE_GATEWAY_URL and SSE_CALLBACK_SECRET
 
-**Outstanding work**: Integration tests with real SSE Gateway subprocess (deferred per plan section 14, slice 6).
+**Outstanding work**: Integration tests are implemented but blocked by SSE Gateway behavior issue (see details below).
 
 ---
 
@@ -210,14 +210,21 @@ Net: +1,317 lines
 
 ### Required Before Production (Critical)
 
-1. **Integration Tests with Real SSE Gateway** ⚠️ **CRITICAL**
-   - **Status**: Deferred per plan section 14 (slice 6)
-   - **Scope**:
-     - Create `tests/integration/sse_gateway_helper.py` (subprocess lifecycle, health checks)
-     - Create `tests/integration/test_sse_gateway_tasks.py` (6 scenarios from plan)
-     - Create `tests/integration/test_sse_gateway_version.py` (5 scenarios from plan)
-   - **Why critical**: HTTP contract with SSE Gateway untested; JSON mismatches won't surface until production
-   - **Recommendation**: Prioritize as immediate follow-up; block production deployment until complete
+1. **Integration Tests with Real SSE Gateway** ⚠️ **IN PROGRESS**
+   - **Status**: Implemented but currently timing out (see details below)
+   - **Files Created**:
+     - ✅ `tests/integration/sse_gateway_helper.py` (subprocess lifecycle, health checks)
+     - ✅ `tests/integration/test_sse_gateway_tasks.py` (6 scenarios from plan)
+     - ✅ `tests/integration/test_sse_gateway_version.py` (5 scenarios from plan)
+   - **Current Issue**: Tests timeout waiting for events from SSE Gateway
+     - Callback endpoint returns 200 successfully ✅
+     - SSE Gateway receives callback response with `connection_open` event ✅
+     - But client never receives the event (SSE Gateway not forwarding it)
+   - **Root Cause**: Possible SSE Gateway issue - callback response events may not be implemented/working
+   - **Recommendation**:
+     - Verify SSE Gateway correctly forwards events from callback response body
+     - Check if SSE Gateway logs show event processing from callback
+     - May need SSE Gateway code fix or our callback response format adjustment
 
 2. **Frontend Coordination**
    - **Status**: Unknown; requires verification

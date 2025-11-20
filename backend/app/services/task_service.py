@@ -65,9 +65,10 @@ class TaskProgressHandle:
         try:
             # Try to send via gateway first; ConnectionManager handles missing connections gracefully
             identifier = f"task:{self.task_id}"
+            # Use mode='json' to serialize datetime to ISO format string
             success = self.connection_manager.send_event(
                 identifier,
-                event.model_dump(),
+                event.model_dump(mode='json'),
                 event_name="task_event",
                 close=False
             )
@@ -231,9 +232,10 @@ class TaskService:
         is_terminal = event.event_type in [TaskEventType.TASK_COMPLETED, TaskEventType.TASK_FAILED]
 
         # Send event via ConnectionManager
+        # Use mode='json' to serialize datetime to ISO format string
         success = self.connection_manager.send_event(
             identifier,
-            event.model_dump(),
+            event.model_dump(mode='json'),
             event_name="task_event",
             close=is_terminal
         )
