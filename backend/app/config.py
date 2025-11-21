@@ -175,7 +175,7 @@ class Settings(BaseSettings):
 
     # SSE Gateway integration settings
     SSE_GATEWAY_URL: str = Field(
-        default="http://localhost:3000",
+        default="http://localhost:3001",
         description="SSE Gateway base URL for internal send endpoint"
     )
     SSE_CALLBACK_SECRET: str = Field(
