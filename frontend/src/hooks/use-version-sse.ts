@@ -128,11 +128,6 @@ export function useVersionSSE(): UseVersionSSEReturn {
       }
     };
 
-    eventSource.addEventListener('connection_open', () => {
-      // Initial connection confirmation from backend
-      // No action needed - we already set isConnected in onopen
-    });
-
     eventSource.addEventListener('version', (event) => {
       try {
         const versionData: VersionEvent = JSON.parse(event.data);
@@ -174,7 +169,6 @@ export function useVersionSSE(): UseVersionSSEReturn {
     });
 
     // Note: We handle specific named events via addEventListener:
-    // - connection_open: Initial connection confirmation
     // - version: Version update notifications
     // - connection_close: Backend-initiated disconnection
     // The SSE Gateway sends comments (not named events) for connection health checks.
