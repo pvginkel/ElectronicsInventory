@@ -260,7 +260,8 @@ class ConnectionManager:
 
         except requests.RequestException as e:
             logger.error(
-                "Failed to send event to SSE Gateway",
+                "Failed to send event to SSE Gateway ",
+                exc_info=e,
                 extra={
                     "identifier": identifier,
                     "error": str(e),
