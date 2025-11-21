@@ -14,6 +14,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: 0,
   // Allow Playwright to manage worker count; per-worker services isolate test state.
+  // Exclude @slow tests by default unless INCLUDE_SLOW_TESTS=true
+  grep: process.env.INCLUDE_SLOW_TESTS ? undefined : /^(?!.*@slow)/,
   reporter: [
     ['list'],
     ['html', {

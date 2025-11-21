@@ -14,7 +14,7 @@
 import { test, expect } from '../../support/fixtures';
 import { waitForListLoading } from '../../support/helpers';
 
-test.describe('Parts - List Pagination', () => {
+test.describe('Parts - List Pagination @slow', () => {
   test('loads single page when parts count is under limit', async ({ page, testData, parts }) => {
     // Seed 50 parts (well under 1000 limit)
     // Note: dirty database may have existing parts, but total should still be < 1000

@@ -63,6 +63,9 @@ test('surfaces backend-driven deployment updates', async ({
       timeoutMs: 15000,
     });
 
+    // Allow React to process the baseline version state update before sending the new version
+    await page.waitForTimeout(200);
+
     const triggerResponse = await page.request.post(`${backendUrl}/api/testing/deployments/version`, {
       data: {
         request_id: requestId,

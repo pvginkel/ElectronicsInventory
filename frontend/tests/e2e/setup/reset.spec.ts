@@ -32,7 +32,9 @@ test('boxes list shows seeded inventory', async ({ boxes, testEvents }) => {
     expect(hasListEvent(events, 'parts.list', 'loading')).toBeTruthy();
     expect(hasListEvent(events, 'parts.list', 'ready')).toBeTruthy();
 
+    // Verify specific seeded part is present
     await expect(parts.cardByKey('ABCD')).toBeVisible();
-    await expect(parts.cardByDescription(/shift register/i)).toBeVisible();
+    // Verify at least one shift register is visible (there may be multiple)
+    await expect(parts.cardByDescription(/shift register/i).first()).toBeVisible();
   });
 });
