@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from app.config import Settings
 from app.services.ai_service import AIService
 from app.services.box_service import BoxService
+from app.services.connection_manager import ConnectionManager
 from app.services.dashboard_service import DashboardService
 from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
@@ -102,6 +103,14 @@ class ServiceContainer(containers.DeclarativeContainer):
         shutdown_coordinator=shutdown_coordinator,
     )
 
+    # ConnectionManager - Singleton for SSE Gateway token mapping
+    connection_manager = providers.Singleton(
+        ConnectionManager,
+        gateway_url=config.provided.SSE_GATEWAY_URL,
+        metrics_service=metrics_service,
+        http_timeout=2.0,  # Short timeout to avoid exceeding SSE Gateway's 5s callback timeout
+    )
+
     inventory_service = providers.Factory(
         InventoryService,
         db=db_session,
@@ -165,6 +174,7 @@ class ServiceContainer(containers.DeclarativeContainer):
         TaskService,
         metrics_service=metrics_service,
         shutdown_coordinator=shutdown_coordinator,
+        connection_manager=connection_manager,
         max_workers=config.provided.TASK_MAX_WORKERS,
         task_timeout=config.provided.TASK_TIMEOUT_SECONDS,
         cleanup_interval=config.provided.TASK_CLEANUP_INTERVAL_SECONDS
@@ -209,7 +219,8 @@ class ServiceContainer(containers.DeclarativeContainer):
     version_service = providers.Singleton(
         VersionService,
         settings=config,
-        shutdown_coordinator=shutdown_coordinator
+        shutdown_coordinator=shutdown_coordinator,
+        connection_manager=connection_manager
     )
 
     # Testing utilities - Singleton reset lock for concurrency control

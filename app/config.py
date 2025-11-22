@@ -173,6 +173,16 @@ class Settings(BaseSettings):
         description="SSE heartbeat interval in seconds (5 for development, 30 for production)"
     )
 
+    # SSE Gateway integration settings
+    SSE_GATEWAY_URL: str = Field(
+        default="http://localhost:3001",
+        description="SSE Gateway base URL for internal send endpoint"
+    )
+    SSE_CALLBACK_SECRET: str = Field(
+        default="",
+        description="Shared secret for authenticating SSE Gateway callbacks (required in production)"
+    )
+
     @model_validator(mode="after")
     def configure_environment_defaults(self) -> "Settings":
         """Apply environment-specific defaults after validation."""

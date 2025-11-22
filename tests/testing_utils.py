@@ -205,6 +205,18 @@ class StubMetricsService(MetricsServiceProtocol):
         """No-op active tasks recording."""
         pass
 
+    def record_sse_gateway_connection(self, service: str, action: str):
+        """No-op SSE Gateway connection recording."""
+        pass
+
+    def record_sse_gateway_event(self, service: str, status: str):
+        """No-op SSE Gateway event recording."""
+        pass
+
+    def record_sse_gateway_send_duration(self, service: str, duration: float):
+        """No-op SSE Gateway send duration recording."""
+        pass
+
     def shutdown(self) -> None:
         """Implementation of the shutdown sequence, also for use by unit tests."""
         pass
