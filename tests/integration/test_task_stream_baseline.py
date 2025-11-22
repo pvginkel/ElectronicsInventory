@@ -14,39 +14,6 @@ import pytest
 class TestTaskStreamBaseline:
     """Baseline integration tests for /api/tasks/<task_id>/stream endpoint."""
 
-    def test_connection_open_event_received_immediately(self, sse_server: str, sse_client_factory):
-        """Test that connection_open event is received immediately on connect."""
-        # Given a task that will run
-        import requests
-
-        # Create a task via testing API
-        resp = requests.post(
-            f"{sse_server}/api/testing/tasks/start",
-            json={
-                "task_type": "demo_task",
-                "params": {"steps": 2, "delay": 0.1}
-            },
-            timeout=5.0
-        )
-        assert resp.status_code == 200
-        task_id = resp.json()["task_id"]
-
-        # When connecting to SSE stream
-        client = sse_client_factory(f"/api/tasks/{task_id}/stream")
-        events = []
-
-        for event in client.connect(timeout=10.0):
-            events.append(event)
-            # Stop after collecting all events (connection_close signals end)
-            if event["event"] == "connection_close":
-                break
-
-        # Then connection_open is the first event
-        assert len(events) >= 1
-        assert events[0]["event"] == "connection_open"
-        assert events[0]["data"]["status"] == "connected"
-        # Note: correlation_id may or may not be present depending on request context
-
     def test_task_progress_events_received(self, sse_server: str, sse_client_factory):
         """Test that progress_update events are received during task execution."""
         # Given a task with multiple steps
@@ -214,9 +181,8 @@ class TestTaskStreamBaseline:
             if event["event"] == "connection_close":
                 break
 
-        # Then we receive connection_open, error, and connection_close events
-        assert len(events) >= 3
-        assert events[0]["event"] == "connection_open"
+        # Then we receive error and connection_close events
+        assert len(events) >= 2
 
         # Find error event
         error_events = [e for e in events if e["event"] == "error"]
@@ -274,7 +240,7 @@ class TestTaskStreamBaseline:
             assert "T" in hb["data"]["timestamp"]
 
     def test_event_ordering_is_correct(self, sse_server: str, sse_client_factory):
-        """Test that events arrive in correct order: connection_open -> progress -> completion -> close."""
+        """Test that events arrive in correct order: progress -> completion -> close."""
         # Given a task with multiple steps
         import requests
 
@@ -299,12 +265,8 @@ class TestTaskStreamBaseline:
                 break
 
         # Then events are in correct order
-        # First event: connection_open
-        assert events[0]["event"] == "connection_open"
-
-        # Middle events: task_event (progress updates and completion)
-        middle_events = events[1:-1]
-        task_events = [e for e in middle_events if e["event"] == "task_event"]
+        # First events: task_event (progress updates and completion)
+        task_events = [e for e in events[:-1] if e["event"] == "task_event"]
         assert len(task_events) >= 1, "Should have at least one task event"
 
         # Last event: connection_close

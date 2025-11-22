@@ -17,40 +17,6 @@ from tests.integration.sse_client_helper import SSEClient
 class TestSSEGatewayTasks:
     """Integration tests for /api/sse/tasks endpoint via SSE Gateway."""
 
-    def test_connection_open_event_received_on_connect(
-        self, sse_server: tuple[str, any], sse_gateway_server: str
-    ):
-        """Test that connection_open event is received when client connects to gateway."""
-        server_url, _ = sse_server
-        # Given a task that will run
-        # Create a task via testing API (Python backend)
-        resp = requests.post(
-            f"{server_url}/api/testing/tasks/start",
-            json={
-                "task_type": "demo_task",
-                "params": {"steps": 2, "delay": 0.1}
-            },
-            timeout=5.0
-        )
-        assert resp.status_code == 200
-        task_id = resp.json()["task_id"]
-
-        # When connecting to SSE Gateway endpoint
-        # Note: Gateway routes /api/sse/tasks to Python callback endpoint
-        client = SSEClient(f"{sse_gateway_server}/api/sse/tasks?task_id={task_id}", strict=True)
-        events = []
-
-        for event in client.connect(timeout=10.0):
-            events.append(event)
-            # Stop after collecting all events
-            if event["event"] == "connection_close":
-                break
-
-        # Then connection_open is the first event (sent by Python in callback response)
-        assert len(events) >= 1
-        assert events[0]["event"] == "connection_open"
-        assert events[0]["data"]["status"] == "connected"
-
     def test_task_progress_events_received_via_gateway(
         self, sse_server: tuple[str, any], sse_gateway_server: str
     ):
@@ -153,9 +119,8 @@ class TestSSEGatewayTasks:
             if event["event"] == "connection_close":
                 break
 
-        # Then we receive connection_open, error, and connection_close events
-        assert len(events) >= 3
-        assert events[0]["event"] == "connection_open"
+        # Then we receive error and connection_close events
+        assert len(events) >= 2
 
         # Find error event
         error_events = [e for e in events if e["event"] == "error"]
@@ -190,12 +155,11 @@ class TestSSEGatewayTasks:
         # Collect a few events then stop (simulating client disconnect)
         for event in client.connect(timeout=10.0):
             events.append(event)
-            if len(events) >= 2:  # connection_open + at least one event
+            if len(events) >= 1:  # At least one event
                 break
 
         # Then we received some events before disconnecting
         assert len(events) >= 1
-        assert events[0]["event"] == "connection_open"
 
         # Wait a moment for disconnect callback to be processed
         time.sleep(0.5)
@@ -228,8 +192,7 @@ class TestSSEGatewayTasks:
 
         # Start collecting events from first client in a generator
         gen1 = client1.connect(timeout=10.0)
-        events1.append(next(gen1))  # Get connection_open
-        assert events1[0]["event"] == "connection_open"
+        events1.append(next(gen1))  # Get first event
 
         # Wait briefly
         time.sleep(0.2)
@@ -245,8 +208,7 @@ class TestSSEGatewayTasks:
                 break
 
         # Then second client receives full event stream
-        assert len(events2) >= 2
-        assert events2[0]["event"] == "connection_open"
+        assert len(events2) >= 1
 
         # Validate second client received progress events
         task_events = [e for e in events2 if e["event"] == "task_event"]

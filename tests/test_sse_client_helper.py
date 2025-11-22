@@ -39,7 +39,7 @@ class TestSSEClient:
         """Test parsing a single SSE event."""
         # Given a simple SSE stream with one event
         sse_lines = self._create_sse_stream([
-            ("connection_open", {"status": "connected"})
+            ("task_event", {"event_type": "progress_update", "progress": 0.5})
         ])
         mock_response.iter_lines = Mock(return_value=iter(sse_lines))
 
@@ -50,14 +50,13 @@ class TestSSEClient:
 
         # Then we get one parsed event
         assert len(events) == 1
-        assert events[0]["event"] == "connection_open"
-        assert events[0]["data"] == {"status": "connected"}
+        assert events[0]["event"] == "task_event"
+        assert events[0]["data"] == {"event_type": "progress_update", "progress": 0.5}
 
     def test_parse_multiple_events(self, mock_response):
         """Test parsing multiple SSE events."""
         # Given a stream with multiple events
         sse_lines = self._create_sse_stream([
-            ("connection_open", {"status": "connected"}),
             ("task_event", {"event_type": "progress_update", "progress": 0.5}),
             ("task_event", {"event_type": "task_completed", "result": "done"}),
             ("connection_close", {"reason": "task_completed"})
@@ -70,18 +69,17 @@ class TestSSEClient:
             events = list(client.connect(timeout=5))
 
         # Then all events are parsed correctly
-        assert len(events) == 4
-        assert events[0]["event"] == "connection_open"
-        assert events[1]["event"] == "task_event"
-        assert events[1]["data"]["event_type"] == "progress_update"
-        assert events[2]["data"]["event_type"] == "task_completed"
-        assert events[3]["event"] == "connection_close"
+        assert len(events) == 3
+        assert events[0]["event"] == "task_event"
+        assert events[0]["data"]["event_type"] == "progress_update"
+        assert events[1]["data"]["event_type"] == "task_completed"
+        assert events[2]["event"] == "connection_close"
 
     def test_parse_event_with_correlation_id(self, mock_response):
         """Test that correlation_id is preserved in event data."""
         # Given an event with correlation_id
         sse_lines = self._create_sse_stream([
-            ("connection_open", {"status": "connected", "correlation_id": "test-123"})
+            ("task_event", {"event_type": "progress_update", "correlation_id": "test-123"})
         ])
         mock_response.iter_lines = Mock(return_value=iter(sse_lines))
 
@@ -247,8 +245,8 @@ class TestSSEClient:
         """Test graceful handling when connection closes mid-stream."""
         # Given a stream that ends without blank line after last event
         sse_lines = [
-            "event: connection_open",
-            "data: {\"status\": \"connected\"}",
+            "event: task_event",
+            "data: {\"event_type\": \"started\"}",
             "",
             "event: incomplete_event",
             "data: {\"partial\": \"data\"}"
@@ -263,7 +261,7 @@ class TestSSEClient:
 
         # Then both events are parsed (last event handled at stream end)
         assert len(events) == 2
-        assert events[0]["event"] == "connection_open"
+        assert events[0]["event"] == "task_event"
         assert events[1]["event"] == "incomplete_event"
         assert events[1]["data"] == {"partial": "data"}
 

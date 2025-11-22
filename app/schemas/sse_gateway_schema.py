@@ -44,15 +44,6 @@ class SSEGatewayEventData(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
 
-class SSEGatewayCallbackResponse(BaseModel):
-    """Response payload for SSE Gateway callbacks."""
-
-    event: SSEGatewayEventData | None = Field(None, description="Optional initial event to send")
-    close: bool = Field(default=False, description="Whether to close connection immediately")
-
-    model_config = ConfigDict(extra="ignore")
-
-
 class SSEGatewaySendRequest(BaseModel):
     """Request payload for sending events via SSE Gateway /internal/send."""
 

@@ -14,13 +14,19 @@ class TestSSECallbackAPI:
 
     @pytest.fixture
     def mock_task_service(self):
-        """Create mock TaskService."""
-        return Mock(spec=TaskService)
+        """Create mock TaskService with necessary methods."""
+        mock = Mock(spec=TaskService)
+        mock.on_connect = Mock()
+        mock.on_disconnect = Mock()
+        return mock
 
     @pytest.fixture
     def mock_version_service(self):
-        """Create mock VersionService."""
-        return Mock(spec=VersionService)
+        """Create mock VersionService with necessary methods."""
+        mock = Mock(spec=VersionService)
+        mock.on_connect = Mock()
+        mock.on_disconnect = Mock()
+        return mock
 
     @pytest.fixture
     def mock_connection_manager(self):
@@ -90,10 +96,10 @@ class TestSSECallbackAPI:
             # Verify TaskService.on_connect was NOT called
             mock_task_service.on_connect.assert_not_called()
 
-    def test_connect_callback_returns_connection_open_event(
+    def test_connect_callback_returns_empty_json(
         self, client, app, mock_task_service
     ):
-        """Test connect callback returns connection_open event."""
+        """Test connect callback returns empty JSON response."""
         payload = {
             "action": "connect",
             "token": "test-token",
@@ -110,9 +116,11 @@ class TestSSECallbackAPI:
 
             assert response.status_code == 200
             json_data = response.get_json()
-            assert "event" in json_data
-            assert json_data["event"]["name"] == "connection_open"
-            assert json_data["event"]["data"] == '{"status": "connected"}'
+            # SSE Gateway only checks status code, response body is empty
+            assert json_data == {}
+            # Ensure no connection_open event is present
+            assert "event" not in json_data
+            assert "connection_open" not in str(json_data)
 
     def test_disconnect_callback_routes_to_task_service(
         self, client, app, mock_task_service, mock_version_service

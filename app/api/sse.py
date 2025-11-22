@@ -9,10 +9,8 @@ from pydantic import ValidationError
 
 from app.config import Settings
 from app.schemas.sse_gateway_schema import (
-    SSEGatewayCallbackResponse,
     SSEGatewayConnectCallback,
     SSEGatewayDisconnectCallback,
-    SSEGatewayEventData,
 )
 from app.services.container import ServiceContainer
 from app.services.task_service import TaskService
@@ -156,15 +154,8 @@ def handle_callback(
             else:
                 return jsonify({"error": f"Unknown service type: {service_type}"}), 400
 
-            # Return connection_open event
-            response = SSEGatewayCallbackResponse(
-                event=SSEGatewayEventData(
-                    name="connection_open",
-                    data='{"status": "connected"}'
-                )
-            )
-            # Exclude None AND False values (SSE Gateway checks responseBody.close, false is falsy)
-            return jsonify(response.model_dump(exclude_none=True, exclude_defaults=True)), 200
+            # Return empty JSON response (SSE Gateway only checks status code)
+            return jsonify({}), 200
 
         elif action == "disconnect":
             # Validate as disconnect callback
