@@ -13,7 +13,13 @@ if (isTestMode()) {
 }
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+  (
+    import.meta.env.DEV || import.meta.env.VITE_TEST_MODE ? (
+      <StrictMode>
+        <App />
+      </StrictMode>
+    ) : (
+      <App />
+    )
+  )
 )
