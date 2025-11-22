@@ -85,9 +85,15 @@ export function useVersionSSE(): UseVersionSSEReturn {
     }
 
     const queryString = params.toString();
-    const url = queryString
-      ? `/api/sse/utils/version?${queryString}`
-      : '/api/sse/utils/version';
+
+    // In test mode, connect directly to SSE Gateway if URL is provided (bypasses Vite proxy)
+    // This avoids a Vite proxy issue where SSE reconnection after page reload fails
+    const gatewayUrl = import.meta.env.VITE_SSE_GATEWAY_URL;
+    const url = gatewayUrl && isTestMode()
+      ? `${gatewayUrl}/api/sse/utils/version${queryString ? `?${queryString}` : ''}`
+      : queryString
+        ? `/api/sse/utils/version?${queryString}`
+        : '/api/sse/utils/version';
 
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
@@ -181,7 +187,7 @@ export function useVersionSSE(): UseVersionSSEReturn {
         console.error('EventSource error:', event);
       }
       setIsConnected(false);
-      
+
       // Schedule reconnection with exponential backoff
       scheduleReconnect();
     };

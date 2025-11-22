@@ -3,6 +3,7 @@ import type { TestEvent } from '@/types/test-events';
 declare global {
   interface ImportMetaEnv {
     readonly VITE_TEST_MODE: 'true' | 'false';
+    readonly VITE_SSE_GATEWAY_URL: string;
   }
 }
 

@@ -141,6 +141,8 @@ export default defineConfig({
     'import.meta.env.VITE_TEST_MODE': process.env.NODE_ENV === 'production'
       ? JSON.stringify('false')
       : JSON.stringify(process.env.VITE_TEST_MODE || 'false'),
+    // Expose SSE Gateway URL for direct connection (bypasses Vite proxy)
+    'import.meta.env.VITE_SSE_GATEWAY_URL': JSON.stringify(process.env.SSE_GATEWAY_URL || ''),
   },
   build: {
     // Ensure test mode is disabled in production builds
