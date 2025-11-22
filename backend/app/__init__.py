@@ -62,7 +62,7 @@ def create_app(settings: "Settings | None" = None) -> App:
         'app.api.kits', 'app.api.pick_lists', 'app.api.kit_shopping_list_links', 'app.api.types', 'app.api.sellers', 'app.api.shopping_lists',
         'app.api.shopping_list_lines', 'app.api.documents', 'app.api.tasks',
         'app.api.dashboard', 'app.api.metrics', 'app.api.health', 'app.api.utils',
-        'app.api.testing'
+        'app.api.sse', 'app.api.testing'
     ]
 
     container.wire(modules=wire_modules)
@@ -110,6 +110,10 @@ def create_app(settings: "Settings | None" = None) -> App:
     # Always register testing blueprint (runtime check handles access control)
     from app.api.testing import testing_bp
     app.register_blueprint(testing_bp)
+
+    # Register SSE Gateway callback blueprint
+    from app.api.sse import sse_bp
+    app.register_blueprint(sse_bp)
 
     @app.teardown_request
     def close_session(exc: Exception | None) -> None:

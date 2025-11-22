@@ -4,94 +4,96 @@
 
 ### Research Areas
 
-**Current SSE Implementation (app/utils/sse_utils.py, app/api/tasks.py, app/api/utils.py)**
-- Flask's WSGI interface handles SSE connections directly in Python via generator functions
-- Two SSE endpoints exist: `/api/tasks/<task_id>/stream` for task progress, `/api/utils/version/stream` for version notifications
-- `TaskService` uses in-memory queues to buffer events for SSE subscribers
-- `VersionService` manages SSE subscriber lifecycle with in-memory queues and background cleanup
-- Both services implement heartbeat mechanisms (5s dev, 30s prod) to keep connections alive
-- SSE utilities (`format_sse_event`, `create_sse_response`) provide formatting and Response creation
+**Current SSE Implementation**
+- Examined `app/api/tasks.py:16-71` - Task stream endpoint using Python generators with `format_sse_event()` and `create_sse_response()`
+- Examined `app/api/utils.py:23-125` - Version stream endpoint with similar SSE generator pattern
+- Examined `app/services/task_service.py` - TaskService maintains `_event_queues: dict[str, Queue[TaskEvent]]` for per-task event delivery
+- Examined `app/services/version_service.py` - VersionService maintains `_subscribers: dict[str, Queue[VersionEvent]]` for per-request_id event delivery and `_pending_events` for events sent before connection
+- Both services use in-memory queues and thread-safe locks for event coordination
+- Current implementation: Flask generators hold threads during long-lived connections
 
-**Key Problems Identified**
-1. WSGI doesn't expose client disconnects → connections linger in Python until timeout
-2. Each SSE connection holds a Python thread → thread pool exhaustion risk
-3. Both TaskService and VersionService implement bespoke queue management and cleanup logic
-
-**SSE Gateway Architecture (from /work/ssegateway/README.md)**
+**SSE Gateway Architecture** (from `/work/ssegateway/README.md`)
 - Node.js sidecar that owns SSE connection lifecycle
-- Callback-based coordination: Python backend receives `connect`/`disconnect` callbacks via HTTP POST to `CALLBACK_URL`
-- **NEW: Immediate callback responses** - Python can send events or close connections directly in callback response body (optional)
-- Python sends events via `POST /internal/send` with connection token (alternative to callback response)
-- Universal path support: accepts SSE on any path, forwards full URL to backend for routing decisions
-- In-memory only, single-process design with immediate flushing
-- Backwards compatible: empty callback response body works as before
+- Callback-based pattern: `POST $CALLBACK_URL` with `{"action": "connect", "token": "...", "request": {"url": "...", "headers": {...}}}`
+- Python responds with 200 (accept) or non-2xx (reject), optionally including `{"event": {...}, "close": true}` in response body
+- Python sends events via `POST /internal/send` with `{"token": "...", "event": {...}, "close": true}`
+- Disconnect callback: `{"action": "disconnect", "reason": "...", "token": "...", "request": {...}}`
+- Heartbeats managed by SSE Gateway (configured via `HEARTBEAT_INTERVAL_SECONDS`)
 
-**Testing Infrastructure (scripts/testing-server.sh, tests/conftest.py)**
-- `testing-server.sh` starts Flask dev server for Playwright UI test suite
-- Script accepts `--port` flag to specify Flask port
-- No existing multi-process or sidecar orchestration in script
-- Pytest unit tests use in-memory SQLite with session-scoped template connection
+**Dependency Injection & Container** (from `app/services/container.py`)
+- ServiceContainer uses `dependency-injector` with Factory and Singleton providers
+- TaskService is Singleton (line 164-171) injected with `metrics_service` and `shutdown_coordinator`
+- VersionService is Singleton (line 209-213) injected with `settings` and `shutdown_coordinator`
+- API endpoints use `@inject` decorator with `Provide[ServiceContainer.service_name]`
 
-**Dependency Injection (app/services/container.py, app/__init__.py)**
-- ServiceContainer wires services to API modules via `dependency-injector`
-- TaskService and VersionService are singletons (in-memory state)
-- Container wired to 16 API modules including `app.api.tasks` and `app.api.utils`
+**Testing Infrastructure** (from `docs/features/sse_baseline_tests/plan.md`)
+- Existing SSE baseline tests use real Flask server with waitress in background thread
+- SSEClient helper in `tests/integration/sse_client_helper.py` for parsing SSE streams
+- Integration marker already defined in `pyproject.toml:107-116`
+- Tests in `tests/integration/test_task_stream_baseline.py` and `tests/integration/test_version_stream_baseline.py`
+
+**Metrics Infrastructure** (from `app/services/metrics_service.py`)
+- MetricsServiceProtocol defines abstract methods for recording metrics
+- Prometheus metrics use Counter, Gauge, Histogram from `prometheus_client`
+- Existing task metrics: `record_task_execution(task_type, duration, status)`
 
 ### Special Findings & Conflicts
 
-**1. No Backwards Compatibility Required**
-User explicitly stated: "Gut existing SSE implementation - No backwards compatibility needed." This simplifies the refactor significantly—no migration path, no dual support.
+**1. Three-Layer Delegation Architecture**
+The change brief specifies a three-layer delegation pattern:
+- Layer 1: Flask endpoint (`/api/sse/callback`) receives callbacks, routes to appropriate service via URL pattern matching
+- Layer 2: Service layer (TaskService/VersionService) extracts service-specific identifier, handles business logic
+- Layer 3: ConnectionManager maintains token mappings, handles lifecycle, provides event sending
 
-**2. Test Infrastructure Strategy**
-Testing approach clarified by user:
-- **Pytest unit tests**: No SSE Gateway; use mocks only for fast, isolated testing
-- **Playwright UI tests**: Real SSE Gateway managed by `testing-server.sh`
-- `testing-server.sh` encapsulates SSE Gateway lifecycle (frontend doesn't manage it)
-- Script needs new `--sse-gateway-port` flag for predictable port (Vite reverse proxy)
-- Script needs `--port` renamed to `--app-port` for clarity
-- Script needs new `--sse-gateway-path` argument and/or `SSE_GATEWAY_PATH` env var to specify location of SSE Gateway source (supports both)
-- Script runs `npm install && npm run build` in SSE Gateway path, then start/stop process
-- Script sets `CALLBACK_URL` env var pointing to Flask backend (for dev/test, secret parameter is optional: `/api/sse/callback` or `/api/sse/callback?secret=test-secret`)
+This architecture separates concerns: routing (API), business logic (Services), connection state (ConnectionManager).
 
-Frontend will configure Vite reverse proxy routes to SSE Gateway, but lifecycle management stays in `testing-server.sh`.
+**URL Routing Table:**
+- `/api/sse/tasks?task_id=*` → TaskService.on_connect() / on_disconnect()
+- `/api/sse/utils/version?request_id=*` → VersionService.on_connect() / on_disconnect()
+- All other paths → 400 Bad Request with error message
 
-**3. SSE Gateway Path Routing**
-SSE Gateway accepts connections on any path and forwards the raw URL to Python's callback endpoint. This means Python must parse the path (`/api/tasks/{id}/stream`, `/api/utils/version/stream`) from the callback payload and route to the correct handler (TaskService vs VersionService).
+Routing implemented via simple string prefix matching on `request["url"]` from callback payload.
 
-**4. Connection Lifecycle Coordination**
-Current services register/unregister subscribers synchronously. With SSE Gateway, lifecycle becomes:
-1. Client connects → SSE Gateway calls `POST /sse/callback` (action: connect)
-2. Python validates, returns 200/non-2xx
-3. Python sends events via `POST /internal/send` using the token
-4. Client disconnects → SSE Gateway calls `POST /sse/callback` (action: disconnect)
-5. App shutdown → SSE Gateway dies as sidecar (no explicit close events needed)
+**2. Service Identifier Extraction**
+- TaskService: Extract `task_id` from query parameter in callback request URL
+- VersionService: Extract `request_id` from query parameter in callback request URL
+- Services delegate to ConnectionManager with their own identifier; ConnectionManager maps identifier → gateway token
 
-This requires a new "SSE coordinator" to map incoming callback requests to TaskService/VersionService based on path.
+**3. Connection Replacement Strategy**
+Change brief specifies: "On reconnect with same service_identifier: ConnectionManager closes old gateway connection first, then registers new one"
+This ensures only one active connection per task_id/request_id, preventing duplicate event delivery.
 
-**5. Metrics Service Integration**
-Both TaskService and VersionService already integrate with MetricsService. New SSE metrics should track:
-- Active SSE connections (task streams only; version streams not tracked)
-- Callback success/failure rates
-- Event send success/failure rates
+**4. Connection Identifier Safety**
+Task IDs and request IDs in this codebase are UUIDs (e.g., "abc123-def456..."). ConnectionManager prefixes these with service type ("task:" or "version:") to create unique identifiers. Since UUIDs never contain colons, collision between "task:uuid" and "version:uuid" is impossible. Additionally, on_connect() methods will validate that extracted IDs don't contain colons as a defensive check.
 
-**6. VersionService Massive Simplification (SSE Gateway Feature Implemented)**
-SSE Gateway now supports **immediate callback responses** (git diff HEAD^ README.md shows the implementation). Python can include optional JSON body in callback response: `{"event": {...}, "close": true}`. This enables a radically simplified VersionService design:
+**4. Pending Events Queue**
+VersionService already implements pending events (`_pending_events: dict[str, list[VersionEvent]]`) for events sent before stream connects.
+This behavior must be preserved: when `queue_version_event()` is called before `on_connect()`, events are queued and delivered on connection.
 
-Key SSE Gateway implementation details:
-- Optional response body in connect callback: `{"event": {"name": "...", "data": "..."}, "close": true}`
-- Empty body or no body: connection proceeds normally (backwards compatible)
-- Invalid JSON: logged and ignored, connection proceeds (graceful degradation)
-- Both event + close: event sent first, then connection closes
-- Disconnect callback response bodies: logged at WARN level, cannot apply actions (connection already closing)
+**5. No Graceful Shutdown Integration**
+Change brief explicitly states: "Don't implement graceful shutdown. Assume the service shuts down with the app (it's a sidecar in Kubernetes). All clients will be disconnected anyway."
+Therefore, no shutdown coordinator integration for ConnectionManager; existing TaskService/VersionService shutdown logic remains unchanged.
 
-VersionService design enabled by this feature:
-- On connect callback: return `{"event": {"name": "version_info", "data": "{...}"}}` in response body, don't track connection
-- No subscriber management, no idle timeout, no background cleanup thread
-- Stateless service: just retrieve version info on demand
-- Connections stay open (SSE Gateway handles heartbeats), but Python ignores them
-- On redeploy: pod dies, SSE Gateway dies, connections close, clients reconnect and get new version automatically
+**6. Authentication via Query Parameter Secret**
+Change brief: "The callback endpoint needs to be authenticated. A secret will be passed in through a query string parameter called 'secret'. The value for this will be set in the SSE_CALLBACK_SECRET environment variable. It's only required in production mode."
+This is simple string matching, not JWT or complex auth. Service is not exposed to public internet.
 
-This eliminates ~90% of VersionService complexity.
+**7. No Retry on SSE Gateway Calls**
+Change brief: "Don't retry calls to the SSE Gateway. The service is a sidecar. It should be available always. Log failed calls as errors."
+This means HTTP calls to `/internal/send` fail fast; no exponential backoff or circuit breaker.
+
+**8. Internal Queueing Preserved**
+Change brief: "The TaskService and VersionService internal queueing (per task_id and request_id respectively) must be preserved."
+Existing `_event_queues` and `_subscribers` remain; ConnectionManager is additional layer for gateway token management only.
+
+**9. Baseline Tests as Foundation**
+The baseline tests in `tests/integration/test_task_stream_baseline.py` and `tests/integration/test_version_stream_baseline.py` capture current behavior.
+Integration tests with real SSE Gateway will reuse the same test structure but point to SSE Gateway endpoints instead of Python SSE endpoints.
+
+**10. Endpoint URL Changes**
+- Old: `GET /api/tasks/{task_id}/stream` → New: `GET /api/sse/tasks?task_id=?` (routed via SSE Gateway)
+- Old: `GET /api/utils/version/stream?request_id=?` → New: `GET /api/sse/utils/version?request_id=?` (routed via SSE Gateway)
+- Old endpoints will be removed entirely; no backwards compatibility.
 
 ---
 
@@ -99,884 +101,758 @@ This eliminates ~90% of VersionService complexity.
 
 **User intent**
 
-Replace the synchronous Python SSE implementation (which suffers from thread exhaustion and connection lingering) with SSE Gateway, a Node.js sidecar that owns connection lifecycle while Python handles business logic via HTTP callbacks. This refactor eliminates WSGI's disconnect-blindness and frees Python threads from blocking on long-lived connections.
+Migrate from Python-based SSE generators to SSE Gateway callback architecture to solve thread exhaustion and connection lingering issues. Implement three-layer delegation (Flask → Service → ConnectionManager) where services extract identifiers from callback URLs, delegate connection tracking to ConnectionManager, and send events via HTTP to SSE Gateway. Preserve existing event queueing and business logic while changing only the transport mechanism.
 
 **Prompt quotes**
 
-"Gut existing SSE implementation - No backwards compatibility needed"
-"WSGI interface doesn't expose disconnects, so connections linger"
-"Sync Python connections clog up the thread pool"
-"Python backend receives callbacks for connect/disconnect events"
-"Python sends events via POST /internal/send endpoint"
-"Easiest is maybe to tell the testing-server.sh script where the source code of the SSE Gateway is and have it start and stop it"
+"Replace the existing Python-based Server-Sent Events (SSE) implementation with SSE Gateway"
+"Three-layer delegation: Flask endpoint → Service layer → ConnectionManager"
+"Services extract their own identifier (task_id from query param, request_id from query param)"
+"ConnectionManager stores mapping: service_identifier → gateway_token"
+"Services never see gateway tokens; they only work with their own identifiers"
+"No backwards compatibility: A clean implementation of the new infrastructure is desired"
+"Unit tests and Integration tests MUST be delivered together with the implementation"
 
 **In scope**
 
-- Remove all existing SSE implementation code (app/utils/sse_utils.py, SSE endpoints in app/api/tasks.py and app/api/utils.py, SSE-related logic in TaskService and VersionService)
-- Create new SSE callback endpoint (`POST /api/sse/callback?secret={secret}`) that receives connect/disconnect notifications from SSE Gateway
-- Implement callback authentication via SSE_CALLBACK_SECRET env var (mandatory in production, optional in dev/test)
-- Implement SSE coordinator service to route callbacks to TaskService or VersionService based on URL path
-- Add HTTP client integration to send events to SSE Gateway's `/internal/send` endpoint
-- Refactor TaskService to send events via HTTP instead of generator queues
-- Refactor VersionService to send events via HTTP instead of generator queues
-- Update testing infrastructure (testing-server.sh) to start/stop SSE Gateway for Playwright UI tests
-- Add SSE Gateway configuration (CALLBACK_URL, SSE_GATEWAY_INTERNAL_URL, SSE_CALLBACK_SECRET) to Settings
-- Wire new SSE callback API to dependency injection container
-- Add comprehensive three-tier testing strategy:
-  - Tier 1: Pure unit tests with mocked SSEGatewayClient (fast, isolated)
-  - Tier 2: Simplified integration tests using `responses` library (validates contracts without complex test doubles)
-  - Tier 3: E2E tests with real SSE Gateway in Playwright (full stack validation; primary SSE flow validation)
+- Create ConnectionManager service for gateway token mapping and lifecycle management
+- Add `/api/sse/callback` endpoint for SSE Gateway connect/disconnect notifications
+- Refactor TaskService to use ConnectionManager and send events via HTTP POST to SSE Gateway
+- Refactor VersionService to use ConnectionManager and send events via HTTP POST to SSE Gateway
+- Remove old SSE endpoints: `GET /api/tasks/{task_id}/stream`, `GET /api/utils/version/stream`
+- Add SSE_CALLBACK_SECRET environment variable and authentication middleware
+- Add SSE_GATEWAY_URL environment variable for internal send endpoint
+- Create Pydantic schemas for SSE Gateway callback and send payloads
+- Unit tests with mocked SSE Gateway for all services
+- Integration tests with real SSE Gateway (building on baseline test infrastructure)
+- Prometheus metrics for SSE Gateway interactions (connect, disconnect, send events, errors)
 
 **Out of scope**
 
-- Backwards compatibility with old SSE endpoints (explicitly excluded)
-- Clustering or multi-instance SSE Gateway (single-process design per README)
-- SSE Gateway code changes (treat as external dependency)
-- Migration path for existing SSE clients (breaking change)
-- Persistent event storage (SSE Gateway is in-memory only)
+- Graceful shutdown integration for ConnectionManager (sidecar assumption)
+- Retry logic for SSE Gateway HTTP calls (fail fast)
+- Backwards compatibility with old SSE endpoints
+- Production deployment configuration (Kubernetes, reverse proxy setup)
+- Frontend changes (separate plan; URLs will change)
+- E2E tests with Playwright (third tier; separate from this plan)
 
 **Assumptions / constraints**
 
-- SSE Gateway runs as a sidecar accessible via HTTP (localhost in dev/test, network service in production)
-- SSE Gateway version is compatible with callback/send API described in README
-- Python backend has network access to SSE Gateway on port 3000 (configurable)
-- Test suite can spawn Node.js processes (npm/node available in Playwright environment)
-- SSE Gateway source path is configurable via `--sse-gateway-path` argument or `SSE_GATEWAY_PATH` env var (testing-server.sh supports both)
-- Connection tokens from SSE Gateway are unique and opaque (no schema assumptions)
-- Event ordering is preserved per-connection (SSE Gateway design principle)
-- SSE Gateway dies with Python app (sidecar pattern; no graceful close events needed on shutdown)
-- SSE_CALLBACK_SECRET env var is set in production (mandatory); optional in dev/test for ease of development
-- SSE Gateway CALLBACK_URL includes secret query parameter in production: `/api/sse/callback?secret={SSE_CALLBACK_SECRET}`
-- Helm chart configuration manages both SSE_CALLBACK_SECRET env var (for Python backend) and CALLBACK_URL env var (for SSE Gateway sidecar)
+- SSE Gateway is deployed as sidecar, always available on localhost
+- SSE_GATEWAY_URL points to SSE Gateway's internal send endpoint (e.g., `http://localhost:3000/internal/send`)
+- SSE_CALLBACK_SECRET is simple shared secret, not cryptographically signed
+- Callback authentication only required in production mode (`FLASK_ENV == "production"`)
+- TaskService and VersionService remain Singletons with in-memory state
+- Existing event queueing (`_event_queues`, `_subscribers`, `_pending_events`) preserved
+- Integration tests run SSE Gateway in background thread or subprocess
+- No schema changes; no database migrations
 
 ---
 
 ## 2) Affected Areas & File Map
 
-### Files to DELETE
+### Files to CREATE
 
-- Area: `app/utils/sse_utils.py`
-- Why: SSE formatting and response creation no longer needed (SSE Gateway handles formatting)
-- Evidence: `app/utils/sse_utils.py:10-47` — `format_sse_event()` and `create_sse_response()` only used by old SSE endpoints
+- Area: `app/services/connection_manager.py`
+- Why: Singleton service managing gateway token mappings (bidirectional), connection lifecycle, and event sending for both TaskService and VersionService; Singleton required because in-memory connection state must be shared across all service instances; uses RLock for thread safety
+- Evidence: Change brief specifies ConnectionManager as third layer handling token → identifier mapping and HTTP calls to SSE Gateway
 
-- Area: `app/api/tasks.py:14-69`
-- Why: Remove SSE streaming endpoint (`GET /tasks/<task_id>/stream`)
-- Evidence: `app/api/tasks.py:14-69` — `get_task_stream()` function generates SSE events via Python generator
+---
 
-- Area: `app/api/utils.py:20-122`
-- Why: Remove SSE streaming endpoint (`GET /utils/version/stream`)
-- Evidence: `app/api/utils.py:20-122` — `version_stream()` function generates SSE events with heartbeats
+- Area: `app/schemas/sse_gateway_schema.py`
+- Why: Pydantic schemas for SSE Gateway callback and send payloads (request/response validation)
+- Evidence: SSE Gateway README.md defines JSON payloads for `/callback` and `/internal/send`; need schemas for `@api.validate` decorator
+
+---
+
+- Area: `app/api/sse.py`
+- Why: New API module for SSE Gateway callback endpoint (`POST /api/sse/callback`)
+- Evidence: Change brief: "Add: POST /api/sse/callback (receives connect/disconnect notifications from SSE Gateway)"
+
+---
+
+- Area: `tests/test_connection_manager.py`
+- Why: Unit tests for ConnectionManager with mocked HTTP requests
+- Evidence: Testing requirements mandate unit tests for all new services; ConnectionManager HTTP calls must be mocked
+
+---
+
+- Area: `tests/integration/test_sse_gateway_tasks.py`
+- Why: Integration tests for task streaming with real SSE Gateway
+- Evidence: Change brief: "Integration tests with real SSE Gateway, HTTP-only validation (catches contract bugs)"; builds on baseline test infrastructure
+
+---
+
+- Area: `tests/integration/test_sse_gateway_version.py`
+- Why: Integration tests for version streaming with real SSE Gateway
+- Evidence: Same rationale as tasks; validates version stream endpoint with real gateway
+
+---
+
+- Area: `tests/integration/sse_gateway_helper.py`
+- Why: Test helper for starting/stopping SSE Gateway subprocess; polls /readyz with 500ms interval and 10-second total timeout; raises exception if not ready; graceful shutdown (5s SIGTERM, then SIGKILL); captures stdout/stderr for debugging on failure
+- Evidence: Integration tests need to run real SSE Gateway; helper manages lifecycle similar to `sse_server` fixture; explicit timeouts per plan review
+
+---
 
 ### Files to MODIFY
 
 - Area: `app/services/task_service.py`
-- Why: Replace event queue mechanism with HTTP calls to SSE Gateway
-- Evidence: `app/services/task_service.py:94` — `_event_queues: dict[str, Queue]` stores per-task queues; `app/services/task_service.py:212-249` — `get_task_events()` blocks on queue reads
+- Why: Replace `get_task_events()` generator pattern with ConnectionManager delegation; add `on_connect()` and `on_disconnect()` methods for callback handling; modify `_execute_task()` to send events via HTTP
+- Evidence: `app/services/task_service.py:212-249` — current `get_task_events()` returns list from queue; needs refactor to send via ConnectionManager
+
+---
 
 - Area: `app/services/version_service.py`
-- Why: Massively simplify to stateless design; remove all subscriber tracking, idle timeout, background cleanup; only return current version in connect callback response; ensure version data is JSON-serializable
-- Evidence: `app/services/version_service.py:30` — `_subscribers: dict[str, Queue[VersionEvent]]` stores queues (remove); user requirement: "respond with the version content and ignore the connection"; plan review: must return JSON-serializable dict (no datetime objects, use ISO strings)
+- Why: Add `on_connect()` and `on_disconnect()` methods for callback handling; modify `queue_version_event()` to send via ConnectionManager; preserve pending events logic
+- Evidence: `app/services/version_service.py:50-117` — current `register_subscriber()` and `queue_version_event()` use in-memory queues; needs HTTP send integration
 
-- Area: `app/config.py`
-- Why: Add SSE Gateway configuration (CALLBACK_URL for Gateway to call, SSE_GATEWAY_INTERNAL_URL for Python to send events, SSE_CALLBACK_SECRET for authentication)
-- Evidence: `app/config.py:171-174` — SSE_HEARTBEAT_INTERVAL already exists; need to add SSE Gateway URLs and callback secret (mandatory in production, optional in dev/test)
+---
+
+- Area: `app/api/tasks.py`
+- Why: Remove `get_task_stream()` endpoint (lines 16-71); old Python SSE endpoint no longer needed
+- Evidence: Change brief: "Remove: GET /api/tasks/{task_id}/stream (old Python SSE endpoint)"
+
+---
+
+- Area: `app/api/utils.py`
+- Why: Remove `version_stream()` endpoint (lines 23-125); old Python SSE endpoint no longer needed
+- Evidence: Change brief: "Remove: GET /api/utils/version/stream?request_id=? (old Python SSE endpoint)"
+
+---
 
 - Area: `app/services/container.py`
-- Why: Wire new SSE callback API and SSE client service to container
-- Evidence: `app/services/container.py:68` — `container.wire(modules=wire_modules)` must include new `app.api.sse_callback` module
+- Why: Add ConnectionManager as Singleton provider (Singleton because shared in-memory state required; same rationale as TaskService and VersionService); update TaskService and VersionService providers to inject ConnectionManager
+- Evidence: `app/services/container.py:164-213` — existing TaskService and VersionService providers; need ConnectionManager injection
+
+---
+
+- Area: `app/config.py`
+- Why: Add SSE_CALLBACK_SECRET and SSE_GATEWAY_URL environment variables
+- Evidence: Change brief specifies these config values; `app/config.py:18-175` shows existing settings pattern
+
+---
 
 - Area: `app/__init__.py`
-- Why: Add `app.api.sse_callback` to wire_modules list
-- Evidence: `app/__init__.py:60-66` — `wire_modules` list includes all API modules
+- Why: Wire `app.api.sse` module in container; ensure SSE blueprint is registered
+- Evidence: `app/__init__.py:60-68` — existing wire_modules list; need to add 'app.api.sse'
 
-- Area: `scripts/testing-server.sh`
-- Why: Start/stop SSE Gateway alongside Flask server for Playwright UI tests; add `--sse-gateway-port` flag; rename `--port` to `--app-port`; add `--sse-gateway-path` argument and `SSE_GATEWAY_PATH` env var support
-- Evidence: `scripts/testing-server.sh:1-88` — Currently only starts Flask; needs to spawn SSE Gateway process with configurable path and port
+---
 
 - Area: `tests/conftest.py`
-- Why: Add mock fixtures for SSEGatewayClient (unit tests don't run real SSE Gateway)
-- Evidence: `tests/conftest.py:80-100` — Session-scoped fixtures create app/db; similar pattern for mock SSEGatewayClient
+- Why: Add fixture for starting SSE Gateway in background for integration tests; reuse existing `sse_server` fixture pattern
+- Evidence: `tests/conftest.py` contains session-scoped fixtures; need `sse_gateway_server` fixture for integration tests
 
-### Files to CREATE
+---
 
-- Area: `app/api/sse_callback.py`
-- Why: New API endpoint to receive connect/disconnect callbacks from SSE Gateway
-- Evidence: User requirement "Backend needs to implement callback endpoint that SSE Gateway calls"
+- Area: `app/services/metrics_service.py`
+- Why: Add abstract methods to MetricsServiceProtocol for SSE Gateway metrics: `record_sse_gateway_connection(service: str, action: str)`, `record_sse_gateway_event(service: str, status: str)`, `record_sse_gateway_send_duration(service: str, duration: float)`; implement in MetricsService
+- Evidence: `app/services/metrics_service.py:20-150` — MetricsServiceProtocol defines abstract methods; need SSE Gateway-specific methods
 
-- Area: `app/services/sse_coordinator_service.py`
-- Why: Route callback requests to appropriate service (TaskService vs VersionService) based on URL path; track task stream connections; periodic cleanup of stale tokens
-- Evidence: SSE Gateway README shows path forwarding; need routing logic for `/api/tasks/{id}/stream` vs `/api/utils/version/stream`; background thread to sweep stale tokens every 10 minutes (prevent memory leak from lost disconnect callbacks)
+---
 
-- Area: `app/services/sse_gateway_client.py`
-- Why: HTTP client wrapper for calling SSE Gateway's `/internal/send` endpoint
-- Evidence: User requirement "Backend needs HTTP client to call SSE Gateway's /internal/send endpoint"
+- Area: `tests/test_task_service.py`
+- Why: Update unit tests to mock ConnectionManager HTTP calls; validate new callback handling methods
+- Evidence: Existing TaskService tests need updates for new ConnectionManager integration; validate `on_connect()` and `on_disconnect()`
 
-- Area: `app/schemas/sse_schema.py`
-- Why: Pydantic schemas for SSE Gateway callback payloads and callback responses
-- Evidence: SSE Gateway README shows callback/send JSON structures
-- Schemas to create:
-  - `SSECallbackRequestSchema` - incoming callback from SSE Gateway (action, token, request with url/headers, optional reason)
-  - `SSECallbackEventSchema` - event structure for callback response (name, data)
-  - `SSECallbackResponseSchema` - outgoing callback response (optional event, optional close flag)
-  - These schemas validate both incoming requests from SSE Gateway and outgoing responses from Python
+---
 
-- Area: `tests/api/test_sse_callback.py`
-- Why: Test callback endpoint with connect/disconnect scenarios
-- Evidence: Definition of done requires API tests for all endpoints
-
-- Area: `tests/test_sse_coordinator_service.py`
-- Why: Test routing logic from URL paths to services
-- Evidence: Definition of done requires service tests
-
-- Area: `tests/test_sse_gateway_client.py`
-- Why: Test HTTP client integration with SSE Gateway
-- Evidence: Definition of done requires service tests
-
-- Area: Frontend Playwright tests (out of scope for this plan)
-- Why: End-to-end SSE Gateway testing happens in Playwright UI tests, not pytest
-- Evidence: User clarification: "testing-server.sh is for the UI Playwright test suite"
+- Area: `tests/test_version_service.py`
+- Why: Update unit tests to mock ConnectionManager HTTP calls; validate callback handling and pending events
+- Evidence: Existing VersionService tests need updates for new ConnectionManager integration
 
 ---
 
 ## 3) Data Model / Contracts
 
-- Entity / contract: SSE callback request (connect action)
+- Entity / contract: SSE Gateway Connect Callback Request
 - Shape:
   ```json
   {
     "action": "connect",
     "token": "550e8400-e29b-41d4-a716-446655440000",
     "request": {
-      "url": "/api/tasks/abc123/stream",
+      "url": "/api/sse/tasks?task_id=abc123",
       "headers": {
         "user-agent": "curl/7.68.0",
-        "authorization": "Bearer ...",
-        ...
+        "accept": "text/event-stream"
       }
     }
   }
   ```
-  Callback URL includes secret in query string: `POST /api/sse/callback?secret={SSE_CALLBACK_SECRET}`
-- Refactor strategy: No back-compat; authentication required in production via SSE_CALLBACK_SECRET env var (optional in dev/test); secret passed as query parameter
-- Evidence: `/work/ssegateway/README.md:101-113` — connect callback payload structure; user requirement: "expect it in the callback query string"
+- Refactor strategy: New contract from SSE Gateway; no backwards compatibility needed
+- Evidence: SSE Gateway README.md lines 103-119 — connect callback payload structure
 
 ---
 
-- Entity / contract: SSE callback request (disconnect action)
+- Entity / contract: SSE Gateway Disconnect Callback Request
 - Shape:
   ```json
   {
     "action": "disconnect",
-    "reason": "client_closed" | "server_closed" | "error",
+    "reason": "client_closed",
     "token": "550e8400-e29b-41d4-a716-446655440000",
     "request": {
-      "url": "/api/tasks/abc123/stream",
-      "headers": { ... }
+      "url": "/api/sse/tasks?task_id=abc123",
+      "headers": {...}
     }
   }
   ```
-- Refactor strategy: No back-compat needed
-- Evidence: `/work/ssegateway/README.md:196-207` — disconnect callback with reason field
+- Refactor strategy: New contract; disconnect reasons: "client_closed", "server_closed", "error"
+- Evidence: SSE Gateway README.md lines 249-269 — disconnect callback payload
 
 ---
 
-- Entity / contract: SSE send request (Python → SSE Gateway)
+- Entity / contract: SSE Gateway Connect Callback Response
+- Shape:
+  ```json
+  {
+    "event": {
+      "name": "connection_open",
+      "data": "{\"status\": \"connected\"}"
+    }
+  }
+  ```
+  (Optional fields: `close: true` to immediately close connection)
+- Refactor strategy: Response body is optional; empty response or `{}` means accept connection
+- Evidence: SSE Gateway README.md lines 121-172 — callback response body format
+
+---
+
+- Entity / contract: SSE Gateway Send Request
 - Shape:
   ```json
   {
     "token": "550e8400-e29b-41d4-a716-446655440000",
     "event": {
       "name": "task_event",
-      "data": "{\"event_type\": \"progress_update\", ...}"
+      "data": "{\"event_type\": \"progress_update\", \"task_id\": \"abc123\", ...}"
     },
     "close": false
   }
   ```
-- Refactor strategy: Event data must be JSON string (SSE Gateway expects string, not dict)
-- Evidence: `/work/ssegateway/README.md:121-138` — send endpoint payload with event.data as string
+- Refactor strategy: New contract for sending events from Python to SSE Gateway
+- Evidence: SSE Gateway README.md lines 177-201 — /internal/send request payload
 
 ---
 
-- Entity / contract: SSE callback response (Python → SSE Gateway)
-- Shape:
-  ```
-  HTTP 200: connection accepted, SSE stream stays open
-  HTTP 40x/50x: connection rejected, SSE Gateway closes with same status
-
-  Optional JSON body (for immediate events/close):
-  {
-    "event": {
-      "name": "version_info",          // optional: SSE event name
-      "data": "{\"version\": \"1.2.3\"}"  // required if event present: event data as string
-    },
-    "close": true                      // optional: close connection after sending event
-  }
-
-  Empty body {} or no body: connection proceeds normally
-  Invalid JSON: logged and ignored, connection proceeds normally
-  Both event + close: event sent first, then connection closes
-  ```
-- Refactor strategy: Task streams return empty body (will send events later via `/internal/send`); version streams return `{"event": {...}}` in callback response body and ignore connection afterward; backwards compatible design
-- Evidence: `/work/ssegateway/README.md` git diff HEAD^ — new "Immediate Callback Responses" feature; "Optional response body" section lines 121-167; "Backwards compatible: Existing Python backends work unchanged"
-
----
-
-- Entity / contract: Connection tracking state (in-memory, task streams only)
+- Entity / contract: ConnectionManager Token Mapping (in-memory, bidirectional)
 - Shape:
   ```python
-  {
-    "token": str,
-    "url": str,
-    "service_type": "task",  # Only task streams tracked; version streams ignored
-    "resource_id": str,  # task_id
-    "headers": dict[str, str]
+  # Forward mapping: identifier → connection info
+  _connections: dict[str, dict] = {
+    "task:abc123": {
+      "token": "550e8400-e29b-41d4-a716-446655440000",
+      "url": "/api/sse/tasks?task_id=abc123"
+    }
+  }
+
+  # Reverse mapping: token → identifier (for disconnect callback)
+  _token_to_identifier: dict[str, str] = {
+    "550e8400-e29b-41d4-a716-446655440000": "task:abc123"
   }
   ```
-- Refactor strategy: New state structure in SSECoordinatorService for task streams only; version streams respond with initial message and don't track connection; replaces queue-based tracking
-- Evidence: `app/services/task_service.py:94` — current `_event_queues` dict; user requirement: "When the connect callback is called [for version], respond with the version content and ignore the connection. Don't track it, don't close it, just ignore it."
+- Refactor strategy: No persistence; bidirectional in-memory dicts with thread-safe RLock; both mappings updated atomically within lock; reverse mapping enables O(1) lookup on disconnect when only token is known
+- Evidence: Change brief: "ConnectionManager stores mapping: service_identifier → gateway_token"; disconnect callback provides only token
+
+---
+
+- Entity / contract: Config Environment Variables
+- Shape:
+  ```python
+  SSE_CALLBACK_SECRET: str = ""  # Required in production
+  SSE_GATEWAY_URL: str = "http://localhost:3000"  # SSE Gateway base URL
+  ```
+- Refactor strategy: Add to Settings class; SSE_CALLBACK_SECRET empty string in dev/test, required in production
+- Evidence: Change brief lines 83; app/config.py pattern for environment variables
 
 ---
 
 ## 4) API / Integration Surface
 
-- Surface: `POST /api/sse/callback?secret={secret}`
-- Inputs: Query parameter `secret` (required in production, optional in dev/test); JSON body with `action` ("connect"/"disconnect"), `token`, `request` (url, headers), optional `reason`
-- Outputs:
-  - HTTP 200 (accept connection); optional JSON body: `{"event": {"name": "...", "data": "..."}, "close": true}`
-    - Empty body or no body: connection proceeds normally (task streams)
-    - Body with `event`: immediate event sent to client (version streams)
-    - Body with `close: true`: connection closes after event (optional)
-    - Invalid JSON: logged by SSE Gateway, ignored, connection proceeds
-  - HTTP 401 (unauthorized - secret mismatch or missing in production)
-  - HTTP 404 (resource not found)
-  - HTTP 400 (invalid payload)
-- Errors: 401 if secret missing/incorrect in production; 400 if action unknown or payload malformed; 404 if URL doesn't match known SSE pattern; 500 on internal routing failure
-- Evidence: `/work/ssegateway/README.md` git diff HEAD^ — "Optional response body" section; "Backwards compatible"; invalid JSON logged and ignored
+- Surface: `POST /api/sse/callback`
+- Inputs: JSON body with `action` ("connect" or "disconnect"), `token`, `request` object; query param `secret` (if production mode)
+- Outputs: 200 with optional `{"event": {...}, "close": true}` on connect; 200 empty on disconnect; 401 if secret mismatch; 400 if invalid payload
+- Errors: 401 Unauthorized if secret doesn't match (production only); 400 Bad Request if action unknown or payload invalid; 500 on service errors
+- Evidence: SSE Gateway README.md callback specification; change brief authentication requirement
 
 ---
 
-- Surface: `POST {SSE_GATEWAY_INTERNAL_URL}/internal/send` (called by Python)
-- Inputs: JSON with `token`, optional `event` (name, data), optional `close` flag
-- Outputs: HTTP 200 (success), HTTP 404 (unknown token), HTTP 400 (invalid request)
-- Errors: 404 if connection already closed; 400 if payload malformed; network errors if SSE Gateway unreachable
-- Evidence: `/work/ssegateway/README.md:119-144` — send endpoint on SSE Gateway; Python must call this
+- Surface: `POST http://localhost:3000/internal/send` (SSE Gateway internal endpoint, called by Python)
+- Inputs: JSON body with `token`, optional `event` object, optional `close` boolean
+- Outputs: 200 on success; 404 if token unknown (connection not found); 400 if invalid request
+- Errors: 404 means connection already closed or never existed; 400 for malformed JSON or missing required fields
+- Evidence: SSE Gateway README.md lines 175-238 — /internal/send specification
 
 ---
 
-- Surface: `DELETE /api/tasks/<task_id>/stream` (REMOVED)
-- Inputs: N/A
+- Surface: `GET /api/sse/tasks?task_id=<id>` (served by SSE Gateway, not Python; mentioned for completeness)
+- Inputs: Query parameter `task_id`
+- Outputs: SSE stream with events; SSE Gateway calls Python callback on connect
+- Errors: Non-2xx from Python callback results in immediate connection close
+- Evidence: Change brief: "Add: GET /api/sse/tasks?task_id=? (new SSE endpoint via SSE Gateway)"
+
+---
+
+- Surface: `GET /api/sse/utils/version?request_id=<id>` (served by SSE Gateway, not Python; mentioned for completeness)
+- Inputs: Query parameter `request_id`
+- Outputs: SSE stream with version events; SSE Gateway calls Python callback on connect
+- Errors: Non-2xx from Python callback results in immediate connection close
+- Evidence: Change brief: "Add: GET /api/sse/utils/version?request_id=? (new SSE endpoint via SSE Gateway)"
+
+---
+
+- Surface: Remove `GET /api/tasks/{task_id}/stream`
+- Inputs: N/A (endpoint removed)
 - Outputs: N/A
-- Errors: Endpoint no longer exists; clients must connect to SSE Gateway directly on same path
-- Evidence: `app/api/tasks.py:14` — old SSE endpoint route; will be deleted
+- Errors: N/A
+- Evidence: Change brief: "Remove: GET /api/tasks/{task_id}/stream (old Python SSE endpoint)"; app/api/tasks.py:16-71
 
 ---
 
-- Surface: `DELETE /api/utils/version/stream` (REMOVED)
-- Inputs: N/A
+- Surface: Remove `GET /api/utils/version/stream`
+- Inputs: N/A (endpoint removed)
 - Outputs: N/A
-- Errors: Endpoint no longer exists; clients must connect to SSE Gateway directly on same path
-- Evidence: `app/api/utils.py:20` — old SSE endpoint route; will be deleted
-
----
-
-- Surface: HTTP client calls from TaskService/VersionService to SSE Gateway
-- Inputs: Connection token, event name/data, close flag
-- Outputs: Success/failure of event send
-- Errors: Network timeouts, SSE Gateway down, token expired/unknown
-- Evidence: User requirement "Python sends events via POST /internal/send endpoint"
+- Errors: N/A
+- Evidence: Change brief: "Remove: GET /api/utils/version/stream?request_id=? (old Python SSE endpoint)"; app/api/utils.py:23-125
 
 ---
 
 ## 5) Algorithms & State Machines (step-by-step)
 
-- Flow: SSE connection establishment (client connects via SSE Gateway)
+- Flow: SSE Gateway Connect Callback Handling (Tasks)
 - Steps:
-  1. Client sends `GET /api/tasks/{task_id}/stream` to SSE Gateway
+  1. SSE Gateway receives client connection at `GET /api/sse/tasks?task_id=abc123`
   2. SSE Gateway generates unique token (UUID)
-  3. SSE Gateway calls `POST /api/sse/callback?secret={SSE_CALLBACK_SECRET}` with action="connect", token, url="/api/tasks/{task_id}/stream"
-  4. Python callback endpoint validates secret (return 401 if missing/incorrect in production; optional in dev/test)
-  5. Python callback endpoint parses URL, extracts task_id
-  6. SSECoordinatorService routes to TaskService based on path pattern
-  7. TaskService validates task_id exists (call `get_task_status`)
-  8. If task not found, return HTTP 404 → SSE Gateway closes connection with 404
-  9. If task exists, TaskService stores (token → task_id) mapping, return HTTP 200
-  10. SSE Gateway keeps connection open, sends initial SSE headers to client
-  11. TaskService sends "connection_open" event via SSEGatewayClient
-- States / transitions: Connection state: PENDING (before callback) → AUTHENTICATED (secret valid) → ACCEPTED (200 response) | REJECTED (401/404/non-200 response)
-- Hotspots: Callback latency must be <100ms to avoid SSE Gateway timeout; task_id validation requires DB query; constant-time secret comparison to prevent timing attacks
-- Evidence: `/work/ssegateway/README.md:88-115` — connection flow; `app/api/tasks.py:32` — current task validation logic; user requirement for authentication
+  3. SSE Gateway POSTs to `http://localhost:8000/api/sse/callback?secret=<SECRET>` with `{"action": "connect", "token": "...", "request": {"url": "/api/sse/tasks?task_id=abc123", ...}}`
+  4. Flask endpoint validates secret (if production), parses payload
+  5. Flask endpoint extracts URL from callback payload: checks if `request["url"].startswith("/api/sse/tasks")` → route to TaskService; else if `startswith("/api/sse/utils/version")` → route to VersionService; else 400 Bad Request
+  6. Flask endpoint calls `task_service.on_connect(callback_request)`
+  7. TaskService extracts `task_id` from `request.url` query parameters; validates it doesn't contain colon (defensive check)
+  8. TaskService calls `connection_manager.on_connect("task:abc123", token, url)` (prefixed identifier)
+  9. ConnectionManager acquires lock, checks if identifier already exists; if yes, closes old connection via `POST /internal/send` with `close: true`, removes old reverse mapping
+  10. ConnectionManager stores forward mapping `_connections["task:abc123"] = {"token": "...", "url": "..."}` AND reverse mapping `_token_to_identifier[token] = "task:abc123"` atomically within lock
+  11. TaskService returns success; Flask returns 200 with `{"event": {"name": "connection_open", "data": "{\"status\": \"connected\"}"}}`
+  12. SSE Gateway sends connection_open event to client
+- States / transitions: Connection: NONE → REGISTERED; Old connection: REGISTERED → CLOSING → NONE (if replacement)
+- Hotspots: ConnectionManager lock contention on concurrent connects; HTTP POST to SSE Gateway on old connection close
+- Evidence: SSE Gateway README.md connect flow; change brief three-layer delegation pattern
 
 ---
 
-- Flow: Sending task progress events
+- Flow: Task Event Sending (via SSE Gateway)
 - Steps:
-  1. Background task executes, calls `progress_handle.send_progress(text, value)`
-  2. TaskProgressHandle constructs event payload (dict)
-  3. TaskProgressHandle looks up connection token from task_id
-  4. TaskProgressHandle calls `SSEGatewayClient.send_event(token, event_name, event_data)`
-  5. SSEGatewayClient JSON-encodes event_data (converts dict to string)
-  6. SSEGatewayClient POSTs to `/internal/send` with token, event name, data
-  7. SSE Gateway formats as SSE event and writes to client connection
-  8. On network error or 404, TaskProgressHandle logs warning and continues (best-effort)
-- States / transitions: No state machine; fire-and-forget event delivery
-- Hotspots: Event send must not block task execution; use short timeout (1-2s) and fire-and-forget on failure
-- Evidence: `app/services/task_service.py:52-64` — current `_send_progress_event()` queues events; new version HTTP POSTs
+  1. Background task executes and generates progress event
+  2. TaskService receives event via `_event_queues[task_id].put_nowait(event)`
+  3. TaskService sends event to all connected clients: calls `connection_manager.send_event("task:abc123", event_data)`
+  4. ConnectionManager looks up token for "task:abc123"
+  5. If no token (no connection), log warning and return (event dropped)
+  6. ConnectionManager formats event as `{"token": "...", "event": {"name": "task_event", "data": json.dumps(event_data)}}`
+  7. ConnectionManager POSTs to `SSE_GATEWAY_URL/internal/send`
+  8. If POST fails, log error; do not retry
+  9. If POST returns 404, connection is gone; remove mapping
+  10. If POST returns 200, event sent successfully
+  11. If final event (task_completed/task_failed), send with `close: true`
+- States / transitions: Task: RUNNING → COMPLETED; Connection: OPEN → (event sent) → OPEN or CLOSED (if final event)
+- Hotspots: HTTP POST latency to SSE Gateway; no retries means events can be lost on transient failures
+- Evidence: app/services/task_service.py:251-343 — task execution and event generation; change brief no-retry policy
 
 ---
 
-- Flow: Version stream connection (simplified, stateless)
+- Flow: SSE Gateway Disconnect Callback Handling
 - Steps:
-  1. Client sends `GET /api/utils/version/stream` to SSE Gateway
-  2. SSE Gateway generates unique token (UUID)
-  3. SSE Gateway calls `POST /api/sse/callback?secret={SSE_CALLBACK_SECRET}` with action="connect", token, url="/api/utils/version/stream"
-  4. Python callback endpoint validates secret, routes to VersionService
-  5. VersionService retrieves current version info (no connection tracking)
-  6. Callback handler returns HTTP 200 with JSON body: `{"event": {"name": "version_info", "data": "{...}"}}`
-  7. SSE Gateway receives callback response, immediately sends event to client
-  8. Connection stays open indefinitely (SSE Gateway handles heartbeats)
-  9. No further events sent; Python backend ignores this connection completely
-  10. When app redeploys, pod dies, SSE Gateway dies, connections close
-  11. Client reconnects, callback handler returns current version, client sees new version
-- States / transitions: No state tracking; stateless request-response for version info
-- Hotspots: Version retrieval must be fast (<10ms); callback response body must be valid JSON (invalid JSON logged by SSE Gateway, connection proceeds but no event sent)
-- Evidence: User requirement: "respond with the version content and ignore the connection"; SSE Gateway README git diff HEAD^ — "Optional response body" with event field; "If both event and close are present: Event is sent first, then connection closes"
+  1. Client disconnects or SSE Gateway closes connection
+  2. SSE Gateway POSTs to callback with `{"action": "disconnect", "reason": "client_closed", "token": "...", "request": {...}}`
+  3. Flask endpoint parses payload, extracts URL from callback, routes via prefix matching (same logic as connect)
+  4. Flask endpoint calls `task_service.on_disconnect(callback_request)` or `version_service.on_disconnect(callback_request)`
+  5. Service calls `connection_manager.on_disconnect(token)` (no identifier extraction needed; disconnect provides token only)
+  6. ConnectionManager acquires lock, looks up identifier via reverse mapping `_token_to_identifier.get(token)`
+  7. If token not found, log debug (expected for stale disconnects after replacement) and return
+  8. ConnectionManager verifies token matches current forward mapping `_connections[identifier]["token"]`; if mismatch, log debug (stale disconnect) and return
+  9. ConnectionManager removes both forward mapping `_connections[identifier]` and reverse mapping `_token_to_identifier[token]`
+  10. Service performs any cleanup (e.g., log disconnect reason); Flask returns 200 (empty body)
+- States / transitions: Connection: REGISTERED → NONE
+- Hotspots: Race condition if disconnect callback arrives during connection replacement; lock ensures sequential processing; stale disconnect callbacks ignored via token verification
+- Evidence: SSE Gateway README.md disconnect callback; change brief disconnect handling; review finding on disconnect race
 
 ---
 
-- Flow: SSE connection disconnect
+- Flow: Version Event Queueing with Pending Events
 - Steps:
-  1. Client closes connection OR Python sends close=true (via `/internal/send` or callback response) OR SSE Gateway detects write error
-  2. SSE Gateway calls `POST /api/sse/callback` with action="disconnect", token, reason ("client_closed", "server_closed", or "error")
-  3. Python callback endpoint routes to SSECoordinatorService
-  4. SSECoordinatorService looks up token (only task streams tracked; version streams ignored)
-  5. If task stream: remove (token → task_id) mapping, perform cleanup
-  6. If version stream or unknown token: no-op (idempotent)
-  7. Return HTTP 200 to acknowledge disconnect (response body ignored; any event/close in response logged at WARN level by SSE Gateway)
-- States / transitions: Task stream: ACTIVE → DISCONNECTED; Version stream: no state (connections ignored)
-- Hotspots: Disconnect callbacks fire asynchronously; cleanup must be idempotent (may receive duplicate disconnect or disconnect for untracked version stream); disconnect callback response bodies cannot apply actions (connection already closing)
-- Evidence: SSE Gateway README git diff HEAD^ — "Disconnect Reasons" includes server_closed via callback response; "Disconnect callbacks can also include a response body...but these are informational only and cannot be applied...logged at WARN level"
+  1. Testing endpoint calls `version_service.queue_version_event("request_id_123", version, changelog)`
+  2. VersionService checks if connection exists: `connection_manager.has_connection("version:request_id_123")`
+  3. If connection exists, VersionService calls `connection_manager.send_event("version:request_id_123", event_data)`
+  4. ConnectionManager sends event via HTTP POST to SSE Gateway
+  5. If no connection, VersionService stores event in `_pending_events["request_id_123"].append(("version", payload))`
+  6. When `on_connect()` is called later, VersionService retrieves pending events and sends all via ConnectionManager
+  7. Pending events sent in order; `_pending_events` cleared after delivery
+- States / transitions: Event: PENDING → SENT; Connection: NONE → CONNECTED (pending events flushed on connect)
+- Hotspots: Race between `queue_version_event()` and `on_connect()`; lock ensures pending events are properly queued or sent
+- Evidence: app/services/version_service.py:82-117 — existing pending events logic; must preserve behavior
 
 ---
 
-- Flow: Graceful shutdown with active SSE connections
-- Steps:
-  1. ShutdownCoordinator triggers PREPARE_SHUTDOWN event
-  2. SSECoordinatorService sets shutdown flag, stops accepting new connection callbacks
-  3. SSECoordinatorService clears all connection mappings
-  4. (SSE Gateway dies as sidecar; no need to send close events)
-- States / transitions: Service state: RUNNING → STOPPED (no draining phase needed)
-- Hotspots: No complexity; SSE Gateway shutdown is handled externally (sidecar dies with app)
-- Evidence: User clarification: "SSE Gateway will die also"; sidecar pattern means coordinated shutdown
+## 6) Derived State & Invariants (stacked bullets)
+
+- Derived value: Active connection count per service
+  - Source: Unfiltered mappings in ConnectionManager; count of entries with matching prefix ("task:" or "version:")
+  - Writes / cleanup: No persistent writes; Prometheus gauge updated on connect/disconnect
+  - Guards: Lock-protected reads; metric updates in callback handlers
+  - Invariant: Active connection count >= 0; only one connection per service identifier
+  - Evidence: Metrics for observability; change brief one connection per identifier
 
 ---
 
-## 6) Derived State & Invariants
-
-- Derived value: Active SSE connection count by type (task only; version not tracked)
-  - Source: Unfiltered set of (token → task_id) mappings in SSECoordinatorService; version streams not tracked
-  - Writes / cleanup: Incremented on task connect, decremented on task disconnect; version streams not counted (ignored after initial response)
-  - Guards: Thread-safe access via RLock; cleanup on disconnect callback for task streams
-  - Invariant: Task count never negative; count drops to zero on shutdown; version count always zero (not tracked)
-  - Evidence: `app/services/metrics_service.py` — existing metrics infrastructure; new metric: `sse_connections_active{type="task"}` (no version type since not tracked)
+- Derived value: Gateway token to service identifier reverse mapping
+  - Source: ConnectionManager mappings; needed for disconnect callback when only token is known
+  - Writes / cleanup: In-memory dict; no persistence; cleared on disconnect
+  - Guards: Lock-protected; updated atomically with forward mapping
+  - Invariant: Reverse mapping always mirrors forward mapping; no orphaned tokens
+  - Evidence: Disconnect callback provides token but not identifier; need reverse lookup
 
 ---
 
-- Derived value: Connection token → task_id mapping (task streams only)
-  - Source: Unfiltered callback connect events for task streams (token from SSE Gateway, task_id from URL parsing); version streams not tracked
-  - Writes / cleanup: Write on task connect callback; delete on task disconnect callback; flush all on shutdown; version stream connects/disconnects ignored
-  - Guards: Lock-protected dict; disconnect must be idempotent (handle duplicate disconnect or version stream disconnect)
-  - Invariant: Token uniqueness enforced by SSE Gateway; no token reuse; mapping cleared on SHUTDOWN event; version tokens never stored
-  - Evidence: `app/services/task_service.py:94` — current `_event_queues` dict pattern; new pattern stores (token → task_id); user requirement: version streams ignored
-
----
-
-- Derived value: Event send success/failure rate
-  - Source: Unfiltered HTTP responses from SSE Gateway `/internal/send` endpoint
-  - Writes / cleanup: Metrics counter incremented on each send attempt; labels: status (success/failure), type (task/version)
-  - Guards: Best-effort event send with timeout; failures logged but don't block task execution
-  - Invariant: Failure rate <5% under normal operation; >50% failure indicates SSE Gateway down
-  - Evidence: `app/services/metrics_service.py` — counter pattern; new metric: `sse_events_sent_total{status, type}`
+- Derived value: Pending version events queue
+  - Source: Filtered events for request_id where no connection exists yet (VersionService)
+  - Writes / cleanup: Stored in `_pending_events` dict; flushed on `on_connect()`; no persistent cleanup needed
+  - Guards: Lock-protected; events sent in order; cleared after successful delivery
+  - Invariant: Pending events delivered on first connection; no duplicates; order preserved
+  - Evidence: app/services/version_service.py:82-117 — existing pending events logic; must preserve
 
 ---
 
 ## 7) Consistency, Transactions & Concurrency
 
-- Transaction scope: No database transactions for SSE operations (in-memory state only)
-- Atomic requirements: Connect callback validation (task exists) must read from DB session but not write; disconnect cleanup is in-memory only
-- Retry / idempotency: Disconnect callbacks are idempotent (removing missing token is no-op); event sends are fire-and-forget (no retries)
-- Ordering / concurrency controls: RLock protects connection mapping dict; event sends from multiple threads are serialized per-connection by SSE Gateway
-- Evidence: `app/services/version_service.py:29` — `_lock = threading.RLock()` pattern; new SSECoordinatorService follows same
+- Transaction scope: No database transactions; all state is in-memory
+- Atomic requirements: ConnectionManager mapping updates (forward + reverse) must be atomic; lock ensures consistency
+- Retry / idempotency: No retries on SSE Gateway HTTP calls; events may be lost on transient failures; idempotency not guaranteed
+- Ordering / concurrency controls: ConnectionManager uses `threading.RLock()` for all mapping updates; TaskService and VersionService existing locks preserved
+- Evidence: Change brief no-retry policy; in-memory state means no transaction boundaries
 
 ---
 
 ## 8) Errors & Edge Cases
 
-- Failure: SSE Gateway unreachable during event send
-- Surface: TaskService or VersionService (when sending events)
-- Handling: Log warning, continue task execution; no retry; connection will timeout naturally
-- Guardrails: HTTP client timeout (2s); metrics counter for send failures; alert if failure rate >10%
-- Evidence: `app/services/task_service.py:59-64` — current queue.put handles failures gracefully; new HTTP client must do same
+- Failure: SSE Gateway callback secret mismatch
+- Surface: `POST /api/sse/callback`
+- Handling: Return 401 Unauthorized; log warning; reject connection
+- Guardrails: Secret validation only in production mode; dev/test skip check
+- Evidence: Change brief authentication requirement; app/config.py:177-183 — environment-based behavior
 
 ---
 
-- Failure: Connect callback receives URL for nonexistent task
-- Surface: Callback endpoint (`POST /api/sse/callback`)
-- Handling: Return HTTP 404; SSE Gateway closes connection with same status
-- Guardrails: TaskService.get_task_status() check before accepting connection
-- Evidence: `app/api/tasks.py:32-37` — current task existence check; must move to callback handler
+- Failure: SSE Gateway callback with unknown action
+- Surface: `POST /api/sse/callback`
+- Handling: Return 400 Bad Request with error message; log error
+- Guardrails: Schema validation with Pydantic; only "connect" and "disconnect" allowed
+- Evidence: SSE Gateway callback specification; defensive programming
 
 ---
 
-- Failure: Disconnect callback arrives before connect callback completes
-- Surface: SSECoordinatorService
-- Handling: Disconnect for unknown token is logged and ignored (idempotent no-op)
-- Guardrails: Token lookup returns None gracefully; metrics counter for orphaned disconnects
-- Evidence: Race condition possible if network delays vary; coordinator must handle
+- Failure: POST to `/internal/send` returns 404 (connection gone)
+- Surface: ConnectionManager `send_event()` method
+- Handling: Log warning; remove stale mapping; event dropped
+- Guardrails: No retry; clean up stale state
+- Evidence: SSE Gateway README.md /internal/send responses; change brief no-retry policy
 
 ---
 
-- Failure: Callback endpoint receives malformed JSON (request body)
-- Surface: Callback endpoint (`POST /api/sse/callback`)
-- Handling: Return HTTP 400; log error with request body for debugging
-- Guardrails: Pydantic schema validation; @handle_api_errors decorator converts ValidationError to 400
-- Evidence: `app/utils/error_handling.py` — standard error handling pattern
+- Failure: POST to `/internal/send` fails (timeout, connection refused)
+- Surface: ConnectionManager `send_event()` method
+- Handling: Log error with exception details; event dropped; no retry
+- Guardrails: Requests library timeout (e.g., 5s); catch all exceptions
+- Evidence: Change brief: "Don't retry calls to the SSE Gateway. Log failed calls as errors."
 
 ---
 
-- Failure: Callback response body contains invalid JSON or malformed structure
-- Surface: Callback endpoint (`POST /api/sse/callback`) response body
-- Handling: SSE Gateway logs error and ignores response body; connection proceeds normally (backwards compatible behavior)
-- Guardrails: SSE Gateway validates response JSON; Python should still send valid JSON but failures are graceful
-- Evidence: SSE Gateway README git diff HEAD^ — "Invalid JSON or malformed structures: Logged and ignored, connection proceeds normally"
+- Failure: Task ID or request ID extraction fails from callback URL, or contains invalid characters
+- Surface: TaskService/VersionService `on_connect()` method
+- Handling: If missing or contains colon, log error and return non-2xx response (SSE Gateway closes connection immediately)
+- Guardrails: URL query parameter parsing with error handling; validate ID doesn't contain colon (ensures identifier prefix safety)
+- Evidence: Defensive programming; UUIDs don't contain colons but validate explicitly per plan review
 
 ---
 
-- Failure: Callback authentication failure (secret missing or incorrect)
-- Surface: Callback endpoint (`POST /api/sse/callback?secret={secret}`)
-- Handling: Return HTTP 401 in production (mandatory); log warning with IP address; in dev/test, accept missing secret
-- Guardrails: SSE_CALLBACK_SECRET env var validated on startup (must be set in production); use `secrets.compare_digest()` for constant-time secret comparison (prevents timing attacks)
-- Evidence: User requirement: "mandatory in production and optional in dev/test"; plan review: must use `secrets.compare_digest()` to prevent character-by-character brute-force attacks
+- Failure: Connection replacement race condition
+- Surface: ConnectionManager `on_connect()` with same identifier
+- Handling: Lock ensures sequential processing; old connection closed before new one registered
+- Guardrails: `threading.RLock()` serializes updates; no partial state
+- Evidence: Change brief: "On reconnect with same service_identifier: ConnectionManager closes old gateway connection first"
 
 ---
 
-- Failure: SSE Gateway dies mid-connection
-- Surface: TaskService/VersionService (event sends start failing)
-- Handling: Log send failures; task execution continues; client connections drop; reconnect on client side
-- Guardrails: No recovery action in Python; SSE Gateway restart handled by orchestration (k8s, systemd)
-- Evidence: SSE Gateway README states in-memory only; no persistence to recover from
+- Failure: Disconnect callback arrives after new connection established (stale token)
+- Surface: ConnectionManager `on_disconnect()` method
+- Handling: Look up identifier via reverse mapping; verify token matches current forward mapping; if mismatch, log debug (expected behavior) and ignore (don't remove current connection)
+- Guardrails: Token verification prevents closing wrong connection; debug-level logging (not warning) for expected stale disconnects
+- Evidence: Race condition handling; token acts as generation marker; connection replacement closes old connection explicitly but disconnect callback may still arrive
 
 ---
 
-- Failure: Python backend shutdown while SSE connections active
-- Surface: ShutdownCoordinator, SSECoordinatorService
-- Handling: Set shutdown flag to reject new connections; clear mappings; SSE Gateway dies as sidecar (no close events needed)
-- Guardrails: Simple shutdown notification handler; metrics track active connections at shutdown
-- Evidence: User clarification: "SSE Gateway will die also"; sidecar pattern simplifies shutdown
+- Failure: Pending version events accumulate without connection
+- Surface: VersionService `queue_version_event()` method
+- Handling: Events stored indefinitely until connection; no max queue size (current behavior)
+- Guardrails: None (existing behavior preserved); potential memory leak if connection never established
+- Evidence: app/services/version_service.py:114-116 — pending events appended without limit
 
 ---
 
 ## 9) Observability / Telemetry
 
-- Signal: `sse_connections_active`
-- Type: Gauge
-- Trigger: Updated on connect/disconnect callbacks from SSECoordinatorService
-- Labels / fields: `type` (task, version)
-- Consumer: Grafana dashboard; alert if task connections >100 (thread exhaustion risk indicator)
-- Evidence: `app/services/metrics_service.py` — gauge pattern for active metrics
+- Signal: `sse_gateway_connections_total`
+- Type: Counter with labels `{service, action}` (service=task|version, action=connect|disconnect)
+- Trigger: Incremented on each connect/disconnect callback received
+- Labels / fields: service (task/version), action (connect/disconnect)
+- Consumer: Prometheus dashboard; alert on high disconnect rate
+- Evidence: Metrics for connection lifecycle tracking
 
 ---
 
-- Signal: `sse_events_sent_total`
-- Type: Counter
-- Trigger: Incremented on each HTTP POST to SSE Gateway `/internal/send`
-- Labels / fields: `status` (success, failure), `type` (task, version)
-- Consumer: Grafana dashboard; alert if failure rate >10%
-- Evidence: `app/services/metrics_service.py` — counter pattern for operation totals
+- Signal: `sse_gateway_events_sent_total`
+- Type: Counter with labels `{service, status}` (status=success|error)
+- Trigger: Incremented after each `/internal/send` POST attempt
+- Labels / fields: service (task/version), status (success=2xx, error=non-2xx or exception)
+- Consumer: Prometheus; alert on high error rate
+- Evidence: Metrics for event delivery success/failure tracking
 
 ---
 
-- Signal: `sse_callback_requests_total`
-- Type: Counter
-- Trigger: Incremented on each callback request received at `/api/sse/callback`
-- Labels / fields: `action` (connect, disconnect), `status` (accepted, rejected), `type` (task, version)
-- Consumer: Grafana dashboard; track connection churn rate
-- Evidence: `app/services/metrics_service.py` — HTTP request metrics pattern
+- Signal: `sse_gateway_send_duration_seconds`
+- Type: Histogram with label `{service}`
+- Trigger: Recorded on each `/internal/send` POST call (success or failure)
+- Labels / fields: service (task/version)
+- Consumer: Prometheus; latency monitoring
+- Evidence: Performance monitoring for HTTP calls to SSE Gateway
 
 ---
 
-- Signal: `sse_gateway_client_errors_total`
-- Type: Counter
-- Trigger: Incremented on HTTP client errors (timeout, connection refused, 404 from SSE Gateway)
-- Labels / fields: `error_type` (timeout, connection_error, not_found, bad_request)
-- Consumer: Grafana dashboard; alert if error rate spikes (SSE Gateway health indicator)
-- Evidence: `app/services/metrics_service.py` — error counter pattern
+- Signal: `sse_gateway_active_connections`
+- Type: Gauge with label `{service}`
+- Trigger: Updated on connect (increment) and disconnect (decrement)
+- Labels / fields: service (task/version)
+- Consumer: Prometheus dashboard; current connection count
+- Evidence: Operational visibility into active SSE connections
 
 ---
 
-- Signal: Structured log on connect/disconnect
-- Type: Structured log (JSON)
-- Trigger: Each callback request processed
-- Labels / fields: `action`, `token`, `url`, `status_code`, `duration_ms`, `auth_failed` (true if 401)
-- Consumer: Log aggregation (ELK, Loki); debug connection lifecycle issues
-- Evidence: `app/services/version_service.py:68-80` — existing debug logs for subscriber lifecycle
-
----
-
-- Signal: `sse_callback_auth_failures_total`
-- Type: Counter
-- Trigger: Incremented on authentication failure (401 response from callback endpoint)
-- Labels / fields: `reason` (missing_secret, invalid_secret)
-- Consumer: Security monitoring; alert on auth failure spikes (potential spoofing attempts)
-- Evidence: User requirement for callback authentication; security telemetry pattern
-
----
-
-- Signal: `sse_callback_immediate_events_total`
-- Type: Counter
-- Trigger: Incremented when callback response includes event in response body (immediate events)
-- Labels / fields: `type` (task, version), `status` (success, invalid_json)
-- Consumer: Monitor version stream usage; track invalid JSON responses that SSE Gateway ignores
-- Evidence: SSE Gateway immediate callback response feature; useful to track usage and errors
+- Signal: Connection lifecycle logs
+- Type: Structured log (INFO level)
+- Trigger: Each connect/disconnect callback, event send, error
+- Labels / fields: service_identifier, gateway_token, action, status, error_message
+- Consumer: Log aggregation (CloudWatch, Splunk); debugging
+- Evidence: Debugging and audit trail for connection lifecycle
 
 ---
 
 ## 10) Background Work & Shutdown
 
-- Worker / job: SSECoordinatorService background cleanup thread
-- Trigger cadence: Every 10 minutes (sweeps stale task stream tokens)
-- Responsibilities: Remove task stream tokens that haven't received disconnect callback due to network failures or lost messages; uses last-seen timestamp to identify stale connections (e.g., >30 minutes old)
-- Shutdown handling: PREPARE_SHUTDOWN stops cleanup thread, sets flag to reject new connections; SHUTDOWN clears all mappings; no need to send close events (SSE Gateway dies as sidecar)
-- Evidence: Risk identified in plan review — lost disconnect callbacks cause unbounded memory growth; background cleanup prevents leak; similar pattern to `app/services/version_service.py:141-175`
-
----
-
-- Worker / job: SSE Gateway sidecar process (managed by testing-server.sh for Playwright tests)
-- Trigger cadence: Startup-only (start with Flask, stop when Flask stops)
-- Responsibilities: Manage SSE connections, forward callbacks, accept event sends; pytest unit tests don't run SSE Gateway (mocks only)
-- Shutdown handling: SIGTERM to SSE Gateway process; 5s timeout before SIGKILL
-- Evidence: User clarification: "testing-server.sh is for the UI Playwright test suite"; needs --sse-gateway-port flag and --port renamed to --app-port; `/work/ssegateway/README.md:84-87` — health endpoints
+- Worker / job: No new background workers
+- Trigger cadence: N/A
+- Responsibilities: N/A
+- Shutdown handling: Change brief explicitly excludes graceful shutdown; ConnectionManager has no shutdown integration
+- Evidence: Change brief: "Don't implement graceful shutdown. Assume the service shuts down with the app (it's a sidecar in Kubernetes)."
 
 ---
 
 ## 11) Security & Permissions
 
-- Concern: Callback endpoint authentication (prevent unauthorized SSE Gateway spoofing)
-- Touchpoints: `POST /api/sse/callback?secret={secret}` endpoint
-- Mitigation: Shared secret via SSE_CALLBACK_SECRET env var; secret passed in callback URL query string; mandatory in production, optional in dev/test; use `secrets.compare_digest()` for constant-time comparison (prevents timing attacks that could brute-force secret character-by-character)
-- Residual risk: Secret could leak via logs or network capture; acceptable for hobby project (use HTTPS in production); localhost binding in dev/test provides additional protection
-- Evidence: User requirement: "create an environment variable...expect it in the callback query string...mandatory in production and optional in dev/test"; plan review: timing attacks without constant-time comparison
-
----
-
-- Concern: DoS via connection flood
-- Touchpoints: SSE Gateway connection handling, callback endpoint
-- Mitigation: Not addressed (out of scope); app is not designed to be DoS-resistant; this change doesn't exacerbate existing vulnerabilities
-- Residual risk: Connection floods can exhaust resources; acceptable for hobby project
-- Evidence: User clarification: "I'm not worried about this. The app is very much not resilient against DoS attacks. This change doesn't exacerbate the issue."
+- Concern: Callback endpoint authentication (prevent unauthorized SSE Gateway callbacks)
+- Touchpoints: `POST /api/sse/callback` endpoint
+- Mitigation: Query parameter `secret` validated against `SSE_CALLBACK_SECRET`; 401 if mismatch; only enforced in production mode
+- Residual risk: Query parameter visible in logs; acceptable because service not exposed to public internet (internal sidecar communication)
+- Evidence: Change brief lines 83; simple shared secret for internal service communication
 
 ---
 
 ## 12) UX / UI Impact
 
-- Entry point: Frontend clients connecting to SSE streams
-- Change: SSE connections routed through reverse proxies (Vite in dev, NGINX in production) to SSE Gateway; backend no longer serves SSE directly
-- User interaction: No change from user perspective; same SSE event stream; same event names/data; URLs stay the same (e.g., `/api/tasks/{id}/stream`)
-- Dependencies: Vite dev config and NGINX production config must add reverse proxy routes to SSE Gateway; testing-server.sh manages SSE Gateway lifecycle with predictable port
-- Evidence: User clarification: "This will all be managed through reverse proxies, both in Vite and in NGINX in production"; SSE Gateway README architecture diagram
+- Entry point: No direct UX impact; backend-only change
+- Change: Frontend SSE endpoint URLs will change from `/api/tasks/{task_id}/stream` to `/api/sse/tasks?task_id=<id>` (routed via reverse proxy to SSE Gateway)
+- User interaction: No change; SSE streams work identically from user perspective
+- Dependencies: Frontend must update SSE connection URLs; reverse proxy must route `/api/sse/*` to SSE Gateway instead of Python backend
+- Evidence: Change brief endpoint changes; deployment requirements
 
 ---
 
-## 13) Deterministic Test Plan
+## 13) Deterministic Test Plan (new/changed behavior only)
 
-**Three-Tier Testing Strategy**
+### ConnectionManager Service (tests/test_connection_manager.py)
 
-To validate SSE Gateway integration without requiring Node.js in all test scenarios, we use a three-tier approach:
-
-1. **Tier 1: Pure unit tests (mocked)** - Fast, isolated tests with fully mocked SSEGatewayClient; no HTTP calls
-2. **Tier 2: Simplified integration tests** - Lightweight tests using standard pytest fixtures and `responses` library; validates basic contract shapes without complex test doubles
-3. **Tier 3: End-to-end with real SSE Gateway (Playwright only)** - Full-stack UI tests with actual SSE Gateway sidecar; provides comprehensive validation of SSE flows
-
-**Tier 2: Simplified Integration Testing Approach**
-
-User clarification: "I fully believe that this functionality is sufficiently tested using the Playwright test suite. A simpler approach for unit testing I believe is acceptable."
-
-Instead of building a complex FakeSSEGateway test double, use simpler pytest patterns:
-
-**For callback endpoint testing:**
-- Direct function calls to callback endpoint (not HTTP)
-- Mock SSECoordinatorService and underlying services
-- Validate Pydantic schema serialization/deserialization
-
-**For SSEGatewayClient testing:**
-- Use `responses` library to mock HTTP responses from `/internal/send` endpoint
-- Test request format, error handling, timeouts
-- No need for full HTTP server
-
-**Benefits:**
-- Simpler implementation (~50 lines vs ~400 lines)
-- Faster test execution (no HTTP server threads)
-- Adequate coverage for unit-level contract validation
-- Full SSE flow validation happens in Playwright (Tier 3)
-
-Example pattern:
-```python
-import responses
-
-def test_sse_gateway_client_send_event():
-    """Test SSEGatewayClient sends correct JSON to /internal/send"""
-
-    @responses.activate
-    def run_test():
-        responses.add(
-            responses.POST,
-            "http://localhost:3000/internal/send",
-            json={},
-            status=200
-        )
-
-        client = SSEGatewayClient("http://localhost:3000")
-        result = client.send_event("token123", "progress", {"value": 50})
-
-        assert result is True
-        assert len(responses.calls) == 1
-        assert responses.calls[0].request.json() == {
-            "token": "token123",
-            "event": {"name": "progress", "data": '{"value": 50}'}
-        }
-
-    run_test()
-```
-
-**Test Coverage by Tier:**
-
----
-
-### Tier 1: Pure Unit Tests (Mocked SSEGatewayClient)
-
-- Surface: `POST /api/sse/callback?secret={secret}` (callback endpoint with mocked services)
-- Tier: **Unit test** (mocked TaskService, VersionService)
+- Surface: ConnectionManager class with mocked HTTP requests
 - Scenarios:
-  - Given SSE Gateway connects with valid task_id and correct secret, When callback action=connect, Then return 200 and store token mapping (no response body)
-  - Given SSE Gateway connects with nonexistent task_id, When callback action=connect, Then return 404
-  - Given valid task connection token, When callback action=disconnect, Then return 200 and remove token mapping
-  - Given unknown token, When callback action=disconnect, Then return 200 (idempotent)
-  - Given malformed JSON payload, When callback received, Then return 400
-  - Given SSE Gateway connects to version stream, When callback action=connect, Then return 200 with JSON body containing initial version event (no tracking)
-  - Given version stream disconnect, When callback action=disconnect, Then return 200 (no-op; not tracked)
-  - Given shutdown initiated, When callback action=connect, Then return 503 (service unavailable)
-  - Given production mode with missing secret, When callback received, Then return 401
-  - Given production mode with incorrect secret, When callback received, Then return 401
-  - Given dev/test mode with missing secret, When callback received, Then return 200 (authentication optional)
-- Fixtures / hooks: Mock TaskService.get_task_status, Mock VersionService.get_version_info, SSECoordinatorService in container, Pydantic schema validation, SSE_CALLBACK_SECRET env var fixture
-- Gaps: Real SSE Gateway integration deferred to Playwright tests
-- Evidence: `tests/api/test_tasks.py` — API test pattern; new tests in `tests/api/test_sse_callback.py`
+  - Given no existing connection, When `on_connect("task:abc", token, url)` called, Then store mapping and return success
+  - Given existing connection for same identifier, When `on_connect("task:abc", new_token, url)` called, Then POST close to old token, store new mapping
+  - Given active connection, When `send_event("task:abc", event)` called, Then POST to /internal/send with token and event data; return success
+  - Given no connection for identifier, When `send_event("task:xyz", event)` called, Then log warning and return failure (no POST)
+  - Given POST to /internal/send returns 404, When `send_event()` called, Then remove stale mapping and log warning
+  - Given POST to /internal/send raises exception, When `send_event()` called, Then log error and return failure (no retry)
+  - Given active connection, When `on_disconnect("task:abc", token)` called with matching token, Then remove mapping
+  - Given disconnect with mismatched token, When `on_disconnect("task:abc", wrong_token)` called, Then log warning and ignore (keep existing mapping)
+  - Given concurrent connects for same identifier, When multiple threads call `on_connect()`, Then lock ensures sequential processing (no race)
+  - Given connection exists, When `has_connection("task:abc")` called, Then return True; else return False
+- Fixtures / hooks: Mock `requests.post()` with configurable responses; mock metrics_service; threading tests for concurrency
+- Gaps: None; comprehensive unit coverage
+- Evidence: Core service for gateway integration; must validate all error paths and concurrency
 
 ---
 
-- Surface: SSECoordinatorService (routing and connection management)
-- Tier: **Unit test** (pure service logic, mocked dependencies)
+### SSE Callback API (tests/test_sse_api.py or integrated in service tests)
+
+- Surface: `POST /api/sse/callback` endpoint
 - Scenarios:
-  - Given URL "/api/tasks/abc/stream", When route_callback called, Then return (TaskService, "abc") and store token mapping
-  - Given URL "/api/utils/version/stream", When route_callback called, Then return (VersionService, None) with initial message response body (no token tracking)
-  - Given URL "/unknown", When route_callback called, Then raise InvalidOperationException
-  - Given task stream token stored, When lookup_connection called, Then return ("task", task_id)
-  - Given version stream token or unknown token, When lookup_connection called, Then return None (version not tracked)
-  - Given task disconnect, When handle_disconnect called, Then remove token mapping
-  - Given version disconnect, When handle_disconnect called, Then no-op (not tracked)
-  - Given shutdown initiated, When connect callback received, Then reject connection (return HTTP 503)
-- Fixtures / hooks: SSECoordinatorService instance, mock TaskService/VersionService
-- Gaps: None
-- Evidence: `tests/test_task_service.py` — service test pattern; user requirement for version stream simplification
+  - Given valid connect callback for task, When POST with correct secret, Then call task_service.on_connect() and return 200 with connection_open event
+  - Given valid connect callback for version, When POST with correct secret, Then call version_service.on_connect() and return 200 with connection_open event
+  - Given production mode, When POST with missing or wrong secret, Then return 401 Unauthorized
+  - Given dev/test mode, When POST without secret, Then accept and process normally
+  - Given disconnect callback, When POST with valid payload, Then call service.on_disconnect() and return 200
+  - Given unknown URL pattern, When connect callback with unrecognized path, Then return 400 Bad Request
+  - Given invalid JSON payload, When POST with malformed body, Then return 400 Bad Request
+  - Given unknown action, When POST with action="foo", Then return 400 Bad Request
+- Fixtures / hooks: Flask test client; mock task_service and version_service; environment variable injection for secret
+- Gaps: None; validates endpoint routing and authentication
+- Evidence: Primary entry point for SSE Gateway callbacks; must validate all routing and error cases
 
 ---
 
-- Surface: SSEGatewayClient (HTTP client for /internal/send)
-- Tier: **Unit test** (mocked HTTP requests library)
+### TaskService Refactoring (tests/test_task_service.py updates)
+
+- Surface: TaskService `on_connect()`, `on_disconnect()`, and refactored event sending
 - Scenarios:
-  - Given valid token, When send_event called, Then POST to /internal/send with correct JSON
-  - Given SSE Gateway returns 200, When send_event called, Then return True
-  - Given SSE Gateway returns 404, When send_event called, Then return False and log warning
-  - Given SSE Gateway unreachable, When send_event called, Then return False after timeout
-  - Given close=True, When send_event called, Then include close field in payload
-  - Given event_data is dict, When send_event called, Then JSON-encode to string
-- Fixtures / hooks: Mock requests library, SSEGatewayClient with test config
-- Gaps: None
-- Evidence: HTTP client test pattern (requests library usage)
+  - Given task stream callback URL, When `on_connect(callback_request)` called, Then extract task_id from query param, call connection_manager.on_connect(), return success
+  - Given invalid callback URL (no task_id), When `on_connect()` called, Then log error and return error response
+  - Given task completes, When task_completed event generated, Then send event via connection_manager with close=True
+  - Given connection_manager.send_event() fails, When sending progress event, Then log error but continue task execution (don't fail task)
+  - Given disconnect callback, When `on_disconnect(callback_request)` called, Then extract task_id, call connection_manager.on_disconnect(), log disconnect
+  - Given no connection for task, When sending event, Then connection_manager logs warning (event dropped)
+- Fixtures / hooks: Mock ConnectionManager; existing task fixtures; validate existing tests still pass with new architecture
+- Gaps: None; ensures TaskService correctly integrates ConnectionManager
+- Evidence: TaskService core refactor; must validate callback handling and event sending
 
 ---
 
-- Surface: TaskService (refactored event sending)
-- Tier: **Unit test** (mocked SSEGatewayClient)
+### VersionService Refactoring (tests/test_version_service.py updates)
+
+- Surface: VersionService `on_connect()`, `on_disconnect()`, and refactored event queueing
 - Scenarios:
-  - Given task running, When progress_handle.send_progress called, Then send event via SSEGatewayClient
-  - Given task completed, When task finishes, Then send task_completed event and close connection
-  - Given task failed, When exception raised, Then send task_failed event
-  - Given SSE Gateway unreachable, When send_event fails, Then log warning and continue task
-  - Given shutdown initiated, When new task start requested, Then raise InvalidOperationException
-  - Given shutdown initiated, When send_event called, Then reject (no need to send close events; SSE Gateway dies as sidecar)
-- Fixtures / hooks: Mock SSEGatewayClient, TaskService with test config, DemoTask
-- Gaps: None
-- Evidence: `tests/test_task_service.py:17-315` — existing TaskService tests; refactor for HTTP client
+  - Given version stream callback URL, When `on_connect(callback_request)` called, Then extract request_id, call connection_manager.on_connect(), flush pending events, return success
+  - Given pending events exist, When `on_connect()` called, Then send all pending events via connection_manager in order, clear pending queue
+  - Given no connection, When `queue_version_event()` called, Then add event to pending queue (existing behavior)
+  - Given active connection, When `queue_version_event()` called, Then send event via connection_manager immediately
+  - Given disconnect callback, When `on_disconnect()` called, Then extract request_id, call connection_manager.on_disconnect()
+  - Given connection_manager.send_event() fails, When sending version event, Then log error but preserve pending events
+- Fixtures / hooks: Mock ConnectionManager; validate pending events logic preserved; test race between queue_version_event and on_connect
+- Gaps: None; ensures VersionService pending events logic still works
+- Evidence: VersionService pending events are critical feature; must validate preservation
 
 ---
 
-- Surface: VersionService (massively simplified, stateless)
-- Tier: **Unit test** (pure function, no mocks needed)
+### Integration Tests with Real SSE Gateway (tests/integration/test_sse_gateway_tasks.py)
+
+- Surface: Task streaming end-to-end with real SSE Gateway subprocess
 - Scenarios:
-  - Given version service initialized, When get_version_info called, Then return current version dict
-  - Given callback coordinator routes to VersionService, When handle_connect called, Then return version event data (no tracking)
-  - Given disconnect callback for version stream, When handle_disconnect called, Then return success (no-op; connections not tracked)
-  - Given shutdown initiated, When get_version_info called, Then still return version (stateless service)
-- Fixtures / hooks: VersionService instance (no mocks needed; fully stateless)
-- Gaps: No idle timeout, no subscriber tracking, no cleanup thread, no event queueing (all removed per user requirement)
-- Evidence: User requirement: "respond with the version content and ignore the connection. Don't track it, don't close it, just ignore it."
-
----
-
-### Tier 2: Simplified Integration Tests
-
-- Surface: SSEGatewayClient HTTP request format
-- Tier: **Integration test** (mocked HTTP with `responses` library)
-- Scenarios:
-  - Given valid token and event, When send_event called, Then POST to /internal/send with correct JSON structure
-  - Given SSE Gateway returns 404, When send_event called, Then return False and log warning
-  - Given SSE Gateway timeout, When send_event called, Then return False after timeout
-  - Given event data as dict, When send_event called, Then JSON-encode data field to string
-  - Given close=True, When send_event called, Then include close field in request body
-- Fixtures / hooks: `responses` library to mock HTTP endpoint (add as dev dependency: `poetry add --group dev responses`), SSEGatewayClient with test config
-- Gaps: None; validates request format without real HTTP server
-- Evidence: Simpler approach per user: "I fully believe that this functionality is sufficiently tested using the Playwright test suite"
-
----
-
-- Surface: Callback endpoint request/response schemas
-- Tier: **Integration test** (direct function calls, no HTTP)
-- Scenarios:
-  - Given connect callback payload, When validated with Pydantic schema, Then parse action, token, request.url, request.headers
-  - Given disconnect callback payload, When validated with Pydantic schema, Then parse action, token, reason
-  - Given callback response with event, When serialized to JSON, Then includes event.name and event.data fields
-  - Given callback response with invalid structure, When serialized, Then raise validation error
-- Fixtures / hooks: Pydantic schema instances, test payloads from SSE Gateway README
-- Gaps: None; validates schema contracts without HTTP overhead
-- Evidence: Contract validation adequate at Pydantic level; full flow tested in Playwright
-
----
-
-- Surface: Callback authentication logic
-- Tier: **Integration test** (direct function calls)
-- Scenarios:
-  - Given production mode with correct secret, When validate_secret called, Then return True
-  - Given production mode with incorrect secret, When validate_secret called, Then return False (uses secrets.compare_digest)
-  - Given production mode with missing secret, When validate_secret called, Then return False
-  - Given dev mode with missing secret, When validate_secret called, Then return True (authentication optional)
-- Fixtures / hooks: Mock config with SSE_CALLBACK_SECRET, authentication helper function
-- Gaps: None; validates authentication without HTTP
-- Evidence: Security logic tested in isolation; full auth flow in Playwright
-
----
-
-### Tier 3: End-to-End with Real SSE Gateway (Playwright Only)
-
-- Surface: End-to-end SSE integration (Playwright UI tests, not pytest)
-- Tier: **E2E test** (real SSE Gateway sidecar, frontend, backend)
-- Scenarios:
-  - Given SSE Gateway running, When client connects to task stream, Then receive connection_open event
-  - Given task running, When task sends progress, Then client receives progress_update event
-  - Given task completes, When task finishes, Then client receives task_completed and connection closes
+  - Given SSE Gateway running, When client connects to `/api/sse/tasks?task_id=<id>`, Then receive connection_open event from SSE Gateway
+  - Given task running, When task sends progress events, Then client receives task_event SSE events via gateway
+  - Given task completes, When final event sent with close=True, Then connection closes automatically
+  - Given task does not exist, When client connects, Then receive error event and connection closes
   - Given client disconnects, When connection drops, Then Python receives disconnect callback
-- Fixtures / hooks: SSE Gateway spawned by testing-server.sh; frontend Playwright tests exercise full stack
-- Gaps: Backend pytest tests use mocks only; full SSE validation deferred to Playwright
-- Evidence: User clarification: "testing-server.sh is for the UI Playwright test suite"; unit tests don't run SSE Gateway
+  - Given multiple clients connect to same task, When new client connects, Then old client disconnected (only latest connection active)
+- Fixtures / hooks: `sse_gateway_server` fixture (manages subprocess with 10s startup timeout, 500ms health check interval, 5s shutdown grace period); SSEClient helper; background task execution; real HTTP calls
+- Gaps: None; validates complete integration with real SSE Gateway
+- Evidence: Integration tests mandatory per change brief; builds on baseline test infrastructure; explicit timeouts per plan review
+
+---
+
+### Integration Tests with Real SSE Gateway (tests/integration/test_sse_gateway_version.py)
+
+- Surface: Version streaming end-to-end with real SSE Gateway subprocess
+- Scenarios:
+  - Given SSE Gateway running, When client connects to `/api/sse/utils/version?request_id=<id>`, Then receive connection_open and version event immediately
+  - Given pending version event queued, When client connects later, Then receive pending event via gateway
+  - Given testing endpoint triggers version event, When connection active, Then receive version event via SSE Gateway
+  - Given connection idle, When waiting, Then receive heartbeat comments from SSE Gateway (not Python)
+  - Given client disconnects, When connection drops, Then Python receives disconnect callback
+- Fixtures / hooks: `sse_gateway_server` fixture; SSEClient helper; testing endpoint to trigger events
+- Gaps: None; validates version stream with pending events
+- Evidence: Integration tests mandatory; validates critical pending events feature
 
 ---
 
 ## 14) Implementation Slices
 
-- Slice: SSE callback infrastructure
-- Goal: Implement callback endpoint and coordinator service without touching existing SSE
-- Touches: `app/api/sse_callback.py`, `app/services/sse_coordinator_service.py`, `app/schemas/sse_schema.py`, `app/config.py` (add SSE_GATEWAY_INTERNAL_URL)
-- Dependencies: None; can be developed and tested independently
+- Slice: ConnectionManager and Schemas
+- Goal: Core service for gateway integration with HTTP communication
+- Touches: `app/services/connection_manager.py`, `app/schemas/sse_gateway_schema.py`, `tests/test_connection_manager.py`
+- Dependencies: None; standalone service and schemas
 
 ---
 
-- Slice: SSE Gateway client
-- Goal: HTTP client for sending events to SSE Gateway
-- Touches: `app/services/sse_gateway_client.py`, tests
-- Dependencies: Slice 1 (config for SSE Gateway URL)
+- Slice: SSE Callback API Endpoint
+- Goal: Receive and route SSE Gateway callbacks to services
+- Touches: `app/api/sse.py`, `app/__init__.py` (wiring), `app/config.py` (environment variables)
+- Dependencies: Slice 1 (schemas); TaskService and VersionService refactoring (Slice 3)
 
 ---
 
-- Slice: Refactor TaskService
-- Goal: Replace event queues with SSEGatewayClient calls
-- Touches: `app/services/task_service.py`, remove `_event_queues`, update `TaskProgressHandle`, wire SSEGatewayClient
-- Dependencies: Slice 2 (SSEGatewayClient implemented)
+- Slice: TaskService and VersionService Refactoring
+- Goal: Integrate ConnectionManager and add callback handling methods
+- Touches: `app/services/task_service.py`, `app/services/version_service.py`, `app/services/container.py` (inject ConnectionManager), `tests/test_task_service.py`, `tests/test_version_service.py`
+- Dependencies: Slice 1 (ConnectionManager); mocked ConnectionManager in unit tests
 
 ---
 
-- Slice: Refactor VersionService (massive simplification)
-- Goal: Convert to stateless service; remove all subscriber tracking, idle timeout, background cleanup thread; only return current version on connect callback
-- Touches: `app/services/version_service.py` — remove `_subscribers`, `_pending_events`, `_lock`, `_cleanup_thread`, idle timeout logic; add simple `get_version_info()` method
-- Dependencies: Slice 1 (callback infrastructure for returning initial message in response)
+- Slice: Remove Old SSE Endpoints
+- Goal: Clean up legacy Python SSE implementation
+- Touches: `app/api/tasks.py` (remove stream endpoint), `app/api/utils.py` (remove stream endpoint), `app/utils/sse_utils.py` (keep for compatibility or remove if unused)
+- Dependencies: Slice 2 and 3 complete (new implementation working)
 
 ---
 
-- Slice: Remove old SSE endpoints
-- Goal: Delete old SSE implementation after new logic tested
-- Touches: Delete `app/utils/sse_utils.py`, remove `get_task_stream` and `version_stream` endpoints, remove imports
-- Dependencies: Slice 3, 4 (TaskService and VersionService refactored and tested)
+- Slice: Prometheus Metrics Integration
+- Goal: Add observability for SSE Gateway interactions
+- Touches: `app/services/metrics_service.py` (add methods), ConnectionManager (call metrics methods)
+- Dependencies: Slice 1 (ConnectionManager exists)
 
 ---
 
-- Slice: Testing infrastructure
-- Goal: Create three-tier testing approach (unit/simplified integration/E2E)
-- Touches:
-  - `tests/conftest.py` — add mock SSEGatewayClient fixtures for Tier 1 unit tests
-  - Update existing tests to use `responses` library for Tier 2 (simple HTTP mocking, no complex test doubles)
-  - `scripts/testing-server.sh` — add --sse-gateway-port flag, rename --port to --app-port, add --sse-gateway-path argument and SSE_GATEWAY_PATH env var support, spawn SSE Gateway for Tier 3 Playwright tests
-- Dependencies: Slice 5 (old SSE removed, new logic in place)
-- Note: Simplified from original plan per user feedback; no FakeSSEGateway test double needed (~50 lines vs ~400 lines)
+- Slice: Integration Tests with Real SSE Gateway
+- Goal: Validate end-to-end behavior with real gateway subprocess
+- Touches: `tests/integration/sse_gateway_helper.py`, `tests/integration/test_sse_gateway_tasks.py`, `tests/integration/test_sse_gateway_version.py`, `tests/conftest.py` (sse_gateway_server fixture)
+- Dependencies: Slice 1-4 complete (full implementation); SSE Gateway executable available
 
 ---
 
 ## 15) Risks & Open Questions
 
-- Risk: SSE Gateway not available in Playwright test environment (Node.js missing)
-- Impact: Playwright UI tests fail; frontend SSE testing blocked
-- Mitigation: User will handle this externally
-- Evidence: User clarification: "I'll take care of that"
+- Risk: SSE Gateway subprocess management in tests may be flaky
+- Impact: Intermittent test failures; difficult to debug
+- Mitigation: Robust subprocess lifecycle (health check polling, timeout on startup, clean shutdown); log SSE Gateway stdout/stderr
 
 ---
 
-- Risk: Event send latency if SSE Gateway under load
-- Impact: Task progress updates delayed; perceived slowness
-- Mitigation: Use short timeout (2s) for HTTP client; log slow sends; monitor p95 latency via metrics
+- Risk: Token mismatch on disconnect due to connection replacement race
+- Impact: Stale disconnect callbacks arrive after replacement
+- Mitigation: Bidirectional token mapping enables reverse lookup; token verification distinguishes stale vs current; debug-level logging for expected stale disconnects; no memory leak (old connection explicitly closed on replacement)
 
 ---
 
-- Risk: Connection token cleanup race (disconnect callback lost due to network)
-- Impact: Token mappings leak in SSECoordinatorService memory for task streams (version streams don't track connections)
-- Mitigation: Background cleanup thread sweeps stale tokens every 10 minutes for task streams only; version streams have no tracking
+- Risk: HTTP call latency to SSE Gateway degrades task performance
+- Impact: Task execution slower; events delayed
+- Mitigation: SSE Gateway is localhost sidecar (sub-millisecond latency); monitor `sse_gateway_send_duration_seconds` metric
 
 ---
 
-- Question: Should VersionService idle timeout logic be removed?
-- Why it matters: SSE Gateway handles heartbeats; Python may not need idle cleanup
-- Owner / follow-up: **RESOLVED** — YES, remove completely. VersionService design simplified: respond with current version in connect callback response, then ignore connection. No tracking, no cleanup, no idle timeout. When app redeploys, pod dies, SSE Gateway dies, clients reconnect automatically and get new version. SSE Gateway now supports initial message in connect callback response.
+- Risk: Pending version events unbounded queue growth
+- Impact: Memory leak if connection never established
+- Mitigation: Document limitation (existing behavior); consider max queue size in future iteration
 
 ---
 
-- Question: Where should SSE Gateway configuration live (env vars vs config file)?
-- Why it matters: Testing infrastructure needs to set CALLBACK_URL dynamically
-- Owner / follow-up: **RESOLVED** — SSE Gateway is designed to be configured via environment variables per its architecture (`CALLBACK_URL`, `PORT`, `HEARTBEAT_INTERVAL_SECONDS`). This is not a choice but how the service works. Testing-server.sh will set these env vars when spawning SSE Gateway.
-
----
-
-- Question: Should callback endpoint require authentication token?
-- Why it matters: Security posture in shared environments
-- Owner / follow-up: **RESOLVED** — SSE_CALLBACK_SECRET env var with query string parameter; mandatory in production, optional in dev/test; constant-time comparison for security
+- Risk: No retry on transient SSE Gateway failures means event loss
+- Impact: Clients miss events during brief gateway unavailability
+- Mitigation: Sidecar should be highly available; log errors for investigation; accept limitation per change brief
 
 ---
 
 ## 16) Confidence
 
-Confidence: High — SSE Gateway contract is well-documented; existing SSE services provide clear refactoring path; testing strategy addresses integration complexity; no ambiguous requirements after research.
+Confidence: High — Change brief is well-defined with clear architecture, SSE Gateway specification is comprehensive, existing baseline tests provide regression protection, and three-layer delegation pattern separates concerns cleanly. Risk of event loss due to no-retry policy is accepted per brief.

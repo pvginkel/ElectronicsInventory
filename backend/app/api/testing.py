@@ -19,6 +19,7 @@ from app.schemas.testing import (
     TestResetResponseSchema,
 )
 from app.services.container import ServiceContainer
+from app.services.task_service import TaskService
 from app.services.testing_service import TestingService
 from app.services.version_service import VersionService
 from app.utils import ensure_request_id_from_query, get_current_correlation_id
@@ -273,3 +274,46 @@ def trigger_version_deployment(
     )
 
     return jsonify(response_body.model_dump(by_alias=True)), 202
+
+
+@testing_bp.route("/tasks/start", methods=["POST"])
+@handle_api_errors
+@inject
+def start_test_task(
+    task_service: TaskService = Provide[ServiceContainer.task_service]
+) -> Any:
+    """Start a test task for SSE baseline testing.
+
+    Request body:
+        {
+            "task_type": "demo_task" | "failing_task",
+            "params": { ... task-specific parameters ... }
+        }
+
+    Returns:
+        200: Task started successfully with task_id and stream_url
+    """
+    from app.services.base_task import BaseTask
+    from tests.test_tasks.test_task import DemoTask, FailingTask
+
+    data = request.get_json() or {}
+    task_type = data.get("task_type")
+    params = data.get("params", {})
+
+    # Create task instance based on type
+    task: BaseTask
+    if task_type == "demo_task":
+        task = DemoTask()
+    elif task_type == "failing_task":
+        task = FailingTask()
+    else:
+        return jsonify({"error": f"Unknown task type: {task_type}"}), 400
+
+    # Start the task
+    response = task_service.start_task(task, **params)
+
+    return jsonify({
+        "task_id": response.task_id,
+        "stream_url": response.stream_url,
+        "status": response.status.value
+    }), 200

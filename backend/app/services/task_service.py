@@ -9,6 +9,10 @@ from queue import Empty, Queue
 from typing import Any
 
 from app.exceptions import InvalidOperationException
+from app.schemas.sse_gateway_schema import (
+    SSEGatewayConnectCallback,
+    SSEGatewayDisconnectCallback,
+)
 from app.schemas.task_schema import (
     TaskEvent,
     TaskEventType,
@@ -18,6 +22,7 @@ from app.schemas.task_schema import (
     TaskStatus,
 )
 from app.services.base_task import BaseTask
+from app.services.connection_manager import ConnectionManager
 from app.services.metrics_service import MetricsServiceProtocol
 from app.utils.shutdown_coordinator import LifetimeEvent, ShutdownCoordinatorProtocol
 
@@ -27,9 +32,10 @@ logger = logging.getLogger(__name__)
 class TaskProgressHandle:
     """Implementation of ProgressHandle for sending updates via SSE."""
 
-    def __init__(self, task_id: str, event_queue: Queue[TaskEvent]):
+    def __init__(self, task_id: str, event_queue: Queue[TaskEvent], connection_manager: ConnectionManager):
         self.task_id = task_id
         self.event_queue = event_queue
+        self.connection_manager = connection_manager
         self.progress = 0.0
         self.progress_text = ""
 
@@ -50,16 +56,27 @@ class TaskProgressHandle:
         self._send_progress_event(TaskProgressUpdate(text=text, value=value))
 
     def _send_progress_event(self, progress: TaskProgressUpdate) -> None:
-        """Send progress update event to the SSE queue."""
+        """Send progress update event via gateway or queue."""
         event = TaskEvent(
             event_type=TaskEventType.PROGRESS_UPDATE,
             task_id=self.task_id,
             data=progress.model_dump()
         )
         try:
-            self.event_queue.put_nowait(event)
+            # Try to send via gateway first; ConnectionManager handles missing connections gracefully
+            identifier = f"task:{self.task_id}"
+            # Use mode='json' to serialize datetime to ISO format string
+            success = self.connection_manager.send_event(
+                identifier,
+                event.model_dump(mode='json'),
+                event_name="task_event",
+                close=False
+            )
+            if not success:
+                # No connection yet, queue the event
+                self.event_queue.put_nowait(event)
         except Exception as e:
-            # If queue is full or closed, log warning and ignore
+            # If sending fails, log warning and ignore
             logger.warning(f"Failed to send progress event for task {self.task_id}: {e}")
             pass
 
@@ -71,6 +88,7 @@ class TaskService:
         self,
         metrics_service: MetricsServiceProtocol,
         shutdown_coordinator: ShutdownCoordinatorProtocol,
+        connection_manager: ConnectionManager,
         max_workers: int = 4,
         task_timeout: int = 300,
         cleanup_interval: int = 600
@@ -80,6 +98,7 @@ class TaskService:
         Args:
             metrics_service: Instance of MetricsService for recording metrics
             shutdown_coordinator: Coordinator for graceful shutdown
+            connection_manager: ConnectionManager for SSE Gateway integration
             max_workers: Maximum number of concurrent tasks
             task_timeout: Task execution timeout in seconds
             cleanup_interval: How often to clean up completed tasks in seconds
@@ -89,6 +108,7 @@ class TaskService:
         self.cleanup_interval = cleanup_interval  # 10 minutes in seconds
         self.metrics_service = metrics_service
         self.shutdown_coordinator = shutdown_coordinator
+        self.connection_manager = connection_manager
         self._tasks: dict[str, TaskInfo] = {}
         self._task_instances: dict[str, BaseTask] = {}
         self._event_queues: dict[str, Queue[TaskEvent]] = {}
@@ -151,9 +171,111 @@ class TaskService:
 
         return TaskStartResponse(
             task_id=task_id,
-            stream_url=f"/api/tasks/{task_id}/stream",
+            stream_url=f"/api/sse/tasks?task_id={task_id}",
             status=TaskStatus.PENDING
         )
+
+    def on_connect(self, callback: SSEGatewayConnectCallback, task_id: str) -> None:
+        """Handle SSE Gateway connect callback for task streams.
+
+        Args:
+            callback: Connect callback from SSE Gateway
+            task_id: Task ID extracted from callback URL
+        """
+        identifier = f"task:{task_id}"
+        token = callback.token
+        url = callback.request.url
+
+        logger.info(f"Task stream connection: task_id={task_id}, token={token}")
+
+        # Register connection with ConnectionManager
+        self.connection_manager.on_connect(identifier, token, url)
+
+        # Check if task exists
+        with self._lock:
+            task_exists = task_id in self._tasks
+
+        if not task_exists:
+            # Task not found - send error event and close
+            self.connection_manager.send_event(
+                identifier,
+                {"error": "Task not found", "task_id": task_id},
+                event_name="error",
+                close=False
+            )
+            # Send connection_close event with close=True
+            self.connection_manager.send_event(
+                identifier,
+                {"reason": "task_not_found"},
+                event_name="connection_close",
+                close=True
+            )
+            return
+
+        # Send any queued events for this task
+        event_queue = self._event_queues.get(task_id)
+        if event_queue:
+            # Drain queued events and send via ConnectionManager
+            events_sent = 0
+            try:
+                while True:
+                    event = event_queue.get_nowait()
+                    self._send_event_to_gateway(identifier, event)
+                    events_sent += 1
+            except Empty:
+                pass
+
+            if events_sent > 0:
+                logger.debug(f"Sent {events_sent} queued events for task {task_id}")
+
+    def on_disconnect(self, callback: SSEGatewayDisconnectCallback) -> None:
+        """Handle SSE Gateway disconnect callback for task streams.
+
+        Args:
+            callback: Disconnect callback from SSE Gateway
+        """
+        token = callback.token
+        reason = callback.reason
+
+        logger.debug(f"Task stream disconnected: token={token}, reason={reason}")
+
+        # Notify ConnectionManager
+        self.connection_manager.on_disconnect(token)
+
+    def _send_event_to_gateway(self, identifier: str, event: TaskEvent) -> None:
+        """Send a task event via ConnectionManager to SSE Gateway.
+
+        Args:
+            identifier: Service identifier (task:xyz)
+            event: Task event to send
+        """
+        # Check if this is a terminal event
+        is_terminal = event.event_type in [TaskEventType.TASK_COMPLETED, TaskEventType.TASK_FAILED]
+
+        # Send event via ConnectionManager (don't close yet if terminal)
+        # Use mode='json' to serialize datetime to ISO format string
+        success = self.connection_manager.send_event(
+            identifier,
+            event.model_dump(mode='json'),
+            event_name="task_event",
+            close=False
+        )
+
+        if not success:
+            logger.warning(f"Failed to send event for {identifier}: {event.event_type}")
+
+        # If terminal event, send connection_close event and close the stream
+        if is_terminal:
+            # Determine close reason
+            reason = "task_completed" if event.event_type == TaskEventType.TASK_COMPLETED else "task_failed"
+
+            # Send connection_close event with close=True
+            self.connection_manager.send_event(
+                identifier,
+                {"reason": reason},
+                event_name="connection_close",
+                close=True
+            )
 
     def get_task_status(self, task_id: str) -> TaskInfo | None:
         """Get current status of a task."""
@@ -270,10 +392,15 @@ class TaskService:
                 task_id=task_id,
                 data=None,
             )
-            event_queue.put_nowait(start_event)
+            # Try to send via gateway, otherwise queue
+            identifier = f"task:{task_id}"
+            if self.connection_manager.has_connection(identifier):
+                self._send_event_to_gateway(identifier, start_event)
+            else:
+                event_queue.put_nowait(start_event)
 
             # Create progress handle
-            progress_handle = TaskProgressHandle(task_id, event_queue)
+            progress_handle = TaskProgressHandle(task_id, event_queue, self.connection_manager)
 
             # Execute the task
             result = task.execute(progress_handle, **kwargs)
@@ -298,7 +425,11 @@ class TaskService:
                         task_id=task_id,
                         data=result.model_dump() if result else None
                     )
-                    event_queue.put_nowait(completion_event)
+                    # Send via gateway if connected, otherwise queue
+                    if self.connection_manager.has_connection(identifier):
+                        self._send_event_to_gateway(identifier, completion_event)
+                    else:
+                        event_queue.put_nowait(completion_event)
 
                     logger.info(f"Task {task_id} completed successfully")
 
@@ -336,7 +467,12 @@ class TaskService:
                     "traceback": error_trace
                 }
             )
-            event_queue.put_nowait(failure_event)
+            # Send via gateway if connected, otherwise queue
+            identifier = f"task:{task_id}"
+            if self.connection_manager.has_connection(identifier):
+                self._send_event_to_gateway(identifier, failure_event)
+            else:
+                event_queue.put_nowait(failure_event)
 
             # Check if this was the last task during shutdown
             self._check_tasks_complete()
