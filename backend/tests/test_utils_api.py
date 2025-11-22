@@ -44,17 +44,14 @@ class TestUtilsAPI:
 
             first_chunk = next(stream).decode()
             second_chunk = next(stream).decode()
-            third_chunk = next(stream).decode()
 
             response.close()
 
         assert mock_register.called
         assert mock_unregister.called
-        assert 'connection_open' in first_chunk
+        assert 'event: version' in first_chunk
         assert f'"correlation_id": "{request_id}"' in first_chunk
-        assert 'event: version' in second_chunk
         assert f'"correlation_id": "{request_id}"' in second_chunk
-        assert f'"correlation_id": "{request_id}"' in third_chunk
 
     def test_version_stream_without_request_id_still_registers(
         self,

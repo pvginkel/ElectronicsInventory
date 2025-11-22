@@ -14,26 +14,8 @@ import pytest
 class TestVersionStreamBaseline:
     """Baseline integration tests for /api/utils/version/stream endpoint."""
 
-    def test_connection_open_event_received(self, sse_server: str, sse_client_factory):
-        """Test that connection_open event is received immediately on connect."""
-        # When connecting to version stream
-        client = sse_client_factory("/api/utils/version/stream")
-        events = []
-
-        for event in client.connect(timeout=10.0):
-            events.append(event)
-            # Collect first few events then stop
-            if len(events) >= 3:
-                break
-
-        # Then connection_open is the first event
-        assert len(events) >= 1
-        assert events[0]["event"] == "connection_open"
-        assert events[0]["data"]["status"] == "connected"
-        # Note: correlation_id may or may not be present depending on request context
-
     def test_version_event_received_immediately(self, sse_server: str, sse_client_factory):
-        """Test that version event is received immediately after connection_open."""
+        """Test that version event is received immediately on connect."""
         # When connecting to version stream
         client = sse_client_factory("/api/utils/version/stream")
         events = []
@@ -44,12 +26,12 @@ class TestVersionStreamBaseline:
             if len(events) >= 3:
                 break
 
-        # Then version event is the second event
-        assert len(events) >= 2
-        assert events[1]["event"] == "version"
+        # Then version event is the first event
+        assert len(events) >= 1
+        assert events[0]["event"] == "version"
 
         # Validate version event data
-        version_data = events[1]["data"]
+        version_data = events[0]["data"]
         assert "version" in version_data
         assert "environment" in version_data
         assert "git_commit" in version_data
@@ -118,7 +100,7 @@ class TestVersionStreamBaseline:
                 f"Heartbeat interval {interval}s exceeds maximum {max_interval}s"
 
     def test_event_ordering_is_correct(self, sse_server: str, sse_client_factory):
-        """Test that events arrive in correct order: connection_open -> version -> heartbeats."""
+        """Test that events arrive in correct order: version -> heartbeats."""
         # When connecting to version stream
         client = sse_client_factory("/api/utils/version/stream")
         events = []
@@ -126,15 +108,14 @@ class TestVersionStreamBaseline:
         for event in client.connect(timeout=10.0):
             events.append(event)
             # Collect enough events to validate ordering
-            if len(events) >= 4:
+            if len(events) >= 3:
                 break
 
         # Then events are in correct order
-        assert events[0]["event"] == "connection_open", "First event must be connection_open"
-        assert events[1]["event"] == "version", "Second event must be version"
+        assert events[0]["event"] == "version", "First event must be version"
 
         # Subsequent events should be heartbeats
-        for event in events[2:]:
+        for event in events[1:]:
             assert event["event"] == "heartbeat", \
                 f"Expected heartbeat, got {event['event']}"
 
@@ -176,8 +157,8 @@ class TestVersionStreamBaseline:
                 break
 
         # Then we receive multiple events (connection stays open)
-        # Should have: connection_open + version + multiple heartbeats
-        assert len(events) >= 4, "Should receive multiple events over time"
+        # Should have: version + multiple heartbeats
+        assert len(events) >= 3, "Should receive multiple events over time"
 
         # No connection_close event should be present (connection still open)
         close_events = [e for e in events if e["event"] == "connection_close"]
@@ -235,9 +216,8 @@ class TestVersionStreamBaseline:
             if line.startswith("event:"):
                 event_name = line[6:].strip()
                 events.append(event_name)
-            if len(events) >= 3:
+            if len(events) >= 2:
                 break
 
         # Verify we received expected events
-        assert "connection_open" in events
         assert "version" in events
