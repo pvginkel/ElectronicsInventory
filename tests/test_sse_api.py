@@ -97,7 +97,7 @@ class TestSSECallbackAPI:
             mock_task_service.on_connect.assert_not_called()
 
     def test_connect_callback_returns_empty_json(
-        self, client, app, mock_task_service
+        self, client, app, mock_task_service, mock_version_service
     ):
         """Test connect callback returns empty JSON response."""
         payload = {
@@ -111,6 +111,7 @@ class TestSSECallbackAPI:
 
         with app.app_context():
             app.container.task_service.override(mock_task_service)
+            app.container.version_service.override(mock_version_service)
 
             response = client.post("/api/sse/callback", json=payload)
 
@@ -210,7 +211,7 @@ class TestSSECallbackAPI:
         assert _authenticate_callback("any-secret", settings_no_secret) is False
 
     def test_authentication_skipped_in_dev_mode(
-        self, client, app, mock_task_service
+        self, client, app, mock_task_service, mock_version_service
     ):
         """Test secret authentication skipped in development mode."""
         payload = {
@@ -224,13 +225,14 @@ class TestSSECallbackAPI:
 
         with app.app_context():
             app.container.task_service.override(mock_task_service)
+            app.container.version_service.override(mock_version_service)
 
             # No secret parameter - should still succeed in dev mode
             response = client.post("/api/sse/callback", json=payload)
             assert response.status_code == 200
 
     def test_unknown_url_pattern_returns_400(
-        self, client, app, mock_task_service
+        self, client, app, mock_task_service, mock_version_service
     ):
         """Test unknown URL pattern returns 400 for connect."""
         payload = {
@@ -244,6 +246,7 @@ class TestSSECallbackAPI:
 
         with app.app_context():
             app.container.task_service.override(mock_task_service)
+            app.container.version_service.override(mock_version_service)
 
             response = client.post("/api/sse/callback", json=payload)
 
@@ -253,7 +256,7 @@ class TestSSECallbackAPI:
             assert "Cannot route URL" in json_data["error"]
 
     def test_disconnect_unknown_url_returns_200(
-        self, client, app, mock_task_service
+        self, client, app, mock_task_service, mock_version_service
     ):
         """Test disconnect callback for unknown URL returns 200 (stale disconnect)."""
         payload = {
@@ -268,6 +271,7 @@ class TestSSECallbackAPI:
 
         with app.app_context():
             app.container.task_service.override(mock_task_service)
+            app.container.version_service.override(mock_version_service)
 
             response = client.post("/api/sse/callback", json=payload)
 
@@ -275,7 +279,7 @@ class TestSSECallbackAPI:
             assert response.status_code == 200
 
     def test_missing_task_id_returns_400(
-        self, client, app, mock_task_service
+        self, client, app, mock_task_service, mock_version_service
     ):
         """Test missing task_id query parameter returns 400."""
         payload = {
@@ -289,6 +293,7 @@ class TestSSECallbackAPI:
 
         with app.app_context():
             app.container.task_service.override(mock_task_service)
+            app.container.version_service.override(mock_version_service)
 
             response = client.post("/api/sse/callback", json=payload)
 
@@ -297,7 +302,7 @@ class TestSSECallbackAPI:
             assert "error" in json_data
 
     def test_missing_request_id_returns_400(
-        self, client, app, mock_version_service
+        self, client, app, mock_task_service, mock_version_service
     ):
         """Test missing request_id query parameter returns 400."""
         payload = {
@@ -310,6 +315,7 @@ class TestSSECallbackAPI:
         }
 
         with app.app_context():
+            app.container.task_service.override(mock_task_service)
             app.container.version_service.override(mock_version_service)
 
             response = client.post("/api/sse/callback", json=payload)
@@ -318,27 +324,35 @@ class TestSSECallbackAPI:
             json_data = response.get_json()
             assert "error" in json_data
 
-    def test_invalid_json_returns_400(self, client, app):
+    def test_invalid_json_returns_400(self, client, app, mock_task_service, mock_version_service):
         """Test invalid JSON payload returns 400."""
-        # Send invalid JSON
-        response = client.post(
-            "/api/sse/callback",
-            data="not-valid-json",
-            content_type="application/json"
-        )
+        with app.app_context():
+            app.container.task_service.override(mock_task_service)
+            app.container.version_service.override(mock_version_service)
 
-        assert response.status_code == 400
+            # Send invalid JSON
+            response = client.post(
+                "/api/sse/callback",
+                data="not-valid-json",
+                content_type="application/json"
+            )
 
-    def test_missing_json_body_returns_400(self, client, app):
+            assert response.status_code == 400
+
+    def test_missing_json_body_returns_400(self, client, app, mock_task_service, mock_version_service):
         """Test missing JSON body returns 400."""
-        response = client.post("/api/sse/callback")
+        with app.app_context():
+            app.container.task_service.override(mock_task_service)
+            app.container.version_service.override(mock_version_service)
 
-        assert response.status_code == 400
-        json_data = response.get_json()
-        assert "error" in json_data
-        assert "Missing JSON body" in json_data["error"]
+            response = client.post("/api/sse/callback")
 
-    def test_unknown_action_returns_400(self, client, app, mock_task_service):
+            assert response.status_code == 400
+            json_data = response.get_json()
+            assert "error" in json_data
+            assert "Missing JSON body" in json_data["error"]
+
+    def test_unknown_action_returns_400(self, client, app, mock_task_service, mock_version_service):
         """Test unknown action returns 400."""
         payload = {
             "action": "unknown_action",
@@ -351,6 +365,7 @@ class TestSSECallbackAPI:
 
         with app.app_context():
             app.container.task_service.override(mock_task_service)
+            app.container.version_service.override(mock_version_service)
 
             response = client.post("/api/sse/callback", json=payload)
 
@@ -359,7 +374,7 @@ class TestSSECallbackAPI:
             assert "error" in json_data
             assert "Unknown action" in json_data["error"]
 
-    def test_validation_error_returns_400(self, client, app):
+    def test_validation_error_returns_400(self, client, app, mock_task_service, mock_version_service):
         """Test Pydantic validation error returns 400 with details."""
         payload = {
             "action": "connect",
@@ -370,15 +385,19 @@ class TestSSECallbackAPI:
             }
         }
 
-        response = client.post("/api/sse/callback", json=payload)
+        with app.app_context():
+            app.container.task_service.override(mock_task_service)
+            app.container.version_service.override(mock_version_service)
 
-        assert response.status_code == 400
-        json_data = response.get_json()
-        assert "error" in json_data
-        assert "Invalid payload" in json_data["error"]
-        assert "details" in json_data
+            response = client.post("/api/sse/callback", json=payload)
 
-    def test_task_id_with_colon_returns_400(self, client, app, mock_task_service):
+            assert response.status_code == 400
+            json_data = response.get_json()
+            assert "error" in json_data
+            assert "Invalid payload" in json_data["error"]
+            assert "details" in json_data
+
+    def test_task_id_with_colon_returns_400(self, client, app, mock_task_service, mock_version_service):
         """Test task_id containing colon (reserved character) returns 400."""
         payload = {
             "action": "connect",
@@ -391,6 +410,7 @@ class TestSSECallbackAPI:
 
         with app.app_context():
             app.container.task_service.override(mock_task_service)
+            app.container.version_service.override(mock_version_service)
 
             response = client.post("/api/sse/callback", json=payload)
 
@@ -398,7 +418,7 @@ class TestSSECallbackAPI:
             json_data = response.get_json()
             assert "error" in json_data
 
-    def test_request_id_with_colon_returns_400(self, client, app, mock_version_service):
+    def test_request_id_with_colon_returns_400(self, client, app, mock_task_service, mock_version_service):
         """Test request_id containing colon (reserved character) returns 400."""
         payload = {
             "action": "connect",
@@ -410,6 +430,7 @@ class TestSSECallbackAPI:
         }
 
         with app.app_context():
+            app.container.task_service.override(mock_task_service)
             app.container.version_service.override(mock_version_service)
 
             response = client.post("/api/sse/callback", json=payload)
