@@ -31,11 +31,17 @@ class TestTaskServiceShutdownIntegration:
         return StubMetricsService()
 
     @pytest.fixture
-    def task_service(self, metrics_service, shutdown_coordinator):
+    def connection_manager(self):
+        """Create mock connection manager for testing."""
+        return MagicMock()
+
+    @pytest.fixture
+    def task_service(self, metrics_service, shutdown_coordinator, connection_manager):
         """Create TaskService with shutdown coordinator."""
         service = TaskService(
             metrics_service=metrics_service,
             shutdown_coordinator=shutdown_coordinator,
+            connection_manager=connection_manager,
             max_workers=2,
             task_timeout=10,
             cleanup_interval=60
@@ -333,9 +339,11 @@ class TestFullApplicationShutdownIntegration:
 
         # Create services with real coordinator
         metrics_service = StubMetricsService()
+        connection_manager = MagicMock()
         task_service = TaskService(
             metrics_service=metrics_service,
             shutdown_coordinator=coordinator,
+            connection_manager=connection_manager,
             max_workers=1,
             task_timeout=5
         )
@@ -412,9 +420,11 @@ class TestShutdownErrorHandling:
 
         # Create TaskService for testing timeout behavior
         metrics_service = StubMetricsService()
+        connection_manager = MagicMock()
         task_service = TaskService(
             metrics_service=metrics_service,
             shutdown_coordinator=coordinator,
+            connection_manager=connection_manager,
             max_workers=1,
             task_timeout=10
         )

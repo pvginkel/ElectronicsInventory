@@ -20,33 +20,30 @@ from app.exceptions import InvalidOperationException
 from app.services.container import ServiceContainer
 
 
-@pytest.fixture(scope="session", autouse=True)
-def clear_prometheus_registry_session():
-    """Clear Prometheus registry at session start for integration tests."""
-    # Clear all collectors from the global registry before session starts
-    collectors = list(REGISTRY._collector_to_names.keys())
-    for collector in collectors:
-        try:
-            REGISTRY.unregister(collector)
-        except KeyError:
-            # Collector may have already been unregistered
-            pass
-    yield
-    # Clean up after session too
-    collectors = list(REGISTRY._collector_to_names.keys())
-    for collector in collectors:
-        try:
-            REGISTRY.unregister(collector)
-        except KeyError:
-            pass
-
-
 @pytest.fixture(autouse=True)
 def clear_prometheus_registry():
-    """Clear Prometheus registry before each test to avoid conflicts (for unit tests)."""
-    # For unit tests that create their own app instances
-    # Skip if already cleaned by session fixture
+    """Clear Prometheus registry before and after each test to ensure isolation.
+
+    This is necessary for tests that create multiple Flask app instances or services
+    that register Prometheus metrics, as metrics cannot be registered twice in the
+    same registry. Clearing before AND after each test ensures proper isolation.
+    """
+    # Clear collectors before test
+    collectors = list(REGISTRY._collector_to_names.keys())
+    for collector in collectors:
+        try:
+            REGISTRY.unregister(collector)
+        except (KeyError, ValueError):
+            # Collector may have already been unregistered or not exist
+            pass
     yield
+    # Clean up after test
+    collectors = list(REGISTRY._collector_to_names.keys())
+    for collector in collectors:
+        try:
+            REGISTRY.unregister(collector)
+        except (KeyError, ValueError):
+            pass
 
 
 def _build_test_settings() -> Settings:
@@ -106,14 +103,8 @@ def template_connection() -> Generator[sqlite3.Connection, None, None]:
         upgrade_database(recreate=True)
         _assert_s3_available(template_app)
 
-    # Clear Prometheus registry after template app creation
-    # This prevents conflicts when sse_server creates its own app
-    collectors = list(REGISTRY._collector_to_names.keys())
-    for collector in collectors:
-        try:
-            REGISTRY.unregister(collector)
-        except KeyError:
-            pass
+    # Note: Prometheus registry cleanup is handled by the autouse
+    # clear_prometheus_registry fixture, no need to do it here
 
     yield conn
 
