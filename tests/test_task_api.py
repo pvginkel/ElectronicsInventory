@@ -21,69 +21,6 @@ class TestTaskAPI:
         """Create mock TaskService for testing."""
         return Mock(spec=TaskService)
 
-    def test_get_task_stream_success(self, client, app, task_service_mock):
-        """Test successful task stream endpoint."""
-        task_id = "test-task-id"
-
-        # Mock task info
-        from datetime import datetime
-        task_info = TaskInfo(
-            task_id=task_id,
-            status=TaskStatus.RUNNING,
-            start_time=datetime.now(UTC)
-        )
-        task_service_mock.get_task_status.return_value = task_info
-
-        # Mock events - simulate task completion
-        from app.schemas.task_schema import TaskEvent, TaskEventType
-
-        events = [
-            TaskEvent(
-                event_type=TaskEventType.TASK_STARTED,
-                task_id=task_id,
-                timestamp=datetime.now(UTC)
-            ),
-            TaskEvent(
-                event_type=TaskEventType.PROGRESS_UPDATE,
-                task_id=task_id,
-                timestamp=datetime.now(UTC),
-                data={"text": "Processing...", "value": 0.5}
-            ),
-            TaskEvent(
-                event_type=TaskEventType.TASK_COMPLETED,
-                task_id=task_id,
-                timestamp=datetime.now(UTC),
-                data={"result": "success"}
-            )
-        ]
-        task_service_mock.get_task_events.return_value = events
-
-        with app.app_context():
-            app.container.task_service.override(task_service_mock)
-
-            response = client.get(f'/api/tasks/{task_id}/stream')
-
-            assert response.status_code == 200
-            assert response.headers['Content-Type'] == 'text/event-stream; charset=utf-8'
-            assert 'Cache-Control' in response.headers
-            assert response.headers['Cache-Control'] == 'no-cache'
-
-    def test_get_task_stream_not_found(self, client, app, task_service_mock):
-        """Test task stream endpoint with nonexistent task."""
-        task_id = "nonexistent-task-id"
-        task_service_mock.get_task_status.return_value = None
-
-        with app.app_context():
-            app.container.task_service.override(task_service_mock)
-
-            response = client.get(f'/api/tasks/{task_id}/stream')
-
-            assert response.status_code == 200  # SSE always returns 200
-            # Check that error event is sent
-            data = response.get_data(as_text=True)
-            assert 'event: error' in data
-            assert 'Task not found' in data
-
     def test_get_task_status_success(self, client, app, task_service_mock):
         """Test successful get task status endpoint."""
         task_id = "test-task-id"
@@ -191,11 +128,13 @@ class TestTaskAPIIntegration:
     @pytest.fixture
     def real_task_service(self, session: Session):
         """Create real TaskService instance for integration testing."""
+        from unittest.mock import MagicMock
         service = TaskService(
             metrics_service=StubMetricsService(),
+            shutdown_coordinator=StubShutdownCoordinator(),
+            connection_manager=MagicMock(),
             max_workers=1,
-            task_timeout=10,
-            shutdown_coordinator=StubShutdownCoordinator()
+            task_timeout=10
         )
         yield service
         service.shutdown()
