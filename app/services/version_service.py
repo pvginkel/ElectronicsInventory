@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+import json
 from queue import Empty, Queue
 from typing import Any
 
@@ -51,7 +52,7 @@ class VersionService:
 
         shutdown_coordinator.register_lifetime_notification(self._handle_lifetime_event)
 
-    def fetch_frontend_version(self) -> str:
+    def _fetch_frontend_version(self) -> str:
         """Fetch `version.json` from the frontend service."""
         url = self.settings.FRONTEND_VERSION_URL
         response = requests.get(url, timeout=2)
@@ -77,7 +78,17 @@ class VersionService:
         # Flush any pending events for this request_id
         with self._lock:
             pending_events = self._pending_events.pop(request_id, [])
-            failed_events = []
+            failed_events: list[VersionEvent] = []
+
+            # Send the current version snapshot if there are no pending events
+            if len(pending_events) == 0:
+                version_json = self._fetch_frontend_version()
+                version_payload = json.loads(version_json)
+
+                event: VersionEvent = ("version", version_payload)
+                pending_events.insert(0, event)
+
+            # Playback the queued events
             for event_name, event_data in pending_events:
                 success = self.connection_manager.send_event(
                     identifier,
