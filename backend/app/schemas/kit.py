@@ -390,7 +390,7 @@ class KitMembershipBulkQueryRequestSchema(BaseModel):
     kit_ids: list[int] = Field(
         ...,
         min_length=1,
-        max_length=100,
+        max_length=250,
         description="Ordered collection of kit identifiers to resolve",
         json_schema_extra={"example": [1, 2, 3]},
     )
