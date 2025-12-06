@@ -1,9 +1,10 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { AlertTriangle, Loader2, Pencil, Trash, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip } from '@/components/ui/tooltip';
+import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { KitBOMRowEditor } from '@/components/kits/kit-bom-row-editor';
 import type { KitContentRow } from '@/types/kits';
@@ -35,6 +36,12 @@ export function KitBOMTable({ rows, controls }: KitBOMTableProps) {
   const pendingUpdates = overlays.pendingUpdates;
   const hasRows = rows.length > 0;
   const disableMutations = isArchived || isMutationPending;
+
+  // Sort rows by part description for consistent display order
+  const sortedRows = useMemo(
+    () => [...rows].sort((a, b) => a.part.description.localeCompare(b.part.description)),
+    [rows]
+  );
 
   const renderEditorRow = useCallback(
     (rowId: number, variant: 'create' | 'edit', row?: KitContentRow) => {
@@ -116,7 +123,7 @@ export function KitBOMTable({ rows, controls }: KitBOMTableProps) {
         <table className="w-full min-w-[760px] table-fixed border-collapse text-sm">
           <thead>
             <tr className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="w-56 px-4 py-2 text-left">Part</th>
+              <th className="w-80 px-4 py-2 text-left">Part</th>
               <th className="w-28 px-4 py-2 text-right">Required</th>
               <th className="w-28 px-4 py-2 text-right">Total</th>
               <th className="w-28 px-4 py-2 text-right">In stock</th>
@@ -132,7 +139,7 @@ export function KitBOMTable({ rows, controls }: KitBOMTableProps) {
 
             {pendingCreateRow ? <PendingCreateOverlayRow pending={pendingCreateRow} /> : null}
 
-            {rows.map((row) => {
+            {sortedRows.map((row) => {
               const pendingUpdate = pendingUpdates.get(row.id);
               const isEditing = edit.editingRowId === row.id;
 
@@ -219,13 +226,16 @@ function KitBOMDisplayRow({
       className={rowClassName}
     >
       <td className="px-4 py-3 align-top">
-        <PartInlineSummary
-          partKey={row.part.key}
-          description={row.part.description}
-          manufacturerCode={row.part.manufacturerCode}
-          testId={`kits.detail.table.row.${row.id}.part`}
-          link={true}
-        />
+        <div className="flex items-center gap-4">
+          <CoverImageDisplay partId={row.part.key} size="small" />
+          <PartInlineSummary
+            partKey={row.part.key}
+            description={row.part.description}
+            manufacturerCode={row.part.manufacturerCode}
+            testId={`kits.detail.table.row.${row.id}.part`}
+            link={true}
+          />
+        </div>
       </td>
       <td className="px-4 py-3 text-right align-top">
         {formatNumber(row.requiredPerUnit)}
