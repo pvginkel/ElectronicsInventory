@@ -25,12 +25,6 @@ def create_app(settings: "Settings | None" = None) -> App:
 
     app.config.from_object(settings)
 
-    # Enable SQLAlchemy pool logging if configured
-    if settings.DB_POOL_ECHO:
-        pool_logger = logging.getLogger("sqlalchemy.pool")
-        pool_logger.setLevel(logging.DEBUG)
-        pool_logger.addHandler(logging.StreamHandler())
-
     # Initialize extensions
     db.init_app(app)
 
@@ -51,6 +45,36 @@ def create_app(settings: "Settings | None" = None) -> App:
             autoflush=True,
             expire_on_commit=False,
         )
+
+        # Enable SQLAlchemy pool logging via events if configured
+        # (echo_pool config option doesn't work reliably in SQLAlchemy 2.x)
+        if settings.DB_POOL_ECHO:
+            from sqlalchemy import event
+            from sqlalchemy.pool import Pool
+
+            pool_logger = logging.getLogger("sqlalchemy.pool")
+            pool_logger.setLevel(logging.DEBUG)
+            if not pool_logger.handlers:
+                pool_logger.addHandler(logging.StreamHandler())
+
+            engine = db.engine  # Capture engine reference for closures
+
+            def _get_pool_stats(pool: Pool) -> str:
+                return f"checkedout={pool.checkedout()} size={pool.size()} overflow={pool.overflow()}"
+
+            @event.listens_for(engine, "checkout")
+            def _on_checkout(
+                dbapi_conn: object, conn_record: object, conn_proxy: object
+            ) -> None:
+                pool_logger.debug(
+                    "CHECKOUT conn=%s %s", id(dbapi_conn), _get_pool_stats(engine.pool)
+                )
+
+            @event.listens_for(engine, "checkin")
+            def _on_checkin(dbapi_conn: object, conn_record: object) -> None:
+                pool_logger.debug(
+                    "CHECKIN conn=%s %s", id(dbapi_conn), _get_pool_stats(engine.pool)
+                )
 
     # Initialize SpecTree for OpenAPI docs
     from app.utils.spectree_config import configure_spectree
