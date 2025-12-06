@@ -49,6 +49,8 @@ def create_app(settings: "Settings | None" = None) -> App:
         # Enable SQLAlchemy pool logging via events if configured
         # (echo_pool config option doesn't work reliably in SQLAlchemy 2.x)
         if settings.DB_POOL_ECHO:
+            import traceback
+
             from sqlalchemy import event
             from sqlalchemy.pool import Pool
 
@@ -62,18 +64,55 @@ def create_app(settings: "Settings | None" = None) -> App:
             def _get_pool_stats(pool: Pool) -> str:
                 return f"checkedout={pool.checkedout()} size={pool.size()} overflow={pool.overflow()}"
 
+            def _get_caller_info() -> str:
+                """Extract the first app-level caller from the stack trace."""
+                # Skip SQLAlchemy/library internals, find app code
+                skip_prefixes = (
+                    "sqlalchemy",
+                    "flask_sqlalchemy",
+                    "werkzeug",
+                    "flask",
+                    "waitress",
+                    "paste",
+                )
+                frames = []
+                for frame_info in traceback.extract_stack():
+                    # Skip this file and library code
+                    if "/app/__init__.py" in frame_info.filename:
+                        continue
+                    if any(p in frame_info.filename for p in skip_prefixes):
+                        continue
+                    if "/app/" in frame_info.filename or "/tests/" in frame_info.filename:
+                        # Extract just the relevant part of the path
+                        path = frame_info.filename
+                        if "/app/" in path:
+                            path = "app/" + path.split("/app/")[-1]
+                        elif "/tests/" in path:
+                            path = "tests/" + path.split("/tests/")[-1]
+                        frames.append(f"{path}:{frame_info.lineno}:{frame_info.name}")
+                # Return the most recent app-level callers (last 3)
+                return " <- ".join(frames[-3:]) if frames else "unknown"
+
             @event.listens_for(engine, "checkout")
             def _on_checkout(
                 dbapi_conn: object, conn_record: object, conn_proxy: object
             ) -> None:
+                caller = _get_caller_info()
                 pool_logger.debug(
-                    "CHECKOUT conn=%s %s", id(dbapi_conn), _get_pool_stats(engine.pool)
+                    "CHECKOUT %s | conn=%s %s",
+                    caller,
+                    id(dbapi_conn),
+                    _get_pool_stats(engine.pool),
                 )
 
             @event.listens_for(engine, "checkin")
             def _on_checkin(dbapi_conn: object, conn_record: object) -> None:
+                caller = _get_caller_info()
                 pool_logger.debug(
-                    "CHECKIN conn=%s %s", id(dbapi_conn), _get_pool_stats(engine.pool)
+                    "CHECKIN %s | conn=%s %s",
+                    caller,
+                    id(dbapi_conn),
+                    _get_pool_stats(engine.pool),
                 )
 
     # Initialize SpecTree for OpenAPI docs
