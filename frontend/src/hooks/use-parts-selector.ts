@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useGetParts, type PartWithTotalSchemaList_a9993e3_PartWithTotalSchema } from '@/lib/api/generated/hooks';
+import { type PartWithTotalSchemaList_a9993e3_PartWithTotalSchema } from '@/lib/api/generated/hooks';
+import { useAllParts } from '@/hooks/use-all-parts';
 import { useGetTypesWithStats } from '@/hooks/use-types';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
@@ -72,7 +73,7 @@ export function usePartsSelector(options?: UsePartsSelectorOptions): UsePartsSel
     isLoading,
     isFetching,
     error
-  } = useGetParts();
+  } = useAllParts();
   const { data: types = [] } = useGetTypesWithStats();
 
   const parts = useMemo<PartWithTotalSchemaList_a9993e3_PartWithTotalSchema[]>(() => {
