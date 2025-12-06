@@ -93,10 +93,10 @@ def template_connection() -> Generator[sqlite3.Connection, None, None]:
 
     settings = _build_test_settings().model_copy()
     settings.DATABASE_URL = "sqlite://"
-    settings.SQLALCHEMY_ENGINE_OPTIONS = {
+    settings.set_engine_options_override({
         "poolclass": StaticPool,
         "creator": lambda: conn,
-    }
+    })
 
     template_app = create_app(settings)
     with template_app.app_context():
@@ -119,10 +119,10 @@ def app(test_settings: Settings, template_connection: sqlite3.Connection) -> Gen
 
     settings = test_settings.model_copy()
     settings.DATABASE_URL = "sqlite://"
-    settings.SQLALCHEMY_ENGINE_OPTIONS = {
+    settings.set_engine_options_override({
         "poolclass": StaticPool,
         "creator": lambda: clone_conn,
-    }
+    })
 
     app = create_app(settings)
 
@@ -236,10 +236,10 @@ def sse_server(template_connection: sqlite3.Connection) -> Generator[tuple[str, 
     settings = _build_test_settings().model_copy()
     settings.DATABASE_URL = "sqlite://"
     settings.FLASK_ENV = "testing"  # Enable testing API endpoints
-    settings.SQLALCHEMY_ENGINE_OPTIONS = {
+    settings.set_engine_options_override({
         "poolclass": StaticPool,
         "creator": lambda: clone_conn,
-    }
+    })
 
     app = create_app(settings)
 
