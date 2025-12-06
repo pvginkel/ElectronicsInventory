@@ -27,6 +27,8 @@ export interface ListSectionHeaderProps {
   footer?: React.ReactNode;
   /** Optional test ID for Playwright selectors */
   testId?: string;
+  /** When true, removes the bottom border. Useful when the parent controls border visibility. */
+  noBorder?: boolean;
 }
 
 /**
@@ -52,10 +54,10 @@ export interface ListSectionHeaderProps {
  *   footer={<div>Filter note text</div>}
  * />
  */
-export function ListSectionHeader({ title, description, information, actions, footer, testId }: ListSectionHeaderProps) {
+export function ListSectionHeader({ title, description, information, actions, footer, testId, noBorder }: ListSectionHeaderProps) {
   return (
     <div
-      className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3"
+      className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3${noBorder ? '' : ' border-b'}`}
       data-testid={testId}
     >
       <div>

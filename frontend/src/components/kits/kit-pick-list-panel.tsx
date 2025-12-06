@@ -123,28 +123,27 @@ export function KitPickListPanel({
 
   return (
     <Card className="p-0" data-testid="kits.detail.pick-lists.panel">
-      <div className={cn({ "border-b border-border/70": openPickLists.length > 0 })}>
-        <ListSectionHeader
-          title="Pick lists"
-          description="Track open work and review completed picks without leaving the kit detail."
-          actions={
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={canCreatePickList ? onCreatePickList : undefined}
-              disabled={!canCreatePickList}
-              title={creationTitle}
-              aria-disabled={canCreatePickList ? undefined : 'true'}
-              className="inline-flex items-center gap-2"
-              data-testid="kits.detail.pick-lists.add"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Add Pick List</span>
-            </Button>
-          }
-        />
-      </div>
+      <ListSectionHeader
+        title="Pick lists"
+        description="Track open work and review completed picks without leaving the kit detail."
+        noBorder={openPickLists.length === 0}
+        actions={
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={canCreatePickList ? onCreatePickList : undefined}
+            disabled={!canCreatePickList}
+            title={creationTitle}
+            aria-disabled={canCreatePickList ? undefined : 'true'}
+            className="inline-flex items-center gap-2"
+            data-testid="kits.detail.pick-lists.add"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Pick List</span>
+          </Button>
+        }
+      />
       {openPickLists.length > 0 || completedPickLists.length > 0 ? (
         <CardContent className="px-0 py-0">
           {openPickLists.length > 0 ? (
