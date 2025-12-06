@@ -215,9 +215,9 @@ class Settings(BaseSettings):
         default=10,
         description="Seconds to wait for a connection before timeout"
     )
-    DB_POOL_ECHO: bool = Field(
+    DB_POOL_ECHO: bool | str = Field(
         default=False,
-        description="Log connection pool checkout/checkin events for diagnostics"
+        description="Log connection pool checkout/checkin events. Use 'debug' for verbose output."
     )
 
     # Internal override for test fixtures (not set via env)
