@@ -202,10 +202,44 @@ class Settings(BaseSettings):
         """Disable SQLAlchemy track modifications."""
         return False
 
-    SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Optional engine options passed to SQLAlchemy.create_engine",
+    # Database connection pool settings
+    DB_POOL_SIZE: int = Field(
+        default=20,
+        description="Number of persistent connections in the pool"
     )
+    DB_POOL_MAX_OVERFLOW: int = Field(
+        default=30,
+        description="Max temporary connections above pool_size"
+    )
+    DB_POOL_TIMEOUT: int = Field(
+        default=10,
+        description="Seconds to wait for a connection before timeout"
+    )
+    DB_POOL_ECHO: bool = Field(
+        default=False,
+        description="Log connection pool checkout/checkin events for diagnostics"
+    )
+
+    # Internal override for test fixtures (not set via env)
+    _engine_options_override: dict[str, Any] | None = None
+
+    @property
+    def SQLALCHEMY_ENGINE_OPTIONS(self) -> dict[str, Any]:
+        """SQLAlchemy engine options with connection pool configuration."""
+        # Allow test fixtures to fully override engine options (e.g., for SQLite)
+        if self._engine_options_override is not None:
+            return self._engine_options_override
+        return {
+            "pool_size": self.DB_POOL_SIZE,
+            "max_overflow": self.DB_POOL_MAX_OVERFLOW,
+            "pool_timeout": self.DB_POOL_TIMEOUT,
+            "pool_pre_ping": True,  # Verify connections before use
+            "echo_pool": self.DB_POOL_ECHO,
+        }
+
+    def set_engine_options_override(self, options: dict[str, Any]) -> None:
+        """Override engine options (for test fixtures using SQLite)."""
+        object.__setattr__(self, "_engine_options_override", options)
 
     @property
     def is_testing(self) -> bool:

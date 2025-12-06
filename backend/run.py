@@ -54,9 +54,10 @@ def main() -> None:
             # Production: Use Waitress WSGI server
             wsgi = TransLogger(app, setup_console_handler=False)
 
-            # For AI-heavy workloads (external API calls block threads),
-            # we need more threads than typical CRUD apps
-            threads = int(os.getenv("WAITRESS_THREADS", 100))
+            # Thread count balances concurrency with DB connection pool size.
+            # With pool_size=20 + max_overflow=30 = 50 connections available,
+            # we match Waitress threads to avoid silent connection pool queuing.
+            threads = int(os.getenv("WAITRESS_THREADS", 50))
             wsgi.logger.info(f"Using Waitress WSGI server with {threads} threads")
             serve(wsgi, host=host, port=port, threads=threads)
 
