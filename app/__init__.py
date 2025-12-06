@@ -25,6 +25,12 @@ def create_app(settings: "Settings | None" = None) -> App:
 
     app.config.from_object(settings)
 
+    # Enable SQLAlchemy pool logging if configured
+    if settings.DB_POOL_ECHO:
+        pool_logger = logging.getLogger("sqlalchemy.pool")
+        pool_logger.setLevel(logging.DEBUG)
+        pool_logger.addHandler(logging.StreamHandler())
+
     # Initialize extensions
     db.init_app(app)
 
