@@ -117,7 +117,7 @@ class PartShoppingListMembershipQueryRequestSchema(BaseModel):
     part_keys: list[str] = Field(
         ...,
         min_length=1,
-        max_length=100,
+        max_length=250,
         description="Ordered collection of part keys to resolve",
         json_schema_extra={"example": ["ABCD", "EFGH"]},
     )
