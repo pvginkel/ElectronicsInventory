@@ -4,7 +4,7 @@ import logging
 import re
 from pathlib import Path
 
-from sqlalchemy import MetaData, inspect, text
+from sqlalchemy import MetaData, text
 from sqlalchemy.engine import Engine
 
 from alembic import command
@@ -62,30 +62,25 @@ def _get_alembic_config() -> Config:
 
 
 def get_current_revision() -> str | None:
-    """Get current database revision from Alembic version table."""
+    """Get current database revision from Alembic version table.
+
+    Optimized version that catches missing table exception instead of checking existence first.
+    """
     try:
-        config = _get_alembic_config()
-
-        # Use Alembic's command to get current revision
-        with db.engine.connect() as connection:
-            config.attributes["connection"] = connection
-
-            # Check if alembic_version table exists
-            inspector = inspect(db.engine)
-            if "alembic_version" not in inspector.get_table_names():
-                return None
-
-            # Get current revision from version table
-            result = connection.execute(text("SELECT version_num FROM alembic_version"))
-            row = result.fetchone()
-            return row[0] if row else None
-
+        # Query the alembic_version table directly - if it doesn't exist, we'll catch the exception
+        result = db.session.execute(text("SELECT version_num FROM alembic_version LIMIT 1"))
+        row = result.fetchone()
+        return row[0] if row else None
     except Exception:
+        # Table doesn't exist or query failed - treat as no migrations applied
         return None
 
 
 def get_pending_migrations() -> list[str]:
-    """Get list of pending migration revisions."""
+    """Get list of pending migration revisions.
+
+    Optimized version that reduces queries by reusing connection and catching exceptions.
+    """
     try:
         config = _get_alembic_config()
 
@@ -93,7 +88,10 @@ def get_pending_migrations() -> list[str]:
             config.attributes["connection"] = connection
             script = ScriptDirectory.from_config(config)
 
+            # Get current revision (optimized to use single query)
             current_rev = get_current_revision()
+
+            # Get head revision from script directory (no DB query, just reads migration files)
             head_rev = script.get_current_head()
 
             if not head_rev:
@@ -122,6 +120,7 @@ def get_pending_migrations() -> list[str]:
             return revisions
 
     except Exception:
+        # On any error, treat as no pending migrations (fail safe)
         return []
 
 

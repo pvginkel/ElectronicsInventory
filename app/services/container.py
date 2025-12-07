@@ -111,15 +111,17 @@ class ServiceContainer(containers.DeclarativeContainer):
         http_timeout=2.0,  # Short timeout to avoid exceeding SSE Gateway's 5s callback timeout
     )
 
+    kit_reservation_service = providers.Factory(
+        KitReservationService,
+        db=db_session,
+    )
     inventory_service = providers.Factory(
         InventoryService,
         db=db_session,
         part_service=part_service,
-        metrics_service=metrics_service
-    )
-    kit_reservation_service = providers.Factory(
-        KitReservationService,
-        db=db_session,
+        metrics_service=metrics_service,
+        kit_reservation_service=kit_reservation_service,
+        shopping_list_service=shopping_list_service,
     )
     shopping_list_line_service = providers.Factory(
         ShoppingListLineService,
