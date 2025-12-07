@@ -382,7 +382,10 @@ class TestTaskService:
 
     def test_on_connect_with_valid_task(self, task_service, mock_connection_manager):
         """Test on_connect sends task events for valid task_id."""
-        from app.schemas.sse_gateway_schema import SSEGatewayConnectCallback, SSEGatewayRequestInfo
+        from app.schemas.sse_gateway_schema import (
+            SSEGatewayConnectCallback,
+            SSEGatewayRequestInfo,
+        )
 
         # Start a task
         task = DemoTask()
@@ -415,7 +418,10 @@ class TestTaskService:
 
     def test_on_connect_with_nonexistent_task(self, task_service, mock_connection_manager):
         """Test on_connect sends error event for nonexistent task_id."""
-        from app.schemas.sse_gateway_schema import SSEGatewayConnectCallback, SSEGatewayRequestInfo
+        from app.schemas.sse_gateway_schema import (
+            SSEGatewayConnectCallback,
+            SSEGatewayRequestInfo,
+        )
 
         # Create connect callback with nonexistent task_id
         connect_callback = SSEGatewayConnectCallback(

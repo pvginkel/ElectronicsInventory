@@ -1,7 +1,6 @@
 """Tests for task API endpoints."""
 
 import time
-from datetime import UTC
 from unittest.mock import Mock
 
 import pytest

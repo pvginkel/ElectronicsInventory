@@ -17,7 +17,6 @@ from app.schemas.part import (
     PartLocationResponseSchema,
     PartResponseSchema,
     PartUpdateSchema,
-    PartWithTotalAndLocationsSchema,
     PartWithTotalSchema,
 )
 from app.schemas.part_kits import PartKitUsageSchema
@@ -42,6 +41,54 @@ from app.utils.spectree_config import api
 parts_bp = Blueprint("parts", __name__, url_prefix="/parts")
 
 
+class IncludeParameterError(Exception):
+    """Exception raised for invalid include parameter values."""
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(message)
+
+
+def _parse_include_parameter(include_param: str | None) -> tuple[bool, bool, bool, bool]:
+    """Parse and validate the include query parameter.
+
+    Args:
+        include_param: Comma-separated string of include flags
+
+    Returns:
+        Tuple of (include_locations, include_kits, include_shopping_lists, include_cover)
+
+    Raises:
+        IncludeParameterError: If include parameter is invalid or too long
+    """
+    if not include_param:
+        return (False, False, False, False)
+
+    # DoS protection: reject if parameter is too long
+    if len(include_param) > 200:
+        raise IncludeParameterError("include parameter exceeds maximum length of 200 characters")
+
+    # Split and validate tokens
+    tokens = [token.strip() for token in include_param.split(",")]
+
+    # DoS protection: reject if too many tokens
+    if len(tokens) > 10:
+        raise IncludeParameterError("include parameter exceeds maximum of 10 tokens")
+
+    # Validate against allowed values
+    allowed_values = {"locations", "kits", "shopping_lists", "cover"}
+    for token in tokens:
+        if token and token not in allowed_values:
+            raise IncludeParameterError(f"invalid include value '{token}'. Allowed values: {', '.join(sorted(allowed_values))}")
+
+    # Return flags
+    include_locations = "locations" in tokens
+    include_kits = "kits" in tokens
+    include_shopping_lists = "shopping_lists" in tokens
+    include_cover = "cover" in tokens
+
+    return (include_locations, include_kits, include_shopping_lists, include_cover)
+
+
 def _convert_part_to_schema_data(part: Any, total_quantity: int) -> dict[str, Any]:
     """Convert Part model to PartWithTotalSchema data dict."""
     # Convert seller relationship to proper schema format
@@ -52,6 +99,10 @@ def _convert_part_to_schema_data(part: Any, total_quantity: int) -> dict[str, An
             "name": part.seller.name,
             "website": part.seller.website
         }
+
+    # Convert datetimes to ISO format strings for JSON serialization
+    created_at = part.created_at.isoformat() if part.created_at else None
+    updated_at = part.updated_at.isoformat() if part.updated_at else None
 
     return {
         "key": part.key,
@@ -72,8 +123,8 @@ def _convert_part_to_schema_data(part: Any, total_quantity: int) -> dict[str, An
         "mounting_type": part.mounting_type,
         "series": part.series,
         "dimensions": part.dimensions,
-        "created_at": part.created_at,
-        "updated_at": part.updated_at,
+        "created_at": created_at,
+        "updated_at": updated_at,
         "total_quantity": total_quantity
     }
 
@@ -109,17 +160,45 @@ def create_part(part_service: PartService = Provide[ServiceContainer.part_servic
 
 
 @parts_bp.route("", methods=["GET"])
-@api.validate(resp=SpectreeResponse(HTTP_200=list[PartWithTotalSchema]))
+@api.validate(resp=SpectreeResponse(HTTP_200=list[PartWithTotalSchema], HTTP_400=ErrorResponseSchema))
 @handle_api_errors
 @inject
 def list_parts(inventory_service: InventoryService = Provide[ServiceContainer.inventory_service]) -> Any:
-    """List parts with pagination and total quantities."""
+    """List parts with pagination, total quantities, and optional related data.
+
+    Query Parameters:
+        limit: Maximum number of parts to return (default: 50)
+        offset: Number of parts to skip (default: 0)
+        type_id: Filter by part type ID (optional)
+        include: Comma-separated list of optional data to include (optional)
+            - locations: Include location details
+            - kits: Include kit memberships
+            - shopping_lists: Include shopping list memberships
+            - cover: Include cover attachment URLs
+    """
     limit = int(request.args.get("limit", 50))
     offset = int(request.args.get("offset", 0))
     type_filter = request.args.get("type_id", type=int)
+    include_param = request.args.get("include", type=str)
 
-    # Get parts with calculated total quantities only
-    parts_with_totals = inventory_service.get_all_parts_with_totals(limit, offset, type_filter)
+    # Parse include parameter - return 400 on validation errors
+    try:
+        include_locations, include_kits, include_shopping_lists, include_cover = _parse_include_parameter(include_param)
+    except IncludeParameterError as e:
+        return {
+            "error": "Invalid parameter",
+            "details": {"message": e.message}
+        }, 400
+
+    # Get parts with calculated total quantities and optional bulk-loaded data
+    parts_with_totals = inventory_service.get_all_parts_with_totals(
+        limit=limit,
+        offset=offset,
+        type_id=type_filter,
+        include_locations=include_locations,
+        include_kits=include_kits,
+        include_shopping_lists=include_shopping_lists,
+    )
 
     result = []
     for part_with_total in parts_with_totals:
@@ -128,43 +207,45 @@ def list_parts(inventory_service: InventoryService = Provide[ServiceContainer.in
 
         # Convert using helper function
         part_data = _convert_part_to_schema_data(part, total_qty)
-        result.append(part_data)
 
-    return result
+        # Add cover URLs if requested and cover attachment exists
+        if include_cover and part.cover_attachment_id:
+            part_data["cover_url"] = f"/api/attachments/{part.cover_attachment_id}"
+            part_data["cover_thumbnail_url"] = f"/api/attachments/{part.cover_attachment_id}/thumbnail"
 
+        # Add locations if requested
+        if include_locations:
+            locations = []
+            part_locations_data = getattr(part, '_part_locations_data', [])
+            for part_location in part_locations_data:
+                location_data = PartLocationListSchema(
+                    box_no=part_location.box_no,
+                    loc_no=part_location.loc_no,
+                    qty=part_location.qty
+                )
+                locations.append(location_data.model_dump())
+            part_data["locations"] = locations
 
-@parts_bp.route("/with-locations", methods=["GET"])
-@api.validate(resp=SpectreeResponse(HTTP_200=list[PartWithTotalAndLocationsSchema]))
-@handle_api_errors
-@inject
-def list_parts_with_locations(inventory_service: InventoryService = Provide[ServiceContainer.inventory_service]) -> Any:
-    """List parts with pagination, total quantities, and location details."""
-    limit = int(request.args.get("limit", 50))
-    offset = int(request.args.get("offset", 0))
-    type_filter = request.args.get("type_id", type=int)
+        # Add kit memberships if requested
+        if include_kits:
+            from app.schemas.part_kits import PartKitUsageSchema
+            kits = []
+            kit_reservations_data = getattr(part, '_kit_reservations_data', [])
+            for reservation in kit_reservations_data:
+                kit_data = PartKitUsageSchema.model_validate(reservation)
+                kits.append(kit_data.model_dump())
+            part_data["kits"] = kits
 
-    # Get parts with calculated total quantities and location data
-    parts_with_totals = inventory_service.get_all_parts_with_totals_and_locations(limit, offset, type_filter)
+        # Add shopping list memberships if requested
+        if include_shopping_lists:
+            from app.schemas.part_shopping_list import PartShoppingListMembershipSchema
+            shopping_lists = []
+            shopping_list_memberships_data = getattr(part, '_shopping_list_memberships_data', [])
+            for line in shopping_list_memberships_data:
+                membership = PartShoppingListMembershipSchema.from_line(line)
+                shopping_lists.append(membership.model_dump())
+            part_data["shopping_lists"] = shopping_lists
 
-    result = []
-    for part_with_total in parts_with_totals:
-        part = part_with_total.part
-        total_qty = part_with_total.total_quantity
-
-        # Extract location data from part._part_locations_data (manually attached by service)
-        locations = []
-        part_locations_data = getattr(part, '_part_locations_data', [])
-        for part_location in part_locations_data:
-            location_data = PartLocationListSchema(
-                box_no=part_location.box_no,
-                loc_no=part_location.loc_no,
-                qty=part_location.qty
-            )
-            locations.append(location_data)
-
-        # Create schema instance with calculated total and locations
-        part_data = _convert_part_to_schema_data(part, total_qty)
-        part_data["locations"] = [loc.model_dump() for loc in locations]
         result.append(part_data)
 
     return result

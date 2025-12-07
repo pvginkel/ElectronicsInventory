@@ -62,7 +62,8 @@ def create_app(settings: "Settings | None" = None) -> App:
             engine = db.engine  # Capture engine reference for closures
 
             def _get_pool_stats(pool: Pool) -> str:
-                return f"checkedout={pool.checkedout()} size={pool.size()} overflow={pool.overflow()}"
+                # QueuePool has checkedout(), size(), overflow() methods not on base Pool type
+                return f"checkedout={pool.checkedout()} size={pool.size()} overflow={pool.overflow()}"  # type: ignore[attr-defined]
 
             def _get_caller_info() -> str:
                 """Extract the first app-level caller from the stack trace."""

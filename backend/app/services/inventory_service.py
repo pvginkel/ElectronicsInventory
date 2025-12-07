@@ -20,22 +20,35 @@ from app.services.part_service import PartService
 
 if TYPE_CHECKING:
     from app.schemas.part import PartWithTotalModel
+    from app.services.kit_reservation_service import KitReservationService
+    from app.services.shopping_list_service import ShoppingListService
 
 
 class InventoryService(BaseService):
     """Service class for inventory management operations."""
 
-    def __init__(self, db: Session, part_service: PartService, metrics_service: MetricsServiceProtocol):
+    def __init__(
+        self,
+        db: Session,
+        part_service: PartService,
+        metrics_service: MetricsServiceProtocol,
+        kit_reservation_service: "KitReservationService | None" = None,
+        shopping_list_service: "ShoppingListService | None" = None,
+    ):
         """Initialize service with database session and dependencies.
 
         Args:
             db: SQLAlchemy database session
             part_service: Instance of PartService
             metrics_service: Instance of MetricsService for recording metrics
+            kit_reservation_service: Optional instance of KitReservationService for bulk kit lookups
+            shopping_list_service: Optional instance of ShoppingListService for bulk shopping list lookups
         """
         super().__init__(db)
         self.part_service = part_service
         self.metrics_service = metrics_service
+        self.kit_reservation_service = kit_reservation_service
+        self.shopping_list_service = shopping_list_service
 
     def add_stock(
         self, part_key: str, box_no: int, loc_no: int, qty: int
@@ -290,8 +303,28 @@ class InventoryService(BaseService):
         result = self.db.execute(stmt).scalar()
         return result or 0
 
-    def get_all_parts_with_totals(self, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list['PartWithTotalModel']:
-        """Get all parts with their total quantities calculated."""
+    def get_all_parts_with_totals(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        type_id: int | None = None,
+        include_locations: bool = False,
+        include_kits: bool = False,
+        include_shopping_lists: bool = False,
+    ) -> list['PartWithTotalModel']:
+        """Get all parts with their total quantities calculated and optional bulk-loaded data.
+
+        Args:
+            limit: Maximum number of parts to return
+            offset: Number of parts to skip
+            type_id: Optional filter by part type ID
+            include_locations: If True, bulk-load location data for all parts
+            include_kits: If True, bulk-load kit membership data for all parts
+            include_shopping_lists: If True, bulk-load shopping list membership data for all parts
+
+        Returns:
+            List of PartWithTotalModel instances with optional related data attached
+        """
         from app.models.part import Part
         from app.schemas.part import PartWithTotalModel
 
@@ -320,20 +353,14 @@ class InventoryService(BaseService):
             )
             parts_with_totals.append(part_with_total)
 
-        return parts_with_totals
+        # Bulk load optional data if requested
+        if not parts_with_totals:
+            return parts_with_totals
 
-    def get_all_parts_with_totals_and_locations(self, limit: int = 50, offset: int = 0, type_id: int | None = None) -> list['PartWithTotalModel']:
-        """Get all parts with their total quantities and location data."""
+        part_ids = [pwt.part.id for pwt in parts_with_totals]
 
-
-        # First get parts with total quantities
-        parts_with_totals = self.get_all_parts_with_totals(limit, offset, type_id)
-
-        # Get part IDs for location lookup
-        part_ids = [part_with_total.part.id for part_with_total in parts_with_totals]
-
-        if part_ids:
-            # Get all locations for these parts
+        # Bulk load locations if requested
+        if include_locations:
             location_stmt = select(PartLocation).where(PartLocation.part_id.in_(part_ids))
             locations = self.db.execute(location_stmt).scalars().all()
 
@@ -347,8 +374,25 @@ class InventoryService(BaseService):
             # Attach location data to parts
             for part_with_total in parts_with_totals:
                 part_locations = locations_by_part_id.get(part_with_total.part.id, [])
-                # Manually set the part_locations to ensure they're available
                 part_with_total.part._part_locations_data = part_locations
+
+        # Bulk load kit memberships if requested
+        if include_kits and self.kit_reservation_service:
+            kit_reservations = self.kit_reservation_service.get_reservations_by_part_ids(part_ids)
+            # Attach kit reservation data to parts
+            for part_with_total in parts_with_totals:
+                reservations = kit_reservations.get(part_with_total.part.id, [])
+                part_with_total.part._kit_reservations_data = reservations
+
+        # Bulk load shopping list memberships if requested
+        if include_shopping_lists and self.shopping_list_service:
+            shopping_list_memberships = self.shopping_list_service.list_part_memberships_bulk(
+                part_ids, include_done=False
+            )
+            # Attach shopping list data to parts
+            for part_with_total in parts_with_totals:
+                memberships = shopping_list_memberships.get(part_with_total.part.id, [])
+                part_with_total.part._shopping_list_memberships_data = memberships
 
         return parts_with_totals
 

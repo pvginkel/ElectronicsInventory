@@ -1,5 +1,7 @@
 """Part schemas for request/response validation."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -10,6 +12,8 @@ from app.schemas.part_attachment import (
     PartAttachmentListSchema,
     PartAttachmentResponseSchema,
 )
+from app.schemas.part_kits import PartKitUsageSchema
+from app.schemas.part_shopping_list import PartShoppingListMembershipSchema
 from app.schemas.seller import SellerListSchema
 from app.schemas.type import TypeResponseSchema
 
@@ -393,7 +397,11 @@ class PartListSchema(BaseModel):
 
 
 class PartWithTotalSchema(BaseModel):
-    """Schema for part with calculated total quantity."""
+    """Schema for part with calculated total quantity.
+
+    Optional fields (cover_url, cover_thumbnail_url, locations, kits, shopping_lists)
+    are populated based on the include query parameter.
+    """
 
     key: str = Field(
         description="4-character unique part identifier",
@@ -494,6 +502,58 @@ class PartWithTotalSchema(BaseModel):
         json_schema_extra={"example": 150}
     )
 
+    # Optional fields populated via include parameter
+    cover_url: str | None = Field(
+        default=None,
+        description="URL to retrieve the cover attachment (when include=cover)",
+        json_schema_extra={"example": "/api/attachments/123"}
+    )
+    cover_thumbnail_url: str | None = Field(
+        default=None,
+        description="URL to retrieve the cover attachment thumbnail (when include=cover)",
+        json_schema_extra={"example": "/api/attachments/123/thumbnail"}
+    )
+    locations: list[PartLocationListSchema] | None = Field(
+        default=None,
+        description="Location details with quantities (when include=locations)",
+        json_schema_extra={"example": [
+            {"box_no": 7, "loc_no": 3, "qty": 25},
+            {"box_no": 8, "loc_no": 12, "qty": 50}
+        ]}
+    )
+    kits: list[PartKitUsageSchema] | None = Field(
+        default=None,
+        description="Active kit memberships for this part (when include=kits)",
+        json_schema_extra={"example": [
+            {
+                "kit_id": 42,
+                "kit_name": "ESP32 Dev Board",
+                "status": "active",
+                "build_target": 10,
+                "required_per_unit": 2,
+                "reserved_quantity": 20,
+                "updated_at": "2024-01-15T10:30:00Z"
+            }
+        ]}
+    )
+    shopping_lists: list[PartShoppingListMembershipSchema] | None = Field(
+        default=None,
+        description="Shopping list memberships for this part (when include=shopping_lists)",
+        json_schema_extra={"example": [
+            {
+                "shopping_list_id": 5,
+                "shopping_list_name": "Q1 2024 Order",
+                "shopping_list_status": "ready",
+                "line_id": 123,
+                "line_status": "new",
+                "needed": 50,
+                "ordered": 0,
+                "received": 0,
+                "note": "Urgent"
+            }
+        ]}
+    )
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -514,18 +574,6 @@ class PartLocationListSchema(BaseModel):
     )
 
     model_config = ConfigDict(from_attributes=True)
-
-
-class PartWithTotalAndLocationsSchema(PartWithTotalSchema):
-    """Schema for part with calculated total quantity and location details."""
-
-    locations: list[PartLocationListSchema] = Field(
-        description="Location details with quantities",
-        json_schema_extra={"example": [
-            {"box_no": 7, "loc_no": 3, "qty": 25},
-            {"box_no": 8, "loc_no": 12, "qty": 50}
-        ]}
-    )
 
 
 class PartLocationResponseSchema(BaseModel):
@@ -554,5 +602,26 @@ class PartLocationResponseSchema(BaseModel):
 @dataclass
 class PartWithTotalModel:
     """Service layer model combining Part ORM model with total quantity."""
-    part: 'Part'  # Forward reference to avoid circular imports
+    part: Part  # Forward reference to avoid circular imports
     total_quantity: int
+
+
+# Rebuild models with forward references after all schemas are defined
+# This is needed for Pydantic to resolve forward type annotations in PartWithTotalSchema
+def _rebuild_models_with_forward_refs() -> None:
+    """Rebuild Pydantic models that use forward references."""
+    try:
+        from app.schemas.part_kits import PartKitUsageSchema  # noqa: F401
+        from app.schemas.part_shopping_list import (
+            PartShoppingListMembershipSchema,  # noqa: F401
+        )
+
+        # Tell Pydantic about the forward references
+        PartWithTotalSchema.model_rebuild()
+    except ImportError:
+        # If schemas don't exist yet, that's okay - they'll be defined later
+        pass
+
+
+# Call rebuild at module import time
+_rebuild_models_with_forward_refs()
