@@ -15,7 +15,7 @@ from app.extensions import db
 from app.services.container import ServiceContainer
 
 
-def create_app(settings: "Settings | None" = None) -> App:
+def create_app(settings: "Settings | None" = None, skip_background_services: bool = False) -> App:
     """Create and configure Flask application."""
     app = App(__name__)
 
@@ -205,24 +205,26 @@ def create_app(settings: "Settings | None" = None) -> App:
             # Ensure the scoped session is removed after each request
             container.db_session.reset()
 
-    # Start temp file manager cleanup thread during app creation
-    temp_file_manager = container.temp_file_manager()
-    temp_file_manager.start_cleanup_thread()
+    # Start background services only when not in CLI mode
+    if not skip_background_services:
+        # Start temp file manager cleanup thread during app creation
+        temp_file_manager = container.temp_file_manager()
+        temp_file_manager.start_cleanup_thread()
 
-    # Ensure S3 bucket exists during startup
-    try:
-        s3_service = container.s3_service()
-        s3_service.ensure_bucket_exists()
-    except Exception as e:
-        # Log warning but don't fail startup - S3 might be optional
-        app.logger.warning(f"Failed to ensure S3 bucket exists: {e}")
+        # Ensure S3 bucket exists during startup
+        try:
+            s3_service = container.s3_service()
+            s3_service.ensure_bucket_exists()
+        except Exception as e:
+            # Log warning but don't fail startup - S3 might be optional
+            app.logger.warning(f"Failed to ensure S3 bucket exists: {e}")
 
-    # Initialize and start metrics collection
-    try:
-        metrics_service = container.metrics_service()
-        metrics_service.start_background_updater(settings.METRICS_UPDATE_INTERVAL)
-        app.logger.info("Prometheus metrics collection started")
-    except Exception as e:
-        app.logger.warning(f"Failed to start metrics collection: {e}")
+        # Initialize and start metrics collection
+        try:
+            metrics_service = container.metrics_service()
+            metrics_service.start_background_updater(settings.METRICS_UPDATE_INTERVAL)
+            app.logger.info("Prometheus metrics collection started")
+        except Exception as e:
+            app.logger.warning(f"Failed to start metrics collection: {e}")
 
     return app
