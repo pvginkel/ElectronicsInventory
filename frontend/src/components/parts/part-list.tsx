@@ -8,12 +8,19 @@ import { Card } from '@/components/ui/card';
 import { CollectionGrid, EmptyState } from '@/components/ui';
 import { DebouncedSearchInput } from '@/components/ui/debounced-search-input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useGetTypes, type PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema } from '@/lib/api/generated/hooks';
-import { useAllPartsWithLocations } from '@/hooks/use-all-parts-with-locations';
+import { useGetTypes, type PartWithTotalSchemaList_a9993e3_PartWithTotalSchema } from '@/lib/api/generated/hooks';
+import { useAllParts } from '@/hooks/use-all-parts';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
-import { useShoppingListMembershipIndicators } from '@/hooks/use-part-shopping-list-memberships';
-import { usePartKitMembershipIndicators } from '@/hooks/use-part-kit-memberships';
+import type {
+  PartKitMembershipSummary,
+  PartKitUsageSummary,
+  PartKitStatus,
+} from '@/hooks/use-part-kit-memberships';
+import type {
+  ShoppingListMembership,
+  ShoppingListMembershipSummary,
+} from '@/types/shopping-lists';
 import { PartListItem } from './part-card';
 
 interface PartListProps {
@@ -34,7 +41,7 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
     isFetching: partsFetching,
     error: partsError,
     pagesFetched,
-  } = useAllPartsWithLocations();
+  } = useAllParts();
   const {
     data: types = [],
     isLoading: typesLoading,
@@ -49,7 +56,7 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
 
   useEffect(() => {
     // Trigger invalidation for parts pagination hook
-    queryClient.invalidateQueries({ queryKey: ['getPartsWithLocations'] });
+    queryClient.invalidateQueries({ queryKey: ['parts.list'] });
     queryClient.invalidateQueries({ queryKey: ['getTypes'] });
   }, [queryClient]);
 
@@ -88,13 +95,57 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
     return map;
   }, [types]);
 
-  // Load shopping list indicators for ALL parts (not just filtered)
-  const allPartKeys = useMemo(
-    () => parts.map((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => part.key),
-    [parts],
-  );
-  const shoppingIndicators = useShoppingListMembershipIndicators(allPartKeys);
-  const shoppingIndicatorMap = shoppingIndicators.summaryByPartKey;
+  // Build shopping list indicator map from consolidated response
+  // Map shopping lists field from parts to match ShoppingListMembership type
+  const shoppingIndicatorMap = useMemo(() => {
+    const map = new Map<string, ShoppingListMembershipSummary>();
+
+    for (const part of parts) {
+      const rawMemberships = part.shopping_lists ?? [];
+
+      // Map snake_case API response to camelCase domain model
+      const memberships: ShoppingListMembership[] = rawMemberships.map(raw => ({
+        listId: raw.shopping_list_id,
+        listName: raw.shopping_list_name,
+        listStatus: raw.shopping_list_status,
+        lineId: raw.line_id,
+        lineStatus: raw.line_status,
+        needed: raw.needed,
+        ordered: raw.ordered,
+        received: raw.received,
+        note: typeof raw.note === 'string' && raw.note.trim() ? raw.note.trim() : null,
+        seller: raw.seller ? {
+          id: raw.seller.id,
+          name: raw.seller.name,
+          website: raw.seller.website ?? null,
+        } : null,
+      }));
+
+      // Filter to active memberships only
+      const activeMemberships = memberships.filter(
+        m => m.listStatus !== 'done' && m.lineStatus !== 'done'
+      );
+
+      const conceptMemberships = activeMemberships.filter(m => m.listStatus === 'concept');
+      const readyMemberships = activeMemberships.filter(m => m.listStatus === 'ready');
+      const listNames = Array.from(new Set(activeMemberships.map(m => m.listName)));
+      const conceptListIds = Array.from(new Set(conceptMemberships.map(m => m.listId)));
+
+      map.set(part.key, {
+        partKey: part.key,
+        memberships,
+        hasActiveMembership: activeMemberships.length > 0,
+        listNames,
+        conceptListIds,
+        activeCount: activeMemberships.length,
+        conceptCount: conceptMemberships.length,
+        readyCount: readyMemberships.length,
+        completedCount: memberships.length - activeMemberships.length,
+      });
+    }
+
+    return map;
+  }, [parts]);
 
   // Filter parts sequentially: search term (if present), stock filter (if active), shopping list filter (if active).
   // All filters combine with AND logic.
@@ -104,7 +155,7 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
     // Apply search term filter
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
-      result = result.filter((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => {
+      result = result.filter((part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema) => {
         const { displayId, displayDescription, displayManufacturerCode } = formatPartForDisplay(part);
         const typeName = part.type_id ? typeMap.get(part.type_id) : '';
 
@@ -120,14 +171,14 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
 
     // Apply stock filter
     if (hasStockFilter) {
-      result = result.filter((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => {
+      result = result.filter((part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema) => {
         return part.total_quantity > 0;
       });
     }
 
     // Apply shopping list filter
     if (onShoppingListFilter) {
-      result = result.filter((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => {
+      result = result.filter((part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema) => {
         return shoppingIndicatorMap.get(part.key)?.hasActiveMembership === true;
       });
     }
@@ -146,13 +197,49 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
   const filtersOrSearchActive = searchActive || hasStockFilter || onShoppingListFilter;
   const filteredCount = filtersOrSearchActive && visibleCount < totalCount ? visibleCount : undefined;
 
-  // Load kit indicators for filtered parts only (for display)
-  const filteredPartKeys = useMemo(
-    () => filteredParts.map((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => part.key),
-    [filteredParts],
-  );
-  const kitIndicators = usePartKitMembershipIndicators(filteredPartKeys);
-  const kitIndicatorMap = kitIndicators.summaryByPartKey;
+  // Build kit indicator map for ALL parts from consolidated response
+  // Consistent with shopping list indicators; simpler approach; enables future filtering
+  const kitIndicatorMap = useMemo(() => {
+    const map = new Map<string, PartKitMembershipSummary>();
+
+    for (const part of parts) {
+      const rawKits = part.kits ?? [];
+
+      // Map snake_case API response to camelCase domain model
+      const kits: PartKitUsageSummary[] = rawKits.map(raw => ({
+        kitId: raw.kit_id,
+        kitName: raw.kit_name?.trim() ?? '',
+        status: raw.status as PartKitStatus,
+        buildTarget: raw.build_target ?? 0,
+        requiredPerUnit: raw.required_per_unit ?? 0,
+        reservedQuantity: raw.reserved_quantity ?? 0,
+        updatedAt: raw.updated_at,
+      }));
+
+      // Sort kits: active status first, then alphabetically by name
+      const sortedKits = [...kits].sort((a, b) => {
+        if (a.status !== b.status) {
+          return a.status === 'active' ? -1 : 1;
+        }
+        return a.kitName.localeCompare(b.kitName, undefined, { numeric: true, sensitivity: 'base' });
+      });
+
+      const activeCount = sortedKits.filter(kit => kit.status === 'active').length;
+      const archivedCount = sortedKits.length - activeCount;
+      const kitNames = sortedKits.map(kit => kit.kitName);
+
+      map.set(part.key, {
+        partKey: part.key,
+        kits: sortedKits,
+        hasMembership: sortedKits.length > 0,
+        activeCount,
+        archivedCount,
+        kitNames,
+      });
+    }
+
+    return map;
+  }, [parts]);
 
   // Build activeFilters array for instrumentation
   const activeFilters: string[] = [];
@@ -370,20 +457,20 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
 
   const listContent = (
     <CollectionGrid testId="parts.list.container">
-      {sortedParts.map((part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema) => (
+      {sortedParts.map((part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema) => (
         <PartListItem
           key={part.key}
           part={part}
           typeMap={typeMap}
           onClick={() => onSelectPart?.(part.key)}
           shoppingIndicatorSummary={shoppingIndicatorMap.get(part.key)}
-          shoppingIndicatorStatus={shoppingIndicators.status}
-          shoppingIndicatorFetchStatus={shoppingIndicators.fetchStatus}
-          shoppingIndicatorError={shoppingIndicators.error}
+          shoppingIndicatorStatus="success"
+          shoppingIndicatorFetchStatus="idle"
+          shoppingIndicatorError={null}
           kitIndicatorSummary={kitIndicatorMap.get(part.key)}
-          kitIndicatorStatus={kitIndicators.status}
-          kitIndicatorFetchStatus={kitIndicators.fetchStatus}
-          kitIndicatorError={kitIndicators.error}
+          kitIndicatorStatus="success"
+          kitIndicatorFetchStatus="idle"
+          kitIndicatorError={null}
         />
       ))}
     </CollectionGrid>

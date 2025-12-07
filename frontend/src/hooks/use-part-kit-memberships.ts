@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/generated/client';
 import { toApiError } from '@/lib/api/api-error';
@@ -22,9 +22,6 @@ type KitMembershipQueryItem = {
 type KitMembershipQueryResult = KitMembershipQueryItem[];
 
 type KitMembershipQueryKey = [typeof KIT_MEMBERSHIP_QUERY_KEY[number], { partKeys: string[] }];
-
-const INDICATOR_STALE_TIME = 60_000;
-const INDICATOR_GC_TIME = 5 * 60_000;
 
 export type PartKitStatus = 'active' | 'archived';
 
@@ -224,73 +221,6 @@ export function usePartKitMemberships(partKey: string | undefined) {
     activeCount: summary.activeCount,
     archivedCount: summary.archivedCount,
     partKey: summary.partKey,
-  };
-}
-
-export function usePartKitMembershipIndicators(partKeys: string[] | undefined) {
-  const lookup = useMembershipLookup<string, KitMembershipQueryResult, PartKitMembershipSummary>({
-    keys: partKeys,
-    normalizeKey: normalizePartKey,
-    queryKey: kitMembershipQueryKey,
-    queryFn: fetchKitMemberships,
-    buildSummaries: ({ originalKeys, uniqueKeys, response }) =>
-      buildSummaryResults(originalKeys, uniqueKeys, response),
-    staleTime: INDICATOR_STALE_TIME,
-    gcTime: INDICATOR_GC_TIME,
-  });
-
-  const indicatorStats = useMemo(() => {
-    let activePartCount = 0;
-    let membershipCount = 0;
-    for (const summary of lookup.summaries) {
-      if (summary.hasMembership) {
-        activePartCount += 1;
-        membershipCount += summary.kits.length;
-      }
-    }
-    return { activePartCount, membershipCount };
-  }, [lookup.summaries]);
-
-  const getReadyMetadata = useCallback(
-    () => ({
-      partCount: lookup.uniqueKeys.length,
-      activePartCount: indicatorStats.activePartCount,
-      membershipCount: indicatorStats.membershipCount,
-    }),
-    [indicatorStats.activePartCount, indicatorStats.membershipCount, lookup.uniqueKeys.length],
-  );
-
-  const getErrorMetadata = useCallback(
-    (error: unknown) => ({
-      partCount: lookup.uniqueKeys.length,
-      message: error instanceof Error ? error.message : String(error ?? 'Unknown error'),
-    }),
-    [lookup.uniqueKeys.length],
-  );
-
-  const getAbortedMetadata = useCallback(
-    () => ({
-      partCount: lookup.uniqueKeys.length,
-    }),
-    [lookup.uniqueKeys.length],
-  );
-
-  useListLoadingInstrumentation({
-    scope: 'parts.list.kitIndicators',
-    isLoading: lookup.query.isLoading,
-    isFetching: lookup.query.isFetching,
-    error: lookup.query.error,
-    getReadyMetadata,
-    getErrorMetadata,
-    getAbortedMetadata,
-  });
-
-  return {
-    ...lookup.query,
-    summaries: lookup.summaries,
-    summaryByPartKey: lookup.summaryByKey,
-    partKeys: lookup.keys,
-    uniquePartKeys: lookup.uniqueKeys,
   };
 }
 

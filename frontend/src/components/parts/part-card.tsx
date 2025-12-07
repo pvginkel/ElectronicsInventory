@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
-import { type PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema } from '@/lib/api/generated/hooks';
+import { type PartWithTotalSchemaList_a9993e3_PartWithTotalSchema } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
 import {
   CodeBadge,
@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { MembershipIndicator } from '@/components/ui/membership-indicator';
 
 interface PartListItemProps {
-  part: PartWithTotalAndLocationsSchemaList_a9993e3_PartWithTotalAndLocationsSchema;
+  part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema;
   typeMap: Map<number, string>;
   onClick?: () => void;
   shoppingIndicatorSummary?: ShoppingListMembershipSummary;

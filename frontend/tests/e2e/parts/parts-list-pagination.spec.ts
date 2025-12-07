@@ -216,7 +216,7 @@ test.describe('Parts - List Pagination @slow', () => {
     });
 
     // Query invalidation should trigger re-pagination
-    // Note: The custom hook listens for 'getPartsWithLocations' invalidation
+    // Note: The custom hook listens for 'parts.list' invalidation
     const refetchReadyEvent = await waitForListLoading(page, 'parts.list', 'ready', 60_000);
 
     // Verify re-pagination happened

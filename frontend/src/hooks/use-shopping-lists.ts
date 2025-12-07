@@ -107,7 +107,7 @@ function invalidateInventoryQueries(queryClient: ReturnType<typeof useQueryClien
   invalidatePartMemberships(queryClient, partKey);
   queryClient.invalidateQueries({ queryKey: ['getPartsByPartKey'] });
   queryClient.invalidateQueries({ queryKey: ['getPartsLocationsByPartKey'] });
-  queryClient.invalidateQueries({ queryKey: ['getPartsWithLocations'] });
+  queryClient.invalidateQueries({ queryKey: ['parts.list'] });
   queryClient.invalidateQueries({ queryKey: ['getPartsHistoryByPartKey'] });
   queryClient.invalidateQueries({ queryKey: ['getBoxes'] });
   queryClient.invalidateQueries({ queryKey: ['getBoxesByBoxNo'] });

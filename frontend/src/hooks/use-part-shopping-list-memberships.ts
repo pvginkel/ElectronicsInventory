@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/generated/client';
 import { toApiError } from '@/lib/api/api-error';
@@ -232,86 +232,6 @@ export function usePartShoppingListMemberships(
     completedCount: summary.completedCount,
     partKeys: lookup.keys,
     summaryByPartKey: lookup.summaryByKey,
-  };
-}
-
-interface UseShoppingListMembershipIndicatorsOptions {
-  includeDone?: boolean;
-}
-
-const INDICATOR_STALE_TIME = 60_000;
-const INDICATOR_GC_TIME = 5 * 60_000;
-
-export function useShoppingListMembershipIndicators(
-  partKeys: string[],
-  options?: UseShoppingListMembershipIndicatorsOptions
-) {
-  const lookup = useMembershipLookup<string, MembershipQueryResult, ShoppingListMembershipSummary>({
-    keys: partKeys,
-    includeDone: options?.includeDone,
-    normalizeKey: normalizePartKey,
-    queryKey: membershipQueryKey,
-    queryFn: fetchPartMemberships,
-    buildSummaries: ({ originalKeys, uniqueKeys, response, includeDone }) =>
-      buildSummaryResults(originalKeys, uniqueKeys, response, includeDone),
-    staleTime: INDICATOR_STALE_TIME,
-    gcTime: INDICATOR_GC_TIME,
-  });
-
-  const uniquePartCount = lookup.uniqueKeys.length;
-
-  const indicatorStats = useMemo(() => {
-    let activePartCount = 0;
-    let membershipCount = 0;
-    for (const summary of lookup.summaries) {
-      if (summary.hasActiveMembership) {
-        activePartCount += 1;
-        membershipCount += summary.activeCount;
-      }
-    }
-    return { activePartCount, membershipCount };
-  }, [lookup.summaries]);
-
-  const getReadyMetadata = useCallback(
-    () => ({
-      partCount: uniquePartCount,
-      activePartCount: indicatorStats.activePartCount,
-      membershipCount: indicatorStats.membershipCount,
-    }),
-    [indicatorStats.activePartCount, indicatorStats.membershipCount, uniquePartCount]
-  );
-
-  const getErrorMetadata = useCallback(
-    (error: unknown) => ({
-      partCount: uniquePartCount,
-      message: error instanceof Error ? error.message : String(error ?? 'Unknown error'),
-    }),
-    [uniquePartCount]
-  );
-
-  const getAbortedMetadata = useCallback(
-    () => ({
-      partCount: uniquePartCount,
-    }),
-    [uniquePartCount]
-  );
-
-  useListLoadingInstrumentation({
-    scope: 'parts.list.shoppingListIndicators',
-    isLoading: lookup.query.isLoading,
-    isFetching: lookup.query.isFetching,
-    error: lookup.query.error,
-    getReadyMetadata,
-    getErrorMetadata,
-    getAbortedMetadata,
-  });
-
-  return {
-    ...lookup.query,
-    summaries: lookup.summaries,
-    summaryByPartKey: lookup.summaryByKey,
-    partKeys: lookup.keys,
-    uniquePartKeys: lookup.uniqueKeys,
   };
 }
 
