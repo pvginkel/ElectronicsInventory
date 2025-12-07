@@ -3,9 +3,13 @@
 import logging
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from sqlalchemy import MetaData, text
 from sqlalchemy.engine import Engine
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 from alembic import command
 from alembic.config import Config
@@ -37,9 +41,9 @@ def init_db() -> None:
 def check_db_connection() -> bool:
     """Check if database connection is working."""
     try:
-        # Use Flask-SQLAlchemy's session for the health check
-        result = db.session.execute(text("SELECT 1"))
-        return result.scalar() == 1
+        with db.engine.connect() as conn:
+            result = conn.execute(text("SELECT 1"))
+            return result.scalar() == 1
     except Exception as e:
         logger.warning(f"Checking database connection failed: {e}")
         return False
@@ -67,10 +71,10 @@ def get_current_revision() -> str | None:
     Optimized version that catches missing table exception instead of checking existence first.
     """
     try:
-        # Query the alembic_version table directly - if it doesn't exist, we'll catch the exception
-        result = db.session.execute(text("SELECT version_num FROM alembic_version LIMIT 1"))
-        row = result.fetchone()
-        return row[0] if row else None
+        with db.engine.connect() as conn:
+            result = conn.execute(text("SELECT version_num FROM alembic_version LIMIT 1"))
+            row = result.fetchone()
+            return row[0] if row else None
     except Exception:
         # Table doesn't exist or query failed - treat as no migrations applied
         return None
@@ -170,23 +174,19 @@ def _get_migration_info(script_dir: ScriptDirectory, revision: str) -> tuple[str
         return revision[:7], "Migration"
 
 
-def sync_master_data_from_setup() -> None:
-    """Sync master data (types) from setup file to database."""
-    try:
-        # Use Flask-SQLAlchemy's session for consistency
-        with db.session() as session:
-            setup_service = SetupService(session)
-            added_count = setup_service.sync_types_from_setup()
+def sync_master_data_from_setup(session: "Session") -> None:
+    """Sync master data (types) from setup file to database.
 
-            if added_count > 0:
-                print(f"📦 Added {added_count} new types from setup file")
-                session.commit()
-            else:
-                print("📦 Types already up to date")
+    Args:
+        session: SQLAlchemy session to use for database operations.
+    """
+    setup_service = SetupService(session)
+    added_count = setup_service.sync_types_from_setup()
 
-    except Exception as e:
-        print(f"⚠️  Failed to sync types from setup file: {e}")
-        # Don't raise - types sync failure shouldn't block migrations
+    if added_count > 0:
+        print(f"📦 Added {added_count} new types from setup file")
+    else:
+        print("📦 Types already up to date")
 
 
 def upgrade_database(recreate: bool = False) -> list[tuple[str, str]]:

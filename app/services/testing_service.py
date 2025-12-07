@@ -70,7 +70,7 @@ class TestingService(BaseService):
 
             # Step 3: Sync types from setup file
             logger.info("Syncing master data from setup")
-            sync_master_data_from_setup()
+            sync_master_data_from_setup(self.db)
 
             # Step 4: Load test data if requested
             if seed:

@@ -15,7 +15,6 @@ from app.database import (
     sync_master_data_from_setup,
     upgrade_database,
 )
-from app.extensions import db
 from app.models.box import Box
 from app.models.kit import Kit
 from app.models.kit_content import KitContent
@@ -158,11 +157,15 @@ def handle_upgrade_db(
             print("✅ Database is up to date. No migrations to apply.")
 
         # Phase 2: Sync master data unconditionally
+        session = app.container.session_maker()()
         try:
-            sync_master_data_from_setup()
+            sync_master_data_from_setup(session)
+            session.commit()
         except Exception as e:
             print(f"⚠️  Warning: Failed to sync master data: {e}")
             # Continue - master data sync failure shouldn't block the command
+        finally:
+            session.close()
 
 
 def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
@@ -198,21 +201,21 @@ def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
             # First recreate the database using existing logic
             print("🔄 Recreating database from scratch...")
             applied = upgrade_database(recreate=True)
+
             if applied:
                 print(f"✅ Database recreated with {len(applied)} migration(s)")
             else:
                 print("✅ Database recreated successfully")
 
-            # Sync master data after database recreation
+            # Get a fresh session from the container
+            session = app.container.session_maker()()
             try:
-                sync_master_data_from_setup()
-            except Exception as e:
-                print(f"❌ Failed to sync master data: {e}", file=sys.stderr)
-                sys.exit(1)
+                # Sync master data after database recreation
+                sync_master_data_from_setup(session)
+                session.commit()
 
-            # Load test data
-            print("📦 Loading fixed test dataset...")
-            with db.session() as session:
+                # Load test data
+                print("📦 Loading fixed test dataset...")
                 test_data_service = TestDataService(session)
                 test_data_service.load_full_dataset()
 
@@ -306,6 +309,9 @@ def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
                     for entry in entries:
                         print(f"      • {entry}")
 
+            finally:
+                session.close()
+
         except Exception as e:
             print(f"❌ Failed to load test data: {e}", file=sys.stderr)
             sys.exit(1)
@@ -320,8 +326,8 @@ def main() -> NoReturn:
         parser.print_help()
         sys.exit(1)
 
-    # Create Flask app for database operations
-    app = create_app()
+    # Create Flask app for database operations (skip background services for CLI)
+    app = create_app(skip_background_services=True)
 
     if args.command == "upgrade-db":
         handle_upgrade_db(
