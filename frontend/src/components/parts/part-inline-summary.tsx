@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router';
 
 import { cn } from '@/lib/utils';
 import { CodeBadge } from '@/components/ui';
+import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 
 interface PartInlineSummaryProps {
   partKey: string;
@@ -10,6 +11,7 @@ interface PartInlineSummaryProps {
   className?: string;
   testId?: string;
   link?: boolean;
+  showCoverImage?: boolean;
 }
 
 export function PartInlineSummary({
@@ -19,6 +21,7 @@ export function PartInlineSummary({
   className,
   testId,
   link = false,
+  showCoverImage = true,
 }: PartInlineSummaryProps) {
   const baseClasses = cn(
     '-mx-2.5 -my-1 inline-flex w-[calc(100%+1rem)] flex-col gap-1 rounded-md px-2.5 py-1',
@@ -33,14 +36,27 @@ export function PartInlineSummary({
 
   const metadataClasses = 'flex flex-wrap items-center gap-2 text-xs text-muted-foreground';
 
+  const textContent = (
+    <div className="flex flex-col gap-1">
+      <span className={titleClasses}>{description}</span>
+      <span className={metadataClasses}>
+        <CodeBadge code={`Key ${partKey}`} />
+        {manufacturerCode ? <span>MPN {manufacturerCode}</span> : null}
+      </span>
+    </div>
+  );
+
+  const content = showCoverImage ? (
+    <div className="flex items-center gap-4">
+      <CoverImageDisplay partId={partKey} size="small" />
+      {textContent}
+    </div>
+  ) : textContent;
+
   if (!link) {
     return (
       <div className={baseClasses} data-testid={testId}>
-        <span className={titleClasses}>{description}</span>
-        <span className={metadataClasses}>
-          <CodeBadge code={`Key ${partKey}`} />
-          {manufacturerCode ? <span>MPN {manufacturerCode}</span> : null}
-        </span>
+        {content}
       </div>
     );
   }
@@ -52,11 +68,7 @@ export function PartInlineSummary({
       className={baseClasses}
       data-testid={testId}
     >
-      <span className={titleClasses}>{description}</span>
-      <span className={metadataClasses}>
-        <CodeBadge code={`Key ${partKey}`} />
-        {manufacturerCode ? <span>MPN {manufacturerCode}</span> : null}
-      </span>
+      {content}
     </Link>
   );
 }

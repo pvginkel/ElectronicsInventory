@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip } from '@/components/ui/tooltip';
-import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { KitBOMRowEditor } from '@/components/kits/kit-bom-row-editor';
 import type { KitContentRow } from '@/types/kits';
@@ -226,16 +225,13 @@ function KitBOMDisplayRow({
       className={rowClassName}
     >
       <td className="px-4 py-3 align-top">
-        <div className="flex items-center gap-4">
-          <CoverImageDisplay partId={row.part.key} size="small" />
-          <PartInlineSummary
-            partKey={row.part.key}
-            description={row.part.description}
-            manufacturerCode={row.part.manufacturerCode}
-            testId={`kits.detail.table.row.${row.id}.part`}
-            link={true}
-          />
-        </div>
+        <PartInlineSummary
+          partKey={row.part.key}
+          description={row.part.description}
+          manufacturerCode={row.part.manufacturerCode}
+          testId={`kits.detail.table.row.${row.id}.part`}
+          link={true}
+        />
       </td>
       <td className="px-4 py-3 text-right align-top">
         {formatNumber(row.requiredPerUnit)}
