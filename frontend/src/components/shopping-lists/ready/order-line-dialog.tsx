@@ -35,11 +35,12 @@ export function OrderLineDialog({
   isSubmitting,
   restoreFocusElement,
 }: OrderLineDialogProps) {
+  // Show existing ordered value if set, otherwise suggest needed quantity for new entries
   const defaultQuantity = useMemo(() => {
     if (!line) {
       return '0';
     }
-    return String(line.needed);
+    return String(line.ordered > 0 ? line.ordered : line.needed);
   }, [line]);
 
   const validationRules = {
@@ -99,7 +100,9 @@ export function OrderLineDialog({
       return;
     }
     if (line) {
-      form.setValue('orderedQuantity', String(line.needed));
+      // Show existing ordered value if set, otherwise suggest needed quantity
+      const quantity = line.ordered > 0 ? line.ordered : line.needed;
+      form.setValue('orderedQuantity', String(quantity));
       form.setFieldTouched('orderedQuantity', false);
     } else {
       form.setValue('orderedQuantity', '0');
