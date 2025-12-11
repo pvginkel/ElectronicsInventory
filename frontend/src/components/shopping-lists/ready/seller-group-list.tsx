@@ -10,6 +10,7 @@ interface SellerGroupListProps {
   onOpenOrderGroup: (group: ShoppingListSellerGroup, trigger?: HTMLElement | null) => void;
   onRevertLine: (line: ShoppingListConceptLine) => void;
   onEditLine: (line: ShoppingListConceptLine) => void;
+  onDeleteLine?: (line: ShoppingListConceptLine) => void;
   onUpdateStock: (line: ShoppingListConceptLine, trigger?: HTMLElement | null) => void;
   pendingLineIds: Set<number>;
   highlightedLineId?: number | null;
@@ -23,6 +24,7 @@ export function SellerGroupList({
   onOpenOrderGroup,
   onRevertLine,
   onEditLine,
+  onDeleteLine,
   onUpdateStock,
   pendingLineIds,
   highlightedLineId,
@@ -44,6 +46,7 @@ export function SellerGroupList({
             onOpenOrderGroup={onOpenOrderGroup}
             onRevertLine={onRevertLine}
             onEditLine={onEditLine}
+            onDeleteLine={onDeleteLine}
             onUpdateStock={onUpdateStock}
             pendingLineIds={pendingLineIds}
             highlightedLineId={highlightedLineId}

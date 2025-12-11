@@ -4,7 +4,7 @@ import { StatusBadge } from '@/components/ui';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { cn } from '@/lib/utils';
 import type { ShoppingListConceptLine } from '@/types/shopping-lists';
-import { Info, Pencil, Undo2 } from 'lucide-react';
+import { Info, Pencil, Trash2, Undo2 } from 'lucide-react';
 import { LINE_TABLE_WIDTHS } from '../table-layout';
 
 type ReadyLineRowActionHandler = (line: ShoppingListConceptLine, trigger?: HTMLElement | null) => void;
@@ -14,6 +14,7 @@ interface ReadyLineRowProps {
   onOpenOrderDialog: ReadyLineRowActionHandler;
   onRevertLine: (line: ShoppingListConceptLine) => void;
   onEditLine: (line: ShoppingListConceptLine) => void;
+  onDeleteLine?: (line: ShoppingListConceptLine) => void;
   onUpdateStock: ReadyLineRowActionHandler;
   highlight?: boolean;
   disabled?: boolean;
@@ -38,6 +39,7 @@ export const ReadyLineRow = forwardRef<HTMLTableRowElement, ReadyLineRowProps>(f
     onOpenOrderDialog,
     onRevertLine,
     onEditLine,
+    onDeleteLine,
     onUpdateStock,
     highlight = false,
     disabled = false,
@@ -185,6 +187,20 @@ export const ReadyLineRow = forwardRef<HTMLTableRowElement, ReadyLineRowProps>(f
                 title="Revert to New"
               >
                 <Undo2 className="h-4 w-4" />
+              </Button>
+            )}
+            {line.status === 'new' && onDeleteLine && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 shrink-0"
+                disabled={disableActions}
+                aria-label={`Delete ${line.part.description}`}
+                onClick={() => onDeleteLine(line)}
+                data-testid={`shopping-lists.ready.line.${line.id}.actions.delete`}
+                title="Delete line"
+              >
+                <Trash2 className="h-4 w-4" />
               </Button>
             )}
             {line.status !== 'done' && (

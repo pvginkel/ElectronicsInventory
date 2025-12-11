@@ -14,6 +14,7 @@ interface SellerGroupCardProps {
   onOpenOrderGroup: (group: ShoppingListSellerGroup, trigger?: HTMLElement | null) => void;
   onRevertLine: (line: ShoppingListConceptLine) => void;
   onEditLine: (line: ShoppingListConceptLine) => void;
+  onDeleteLine?: (line: ShoppingListConceptLine) => void;
   onUpdateStock: (line: ShoppingListConceptLine, trigger?: HTMLElement | null) => void;
   pendingLineIds: Set<number>;
   highlightedLineId?: number | null;
@@ -28,6 +29,7 @@ export function SellerGroupCard({
   onOpenOrderGroup,
   onRevertLine,
   onEditLine,
+  onDeleteLine,
   onUpdateStock,
   pendingLineIds,
   highlightedLineId,
@@ -158,6 +160,7 @@ export function SellerGroupCard({
                   onOpenOrderDialog={onOpenOrderLine}
                   onRevertLine={onRevertLine}
                   onEditLine={onEditLine}
+                  onDeleteLine={onDeleteLine}
                   onUpdateStock={onUpdateStock}
                   highlight={highlightedLineId === line.id}
                   disabled={pendingLineIds.has(line.id)}

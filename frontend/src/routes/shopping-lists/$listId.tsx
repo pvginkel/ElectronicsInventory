@@ -10,6 +10,7 @@ import { OrderGroupDialog } from '@/components/shopping-lists/ready/order-group-
 import { UpdateStockDialog } from '@/components/shopping-lists/ready/update-stock-dialog';
 import { ReadyToolbar } from '@/components/shopping-lists/ready/ready-toolbar';
 import { useListArchiveConfirm, useListDeleteConfirm } from '@/components/shopping-lists/list-delete-confirm';
+import { useConfirm } from '@/hooks/use-confirm';
 import {
   useShoppingListDetail,
   useSortedShoppingListLines,
@@ -155,6 +156,9 @@ function ShoppingListDetailRoute() {
     dialogTestId: 'shopping-lists.detail.delete-dialog',
     onDeleted: handleListDeleted,
   });
+
+  // Confirmation hook for Ready state line deletion
+  const { confirm: confirmDeleteLine, confirmProps: deleteLineConfirmProps } = useConfirm();
 
   const updateMetadataMutation = useUpdateShoppingListMutation(normalizedListId);
   const markReadyMutation = useMarkShoppingListReadyMutation();
@@ -393,6 +397,58 @@ function ShoppingListDetailRoute() {
       return next;
     });
   }, []);
+
+  // Handler for Ready state line deletion (with confirmation, no undo)
+  const handleDeleteReadyLine = useCallback(async (line: ShoppingListConceptLine) => {
+    if (detailIsCompleted) {
+      return;
+    }
+
+    const confirmed = await confirmDeleteLine({
+      title: 'Delete shopping list line?',
+      description: 'Are you sure you want to delete this line from the shopping list? This action cannot be undone.',
+      confirmText: 'Delete',
+      destructive: true,
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    updatePendingLine(line.id, true);
+
+    trackFormSubmit('ShoppingListLine:delete', {
+      lineId: line.id,
+      listId: line.shoppingListId,
+      partKey: line.part.key,
+    });
+
+    try {
+      await deleteLineMutation.mutateAsync({
+        lineId: line.id,
+        listId: line.shoppingListId,
+        partKey: line.part.key,
+      });
+
+      trackFormSuccess('ShoppingListLine:delete', {
+        lineId: line.id,
+        listId: line.shoppingListId,
+        partKey: line.part.key,
+      });
+
+      showSuccess('Removed part from shopping list');
+    } catch (err) {
+      trackFormError('ShoppingListLine:delete', {
+        lineId: line.id,
+        listId: line.shoppingListId,
+        partKey: line.part.key,
+      });
+      const message = err instanceof Error ? err.message : 'Failed to delete line';
+      showException(message, err);
+    } finally {
+      updatePendingLine(line.id, false);
+    }
+  }, [confirmDeleteLine, deleteLineMutation, detailIsCompleted, showException, showSuccess, updatePendingLine]);
 
   const handleOpenOrderLineDialog = useCallback((line: ShoppingListConceptLine, trigger?: HTMLElement | null) => {
     if (detailIsCompleted) {
@@ -797,6 +853,7 @@ function ShoppingListDetailRoute() {
         onOpenOrderGroup={handleOpenOrderGroupDialog}
         onRevertLine={handleRevertLine}
         onEditLine={handleEditLine}
+        onDeleteLine={isCompleted ? undefined : handleDeleteReadyLine}
         onUpdateStock={handleOpenUpdateStock}
         pendingLineIds={pendingLineIds}
         highlightedLineId={highlightedLineId}
@@ -898,6 +955,10 @@ function ShoppingListDetailRoute() {
           contentProps={{ 'data-testid': 'shopping-lists.detail.kit-unlink.dialog' } as DialogContentProps}
         />
       ) : null}
+      <ConfirmDialog
+        {...deleteLineConfirmProps}
+        contentProps={{ 'data-testid': 'shopping-lists.ready.delete-line-dialog' } as DialogContentProps}
+      />
     </>
   );
 }
