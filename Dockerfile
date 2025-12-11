@@ -15,7 +15,7 @@ RUN apt-get update && \
       libffi-dev libssl-dev pkg-config \
       patch \
       zlib1g-dev libjpeg-dev libpng-dev \
-      libpq-dev \
+      libpq-dev libwebp-dev \
    && rm -rf /var/lib/apt/lists/*
 
 RUN pip install poetry
@@ -49,7 +49,7 @@ COPY alembic /app/alembic
 FROM pypy:slim
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends tini netcat-openbsd libmagic1 libpq5 libjpeg62-turbo libpng16-16t64 && \
+    apt-get install -y --no-install-recommends tini netcat-openbsd libmagic1 libpq5 libjpeg62-turbo libpng16-16t64 libwebp7 libwebpmux3 libwebpdemux2 && \
     rm -rf /var/lib/apt/lists/*
 
 EXPOSE 5000
