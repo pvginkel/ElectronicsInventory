@@ -91,14 +91,17 @@ export function CoverImageDisplay({
 }
 
 function getSizeClasses(size: 'small' | 'medium' | 'large'): string {
+  // Include shrink-0 to prevent the container from shrinking in flex layouts,
+  // which can cause images with landscape aspect ratios (like OG images from
+  // link documents) to appear narrower than their height.
   switch (size) {
     case 'small':
-      return 'w-16 h-16';
+      return 'w-16 h-16 shrink-0';
     case 'medium':
-      return 'w-24 h-24';
+      return 'w-24 h-24 shrink-0';
     case 'large':
-      return 'w-32 h-32';
+      return 'w-32 h-32 shrink-0';
     default:
-      return 'w-24 h-24';
+      return 'w-24 h-24 shrink-0';
   }
 }
