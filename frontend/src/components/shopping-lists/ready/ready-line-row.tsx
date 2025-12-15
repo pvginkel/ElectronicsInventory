@@ -189,20 +189,6 @@ export const ReadyLineRow = forwardRef<HTMLTableRowElement, ReadyLineRowProps>(f
                 <Undo2 className="h-4 w-4" />
               </Button>
             )}
-            {line.status === 'new' && onDeleteLine && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 shrink-0"
-                disabled={disableActions}
-                aria-label={`Delete ${line.part.description}`}
-                onClick={() => onDeleteLine(line)}
-                data-testid={`shopping-lists.ready.line.${line.id}.actions.delete`}
-                title="Delete line"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
             {line.status !== 'done' && (
               <Button
                 variant="ghost"
@@ -215,6 +201,20 @@ export const ReadyLineRow = forwardRef<HTMLTableRowElement, ReadyLineRowProps>(f
                 title="Edit line"
               >
                 <Pencil className="h-4 w-4" />
+              </Button>
+            )}
+            {line.status === 'new' && onDeleteLine && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 shrink-0"
+                disabled={disableActions}
+                aria-label={`Delete ${line.part.description}`}
+                onClick={() => onDeleteLine(line)}
+                data-testid={`shopping-lists.ready.line.${line.id}.actions.delete`}
+                title="Delete line"
+              >
+                <Trash2 className="h-4 w-4" />
               </Button>
             )}
           </div>
