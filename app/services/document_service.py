@@ -8,7 +8,7 @@ from io import BytesIO
 from typing import BinaryIO
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, lazyload
 
 from app.config import Settings
 from app.exceptions import InvalidOperationException, RecordNotFoundException
@@ -588,6 +588,10 @@ class DocumentService(BaseService):
     def get_part_cover_attachment(self, part_key: str) -> PartAttachment | None:
         """Get part cover attachment.
 
+        This method is optimized to avoid loading the full Part with all its
+        eager-loaded relationships. It queries the attachment directly via a
+        subquery on the part's cover_attachment_id.
+
         Args:
             part_key: Part key
 
@@ -597,12 +601,25 @@ class DocumentService(BaseService):
         Raises:
             RecordNotFoundException: If part not found
         """
-        stmt = select(Part).where(Part.key == part_key)
-        part = self.db.scalar(stmt)
-        if not part:
+        # First, get just the cover_attachment_id from the part (no relationship loading)
+        stmt = select(Part.id, Part.cover_attachment_id).where(Part.key == part_key)
+        result = self.db.execute(stmt).first()
+
+        if not result:
             raise RecordNotFoundException("Part", part_key)
 
-        return part.cover_attachment
+        part_id, cover_attachment_id = result
+
+        if cover_attachment_id is None:
+            return None
+
+        # Query the attachment directly, explicitly preventing eager loading of part
+        attachment_stmt = (
+            select(PartAttachment)
+            .where(PartAttachment.id == cover_attachment_id)
+            .options(lazyload(PartAttachment.part))
+        )
+        return self.db.scalar(attachment_stmt)
 
     def copy_attachment_to_part(self, attachment_id: int, target_part_key: str, set_as_cover: bool = False) -> PartAttachment:
         """Copy a single attachment from one part to another.
