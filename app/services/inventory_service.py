@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from sqlalchemy import and_, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.exceptions import (
     InsufficientQuantityException,
@@ -326,14 +326,18 @@ class InventoryService(BaseService):
             List of PartWithTotalModel instances with optional related data attached
         """
         from app.models.part import Part
+        from app.models.seller import Seller
         from app.schemas.part import PartWithTotalModel
 
         # Base query for parts with total quantity calculation
+        # Eager-load seller since the API serializes it for every part
         stmt = select(
             Part,
             func.coalesce(func.sum(PartLocation.qty), 0).label('total_quantity')
         ).outerjoin(
             PartLocation, Part.id == PartLocation.part_id
+        ).options(
+            selectinload(Part.seller)
         ).group_by(Part.id)
 
         # Apply type filter if specified

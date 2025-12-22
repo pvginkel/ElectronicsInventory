@@ -52,23 +52,25 @@ class ShoppingList(db.Model):  # type: ignore[name-defined]
         nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
+    # Note: lazy="select" (default) to avoid cascading eager loads.
+    # Use explicit selectinload() in queries where relationships are needed.
     lines: Mapped[list[ShoppingListLine]] = relationship(
         "ShoppingListLine",
         back_populates="shopping_list",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="select",
     )
     seller_notes: Mapped[list[ShoppingListSellerNote]] = relationship(
         "ShoppingListSellerNote",
         back_populates="shopping_list",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="select",
     )
     kit_links: Mapped[list[KitShoppingListLink]] = relationship(
         "KitShoppingListLink",
         back_populates="shopping_list",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="select",
     )
 
     def __repr__(self) -> str:

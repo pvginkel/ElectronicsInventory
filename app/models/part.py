@@ -76,33 +76,35 @@ class Part(db.Model):  # type: ignore[name-defined]
     )
 
     # Relationships
+    # Note: lazy="select" (default) to avoid cascading eager loads.
+    # Use explicit selectinload() in queries where relationships are needed.
     type: Mapped[Optional["Type"]] = relationship(
-        "Type", back_populates="parts", lazy="selectin"
+        "Type", back_populates="parts", lazy="select"
     )
     seller: Mapped[Optional["Seller"]] = relationship(
-        "Seller", back_populates="parts", lazy="selectin"
+        "Seller", back_populates="parts", lazy="select"
     )
     part_locations: Mapped[list["PartLocation"]] = relationship(
-        "PartLocation", back_populates="part", cascade="all, delete-orphan", lazy="selectin"
+        "PartLocation", back_populates="part", cascade="all, delete-orphan", lazy="select"
     )
     quantity_history: Mapped[list["QuantityHistory"]] = relationship(
-        "QuantityHistory", back_populates="part", cascade="all, delete-orphan", lazy="selectin"
+        "QuantityHistory", back_populates="part", cascade="all, delete-orphan", lazy="select"
     )
     attachments: Mapped[list["PartAttachment"]] = relationship(
         "PartAttachment",
         back_populates="part",
         cascade="all, delete-orphan",
-        lazy="selectin",
+        lazy="select",
         foreign_keys="PartAttachment.part_id"
     )
     kit_contents: Mapped[list["KitContent"]] = relationship(
         "KitContent",
         back_populates="part",
-        lazy="selectin",
+        lazy="select",
     )
     cover_attachment: Mapped[Optional["PartAttachment"]] = relationship(
         "PartAttachment",
-        lazy="selectin",
+        lazy="select",
         post_update=True,
         foreign_keys=[cover_attachment_id]
     )
