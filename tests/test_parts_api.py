@@ -798,7 +798,7 @@ class TestPartsAPI:
             assert updated_data["package"] == "QFP-24"  # Updated
             assert updated_data["has_cover_attachment"] is False
 
-    @patch('app.services.document_service.magic.from_buffer', return_value='image/png')
+    @patch('app.utils.mime_handling.magic.from_buffer', return_value='image/png')
     @patch('app.services.s3_service.S3Service.upload_file', return_value=True)
     @patch('app.services.s3_service.S3Service.generate_s3_key', return_value="parts/COVER/attachments/test.png")
     def test_part_cover_attachment_indicator(self, mock_generate_key, mock_upload, mock_magic, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer, sample_image_file):
@@ -1039,9 +1039,10 @@ class TestPartsAPI:
         )
         assert duplicate_response.status_code == 400
 
+        # Schema allows max_length=250, so 251 keys should fail validation
         oversized_payload = client.post(
             "/api/parts/shopping-list-memberships/query",
-            json={"part_keys": [f"K{i:03}" for i in range(101)]},
+            json={"part_keys": [f"K{i:03}" for i in range(251)]},
         )
         assert oversized_payload.status_code == 400
 

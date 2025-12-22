@@ -2,6 +2,7 @@
 
 import io
 import json
+import sqlite3
 import threading
 import time
 from pathlib import Path
@@ -12,6 +13,7 @@ import pytest
 from flask import Flask
 from flask.testing import FlaskClient
 from PIL import Image
+from sqlalchemy.pool import StaticPool
 
 from app import create_app
 from app.config import Settings
@@ -567,8 +569,10 @@ class TestTestingEndpointsNonTestingMode:
     @pytest.fixture
     def non_testing_settings(self) -> Settings:
         """Create settings with testing mode disabled."""
-        return Settings(
-            DATABASE_URL="sqlite:///:memory:",
+        # Create a dedicated SQLite connection for this test
+        conn = sqlite3.connect(":memory:", check_same_thread=False)
+        settings = Settings(
+            DATABASE_URL="sqlite://",
             SECRET_KEY="test-secret-key",
             DEBUG=True,
             FLASK_ENV="development",  # Not testing mode
@@ -578,6 +582,12 @@ class TestTestingEndpointsNonTestingMode:
             MAX_IMAGE_SIZE=10 * 1024 * 1024,  # 10MB
             MAX_FILE_SIZE=100 * 1024 * 1024,  # 100MB
         )
+        # Override engine options for SQLite compatibility
+        settings.set_engine_options_override({
+            "poolclass": StaticPool,
+            "creator": lambda: conn,
+        })
+        return settings
 
     @pytest.fixture
     def non_testing_app(self, non_testing_settings: Settings) -> Flask:

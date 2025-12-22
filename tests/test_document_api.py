@@ -18,7 +18,7 @@ from app.services.container import ServiceContainer
 class TestDocumentAPI:
     """Integration tests for document API endpoints."""
 
-    @patch('app.services.document_service.magic.from_buffer')
+    @patch('app.utils.mime_handling.magic.from_buffer')
     @patch('app.services.s3_service.S3Service.upload_file', return_value=True)
     @patch('app.services.s3_service.S3Service.generate_s3_key', return_value="parts/TEST/attachments/test.jpg")
     def test_create_file_attachment_success(self, _mock_generate_key, _mock_upload, mock_magic, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session, sample_image_file):
@@ -51,7 +51,7 @@ class TestDocumentAPI:
         assert data['filename'] == 'test.jpg'
         assert data['has_preview'] is True
 
-    @patch('app.services.document_service.magic.from_buffer')
+    @patch('app.utils.mime_handling.magic.from_buffer')
     @patch('app.services.s3_service.S3Service.upload_file')
     @patch('app.services.s3_service.S3Service.generate_s3_key', return_value="parts/TEST/attachments/fail.jpg")
     def test_create_file_attachment_s3_failure_rolls_back(
