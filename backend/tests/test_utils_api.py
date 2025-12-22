@@ -12,69 +12,8 @@ from app.services.version_service import VersionService
 from app.utils.shutdown_coordinator import LifetimeEvent
 
 
-class TestUtilsAPI:
-    """Test utils API endpoints."""
-
-    def test_version_stream_endpoint_exists(self, client, app: Flask, container: ServiceContainer):
-        """Test that version stream endpoint exists and returns correct headers."""
-        # Mock the version service to prevent actual HTTP calls
-        with patch.object(VersionService, 'fetch_frontend_version', side_effect=requests.RequestException("Test error")):
-            response = client.get('/api/utils/version/stream')
-
-            assert response.status_code == 200
-            assert 'text/event-stream' in response.headers['Content-Type']
-            assert response.headers['Cache-Control'] == 'no-cache'
-            assert 'Access-Control-Allow-Origin' in response.headers
-
-    def test_version_stream_with_request_id_registers_subscriber(
-        self,
-        client,
-        container: ServiceContainer,
-    ):
-        """Providing request_id should register with VersionService and include correlation IDs."""
-        version_service = container.version_service()
-        request_id = "stream-test-id"
-
-        with patch.object(version_service, 'fetch_frontend_version', return_value='{"version":"1.0.0"}'), \
-             patch.object(version_service, 'register_subscriber', wraps=version_service.register_subscriber) as mock_register, \
-             patch.object(version_service, 'unregister_subscriber', wraps=version_service.unregister_subscriber) as mock_unregister:
-
-            response = client.get('/api/utils/version/stream?request_id=' + request_id, buffered=False)
-            stream = response.response
-
-            first_chunk = next(stream).decode()
-            second_chunk = next(stream).decode()
-
-            response.close()
-
-        assert mock_register.called
-        assert mock_unregister.called
-        assert 'event: version' in first_chunk
-        assert f'"correlation_id": "{request_id}"' in first_chunk
-        assert f'"correlation_id": "{request_id}"' in second_chunk
-
-    def test_version_stream_without_request_id_still_registers(
-        self,
-        client,
-        container: ServiceContainer,
-    ):
-        """Without request_id the stream registers with the generated correlation ID."""
-        version_service = container.version_service()
-
-        with patch.object(version_service, 'fetch_frontend_version', return_value='{"version":"1.0.0"}'), \
-             patch.object(version_service, 'register_subscriber', wraps=version_service.register_subscriber) as mock_register:
-
-            response = client.get('/api/utils/version/stream', buffered=False)
-            stream = response.response
-
-            first_chunk = next(stream).decode()
-            second_chunk = next(stream).decode()
-
-            response.close()
-
-        mock_register.assert_called_once()
-        assert 'correlation_id' in first_chunk
-        assert 'correlation_id' in second_chunk
+# Note: The /api/utils/version/stream endpoint was removed in favor of SSE Gateway pattern.
+# SSE Gateway tests are in tests/api/test_sse.py
 
 
 class TestVersionService:
@@ -89,41 +28,43 @@ class TestVersionService:
         """Test successful version fetching."""
         test_response = '{"version": "1.2.3", "buildTime": "2024-01-01T00:00:00Z"}'
 
-        with patch('requests.get') as mock_get:
+        with patch('app.services.version_service.requests.get') as mock_get:
             mock_response = Mock()
             mock_response.text = test_response
             mock_response.raise_for_status = Mock()
             mock_get.return_value = mock_response
 
-            result = version_service.fetch_frontend_version()
+            result = version_service._fetch_frontend_version()
+            assert result == {"version": "1.2.3", "buildTime": "2024-01-01T00:00:00Z"}
+            assert mock_get.call_count == 1
 
-            assert result == test_response
-            mock_get.assert_called_once_with(version_service.settings.FRONTEND_VERSION_URL, timeout=5)
-            mock_response.raise_for_status.assert_called_once()
-
-    def test_fetch_frontend_version_http_error(self, version_service: VersionService):
-        """Test version fetching with HTTP error."""
-        with patch('requests.get') as mock_get:
+    def test_fetch_frontend_version_http_error_fallback(self, version_service: VersionService):
+        """Test version fetching with HTTP error returns fallback."""
+        with patch('app.services.version_service.requests.get') as mock_get:
             mock_response = Mock()
             mock_response.raise_for_status.side_effect = requests.HTTPError("404 Not Found")
             mock_get.return_value = mock_response
 
-            with pytest.raises(requests.HTTPError):
-                version_service.fetch_frontend_version()
+            # Should not raise, returns fallback
+            result = version_service._fetch_frontend_version()
+            assert "version" in result
+            assert result["version"] == "unknown"
 
-    def test_fetch_frontend_version_timeout(self, version_service: VersionService):
-        """Test version fetching with timeout."""
-        with patch('requests.get', side_effect=requests.Timeout("Request timed out")) as mock_get:
-            with pytest.raises(requests.Timeout):
-                version_service.fetch_frontend_version()
+    def test_fetch_frontend_version_timeout_fallback(self, version_service: VersionService):
+        """Test version fetching with timeout returns fallback."""
+        with patch('app.services.version_service.requests.get', side_effect=requests.Timeout("Request timed out")):
+            # Should not raise, returns fallback
+            result = version_service._fetch_frontend_version()
+            assert "version" in result
+            assert result["version"] == "unknown"
 
-            mock_get.assert_called_once_with(version_service.settings.FRONTEND_VERSION_URL, timeout=5)
-
-    def test_fetch_frontend_version_connection_error(self, version_service: VersionService):
-        """Test version fetching with connection error."""
-        with patch('requests.get', side_effect=requests.ConnectionError("Connection failed")):
-            with pytest.raises(requests.ConnectionError):
-                version_service.fetch_frontend_version()
+    def test_fetch_frontend_version_connection_error_fallback(self, version_service: VersionService):
+        """Test version fetching with connection error returns fallback."""
+        with patch('app.services.version_service.requests.get', side_effect=requests.ConnectionError("Connection failed")):
+            # Should not raise, returns fallback
+            result = version_service._fetch_frontend_version()
+            assert "version" in result
+            assert result["version"] == "unknown"
 
     def test_queue_version_event_for_pending_subscriber(self, version_service: VersionService):
         """Events should be queued for subscribers that have not connected yet."""
