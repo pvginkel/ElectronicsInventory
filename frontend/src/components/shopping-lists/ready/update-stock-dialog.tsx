@@ -11,6 +11,7 @@ import { useFormState } from '@/hooks/use-form-state';
 import { useFormInstrumentation } from '@/hooks/use-form-instrumentation';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
 import { useGetBoxes } from '@/lib/api/generated/hooks';
+import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import type {
   ShoppingListConceptLine,
   ShoppingListLinePartLocation,
@@ -54,12 +55,11 @@ interface UpdateStockFormValues extends Record<string, unknown> {
   allocations: AllocationDraft[];
 }
 
-type SubmitMode = 'save' | 'saveAndNext';
+type SubmitMode = 'save' | 'complete' | 'complete-retry';
 
 interface UpdateStockDialogProps {
   open: boolean;
   line: ShoppingListConceptLine | null;
-  hasNextLine: boolean;
   onClose: () => void;
   onSubmit: (payload: {
     mode: SubmitMode;
@@ -242,10 +242,15 @@ function allocationToPayload(allocation: AllocationDraft): ShoppingListLineRecei
   };
 }
 
+function countValidAllocations(allocations: AllocationDraft[]): number {
+  return allocations.reduce<number>((count, allocation) => {
+    return allocationToPayload(allocation) ? count + 1 : count;
+  }, 0);
+}
+
 export function UpdateStockDialog({
   open,
   line,
-  hasNextLine,
   onClose,
   onSubmit,
   onMarkDone,
@@ -254,6 +259,7 @@ export function UpdateStockDialog({
   restoreFocusElement,
 }: UpdateStockDialogProps) {
   const submitModeRef = useRef<SubmitMode>('save');
+  const receiveSucceededRef = useRef(false);
   const [showAllocationErrors, setShowAllocationErrors] = useState(false);
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
   const [mismatchReason, setMismatchReason] = useState('');
@@ -339,6 +345,7 @@ export function UpdateStockDialog({
       form.setValue('allocations', buildInitialAllocations(line));
       setShowAllocationErrors(false);
       submitModeRef.current = 'save';
+      receiveSucceededRef.current = false;
     } else {
       form.setValue('allocations', []);
       setShowAllocationErrors(false);
@@ -370,9 +377,7 @@ export function UpdateStockDialog({
     isOpen: open,
     snapshotFields: () => {
       const snapshotValidation = validateAllocations(form.values.allocations);
-      const allocationCount = form.values.allocations.reduce<number>((count, allocation) => {
-        return allocationToPayload(allocation) ? count + 1 : count;
-      }, 0);
+      const allocationCount = countValidAllocations(form.values.allocations);
 
       return {
         listId: line?.shoppingListId ?? null,
@@ -400,9 +405,7 @@ export function UpdateStockDialog({
     isFetching: boxesQuery.isFetching,
     error: boxesQuery.error,
     getReadyMetadata: () => {
-      const allocationCount = form.values.allocations.reduce<number>((count, allocation) => {
-        return allocationToPayload(allocation) ? count + 1 : count;
-      }, 0);
+      const allocationCount = countValidAllocations(form.values.allocations);
       return {
         listId: line?.shoppingListId ?? null,
         lineId: line?.id ?? null,
@@ -431,6 +434,8 @@ export function UpdateStockDialog({
         allocation.id === allocationId ? { ...allocation, ...updates } : allocation
       )
     );
+    // Reset receive succeeded flag when user modifies allocations
+    receiveSucceededRef.current = false;
   };
 
   const handleAddAllocation = () => {
@@ -451,7 +456,94 @@ export function UpdateStockDialog({
     if (!line) {
       return;
     }
-    if (line.received === line.ordered) {
+
+    // Calculate validation once at the start for use in all paths
+    const currentAllocationValidation = validateAllocations(form.values.allocations);
+    const receiveQuantity = currentAllocationValidation.totalReceive;
+    const allocationCount = countValidAllocations(form.values.allocations);
+
+    // Check if user has entered any allocation data at all (even partial/invalid)
+    const hasAnyAllocationInput = form.values.allocations.some(allocation => {
+      if (allocation.type === 'existing') {
+        return allocation.receive.trim().length > 0;
+      }
+      return (
+        allocation.boxNo != null ||
+        allocation.locNo.trim().length > 0 ||
+        allocation.receive.trim().length > 0
+      );
+    });
+
+    // If allocations haven't been saved yet (or were modified since last save), save them first
+    if (!receiveSucceededRef.current && hasAnyAllocationInput) {
+      // User has entered allocation data - validate it before saving
+      if (!currentAllocationValidation.isValid) {
+        setShowAllocationErrors(true);
+        formInstrumentation.trackValidationErrors({
+          allocations: currentAllocationValidation.summary ?? 'Allocation validation failed',
+        });
+        return;
+      }
+
+      const allocationsPayload = form.values.allocations
+        .map(allocationToPayload)
+        .filter((allocation): allocation is ShoppingListLineReceiveAllocationInput => allocation != null);
+
+      // Track form submit with mode 'complete' (first attempt)
+      submitModeRef.current = 'complete';
+      formInstrumentation.trackSubmit({
+        listId: line.shoppingListId,
+        lineId: line.id,
+        mode: 'complete',
+        receiveQuantity,
+        allocationCount,
+      });
+
+      try {
+        await onSubmit({
+          mode: 'complete',
+          receiveQuantity,
+          allocations: allocationsPayload,
+        });
+        // Mark that receive succeeded so we don't re-submit if completion fails
+        receiveSucceededRef.current = true;
+      } catch (error) {
+        formInstrumentation.trackError({
+          listId: line.shoppingListId,
+          lineId: line.id,
+          mode: 'complete',
+          receiveQuantity,
+          allocationCount,
+        });
+        throw error;
+      }
+    } else if (receiveSucceededRef.current) {
+      // Retry scenario: receive already succeeded, only track completion
+      submitModeRef.current = 'complete-retry';
+      formInstrumentation.trackSubmit({
+        listId: line.shoppingListId,
+        lineId: line.id,
+        mode: 'complete-retry',
+        receiveQuantity,
+        allocationCount,
+      });
+    } else {
+      // No allocations entered - user is completing without receiving any stock.
+      // Skip receive API call and go directly to mismatch dialog (since received != ordered).
+      submitModeRef.current = 'complete';
+      formInstrumentation.trackSubmit({
+        listId: line.shoppingListId,
+        lineId: line.id,
+        mode: 'complete',
+        receiveQuantity: 0,
+        allocationCount: 0,
+      });
+    }
+
+    // Now proceed to mark the line as done.
+    // Compare total received (existing + just saved) against ordered to determine if mismatch dialog is needed.
+    const totalReceivedAfterSave = line.received + receiveQuantity;
+    if (totalReceivedAfterSave === line.ordered) {
       completionInstrumentation.trackSubmit({
         listId: line.shoppingListId,
         lineId: line.id,
@@ -464,12 +556,21 @@ export function UpdateStockDialog({
           lineId: line.id,
           mismatchReasonLength: 0,
         });
+        // Track form success now that both operations completed
+        formInstrumentation.trackSuccess({
+          listId: line.shoppingListId,
+          lineId: line.id,
+          mode: submitModeRef.current,
+          receiveQuantity,
+          allocationCount,
+        });
       } catch (error) {
         completionInstrumentation.trackError({
           listId: line.shoppingListId,
           lineId: line.id,
           mismatchReasonLength: 0,
         });
+        // Don't track form error here - keep dialog open for retry
         throw error;
       }
       return;
@@ -508,6 +609,15 @@ export function UpdateStockDialog({
         lineId: line.id,
         mismatchReasonLength: trimmed.length,
       });
+      // Track form success now that both operations completed
+      const currentValidation = validateAllocations(form.values.allocations);
+      formInstrumentation.trackSuccess({
+        listId: line.shoppingListId,
+        lineId: line.id,
+        mode: submitModeRef.current,
+        receiveQuantity: currentValidation.totalReceive,
+        allocationCount: countValidAllocations(form.values.allocations),
+      });
       setCompletionDialogOpen(false);
       setMismatchReason('');
       setMismatchError(null);
@@ -517,6 +627,7 @@ export function UpdateStockDialog({
         lineId: line.id,
         mismatchReasonLength: trimmed.length,
       });
+      // Don't track form error here - keep dialog open for retry
       throw error;
     }
   };
@@ -546,17 +657,23 @@ export function UpdateStockDialog({
             {line && (
               <div className="space-y-3 py-3">
                 <div className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-border bg-muted/40 px-4 py-3">
-                  <div>
-                    <p className="font-medium text-foreground">{line.part.description}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Key {line.part.key}
-                      {line.part.manufacturerCode ? ` · MPN ${line.part.manufacturerCode}` : ''}
-                    </p>
-                    {line.effectiveSeller?.name && (
+                  <div className="flex items-start gap-3">
+                    <CoverImageDisplay
+                      partId={line.part.key}
+                      size="small"
+                    />
+                    <div>
+                      <p className="font-medium text-foreground">{line.part.description}</p>
                       <p className="text-xs text-muted-foreground">
-                        Seller {line.effectiveSeller.name}
+                        Key {line.part.key}
+                        {line.part.manufacturerCode ? ` · MPN ${line.part.manufacturerCode}` : ''}
                       </p>
-                    )}
+                      {line.effectiveSeller?.name && (
+                        <p className="text-xs text-muted-foreground">
+                          Seller {line.effectiveSeller.name}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-4 text-sm">
                     <MetricDisplay
@@ -743,16 +860,16 @@ export function UpdateStockDialog({
             )}
 
             <DialogFooter className="mt-4 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                preventValidation
+                onClick={handleClose}
+                disabled={isReceiving || isCompleting}
+              >
+                Cancel
+              </Button>
               <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  preventValidation
-                  onClick={handleClose}
-                  disabled={isReceiving || isCompleting}
-                >
-                  Cancel
-                </Button>
                 <Button
                   type="submit"
                   variant="secondary"
@@ -761,30 +878,20 @@ export function UpdateStockDialog({
                   onClick={() => handleSubmitMode('save')}
                   data-testid="shopping-lists.ready.update-stock.submit"
                 >
-                  Save Stock
+                  Save Item
                 </Button>
                 <Button
-                  type="submit"
-                  variant="secondary"
-                  loading={isReceiving}
-                  disabled={!canSubmit || !hasNextLine}
-                  onClick={() => handleSubmitMode('saveAndNext')}
-                  data-testid="shopping-lists.ready.update-stock.submit-next"
+                  type="button"
+                  variant="primary"
+                  className="bg-emerald-600 hover:bg-emerald-600/90"
+                  loading={isCompleting}
+                  disabled={!line || isCompleting}
+                  onClick={handleMarkDone}
+                  data-testid="shopping-lists.ready.update-stock.mark-done"
                 >
-                  Save &amp; Next
+                  Complete Item
                 </Button>
               </div>
-              <Button
-                type="button"
-                variant="primary"
-                className="bg-emerald-600 hover:bg-emerald-600/90"
-                loading={isCompleting}
-                disabled={!line || isCompleting}
-                onClick={handleMarkDone}
-                data-testid="shopping-lists.ready.update-stock.mark-done"
-              >
-                Complete Item
-              </Button>
             </DialogFooter>
           </Form>
         </DialogContent>

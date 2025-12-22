@@ -521,11 +521,8 @@ export class ShoppingListsPage extends BasePage {
     await row.getByTestId(/\.remove$/).click();
   }
 
-  async submitReceiveForm(mode: 'save' | 'saveAndNext'): Promise<void> {
-    const buttonTestId = mode === 'save'
-      ? 'shopping-lists.ready.update-stock.submit'
-      : 'shopping-lists.ready.update-stock.submit-next';
-    await this.updateStockDialog.getByTestId(buttonTestId).click();
+  async submitReceiveForm(): Promise<void> {
+    await this.updateStockDialog.getByTestId('shopping-lists.ready.update-stock.submit').click();
   }
 
   async markUpdateStockDone(): Promise<void> {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { ConceptTable } from '@/components/shopping-lists/concept-table';
@@ -23,8 +23,6 @@ import {
   useUpdateShoppingListStatusMutation,
   useReceiveShoppingListLineMutation,
   useCompleteShoppingListLineMutation,
-  flattenReceivableLines,
-  findNextReceivableLine,
 } from '@/hooks/use-shopping-lists';
 import { usePostShoppingListsLinesByListId } from '@/lib/api/generated/hooks';
 import type {
@@ -559,7 +557,7 @@ function ShoppingListDetailRoute() {
   }, []);
 
   const handleReceiveSubmit = useCallback(async (payload: {
-    mode: 'save' | 'saveAndNext';
+    mode: 'save' | 'complete' | 'complete-retry';
     receiveQuantity: number;
     allocations: ShoppingListLineReceiveAllocationInput[];
   }) => {
@@ -573,15 +571,6 @@ function ShoppingListDetailRoute() {
 
     updatePendingLine(target.id, true);
 
-    const sequence = payload.mode === 'saveAndNext' ? flattenReceivableLines(sellerGroups) : undefined;
-    const nextInSequence = sequence ? (() => {
-      const currentIndex = sequence.findIndex(line => line.id === target.id);
-      if (currentIndex >= 0) {
-        return sequence[currentIndex + 1];
-      }
-      return undefined;
-    })() : undefined;
-
     try {
       await receiveLineMutation.mutateAsync({
         listId: target.shoppingListId,
@@ -593,33 +582,12 @@ function ShoppingListDetailRoute() {
       showSuccess(`Received ${payload.receiveQuantity} for ${target.part.description}`);
       setHighlightedLineId(target.id);
 
-      if (payload.mode === 'saveAndNext') {
-        let nextLine: ShoppingListConceptLine | undefined;
-        if (nextInSequence) {
-          const refreshedCandidate = lines.find(line => line.id === nextInSequence.id);
-          if (refreshedCandidate && refreshedCandidate.status === 'ordered' && refreshedCandidate.canReceive) {
-            nextLine = refreshedCandidate;
-          }
-        }
-
-        if (!nextLine) {
-          const refreshedSequence = flattenReceivableLines(sellerGroups);
-          const currentIndex = refreshedSequence.findIndex(line => line.id === target.id);
-          if (currentIndex >= 0) {
-            nextLine = refreshedSequence.slice(currentIndex + 1).find(line => line.canReceive);
-          } else {
-            nextLine = refreshedSequence.find(line => line.canReceive && line.id !== target.id);
-          }
-        }
-
-        if (nextLine) {
-          setUpdateStockState(prev => ({ open: true, line: nextLine, trigger: prev.trigger }));
-          setHighlightedLineId(nextLine.id);
-          return;
-        }
+      // Note: If mode is 'complete' or 'complete-retry', the dialog will handle
+      // calling onMarkDone after this succeeds. We only close the dialog here
+      // if mode is 'save' (save-only without completion).
+      if (payload.mode === 'save') {
+        setUpdateStockState(prev => ({ open: false, line: null, trigger: prev.trigger }));
       }
-
-      setUpdateStockState(prev => ({ open: false, line: null, trigger: prev.trigger }));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to receive stock';
       showException(message, err);
@@ -627,7 +595,7 @@ function ShoppingListDetailRoute() {
     } finally {
       updatePendingLine(target.id, false);
     }
-  }, [detailIsCompleted, lines, receiveLineMutation, sellerGroups, showException, showSuccess, updatePendingLine, updateStockState.line]);
+  }, [detailIsCompleted, receiveLineMutation, showException, showSuccess, updatePendingLine, updateStockState.line]);
 
   const handleMarkLineDone = useCallback(async (payload: { mismatchReason: string | null }) => {
     if (detailIsCompleted) {
@@ -724,13 +692,6 @@ function ShoppingListDetailRoute() {
       setLinkToUnlink(null);
     }
   }, []);
-
-  const nextReceivableLine = useMemo(() => {
-    if (!updateStockState.line) {
-      return undefined;
-    }
-    return findNextReceivableLine(updateStockState.line.id, sellerGroups);
-  }, [sellerGroups, updateStockState.line]);
 
   const { slots: detailHeaderSlots, overlays: headerOverlays, kitsQuery } = useShoppingListDetailHeaderSlots({
     list: shoppingList,
@@ -931,7 +892,6 @@ function ShoppingListDetailRoute() {
         <UpdateStockDialog
           open={updateStockState.open}
           line={updateStockState.line}
-          hasNextLine={Boolean(nextReceivableLine)}
           onClose={handleCloseUpdateStock}
           onSubmit={handleReceiveSubmit}
           onMarkDone={handleMarkLineDone}
