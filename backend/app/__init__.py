@@ -227,4 +227,11 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
         except Exception as e:
             app.logger.warning(f"Failed to start metrics collection: {e}")
 
+        # Initialize request diagnostics if enabled
+        from app.services.diagnostics_service import DiagnosticsService
+        diagnostics_service = DiagnosticsService(settings)
+        with app.app_context():
+            diagnostics_service.init_app(app, db.engine)
+        app.diagnostics_service = diagnostics_service
+
     return app
