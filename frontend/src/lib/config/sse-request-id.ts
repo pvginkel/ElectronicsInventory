@@ -1,65 +1,22 @@
 import { isTestMode } from '@/lib/config/test-mode';
 import { makeUniqueToken } from '@/lib/utils/random';
 
-const STORAGE_KEY = 'deploymentSseRequestId';
-
 let cachedRequestId: string | undefined;
 
-function readStoredRequestId(): string | undefined {
-  if (typeof window === 'undefined') {
-    return undefined;
-  }
-
-  try {
-    return window.sessionStorage?.getItem(STORAGE_KEY) ?? undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function persistRequestId(id: string): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    window.sessionStorage?.setItem(STORAGE_KEY, id);
-  } catch {
-    // Ignore storage failures; callers will regenerate ids when needed.
-  }
-}
-
-function removeStoredRequestId(): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    window.sessionStorage?.removeItem(STORAGE_KEY);
-  } catch {
-    // Ignore storage cleanup failures to keep reset idempotent.
-  }
-}
-
-function createRequestId(): string {
-  return makeUniqueToken(32);
-}
-
+/**
+ * Get a unique request ID for the deployment SSE connection.
+ *
+ * Generates a fresh ID on first call within each page load. This ensures each
+ * tab (including duplicated tabs) gets its own unique ID, preventing multiple
+ * tabs from fighting over a single SSE connection slot in the backend.
+ */
 export function getDeploymentRequestId(): string {
   if (cachedRequestId) {
     return cachedRequestId;
   }
 
-  const storedValue = readStoredRequestId();
-  if (storedValue) {
-    cachedRequestId = storedValue;
-    return cachedRequestId;
-  }
-
-  const newId = createRequestId();
-  cachedRequestId = newId;
-  persistRequestId(newId);
-  return newId;
+  cachedRequestId = makeUniqueToken(32);
+  return cachedRequestId;
 }
 
 export function resetDeploymentRequestId(): void {
@@ -68,7 +25,6 @@ export function resetDeploymentRequestId(): void {
   }
 
   cachedRequestId = undefined;
-  removeStoredRequestId();
 }
 
 function registerTestBridge(): void {
