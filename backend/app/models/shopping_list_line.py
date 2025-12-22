@@ -85,11 +85,13 @@ class ShoppingListLine(db.Model):  # type: ignore[name-defined]
     )
     completion_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Note: lazy="select" (default) to avoid cascading eager loads.
+    # Use explicit selectinload() in queries where relationships are needed.
     shopping_list: Mapped[ShoppingList] = relationship(
-        "ShoppingList", back_populates="lines", lazy="selectin"
+        "ShoppingList", back_populates="lines", lazy="select"
     )
-    part: Mapped[Part] = relationship("Part", lazy="selectin")
-    seller: Mapped[Seller | None] = relationship("Seller", lazy="selectin")
+    part: Mapped[Part] = relationship("Part", lazy="select")
+    seller: Mapped[Seller | None] = relationship("Seller", lazy="select")
 
     __table_args__ = (
         UniqueConstraint(

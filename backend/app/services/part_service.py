@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.part import Part
@@ -79,8 +80,13 @@ class PartService(BaseService):
         return part
 
     def get_part(self, part_key: str) -> Part:
-        """Get part by 4-character key."""
-        stmt = select(Part).where(Part.key == part_key)
+        """Get part by 4-character key with relationships for full details."""
+        stmt = select(Part).options(
+            selectinload(Part.type),
+            selectinload(Part.seller),
+            selectinload(Part.attachments),
+            selectinload(Part.cover_attachment),
+        ).where(Part.key == part_key)
         part = self.db.execute(stmt).scalar_one_or_none()
         if not part:
             raise RecordNotFoundException("Part", part_key)
@@ -161,7 +167,8 @@ class PartService(BaseService):
 
         Excludes quantity, location, images, and documents to keep context size manageable.
         """
-        stmt = select(Part).order_by(Part.created_at.desc())
+        # Eager-load type since we access part.type.name for each part
+        stmt = select(Part).options(selectinload(Part.type)).order_by(Part.created_at.desc())
         parts = self.db.execute(stmt).scalars().all()
 
         # Build search-optimized part summaries

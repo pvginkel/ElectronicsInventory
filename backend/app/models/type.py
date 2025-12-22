@@ -27,8 +27,10 @@ class Type(db.Model):  # type: ignore[name-defined]
     )
 
     # Relationships
+    # Note: lazy="select" (default) to avoid loading all parts for every type.
+    # Use explicit count queries where part counts are needed.
     parts: Mapped[list["Part"]] = relationship(
-        "Part", back_populates="type", lazy="selectin"
+        "Part", back_populates="type", lazy="select"
     )
 
     def __repr__(self) -> str:

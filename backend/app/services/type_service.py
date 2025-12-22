@@ -55,8 +55,9 @@ class TypeService(BaseService):
         if not type_obj:
             raise RecordNotFoundException("Type", type_id)
 
-        # Check if any parts use this type
-        if type_obj.parts:
+        # Check if any parts use this type (efficient count query)
+        part_count = self.calculate_type_part_count(type_id)
+        if part_count > 0:
             raise DependencyException("Type", type_id, "it is being used by existing parts")
 
         self.db.delete(type_obj)
