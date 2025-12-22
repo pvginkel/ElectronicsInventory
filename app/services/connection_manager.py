@@ -216,12 +216,15 @@ class ConnectionManager:
 
             # POST to SSE Gateway
             url = f"{self.gateway_url}/internal/send"
+            logger.info(f"[TIMING] send_event: starting POST to {url} for {identifier}")
             response = requests.post(
                 url,
                 json=send_request.model_dump(exclude_none=True),
                 timeout=self.http_timeout,
                 headers={"Content-Type": "application/json"}
             )
+            elapsed_ms = (perf_counter() - start_time) * 1000
+            logger.info(f"[TIMING] send_event: POST completed in {elapsed_ms:.1f}ms, status={response.status_code}")
 
             if response.status_code == 404:
                 # Connection gone; clean up stale mapping
