@@ -220,6 +220,24 @@ class Settings(BaseSettings):
         description="Log connection pool checkout/checkin events. Use 'debug' for verbose output."
     )
 
+    # Request diagnostics settings
+    DIAGNOSTICS_ENABLED: bool = Field(
+        default=False,
+        description="Enable request timing and query profiling diagnostics"
+    )
+    DIAGNOSTICS_SLOW_QUERY_THRESHOLD_MS: int = Field(
+        default=100,
+        description="Log queries taking longer than this (milliseconds)"
+    )
+    DIAGNOSTICS_SLOW_REQUEST_THRESHOLD_MS: int = Field(
+        default=500,
+        description="Log requests taking longer than this (milliseconds)"
+    )
+    DIAGNOSTICS_LOG_ALL_QUERIES: bool = Field(
+        default=False,
+        description="Log all queries (verbose, use for debugging only)"
+    )
+
     # Internal override for test fixtures (not set via env)
     _engine_options_override: dict[str, Any] | None = None
 
