@@ -69,13 +69,19 @@ class ConnectionManager:
             token: Gateway-generated connection token
             url: Original client request URL
         """
+        t_start = perf_counter()
+        logger.warning(f"[TIMING] ConnectionManager.on_connect START: {identifier}")
+
+        t_lock = perf_counter()
         with self._lock:
+            logger.warning(f"[TIMING] ConnectionManager.on_connect: lock acquired in {(perf_counter() - t_lock) * 1000:.1f}ms")
+
             # Check for existing connection
             existing = self._connections.get(identifier)
             if existing:
                 old_token = existing["token"]
-                logger.info(
-                    "Connection replacement: closing old connection before registering new one",
+                logger.warning(
+                    f"[TIMING] ConnectionManager.on_connect: found existing connection, closing old one",
                     extra={
                         "identifier": identifier,
                         "old_token": old_token,
@@ -83,7 +89,9 @@ class ConnectionManager:
                     }
                 )
                 # Close old connection (best-effort)
+                t_close = perf_counter()
                 self._close_connection_internal(old_token, identifier)
+                logger.warning(f"[TIMING] ConnectionManager.on_connect: _close_connection_internal took {(perf_counter() - t_close) * 1000:.1f}ms")
                 # Remove old reverse mapping
                 self._token_to_identifier.pop(old_token, None)
 
@@ -106,6 +114,8 @@ class ConnectionManager:
                     "url": url,
                 }
             )
+
+        logger.warning(f"[TIMING] ConnectionManager.on_connect END: total {(perf_counter() - t_start) * 1000:.1f}ms for {identifier}")
 
     def on_disconnect(self, token: str) -> None:
         """Handle disconnect callback from SSE Gateway.
@@ -285,6 +295,7 @@ class ConnectionManager:
             token: Gateway connection token
             identifier: Service-specific identifier (for logging)
         """
+        t_start = perf_counter()
         try:
             send_request = SSEGatewaySendRequest(
                 token=token,
@@ -292,12 +303,14 @@ class ConnectionManager:
                 close=True
             )
             url = f"{self.gateway_url}/internal/send"
+            logger.warning(f"[TIMING] _close_connection_internal: starting POST to {url}")
             response = requests.post(
                 url,
                 json=send_request.model_dump(exclude_none=True),
                 timeout=self.http_timeout,
                 headers={"Content-Type": "application/json"}
             )
+            logger.warning(f"[TIMING] _close_connection_internal: POST completed in {(perf_counter() - t_start) * 1000:.1f}ms, status={response.status_code}")
             if response.status_code not in (200, 404):
                 logger.warning(
                     "Failed to close old connection",
@@ -310,6 +323,7 @@ class ConnectionManager:
         except requests.RequestException as e:
             logger.warning(
                 "Exception while closing old connection (continuing anyway)",
+                exc_info=True,
                 extra={
                     "identifier": identifier,
                     "token": token,

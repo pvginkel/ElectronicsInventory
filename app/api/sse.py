@@ -112,7 +112,7 @@ def handle_callback(
         400 if payload invalid or URL not routable
     """
     t0 = time.perf_counter()
-    logger.info("[TIMING] /api/sse/callback START")
+    logger.warning("[TIMING] /api/sse/callback START (warning level for visibility)")
 
     # Authenticate request (production only)
     secret = request.args.get("secret")
