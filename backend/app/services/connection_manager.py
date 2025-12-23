@@ -70,30 +70,29 @@ class ConnectionManager:
             url: Original client request URL
         """
         t_start = perf_counter()
-        logger.warning(f"[TIMING] ConnectionManager.on_connect START: {identifier}")
+        logger.info(f"[TIMING] ConnectionManager.on_connect START: {identifier}")
 
+        old_token_to_close: str | None = None
+
+        # Update mappings under lock (fast, no I/O)
         t_lock = perf_counter()
         with self._lock:
-            logger.warning(f"[TIMING] ConnectionManager.on_connect: lock acquired in {(perf_counter() - t_lock) * 1000:.1f}ms")
+            logger.info(f"[TIMING] ConnectionManager.on_connect: lock acquired in {(perf_counter() - t_lock) * 1000:.1f}ms")
 
             # Check for existing connection
             existing = self._connections.get(identifier)
             if existing:
-                old_token = existing["token"]
-                logger.warning(
-                    f"[TIMING] ConnectionManager.on_connect: found existing connection, closing old one",
+                old_token_to_close = existing["token"]
+                logger.info(
+                    f"[TIMING] ConnectionManager.on_connect: found existing connection, will close after releasing lock",
                     extra={
                         "identifier": identifier,
-                        "old_token": old_token,
+                        "old_token": old_token_to_close,
                         "new_token": token,
                     }
                 )
-                # Close old connection (best-effort)
-                t_close = perf_counter()
-                self._close_connection_internal(old_token, identifier)
-                logger.warning(f"[TIMING] ConnectionManager.on_connect: _close_connection_internal took {(perf_counter() - t_close) * 1000:.1f}ms")
                 # Remove old reverse mapping
-                self._token_to_identifier.pop(old_token, None)
+                self._token_to_identifier.pop(old_token_to_close, None)
 
             # Register new connection (atomic update of both mappings)
             self._connections[identifier] = {
@@ -115,7 +114,13 @@ class ConnectionManager:
                 }
             )
 
-        logger.warning(f"[TIMING] ConnectionManager.on_connect END: total {(perf_counter() - t_start) * 1000:.1f}ms for {identifier}")
+        # Close old connection OUTSIDE the lock (best-effort, avoids blocking other callbacks)
+        if old_token_to_close:
+            t_close = perf_counter()
+            self._close_connection_internal(old_token_to_close, identifier)
+            logger.info(f"[TIMING] ConnectionManager.on_connect: _close_connection_internal took {(perf_counter() - t_close) * 1000:.1f}ms")
+
+        logger.info(f"[TIMING] ConnectionManager.on_connect END: total {(perf_counter() - t_start) * 1000:.1f}ms for {identifier}")
 
     def on_disconnect(self, token: str) -> None:
         """Handle disconnect callback from SSE Gateway.
