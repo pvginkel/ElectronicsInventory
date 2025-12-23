@@ -24,21 +24,78 @@ interface UseVersionSSEReturn {
   version: string | null;
 }
 
+// Worker message types
+interface TestEventMetadata {
+  kind: 'sse';
+  streamId: string;
+  phase: 'open' | 'message' | 'error' | 'close';
+  event: string;
+  data?: unknown;
+}
+
+type WorkerMessage =
+  | { type: 'connected'; requestId: string; __testEvent?: TestEventMetadata }
+  | { type: 'version'; version: string; correlationId?: string; requestId?: string; __testEvent?: TestEventMetadata }
+  | { type: 'disconnected'; reason?: string; __testEvent?: TestEventMetadata }
+  | { type: 'error'; error: string; __testEvent?: TestEventMetadata };
+
+/**
+ * Determine if SharedWorker should be used based on environment
+ */
+function shouldUseSharedWorker(): boolean {
+  // Always use direct connection in development mode
+  if (import.meta.env.DEV) {
+    return false;
+  }
+
+  // In test mode, only use SharedWorker if explicitly enabled via URL parameter
+  if (isTestMode()) {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.has('__sharedWorker');
+    }
+    return false;
+  }
+
+  // Check if SharedWorker is supported (graceful fallback for iOS Safari)
+  if (typeof SharedWorker === 'undefined') {
+    return false;
+  }
+
+  // Production mode with SharedWorker support
+  return true;
+}
+
 export function useVersionSSE(): UseVersionSSEReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [version, setVersion] = useState<string | null>(null);
   
   const eventSourceRef = useRef<EventSource | null>(null);
+  const sharedWorkerRef = useRef<SharedWorker | null>(null);
   const retryCountRef = useRef(0);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const connectOptionsRef = useRef<UseVersionSSEConnectOptions | undefined>(undefined);
+  const useSharedWorker = useRef<boolean>(shouldUseSharedWorker());
   const maxRetryDelay = 60000; // 60 seconds
 
   const disconnect = useCallback(() => {
+    // Disconnect SharedWorker if active
+    if (sharedWorkerRef.current) {
+      try {
+        sharedWorkerRef.current.port.postMessage({ type: 'disconnect' });
+        sharedWorkerRef.current.port.close();
+      } catch (error) {
+        console.error('Failed to disconnect SharedWorker:', error);
+      }
+      sharedWorkerRef.current = null;
+    }
+
+    // Disconnect EventSource if active
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
+
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current);
       retryTimeoutRef.current = null;
@@ -48,8 +105,10 @@ export function useVersionSSE(): UseVersionSSEReturn {
   }, []);
 
   const createConnectionRef = useRef<((options?: UseVersionSSEConnectOptions) => void) | null>(null);
+  const createDirectConnectionRef = useRef<((options?: UseVersionSSEConnectOptions) => void) | null>(null);
 
-  const createConnection = useCallback((options?: UseVersionSSEConnectOptions) => {
+  // Direct EventSource connection path (existing logic)
+  const createDirectConnection = useCallback((options?: UseVersionSSEConnectOptions) => {
     const nextOptions = options ?? connectOptionsRef.current ?? {};
 
     if (!import.meta.env.DEV && !nextOptions.requestId) {
@@ -192,6 +251,95 @@ export function useVersionSSE(): UseVersionSSEReturn {
       scheduleReconnect();
     };
   }, [disconnect]);
+
+  // Update ref when createDirectConnection changes
+  useEffect(() => {
+    createDirectConnectionRef.current = createDirectConnection;
+  }, [createDirectConnection]);
+
+  // SharedWorker connection path
+  const createSharedWorkerConnection = useCallback((requestId: string) => {
+    // Clean up existing connections
+    disconnect();
+
+    try {
+      console.debug('Using SharedWorker for version SSE connection');
+
+      // Create SharedWorker with Vite-compatible URL syntax
+      const worker = new SharedWorker(
+        new URL('../workers/version-sse-worker.ts', import.meta.url),
+        { type: 'module' }
+      );
+
+      sharedWorkerRef.current = worker;
+
+      // Handle messages from worker
+      worker.port.onmessage = (event: MessageEvent<WorkerMessage>) => {
+        const message = event.data;
+
+        // Forward test events if present
+        if (message.__testEvent && isTestMode()) {
+          emitTestEvent(message.__testEvent);
+        }
+
+        switch (message.type) {
+          case 'connected':
+            setIsConnected(true);
+            break;
+
+          case 'version':
+            setVersion(message.version);
+            break;
+
+          case 'error':
+            console.error('SharedWorker SSE error:', message.error);
+            setIsConnected(false);
+            break;
+
+          case 'disconnected':
+            console.debug('SharedWorker SSE disconnected:', message.reason);
+            setIsConnected(false);
+            break;
+
+          default:
+            console.warn('Unknown worker message:', message);
+        }
+      };
+
+      // Start the port and send connect command
+      worker.port.start();
+      worker.port.postMessage({
+        type: 'connect',
+        requestId,
+        isTestMode: isTestMode(),
+      });
+    } catch (error) {
+      console.error('Failed to create SharedWorker, falling back to direct connection:', error);
+      // Fall back to direct EventSource connection
+      useSharedWorker.current = false;
+      // Retry with direct connection using full stored options (preserves extraParams)
+      createDirectConnectionRef.current?.(connectOptionsRef.current);
+    }
+  }, [disconnect]);
+
+  // Main connection function that routes to appropriate path
+  const createConnection = useCallback((options?: UseVersionSSEConnectOptions) => {
+    const nextOptions = options ?? connectOptionsRef.current ?? {};
+
+    if (!import.meta.env.DEV && !nextOptions.requestId) {
+      console.error('Deployment SSE connection requires a request id outside of development builds.');
+      return;
+    }
+
+    connectOptionsRef.current = nextOptions;
+
+    // Route to SharedWorker or direct EventSource based on environment
+    if (useSharedWorker.current && nextOptions.requestId) {
+      createSharedWorkerConnection(nextOptions.requestId);
+    } else {
+      createDirectConnection(nextOptions);
+    }
+  }, [createSharedWorkerConnection, createDirectConnection]);
 
   // Update ref when createConnection function changes
   useEffect(() => {
