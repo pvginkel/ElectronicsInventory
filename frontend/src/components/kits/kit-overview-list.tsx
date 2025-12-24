@@ -18,7 +18,6 @@ interface KitOverviewListProps {
   searchTerm: string;
   onStatusChange: (status: KitStatus) => void;
   onCreateKit: () => void;
-  onOpenDetail: (kitId: number) => void;
 }
 
 const TAB_LABELS: Record<KitStatus, string> = {
@@ -31,7 +30,6 @@ export function KitOverviewList({
   searchTerm,
   onStatusChange,
   onCreateKit,
-  onOpenDetail,
 }: KitOverviewListProps) {
   const { queries, buckets, counts } = useKitsOverview(searchTerm);
 
@@ -237,7 +235,9 @@ export function KitOverviewList({
               fetchStatus: pickMemberships.fetchStatus,
               error: pickMemberships.error,
             }}
-            onOpenDetail={onOpenDetail}
+            to="/kits/$kitId"
+            params={{ kitId: kit.id.toString() }}
+            search={{ status, search: searchTerm || undefined }}
           />
         ))}
       </CollectionGrid>

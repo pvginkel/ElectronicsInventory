@@ -12,7 +12,6 @@ import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation'
 import { ShoppingListOverviewCard } from './overview-card';
 import { ListCreateDialog } from './list-create-dialog';
 import type { ShoppingListOverviewSummary } from '@/types/shopping-lists';
-import { Route as ShoppingListDetailRoute } from '@/routes/shopping-lists/$listId';
 import { beginUiState, endUiState } from '@/lib/test/ui-state';
 
 interface ShoppingListsOverviewProps {
@@ -201,22 +200,10 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
     }
   }, [filtersMetadata, isFetching, showLoading]);
 
-  const handleOpenList = (listId: number) => {
-    const originSearch = searchTerm.length > 0 ? searchTerm : undefined;
-    navigate({
-      to: ShoppingListDetailRoute.fullPath,
-      params: { listId: String(listId) },
-      search: {
-        sort: 'description',
-        originSearch,
-      },
-    });
-  };
-
   const handleListCreated = ({ id }: { id: number; name: string }) => {
     const originSearch = searchTerm.length > 0 ? searchTerm : undefined;
     navigate({
-      to: ShoppingListDetailRoute.fullPath,
+      to: '/shopping-lists/$listId',
       params: { listId: String(id) },
       search: {
         sort: 'description',
@@ -358,7 +345,12 @@ export function ShoppingListsOverview({ searchTerm }: ShoppingListsOverviewProps
         <ShoppingListOverviewCard
           key={list.id}
           list={list}
-          onOpen={() => handleOpenList(list.id)}
+          to="/shopping-lists/$listId"
+          params={{ listId: String(list.id) }}
+          search={{
+            sort: 'description',
+            originSearch: searchTerm.length > 0 ? searchTerm : undefined,
+          }}
         />
       ))}
     </CollectionGrid>

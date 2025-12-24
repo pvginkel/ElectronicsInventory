@@ -29,10 +29,6 @@ function PartsRoute() {
   const search = Route.useSearch();
   const [showAIDialog, setShowAIDialog] = useState(false);
 
-  const handleSelectPart = (partId: string) => {
-    navigate({ to: '/parts/$partId', params: { partId }, search: (prev) => prev });
-  };
-
   const handleCreatePart = () => {
     navigate({ to: '/parts/new' });
   };
@@ -59,7 +55,6 @@ function PartsRoute() {
         searchTerm={typeof search.search === 'string' ? search.search : ''}
         hasStockFilter={search.hasStock}
         onShoppingListFilter={search.onShoppingList}
-        onSelectPart={handleSelectPart}
         onCreatePart={handleCreatePart}
         onCreateWithAI={handleCreateWithAI}
       />

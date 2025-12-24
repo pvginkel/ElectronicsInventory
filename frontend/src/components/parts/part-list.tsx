@@ -27,12 +27,11 @@ interface PartListProps {
   searchTerm?: string;
   hasStockFilter?: boolean;
   onShoppingListFilter?: boolean;
-  onSelectPart?: (partId: string) => void;
   onCreatePart?: () => void;
   onCreateWithAI?: () => void;
 }
 
-export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter, onSelectPart, onCreatePart, onCreateWithAI }: PartListProps) {
+export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter, onCreatePart, onCreateWithAI }: PartListProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate({ from: '/parts' });
   const {
@@ -462,7 +461,9 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
           key={part.key}
           part={part}
           typeMap={typeMap}
-          onClick={() => onSelectPart?.(part.key)}
+          to="/parts/$partId"
+          params={{ partId: part.key }}
+          search={{ search: searchTerm || undefined, hasStock: hasStockFilter, onShoppingList: onShoppingListFilter }}
           shoppingIndicatorSummary={shoppingIndicatorMap.get(part.key)}
           shoppingIndicatorStatus="success"
           shoppingIndicatorFetchStatus="idle"

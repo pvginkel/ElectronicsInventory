@@ -1,4 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CardLink } from '@/components/ui/card-link'
 import { CapacityBar } from '@/components/ui'
 
 interface BoxCardProps {
@@ -11,28 +12,22 @@ interface BoxCardProps {
     available_locations?: number
     usage_percentage?: number
   }
-  onOpen: () => void
+  to: string
+  params: Record<string, string>
+  search?: Record<string, unknown>
   disabled?: boolean
 }
 
-export function BoxCard({ box, onOpen, disabled = false }: BoxCardProps) {
-  const handleSelect = () => {
-    if (disabled) {
-      return
-    }
-    onOpen()
-  }
-
+export function BoxCard({ box, to, params, search, disabled = false }: BoxCardProps) {
   return (
-    <Card
-      variant={disabled ? "grid-tile-disabled" : "grid-tile"}
+    <CardLink
+      to={to}
+      params={params}
+      search={search}
+      disabled={disabled}
       data-testid={`boxes.list.item.${box.box_no}`}
       data-box-no={box.box_no}
-      tabIndex={disabled ? -1 : 0}
-      role="button"
-      aria-disabled={disabled}
       aria-label={`Open box ${box.box_no}`}
-      onClick={handleSelect}
     >
       <CardHeader>
         <div className="flex justify-between items-start">
@@ -45,13 +40,13 @@ export function BoxCard({ box, onOpen, disabled = false }: BoxCardProps) {
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         <CapacityBar
           used={box.occupied_locations ?? 0}
           total={box.total_locations ?? box.capacity}
         />
       </CardContent>
-    </Card>
-  )
+    </CardLink>
+  );
 }

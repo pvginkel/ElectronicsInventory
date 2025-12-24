@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Card } from '@/components/ui/card';
+import { CardLink } from '@/components/ui/card-link';
 import { CoverImageDisplay } from '@/components/documents/cover-image-display';
 import { type PartWithTotalSchemaList_a9993e3_PartWithTotalSchema } from '@/lib/api/generated/hooks';
 import { formatPartForDisplay } from '@/lib/utils/parts';
@@ -21,7 +21,9 @@ import { MembershipIndicator } from '@/components/ui/membership-indicator';
 interface PartListItemProps {
   part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema;
   typeMap: Map<number, string>;
-  onClick?: () => void;
+  to: string;
+  params: Record<string, string>;
+  search?: Record<string, unknown>;
   shoppingIndicatorSummary?: ShoppingListMembershipSummary;
   shoppingIndicatorStatus: 'pending' | 'error' | 'success';
   shoppingIndicatorFetchStatus: 'idle' | 'fetching' | 'paused';
@@ -35,7 +37,9 @@ interface PartListItemProps {
 export function PartListItem({
   part,
   typeMap,
-  onClick,
+  to,
+  params,
+  search,
   shoppingIndicatorSummary,
   shoppingIndicatorStatus,
   shoppingIndicatorFetchStatus,
@@ -48,9 +52,10 @@ export function PartListItem({
   const { displayId, displayDescription, displayManufacturerCode } = formatPartForDisplay(part);
 
   return (
-    <Card
-      variant={onClick ? 'grid-tile' : 'grid-tile-disabled'}
-      onClick={onClick}
+    <CardLink
+      to={to}
+      params={params}
+      search={search}
       data-testid="parts.list.card"
       data-part-key={part.key}
     >
@@ -167,7 +172,7 @@ export function PartListItem({
           testId={`parts.list.card.location-summary-${part.key}`}
         />
       </div>
-    </Card>
+    </CardLink>
   );
 }
 

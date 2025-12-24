@@ -50,17 +50,6 @@ function KitsOverviewRoute() {
     setIsCreateDialogOpen(true);
   }, []);
 
-  const handleOpenDetail = useCallback(
-    (kitId: number) => {
-      navigate({
-        to: '/kits/$kitId',
-        params: { kitId: kitId.toString() },
-        search: () => (search ? { status, search } : { status }),
-      });
-    },
-    [navigate, search, status],
-  );
-
   const handleCreateSuccess = useCallback(
     (kit: KitResponseSchema_b98797e) => {
       setIsCreateDialogOpen(false);
@@ -84,7 +73,6 @@ function KitsOverviewRoute() {
         searchTerm={search}
         onStatusChange={handleStatusChange}
         onCreateKit={handleCreateKit}
-        onOpenDetail={handleOpenDetail}
       />
       <KitCreateDialog
         open={isCreateDialogOpen}

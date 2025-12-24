@@ -1,10 +1,13 @@
 import { KeyValueBadge, StatusBadge } from '@/components/ui';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardLink } from '@/components/ui/card-link';
 import type { ShoppingListOverviewSummary } from '@/types/shopping-lists';
 
 interface ShoppingListOverviewCardProps {
   list: ShoppingListOverviewSummary;
-  onOpen: () => void;
+  to: string;
+  params: Record<string, string>;
+  search?: Record<string, unknown>;
   disabled?: boolean;
 }
 
@@ -22,29 +25,21 @@ function getShoppingListStatusBadgeProps(status: ShoppingListOverviewSummary['st
 
 export function ShoppingListOverviewCard({
   list,
-  onOpen,
+  to,
+  params,
+  search,
   disabled = false,
 }: ShoppingListOverviewCardProps) {
   const statusBadgeProps = getShoppingListStatusBadgeProps(list.status);
-  const tabIndex = disabled ? -1 : 0;
-
-  const handleSelect = () => {
-    if (disabled) {
-      return;
-    }
-
-    onOpen();
-  };
 
   return (
-    <Card
-      variant={disabled ? "grid-tile-disabled" : "grid-tile"}
+    <CardLink
+      to={to}
+      params={params}
+      search={search}
+      disabled={disabled}
       data-testid={`shopping-lists.overview.card.${list.id}`}
-      tabIndex={tabIndex}
-      role="button"
-      aria-disabled={disabled}
       aria-label={`Open shopping list ${list.name}`}
-      onClick={handleSelect}
     >
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
@@ -97,6 +92,6 @@ export function ShoppingListOverviewCard({
           </p>
         )}
       </CardContent>
-    </Card>
+    </CardLink>
   );
 }

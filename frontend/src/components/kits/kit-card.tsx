@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Card, CardDescription, CardTitle } from '@/components/ui/card';
+import { CardDescription, CardTitle } from '@/components/ui/card';
+import { CardLink } from '@/components/ui/card-link';
 import {
   QuantityBadge,
   StatusBadge,
@@ -25,26 +26,29 @@ interface KitCardProps {
   kit: KitSummary;
   shoppingIndicator: MembershipIndicatorState<KitShoppingListMembershipSummary>;
   pickIndicator: MembershipIndicatorState<KitPickListMembershipSummary>;
-  onOpenDetail?: (kitId: number) => void;
+  to: string;
+  params: Record<string, string>;
+  search?: Record<string, unknown>;
 }
 
 export function KitCard({
   kit,
   shoppingIndicator,
   pickIndicator,
-  onOpenDetail,
+  to,
+  params,
+  search,
 }: KitCardProps) {
   const hasDescription = Boolean(kit.description && kit.description.trim().length > 0);
 
   const showShoppingIndicator = shouldShowIndicator(shoppingIndicator, kitHasShoppingMembership);
   const showPickIndicator = shouldShowIndicator(pickIndicator, kitHasOpenPickList);
 
-  const handleClick = onOpenDetail ? () => onOpenDetail(kit.id) : undefined;
-
   return (
-    <Card
-      variant={onOpenDetail ? 'grid-tile' : 'grid-tile-disabled'}
-      onClick={handleClick}
+    <CardLink
+      to={to}
+      params={params}
+      search={search}
       data-testid={`kits.overview.card.${kit.id}`}
     >
         <div className="flex items-start justify-between gap-3">
@@ -102,7 +106,7 @@ export function KitCard({
             {kit.description}
           </CardDescription>
         ) : null}
-    </Card>
+    </CardLink>
   );
 }
 

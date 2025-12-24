@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useNavigate } from '@tanstack/react-router';
 import { ListScreenLayout } from '@/components/layout/list-screen-layout';
 import { ListScreenCounts } from '@/components/layout/list-screen-counts';
 import { Button } from '@/components/ui/button';
@@ -21,7 +20,6 @@ interface BoxListProps {
 }
 
 export function BoxList({ searchTerm = '' }: BoxListProps) {
-  const navigate = useNavigate();
   const { showSuccess, showException } = useToast();
   const [createFormOpen, setCreateFormOpen] = useState(false);
 
@@ -108,10 +106,6 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
       showException(message, err);
       throw err;
     }
-  };
-
-  const handleViewBox = (boxNo: number) => {
-    navigate({ to: '/boxes/$boxNo', params: { boxNo: boxNo.toString() } });
   };
 
   const boxForm = (
@@ -272,7 +266,9 @@ export function BoxList({ searchTerm = '' }: BoxListProps) {
         <BoxCard
           key={box.box_no}
           box={box}
-          onOpen={() => handleViewBox(box.box_no)}
+          to="/boxes/$boxNo"
+          params={{ boxNo: box.box_no.toString() }}
+          search={{ search: searchTerm || undefined }}
         />
       ))}
     </CollectionGrid>
