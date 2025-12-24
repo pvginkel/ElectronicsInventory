@@ -5,12 +5,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 import requests
-from flask import Flask
 
 from app.services.container import ServiceContainer
 from app.services.version_service import VersionService
 from app.utils.shutdown_coordinator import LifetimeEvent
-
 
 # Note: The /api/utils/version/stream endpoint was removed in favor of SSE Gateway pattern.
 # SSE Gateway tests are in tests/api/test_sse.py

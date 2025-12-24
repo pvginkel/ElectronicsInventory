@@ -1,10 +1,7 @@
 """Integration tests for document API endpoints."""
 
-import hashlib
-import io
 from unittest.mock import patch
 
-import pytest
 from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy import select
@@ -51,7 +48,8 @@ class TestDocumentAPI:
         assert data['title'] == 'Test Image'
         assert data['attachment_type'] == 'image'
         assert data['filename'] == 'test.jpg'
-        assert data['has_preview'] is True
+        assert data['preview_url'] is not None
+        assert data['preview_url'].startswith('/api/cas/')  # Image has CAS preview URL
 
     @patch('app.utils.mime_handling.magic.from_buffer')
     @patch('app.services.s3_service.S3Service.upload_file')
@@ -153,7 +151,8 @@ class TestDocumentAPI:
         assert data['title'] == 'Product Page'
         assert data['attachment_type'] == 'url'
         assert data['url'] == 'https://example.com/product'
-        assert data['has_preview'] is True  # Should be True because mock returns s3_key
+        assert data['preview_url'] is not None  # Has preview because mock returns s3_key
+        assert data['preview_url'].startswith('/api/cas/')  # URL with stored image has CAS preview
 
     def test_create_attachment_invalid_json(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test attachment creation with invalid JSON."""
@@ -204,7 +203,7 @@ class TestDocumentAPI:
             part_id=part.id,
             attachment_type=AttachmentType.IMAGE,
             title="Image 1",
-            s3_key="test1.jpg",
+            s3_key="cas/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
             filename="test1.jpg",
             content_type="image/jpeg",
             file_size=1024
@@ -228,13 +227,17 @@ class TestDocumentAPI:
         assert 'Image 1' in titles
         assert 'URL 1' in titles
 
-        # Verify has_preview field is present and correct
+        # Verify preview_url field is present and correct
         for item in data:
-            assert 'has_preview' in item
+            assert 'preview_url' in item
             if item['title'] == 'Image 1':
-                assert item['has_preview'] is True
+                # Image attachment has CAS preview URL
+                assert item['preview_url'] is not None
+                assert item['preview_url'].startswith('/api/cas/')
             elif item['title'] == 'URL 1':
-                assert item['has_preview'] is False  # No s3_key or metadata set
+                # URL attachment without stored image gets link icon
+                assert item['preview_url'] is not None
+                assert item['preview_url'].startswith('/api/icons/link')
 
     def test_get_single_attachment(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test getting single attachment details."""
@@ -265,7 +268,8 @@ class TestDocumentAPI:
         data = response.get_json()
         assert data['title'] == 'Test Attachment'
         assert data['filename'] == 'test.jpg'
-        assert data['has_preview'] is True
+        # Image attachment has preview_url - but s3_key is not a valid CAS key so preview_url is None
+        assert 'preview_url' in data
 
     def test_update_attachment(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test updating attachment metadata."""
@@ -295,7 +299,7 @@ class TestDocumentAPI:
         assert response.status_code == 200
         data = response.get_json()
         assert data['title'] == 'Updated Title'
-        assert 'has_preview' in data  # Field should be present in update responses
+        assert 'preview_url' in data  # Field should be present in update responses
 
     @patch('app.services.s3_service.S3Service.delete_file', return_value=True)
     def test_delete_attachment(self, _mock_delete, client: FlaskClient, container: ServiceContainer, session: Session):
@@ -677,8 +681,9 @@ class TestDocumentAPI:
         assert attachment_data['attachment_type'] == 'url'
         assert attachment_data['title'] == 'Product Page'
         assert attachment_data['url'] == 'https://example.com/product'
-        # s3_key is excluded from API responses - check has_preview instead
-        assert attachment_data['has_preview'] is False  # No S3 content for this URL
+        # URL attachment without stored image gets link icon
+        assert attachment_data['preview_url'] is not None
+        assert attachment_data['preview_url'].startswith('/api/icons/link')
 
     def test_copy_attachment_source_not_found(self, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
         """Test copying non-existent attachment via API."""

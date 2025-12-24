@@ -8,8 +8,8 @@ from app.config import Settings
 from app.services.container import ServiceContainer
 from app.services.diagnostics_service import (
     DiagnosticsService,
-    RequestDiagnostics,
     QueryInfo,
+    RequestDiagnostics,
 )
 
 

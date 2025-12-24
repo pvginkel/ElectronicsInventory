@@ -43,7 +43,9 @@ def mock_s3_service():
 @pytest.fixture
 def mock_image_service():
     """Create mock ImageService."""
-    return MagicMock()
+    mock = MagicMock()
+    mock.get_thumbnail_path.return_value = "/tmp/thumbnail.jpg"
+    return mock
 
 
 @pytest.fixture
