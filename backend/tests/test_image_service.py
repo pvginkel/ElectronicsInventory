@@ -1,9 +1,8 @@
 """Unit tests for ImageService."""
 
 import io
-import os
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from flask import Flask
@@ -11,7 +10,6 @@ from PIL import Image
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.exceptions import InvalidOperationException
 from app.services.image_service import ImageService
 
 
@@ -64,65 +62,6 @@ class TestImageService:
         """Test that ImageService creates thumbnail directory."""
         ImageService(session, mock_s3_service, test_settings)
         assert Path(test_settings.THUMBNAIL_STORAGE_PATH).exists()
-
-    # Note: Tests for old attachment_id-based thumbnail methods removed:
-    # - test_generate_thumbnail_creates_file
-    # - test_generate_thumbnail_different_sizes
-    # - test_get_thumbnail_path_creates_if_not_exists
-    # - test_get_thumbnail_path_returns_existing
-    # - test_cleanup_thumbnails_removes_files
-    # These methods were replaced by get_thumbnail_for_hash()
-
-    def test_get_pdf_icon_data_returns_svg(self, image_service):
-        """Test getting PDF icon returns SVG data."""
-        svg_data, content_type = image_service.get_pdf_icon_data()
-
-        assert isinstance(svg_data, bytes)
-        assert content_type == 'image/svg+xml'
-        assert b'<svg' in svg_data
-        assert b'</svg>' in svg_data
-
-    # Note: More tests for old attachment_id-based methods removed:
-    # - test_thumbnail_path_structure
-    # - test_generate_thumbnail_handles_portrait_orientation
-    # - test_generate_thumbnail_handles_landscape_orientation
-    # These were replaced by get_thumbnail_for_hash() which is tested via CAS endpoint
-
-
-def test_get_link_icon_data(image_service):
-    """Test getting link icon data."""
-    link_data, content_type = image_service.get_link_icon_data()
-
-    # Verify content type
-    assert content_type == 'image/svg+xml'
-
-    # Verify it's valid SVG content
-    assert isinstance(link_data, bytes)
-    svg_content = link_data.decode('utf-8')
-    assert '<svg' in svg_content
-    assert 'xmlns="http://www.w3.org/2000/svg"' in svg_content
-
-
-def test_get_link_icon_data_file_not_found(image_service):
-    """Test link icon data when file doesn't exist."""
-    # Mock the builtin open function to raise an exception
-    with patch('builtins.open', side_effect=FileNotFoundError("File not found")):
-        with pytest.raises(InvalidOperationException) as exc_info:
-            image_service.get_link_icon_data()
-
-        assert "get link icon data" in str(exc_info.value)
-        assert "failed to read link icon" in str(exc_info.value)
-
-
-def test_get_pdf_icon_data_file_not_found(image_service):
-    """Test PDF icon data when file doesn't exist."""
-    # Mock the builtin open function to raise an exception
-    with patch('builtins.open', side_effect=FileNotFoundError("File not found")):
-        with pytest.raises(InvalidOperationException) as exc_info:
-            image_service.get_pdf_icon_data()
-
-        assert "get pdf icon data" in str(exc_info.value)
-        assert "failed to read pdf icon" in str(exc_info.value)
 
 
 def test_convert_image_to_png_success(image_service):
