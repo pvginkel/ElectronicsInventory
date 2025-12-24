@@ -4,6 +4,7 @@ import hashlib
 import io
 from unittest.mock import patch
 
+import pytest
 from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy import select
@@ -20,8 +21,9 @@ class TestDocumentAPI:
 
     @patch('app.utils.mime_handling.magic.from_buffer')
     @patch('app.services.s3_service.S3Service.upload_file', return_value=True)
-    @patch('app.services.s3_service.S3Service.generate_s3_key', return_value="parts/TEST/attachments/test.jpg")
-    def test_create_file_attachment_success(self, _mock_generate_key, _mock_upload, mock_magic, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session, sample_image_file):
+    @patch('app.services.s3_service.S3Service.file_exists', return_value=False)
+    @patch('app.services.s3_service.S3Service.generate_cas_key', return_value="cas/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+    def test_create_file_attachment_success(self, _mock_generate_cas_key, _mock_file_exists, _mock_upload, mock_magic, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session, sample_image_file):
         """Test successful file attachment creation via API."""
         mock_magic.return_value = 'image/jpeg'
 
@@ -53,10 +55,12 @@ class TestDocumentAPI:
 
     @patch('app.utils.mime_handling.magic.from_buffer')
     @patch('app.services.s3_service.S3Service.upload_file')
-    @patch('app.services.s3_service.S3Service.generate_s3_key', return_value="parts/TEST/attachments/fail.jpg")
+    @patch('app.services.s3_service.S3Service.file_exists', return_value=False)
+    @patch('app.services.s3_service.S3Service.generate_cas_key', return_value="cas/fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210")
     def test_create_file_attachment_s3_failure_rolls_back(
         self,
-        _mock_generate_key,
+        _mock_generate_cas_key,
+        _mock_file_exists,
         mock_upload,
         mock_magic,
         client: FlaskClient,
@@ -352,6 +356,7 @@ class TestDocumentAPI:
         assert remaining == []
 
     @patch('app.services.s3_service.S3Service.download_file', return_value=io.BytesIO(b"fake pdf content"))
+    @pytest.mark.skip(reason="Download endpoint removed - replaced by CAS API")
     def test_download_attachment(self, mock_download, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test downloading attachment file."""
         # Create test part using service
@@ -379,6 +384,7 @@ class TestDocumentAPI:
         assert response.status_code == 200
         assert response.content_type == 'application/pdf'
 
+    @pytest.mark.skip(reason="Thumbnail endpoint removed - replaced by CAS API")
     def test_get_attachment_thumbnail(self, client: FlaskClient, container: ServiceContainer, session: Session, tmp_path):
         """Test getting attachment thumbnail."""
         # Create test part using service
@@ -413,6 +419,7 @@ class TestDocumentAPI:
         expected_etag = hashlib.sha256(attachment.s3_key.encode('utf-8')).hexdigest()
         assert response.headers['ETag'] == f'"{expected_etag}"'
 
+    @pytest.mark.skip(reason="Thumbnail endpoint removed - replaced by CAS API")
     def test_get_attachment_thumbnail_not_modified(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test attachment thumbnail endpoint returns 304 when ETag matches."""
         part_type = container.type_service().create_type("Thumbnail 304 Type")
@@ -446,6 +453,7 @@ class TestDocumentAPI:
         assert response.data == b''
         assert response.headers['ETag'] == f'"{expected_etag}"'
 
+    @pytest.mark.skip(reason="Thumbnail endpoint removed - replaced by CAS API")
     def test_get_attachment_thumbnail_not_modified_handles_generation_failure(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """ETag matches should short-circuit even if thumbnail generation would fail."""
         part_type = container.type_service().create_type("Thumbnail Failure Type")
@@ -540,6 +548,7 @@ class TestDocumentAPI:
         assert data['attachment_id'] == attachment.id
         assert data['attachment']['title'] == 'Cover Image'
 
+    @pytest.mark.skip(reason="Cover thumbnail endpoint removed - replaced by CAS API")
     def test_get_part_cover_thumbnail(self, client: FlaskClient, container: ServiceContainer, session: Session, tmp_path):
         """Test getting part cover thumbnail includes ETag header."""
         part_type = container.type_service().create_type("Cover Thumb Type")
@@ -574,6 +583,7 @@ class TestDocumentAPI:
         expected_etag = hashlib.sha256(attachment.s3_key.encode('utf-8')).hexdigest()
         assert response.headers['ETag'] == f'"{expected_etag}"'
 
+    @pytest.mark.skip(reason="Cover thumbnail endpoint removed - replaced by CAS API")
     def test_get_part_cover_thumbnail_not_modified(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test cover thumbnail endpoint returns 304 when ETag matches."""
         part_type = container.type_service().create_type("Cover Thumb 304 Type")
@@ -704,6 +714,7 @@ class TestDocumentAPI:
         response = client.delete(f'/api/parts/{part_key}/attachments/99999')
         assert response.status_code == 404
 
+    @pytest.mark.skip(reason="Thumbnail endpoint removed - replaced by CAS API")
     def test_thumbnail_size_parameter(self, client: FlaskClient, container: ServiceContainer, session: Session, tmp_path):
         """Test thumbnail endpoint with custom size parameter."""
         # Create test part using service
@@ -776,12 +787,13 @@ class TestDocumentAPI:
                 type_id=part_type.id
             )
 
-            # Create attachment on source part
+            # Create attachment on source part with CAS key
+            cas_hash = "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234"
             source_attachment = PartAttachment(
                 part_id=source_part.id,
                 attachment_type=AttachmentType.IMAGE,
                 title="Test Image",
-                s3_key="parts/123/attachments/test.jpg",
+                s3_key=f"cas/{cas_hash}",
                 filename="test.jpg",
                 content_type="image/jpeg",
                 file_size=1024
@@ -789,9 +801,8 @@ class TestDocumentAPI:
             session.add(source_attachment)
             session.commit()
 
-            # Mock S3 operations
-            with patch('app.services.s3_service.S3Service.copy_file', return_value=True) as mock_copy, \
-                 patch('app.services.s3_service.S3Service.generate_s3_key', return_value="parts/456/attachments/uuid.jpg"):
+            # Mock S3 operations - copy should NOT be called for CAS keys
+            with patch('app.services.s3_service.S3Service.copy_file', return_value=True) as mock_copy:
 
                 response = client.post('/api/parts/copy-attachment',
                     json={
@@ -812,8 +823,8 @@ class TestDocumentAPI:
         assert attachment_data['content_type'] == 'image/jpeg'
         assert attachment_data['file_size'] == 1024
 
-        # Verify S3 copy was called
-        mock_copy.assert_called_once()
+        # Verify S3 copy was NOT called - CAS keys are shared
+        mock_copy.assert_not_called()
 
     def test_copy_attachment_with_set_as_cover(self, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
         """Test copying attachment and setting as cover via API."""
@@ -833,12 +844,13 @@ class TestDocumentAPI:
                 type_id=part_type.id
             )
 
-            # Create attachment
+            # Create attachment with CAS key
+            cas_hash = "dcba4321dcba4321dcba4321dcba4321dcba4321dcba4321dcba4321dcba4321"
             source_attachment = PartAttachment(
                 part_id=source_part.id,
                 attachment_type=AttachmentType.IMAGE,
                 title="Cover Image",
-                s3_key="parts/123/attachments/cover.jpg",
+                s3_key=f"cas/{cas_hash}",
                 filename="cover.jpg",
                 content_type="image/jpeg",
                 file_size=512
@@ -846,16 +858,13 @@ class TestDocumentAPI:
             session.add(source_attachment)
             session.commit()
 
-            # Mock S3 operations
-            with patch('app.services.s3_service.S3Service.copy_file', return_value=True), \
-                 patch('app.services.s3_service.S3Service.generate_s3_key', return_value="parts/456/attachments/uuid.jpg"):
-
-                response = client.post('/api/parts/copy-attachment',
-                    json={
-                        'attachment_id': source_attachment.id,
-                        'target_part_key': target_part.key,
-                        'set_as_cover': True
-                    })
+            # CAS keys are shared - no mocking needed for copy
+            response = client.post('/api/parts/copy-attachment',
+                json={
+                    'attachment_id': source_attachment.id,
+                    'target_part_key': target_part.key,
+                    'set_as_cover': True
+                })
 
         assert response.status_code == 200
 
@@ -909,7 +918,8 @@ class TestDocumentAPI:
         assert attachment_data['attachment_type'] == 'url'
         assert attachment_data['title'] == 'Product Page'
         assert attachment_data['url'] == 'https://example.com/product'
-        assert attachment_data['s3_key'] is None
+        # s3_key is excluded from API responses - check has_preview instead
+        assert attachment_data['has_preview'] is False  # No S3 content for this URL
 
     def test_copy_attachment_source_not_found(self, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
         """Test copying non-existent attachment via API."""
@@ -993,50 +1003,8 @@ class TestDocumentAPI:
             })
         assert response.status_code == 400
 
-    def test_copy_attachment_s3_copy_failure(self, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
-        """Test handling S3 copy failure via API."""
-        with app.app_context():
-            # Create test parts and attachment
-            part_type = container.type_service().create_type("S3 Failure Test Type")
-
-            source_part = container.part_service().create_part(
-                description="Source part",
-                manufacturer_code="SRC-S3F",
-                type_id=part_type.id
-            )
-
-            target_part = container.part_service().create_part(
-                description="Target part",
-                manufacturer_code="TGT-S3F",
-                type_id=part_type.id
-            )
-
-            source_attachment = PartAttachment(
-                part_id=source_part.id,
-                attachment_type=AttachmentType.IMAGE,
-                title="Test Image",
-                s3_key="parts/123/attachments/test.jpg",
-                filename="test.jpg",
-                content_type="image/jpeg",
-                file_size=1024
-            )
-            session.add(source_attachment)
-            session.commit()
-
-            # Mock S3 copy failure
-            from app.exceptions import InvalidOperationException
-            with patch('app.services.s3_service.S3Service.copy_file', side_effect=InvalidOperationException("copy file in S3", "source file not found")), \
-                 patch('app.services.s3_service.S3Service.generate_s3_key', return_value="parts/456/attachments/uuid.jpg"):
-
-                response = client.post('/api/parts/copy-attachment',
-                    json={
-                        'attachment_id': source_attachment.id,
-                        'target_part_key': target_part.key
-                    })
-
-        assert response.status_code == 409  # InvalidOperationException maps to 409
-        data = response.get_json()
-        assert 'error' in data
+    # Note: test_copy_attachment_s3_copy_failure removed - CAS keys are shared,
+    # no S3 copy operation is performed, so there's no copy failure scenario.
 
 
 class TestUrlPreviewAPI:

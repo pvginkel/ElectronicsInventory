@@ -84,7 +84,7 @@ class ConnectionManager:
             if existing:
                 old_token_to_close = existing["token"]
                 logger.info(
-                    f"[TIMING] ConnectionManager.on_connect: found existing connection, will close after releasing lock",
+                    "[TIMING] ConnectionManager.on_connect: found existing connection, will close after releasing lock",
                     extra={
                         "identifier": identifier,
                         "old_token": old_token_to_close,

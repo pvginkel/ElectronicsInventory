@@ -37,81 +37,6 @@ class ImageService(BaseService):
         thumbnail_path = Path(self.settings.THUMBNAIL_STORAGE_PATH)
         thumbnail_path.mkdir(parents=True, exist_ok=True)
 
-    def _get_thumbnail_path(self, attachment_id: int, size: int) -> str:
-        """Get thumbnail file path on disk.
-
-        Args:
-            attachment_id: ID of the attachment
-            size: Thumbnail size in pixels
-
-        Returns:
-            Path to thumbnail file
-        """
-        return os.path.join(
-            self.settings.THUMBNAIL_STORAGE_PATH,
-            f"{attachment_id}_{size}.jpg"
-        )
-
-    def generate_thumbnail(self, attachment_id: int, s3_key: str, size: int) -> str:
-        """Generate thumbnail for image attachment with lazy loading.
-
-        Args:
-            attachment_id: ID of the attachment
-            s3_key: S3 key of the original image
-            size: Thumbnail size in pixels (square)
-
-        Returns:
-            Path to generated thumbnail file
-
-        Raises:
-            InvalidOperationException: If thumbnail generation fails
-        """
-        thumbnail_path = self._get_thumbnail_path(attachment_id, size)
-
-        # Check if thumbnail already exists
-        if os.path.exists(thumbnail_path):
-            return thumbnail_path
-
-        try:
-            # Download original image from S3
-            image_data = self.s3_service.download_file(s3_key)
-
-            # Open and process image with PIL
-            with Image.open(image_data) as img:
-                # Convert to RGB if necessary (for PNG with transparency, etc.)
-                if img.mode not in ('RGB', 'L'):
-                    img = img.convert('RGB')
-
-                # Create thumbnail maintaining aspect ratio
-                img.thumbnail((size, size), Image.Resampling.LANCZOS)
-
-                # Save thumbnail to disk
-                img.save(thumbnail_path, 'JPEG', quality=85, optimize=True)
-
-            return thumbnail_path
-
-        except Exception as e:
-            raise InvalidOperationException("generate thumbnail", str(e)) from e
-
-    def get_thumbnail_path(self, attachment_id: int, s3_key: str, size: int) -> str:
-        """Get thumbnail path, generating if necessary.
-
-        Args:
-            attachment_id: ID of the attachment
-            s3_key: S3 key of the original image
-            size: Thumbnail size in pixels
-
-        Returns:
-            Path to thumbnail file
-        """
-        thumbnail_path = self._get_thumbnail_path(attachment_id, size)
-
-        # Generate thumbnail if it doesn't exist
-        if not os.path.exists(thumbnail_path):
-            return self.generate_thumbnail(attachment_id, s3_key, size)
-
-        return thumbnail_path
-
     def get_pdf_icon_data(self) -> tuple[bytes, str]:
         """Get PDF icon as SVG data.
 
@@ -140,20 +65,55 @@ class ImageService(BaseService):
         except Exception as e:
             raise InvalidOperationException("get link icon data", f"failed to read link icon: {str(e)}") from e
 
-    def cleanup_thumbnails(self, attachment_id: int) -> None:
-        """Clean up all thumbnails for an attachment.
+    def get_thumbnail_for_hash(self, content_hash: str, size: int) -> str:
+        """Get thumbnail for CAS content hash, generating if necessary.
+
+        This method is used by the CAS endpoint which is stateless (no DB access).
+        The hash is provided directly from the URL path.
 
         Args:
-            attachment_id: ID of the attachment
-        """
-        thumbnail_dir = Path(self.settings.THUMBNAIL_STORAGE_PATH)
-        pattern = f"{attachment_id}_*.jpg"
+            content_hash: SHA-256 hash (64-char hex)
+            size: Thumbnail size in pixels
 
-        for thumbnail_file in thumbnail_dir.glob(pattern):
-            try:
-                thumbnail_file.unlink()
-            except OSError:
-                pass  # Ignore errors during cleanup
+        Returns:
+            Path to thumbnail file
+
+        Raises:
+            InvalidOperationException: If thumbnail generation fails
+        """
+        # Use hash as cache key instead of attachment_id
+        thumbnail_path = os.path.join(
+            self.settings.THUMBNAIL_STORAGE_PATH,
+            f"{content_hash}_{size}.jpg"
+        )
+
+        # Check if thumbnail already exists
+        if os.path.exists(thumbnail_path):
+            return thumbnail_path
+
+        # Generate thumbnail from S3 using CAS key
+        s3_key = f"cas/{content_hash}"
+
+        try:
+            # Download original image from S3
+            image_data = self.s3_service.download_file(s3_key)
+
+            # Open and process image with PIL
+            with Image.open(image_data) as img:
+                # Convert to RGB if necessary (for PNG with transparency, etc.)
+                if img.mode not in ('RGB', 'L'):
+                    img = img.convert('RGB')
+
+                # Create thumbnail maintaining aspect ratio
+                img.thumbnail((size, size), Image.Resampling.LANCZOS)
+
+                # Save thumbnail to disk
+                img.save(thumbnail_path, 'JPEG', quality=85, optimize=True)
+
+            return thumbnail_path
+
+        except Exception as e:
+            raise InvalidOperationException("generate thumbnail from hash", str(e)) from e
 
     def convert_image_to_png(self, content: bytes) -> DocumentContentSchema | None:
         """Try to convert an image to PNG format.

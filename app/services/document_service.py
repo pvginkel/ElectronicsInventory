@@ -1,9 +1,6 @@
 """Document service for managing part attachments."""
 
-import hashlib
 import logging
-from collections.abc import Callable
-from dataclasses import dataclass
 from io import BytesIO
 from typing import BinaryIO
 
@@ -24,25 +21,6 @@ from app.services.url_transformers import URLInterceptorRegistry
 from app.utils.mime_handling import detect_mime_type
 from app.utils.text_utils import truncate_with_ellipsis
 from app.utils.url_utils import get_filename_from_url
-
-
-@dataclass(frozen=True)
-class AttachmentThumbnail:
-    """Metadata wrapper for attachment thumbnails."""
-
-    content_type: str
-    etag: str
-    svg_data: str | None
-    _image_loader: Callable[[], str] | None
-
-    @property
-    def is_svg(self) -> bool:
-        return self.svg_data is not None
-
-    def resolve_image_path(self) -> str:
-        if self._image_loader is None:
-            raise InvalidOperationException("get attachment thumbnail", "no image loader available")
-        return self._image_loader()
 
 logger = logging.getLogger(__name__)
 
@@ -294,11 +272,8 @@ class DocumentService(BaseService):
                 else:
                     raise InvalidOperationException("create file attachment", f"unsupported file type: {upload_payload.content_type}")
 
-            filename_for_s3 = filename
-            if not filename_for_s3:
-                filename_for_s3 = get_filename_from_url(url, title) if url else "upload"
-
-            upload_s3_key = self.s3_service.generate_s3_key(part.id, filename_for_s3)
+            # Use CAS-based key generation (content-addressable)
+            upload_s3_key = self.s3_service.generate_cas_key(upload_payload.content)
         else:
             upload_s3_key = None
             file_size = None
@@ -322,25 +297,29 @@ class DocumentService(BaseService):
             self.db.flush()
 
         if upload_payload and upload_s3_key:
-            # Database state is durable at this point; perform external upload now.
-            try:
-                self.s3_service.upload_file(BytesIO(upload_payload.content), upload_s3_key, upload_payload.content_type)
-            except InvalidOperationException:
-                logger.exception(
-                    "Failed to upload attachment to S3 for part %s (attachment_id=%s, key=%s)",
-                    part_key,
-                    attachment.id,
-                    upload_s3_key,
-                )
-                raise
-            except Exception as exc:  # pragma: no cover - unexpected failure path
-                logger.exception(
-                    "Unexpected error uploading attachment to S3 for part %s (attachment_id=%s, key=%s)",
-                    part_key,
-                    attachment.id,
-                    upload_s3_key,
-                )
-                raise InvalidOperationException("upload attachment", "unexpected S3 upload error") from exc
+            # Check if content already exists in S3 (deduplication)
+            if self.s3_service.file_exists(upload_s3_key):
+                logger.info(f"Content already exists in CAS for attachment {attachment.id}, skipping upload")
+            else:
+                # Database state is durable at this point; perform external upload now.
+                try:
+                    self.s3_service.upload_file(BytesIO(upload_payload.content), upload_s3_key, upload_payload.content_type)
+                except InvalidOperationException:
+                    logger.exception(
+                        "Failed to upload attachment to S3 for part %s (attachment_id=%s, key=%s)",
+                        part_key,
+                        attachment.id,
+                        upload_s3_key,
+                    )
+                    raise
+                except Exception as exc:  # pragma: no cover - unexpected failure path
+                    logger.exception(
+                        "Unexpected error uploading attachment to S3 for part %s (attachment_id=%s, key=%s)",
+                        part_key,
+                        attachment.id,
+                        upload_s3_key,
+                    )
+                    raise InvalidOperationException("upload attachment", "unexpected S3 upload error") from exc
 
         return attachment
 
@@ -414,8 +393,6 @@ class DocumentService(BaseService):
         attachment = self.get_attachment(attachment_id)
         part = attachment.part
         is_cover_image = part.cover_attachment_id == attachment_id
-        s3_key = attachment.s3_key
-        attachment_type = attachment.attachment_type
 
         if is_cover_image:
             stmt = select(PartAttachment).where(
@@ -430,27 +407,11 @@ class DocumentService(BaseService):
         self.db.delete(attachment)
         self.db.flush()
 
-        if attachment_type == AttachmentType.IMAGE:
-            self.image_service.cleanup_thumbnails(attachment_id)
-
-        if s3_key:
-            # S3 is best-effort after database state is durable.
-            try:
-                self.s3_service.delete_file(s3_key)
-            except InvalidOperationException as exc:
-                logger.warning(
-                    "S3 deletion failed for attachment %s (key=%s); leaving orphaned object",
-                    attachment_id,
-                    s3_key,
-                )
-                logger.debug("Ignored S3 deletion failure due to non-transactional storage", exc_info=exc)
-            except Exception as exc:  # pragma: no cover - unexpected failure path
-                logger.warning(
-                    "Unexpected error deleting S3 object for attachment %s (key=%s); continuing",
-                    attachment_id,
-                    s3_key,
-                )
-                logger.debug("Unexpected S3 deletion error", exc_info=exc)
+        # Note: With CAS, we don't delete S3 objects or thumbnails when deleting
+        # an attachment, because:
+        # 1. CAS objects may be shared by multiple attachments (deduplication)
+        # 2. Hash-based thumbnails are keyed by content hash, not attachment ID
+        # Orphaned CAS objects can be cleaned up separately if needed.
 
     def get_attachment_file_data(self, attachment_id: int) -> tuple[BytesIO, str, str] | None:
         """Get attachment file data for download.
@@ -475,59 +436,6 @@ class DocumentService(BaseService):
         else:
             # No S3 content available
             return None
-
-    def get_attachment_thumbnail(self, attachment_id: int, size: int = 150) -> AttachmentThumbnail:
-        """Get thumbnail metadata for attachment, lazily loading image files.
-
-        Args:
-            attachment_id: ID of the attachment
-            size: Thumbnail size in pixels
-
-        Returns:
-            AttachmentThumbnail metadata
-
-        Raises:
-            RecordNotFoundException: If attachment not found
-            InvalidOperationException: If thumbnail generation fails
-        """
-        attachment = self.get_attachment(attachment_id)
-
-        # Check if content_type starts with 'image/' and s3_key exists
-        if attachment.content_type and attachment.content_type.startswith('image/') and attachment.s3_key:
-            s3_key = attachment.s3_key
-            etag = hashlib.sha256(s3_key.encode("utf-8")).hexdigest()
-
-            def _load_path() -> str:
-                return self.image_service.get_thumbnail_path(attachment.id, s3_key, size)
-
-            return AttachmentThumbnail(
-                content_type='image/jpeg',
-                etag=etag,
-                svg_data=None,
-                _image_loader=_load_path,
-            )
-        elif attachment.attachment_type == AttachmentType.PDF:
-            # Return PDF icon SVG
-            pdf_data, content_type = self.image_service.get_pdf_icon_data()
-            etag = hashlib.sha256(pdf_data).hexdigest()
-            return AttachmentThumbnail(
-                content_type=content_type,
-                etag=etag,
-                svg_data=pdf_data.decode('utf-8'),
-                _image_loader=None,
-            )
-        elif attachment.attachment_type == AttachmentType.URL:
-            # Return link icon SVG
-            link_data, content_type = self.image_service.get_link_icon_data()
-            etag = hashlib.sha256(link_data).hexdigest()
-            return AttachmentThumbnail(
-                content_type=content_type,
-                etag=etag,
-                svg_data=link_data.decode('utf-8'),
-                _image_loader=None,
-            )
-        else:
-            raise InvalidOperationException("get attachment thumbnail", "thumbnail not available for this attachment type")
 
     def get_preview_image(self, url: str) -> DocumentContentSchema | None:
         """Get preview image for a URL.
@@ -645,8 +553,8 @@ class DocumentService(BaseService):
         if not target_part:
             raise RecordNotFoundException("Part", target_part_key)
 
-        original_filename = source_attachment.filename or "attachment"
-        new_s3_key = self.s3_service.generate_s3_key(target_part.id, original_filename) if source_attachment.s3_key else None
+        # CAS keys are content-addressed and immutable - just reuse the same key
+        new_s3_key = source_attachment.s3_key
 
         new_attachment = PartAttachment(
             part_id=target_part.id,
@@ -667,26 +575,6 @@ class DocumentService(BaseService):
             target_part.cover_attachment_id = new_attachment.id
             self.db.flush()
 
-        if source_attachment.s3_key and new_s3_key:
-            try:
-                self.s3_service.copy_file(source_attachment.s3_key, new_s3_key)
-            except InvalidOperationException:
-                logger.exception(
-                    "Failed to copy attachment %s to part %s (new_attachment_id=%s, key=%s)",
-                    source_attachment.id,
-                    target_part_key,
-                    new_attachment.id,
-                    new_s3_key,
-                )
-                raise
-            except Exception as exc:  # pragma: no cover - unexpected failure path
-                logger.exception(
-                    "Unexpected error copying attachment %s to part %s (new_attachment_id=%s, key=%s)",
-                    source_attachment.id,
-                    target_part_key,
-                    new_attachment.id,
-                    new_s3_key,
-                )
-                raise InvalidOperationException("copy attachment", "unexpected S3 copy error") from exc
+        # CAS keys are shared - no S3 copy needed since content is immutable
 
         return new_attachment

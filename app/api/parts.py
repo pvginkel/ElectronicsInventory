@@ -100,6 +100,24 @@ def _convert_part_to_schema_data(part: Any, total_quantity: int) -> dict[str, An
             "website": part.seller.website
         }
 
+    # Convert cover attachment if loaded (for cover_url computation)
+    cover_attachment_data = None
+    if part.cover_attachment:
+        cover_attachment_data = {
+            "id": part.cover_attachment.id,
+            "part_id": part.cover_attachment.part_id,
+            "attachment_type": part.cover_attachment.attachment_type,
+            "title": part.cover_attachment.title,
+            "url": part.cover_attachment.url,
+            "filename": part.cover_attachment.filename,
+            "content_type": part.cover_attachment.content_type,
+            "file_size": part.cover_attachment.file_size,
+            "s3_key": part.cover_attachment.s3_key,
+            "created_at": part.cover_attachment.created_at,
+            "updated_at": part.cover_attachment.updated_at,
+            "has_preview": part.cover_attachment.has_preview,
+        }
+
     # Convert datetimes to ISO format strings for JSON serialization
     created_at = part.created_at.isoformat() if part.created_at else None
     updated_at = part.updated_at.isoformat() if part.updated_at else None
@@ -113,7 +131,8 @@ def _convert_part_to_schema_data(part: Any, total_quantity: int) -> dict[str, An
         "manufacturer": part.manufacturer,
         "seller": seller_data,
         "seller_link": part.seller_link,
-        "has_cover_attachment": part.has_cover_attachment,
+        "cover_attachment_id": part.cover_attachment_id,
+        "cover_attachment": cover_attachment_data,
         "package": part.package,
         "pin_count": part.pin_count,
         "pin_pitch": part.pin_pitch,
@@ -198,6 +217,7 @@ def list_parts(inventory_service: InventoryService = Provide[ServiceContainer.in
         include_locations=include_locations,
         include_kits=include_kits,
         include_shopping_lists=include_shopping_lists,
+        include_cover=include_cover,
     )
 
     result = []
@@ -207,11 +227,6 @@ def list_parts(inventory_service: InventoryService = Provide[ServiceContainer.in
 
         # Convert using helper function
         part_data = _convert_part_to_schema_data(part, total_qty)
-
-        # Add cover URLs if requested and cover attachment exists
-        if include_cover and part.cover_attachment_id:
-            part_data["cover_url"] = f"/api/attachments/{part.cover_attachment_id}"
-            part_data["cover_thumbnail_url"] = f"/api/attachments/{part.cover_attachment_id}/thumbnail"
 
         # Add locations if requested
         if include_locations:
@@ -246,7 +261,9 @@ def list_parts(inventory_service: InventoryService = Provide[ServiceContainer.in
                 shopping_lists.append(membership.model_dump())
             part_data["shopping_lists"] = shopping_lists
 
-        result.append(part_data)
+        # Validate through schema to compute cover_url and exclude internal fields
+        validated_data = PartWithTotalSchema.model_validate(part_data).model_dump()
+        result.append(validated_data)
 
     return result
 

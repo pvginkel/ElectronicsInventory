@@ -1,6 +1,6 @@
 """S3 service for file storage operations."""
 
-import uuid
+import hashlib
 from io import BytesIO
 from typing import Any, BinaryIO
 
@@ -45,20 +45,28 @@ class S3Service(BaseService):
                 raise InvalidOperationException("initialize S3 client", "credentials not configured") from e
         return self._s3_client
 
-    def generate_s3_key(self, part_id: int, filename: str) -> str:
-        """Generate S3 key for part attachment.
+    def compute_hash(self, content: bytes) -> str:
+        """Compute SHA-256 hash of content.
 
         Args:
-            part_id: ID of the part
-            filename: Original filename
+            content: File content bytes
 
         Returns:
-            Generated S3 key following the pattern: parts/{part_id}/attachments/{uuid}.{ext}
+            64-character hex SHA-256 hash
         """
-        # Extract file extension
-        ext = filename.rsplit('.', 1)[-1] if '.' in filename else 'bin'
-        unique_id = str(uuid.uuid4())
-        return f"parts/{part_id}/attachments/{unique_id}.{ext}"
+        return hashlib.sha256(content).hexdigest()
+
+    def generate_cas_key(self, content: bytes) -> str:
+        """Generate CAS S3 key from content hash.
+
+        Args:
+            content: File content bytes
+
+        Returns:
+            CAS S3 key in format: cas/{hash}
+        """
+        content_hash = self.compute_hash(content)
+        return f"cas/{content_hash}"
 
     def upload_file(self, file_obj: BinaryIO, s3_key: str, content_type: str | None = None) -> bool:
         """Upload file to S3.

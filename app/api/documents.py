@@ -89,34 +89,6 @@ def get_part_cover(part_key: str, document_service: DocumentService = Provide[Se
     return response_data, 200
 
 
-@documents_bp.route("/<part_key>/cover/thumbnail", methods=["GET"])
-@handle_api_errors
-@inject
-def get_part_cover_thumbnail(part_key: str, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
-    """Get part cover thumbnail."""
-    size = int(request.args.get('size', 150))
-
-    cover_attachment = document_service.get_part_cover_attachment(part_key)
-    if not cover_attachment:
-        return jsonify({'error': 'No cover attachment set'}), 404
-
-    thumbnail = document_service.get_attachment_thumbnail(cover_attachment.id, size)
-    quoted_etag = f'"{thumbnail.etag}"'
-
-    if_none_match = request.headers.get('If-None-Match')
-    if if_none_match == quoted_etag:
-        return '', 304, {'ETag': quoted_etag}
-
-    if thumbnail.is_svg:
-        # Return SVG data directly
-        return thumbnail.svg_data, 200, {'Content-Type': thumbnail.content_type, 'ETag': quoted_etag}
-    else:
-        # Return thumbnail file
-        response = send_file(thumbnail.resolve_image_path(), mimetype=thumbnail.content_type)
-        response.headers['ETag'] = quoted_etag
-        return response
-
-
 # Part Attachments Management
 @documents_bp.route("/<part_key>/attachments", methods=["POST"])
 @handle_api_errors
@@ -181,52 +153,6 @@ def get_attachment(part_key: str, attachment_id: int, document_service: Document
     """Get attachment details."""
     attachment = document_service.get_attachment(attachment_id)
     return PartAttachmentResponseSchema.model_validate(attachment).model_dump(), 200
-
-
-@documents_bp.route("/<part_key>/attachments/<int:attachment_id>/download", methods=["GET"])
-@handle_api_errors
-@inject
-def download_attachment(part_key: str, attachment_id: int, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
-    """Download or stream attachment file."""
-    file_payload = document_service.get_attachment_file_data(attachment_id)
-    if file_payload is None:
-        return jsonify({'error': 'Attachment file content not available'}), 404
-
-    file_data, content_type, filename = file_payload
-
-    # Check for inline query parameter to set Content-Disposition to inline
-    inline = request.args.get('inline') is not None
-
-    return send_file(  # type: ignore[call-arg]
-        file_data,
-        mimetype=content_type,
-        as_attachment=not inline,
-        download_name=filename
-    )
-
-
-@documents_bp.route("/<part_key>/attachments/<int:attachment_id>/thumbnail", methods=["GET"])
-@handle_api_errors
-@inject
-def get_attachment_thumbnail(part_key: str, attachment_id: int, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
-    """Get attachment thumbnail."""
-    size = int(request.args.get('size', 150))
-
-    thumbnail = document_service.get_attachment_thumbnail(attachment_id, size)
-    quoted_etag = f'"{thumbnail.etag}"'
-
-    if_none_match = request.headers.get('If-None-Match')
-    if if_none_match == quoted_etag:
-        return '', 304, {'ETag': quoted_etag}
-
-    if thumbnail.is_svg:
-        # Return SVG data directly
-        return thumbnail.svg_data, 200, {'Content-Type': thumbnail.content_type, 'ETag': quoted_etag}
-    else:
-        # Return thumbnail file
-        response = send_file(thumbnail.resolve_image_path(), mimetype=thumbnail.content_type)
-        response.headers['ETag'] = quoted_etag
-        return response
 
 
 @documents_bp.route("/<part_key>/attachments/<int:attachment_id>", methods=["PUT"])

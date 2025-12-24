@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from app.config import Settings
 from app.services.ai_service import AIService
 from app.services.box_service import BoxService
+from app.services.cas_migration_service import CasMigrationService
 from app.services.connection_manager import ConnectionManager
 from app.services.dashboard_service import DashboardService
 from app.services.document_service import DocumentService
@@ -169,6 +170,14 @@ class ServiceContainer(containers.DeclarativeContainer):
         download_cache_service=download_cache_service,
         settings=config,
         url_interceptor_registry=url_interceptor_registry
+    )
+
+    # CAS migration service
+    cas_migration_service = providers.Factory(
+        CasMigrationService,
+        db=db_session,
+        s3_service=s3_service,
+        settings=config
     )
 
     # TaskService - Singleton for in-memory task management with configurable settings

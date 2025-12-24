@@ -37,23 +37,7 @@ class TestS3Service:
             service = S3Service(session, test_settings)
             assert service.s3_client is not None
 
-    def test_generate_s3_key(self, s3_service):
-        """Test S3 key generation for different scenarios."""
-        # Test with extension
-        key = s3_service.generate_s3_key(123, "datasheet.pdf")
-        assert key.startswith("parts/123/attachments/")
-        assert key.endswith(".pdf")
-        assert len(key.split("/")[-1]) > 10  # UUID + extension should be long
-
-        # Test without extension
-        key = s3_service.generate_s3_key(456, "image")
-        assert key.startswith("parts/456/attachments/")
-        assert key.endswith(".bin")  # Default extension
-
-        # Test with path separators in filename (should extract extension only)
-        key = s3_service.generate_s3_key(789, "folder/file.jpg")
-        assert key.startswith("parts/789/attachments/")
-        assert key.endswith(".jpg")
+    # Note: test_generate_s3_key removed - generate_s3_key was replaced by generate_cas_key
 
     def test_upload_file_success(self, s3_service, mock_s3_client):
         """Test successful file upload."""
