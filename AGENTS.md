@@ -97,7 +97,7 @@ Pydantic schemas for request/response validation.
 **Requirements:**
 - Use `Field()` with descriptions and examples
 - Set `model_config = ConfigDict(from_attributes=True)` for ORM integration
-- Use `@computed_field` for calculated properties
+- For calculated/derived properties: define them as `@property` on the SQLAlchemy model, then declare a regular `Field()` in the schema. Pydantic's `from_attributes=True` will read model properties automatically. Avoid `@computed_field` in schemas as it doesn't integrate well with OpenAPI/SpectTree.
 - Include proper type hints and optional fields
 
 ## File Placement Rules
