@@ -7,6 +7,7 @@ from app.models.kit import Kit, KitStatus
 from app.models.kit_content import KitContent
 from app.models.location import Location
 from app.models.part import Part
+from app.models.part_attachment import AttachmentType, PartAttachment
 from app.models.part_location import PartLocation
 from app.models.seller import Seller
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
@@ -190,11 +191,28 @@ class TestPartsListIncludeParameter:
 
     def test_list_parts_include_cover(self, client, session):
         """Verify include=cover adds cover URLs when attachment exists."""
-        # Part with cover attachment
-        part_with_cover = Part(key="SW10", description="Button with cover", type_id=1, cover_attachment_id=42)
+        # Create part with cover attachment (need actual attachment for CAS URL)
+        part_with_cover = Part(key="SW10", description="Button with cover", type_id=1)
+        session.add(part_with_cover)
+        session.flush()
+
+        # Create attachment with CAS s3_key
+        test_hash = "abc123def456" * 5 + "abcd"  # 64 char hash
+        attachment = PartAttachment(
+            part_id=part_with_cover.id,
+            attachment_type=AttachmentType.IMAGE,
+            title="Cover Image",
+            s3_key=f"cas/{test_hash}",
+            content_type="image/jpeg"
+        )
+        session.add(attachment)
+        session.flush()
+
+        part_with_cover.cover_attachment_id = attachment.id
+
         # Part without cover
         part_no_cover = Part(key="SW11", description="Button without cover", type_id=1)
-        session.add_all([part_with_cover, part_no_cover])
+        session.add(part_no_cover)
         session.commit()
 
         response = client.get("/api/parts?include=cover")
@@ -202,15 +220,14 @@ class TestPartsListIncludeParameter:
         payload = response.get_json()
         assert len(payload) == 2
 
-        # Find part with cover
+        # Find part with cover - cover_url should be CAS URL
         part_data = next(p for p in payload if p["key"] == "SW10")
-        assert part_data["cover_url"] == "/api/attachments/42"
-        assert part_data["cover_thumbnail_url"] == "/api/attachments/42/thumbnail"
+        assert part_data["cover_url"] == f"/api/cas/{test_hash}"
+        # cover_thumbnail_url no longer exists - client adds ?thumbnail=size
 
-        # Part without cover should not have URLs
+        # Part without cover should not have URL
         part_no_cover_data = next(p for p in payload if p["key"] == "SW11")
         assert part_no_cover_data.get("cover_url") is None
-        assert part_no_cover_data.get("cover_thumbnail_url") is None
 
     def test_list_parts_include_all(self, client, session):
         """Verify include=locations,kits,shopping_lists,cover includes all optional data."""
@@ -223,11 +240,24 @@ class TestPartsListIncludeParameter:
         session.add(loc)
         session.flush()
 
-        part = Part(key="FULL", description="Fully loaded part", type_id=1, cover_attachment_id=99)
+        part = Part(key="FULL", description="Fully loaded part", type_id=1)
         kit = Kit(name="Test Kit", build_target=2, status=KitStatus.ACTIVE)
         shopping_list = ShoppingList(name="Test List", status=ShoppingListStatus.CONCEPT)
         session.add_all([part, kit, shopping_list])
         session.flush()
+
+        # Create cover attachment with CAS s3_key (must be 64 hex chars)
+        test_hash = "abc123def456" * 5 + "abcd"  # 64 char hash
+        attachment = PartAttachment(
+            part_id=part.id,
+            attachment_type=AttachmentType.IMAGE,
+            title="Cover",
+            s3_key=f"cas/{test_hash}",
+            content_type="image/jpeg"
+        )
+        session.add(attachment)
+        session.flush()
+        part.cover_attachment_id = attachment.id
 
         part_loc = PartLocation(part_id=part.id, box_no=1, loc_no=1, location_id=loc.id, qty=10)
         kit_content = KitContent(kit=kit, part=part, required_per_unit=3)
@@ -250,7 +280,7 @@ class TestPartsListIncludeParameter:
         assert len(part_data["locations"]) == 1
         assert len(part_data["kits"]) == 1
         assert len(part_data["shopping_lists"]) == 1
-        assert part_data["cover_url"] == "/api/attachments/99"
+        assert part_data["cover_url"] == f"/api/cas/{test_hash}"
 
     def test_list_parts_invalid_include_value(self, client):
         """Verify invalid include values return 400."""

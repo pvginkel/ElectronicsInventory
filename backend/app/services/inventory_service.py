@@ -311,6 +311,7 @@ class InventoryService(BaseService):
         include_locations: bool = False,
         include_kits: bool = False,
         include_shopping_lists: bool = False,
+        include_cover: bool = False,
     ) -> list['PartWithTotalModel']:
         """Get all parts with their total quantities calculated and optional bulk-loaded data.
 
@@ -321,24 +322,26 @@ class InventoryService(BaseService):
             include_locations: If True, bulk-load location data for all parts
             include_kits: If True, bulk-load kit membership data for all parts
             include_shopping_lists: If True, bulk-load shopping list membership data for all parts
+            include_cover: If True, eager-load cover_attachment for all parts
 
         Returns:
             List of PartWithTotalModel instances with optional related data attached
         """
         from app.models.part import Part
-        from app.models.seller import Seller
         from app.schemas.part import PartWithTotalModel
 
         # Base query for parts with total quantity calculation
         # Eager-load seller since the API serializes it for every part
+        options = [selectinload(Part.seller)]
+        if include_cover:
+            options.append(selectinload(Part.cover_attachment))
+
         stmt = select(
             Part,
             func.coalesce(func.sum(PartLocation.qty), 0).label('total_quantity')
         ).outerjoin(
             PartLocation, Part.id == PartLocation.part_id
-        ).options(
-            selectinload(Part.seller)
-        ).group_by(Part.id)
+        ).options(*options).group_by(Part.id)
 
         # Apply type filter if specified
         if type_id is not None:

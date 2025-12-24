@@ -16,6 +16,7 @@ from app.schemas.part_kits import PartKitUsageSchema
 from app.schemas.part_shopping_list import PartShoppingListMembershipSchema
 from app.schemas.seller import SellerListSchema
 from app.schemas.type import TypeResponseSchema
+from app.utils.cas_url import build_cas_url
 
 if TYPE_CHECKING:
     from app.models.part import Part
@@ -297,13 +298,23 @@ class PartResponseSchema(BaseModel):
     )
 
     @computed_field(
-        return_type=bool,
-        description="True when the part has a cover attachment defined.",
-        json_schema_extra={"example": True}
+        return_type=str | None,
+        description="Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+        json_schema_extra={"example": "/api/cas/abc123def456..."}
     )
-    def has_cover_attachment(self) -> bool:
-        """Flag indicating a cover attachment is configured for the part."""
-        return self.cover_attachment_id is not None
+    def cover_url(self) -> str | None:
+        """Construct base CAS URL from cover_attachment.
+
+        Returns the base URL without thumbnail parameter - client can add
+        ?thumbnail=<size> for thumbnails or use as-is for full image.
+        """
+        if not self.cover_attachment:
+            return None
+
+        if not self.cover_attachment.has_preview:
+            return None
+
+        return build_cas_url(self.cover_attachment.s3_key)
 
     # Extended technical fields
     package: str | None = Field(
@@ -437,11 +448,6 @@ class PartWithTotalSchema(BaseModel):
         description="Product page URL at seller",
         json_schema_extra={"example": "https://www.digikey.com/product-detail/..."}
     )
-    has_cover_attachment: bool = Field(
-        description="True when the part has a cover attachment defined.",
-        json_schema_extra={"example": True}
-    )
-
     # Extended technical fields
     package: str | None = Field(
         default=None,
@@ -501,18 +507,38 @@ class PartWithTotalSchema(BaseModel):
         description="Total quantity across all locations",
         json_schema_extra={"example": 150}
     )
+    cover_attachment_id: int | None = Field(
+        default=None,
+        description="ID of the cover attachment image",
+        json_schema_extra={"example": 123}
+    )
+    # Internal field - loaded from ORM for cover_url computation but excluded from serialization
+    cover_attachment: PartAttachmentResponseSchema | None = Field(
+        default=None,
+        exclude=True,
+        description="Cover attachment details (internal use only)"
+    )
+
+    @computed_field(
+        return_type=str | None,
+        description="Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+        json_schema_extra={"example": "/api/cas/abc123def456..."}
+    )
+    def cover_url(self) -> str | None:
+        """Construct base CAS URL from cover_attachment.
+
+        Returns the base URL without thumbnail parameter - client can add
+        ?thumbnail=<size> for thumbnails or use as-is for full image.
+        """
+        if not self.cover_attachment:
+            return None
+
+        if not self.cover_attachment.has_preview:
+            return None
+
+        return build_cas_url(self.cover_attachment.s3_key)
 
     # Optional fields populated via include parameter
-    cover_url: str | None = Field(
-        default=None,
-        description="URL to retrieve the cover attachment (when include=cover)",
-        json_schema_extra={"example": "/api/attachments/123"}
-    )
-    cover_thumbnail_url: str | None = Field(
-        default=None,
-        description="URL to retrieve the cover attachment thumbnail (when include=cover)",
-        json_schema_extra={"example": "/api/attachments/123/thumbnail"}
-    )
     locations: list[PartLocationListSchema] | None = Field(
         default=None,
         description="Location details with quantities (when include=locations)",

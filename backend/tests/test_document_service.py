@@ -1,6 +1,5 @@
 """Unit tests for DocumentService."""
 
-import hashlib
 import io
 import tempfile
 from unittest.mock import MagicMock, patch
@@ -33,7 +32,9 @@ def temp_file_manager():
 def mock_s3_service():
     """Create mock S3Service."""
     mock = MagicMock()
-    mock.generate_s3_key.return_value = "parts/123/attachments/test.jpg"
+    # CAS key generation for uploads
+    mock.generate_cas_key.return_value = "cas/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    mock.file_exists.return_value = False  # For deduplication check
     mock.upload_file.return_value = True
     mock.download_file.return_value = io.BytesIO(b"file content")
     return mock
@@ -106,7 +107,7 @@ class TestDocumentService:
         assert attachment.title == "Test Image"
         assert attachment.filename == "test.jpg"
         assert attachment.content_type == "image/jpeg"
-        assert attachment.s3_key == "parts/123/attachments/test.jpg"
+        assert attachment.s3_key.startswith("cas/")  # CAS key format
 
     def test_create_file_attachment_upload_runs_after_flush(self, document_service, session, sample_part, sample_image_file, mock_s3_service):
         """Ensure S3 upload runs after the attachment is flushed to the database."""
@@ -134,7 +135,7 @@ class TestDocumentService:
         mock_s3_service.upload_file.side_effect = None
 
         assert attachment.title == "Flush First"
-        assert attachment.s3_key == "parts/123/attachments/test.jpg"
+        assert attachment.s3_key.startswith("cas/")  # CAS key format
         assert mock_s3_service.upload_file.called
 
     def test_create_file_attachment_pdf_success(self, document_service, session, sample_part, sample_pdf_file):
@@ -387,60 +388,27 @@ class TestDocumentService:
         with pytest.raises(RecordNotFoundException):
             document_service.get_attachment(attachment_id)
 
-        # Verify S3 cleanup was called
-        mock_s3_service.delete_file.assert_called_once_with("test.jpg")
-        # Verify image cleanup was called
-        mock_image_service.cleanup_thumbnails.assert_called_once_with(attachment_id)
+        # With CAS, S3 objects are shared and not deleted on attachment delete
+        mock_s3_service.delete_file.assert_not_called()
 
-    def test_delete_attachment_s3_runs_after_flush(
-        self,
-        document_service,
-        session,
-        sample_part,
-        mock_s3_service,
-        mock_image_service,
-    ):
-        """Ensure S3 deletion happens only after the row has been flushed away."""
-        attachment = PartAttachment(
-            part_id=sample_part.id,
-            attachment_type=AttachmentType.IMAGE,
-            title="Flush Delete",
-            s3_key="flush-delete.jpg"
-        )
-        session.add(attachment)
-        session.flush()
-        attachment_id = attachment.id
+    # Note: test_delete_attachment_s3_runs_after_flush removed - with CAS,
+    # S3 objects are shared and not deleted on attachment delete
 
-        def delete_side_effect(_key: str):
-            assert session.get(PartAttachment, attachment_id) is None
-            return True
-
-        mock_s3_service.delete_file.side_effect = delete_side_effect
-
-        document_service.delete_attachment(attachment_id)
-
-        mock_s3_service.delete_file.assert_called_once_with("flush-delete.jpg")
-        mock_image_service.cleanup_thumbnails.assert_called_once_with(attachment_id)
-        mock_s3_service.delete_file.side_effect = None
-
-    def test_delete_attachment_s3_cleanup_fails(self, document_service, session, sample_part, mock_s3_service):
-        """Test attachment deletion when S3 cleanup fails."""
-        mock_s3_service.delete_file.side_effect = InvalidOperationException("delete", "S3 error")
-
+    def test_delete_attachment_removes_from_database(self, document_service, session, sample_part):
+        """Test attachment deletion removes from database (S3 not touched with CAS)."""
         attachment = PartAttachment(
             part_id=sample_part.id,
             attachment_type=AttachmentType.PDF,
             title="To Delete",
-            s3_key="test.pdf"
+            s3_key="cas/abc123def456"
         )
         session.add(attachment)
         session.flush()
         attachment_id = attachment.id
 
-        # Should not raise exception - continues with database deletion
         document_service.delete_attachment(attachment_id)
 
-        # Verify attachment is still deleted from database
+        # Verify attachment is deleted from database
         with pytest.raises(RecordNotFoundException):
             document_service.get_attachment(attachment_id)
 
@@ -478,50 +446,9 @@ class TestDocumentService:
 
         assert result is None  # No S3 content available
 
-    def test_get_attachment_thumbnail_pdf(self, document_service, session, sample_part, mock_image_service):
-        """Test getting thumbnail for PDF."""
-        attachment = PartAttachment(
-            part_id=sample_part.id,
-            attachment_type=AttachmentType.PDF,
-            title="PDF",
-            s3_key="test.pdf"
-        )
-        session.add(attachment)
-        session.flush()
-
-        thumbnail = document_service.get_attachment_thumbnail(attachment.id, 150)
-
-        assert thumbnail.is_svg is True
-        assert thumbnail.svg_data == "<svg>pdf icon</svg>"
-        assert thumbnail.content_type == "image/svg+xml"
-        icon_bytes, _ = mock_image_service.get_pdf_icon_data.return_value
-        assert thumbnail.etag == hashlib.sha256(icon_bytes).hexdigest()
-        assert thumbnail._image_loader is None
-
-    def test_get_attachment_thumbnail_image(self, document_service, session, sample_part, mock_image_service):
-        """Test getting thumbnail for image."""
-        attachment = PartAttachment(
-            part_id=sample_part.id,
-            attachment_type=AttachmentType.IMAGE,
-            title="Image",
-            s3_key="test.jpg",
-            content_type="image/jpeg"
-        )
-        session.add(attachment)
-        session.flush()
-
-        thumbnail = document_service.get_attachment_thumbnail(attachment.id, 150)
-
-        assert thumbnail.is_svg is False
-        assert thumbnail.svg_data is None
-        assert thumbnail.content_type == "image/jpeg"
-        assert thumbnail.etag == hashlib.sha256(attachment.s3_key.encode("utf-8")).hexdigest()
-        mock_image_service.get_thumbnail_path.assert_not_called()
-
-        resolved_path = thumbnail.resolve_image_path()
-
-        assert resolved_path == "/tmp/thumbnail.jpg"
-        mock_image_service.get_thumbnail_path.assert_called_once_with(attachment.id, "test.jpg", 150)
+    # Note: test_get_attachment_thumbnail_pdf and test_get_attachment_thumbnail_image
+    # removed - these methods were replaced by CAS endpoint which serves thumbnails
+    # via get_thumbnail_for_hash() in ImageService (tested via CAS endpoint tests)
 
     def test_set_part_cover_attachment_success(self, document_service, session, sample_part):
         """Test setting part cover attachment."""
@@ -788,56 +715,9 @@ class TestDocumentService:
         session.refresh(sample_part)
         assert sample_part.cover_attachment_id == attachment.id
 
-    def test_get_attachment_thumbnail_url_no_s3_key(self, document_service, session, sample_part, mock_image_service):
-        """Test getting thumbnail for URL attachment without stored thumbnail."""
-        attachment = PartAttachment(
-            part_id=sample_part.id,
-            attachment_type=AttachmentType.URL,
-            title="URL Document",
-            url="https://example.com/datasheet.pdf"
-        )
-        session.add(attachment)
-        session.flush()
-
-        # Mock the link icon return
-        mock_image_service.get_link_icon_data.return_value = (b"<svg>link icon</svg>", "image/svg+xml")
-
-        thumbnail = document_service.get_attachment_thumbnail(attachment.id, 150)
-
-        assert thumbnail.is_svg is True
-        assert thumbnail.svg_data == "<svg>link icon</svg>"
-        assert thumbnail.content_type == "image/svg+xml"
-        assert thumbnail.etag == hashlib.sha256(b"<svg>link icon</svg>").hexdigest()
-        mock_image_service.get_link_icon_data.assert_called_once()
-
-    def test_get_attachment_thumbnail_url_with_s3_key(self, document_service, session, sample_part, mock_image_service):
-        """Test getting thumbnail for URL attachment with stored thumbnail."""
-        attachment = PartAttachment(
-            part_id=sample_part.id,
-            attachment_type=AttachmentType.URL,
-            title="URL Document",
-            url="https://example.com/image.jpg",
-            s3_key="url_thumbnails/123/thumb.jpg",
-            content_type="image/jpeg"  # URL with stored preview image
-        )
-        session.add(attachment)
-        session.flush()
-
-        # Mock thumbnail path return
-        mock_image_service.get_thumbnail_path.return_value = "/tmp/thumbnail.jpg"
-
-        thumbnail = document_service.get_attachment_thumbnail(attachment.id, 150)
-
-        assert thumbnail.is_svg is False
-        assert thumbnail.svg_data is None
-        assert thumbnail.content_type == "image/jpeg"
-        assert thumbnail.etag == hashlib.sha256(attachment.s3_key.encode("utf-8")).hexdigest()
-        mock_image_service.get_thumbnail_path.assert_not_called()
-
-        resolved_path = thumbnail.resolve_image_path()
-
-        assert resolved_path == "/tmp/thumbnail.jpg"
-        mock_image_service.get_thumbnail_path.assert_called_once_with(attachment.id, attachment.s3_key, 150)
+    # Note: test_get_attachment_thumbnail_url_no_s3_key and
+    # test_get_attachment_thumbnail_url_with_s3_key removed - the get_attachment_thumbnail
+    # method was replaced by CAS endpoint
 
     def test_has_image_property_image_attachment(self, document_service, session, sample_part, sample_image_file):
         """Test has_image property returns True for image attachments."""
@@ -1192,7 +1072,7 @@ class TestDocumentService:
             part_id=sample_part.id,
             attachment_type=AttachmentType.IMAGE,
             title="Source Image",
-            s3_key="parts/123/attachments/source.jpg",
+            s3_key="cas/abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234",
             filename="source.jpg",
             content_type="image/jpeg",
             file_size=1024
@@ -1209,10 +1089,6 @@ class TestDocumentService:
         session.add(target_part)
         session.flush()
 
-        # Mock S3 copy operation
-        mock_s3_service.copy_file.return_value = True
-        mock_s3_service.generate_s3_key.return_value = "parts/456/attachments/uuid.jpg"
-
         # Copy the attachment
         copied_attachment = document_service.copy_attachment_to_part(
             attachment_id=source_attachment.id,
@@ -1220,30 +1096,28 @@ class TestDocumentService:
             set_as_cover=False
         )
 
-        # Verify attachment was copied
+        # Verify attachment was copied with shared CAS key
         assert copied_attachment.part_id == target_part.id
         assert copied_attachment.attachment_type == AttachmentType.IMAGE
         assert copied_attachment.title == "Source Image"
         assert copied_attachment.filename == "source.jpg"
         assert copied_attachment.content_type == "image/jpeg"
         assert copied_attachment.file_size == 1024
-        assert copied_attachment.s3_key == "parts/456/attachments/uuid.jpg"
+        # CAS keys are shared - same content hash is reused
+        assert copied_attachment.s3_key == source_attachment.s3_key
         assert copied_attachment.url is None
 
-        # Verify S3 copy was called correctly
-        mock_s3_service.copy_file.assert_called_once_with(
-            "parts/123/attachments/source.jpg",
-            "parts/456/attachments/uuid.jpg"
-        )
+        # Verify S3 copy was NOT called (CAS keys are shared, no copy needed)
+        mock_s3_service.copy_file.assert_not_called()
 
     def test_copy_attachment_to_part_pdf_success(self, document_service, session, sample_part, mock_s3_service):
         """Test successfully copying a PDF attachment to another part."""
-        # Create source PDF attachment
+        # Create source PDF attachment with CAS key
         source_attachment = PartAttachment(
             part_id=sample_part.id,
             attachment_type=AttachmentType.PDF,
             title="Datasheet",
-            s3_key="parts/123/attachments/datasheet.pdf",
+            s3_key="cas/dcba4321dcba4321dcba4321dcba4321dcba4321dcba4321dcba4321dcba4321",
             filename="datasheet.pdf",
             content_type="application/pdf",
             file_size=2048
@@ -1260,24 +1134,21 @@ class TestDocumentService:
         session.add(target_part)
         session.flush()
 
-        # Mock S3 operations
-        mock_s3_service.copy_file.return_value = True
-        mock_s3_service.generate_s3_key.return_value = "parts/456/attachments/uuid.pdf"
-
         # Copy the attachment
         copied_attachment = document_service.copy_attachment_to_part(
             attachment_id=source_attachment.id,
             target_part_key=target_part.key
         )
 
-        # Verify attachment was copied
+        # Verify attachment was copied with shared CAS key
         assert copied_attachment.part_id == target_part.id
         assert copied_attachment.attachment_type == AttachmentType.PDF
         assert copied_attachment.title == "Datasheet"
-        assert copied_attachment.s3_key == "parts/456/attachments/uuid.pdf"
+        # CAS keys are shared - same content hash is reused
+        assert copied_attachment.s3_key == source_attachment.s3_key
 
-        # Verify S3 copy was called
-        mock_s3_service.copy_file.assert_called_once()
+        # Verify S3 copy was NOT called (CAS keys are shared, no copy needed)
+        mock_s3_service.copy_file.assert_not_called()
 
     def test_copy_attachment_to_part_url_success(self, document_service, session, sample_part):
         """Test successfully copying a URL attachment to another part."""
@@ -1325,7 +1196,7 @@ class TestDocumentService:
             part_id=sample_part.id,
             attachment_type=AttachmentType.IMAGE,
             title="Cover Image",
-            s3_key="parts/123/attachments/cover.jpg",
+            s3_key="cas/aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111",
             filename="cover.jpg",
             content_type="image/jpeg",
             file_size=512
@@ -1342,10 +1213,6 @@ class TestDocumentService:
         session.add(target_part)
         session.flush()
 
-        # Mock S3 operations
-        mock_s3_service.copy_file.return_value = True
-        mock_s3_service.generate_s3_key.return_value = "parts/456/attachments/uuid.jpg"
-
         # Copy the attachment and set as cover
         copied_attachment = document_service.copy_attachment_to_part(
             attachment_id=source_attachment.id,
@@ -1353,9 +1220,10 @@ class TestDocumentService:
             set_as_cover=True
         )
 
-        # Verify attachment was copied and set as cover
+        # Verify attachment was copied with shared CAS key and set as cover
         session.refresh(target_part)
         assert target_part.cover_attachment_id == copied_attachment.id
+        assert copied_attachment.s3_key == source_attachment.s3_key
 
     def test_copy_attachment_to_part_source_not_found(self, document_service, session):
         """Test copying non-existent attachment."""
@@ -1371,12 +1239,12 @@ class TestDocumentService:
 
     def test_copy_attachment_to_part_target_not_found(self, document_service, session, sample_part):
         """Test copying attachment to non-existent target part."""
-        # Create source attachment
+        # Create source attachment with CAS key
         source_attachment = PartAttachment(
             part_id=sample_part.id,
             attachment_type=AttachmentType.IMAGE,
             title="Test Image",
-            s3_key="parts/123/attachments/test.jpg",
+            s3_key="cas/bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222",
             filename="test.jpg",
             content_type="image/jpeg",
             file_size=1024
@@ -1394,54 +1262,8 @@ class TestDocumentService:
         assert "Part" in str(exc_info.value)
         assert "NONEXIST" in str(exc_info.value)
 
-    def test_copy_attachment_to_part_s3_copy_failure(self, document_service, session, sample_part, mock_s3_service):
-        """Test handling S3 copy failure."""
-        # Create source attachment with S3 content
-        source_attachment = PartAttachment(
-            part_id=sample_part.id,
-            attachment_type=AttachmentType.IMAGE,
-            title="Test Image",
-            s3_key="parts/123/attachments/test.jpg",
-            filename="test.jpg",
-            content_type="image/jpeg",
-            file_size=1024
-        )
-        session.add(source_attachment)
-        session.flush()
-
-        # Create target part
-        target_part = Part(
-            key="TARG",
-            description="Target Part",
-            type_id=1
-        )
-        session.add(target_part)
-        session.flush()
-
-        # Mock S3 copy failure
-        mock_s3_service.generate_s3_key.return_value = "parts/456/attachments/uuid.jpg"
-        mock_s3_service.copy_file.side_effect = InvalidOperationException("copy file in S3", "source file not found")
-
-        with pytest.raises(InvalidOperationException) as exc_info:
-            document_service.copy_attachment_to_part(
-                attachment_id=source_attachment.id,
-                target_part_key=target_part.key
-            )
-
-        assert "source file not found" in str(exc_info.value)
-
-        mock_s3_service.copy_file.assert_called_once_with(
-            "parts/123/attachments/test.jpg",
-            "parts/456/attachments/uuid.jpg",
-        )
-
-        session.rollback()
-        copied = session.scalars(
-            select(PartAttachment).where(PartAttachment.part_id == target_part.id)
-        ).all()
-        assert copied == []
-
-        mock_s3_service.copy_file.side_effect = None
+    # Note: test_copy_attachment_to_part_s3_copy_failure removed - CAS keys are shared,
+    # no S3 copy operation is performed, so there's no copy failure scenario.
 
     def test_copy_attachment_to_part_url_with_set_as_cover(self, document_service, session, sample_part):
         """Test copying URL attachment and setting as cover (any type can be cover)."""
@@ -1479,12 +1301,12 @@ class TestDocumentService:
 
     def test_copy_attachment_to_part_pdf_with_set_as_cover(self, document_service, session, sample_part, mock_s3_service):
         """Test copying PDF attachment and setting as cover (any type can be cover)."""
-        # Create source PDF attachment
+        # Create source PDF attachment with CAS key
         source_attachment = PartAttachment(
             part_id=sample_part.id,
             attachment_type=AttachmentType.PDF,
             title="Datasheet",
-            s3_key="parts/123/attachments/datasheet.pdf",
+            s3_key="cas/cccc3333cccc3333cccc3333cccc3333cccc3333cccc3333cccc3333cccc3333",
             filename="datasheet.pdf",
             content_type="application/pdf",
             file_size=2048
@@ -1501,18 +1323,15 @@ class TestDocumentService:
         session.add(target_part)
         session.flush()
 
-        # Mock S3 operations
-        mock_s3_service.copy_file.return_value = True
-        mock_s3_service.generate_s3_key.return_value = "parts/456/attachments/uuid.pdf"
-
-        # Copy the attachment and set as cover
+        # Copy the attachment and set as cover (CAS keys are shared, no S3 copy needed)
         copied_attachment = document_service.copy_attachment_to_part(
             attachment_id=source_attachment.id,
             target_part_key=target_part.key,
             set_as_cover=True
         )
 
-        # Verify PDF attachment was set as cover
+        # Verify PDF attachment was set as cover with shared CAS key
         session.refresh(target_part)
         assert target_part.cover_attachment_id == copied_attachment.id
         assert copied_attachment.attachment_type == AttachmentType.PDF
+        assert copied_attachment.s3_key == source_attachment.s3_key

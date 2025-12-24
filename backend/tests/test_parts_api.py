@@ -41,7 +41,7 @@ class TestPartsAPI:
             assert response_data["mounting_type"] is None
             assert response_data["series"] is None
             assert response_data["dimensions"] is None
-            assert response_data["has_cover_attachment"] is False
+            assert response_data["cover_url"] is None
 
     def test_create_part_full_data(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test creating a part with full data."""
@@ -93,7 +93,7 @@ class TestPartsAPI:
             assert response_data["pin_pitch"] is None
             assert response_data["input_voltage"] is None
             assert response_data["output_voltage"] is None
-            assert response_data["has_cover_attachment"] is False
+            assert response_data["cover_url"] is None
 
     def test_create_part_invalid_data(self, app: Flask, client: FlaskClient):
         """Test creating a part with invalid data."""
@@ -119,7 +119,7 @@ class TestPartsAPI:
             assert len(response_data) == 2
             assert all("key" in part for part in response_data)
             assert all("description" in part for part in response_data)
-            assert all(part["has_cover_attachment"] is False for part in response_data)
+            # cover_url is only included when include=cover is specified
 
     def test_list_parts_with_pagination(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Test listing parts with pagination parameters."""
@@ -194,7 +194,7 @@ class TestPartsAPI:
             assert response_data["manufacturer_code"] == "RES-1K"
             assert response_data["type"] is not None
             assert response_data["type"]["name"] == "Resistor"
-            assert response_data["has_cover_attachment"] is False
+            assert response_data["cover_url"] is None
 
     def test_get_part_nonexistent(self, app: Flask, client: FlaskClient):
         """Test getting a non-existent part."""
@@ -225,7 +225,7 @@ class TestPartsAPI:
             assert response_data["tags"] == ["updated"]
             assert response_data["manufacturer"] == "Updated Manufacturer"
             assert response_data["product_page"] == "https://example.com/product"
-            assert response_data["has_cover_attachment"] is False
+            assert response_data["cover_url"] is None
 
     def test_update_part_nonexistent(self, app: Flask, client: FlaskClient):
         """Test updating a non-existent part."""
@@ -796,12 +796,13 @@ class TestPartsAPI:
             assert updated_data["pin_count"] == 24       # Updated
             assert updated_data["voltage_rating"] is None  # Cleared
             assert updated_data["package"] == "QFP-24"  # Updated
-            assert updated_data["has_cover_attachment"] is False
+            assert updated_data["cover_url"] is None
 
     @patch('app.utils.mime_handling.magic.from_buffer', return_value='image/png')
     @patch('app.services.s3_service.S3Service.upload_file', return_value=True)
-    @patch('app.services.s3_service.S3Service.generate_s3_key', return_value="parts/COVER/attachments/test.png")
-    def test_part_cover_attachment_indicator(self, mock_generate_key, mock_upload, mock_magic, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer, sample_image_file):
+    @patch('app.services.s3_service.S3Service.file_exists', return_value=False)
+    @patch('app.services.s3_service.S3Service.generate_cas_key', return_value="cas/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+    def test_part_cover_attachment_indicator(self, mock_generate_cas_key, mock_file_exists, mock_upload, mock_magic, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer, sample_image_file):
         """Ensure part responses report cover attachment availability consistently."""
         with app.app_context():
             part = container.part_service().create_part("Part needing cover flag")
@@ -811,7 +812,7 @@ class TestPartsAPI:
             detail_response = client.get(f"/api/parts/{part.key}")
             assert detail_response.status_code == 200
             detail_data = json.loads(detail_response.data)
-            assert detail_data["has_cover_attachment"] is False
+            assert detail_data["cover_url"] is None
 
             # Create an image attachment which becomes the cover
             document_service = container.document_service()
@@ -828,24 +829,26 @@ class TestPartsAPI:
             updated_detail = client.get(f"/api/parts/{part.key}")
             assert updated_detail.status_code == 200
             updated_detail_data = json.loads(updated_detail.data)
-            assert updated_detail_data["has_cover_attachment"] is True
+            assert updated_detail_data["cover_url"] is not None
 
-            # List endpoints should surface the flag as well
-            parts_list = client.get("/api/parts")
+            # List endpoints should surface the cover URL when requested
+            parts_list = client.get("/api/parts?include=cover")
             assert parts_list.status_code == 200
             list_data = json.loads(parts_list.data)
-            assert any(
-                item["key"] == part.key and item["has_cover_attachment"] is True
-                for item in list_data
-            )
+            # Find our part and check it has a cover_url
+            test_part_data = next((item for item in list_data if item["key"] == part.key), None)
+            assert test_part_data is not None
+            assert "cover_url" in test_part_data
+            assert test_part_data["cover_url"] is not None
 
-            parts_with_locations = client.get("/api/parts?include=locations")
+            parts_with_locations = client.get("/api/parts?include=locations,cover")
             assert parts_with_locations.status_code == 200
             list_with_locations = json.loads(parts_with_locations.data)
-            assert any(
-                item["key"] == part.key and item["has_cover_attachment"] is True
-                for item in list_with_locations
-            )
+            # Find our part and check it has a cover_url
+            test_part_with_loc = next((item for item in list_with_locations if item["key"] == part.key), None)
+            assert test_part_with_loc is not None
+            assert "cover_url" in test_part_with_loc
+            assert test_part_with_loc["cover_url"] is not None
 
     def test_get_part_shopping_list_memberships(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Shopping list membership endpoint returns active memberships for a part."""

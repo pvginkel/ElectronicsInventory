@@ -2,9 +2,10 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.models.part_attachment import AttachmentType
+from app.utils.cas_url import build_cas_url
 
 
 class PartAttachmentCreateFileSchema(BaseModel):
@@ -68,10 +69,6 @@ class PartAttachmentResponseSchema(BaseModel):
         description="Title or description of the attachment",
         json_schema_extra={"example": "Datasheet - OMRON G5Q-1A4"}
     )
-    s3_key: str | None = Field(
-        description="S3 storage key for the file",
-        json_schema_extra={"example": "parts/456/attachments/abc123.pdf"}
-    )
     url: str | None = Field(
         description="Original URL (for URL attachments)",
         json_schema_extra={"example": "https://www.omron.com/products/G5Q-1A4"}
@@ -100,6 +97,27 @@ class PartAttachmentResponseSchema(BaseModel):
         description="Whether this attachment has a preview image",
         json_schema_extra={"example": True}
     )
+
+    # Internal field - loaded from ORM but excluded from JSON serialization
+    s3_key: str | None = Field(
+        default=None,
+        exclude=True,
+        description="Internal S3 storage key (not exposed in API)"
+    )
+
+    @computed_field(
+        return_type=str | None,
+        description="Base CAS URL with content_type and filename pre-baked. "
+                    "Add ?disposition=attachment for downloads or ?thumbnail=<size> for thumbnails.",
+        json_schema_extra={"example": "/api/cas/abc123...?content_type=application/pdf&filename=datasheet.pdf"}
+    )
+    def attachment_url(self) -> str | None:
+        """Construct base CAS URL from s3_key and metadata.
+
+        The URL includes content_type and filename if available.
+        Client can append &disposition=attachment or &thumbnail=<size> as needed.
+        """
+        return build_cas_url(self.s3_key, self.content_type, self.filename)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -143,6 +161,23 @@ class PartAttachmentListSchema(BaseModel):
         description="Whether this attachment has a preview image",
         json_schema_extra={"example": True}
     )
+
+    # Internal field - loaded from ORM but excluded from JSON serialization
+    s3_key: str | None = Field(
+        default=None,
+        exclude=True,
+        description="Internal S3 storage key (not exposed in API)"
+    )
+
+    @computed_field(
+        return_type=str | None,
+        description="Base CAS URL with content_type and filename pre-baked. "
+                    "Add ?disposition=attachment for downloads or ?thumbnail=<size> for thumbnails.",
+        json_schema_extra={"example": "/api/cas/abc123...?content_type=application/pdf&filename=datasheet.pdf"}
+    )
+    def attachment_url(self) -> str | None:
+        """Construct base CAS URL from s3_key and metadata."""
+        return build_cas_url(self.s3_key, self.content_type, self.filename)
 
     model_config = ConfigDict(from_attributes=True)
 
