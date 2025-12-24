@@ -189,6 +189,10 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
     from app.api.cas import cas_bp
     app.register_blueprint(cas_bp)
 
+    # Register static icons blueprint (for attachment previews)
+    from app.api.icons import icons_bp
+    app.register_blueprint(icons_bp)
+
     @app.teardown_request
     def close_session(exc: Exception | None) -> None:
         try:

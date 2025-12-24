@@ -92,15 +92,17 @@ class PartAttachmentResponseSchema(BaseModel):
         description="Timestamp when the attachment was last modified",
         json_schema_extra={"example": "2024-01-15T14:45:00Z"}
     )
-    has_preview: bool = Field(
-        description="Whether this attachment has a preview image",
-        json_schema_extra={"example": True}
-    )
     attachment_url: str | None = Field(
         default=None,
         description="Base CAS URL with content_type and filename pre-baked. "
-                    "Add ?disposition=attachment for downloads or ?thumbnail=<size> for thumbnails.",
+                    "Add &disposition=attachment for downloads or &thumbnail=<size> for thumbnails.",
         json_schema_extra={"example": "/api/cas/abc123...?content_type=application/pdf&filename=datasheet.pdf"}
+    )
+    preview_url: str | None = Field(
+        default=None,
+        description="URL for attachment preview image. For images: CAS URL. "
+                    "For PDFs/URLs: static icon endpoint. Null if no preview available.",
+        json_schema_extra={"example": "/api/cas/abc123...?content_type=image/jpeg"}
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -141,15 +143,17 @@ class PartAttachmentListSchema(BaseModel):
         description="Timestamp when the attachment was created",
         json_schema_extra={"example": "2024-01-15T10:30:00Z"}
     )
-    has_preview: bool = Field(
-        description="Whether this attachment has a preview image",
-        json_schema_extra={"example": True}
-    )
     attachment_url: str | None = Field(
         default=None,
         description="Base CAS URL with content_type and filename pre-baked. "
-                    "Add ?disposition=attachment for downloads or ?thumbnail=<size> for thumbnails.",
+                    "Add &disposition=attachment for downloads or &thumbnail=<size> for thumbnails.",
         json_schema_extra={"example": "/api/cas/abc123...?content_type=application/pdf&filename=datasheet.pdf"}
+    )
+    preview_url: str | None = Field(
+        default=None,
+        description="URL for attachment preview image. For images: CAS URL. "
+                    "For PDFs/URLs: static icon endpoint. Null if no preview available.",
+        json_schema_extra={"example": "/api/cas/abc123...?content_type=image/jpeg"}
     )
 
     model_config = ConfigDict(from_attributes=True)

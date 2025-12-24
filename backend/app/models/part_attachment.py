@@ -72,3 +72,32 @@ class PartAttachment(db.Model):  # type: ignore[name-defined]
         Client can append &disposition=attachment or &thumbnail=<size> as needed.
         """
         return build_cas_url(self.s3_key, self.content_type, self.filename)
+
+    @property
+    def preview_url(self) -> str | None:
+        """Build URL for attachment preview image.
+
+        Returns:
+            - For images (has_preview=True): the attachment_url (CAS URL)
+            - For URLs: link icon endpoint with version hash
+            - For PDFs: PDF icon endpoint with version hash
+            - Otherwise: None
+        """
+        # Images with previews use the CAS URL directly
+        if self.has_preview:
+            return self.attachment_url
+
+        # URLs get the link icon
+        if self.attachment_type == AttachmentType.URL:
+            from app.api.icons import get_link_icon_version
+            version = get_link_icon_version()
+            return f"/api/icons/link?version={version}"
+
+        # PDFs get the PDF icon
+        if self.attachment_type == AttachmentType.PDF:
+            from app.api.icons import get_pdf_icon_version
+            version = get_pdf_icon_version()
+            return f"/api/icons/pdf?version={version}"
+
+        # No preview available
+        return None
