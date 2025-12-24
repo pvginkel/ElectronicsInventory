@@ -100,24 +100,6 @@ def _convert_part_to_schema_data(part: Any, total_quantity: int) -> dict[str, An
             "website": part.seller.website
         }
 
-    # Convert cover attachment if loaded (for cover_url computation)
-    cover_attachment_data = None
-    if part.cover_attachment:
-        cover_attachment_data = {
-            "id": part.cover_attachment.id,
-            "part_id": part.cover_attachment.part_id,
-            "attachment_type": part.cover_attachment.attachment_type,
-            "title": part.cover_attachment.title,
-            "url": part.cover_attachment.url,
-            "filename": part.cover_attachment.filename,
-            "content_type": part.cover_attachment.content_type,
-            "file_size": part.cover_attachment.file_size,
-            "s3_key": part.cover_attachment.s3_key,
-            "created_at": part.cover_attachment.created_at,
-            "updated_at": part.cover_attachment.updated_at,
-            "has_preview": part.cover_attachment.has_preview,
-        }
-
     # Convert datetimes to ISO format strings for JSON serialization
     created_at = part.created_at.isoformat() if part.created_at else None
     updated_at = part.updated_at.isoformat() if part.updated_at else None
@@ -132,7 +114,7 @@ def _convert_part_to_schema_data(part: Any, total_quantity: int) -> dict[str, An
         "seller": seller_data,
         "seller_link": part.seller_link,
         "cover_attachment_id": part.cover_attachment_id,
-        "cover_attachment": cover_attachment_data,
+        "cover_url": part.cover_url,
         "package": part.package,
         "pin_count": part.pin_count,
         "pin_pitch": part.pin_pitch,

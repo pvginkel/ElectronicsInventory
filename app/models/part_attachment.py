@@ -9,6 +9,7 @@ from sqlalchemy import ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
+from app.utils.cas_url import build_cas_url
 
 if TYPE_CHECKING:
     from app.models.part import Part
@@ -62,3 +63,12 @@ class PartAttachment(db.Model):  # type: ignore[name-defined]
         """Check if this attachment has a preview image (computed property)."""
         # Only image content types have previews
         return self.content_type is not None and self.content_type.startswith('image/')
+
+    @property
+    def attachment_url(self) -> str | None:
+        """Build CAS URL from s3_key and metadata.
+
+        Returns the base URL with content_type and filename pre-baked.
+        Client can append &disposition=attachment or &thumbnail=<size> as needed.
+        """
+        return build_cas_url(self.s3_key, self.content_type, self.filename)
