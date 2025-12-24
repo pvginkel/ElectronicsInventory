@@ -37,34 +37,6 @@ class ImageService(BaseService):
         thumbnail_path = Path(self.settings.THUMBNAIL_STORAGE_PATH)
         thumbnail_path.mkdir(parents=True, exist_ok=True)
 
-    def get_pdf_icon_data(self) -> tuple[bytes, str]:
-        """Get PDF icon as SVG data.
-
-        Returns:
-            Tuple of (svg_data, content_type)
-        """
-        try:
-            pdf_icon_path = Path(__file__).parent.parent / "assets" / "pdf-icon.svg"
-            with open(pdf_icon_path, 'rb') as f:
-                pdf_icon_svg = f.read()
-            return pdf_icon_svg, 'image/svg+xml'
-        except Exception as e:
-            raise InvalidOperationException("get pdf icon data", f"failed to read pdf icon: {str(e)}") from e
-
-    def get_link_icon_data(self) -> tuple[bytes, str]:
-        """Get link icon as SVG data.
-
-        Returns:
-            Tuple of (svg_data, content_type)
-        """
-        try:
-            link_icon_path = Path(__file__).parent.parent / "assets" / "link-icon.svg"
-            with open(link_icon_path, 'rb') as f:
-                link_icon_svg = f.read()
-            return link_icon_svg, 'image/svg+xml'
-        except Exception as e:
-            raise InvalidOperationException("get link icon data", f"failed to read link icon: {str(e)}") from e
-
     def get_thumbnail_for_hash(self, content_hash: str, size: int) -> str:
         """Get thumbnail for CAS content hash, generating if necessary.
 
