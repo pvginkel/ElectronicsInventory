@@ -17,6 +17,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
+from app.utils.cas_url import build_cas_url
 
 if TYPE_CHECKING:
     from app.models.kit_content import KitContent
@@ -113,6 +114,22 @@ class Part(db.Model):  # type: ignore[name-defined]
     def has_cover_attachment(self) -> bool:
         """Return whether a cover attachment has been assigned without triggering relationship loads."""
         return self.cover_attachment_id is not None
+
+    @property
+    def cover_url(self) -> str | None:
+        """Build CAS URL for the cover image.
+
+        Returns the base URL for the cover image, or None if no cover is set
+        or the cover is not an image (e.g., a PDF).
+        Client can append ?thumbnail=<size> to get a specific thumbnail size.
+        """
+        if not self.cover_attachment:
+            return None
+
+        if not self.cover_attachment.has_preview:
+            return None
+
+        return build_cas_url(self.cover_attachment.s3_key)
 
     def __repr__(self) -> str:
         specs = []
