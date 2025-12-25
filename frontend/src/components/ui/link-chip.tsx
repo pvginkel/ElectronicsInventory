@@ -113,7 +113,7 @@ export function LinkChip({
   return (
     <div
       className={cn(
-        'group relative inline-flex items-center gap-2 rounded-full border border-input bg-muted/40 px-2 py-1 text-sm transition-all hover:border-primary',
+        'group relative inline-flex items-center gap-2 rounded-full border border-input bg-muted px-2 py-1 text-sm transition-all hover:border-primary',
         // Guidepost: Conditionally expand padding on hover/focus to accommodate unlink button
         onUnlink && 'hover:pr-9 focus-within:pr-9 [@media(pointer:coarse)]:pr-9',
       )}

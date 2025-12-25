@@ -252,7 +252,7 @@ export function SegmentedTabs({
       aria-labelledby={ariaLabelledBy}
       ref={containerRef}
       className={cn(
-        'relative isolate flex w-full max-w-full rounded-full border border-border/50 bg-muted/60 p-1 text-foreground shadow-sm backdrop-blur',
+        'relative isolate flex w-full max-w-full rounded-full border border-border bg-muted/60 p-1 text-foreground shadow-sm backdrop-blur',
         scrollable && 'overflow-x-auto overscroll-x-contain scroll-smooth snap-x snap-mandatory',
         className,
       )}
@@ -260,7 +260,7 @@ export function SegmentedTabs({
       {indicatorStyle && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-1 rounded-full bg-background/90 shadow transition-transform duration-200 ease-out"
+          className="pointer-events-none absolute inset-y-1 rounded-full bg-card/60 shadow transition-transform duration-200 ease-out"
           style={{
             width: `${indicatorStyle.width}px`,
             transform: `translateX(${indicatorStyle.left}px)`,
