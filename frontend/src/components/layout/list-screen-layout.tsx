@@ -45,7 +45,7 @@ export function ListScreenLayout({
       {/* Sticky header captures breadcrumbs, titles, filters, and counts */}
       <header
         className={cn(
-          'sticky top-0 z-20 border-b border-border bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/75',
+          'sticky top-0 z-20 border-b border-border shadow-sm backdrop-blur',
           headerClassName,
         )}
         data-testid={headerTestId}

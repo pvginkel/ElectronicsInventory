@@ -201,7 +201,7 @@ function KitBOMDisplayRow({
 
   const rowClassName = cn(
     'border-b border-border/70 last:border-b-0',
-    shortfallDetected ? 'bg-destructive/5' : 'bg-background'
+    shortfallDetected ? 'bg-destructive/5' : 'inherit'
   );
 
   const disableRowActions = disableActions || Boolean(pendingUpdate);

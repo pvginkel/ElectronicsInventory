@@ -112,7 +112,7 @@ function AppShellFrame() {
           </div>
 
           <main
-            className="flex-1 overflow-auto bg-muted/30"
+            className="flex-1 overflow-auto"
             data-testid="app-shell.content"
           >
             <Outlet />

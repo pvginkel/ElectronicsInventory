@@ -35,7 +35,7 @@ export function Sidebar({
 
   return (
     <div
-      className={`bg-card border-r border-border transition-all duration-300 h-full ${isCollapsed ? 'w-20' : 'w-64'}`}
+      className={`bg-background border-r border-border transition-all duration-300 h-full ${isCollapsed ? 'w-20' : 'w-64'}`}
       data-testid="app-shell.sidebar"
       data-state={dataState}
       data-variant={variant}
