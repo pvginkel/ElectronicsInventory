@@ -173,8 +173,11 @@ export function MediaViewerBase({
   const canGoNext = documents.length > 1;
   const canGoPrevious = documents.length > 1;
 
+  // Disable backdrop blur for PDFs to improve scroll performance on high-DPI displays
+  const overlayProps = isPdf ? { className: 'backdrop-blur-none' } : undefined;
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose} className="w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h-none">
+    <Dialog open={isOpen} onOpenChange={onClose} className="w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h-none" overlayProps={overlayProps}>
       <DialogContent className="w-full h-full p-0 bg-black/95">
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 z-10 bg-black/80 backdrop-blur-sm p-4">
