@@ -7775,6 +7775,23 @@
         "title": "ShoppingListStatus",
         "type": "string"
       },
+      "PickListLineQuantityUpdateSchema.b247181": {
+        "description": "Request payload for updating a pick list line quantity.",
+        "properties": {
+          "quantity_to_pick": {
+            "description": "Updated quantity to pick (>= 0; 0 means skip this line)",
+            "example": 3,
+            "minimum": 0,
+            "title": "Quantity To Pick",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "quantity_to_pick"
+        ],
+        "title": "PickListLineQuantityUpdateSchema",
+        "type": "object"
+      },
       "QuantityHistoryResponseSchemaList.a9993e3": {
         "items": {
           "$ref": "#/components/schemas/QuantityHistoryResponseSchemaList.a9993e3.QuantityHistoryResponseSchema"
@@ -14068,6 +14085,88 @@
           }
         },
         "summary": "Return a detailed pick list payload with line allocations.",
+        "tags": []
+      }
+    },
+    "/api/pick-lists/{pick_list_id}/lines/{line_id}": {
+      "patch": {
+        "description": "",
+        "operationId": "patch__api_pick-lists_{pick_list_id}_lines_{line_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "pick_list_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "",
+            "in": "path",
+            "name": "line_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PickListLineQuantityUpdateSchema.b247181"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitPickListDetailSchema.b247181"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Update the quantity_to_pick for a pick list line.",
         "tags": []
       }
     },

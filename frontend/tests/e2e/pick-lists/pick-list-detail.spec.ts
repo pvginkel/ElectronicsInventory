@@ -625,4 +625,372 @@ test.describe('Pick list detail workspace', () => {
     expect(returnUrl.searchParams.get('status')).toBe('active');
     expect(returnUrl.searchParams.get('search')).toBe(kit.name);
   });
+
+  test('allows inline editing of pick list line quantities', async ({
+    pickLists,
+    testData,
+    apiClient,
+    page,
+  }) => {
+    // Create test data
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Quantity Edit Test Part' },
+    });
+
+    const stockBox = await testData.boxes.create({
+      overrides: { description: 'Quantity Edit Box' },
+    });
+
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: stockBox.box_no, loc_no: 1, qty: 100 },
+      })
+    );
+
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Quantity Edit Kit'),
+        build_target: 5,
+      },
+    });
+
+    const partReservations = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+
+    await testData.kits.addContent(kit.id, {
+      partId: partReservations.part_id,
+      requiredPerUnit: 5,
+    });
+
+    const pickList = await testData.kits.createPickList(kit.id, {
+      requestedUnits: 2,
+    });
+
+    const lines = pickList.lines ?? [];
+    const line = lines[0];
+    expect(line).toBeDefined();
+    const originalQuantity = line.quantity_to_pick;
+    const lineId = line.id;
+
+    // Navigate to pick list detail
+    const listReady = waitForListLoading(page, 'pickLists.detail', 'ready');
+    const linesReady = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
+    const uiReady = waitForUiState(page, 'pickLists.detail.load', 'ready');
+
+    await pickLists.gotoDetail(pickList.id);
+    await Promise.all([listReady, linesReady, uiReady]);
+
+    // Verify initial quantity display
+    const quantityCell = page.getByTestId(`pick-lists.detail.line.${lineId}.quantity`);
+    await expect(quantityCell).toBeVisible();
+    await expect(quantityCell).toContainText(originalQuantity.toString());
+
+    // Click on quantity to enter edit mode
+    const editButton = page.getByTestId(`pick-lists.detail.line.${lineId}.quantity-edit`);
+    await expect(editButton).toBeVisible();
+    await editButton.click();
+
+    // Verify edit mode UI appears
+    const quantityInput = page.getByTestId(`pick-lists.detail.line.${lineId}.quantity-input`);
+    const saveButton = page.getByTestId(`pick-lists.detail.line.${lineId}.quantity-save`);
+    const cancelButton = page.getByTestId(`pick-lists.detail.line.${lineId}.quantity-cancel`);
+
+    await expect(quantityInput).toBeVisible();
+    await expect(saveButton).toBeVisible();
+    await expect(cancelButton).toBeVisible();
+    await expect(quantityInput).toHaveValue(originalQuantity.toString());
+
+    // Change quantity
+    const newQuantity = 15;
+    await quantityInput.fill(newQuantity.toString());
+
+    // Save the change
+    const quantityUpdateReady = waitForUiState(page, 'pickLists.detail.quantityEdit', 'ready');
+    await saveButton.click();
+    await quantityUpdateReady;
+
+    // Verify edit mode is closed
+    await expect(quantityInput).not.toBeVisible();
+    await expect(quantityCell).toBeVisible();
+    await expect(quantityCell).toContainText(newQuantity.toString());
+
+    // Verify backend state
+    const updatedPickList = await apiClient.apiRequest(() =>
+      apiClient.GET('/api/pick-lists/{pick_list_id}', {
+        params: { path: { pick_list_id: pickList.id } },
+      })
+    );
+    const updatedLine = updatedPickList.lines?.find((l) => l.id === lineId);
+    expect(updatedLine?.quantity_to_pick).toBe(newQuantity);
+    expect(updatedPickList.total_quantity_to_pick).toBe(newQuantity);
+    expect(updatedPickList.remaining_quantity).toBe(newQuantity);
+  });
+
+  test('supports keyboard shortcuts for quantity editing', async ({
+    pickLists,
+    testData,
+    apiClient,
+    page,
+  }) => {
+    // Create test data
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Keyboard Shortcut Test Part' },
+    });
+
+    const stockBox = await testData.boxes.create({
+      overrides: { description: 'Keyboard Box' },
+    });
+
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: stockBox.box_no, loc_no: 1, qty: 100 },
+      })
+    );
+
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Keyboard Kit'),
+        build_target: 5,
+      },
+    });
+
+    const partReservations = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+
+    await testData.kits.addContent(kit.id, {
+      partId: partReservations.part_id,
+      requiredPerUnit: 3,
+    });
+
+    const pickList = await testData.kits.createPickList(kit.id, {
+      requestedUnits: 2,
+    });
+
+    const lines = pickList.lines ?? [];
+    const line = lines[0];
+    expect(line).toBeDefined();
+    const lineId = line.id;
+    const originalQuantity = line.quantity_to_pick;
+
+    // Navigate to pick list detail
+    const listReady = waitForListLoading(page, 'pickLists.detail', 'ready');
+    const linesReady = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
+    const uiReady = waitForUiState(page, 'pickLists.detail.load', 'ready');
+
+    await pickLists.gotoDetail(pickList.id);
+    await Promise.all([listReady, linesReady, uiReady]);
+
+    // Enter edit mode
+    const editButton = page.getByTestId(`pick-lists.detail.line.${lineId}.quantity-edit`);
+    await editButton.click();
+
+    const quantityInput = page.getByTestId(`pick-lists.detail.line.${lineId}.quantity-input`);
+    await expect(quantityInput).toBeVisible();
+
+    // Test Escape key to cancel
+    await quantityInput.fill('999');
+    await quantityInput.press('Escape');
+
+    // Verify edit mode is closed and quantity unchanged
+    await expect(quantityInput).not.toBeVisible();
+    const quantityCell = page.getByTestId(`pick-lists.detail.line.${lineId}.quantity`);
+    await expect(quantityCell).toContainText(originalQuantity.toString());
+
+    // Enter edit mode again
+    await editButton.click();
+    await expect(quantityInput).toBeVisible();
+
+    // Test Enter key to save
+    const newQuantity = 12;
+    await quantityInput.fill(newQuantity.toString());
+
+    const quantityUpdateReady = waitForUiState(page, 'pickLists.detail.quantityEdit', 'ready');
+    await quantityInput.press('Enter');
+    await quantityUpdateReady;
+
+    // Verify quantity updated
+    await expect(quantityInput).not.toBeVisible();
+    await expect(quantityCell).toContainText(newQuantity.toString());
+
+    // Verify backend state
+    const updatedPickList = await apiClient.apiRequest(() =>
+      apiClient.GET('/api/pick-lists/{pick_list_id}', {
+        params: { path: { pick_list_id: pickList.id } },
+      })
+    );
+    const updatedLine = updatedPickList.lines?.find((l) => l.id === lineId);
+    expect(updatedLine?.quantity_to_pick).toBe(newQuantity);
+  });
+
+  test('does not allow editing completed pick list lines', async ({
+    pickLists,
+    testData,
+    apiClient,
+    page,
+  }) => {
+    // Create test data
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Completed Line Test Part' },
+    });
+
+    const stockBox = await testData.boxes.create({
+      overrides: { description: 'Completed Box' },
+    });
+
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: stockBox.box_no, loc_no: 1, qty: 100 },
+      })
+    );
+
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Completed Line Kit'),
+        build_target: 5,
+      },
+    });
+
+    const partReservations = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+
+    await testData.kits.addContent(kit.id, {
+      partId: partReservations.part_id,
+      requiredPerUnit: 2,
+    });
+
+    const pickList = await testData.kits.createPickList(kit.id, {
+      requestedUnits: 2,
+    });
+
+    const lines = pickList.lines ?? [];
+    const line = lines[0];
+    expect(line).toBeDefined();
+    const lineId = line.id;
+
+    // Complete the line
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/pick-lists/{pick_list_id}/lines/{line_id}/pick', {
+        params: { path: { pick_list_id: pickList.id, line_id: lineId } },
+      })
+    );
+
+    // Navigate to pick list detail
+    const listReady = waitForListLoading(page, 'pickLists.detail', 'ready');
+    const linesReady = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
+    const uiReady = waitForUiState(page, 'pickLists.detail.load', 'ready');
+
+    await pickLists.gotoDetail(pickList.id);
+    await Promise.all([listReady, linesReady, uiReady]);
+
+    // Verify edit button is not present for completed line
+    const editButton = page.getByTestId(`pick-lists.detail.line.${lineId}.quantity-edit`);
+    await expect(editButton).not.toBeVisible();
+
+    // Verify quantity is not clickable
+    const quantityCell = page.getByTestId(`pick-lists.detail.line.${lineId}.quantity`);
+    await expect(quantityCell).toBeVisible();
+    // Clicking should not enter edit mode
+    await quantityCell.click();
+    const quantityInput = page.getByTestId(`pick-lists.detail.line.${lineId}.quantity-input`);
+    await expect(quantityInput).not.toBeVisible();
+  });
+
+  test('allows setting quantity to zero', async ({
+    pickLists,
+    testData,
+    apiClient,
+    page,
+  }) => {
+    // Create test data
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Zero Quantity Test Part' },
+    });
+
+    const stockBox = await testData.boxes.create({
+      overrides: { description: 'Zero Qty Box' },
+    });
+
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: stockBox.box_no, loc_no: 1, qty: 100 },
+      })
+    );
+
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Zero Quantity Kit'),
+        build_target: 5,
+      },
+    });
+
+    const partReservations = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+
+    await testData.kits.addContent(kit.id, {
+      partId: partReservations.part_id,
+      requiredPerUnit: 5,
+    });
+
+    const pickList = await testData.kits.createPickList(kit.id, {
+      requestedUnits: 1,
+    });
+
+    const lines = pickList.lines ?? [];
+    const line = lines[0];
+    expect(line).toBeDefined();
+    const lineId = line.id;
+
+    // Navigate to pick list detail
+    const listReady = waitForListLoading(page, 'pickLists.detail', 'ready');
+    const linesReady = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
+    const uiReady = waitForUiState(page, 'pickLists.detail.load', 'ready');
+
+    await pickLists.gotoDetail(pickList.id);
+    await Promise.all([listReady, linesReady, uiReady]);
+
+    // Enter edit mode
+    const editButton = page.getByTestId(`pick-lists.detail.line.${lineId}.quantity-edit`);
+    await editButton.click();
+
+    const quantityInput = page.getByTestId(`pick-lists.detail.line.${lineId}.quantity-input`);
+    await expect(quantityInput).toBeVisible();
+
+    // Set quantity to 0
+    await quantityInput.fill('0');
+
+    const saveButton = page.getByTestId(`pick-lists.detail.line.${lineId}.quantity-save`);
+    const quantityUpdateReady = waitForUiState(page, 'pickLists.detail.quantityEdit', 'ready');
+    await saveButton.click();
+    await quantityUpdateReady;
+
+    // Verify quantity is 0
+    const quantityCell = page.getByTestId(`pick-lists.detail.line.${lineId}.quantity`);
+    await expect(quantityCell).toContainText('0');
+
+    // Verify backend state
+    const updatedPickList = await apiClient.apiRequest(() =>
+      apiClient.GET('/api/pick-lists/{pick_list_id}', {
+        params: { path: { pick_list_id: pickList.id } },
+      })
+    );
+    const updatedLine = updatedPickList.lines?.find((l) => l.id === lineId);
+    expect(updatedLine?.quantity_to_pick).toBe(0);
+    expect(updatedLine?.status).toBe('open'); // Line remains open with 0 quantity
+  });
 });

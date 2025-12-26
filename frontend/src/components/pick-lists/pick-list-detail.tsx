@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PickListLines } from '@/components/pick-lists/pick-list-lines';
 import { usePickListDetail, buildPickListDetailQueryKey } from '@/hooks/use-pick-list-detail';
 import { usePickListExecution } from '@/hooks/use-pick-list-execution';
+import { usePickListLineQuantityUpdate } from '@/hooks/use-pick-list-line-quantity-update';
 import { usePickListAvailability } from '@/hooks/use-pick-list-availability';
 import { useGetKitsByKitId, useDeletePickListsByPickListId } from '@/lib/api/generated/hooks';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
@@ -71,6 +72,15 @@ export function PickListDetail({
     pendingLineId,
     pendingAction,
   } = usePickListExecution({
+    pickListId: normalizedPickListId,
+    kitId: detail?.kitId,
+  });
+
+  const {
+    updateQuantity,
+    isPending: isQuantityUpdatePending,
+    pendingLineId: quantityUpdatePendingLineId,
+  } = usePickListLineQuantityUpdate({
     pickListId: normalizedPickListId,
     kitId: detail?.kitId,
   });
@@ -315,6 +325,9 @@ export function PickListDetail({
     executionPending: isExecutionPending,
     executionPendingLineId: pendingLineId,
     executionPendingAction: pendingAction,
+    onUpdateQuantity: updateQuantity,
+    quantityUpdatePending: isQuantityUpdatePending,
+    quantityUpdatePendingLineId,
   });
 
   return (
@@ -352,6 +365,9 @@ interface RenderContentOptions {
   executionPending: boolean;
   executionPendingLineId: number | null;
   executionPendingAction: 'pick' | 'undo' | null;
+  onUpdateQuantity: (lineId: number, newQuantity: number) => Promise<void>;
+  quantityUpdatePending: boolean;
+  quantityUpdatePendingLineId: number | null;
 }
 
 function renderContent(options: RenderContentOptions) {
@@ -371,6 +387,9 @@ function renderContent(options: RenderContentOptions) {
     executionPending,
     executionPendingLineId,
     executionPendingAction,
+    onUpdateQuantity,
+    quantityUpdatePending,
+    quantityUpdatePendingLineId,
   } = options;
 
   if (!isPickListIdValid) {
@@ -434,6 +453,9 @@ function renderContent(options: RenderContentOptions) {
         executionPending={executionPending}
         executionPendingLineId={executionPendingLineId}
         executionPendingAction={executionPendingAction}
+        onUpdateQuantity={onUpdateQuantity}
+        quantityUpdatePending={quantityUpdatePending}
+        quantityUpdatePendingLineId={quantityUpdatePendingLineId}
       />
     </div>
   );

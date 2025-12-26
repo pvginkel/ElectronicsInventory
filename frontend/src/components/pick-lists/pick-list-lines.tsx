@@ -1,8 +1,9 @@
-import { type ReactNode } from 'react';
-import { Loader2 } from 'lucide-react';
+import { type ReactNode, useState } from 'react';
+import { Loader2, Pencil } from 'lucide-react';
 
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Alert, EmptyState, InlineNotification, KeyValueBadge, StatusBadge } from '@/components/ui';
 import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { getLineAvailabilityQuantity } from '@/hooks/use-pick-list-availability';
@@ -48,6 +49,9 @@ interface PickListLinesProps {
   executionPending: boolean;
   executionPendingLineId: number | null;
   executionPendingAction: 'pick' | 'undo' | null;
+  onUpdateQuantity: (lineId: number, newQuantity: number) => Promise<void> | void;
+  quantityUpdatePending: boolean;
+  quantityUpdatePendingLineId: number | null;
 }
 
 export function PickListLines({
@@ -64,7 +68,53 @@ export function PickListLines({
   executionPending,
   executionPendingLineId,
   executionPendingAction,
+  onUpdateQuantity,
+  quantityUpdatePending,
+  quantityUpdatePendingLineId,
 }: PickListLinesProps) {
+  // Track which line is being edited
+  const [editingLineId, setEditingLineId] = useState<number | null>(null);
+  const [editQuantity, setEditQuantity] = useState<string>('');
+
+  const handleStartEdit = (lineId: number, currentQuantity: number) => {
+    setEditingLineId(lineId);
+    setEditQuantity(currentQuantity.toString());
+  };
+
+  const handleCancelEdit = () => {
+    setEditingLineId(null);
+    setEditQuantity('');
+  };
+
+  const handleSaveEdit = async (lineId: number, originalQuantity: number) => {
+    const newQuantity = parseInt(editQuantity, 10);
+
+    // Validate the input
+    if (isNaN(newQuantity) || newQuantity < 0) {
+      return;
+    }
+
+    // If unchanged, just cancel
+    if (newQuantity === originalQuantity) {
+      handleCancelEdit();
+      return;
+    }
+
+    // Call the update function
+    await onUpdateQuantity(lineId, newQuantity);
+    handleCancelEdit();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, lineId: number, originalQuantity: number) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void handleSaveEdit(lineId, originalQuantity);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancelEdit();
+    }
+  };
+
   if (groups.length === 0) {
     return (
       <EmptyState
@@ -182,6 +232,12 @@ export function PickListLines({
                       const isLineExecuting = executionPending && isPending;
                       const disablePick = isCompleted || isLineExecuting;
                       const disableUndo = !isCompleted || isLineExecuting;
+                      const isEditingThisLine = editingLineId === lineId;
+                      const isQuantityUpdatePending = quantityUpdatePendingLineId === lineId && quantityUpdatePending;
+                      const canEditQuantity = !isCompleted && !isLineExecuting && !quantityUpdatePending;
+                      const parsedEditQuantity = parseInt(editQuantity, 10);
+                      const isValidQuantity = !isNaN(parsedEditQuantity) && parsedEditQuantity >= 0;
+                      const hasQuantityChanged = isValidQuantity && parsedEditQuantity !== line.quantityToPick;
 
                       return (
                         <tr key={lineId} data-testid={`pick-lists.detail.line.${lineId}`}>
@@ -197,9 +253,70 @@ export function PickListLines({
                             />
                           </td>
                           <td className={`${COLUMN_WIDTHS.quantity} px-4 py-3 text-sm text-right text-foreground`}>
-                            <span data-testid={`pick-lists.detail.line.${lineId}.quantity`}>
-                              {NUMBER_FORMATTER.format(line.quantityToPick)}
-                            </span>
+                            {isEditingThisLine ? (
+                              <div className="flex items-center justify-end gap-2">
+                                <Input
+                                  type="number"
+                                  value={editQuantity}
+                                  onChange={(e) => setEditQuantity(e.target.value)}
+                                  onKeyDown={(e) => handleKeyDown(e, lineId, line.quantityToPick)}
+                                  onBlur={(e) => {
+                                    // Auto-cancel if focus moves outside the edit row (not to Save/Cancel buttons)
+                                    const relatedTarget = e.relatedTarget as HTMLElement | null;
+                                    const isButtonClick = relatedTarget?.closest('[data-testid*="quantity-save"], [data-testid*="quantity-cancel"]');
+                                    if (!isButtonClick) {
+                                      handleCancelEdit();
+                                    }
+                                  }}
+                                  className="w-20 h-8 text-right"
+                                  min="0"
+                                  disabled={isQuantityUpdatePending}
+                                  data-testid={`pick-lists.detail.line.${lineId}.quantity-input`}
+                                  autoFocus
+                                />
+                                <Button
+                                  size="sm"
+                                  onClick={() => void handleSaveEdit(lineId, line.quantityToPick)}
+                                  disabled={!isValidQuantity || !hasQuantityChanged || isQuantityUpdatePending}
+                                  loading={isQuantityUpdatePending}
+                                  data-testid={`pick-lists.detail.line.${lineId}.quantity-save`}
+                                >
+                                  Save
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={handleCancelEdit}
+                                  disabled={isQuantityUpdatePending}
+                                  data-testid={`pick-lists.detail.line.${lineId}.quantity-cancel`}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-end gap-2">
+                                <span
+                                  className={canEditQuantity ? 'cursor-pointer hover:text-primary' : ''}
+                                  onClick={() => canEditQuantity && handleStartEdit(lineId, line.quantityToPick)}
+                                  data-testid={`pick-lists.detail.line.${lineId}.quantity`}
+                                  title={canEditQuantity ? 'Click to edit quantity' : undefined}
+                                >
+                                  {NUMBER_FORMATTER.format(line.quantityToPick)}
+                                </span>
+                                {canEditQuantity && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleStartEdit(lineId, line.quantityToPick)}
+                                    className="h-6 w-6 p-0"
+                                    data-testid={`pick-lists.detail.line.${lineId}.quantity-edit`}
+                                    title="Edit quantity"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                                  </Button>
+                                )}
+                              </div>
+                            )}
                           </td>
                           <td className={`${COLUMN_WIDTHS.stock} px-4 py-3 text-sm text-right text-foreground`}>
                             <span data-testid={`pick-lists.detail.line.${lineId}.availability`}>

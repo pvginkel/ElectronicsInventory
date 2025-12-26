@@ -411,3 +411,58 @@ export function applyPickListLineStatusPatch(
     updated_at: updatedAt,
   };
 }
+
+export interface PickListLineQuantityPatchOptions {
+  updatedAt?: string;
+}
+
+// Apply an optimistic quantity update to a pick list line
+// Recomputes all metrics based on the updated quantity
+export function applyPickListLineQuantityPatch(
+  detail: KitPickListDetailSchema_b247181,
+  lineId: number,
+  newQuantity: number,
+  options?: PickListLineQuantityPatchOptions,
+): KitPickListDetailSchema_b247181 {
+  if (!detail.lines?.length) {
+    return detail;
+  }
+
+  // Update the target line's quantity_to_pick
+  let lineMatched = false;
+  const nextLines = detail.lines.map(line => {
+    if (line.id !== lineId) {
+      return line;
+    }
+    lineMatched = true;
+    return {
+      ...line,
+      quantity_to_pick: newQuantity,
+    };
+  });
+
+  // If line not found, return original detail unchanged
+  if (!lineMatched) {
+    return detail;
+  }
+
+  // Recompute metrics based on updated lines
+  const metrics = computePickListDetailMetrics(nextLines);
+  const updatedAt = options?.updatedAt ?? new Date().toISOString();
+
+  // Pick list status remains 'completed' only if all lines are completed
+  const nextStatusSummary: PickListStatus = metrics.openLineCount === 0 ? 'completed' : 'open';
+
+  return {
+    ...detail,
+    lines: nextLines,
+    line_count: metrics.lineCount,
+    open_line_count: metrics.openLineCount,
+    completed_line_count: metrics.completedLineCount,
+    total_quantity_to_pick: metrics.totalQuantityToPick,
+    picked_quantity: metrics.pickedQuantity,
+    remaining_quantity: metrics.remainingQuantity,
+    status: nextStatusSummary,
+    updated_at: updatedAt,
+  };
+}
