@@ -129,6 +129,12 @@ class MetricsServiceProtocol(ABC):
         """Record pick list listing request metrics."""
         return None
 
+    def record_pick_list_line_quantity_updated(
+        self, line_id: int, old_quantity: int, new_quantity: int
+    ) -> None:
+        """Record pick list line quantity adjustment."""
+        return None
+
     @abstractmethod
     def record_ai_analysis(
         self,
@@ -324,6 +330,14 @@ class MetricsService(MetricsServiceProtocol):
         self.pick_list_list_requests_total = Counter(
             'pick_list_list_requests_total',
             'Pick list list requests processed'
+        )
+        self.pick_list_line_quantity_updated_total = Counter(
+            'pick_list_line_quantity_updated_total',
+            'Pick list line quantity updates'
+        )
+        self.pick_list_line_quantity_delta = Histogram(
+            'pick_list_line_quantity_delta',
+            'Distribution of quantity deltas on line updates'
         )
 
         # Kit Metrics
@@ -774,6 +788,17 @@ class MetricsService(MetricsServiceProtocol):
             self.pick_list_list_requests_total.inc()
         except Exception as exc:
             logger.error("Error recording pick list list metrics: %s", exc)
+
+    def record_pick_list_line_quantity_updated(
+        self, line_id: int, old_quantity: int, new_quantity: int
+    ) -> None:
+        """Record pick list line quantity adjustment metrics."""
+        try:
+            self.pick_list_line_quantity_updated_total.inc()
+            delta = new_quantity - old_quantity
+            self.pick_list_line_quantity_delta.observe(delta)
+        except Exception as exc:
+            logger.error("Error recording pick list line quantity update metrics: %s", exc)
 
     def record_shopping_list_line_receipt(self, lines: int, total_qty: int) -> None:
         """Record metrics for shopping list line stock receipts."""

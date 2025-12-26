@@ -32,6 +32,7 @@ class PickListMetricsStub:
         self.line_undo: list[tuple[str, float]] = []
         self.detail_requests: list[int] = []
         self.list_requests: list[tuple[int, int]] = []
+        self.line_quantity_updates: list[tuple[int, int, int]] = []
 
     def record_quantity_change(self, operation: str, delta: int) -> None:
         self.quantity_changes.append((operation, delta))
@@ -50,6 +51,11 @@ class PickListMetricsStub:
 
     def record_pick_list_list_request(self, kit_id: int, result_count: int) -> None:
         self.list_requests.append((kit_id, result_count))
+
+    def record_pick_list_line_quantity_updated(
+        self, line_id: int, old_quantity: int, new_quantity: int
+    ) -> None:
+        self.line_quantity_updates.append((line_id, old_quantity, new_quantity))
 
 
 @pytest.fixture
@@ -522,6 +528,42 @@ class TestKitPickListService:
 
         assert pick_list.updated_at != post_pick_updated_at
 
+    def test_undo_zero_quantity_line_resets_status_without_inventory_change(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        """Undoing a zero-quantity picked line should reset status without inventory ops."""
+        kit = _create_active_kit(session)
+        part = _create_part(session, "UNDZ", "Undo Zero Part")
+        _attach_content(session, kit, part, required_per_unit=1)
+        location = _create_location(session, box_no=104, loc_no=1)
+        _attach_location(session, part, location, qty=10)
+
+        pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        line = pick_list.lines[0]
+
+        # Update line to zero quantity
+        kit_pick_list_service.update_line_quantity(pick_list.id, line.id, 0)
+        session.flush()
+        session.refresh(line)
+        assert line.quantity_to_pick == 0
+
+        # Pick the zero-quantity line (marks it COMPLETED but no inventory change)
+        kit_pick_list_service.pick_line(pick_list.id, line.id)
+        session.flush()
+        session.refresh(line)
+        assert line.status is PickListLineStatus.COMPLETED
+        assert line.inventory_change_id is None  # No inventory change for zero qty
+
+        # Undo the zero-quantity line - should reset to OPEN without error
+        kit_pick_list_service.undo_line(pick_list.id, line.id)
+        session.flush()
+        session.refresh(line)
+
+        assert line.status is PickListLineStatus.OPEN
+        assert line.picked_at is None
+
     def test_delete_pick_list_removes_open_pick_list_and_lines(
         self,
         session,
@@ -636,3 +678,231 @@ class TestKitPickListService:
         remaining = kit_pick_list_service.list_pick_lists_for_kit(kit.id)
         assert len(remaining) == 1
         assert remaining[0].id == second.id
+
+    def test_update_line_quantity_updates_quantity_and_timestamp(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        metrics_stub: PickListMetricsStub,
+    ) -> None:
+        kit = _create_active_kit(session)
+        part = _create_part(session, "UPD1", "Update quantity part")
+        _attach_content(session, kit, part, required_per_unit=10)
+        location = _create_location(session, box_no=200, loc_no=1)
+        _attach_location(session, part, location, qty=50)
+
+        pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        session.flush()
+        initial_updated_at = pick_list.updated_at
+
+        line = pick_list.lines[0]
+        original_quantity = line.quantity_to_pick
+
+        kit_pick_list_service.update_line_quantity(pick_list.id, line.id, 5)
+        session.flush()
+        session.refresh(pick_list)
+
+        refreshed_line = session.get(KitPickListLine, line.id)
+        assert refreshed_line is not None
+        assert refreshed_line.quantity_to_pick == 5
+        assert pick_list.updated_at > initial_updated_at
+        assert len(metrics_stub.line_quantity_updates) == 1
+        assert metrics_stub.line_quantity_updates[0] == (line.id, original_quantity, 5)
+
+    def test_update_line_quantity_allows_zero(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        kit = _create_active_kit(session)
+        part = _create_part(session, "UPD2", "Zero quantity part")
+        _attach_content(session, kit, part, required_per_unit=5)
+        location = _create_location(session, box_no=201, loc_no=1)
+        _attach_location(session, part, location, qty=20)
+
+        pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        session.flush()
+        line = pick_list.lines[0]
+
+        kit_pick_list_service.update_line_quantity(pick_list.id, line.id, 0)
+        session.flush()
+
+        refreshed_line = session.get(KitPickListLine, line.id)
+        assert refreshed_line is not None
+        assert refreshed_line.quantity_to_pick == 0
+        assert refreshed_line.status == PickListLineStatus.OPEN
+
+    def test_update_line_quantity_recalculates_derived_totals(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        kit = _create_active_kit(session)
+        part = _create_part(session, "UPD3", "Recalc totals part")
+        _attach_content(session, kit, part, required_per_unit=8)
+        location = _create_location(session, box_no=202, loc_no=1)
+        _attach_location(session, part, location, qty=30)
+
+        pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        session.flush()
+        line = pick_list.lines[0]
+
+        original_total = pick_list.total_quantity_to_pick
+        assert original_total == 8
+
+        updated_pick_list = kit_pick_list_service.update_line_quantity(
+            pick_list.id, line.id, 3
+        )
+
+        assert updated_pick_list.total_quantity_to_pick == 3
+        assert updated_pick_list.remaining_quantity == 3
+
+    def test_update_line_quantity_raises_for_completed_line(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        kit = _create_active_kit(session)
+        part = _create_part(session, "UPD4", "Completed line part")
+        _attach_content(session, kit, part, required_per_unit=2)
+        location = _create_location(session, box_no=203, loc_no=1)
+        _attach_location(session, part, location, qty=10)
+
+        pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        session.flush()
+        line = pick_list.lines[0]
+
+        kit_pick_list_service.pick_line(pick_list.id, line.id)
+        session.flush()
+
+        with pytest.raises(InvalidOperationException) as exc_info:
+            kit_pick_list_service.update_line_quantity(pick_list.id, line.id, 5)
+
+        assert "cannot edit completed pick list line" in str(exc_info.value)
+
+    def test_update_line_quantity_raises_for_completed_pick_list(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        kit = _create_active_kit(session)
+        part = _create_part(session, "UPD5", "Completed pick list part")
+        _attach_content(session, kit, part, required_per_unit=3)
+        location = _create_location(session, box_no=204, loc_no=1)
+        _attach_location(session, part, location, qty=15)
+
+        pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        session.flush()
+        line = pick_list.lines[0]
+
+        kit_pick_list_service.pick_line(pick_list.id, line.id)
+        session.flush()
+
+        with pytest.raises(InvalidOperationException) as exc_info:
+            kit_pick_list_service.update_line_quantity(pick_list.id, line.id, 5)
+
+        # Line status is checked before pick list status, so this triggers "completed line" error
+        assert "cannot edit completed pick list line" in str(exc_info.value)
+
+    def test_update_line_quantity_raises_for_nonexistent_pick_list(
+        self,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        with pytest.raises(RecordNotFoundException):
+            kit_pick_list_service.update_line_quantity(9999, 1, 5)
+
+    def test_update_line_quantity_raises_for_nonexistent_line(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        kit = _create_active_kit(session)
+        part = _create_part(session, "UPD6", "Nonexistent line part")
+        _attach_content(session, kit, part, required_per_unit=2)
+        location = _create_location(session, box_no=205, loc_no=1)
+        _attach_location(session, part, location, qty=10)
+
+        pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        session.flush()
+
+        with pytest.raises(RecordNotFoundException):
+            kit_pick_list_service.update_line_quantity(pick_list.id, 9999, 5)
+
+    def test_update_line_quantity_raises_for_line_from_different_pick_list(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        kit = _create_active_kit(session)
+        part = _create_part(session, "UPD7", "Different pick list part")
+        _attach_content(session, kit, part, required_per_unit=2)
+        location = _create_location(session, box_no=206, loc_no=1)
+        _attach_location(session, part, location, qty=20)
+
+        first_pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        second_pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        session.flush()
+
+        first_line = first_pick_list.lines[0]
+
+        with pytest.raises(RecordNotFoundException):
+            kit_pick_list_service.update_line_quantity(second_pick_list.id, first_line.id, 5)
+
+    def test_zero_quantity_line_blocks_pick_list_completion(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        kit = _create_active_kit(session)
+        part1 = _create_part(session, "UPD8", "First part")
+        part2 = _create_part(session, "UPD9", "Second part")
+        _attach_content(session, kit, part1, required_per_unit=3)
+        _attach_content(session, kit, part2, required_per_unit=5)
+        location = _create_location(session, box_no=207, loc_no=1)
+        _attach_location(session, part1, location, qty=10)
+        _attach_location(session, part2, location, qty=10)
+
+        pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        session.flush()
+
+        lines = sorted(pick_list.lines, key=lambda line: line.id)
+        first_line = lines[0]
+        second_line = lines[1]
+
+        kit_pick_list_service.update_line_quantity(pick_list.id, first_line.id, 0)
+        session.flush()
+
+        kit_pick_list_service.pick_line(pick_list.id, second_line.id)
+        session.flush()
+
+        refreshed_pick_list = session.get(KitPickList, pick_list.id)
+        assert refreshed_pick_list is not None
+        assert refreshed_pick_list.status == KitPickListStatus.OPEN
+
+    def test_zero_quantity_line_can_be_picked_for_completion(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        kit = _create_active_kit(session)
+        part = _create_part(session, "UP10", "Zero pick part")
+        _attach_content(session, kit, part, required_per_unit=4)
+        location = _create_location(session, box_no=208, loc_no=1)
+        _attach_location(session, part, location, qty=10)
+
+        pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        session.flush()
+        line = pick_list.lines[0]
+
+        kit_pick_list_service.update_line_quantity(pick_list.id, line.id, 0)
+        session.flush()
+
+        kit_pick_list_service.pick_line(pick_list.id, line.id)
+        session.flush()
+
+        refreshed_line = session.get(KitPickListLine, line.id)
+        refreshed_pick_list = session.get(KitPickList, pick_list.id)
+        assert refreshed_line is not None
+        assert refreshed_line.status == PickListLineStatus.COMPLETED
+        assert refreshed_pick_list is not None
+        assert refreshed_pick_list.status == KitPickListStatus.COMPLETED
