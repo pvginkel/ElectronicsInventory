@@ -244,5 +244,6 @@ class ServiceContainer(containers.DeclarativeContainer):
     testing_service = providers.Factory(
         TestingService,
         db=db_session,
-        reset_lock=reset_lock
+        reset_lock=reset_lock,
+        test_data_service=test_data_service
     )
