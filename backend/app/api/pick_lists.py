@@ -13,6 +13,7 @@ from app.schemas.pick_list import (
     KitPickListCreateSchema,
     KitPickListDetailSchema,
     KitPickListSummarySchema,
+    PickListLineQuantityUpdateSchema,
 )
 from app.services.container import ServiceContainer
 from app.services.kit_pick_list_service import KitPickListService
@@ -154,3 +155,33 @@ def undo_pick_list_line(
     kit_pick_list_service.undo_line(pick_list_id, line_id)
     detail = kit_pick_list_service.get_pick_list_detail(pick_list_id)
     return KitPickListDetailSchema.model_validate(detail).model_dump()
+
+
+@pick_lists_bp.route(
+    "/pick-lists/<int:pick_list_id>/lines/<int:line_id>",
+    methods=["PATCH"],
+)
+@api.validate(
+    json=PickListLineQuantityUpdateSchema,
+    resp=SpectreeResponse(
+        HTTP_200=KitPickListDetailSchema,
+        HTTP_400=ErrorResponseSchema,
+        HTTP_404=ErrorResponseSchema,
+        HTTP_409=ErrorResponseSchema,
+    ),
+)
+@handle_api_errors
+@inject
+def update_pick_list_line_quantity(
+    pick_list_id: int,
+    line_id: int,
+    kit_pick_list_service: KitPickListService = Provide[ServiceContainer.kit_pick_list_service],
+) -> Any:
+    """Update the quantity_to_pick for a pick list line."""
+    payload = PickListLineQuantityUpdateSchema.model_validate(request.get_json())
+    pick_list = kit_pick_list_service.update_line_quantity(
+        pick_list_id,
+        line_id,
+        payload.quantity_to_pick,
+    )
+    return KitPickListDetailSchema.model_validate(pick_list).model_dump()

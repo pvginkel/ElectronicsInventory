@@ -20,6 +20,16 @@ class KitPickListCreateSchema(BaseModel):
     )
 
 
+class PickListLineQuantityUpdateSchema(BaseModel):
+    """Request payload for updating a pick list line quantity."""
+
+    quantity_to_pick: int = Field(
+        description="Updated quantity to pick (>= 0; 0 means skip this line)",
+        ge=0,
+        json_schema_extra={"example": 3},
+    )
+
+
 class PickListLineLocationSchema(BaseModel):
     """Location metadata for a pick list line."""
 

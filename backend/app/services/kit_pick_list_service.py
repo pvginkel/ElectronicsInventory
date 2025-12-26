@@ -301,15 +301,19 @@ class KitPickListService(BaseService):
                 "line is missing location linkage",
             )
 
-        history = self.inventory_service.remove_stock(
-            line.kit_content.part.key,
-            line.location.box_no,
-            line.location.loc_no,
-            line.quantity_to_pick,
-        )
+        # Only remove inventory if quantity is greater than zero
+        inventory_change_id = None
+        if line.quantity_to_pick > 0:
+            history = self.inventory_service.remove_stock(
+                line.kit_content.part.key,
+                line.location.box_no,
+                line.location.loc_no,
+                line.quantity_to_pick,
+            )
+            inventory_change_id = history.id
 
         now = datetime.now(UTC)
-        line.inventory_change_id = history.id
+        line.inventory_change_id = inventory_change_id
         line.picked_at = now
         line.status = PickListLineStatus.COMPLETED
 
@@ -337,6 +341,23 @@ class KitPickListService(BaseService):
         if line.status is PickListLineStatus.OPEN:
             duration = perf_counter() - start
             self.metrics_service.record_pick_list_line_undo("noop", duration)
+            return line
+
+        # Zero-quantity lines have no inventory change to undo - just reset status
+        if line.quantity_to_pick == 0:
+            now = datetime.now(UTC)
+            line.picked_at = None
+            line.status = PickListLineStatus.OPEN
+
+            pick_list = line.pick_list
+            pick_list.updated_at = now
+            if pick_list.status is KitPickListStatus.COMPLETED:
+                pick_list.status = KitPickListStatus.OPEN
+                pick_list.completed_at = None
+
+            self.db.flush()
+            duration = perf_counter() - start
+            self.metrics_service.record_pick_list_line_undo("success", duration)
             return line
 
         if line.inventory_change_id is None:
@@ -377,6 +398,47 @@ class KitPickListService(BaseService):
         duration = perf_counter() - start
         self.metrics_service.record_pick_list_line_undo("success", duration)
         return line
+
+    def update_line_quantity(
+        self, pick_list_id: int, line_id: int, quantity_to_pick: int
+    ) -> KitPickList:
+        """Update the quantity_to_pick for a line and return the updated pick list."""
+        # Fetch the line with row lock
+        line = self._get_line_for_update(pick_list_id, line_id)
+
+        # Validate line status
+        if line.status is PickListLineStatus.COMPLETED:
+            raise InvalidOperationException(
+                "update pick list line quantity",
+                "cannot edit completed pick list line",
+            )
+
+        # Validate pick list status
+        if line.pick_list.status is KitPickListStatus.COMPLETED:
+            raise InvalidOperationException(
+                "update pick list line quantity",
+                "cannot edit lines on completed pick list",
+            )
+
+        # Store old quantity for metrics
+        old_quantity = line.quantity_to_pick
+
+        # Update line quantity and pick list timestamp
+        now = datetime.now(UTC)
+        line.quantity_to_pick = quantity_to_pick
+        line.pick_list.updated_at = now
+
+        self.db.flush()
+
+        # Record metrics
+        self.metrics_service.record_pick_list_line_quantity_updated(
+            line_id=line.id or 0,
+            old_quantity=old_quantity,
+            new_quantity=quantity_to_pick,
+        )
+
+        # Return updated pick list detail
+        return self.get_pick_list_detail(pick_list_id)
 
     def delete_pick_list(self, pick_list_id: int) -> None:
         """Delete a pick list and all its lines."""

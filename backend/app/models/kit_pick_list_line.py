@@ -45,7 +45,7 @@ class KitPickListLine(db.Model):  # type: ignore[name-defined]
             name="uq_pick_list_line_allocation",
         ),
         CheckConstraint(
-            "quantity_to_pick >= 1",
+            "quantity_to_pick >= 0",
             name="ck_pick_list_lines_quantity_positive",
         ),
         Index(

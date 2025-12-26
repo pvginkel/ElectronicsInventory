@@ -521,8 +521,8 @@ class TestDatabaseConstraints:
                 db.session.commit()
             db.session.rollback()
 
-    def test_pick_list_line_quantity_positive(self, app: Flask):
-        """Pick list line quantity_to_pick must be positive."""
+    def test_pick_list_line_quantity_non_negative(self, app: Flask):
+        """Pick list line quantity_to_pick must be >= 0 (negative rejected)."""
         with app.app_context():
             box = Box(box_no=50, description="Constraint Box", capacity=2)
             kit = Kit(name="Line Constraint Kit", build_target=1)
@@ -543,11 +543,26 @@ class TestDatabaseConstraints:
             db.session.add_all([content, pick_list])
             db.session.flush()
 
-            invalid_line = KitPickListLine(
+            # Zero quantity is now allowed (for skipping lines)
+            valid_line = KitPickListLine(
                 pick_list_id=pick_list.id,
                 kit_content_id=content.id,
                 location_id=location.id,
                 quantity_to_pick=0,
+                status=PickListLineStatus.OPEN,
+            )
+            db.session.add(valid_line)
+            db.session.commit()
+
+            # Negative quantity is still rejected
+            db.session.delete(valid_line)
+            db.session.commit()
+
+            invalid_line = KitPickListLine(
+                pick_list_id=pick_list.id,
+                kit_content_id=content.id,
+                location_id=location.id,
+                quantity_to_pick=-1,
                 status=PickListLineStatus.OPEN,
             )
             db.session.add(invalid_line)

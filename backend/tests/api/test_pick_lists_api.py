@@ -249,3 +249,166 @@ class TestPickListsApi:
         from app.models.quantity_history import QuantityHistory
         history_record = session.get(QuantityHistory, inventory_change_id)
         assert history_record is not None
+
+    def test_update_pick_list_line_quantity_updates_quantity(self, client, session) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=10, initial_qty=50)
+        creation = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={"requested_units": 1},
+        )
+        pick_list_data = creation.get_json()
+        pick_list_id = pick_list_data["id"]
+        line_id = pick_list_data["lines"][0]["id"]
+
+        response = client.patch(
+            f"/api/pick-lists/{pick_list_id}/lines/{line_id}",
+            json={"quantity_to_pick": 5},
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["id"] == pick_list_id
+        updated_line = [line for line in data["lines"] if line["id"] == line_id][0]
+        assert updated_line["quantity_to_pick"] == 5
+        assert data["total_quantity_to_pick"] == 5
+        assert data["remaining_quantity"] == 5
+
+    def test_update_pick_list_line_quantity_allows_zero(self, client, session) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=5, initial_qty=20)
+        creation = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={"requested_units": 1},
+        )
+        pick_list_data = creation.get_json()
+        pick_list_id = pick_list_data["id"]
+        line_id = pick_list_data["lines"][0]["id"]
+
+        response = client.patch(
+            f"/api/pick-lists/{pick_list_id}/lines/{line_id}",
+            json={"quantity_to_pick": 0},
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        updated_line = [line for line in data["lines"] if line["id"] == line_id][0]
+        assert updated_line["quantity_to_pick"] == 0
+        assert updated_line["status"] == "open"
+
+    def test_update_pick_list_line_quantity_updates_timestamp(self, client, session) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=8, initial_qty=30)
+        creation = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={"requested_units": 1},
+        )
+        pick_list_data = creation.get_json()
+        pick_list_id = pick_list_data["id"]
+        line_id = pick_list_data["lines"][0]["id"]
+
+        response = client.patch(
+            f"/api/pick-lists/{pick_list_id}/lines/{line_id}",
+            json={"quantity_to_pick": 3},
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "updated_at" in data
+        assert data["updated_at"] is not None
+
+    def test_update_pick_list_line_quantity_missing_field_returns_400(self, client, session) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=5, initial_qty=20)
+        creation = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={"requested_units": 1},
+        )
+        pick_list_data = creation.get_json()
+        pick_list_id = pick_list_data["id"]
+        line_id = pick_list_data["lines"][0]["id"]
+
+        response = client.patch(
+            f"/api/pick-lists/{pick_list_id}/lines/{line_id}",
+            json={},
+        )
+
+        assert response.status_code == 400
+
+    def test_update_pick_list_line_quantity_negative_returns_400(self, client, session) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=5, initial_qty=20)
+        creation = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={"requested_units": 1},
+        )
+        pick_list_data = creation.get_json()
+        pick_list_id = pick_list_data["id"]
+        line_id = pick_list_data["lines"][0]["id"]
+
+        response = client.patch(
+            f"/api/pick-lists/{pick_list_id}/lines/{line_id}",
+            json={"quantity_to_pick": -1},
+        )
+
+        assert response.status_code == 400
+
+    def test_update_pick_list_line_quantity_nonexistent_pick_list_returns_404(self, client) -> None:
+        response = client.patch(
+            "/api/pick-lists/9999/lines/1",
+            json={"quantity_to_pick": 5},
+        )
+
+        assert response.status_code == 404
+
+    def test_update_pick_list_line_quantity_nonexistent_line_returns_404(self, client, session) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=5, initial_qty=20)
+        creation = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={"requested_units": 1},
+        )
+        pick_list_id = creation.get_json()["id"]
+
+        response = client.patch(
+            f"/api/pick-lists/{pick_list_id}/lines/9999",
+            json={"quantity_to_pick": 5},
+        )
+
+        assert response.status_code == 404
+
+    def test_update_pick_list_line_quantity_completed_line_returns_409(self, client, session) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=2, initial_qty=10)
+        creation = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={"requested_units": 1},
+        )
+        pick_list_data = creation.get_json()
+        pick_list_id = pick_list_data["id"]
+        line_id = pick_list_data["lines"][0]["id"]
+
+        client.post(f"/api/pick-lists/{pick_list_id}/lines/{line_id}/pick")
+
+        response = client.patch(
+            f"/api/pick-lists/{pick_list_id}/lines/{line_id}",
+            json={"quantity_to_pick": 5},
+        )
+
+        assert response.status_code == 409
+        payload = response.get_json()
+        assert "cannot edit completed pick list line" in payload["error"].lower()
+
+    def test_update_pick_list_line_quantity_completed_pick_list_returns_409(self, client, session) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=3, initial_qty=15)
+        creation = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={"requested_units": 1},
+        )
+        pick_list_data = creation.get_json()
+        pick_list_id = pick_list_data["id"]
+        line_id = pick_list_data["lines"][0]["id"]
+
+        client.post(f"/api/pick-lists/{pick_list_id}/lines/{line_id}/pick")
+
+        response = client.patch(
+            f"/api/pick-lists/{pick_list_id}/lines/{line_id}",
+            json={"quantity_to_pick": 5},
+        )
+
+        assert response.status_code == 409
+        payload = response.get_json()
+        assert "cannot edit" in payload["error"].lower()
