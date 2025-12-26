@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from dependency_injector.wiring import Provide, inject
-from flask import Blueprint, request
+from flask import Blueprint, request, send_file
 from spectree import Response as SpectreeResponse
 
 from app.schemas.common import ErrorResponseSchema
@@ -17,6 +17,7 @@ from app.schemas.pick_list import (
 )
 from app.services.container import ServiceContainer
 from app.services.kit_pick_list_service import KitPickListService
+from app.services.pick_list_report_service import PickListReportService
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
@@ -185,3 +186,31 @@ def update_pick_list_line_quantity(
         payload.quantity_to_pick,
     )
     return KitPickListDetailSchema.model_validate(pick_list).model_dump()
+
+
+@pick_lists_bp.route("/pick-lists/<int:pick_list_id>/pdf", methods=["GET"])
+@handle_api_errors
+@inject
+def get_pick_list_pdf(
+    pick_list_id: int,
+    kit_pick_list_service: KitPickListService = Provide[ServiceContainer.kit_pick_list_service],
+    pick_list_report_service: PickListReportService = Provide[ServiceContainer.pick_list_report_service],
+) -> Any:
+    """Generate and return a PDF report for the pick list."""
+    # Fetch the pick list with all related data
+    pick_list = kit_pick_list_service.get_pick_list_detail(pick_list_id)
+
+    # Generate PDF
+    pdf_buffer = pick_list_report_service.generate_pdf(pick_list)
+
+    # Return as inline PDF with filename
+    filename = f"pick_list_{pick_list_id}.pdf"
+    response = send_file(
+        pdf_buffer,
+        mimetype="application/pdf",
+        as_attachment=False,
+    )
+    response.headers["Content-Disposition"] = f'inline; filename="{filename}"'
+    response.headers["Cache-Control"] = "no-cache"
+
+    return response

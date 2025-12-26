@@ -412,3 +412,142 @@ class TestPickListsApi:
         assert response.status_code == 409
         payload = response.get_json()
         assert "cannot edit" in payload["error"].lower()
+
+    def test_get_pick_list_pdf_returns_pdf(self, client, session) -> None:
+        """Test GET /pick-lists/{id}/pdf returns a valid PDF."""
+        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=2, initial_qty=10)
+        creation = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={"requested_units": 1},
+        )
+        pick_list_id = creation.get_json()["id"]
+
+        response = client.get(f"/api/pick-lists/{pick_list_id}/pdf")
+
+        assert response.status_code == 200
+        assert response.content_type == "application/pdf"
+        assert response.data.startswith(b"%PDF-")  # PDF magic bytes
+
+    def test_get_pick_list_pdf_includes_correct_headers(self, client, session) -> None:
+        """Test PDF response has correct Content-Disposition and Cache-Control headers."""
+        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=1, initial_qty=5)
+        creation = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={"requested_units": 1},
+        )
+        pick_list_id = creation.get_json()["id"]
+
+        response = client.get(f"/api/pick-lists/{pick_list_id}/pdf")
+
+        assert response.status_code == 200
+        assert "Content-Disposition" in response.headers
+        assert f"pick_list_{pick_list_id}.pdf" in response.headers["Content-Disposition"]
+        assert "inline" in response.headers["Content-Disposition"]
+        assert response.headers.get("Cache-Control") == "no-cache"
+
+    def test_get_pick_list_pdf_nonexistent_returns_404(self, client) -> None:
+        """Test PDF endpoint returns 404 for non-existent pick list."""
+        response = client.get("/api/pick-lists/9999/pdf")
+
+        assert response.status_code == 404
+        payload = response.get_json()
+        assert "error" in payload
+
+    def test_get_pick_list_pdf_with_multiple_boxes(self, client, session) -> None:
+        """Test PDF generation with lines from multiple boxes."""
+        # Create a more complex scenario with multiple boxes
+        kit = Kit(name="Multi-box Kit", build_target=1, status=KitStatus.ACTIVE)
+        session.add(kit)
+        session.flush()
+
+        # Create parts and boxes
+        part1 = Part(key="AAA1", description="Part in box 1")
+        part2 = Part(key="BBB2", description="Part in box 2")
+        session.add_all([part1, part2])
+        session.flush()
+
+        # Create two boxes
+        box1 = Box(box_no=100, description="Box 100", capacity=10)
+        box2 = Box(box_no=200, description="Box 200", capacity=10)
+        session.add_all([box1, box2])
+        session.flush()
+
+        # Create locations
+        loc1 = Location(box_id=box1.id, box_no=100, loc_no=1)
+        loc2 = Location(box_id=box2.id, box_no=200, loc_no=1)
+        session.add_all([loc1, loc2])
+        session.flush()
+
+        # Add inventory
+        pl1 = PartLocation(
+            part_id=part1.id,
+            box_no=100,
+            loc_no=1,
+            location_id=loc1.id,
+            qty=10,
+        )
+        pl2 = PartLocation(
+            part_id=part2.id,
+            box_no=200,
+            loc_no=1,
+            location_id=loc2.id,
+            qty=10,
+        )
+        session.add_all([pl1, pl2])
+        session.flush()
+
+        # Create kit contents
+        content1 = KitContent(kit=kit, part=part1, required_per_unit=1)
+        content2 = KitContent(kit=kit, part=part2, required_per_unit=1)
+        session.add_all([content1, content2])
+        session.commit()
+
+        # Create pick list via API
+        creation = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={"requested_units": 1},
+        )
+        assert creation.status_code == 201
+        pick_list_id = creation.get_json()["id"]
+
+        # Request PDF
+        response = client.get(f"/api/pick-lists/{pick_list_id}/pdf")
+
+        assert response.status_code == 200
+        assert response.content_type == "application/pdf"
+        assert len(response.data) > 0
+
+    def test_get_pick_list_pdf_with_zero_lines(self, client, session) -> None:
+        """Test PDF generation handles empty pick lists gracefully."""
+        # Create a kit with content but no inventory
+        kit = Kit(name="Empty Pick List Kit", build_target=1, status=KitStatus.ACTIVE)
+        session.add(kit)
+        session.flush()
+
+        part = Part(key="NOQT", description="Part with no quantity")
+        session.add(part)
+        session.flush()
+
+        content = KitContent(kit=kit, part=part, required_per_unit=1)
+        session.add(content)
+        session.commit()
+
+        # Manually create an empty pick list
+        from app.models.kit_pick_list import KitPickList, KitPickListStatus
+        pick_list = KitPickList(
+            kit_id=kit.id,
+            requested_units=1,
+            status=KitPickListStatus.OPEN,
+        )
+        session.add(pick_list)
+        session.commit()
+
+        # Refresh to load relationships
+        session.refresh(pick_list)
+
+        # Request PDF
+        response = client.get(f"/api/pick-lists/{pick_list.id}/pdf")
+
+        # Should still generate a valid PDF even with no lines
+        assert response.status_code == 200
+        assert response.content_type == "application/pdf"

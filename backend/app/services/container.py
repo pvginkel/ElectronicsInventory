@@ -20,6 +20,7 @@ from app.services.kit_service import KitService
 from app.services.kit_shopping_list_service import KitShoppingListService
 from app.services.metrics_service import MetricsService
 from app.services.part_service import PartService
+from app.services.pick_list_report_service import PickListReportService
 from app.services.s3_service import S3Service
 from app.services.seller_service import SellerService
 from app.services.setup_service import SetupService
@@ -138,6 +139,10 @@ class ServiceContainer(containers.DeclarativeContainer):
         db=db_session,
         inventory_service=inventory_service,
         kit_reservation_service=kit_reservation_service,
+        metrics_service=metrics_service,
+    )
+    pick_list_report_service = providers.Factory(
+        PickListReportService,
         metrics_service=metrics_service,
     )
     kit_shopping_list_service = providers.Factory(
