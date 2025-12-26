@@ -2,11 +2,14 @@ import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog, type DialogContentProps } from '@/components/ui/dialog';
 import { usePartLocations, useAddStock, useRemoveStock } from '@/hooks/use-parts';
 import { useLocationSuggestions } from '@/hooks/use-types';
 import { useGetBoxes } from '@/lib/api/generated/hooks';
+import { useToast } from '@/hooks/use-toast';
 import { BoxSelector } from './box-selector';
-import { Plus, Minus } from 'lucide-react';
+import { AdjustStockDialog } from './adjust-stock-dialog';
+import { Pencil, Trash2 } from 'lucide-react';
 
 interface PartLocation {
   box_no: number;
@@ -90,6 +93,7 @@ export function PartLocationGrid({ partId, typeId }: PartLocationGridProps) {
             location={location}
             boxDescription={boxMapping.get(location.box_no) || ''}
             partId={partId}
+            allLocations={locations}
             isEditing={editingLocation === `${location.box_no}-${location.loc_no}`}
             onStartEdit={() => setEditingLocation(`${location.box_no}-${location.loc_no}`)}
             onStopEdit={() => setEditingLocation(null)}
@@ -128,6 +132,7 @@ interface LocationRowProps {
   location: PartLocation;
   boxDescription: string;
   partId: string;
+  allLocations: PartLocation[];
   isEditing: boolean;
   onStartEdit: () => void;
   onStopEdit: () => void;
@@ -139,60 +144,164 @@ function LocationRow({
   location,
   boxDescription,
   partId,
+  allLocations,
   isEditing,
   onStartEdit,
   onStopEdit,
   onQuantityChange,
   onRemove
 }: LocationRowProps) {
-  const [quantity, setQuantity] = useState(location.qty.toString());
+  const { showSuccess } = useToast();
   const removeStockMutation = useRemoveStock();
   const addStockMutation = useAddStock();
 
-  const handleSave = async () => {
-    const newQty = parseInt(quantity, 10);
-    if (isNaN(newQty) || newQty < 0) return;
+  // Adjust stock dialog state
+  const [adjustDialogOpen, setAdjustDialogOpen] = useState(false);
 
-    if (newQty === 0) {
-      handleRemove();
-      return;
-    }
+  // Edit mode state
+  const [editBoxNo, setEditBoxNo] = useState<number | undefined>(location.box_no);
+  const [editLocNo, setEditLocNo] = useState(location.loc_no.toString());
+  const [editQty, setEditQty] = useState(location.qty.toString());
 
-    const currentQty = location.qty;
-    const diff = newQty - currentQty;
-    
-    if (diff === 0) {
-      onStopEdit();
-      return;
-    }
+  // Merge confirmation dialog state
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  const [pendingMergeTarget, setPendingMergeTarget] = useState<PartLocation | null>(null);
 
-    if (diff > 0) {
-      // Add stock
+  // Reset edit form when editing starts
+  const handleStartEdit = () => {
+    setEditBoxNo(location.box_no);
+    setEditLocNo(location.loc_no.toString());
+    setEditQty(location.qty.toString());
+    onStartEdit();
+  };
+
+  // Handle stock adjustment from dialog
+  const handleAdjust = async (delta: number) => {
+    if (delta > 0) {
       await addStockMutation.mutateAsync({
         path: { part_key: partId },
         body: {
           box_no: location.box_no,
           loc_no: location.loc_no,
-          qty: diff
+          qty: delta
         }
       });
-    } else {
-      // Remove stock
+    } else if (delta < 0) {
+      const newQty = location.qty + delta;
+      if (newQty <= 0) {
+        // Remove the entire location
+        await removeStockMutation.mutateAsync({
+          path: { part_key: partId },
+          body: {
+            box_no: location.box_no,
+            loc_no: location.loc_no,
+            qty: location.qty
+          }
+        });
+      } else {
+        await removeStockMutation.mutateAsync({
+          path: { part_key: partId },
+          body: {
+            box_no: location.box_no,
+            loc_no: location.loc_no,
+            qty: Math.abs(delta)
+          }
+        });
+      }
+    }
+    onQuantityChange();
+  };
+
+  // Handle save from inline edit mode
+  const handleSave = async () => {
+    const newBoxNo = editBoxNo;
+    const newLocNo = parseInt(editLocNo, 10);
+    const newQty = parseInt(editQty, 10);
+
+    if (!newBoxNo || isNaN(newLocNo) || isNaN(newQty) || newQty < 0) return;
+
+    // Check if quantity is zero - treat as remove
+    if (newQty === 0) {
+      await handleRemove();
+      return;
+    }
+
+    // Check if location changed
+    const locationChanged = newBoxNo !== location.box_no || newLocNo !== location.loc_no;
+
+    if (locationChanged) {
+      // Check if target location already exists
+      const existingLocation = allLocations.find(
+        loc => loc.box_no === newBoxNo && loc.loc_no === newLocNo
+      );
+
+      if (existingLocation) {
+        // Show merge confirmation dialog
+        setPendingMergeTarget(existingLocation);
+        setMergeDialogOpen(true);
+        return;
+      }
+
+      // Move stock to new location: remove from old, add to new
       await removeStockMutation.mutateAsync({
         path: { part_key: partId },
         body: {
           box_no: location.box_no,
           loc_no: location.loc_no,
-          qty: Math.abs(diff)
+          qty: location.qty
         }
       });
+
+      await addStockMutation.mutateAsync({
+        path: { part_key: partId },
+        body: {
+          box_no: newBoxNo,
+          loc_no: newLocNo,
+          qty: newQty
+        }
+      });
+    } else {
+      // Only quantity changed at same location
+      const diff = newQty - location.qty;
+
+      if (diff === 0) {
+        onStopEdit();
+        return;
+      }
+
+      if (diff > 0) {
+        await addStockMutation.mutateAsync({
+          path: { part_key: partId },
+          body: {
+            box_no: location.box_no,
+            loc_no: location.loc_no,
+            qty: diff
+          }
+        });
+      } else {
+        await removeStockMutation.mutateAsync({
+          path: { part_key: partId },
+          body: {
+            box_no: location.box_no,
+            loc_no: location.loc_no,
+            qty: Math.abs(diff)
+          }
+        });
+      }
     }
-    
+
     onStopEdit();
     onQuantityChange();
   };
 
-  const handleRemove = async () => {
+  // Handle merge confirmation
+  const handleMergeConfirm = async () => {
+    if (!pendingMergeTarget || !editBoxNo) return;
+
+    const newQty = parseInt(editQty, 10);
+    if (isNaN(newQty) || newQty < 0) return;
+
+    // Remove from original location
     await removeStockMutation.mutateAsync({
       path: { part_key: partId },
       body: {
@@ -201,136 +310,226 @@ function LocationRow({
         qty: location.qty
       }
     });
-    onRemove();
-  };
 
-  const handleCancel = () => {
-    setQuantity(location.qty.toString());
-    onStopEdit();
-  };
-
-  const handleIncrement = async () => {
+    // Add to target location (this will merge with existing quantity)
     await addStockMutation.mutateAsync({
+      path: { part_key: partId },
+      body: {
+        box_no: editBoxNo,
+        loc_no: parseInt(editLocNo, 10),
+        qty: newQty
+      }
+    });
+
+    setMergeDialogOpen(false);
+    setPendingMergeTarget(null);
+    onStopEdit();
+    onQuantityChange();
+  };
+
+  // Handle remove with toast+undo
+  const handleRemove = async () => {
+    const removedLocation = { ...location };
+
+    await removeStockMutation.mutateAsync({
       path: { part_key: partId },
       body: {
         box_no: location.box_no,
         loc_no: location.loc_no,
-        qty: 1
+        qty: location.qty
       }
     });
-    onQuantityChange();
+
+    onRemove();
+
+    // Show toast with undo action
+    showSuccess(`Removed stock from #${removedLocation.box_no} Location ${removedLocation.loc_no}`, {
+      action: {
+        id: 'undo',
+        label: 'Undo',
+        testId: `parts.locations.toast.undo.${removedLocation.box_no}-${removedLocation.loc_no}`,
+        onClick: async () => {
+          // Re-add the stock
+          await addStockMutation.mutateAsync({
+            path: { part_key: partId },
+            body: {
+              box_no: removedLocation.box_no,
+              loc_no: removedLocation.loc_no,
+              qty: removedLocation.qty
+            }
+          });
+          onQuantityChange();
+        },
+      },
+    });
   };
 
-  const handleDecrement = async () => {
-    if (location.qty <= 1) {
-      // If quantity is 1, decrementing will remove the location entirely
-      await handleRemove();
-    } else {
-      await removeStockMutation.mutateAsync({
-        path: { part_key: partId },
-        body: {
-          box_no: location.box_no,
-          loc_no: location.loc_no,
-          qty: 1
-        }
-      });
-      onQuantityChange();
+  const handleCancel = () => {
+    setEditBoxNo(location.box_no);
+    setEditLocNo(location.loc_no.toString());
+    setEditQty(location.qty.toString());
+    onStopEdit();
+  };
+
+  // Handle keyboard events in edit mode
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancel();
     }
   };
 
-  return (
-    <div
-      className="flex items-center py-1 gap-4 w-fit"
-      data-testid="parts.locations.row"
-      data-box={location.box_no}
-      data-location={location.loc_no}
-    >
-      <div className="flex-shrink-0 pb-0.5">
-        <span className="text-sm">#{location.box_no}</span>
-        <span className="text-sm text-muted-foreground ml-1">{boxDescription}</span>
-      </div>
-      
-      <div className="w-12 text-center flex-shrink-0 pb-0.5">
-        <span className="text-sm">{location.loc_no}</span>
-      </div>
-      
-      <div className="w-16 text-center flex-shrink-0">
-        {isEditing ? (
+  const isMutating = removeStockMutation.isPending || addStockMutation.isPending;
+
+  if (isEditing) {
+    // Inline edit mode - similar to AddLocationRow
+    return (
+      <>
+        <div
+          className="flex items-center gap-2 p-2 border rounded bg-muted/30"
+          data-testid="parts.locations.row"
+          data-box={location.box_no}
+          data-location={location.loc_no}
+          data-editing="true"
+        >
+          <BoxSelector
+            value={editBoxNo}
+            onChange={setEditBoxNo}
+            placeholder="Select box..."
+            testId="parts.locations.edit-box-selector"
+          />
           <Input
             type="number"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            className="w-16 h-8"
-            min="0"
-            autoFocus
-            data-testid="parts.locations.quantity-input"
+            placeholder="Location"
+            value={editLocNo}
+            onChange={(e) => setEditLocNo(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="w-20 h-8"
+            min="1"
+            data-testid="parts.locations.edit-location-input"
           />
-        ) : (
-          <button
-            className="cursor-pointer text-sm hover:bg-accent hover:text-accent-foreground px-2 py-1 rounded"
-            onClick={onStartEdit}
-            data-testid="parts.locations.quantity"
+          <Input
+            type="number"
+            placeholder="Quantity"
+            value={editQty}
+            onChange={(e) => setEditQty(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="w-20 h-8"
+            min="0"
+            data-testid="parts.locations.edit-quantity-input"
+          />
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={isMutating || !editBoxNo || !editLocNo || !editQty}
+            loading={isMutating}
+            data-testid="parts.locations.edit-save"
           >
+            Save
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleCancel}
+            disabled={isMutating}
+            data-testid="parts.locations.edit-cancel"
+          >
+            Cancel
+          </Button>
+        </div>
+
+        {/* Merge confirmation dialog */}
+        <ConfirmDialog
+          open={mergeDialogOpen}
+          onOpenChange={setMergeDialogOpen}
+          title="Merge Stock Locations?"
+          description={pendingMergeTarget
+            ? `Stock already exists at #${pendingMergeTarget.box_no} Location ${pendingMergeTarget.loc_no} (${pendingMergeTarget.qty} units). Merge the quantities together?`
+            : ''
+          }
+          confirmText="Merge"
+          cancelText="Cancel"
+          onConfirm={handleMergeConfirm}
+          contentProps={{ 'data-testid': 'parts.locations.merge-dialog' } as DialogContentProps}
+        />
+      </>
+    );
+  }
+
+  // Read-only display mode
+  return (
+    <>
+      <div
+        className="flex items-center py-1 gap-4 w-fit"
+        data-testid="parts.locations.row"
+        data-box={location.box_no}
+        data-location={location.loc_no}
+      >
+        <div className="flex-shrink-0 pb-0.5">
+          <span className="text-sm">#{location.box_no}</span>
+          <span className="text-sm text-muted-foreground ml-1">{boxDescription}</span>
+        </div>
+
+        <div className="w-12 text-center flex-shrink-0 pb-0.5">
+          <span className="text-sm">{location.loc_no}</span>
+        </div>
+
+        <div className="w-16 text-center flex-shrink-0 pb-0.5">
+          <span className="text-sm" data-testid="parts.locations.quantity">
             {location.qty}
-          </button>
-        )}
+          </span>
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setAdjustDialogOpen(true)}
+            disabled={isMutating}
+            data-testid="parts.locations.adjust-stock"
+          >
+            Adjust Stock
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleStartEdit}
+            disabled={isMutating}
+            className="h-8 w-8 p-0"
+            aria-label="Edit location"
+            data-testid="parts.locations.edit"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleRemove}
+            disabled={isMutating}
+            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+            aria-label="Remove location"
+            data-testid="parts.locations.remove"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
-      
-      <div className="flex gap-2">
-        {isEditing ? (
-          <>
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={removeStockMutation.isPending || addStockMutation.isPending}
-            >
-              Save Quantity
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleCancel}
-              disabled={removeStockMutation.isPending || addStockMutation.isPending}
-            >
-              Cancel Edit
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleIncrement}
-              disabled={addStockMutation.isPending || removeStockMutation.isPending}
-              className="h-8 w-8 p-0"
-              aria-label="Increase quantity"
-            >
-              <Plus />
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleDecrement}
-              disabled={addStockMutation.isPending || removeStockMutation.isPending}
-              className="h-8 w-8 p-0"
-              aria-label="Decrease quantity"
-            >
-              <Minus />
-            </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={handleRemove}
-          disabled={removeStockMutation.isPending || addStockMutation.isPending}
-          className="text-destructive hover:text-destructive"
-          data-testid="parts.locations.remove"
-        >
-          Remove Location
-        </Button>
-          </>
-        )}
-      </div>
-    </div>
+
+      {/* Adjust stock dialog */}
+      <AdjustStockDialog
+        open={adjustDialogOpen}
+        onOpenChange={setAdjustDialogOpen}
+        currentQuantity={location.qty}
+        boxNo={location.box_no}
+        locNo={location.loc_no}
+        boxDescription={boxDescription}
+        onAdjust={handleAdjust}
+        isLoading={isMutating}
+      />
+    </>
   );
 }
 
@@ -345,7 +544,7 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
   const [boxNo, setBoxNo] = useState<number | undefined>(undefined);
   const [locNo, setLocNo] = useState('');
   const [quantity, setQuantity] = useState('');
-  
+
   const addStockMutation = useAddStock();
   const { data: suggestions } = useLocationSuggestions(typeId);
 
@@ -365,12 +564,12 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
         qty: qty
       }
     });
-    
+
     // Clear form fields for consecutive additions
     setBoxNo(undefined);
     setLocNo('');
     setQuantity('');
-    
+
     onAdd();
   };
 
@@ -421,7 +620,7 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
         min="1"
         data-testid="parts.locations.quantity-add"
       />
-      
+
       {suggestions && Array.isArray(suggestions) && suggestions.length > 0 && (
         <Button
           size="sm"
@@ -432,7 +631,7 @@ function AddLocationRow({ partId, typeId, onAdd, onCancel }: AddLocationRowProps
           Use Suggested
         </Button>
       )}
-      
+
       <Button
         size="sm"
         onClick={handleAdd}

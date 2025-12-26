@@ -165,6 +165,7 @@ export function PartListItem({
         <VendorInfo
           seller={part.seller}
           sellerLink={part.seller_link}
+          inCardContext
         />
 
         <LocationSummary
