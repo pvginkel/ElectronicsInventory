@@ -5,14 +5,18 @@ import io
 import logging
 from pathlib import Path
 from textwrap import dedent
-from typing import Any
+
+# Import TYPE_CHECKING for forward reference
+from typing import TYPE_CHECKING, Any
 
 from PIL import Image, ImageDraw, ImageFont
 
 from app.database import drop_all_tables, sync_master_data_from_setup, upgrade_database
 from app.services.base import BaseService
-from app.services.test_data_service import TestDataService
 from app.utils.reset_lock import ResetLock
+
+if TYPE_CHECKING:
+    from app.services.test_data_service import TestDataService
 
 logger = logging.getLogger(__name__)
 
@@ -27,15 +31,17 @@ class TestingService(BaseService):
     PREVIEW_IMAGE_QUERY = "Fixture+Preview"
     _PDF_ASSET_PATH = Path(__file__).resolve().parents[1] / "assets" / "fake-pdf.pdf"
 
-    def __init__(self, db: Any, reset_lock: ResetLock):
-        """Initialize service with database session and reset lock.
+    def __init__(self, db: Any, reset_lock: ResetLock, test_data_service: "TestDataService"):
+        """Initialize service with database session, reset lock, and test data service.
 
         Args:
             db: SQLAlchemy database session
             reset_lock: Reset lock for concurrency control
+            test_data_service: Service for loading test data
         """
         super().__init__(db)
         self.reset_lock = reset_lock
+        self.test_data_service = test_data_service
         self._cached_pdf_bytes: bytes | None = None
 
     def reset_database(self, seed: bool = False) -> dict[str, Any]:
@@ -75,8 +81,7 @@ class TestingService(BaseService):
             # Step 4: Load test data if requested
             if seed:
                 logger.info("Loading test dataset")
-                test_data_service = TestDataService(self.db)
-                test_data_service.load_full_dataset()
+                self.test_data_service.load_full_dataset()
                 logger.info("Test dataset loaded successfully")
 
             # Commit all changes

@@ -39,8 +39,7 @@ class _DummySession:
 class _DummyTestDataService:
     """Stubbed test data loader that tracks invocation."""
 
-    def __init__(self, session):  # pragma: no cover - trivial
-        self.session = session
+    def __init__(self):  # pragma: no cover - trivial
         self.loaded = False
 
     def load_full_dataset(self) -> None:
@@ -51,14 +50,16 @@ def test_handle_load_test_data_reports_target_database(monkeypatch, capsys):
     """The CLI should make the target database explicit before destructive work."""
     app = Flask(__name__)
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///cli-test.db"
-    app.container = SimpleNamespace(session_maker=lambda: _DummySession)
+
+    service_stub = _DummyTestDataService()
+    app.container = SimpleNamespace(
+        session_maker=lambda: _DummySession,
+        test_data_service=lambda: service_stub
+    )
 
     monkeypatch.setattr(cli, "check_db_connection", lambda: True)
     monkeypatch.setattr(cli, "upgrade_database", lambda recreate=False: [])
     monkeypatch.setattr(cli, "sync_master_data_from_setup", lambda session: None)
-
-    service_stub = _DummyTestDataService(_DummySession())
-    monkeypatch.setattr(cli, "TestDataService", lambda session: service_stub)
 
     cli.handle_load_test_data(app=app, confirmed=True)
 
