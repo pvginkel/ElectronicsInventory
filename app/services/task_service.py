@@ -182,17 +182,14 @@ class TaskService:
             callback: Connect callback from SSE Gateway
             task_id: Task ID extracted from callback URL
         """
-        t0 = time.perf_counter()
         identifier = f"task:{task_id}"
         token = callback.token
         url = callback.request.url
 
-        logger.info(f"[TIMING] task on_connect START: task_id={task_id}, token={token}")
+        logger.info(f"Task stream connection: task_id={task_id}, token={token}")
 
         # Register connection with ConnectionManager
-        t1 = time.perf_counter()
         self.connection_manager.on_connect(identifier, token, url)
-        logger.info(f"[TIMING] task on_connect: connection_manager.on_connect took {(time.perf_counter() - t1) * 1000:.1f}ms")
 
         # Check if task exists
         with self._lock:
@@ -200,24 +197,19 @@ class TaskService:
 
         if not task_exists:
             # Task not found - send error event and close
-            t2 = time.perf_counter()
             self.connection_manager.send_event(
                 identifier,
                 {"error": "Task not found", "task_id": task_id},
                 event_name="error",
                 close=False
             )
-            logger.info(f"[TIMING] task on_connect: send_event (error) took {(time.perf_counter() - t2) * 1000:.1f}ms")
             # Send connection_close event with close=True
-            t3 = time.perf_counter()
             self.connection_manager.send_event(
                 identifier,
                 {"reason": "task_not_found"},
                 event_name="connection_close",
                 close=True
             )
-            logger.info(f"[TIMING] task on_connect: send_event (close) took {(time.perf_counter() - t3) * 1000:.1f}ms")
-            logger.info(f"[TIMING] task on_connect END (not found): total={(time.perf_counter() - t0) * 1000:.1f}ms")
             return
 
         # Send any queued events for this task
@@ -225,7 +217,6 @@ class TaskService:
         if event_queue:
             # Drain queued events and send via ConnectionManager
             events_sent = 0
-            t4 = time.perf_counter()
             try:
                 while True:
                     event = event_queue.get_nowait()
@@ -233,9 +224,9 @@ class TaskService:
                     events_sent += 1
             except Empty:
                 pass
-            logger.info(f"[TIMING] task on_connect: sent {events_sent} queued events in {(time.perf_counter() - t4) * 1000:.1f}ms")
 
-        logger.info(f"[TIMING] task on_connect END: total={(time.perf_counter() - t0) * 1000:.1f}ms")
+            if events_sent > 0:
+                logger.debug(f"Sent {events_sent} queued events for task {task_id}")
 
     def on_disconnect(self, callback: SSEGatewayDisconnectCallback) -> None:
         """Handle SSE Gateway disconnect callback for task streams.

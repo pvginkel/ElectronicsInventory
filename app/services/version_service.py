@@ -54,20 +54,14 @@ class VersionService:
 
     def _fetch_frontend_version(self) -> dict[str, Any]:
         """Fetch frontend version from configured URL."""
-        t0 = time.perf_counter()
         try:
             url = self.settings.FRONTEND_VERSION_URL
-            logger.info(f"[TIMING] _fetch_frontend_version: starting GET {url}")
             response = requests.get(url, timeout=2)
             response.raise_for_status()
-            result = json.loads(response.text)
-            elapsed = (time.perf_counter() - t0) * 1000
-            logger.info(f"[TIMING] _fetch_frontend_version: completed in {elapsed:.1f}ms")
-            return result
+            return json.loads(response.text)
 
         except (requests.RequestException, json.JSONDecodeError) as e:
-            elapsed = (time.perf_counter() - t0) * 1000
-            logger.warning(f"[TIMING] _fetch_frontend_version: failed in {elapsed:.1f}ms - {e}")
+            logger.warning(f"Failed to fetch frontend version: {e}")
             return {"version": "unknown", "error": str(e)}
 
     def on_connect(self, callback: SSEGatewayConnectCallback, request_id: str) -> None:
@@ -77,58 +71,50 @@ class VersionService:
             callback: Connect callback from SSE Gateway
             request_id: Request ID extracted from callback URL
         """
-        t0 = time.perf_counter()
         identifier = f"version:{request_id}"
         token = callback.token
         url = callback.request.url
 
-        logger.info(f"[TIMING] on_connect START: request_id={request_id}, token={token}")
+        logger.info(f"Version stream connection: request_id={request_id}, token={token}")
 
         # Register connection with ConnectionManager (no lock needed, CM has its own)
-        t1 = time.perf_counter()
         self.connection_manager.on_connect(identifier, token, url)
-        logger.info(f"[TIMING] on_connect: connection_manager.on_connect took {(time.perf_counter() - t1) * 1000:.1f}ms")
 
         # Get pending events under lock (quick operation)
-        t2 = time.perf_counter()
         with self._lock:
             pending_events = self._pending_events.pop(request_id, [])
-        logger.info(f"[TIMING] on_connect: lock + pending_events.pop took {(time.perf_counter() - t2) * 1000:.1f}ms")
 
         # If no pending events, fetch current version
         if len(pending_events) == 0:
-            t3 = time.perf_counter()
             version_payload = self._fetch_frontend_version()
-            logger.info(f"[TIMING] on_connect: _fetch_frontend_version took {(time.perf_counter() - t3) * 1000:.1f}ms")
             event: VersionEvent = ("version", version_payload)
             pending_events.insert(0, event)
 
         # Send events (HTTP calls can be slow)
-        t4 = time.perf_counter()
         failed_events: list[VersionEvent] = []
-        for i, (event_name, event_data) in enumerate(pending_events):
-            t_send = time.perf_counter()
+        for event_name, event_data in pending_events:
             success = self.connection_manager.send_event(
                 identifier,
                 event_data,
                 event_name=event_name,
                 close=False
             )
-            logger.info(f"[TIMING] on_connect: send_event[{i}] took {(time.perf_counter() - t_send) * 1000:.1f}ms, success={success}")
             if not success:
                 failed_events.append((event_name, event_data))
                 logger.warning(
                     f"Failed to send pending event '{event_name}' for request_id {request_id}; re-queuing"
                 )
-        logger.info(f"[TIMING] on_connect: all send_event calls took {(time.perf_counter() - t4) * 1000:.1f}ms total")
 
         # Re-queue failed events under lock (quick operation)
         if failed_events:
             with self._lock:
                 self._pending_events[request_id] = failed_events
 
-        total_elapsed = (time.perf_counter() - t0) * 1000
-        logger.info(f"[TIMING] on_connect END: total={total_elapsed:.1f}ms, events_sent={len(pending_events) - len(failed_events)}/{len(pending_events)}")
+        if pending_events:
+            sent_count = len(pending_events) - len(failed_events)
+            logger.debug(
+                f"Sent {sent_count}/{len(pending_events)} pending events for request_id {request_id}"
+            )
 
     def on_disconnect(self, callback: SSEGatewayDisconnectCallback) -> None:
         """Handle SSE Gateway disconnect callback for version streams.
