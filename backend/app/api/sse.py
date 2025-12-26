@@ -1,7 +1,6 @@
 """SSE Gateway callback endpoint for handling connect/disconnect notifications."""
 
 import logging
-import time
 from urllib.parse import parse_qs, urlparse
 
 from dependency_injector.wiring import Provide, inject
@@ -111,9 +110,6 @@ def handle_callback(
         401 if authentication fails (production only)
         400 if payload invalid or URL not routable
     """
-    t0 = time.perf_counter()
-    logger.warning("[TIMING] /api/sse/callback START (warning level for visibility)")
-
     # Authenticate request (production only)
     secret = request.args.get("secret")
     if not _authenticate_callback(secret, settings):
@@ -136,7 +132,6 @@ def handle_callback(
 
     try:
         action = payload.get("action")
-        logger.info(f"[TIMING] /api/sse/callback: action={action}, parse took {(time.perf_counter() - t0) * 1000:.1f}ms")
 
         if action == "connect":
             # Validate as connect callback
@@ -150,19 +145,14 @@ def handle_callback(
                 ), 400
 
             service_type, identifier = route_result
-            logger.info(f"[TIMING] /api/sse/callback: routing to {service_type}:{identifier}")
 
             # Call service-specific on_connect handler
-            t1 = time.perf_counter()
             if service_type == "task":
                 task_service.on_connect(connect_callback, identifier)
             elif service_type == "version":
                 version_service.on_connect(connect_callback, identifier)
             else:
                 return jsonify({"error": f"Unknown service type: {service_type}"}), 400
-
-            logger.info(f"[TIMING] /api/sse/callback: on_connect took {(time.perf_counter() - t1) * 1000:.1f}ms")
-            logger.info(f"[TIMING] /api/sse/callback END: total={(time.perf_counter() - t0) * 1000:.1f}ms")
 
             # Return empty JSON response (SSE Gateway only checks status code)
             return jsonify({}), 200

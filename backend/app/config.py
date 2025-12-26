@@ -183,12 +183,6 @@ class Settings(BaseSettings):
         description="Shared secret for authenticating SSE Gateway callbacks (required in production)"
     )
 
-    # CAS migration settings
-    CAS_MIGRATION_DELETE_OLD_OBJECTS: bool = Field(
-        default=False,
-        description="Delete old UUID-based S3 objects after CAS migration completes (safety flag)"
-    )
-
     @model_validator(mode="after")
     def configure_environment_defaults(self) -> "Settings":
         """Apply environment-specific defaults after validation."""
