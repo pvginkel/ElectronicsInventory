@@ -145,7 +145,8 @@ def get_box_locations(box_no: int, box_service: BoxService = Provide[ServiceCont
                     key=part.key,
                     qty=part.qty,
                     manufacturer_code=part.manufacturer_code,
-                    description=part.description
+                    description=part.description,
+                    cover_url=part.cover_url,
                 )
                 for part in location_data.part_assignments
             ]
