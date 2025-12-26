@@ -230,6 +230,7 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
         # Run CAS migration if needed (startup hook)
         try:
             cas_migration_service = container.cas_migration_service()
+            migration_stats : dict[str, int] | None = None
 
             if cas_migration_service.needs_migration():
                 unmigrated_count = cas_migration_service.get_unmigrated_count()
@@ -240,22 +241,22 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
                     f"CAS migration complete: {migration_stats['migrated']} migrated, "
                     f"{migration_stats['errors']} errors, {migration_stats['skipped']} skipped"
                 )
-
-                # Run cleanup if enabled and migration complete
-                if settings.CAS_MIGRATION_DELETE_OLD_OBJECTS:
-                    if migration_stats['errors'] == 0:
-                        app.logger.info("Starting S3 cleanup of old objects...")
-                        cleanup_stats = cas_migration_service.cleanup_old_objects()
-                        app.logger.info(
-                            f"S3 cleanup complete: {cleanup_stats['deleted']} deleted, "
-                            f"{cleanup_stats['errors']} errors, {cleanup_stats['skipped']} skipped"
-                        )
-                    else:
-                        app.logger.warning(
-                            f"Skipping S3 cleanup due to {migration_stats['errors']} migration errors"
-                        )
             else:
                 app.logger.debug("No CAS migration needed")
+
+            # Run cleanup if enabled and migration complete
+            if settings.CAS_MIGRATION_DELETE_OLD_OBJECTS:
+                if not migration_stats or migration_stats['errors'] == 0:
+                    app.logger.info("Starting S3 cleanup of old objects...")
+                    cleanup_stats = cas_migration_service.cleanup_old_objects()
+                    app.logger.info(
+                        f"S3 cleanup complete: {cleanup_stats['deleted']} deleted, "
+                        f"{cleanup_stats['errors']} errors, {cleanup_stats['skipped']} skipped"
+                    )
+                else:
+                    app.logger.warning(
+                        f"Skipping S3 cleanup due to {migration_stats['errors']} migration errors"
+                    )
 
         except Exception as e:
             app.logger.error(f"CAS migration failed: {e}", exc_info=True)
