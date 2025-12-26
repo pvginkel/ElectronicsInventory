@@ -260,6 +260,8 @@ export function UpdateStockDialog({
 }: UpdateStockDialogProps) {
   const submitModeRef = useRef<SubmitMode>('save');
   const receiveSucceededRef = useRef(false);
+  // Store submitted values for tracking after form refreshes
+  const lastSubmitRef = useRef<{ receiveQuantity: number; allocationCount: number }>({ receiveQuantity: 0, allocationCount: 0 });
   const [showAllocationErrors, setShowAllocationErrors] = useState(false);
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
   const [mismatchReason, setMismatchReason] = useState('');
@@ -337,6 +339,13 @@ export function UpdateStockDialog({
 
   const canSubmit = !!line && allocationValidation.isValid && allocationValidation.totalReceive > 0 && !isReceiving;
 
+  // Create a stable key from line data that changes when relevant values change
+  // This ensures the effect runs even if React doesn't detect the line object reference change
+  const lineDataKey = line
+    ? `${line.id}:${line.received}:${line.partLocations.map((l) => `${l.id}:${l.quantity}`).join(',')}`
+    : '';
+
+  // Re-initialize form when dialog opens, line data changes, or after a save operation
   useEffect(() => {
     if (!open) {
       return;
@@ -344,14 +353,14 @@ export function UpdateStockDialog({
     if (line) {
       form.setValue('allocations', buildInitialAllocations(line));
       setShowAllocationErrors(false);
-      submitModeRef.current = 'save';
+      submitModeRef.current = 'complete';
       receiveSucceededRef.current = false;
     } else {
       form.setValue('allocations', []);
       setShowAllocationErrors(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, line]);
+  }, [open, lineDataKey]);
 
   useEffect(() => {
     if (open) {
@@ -425,6 +434,16 @@ export function UpdateStockDialog({
     setMismatchReason('');
     setMismatchError(null);
     onClose();
+  };
+
+  // Dispatch form submission based on mode - Complete Item is the default action (Enter key)
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    if (submitModeRef.current === 'save') {
+      form.handleSubmit(e);
+    } else {
+      e.preventDefault();
+      handleMarkDone();
+    }
   };
 
   const handleAllocationChange = (allocationId: string, updates: Partial<AllocationDraft>) => {
@@ -507,6 +526,8 @@ export function UpdateStockDialog({
         });
         // Mark that receive succeeded so we don't re-submit if completion fails
         receiveSucceededRef.current = true;
+        // Store values for success tracking after form refresh
+        lastSubmitRef.current = { receiveQuantity, allocationCount };
       } catch (error) {
         formInstrumentation.trackError({
           listId: line.shoppingListId,
@@ -575,6 +596,7 @@ export function UpdateStockDialog({
       }
       return;
     }
+    // Show mismatch dialog - form will refresh when line data updates
     setMismatchReason('');
     setMismatchError(null);
     setCompletionDialogOpen(true);
@@ -609,14 +631,13 @@ export function UpdateStockDialog({
         lineId: line.id,
         mismatchReasonLength: trimmed.length,
       });
-      // Track form success now that both operations completed
-      const currentValidation = validateAllocations(form.values.allocations);
+      // Track form success using stored values (form has already been refreshed)
       formInstrumentation.trackSuccess({
         listId: line.shoppingListId,
         lineId: line.id,
         mode: submitModeRef.current,
-        receiveQuantity: currentValidation.totalReceive,
-        allocationCount: countValidAllocations(form.values.allocations),
+        receiveQuantity: lastSubmitRef.current.receiveQuantity,
+        allocationCount: lastSubmitRef.current.allocationCount,
       });
       setCompletionDialogOpen(false);
       setMismatchReason('');
@@ -646,7 +667,7 @@ export function UpdateStockDialog({
         className="max-w-[95vw] sm:max-w-3xl"
       >
         <DialogContent data-testid="shopping-lists.ready.update-stock.dialog">
-          <Form onSubmit={form.handleSubmit} data-testid="shopping-lists.ready.update-stock.form">
+          <Form onSubmit={handleFormSubmit} data-testid="shopping-lists.ready.update-stock.form">
             <DialogHeader>
               <DialogTitle>{line ? `Update stock for ${line.part.description}` : 'Update stock'}</DialogTitle>
               <DialogDescription>
@@ -872,22 +893,24 @@ export function UpdateStockDialog({
               </Button>
               <div className="flex items-center gap-2">
                 <Button
-                  type="submit"
+                  type="button"
                   variant="secondary"
                   loading={isReceiving}
                   disabled={!canSubmit}
-                  onClick={() => handleSubmitMode('save')}
+                  onClick={(e) => {
+                    handleSubmitMode('save');
+                    e.currentTarget.closest('form')?.requestSubmit();
+                  }}
                   data-testid="shopping-lists.ready.update-stock.submit"
                 >
                   Save Item
                 </Button>
                 <Button
-                  type="button"
+                  type="submit"
                   variant="primary"
                   className="bg-emerald-600 hover:bg-emerald-600/90"
                   loading={isCompleting}
                   disabled={!line || isCompleting}
-                  onClick={handleMarkDone}
                   data-testid="shopping-lists.ready.update-stock.mark-done"
                 >
                   Complete Item

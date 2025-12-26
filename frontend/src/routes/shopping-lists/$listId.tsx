@@ -79,7 +79,7 @@ interface OrderGroupState {
 
 interface UpdateStockState {
   open: boolean;
-  line: ShoppingListConceptLine | null;
+  lineId: number | null;
   trigger: HTMLElement | null;
 }
 
@@ -137,7 +137,11 @@ function ShoppingListDetailRoute() {
   const [highlightedLineId, setHighlightedLineId] = useState<number | null>(null);
   const [orderLineState, setOrderLineState] = useState<OrderLineState>({ open: false, line: null, trigger: null });
   const [orderGroupState, setOrderGroupState] = useState<OrderGroupState>({ open: false, group: null, trigger: null });
-  const [updateStockState, setUpdateStockState] = useState<UpdateStockState>({ open: false, line: null, trigger: null });
+  const [updateStockState, setUpdateStockState] = useState<UpdateStockState>({ open: false, lineId: null, trigger: null });
+  // Look up the current line from query data so it stays fresh after saves
+  const updateStockLine = updateStockState.lineId !== null
+    ? lines?.find((l) => l.id === updateStockState.lineId) ?? null
+    : null;
   const [pendingLineIds, setPendingLineIds] = useState<Set<number>>(new Set());
   const [linkToUnlink, setLinkToUnlink] = useState<ShoppingListKitLink | null>(null);
   const [unlinkingLinkId, setUnlinkingLinkId] = useState<number | null>(null);
@@ -553,7 +557,7 @@ function ShoppingListDetailRoute() {
   }, [detailIsCompleted, normalizedListId, orderGroupMutation, orderGroupState.group, showException, showSuccess, updatePendingLine]);
 
   const handleCloseUpdateStock = useCallback(() => {
-    setUpdateStockState(prev => ({ open: false, line: null, trigger: prev.trigger }));
+    setUpdateStockState(prev => ({ open: false, lineId: null, trigger: prev.trigger }));
   }, []);
 
   const handleReceiveSubmit = useCallback(async (payload: {
@@ -564,7 +568,7 @@ function ShoppingListDetailRoute() {
     if (detailIsCompleted) {
       return;
     }
-    const target = updateStockState.line;
+    const target = updateStockLine;
     if (!target) {
       return;
     }
@@ -586,7 +590,7 @@ function ShoppingListDetailRoute() {
       // calling onMarkDone after this succeeds. We only close the dialog here
       // if mode is 'save' (save-only without completion).
       if (payload.mode === 'save') {
-        setUpdateStockState(prev => ({ open: false, line: null, trigger: prev.trigger }));
+        setUpdateStockState(prev => ({ open: false, lineId: null, trigger: prev.trigger }));
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to receive stock';
@@ -595,13 +599,13 @@ function ShoppingListDetailRoute() {
     } finally {
       updatePendingLine(target.id, false);
     }
-  }, [detailIsCompleted, receiveLineMutation, showException, showSuccess, updatePendingLine, updateStockState.line]);
+  }, [detailIsCompleted, receiveLineMutation, showException, showSuccess, updatePendingLine, updateStockLine]);
 
   const handleMarkLineDone = useCallback(async (payload: { mismatchReason: string | null }) => {
     if (detailIsCompleted) {
       return;
     }
-    const target = updateStockState.line;
+    const target = updateStockLine;
     if (!target) {
       return;
     }
@@ -618,7 +622,7 @@ function ShoppingListDetailRoute() {
       const hasReason = Boolean(payload.mismatchReason?.trim());
       showSuccess(hasReason ? `Marked ${target.part.description} done with mismatch noted` : `Marked ${target.part.description} done`);
       setHighlightedLineId(target.id);
-      setUpdateStockState(prev => ({ open: false, line: null, trigger: prev.trigger }));
+      setUpdateStockState(prev => ({ open: false, lineId: null, trigger: prev.trigger }));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to complete line';
       showException(message, err);
@@ -626,7 +630,7 @@ function ShoppingListDetailRoute() {
     } finally {
       updatePendingLine(target.id, false);
     }
-  }, [completeLineMutation, detailIsCompleted, showException, showSuccess, updatePendingLine, updateStockState.line]);
+  }, [completeLineMutation, detailIsCompleted, showException, showSuccess, updatePendingLine, updateStockLine]);
 
   const handleBackToConcept = useCallback(async () => {
     if (!shoppingList || detailIsCompleted) {
@@ -653,7 +657,7 @@ function ShoppingListDetailRoute() {
     if (detailIsCompleted) {
       return;
     }
-    setUpdateStockState({ open: true, line, trigger: trigger ?? null });
+    setUpdateStockState({ open: true, lineId: line.id, trigger: trigger ?? null });
     setHighlightedLineId(line.id);
   }, [detailIsCompleted]);
 
@@ -891,7 +895,7 @@ function ShoppingListDetailRoute() {
       {!isCompleted && (
         <UpdateStockDialog
           open={updateStockState.open}
-          line={updateStockState.line}
+          line={updateStockLine}
           onClose={handleCloseUpdateStock}
           onSubmit={handleReceiveSubmit}
           onMarkDone={handleMarkLineDone}

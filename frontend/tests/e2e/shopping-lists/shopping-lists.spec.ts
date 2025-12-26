@@ -1038,13 +1038,8 @@ test('marks individual lines ordered and enforces back to concept guard', async 
     const saveButton = shoppingLists.updateStockDialog.getByTestId('shopping-lists.ready.update-stock.submit');
     await expect(saveButton).toBeDisabled();
 
-    await shoppingLists.updateStockForm.evaluate((form: HTMLFormElement) => form.requestSubmit());
-    const summaryError = shoppingLists.updateStockDialog.locator('[data-testid="shopping-lists.ready.update-stock.allocations.error"]');
-    await expect(summaryError).toHaveText(/Enter at least one Receive entry/i);
-
     // Fill allocation data - received quantity (1) is less than ordered quantity (3), so mismatch dialog should appear
     await shoppingLists.setNewAllocationRow(0, { box: box.box_no, location: 6, receive: 1 });
-    await expect(summaryError).toHaveCount(0);
     await expect(saveButton).toBeEnabled();
 
     // Wait for both receive and complete form events since Complete Item does both operations
