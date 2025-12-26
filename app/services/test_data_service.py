@@ -1,10 +1,15 @@
 """Test data service for loading fixed test data from JSON files."""
 
 import json
+import logging
+import mimetypes
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.exceptions import InvalidOperationException
 from app.models.box import Box
@@ -15,6 +20,7 @@ from app.models.kit_pick_list_line import KitPickListLine, PickListLineStatus
 from app.models.kit_shopping_list_link import KitShoppingListLink
 from app.models.location import Location
 from app.models.part import Part
+from app.models.part_attachment import AttachmentType, PartAttachment
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
 from app.models.seller import Seller
@@ -24,9 +30,24 @@ from app.models.shopping_list_seller_note import ShoppingListSellerNote
 from app.models.type import Type
 from app.services.base import BaseService
 
+if TYPE_CHECKING:
+    from app.services.s3_service import S3Service
+
+logger = logging.getLogger(__name__)
+
 
 class TestDataService(BaseService):
     """Service class for loading fixed test data from JSON files."""
+
+    def __init__(self, db: Session, s3_service: "S3Service"):
+        """Initialize service with database session and S3 service.
+
+        Args:
+            db: SQLAlchemy database session
+            s3_service: S3 service for loading part images (required)
+        """
+        super().__init__(db)
+        self.s3_service = s3_service
 
     def load_full_dataset(self) -> None:
         """Load complete test dataset from JSON files in correct dependency order."""
@@ -56,6 +77,9 @@ class TestDataService(BaseService):
             kits,
             parts,
         )
+
+        # Load part images (requires S3 service)
+        self.load_part_images(data_dir, parts)
 
         # Commit all changes
         self.db.commit()
@@ -769,3 +793,118 @@ class TestDataService(BaseService):
                 timestamp=timestamp
             )
             self.db.add(quantity_history)
+
+    def load_part_images(self, data_dir: Path, parts: dict[str, Part]) -> None:
+        """Load part images from part_images directory and upload to S3 using CAS.
+
+        For each part with an 'image' attribute in parts.json, this method:
+        1. Reads the image file from part_images/
+        2. Computes SHA-256 hash
+        3. Uploads to S3 using CAS format (cas/{hash})
+        4. Creates a PartAttachment record
+        5. Sets the attachment as the part's cover
+
+        Args:
+            data_dir: Path to test_data directory
+            parts: Dictionary mapping part keys to Part objects
+
+        Raises:
+            InvalidOperationException: If images are defined but cannot be loaded
+        """
+        images_dir = data_dir / "part_images"
+        if not images_dir.exists():
+            logger.info("No part_images directory found, skipping image loading")
+            return
+
+        # Load parts.json to get image mappings
+        parts_file = data_dir / "parts.json"
+        try:
+            with parts_file.open() as f:
+                parts_data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            raise InvalidOperationException(
+                "load part images",
+                f"failed to read {parts_file}: {e}"
+            ) from e
+
+        # Build mapping of part key -> image filename
+        image_map = {}
+        for part_data in parts_data:
+            if "image" in part_data:
+                image_map[part_data["key"]] = part_data["image"]
+
+        if not image_map:
+            logger.info("No parts with images defined, skipping image loading")
+            return
+
+        logger.info(f"Loading {len(image_map)} part images from {images_dir}")
+        loaded_count = 0
+        errors = []
+
+        for part_key, image_filename in image_map.items():
+            # Get the part object
+            part = parts.get(part_key)
+            if not part:
+                errors.append(f"Part {part_key} not found for image {image_filename}")
+                continue
+
+            # Read the image file
+            image_path = images_dir / image_filename
+            if not image_path.exists():
+                errors.append(f"Image file not found: {image_path}")
+                continue
+
+            try:
+                image_bytes = image_path.read_bytes()
+            except OSError as e:
+                errors.append(f"Could not read image file {image_path}: {e}")
+                continue
+
+            # Compute CAS key
+            cas_key = self.s3_service.generate_cas_key(image_bytes)
+
+            # Check if already exists in S3 (deduplication)
+            if not self.s3_service.file_exists(cas_key):
+                # Upload to S3
+                try:
+                    content_type = mimetypes.guess_type(image_filename)[0] or "application/octet-stream"
+                    file_obj = BytesIO(image_bytes)
+                    self.s3_service.upload_file(file_obj, cas_key, content_type)
+                    logger.debug(f"Uploaded {image_filename} to S3 as {cas_key}")
+                except Exception as e:
+                    errors.append(f"Failed to upload {image_filename} to S3: {e}")
+                    continue
+            else:
+                logger.debug(f"Image {image_filename} already exists in S3 as {cas_key}")
+
+            # Determine content type
+            content_type = mimetypes.guess_type(image_filename)[0] or "image/png"
+
+            # Create attachment record
+            attachment = PartAttachment(
+                part_id=part.id,
+                attachment_type=AttachmentType.IMAGE,
+                title=f"Cover image for {part_key}",
+                s3_key=cas_key,
+                filename=image_filename,
+                content_type=content_type,
+                file_size=len(image_bytes),
+            )
+            self.db.add(attachment)
+            self.db.flush()  # Get attachment ID
+
+            # Set as cover attachment
+            part.cover_attachment_id = attachment.id
+            loaded_count += 1
+
+        # Fail if any images couldn't be loaded
+        if errors:
+            error_summary = "; ".join(errors[:5])
+            if len(errors) > 5:
+                error_summary += f" (and {len(errors) - 5} more errors)"
+            raise InvalidOperationException(
+                "load part images",
+                f"failed to load {len(errors)} images: {error_summary}"
+            )
+
+        logger.info(f"Loaded {loaded_count} part images")

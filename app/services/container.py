@@ -56,7 +56,6 @@ class ServiceContainer(containers.DeclarativeContainer):
     seller_service = providers.Factory(SellerService, db=db_session)
     dashboard_service = providers.Factory(DashboardService, db=db_session)
     setup_service = providers.Factory(SetupService, db=db_session)
-    test_data_service = providers.Factory(TestDataService, db=db_session)
     shopping_list_service = providers.Factory(
         ShoppingListService,
         db=db_session,
@@ -84,6 +83,10 @@ class ServiceContainer(containers.DeclarativeContainer):
 
     # Document management services
     s3_service = providers.Factory(S3Service, db=db_session, settings=config)
+
+    # Test data service - depends on s3_service for loading part images
+    test_data_service = providers.Factory(TestDataService, db=db_session, s3_service=s3_service)
+
     image_service = providers.Factory(
         ImageService,
         db=db_session,

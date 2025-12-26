@@ -5,6 +5,7 @@ import sys
 from typing import NoReturn
 
 import sqlalchemy as sa
+from dotenv import load_dotenv
 from flask import Flask
 
 from app import create_app
@@ -30,7 +31,6 @@ from app.models.shopping_list import ShoppingList
 from app.models.shopping_list_line import ShoppingListLine
 from app.models.shopping_list_seller_note import ShoppingListSellerNote
 from app.models.type import Type
-from app.services.test_data_service import TestDataService
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -214,9 +214,9 @@ def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
                 sync_master_data_from_setup(session)
                 session.commit()
 
-                # Load test data
+                # Load test data using the container (provides S3 service for images)
                 print("📦 Loading fixed test dataset...")
-                test_data_service = TestDataService(session)
+                test_data_service = app.container.test_data_service()
                 test_data_service.load_full_dataset()
 
                 # Keep the box number sequence aligned with loaded fixtures when supported
@@ -319,6 +319,9 @@ def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
 
 def main() -> NoReturn:
     """Main CLI entry point."""
+    # Load environment variables from .env file if present
+    load_dotenv()
+
     parser = create_parser()
     args = parser.parse_args()
 
