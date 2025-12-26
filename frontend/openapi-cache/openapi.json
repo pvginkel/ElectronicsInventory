@@ -11533,16 +11533,6 @@
         "tags": []
       }
     },
-    "/api/icons/link": {
-      "get": {
-        "description": "Query params:     version: Hash of icon content for cache busting (ignored by server)\n\nReturns:     SVG icon with Cache-Control: immutable header",
-        "operationId": "get__api_icons_link",
-        "parameters": [],
-        "responses": {},
-        "summary": "Serve link icon with immutable caching.",
-        "tags": []
-      }
-    },
     "/api/icons/pdf": {
       "get": {
         "description": "Query params:     version: Hash of icon content for cache busting (ignored by server)\n\nReturns:     SVG icon with Cache-Control: immutable header",
