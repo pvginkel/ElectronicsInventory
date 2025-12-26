@@ -8,14 +8,12 @@ import type { ApiDocument } from '@/lib/utils/document-transformers';
 interface DuplicateDocumentGridProps {
   documents: ApiDocument[];
   coverDocumentId: number | null;
-  partId: string;
   onDocumentsChange: (documents: ApiDocument[], coverDocumentId: number | null) => void;
 }
 
-export function DuplicateDocumentGrid({ 
+export function DuplicateDocumentGrid({
   documents,
   coverDocumentId,
-  partId,
   onDocumentsChange
 }: DuplicateDocumentGridProps) {
   const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(null);
@@ -25,8 +23,8 @@ export function DuplicateDocumentGrid({
   const transformedDocuments: DocumentItem[] = useMemo(() => {
     // Create a mock cover attachment for the transformer
     const mockCoverAttachment = coverDocumentId ? { id: coverDocumentId } : null;
-    return transformApiDocumentsToDocumentItems(documents, mockCoverAttachment, partId);
-  }, [documents, coverDocumentId, partId]);
+    return transformApiDocumentsToDocumentItems(documents, mockCoverAttachment);
+  }, [documents, coverDocumentId]);
 
   const handleShowMedia = (document: DocumentItem) => {
     setCurrentDocumentId(document.id);

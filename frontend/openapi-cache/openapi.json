@@ -1244,6 +1244,20 @@
             "description": "Type of attachment",
             "example": "image"
           },
+          "attachment_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL with content_type and filename pre-baked. Add &disposition=attachment for downloads or &thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123...?content_type=application/pdf&filename=datasheet.pdf",
+            "title": "Attachment Url"
+          },
           "content_type": {
             "anyOf": [
               {
@@ -1290,12 +1304,6 @@
             "example": "omron_g5q_datasheet.pdf",
             "title": "Filename"
           },
-          "has_preview": {
-            "description": "Whether this attachment has a preview image",
-            "example": true,
-            "title": "Has Preview",
-            "type": "boolean"
-          },
           "id": {
             "description": "Unique attachment identifier",
             "example": 123,
@@ -1308,7 +1316,7 @@
             "title": "Part Id",
             "type": "integer"
           },
-          "s3_key": {
+          "preview_url": {
             "anyOf": [
               {
                 "type": "string"
@@ -1317,9 +1325,10 @@
                 "type": "null"
               }
             ],
-            "description": "S3 storage key for the file",
-            "example": "parts/456/attachments/abc123.pdf",
-            "title": "S3 Key"
+            "default": null,
+            "description": "URL for attachment preview image. For images: CAS URL. For PDFs/URLs: static icon endpoint. Null if no preview available.",
+            "example": "/api/cas/abc123...?content_type=image/jpeg",
+            "title": "Preview Url"
           },
           "title": {
             "description": "Title or description of the attachment",
@@ -1353,14 +1362,12 @@
           "part_id",
           "attachment_type",
           "title",
-          "s3_key",
           "url",
           "filename",
           "content_type",
           "file_size",
           "created_at",
-          "updated_at",
-          "has_preview"
+          "updated_at"
         ],
         "title": "PartAttachmentResponseSchema",
         "type": "object"
@@ -1418,6 +1425,20 @@
             "description": "Type of attachment",
             "example": "image"
           },
+          "attachment_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL with content_type and filename pre-baked. Add &disposition=attachment for downloads or &thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123...?content_type=application/pdf&filename=datasheet.pdf",
+            "title": "Attachment Url"
+          },
           "content_type": {
             "anyOf": [
               {
@@ -1464,12 +1485,6 @@
             "example": "omron_g5q_datasheet.pdf",
             "title": "Filename"
           },
-          "has_preview": {
-            "description": "Whether this attachment has a preview image",
-            "example": true,
-            "title": "Has Preview",
-            "type": "boolean"
-          },
           "id": {
             "description": "Unique attachment identifier",
             "example": 123,
@@ -1482,7 +1497,7 @@
             "title": "Part Id",
             "type": "integer"
           },
-          "s3_key": {
+          "preview_url": {
             "anyOf": [
               {
                 "type": "string"
@@ -1491,9 +1506,10 @@
                 "type": "null"
               }
             ],
-            "description": "S3 storage key for the file",
-            "example": "parts/456/attachments/abc123.pdf",
-            "title": "S3 Key"
+            "default": null,
+            "description": "URL for attachment preview image. For images: CAS URL. For PDFs/URLs: static icon endpoint. Null if no preview available.",
+            "example": "/api/cas/abc123...?content_type=image/jpeg",
+            "title": "Preview Url"
           },
           "title": {
             "description": "Title or description of the attachment",
@@ -1527,14 +1543,12 @@
           "part_id",
           "attachment_type",
           "title",
-          "s3_key",
           "url",
           "filename",
           "content_type",
           "file_size",
           "created_at",
-          "updated_at",
-          "has_preview"
+          "updated_at"
         ],
         "title": "PartAttachmentResponseSchema",
         "type": "object"
@@ -2091,6 +2105,20 @@
       "KitContentDetailSchema.b98797e.PartListSchema": {
         "description": "Schema for lightweight part listings.",
         "properties": {
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123def456...",
+            "title": "Cover Url"
+          },
           "description": {
             "description": "Free text description",
             "example": "12V SPDT relay with 40A contacts",
@@ -2722,6 +2750,20 @@
       "KitDetailResponseSchema.b98797e.PartListSchema": {
         "description": "Schema for lightweight part listings.",
         "properties": {
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123def456...",
+            "title": "Cover Url"
+          },
           "description": {
             "description": "Free text description",
             "example": "12V SPDT relay with 40A contacts",
@@ -3071,6 +3113,20 @@
       "KitPickListDetailSchema.b247181.PickListLineContentSchema": {
         "description": "Kit content information attached to a pick list line.",
         "properties": {
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123def456...",
+            "title": "Cover Url"
+          },
           "id": {
             "description": "Kit content identifier referenced by the line",
             "example": 128,
@@ -3782,6 +3838,20 @@
       "KitShoppingListLinkResponseSchema.b98797e.PartListSchema": {
         "description": "Schema for lightweight part listings.",
         "properties": {
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123def456...",
+            "title": "Cover Url"
+          },
           "description": {
             "description": "Free text description",
             "example": "12V SPDT relay with 40A contacts",
@@ -4929,6 +4999,20 @@
             "description": "Type of attachment",
             "example": "image"
           },
+          "attachment_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL with content_type and filename pre-baked. Add &disposition=attachment for downloads or &thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123...?content_type=application/pdf&filename=datasheet.pdf",
+            "title": "Attachment Url"
+          },
           "content_type": {
             "anyOf": [
               {
@@ -4975,17 +5059,25 @@
             "example": "omron_g5q_datasheet.pdf",
             "title": "Filename"
           },
-          "has_preview": {
-            "description": "Whether this attachment has a preview image",
-            "example": true,
-            "title": "Has Preview",
-            "type": "boolean"
-          },
           "id": {
             "description": "Unique attachment identifier",
             "example": 123,
             "title": "Id",
             "type": "integer"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "URL for attachment preview image. For images: CAS URL. For PDFs/URLs: static icon endpoint. Null if no preview available.",
+            "example": "/api/cas/abc123...?content_type=image/jpeg",
+            "title": "Preview Url"
           },
           "title": {
             "description": "Title or description of the attachment",
@@ -5015,8 +5107,7 @@
           "filename",
           "content_type",
           "file_size",
-          "created_at",
-          "has_preview"
+          "created_at"
         ],
         "title": "PartAttachmentListSchema",
         "type": "object"
@@ -5028,6 +5119,20 @@
             "$ref": "#/components/schemas/PartAttachmentResponseSchema.f950e1b.AttachmentType",
             "description": "Type of attachment",
             "example": "image"
+          },
+          "attachment_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL with content_type and filename pre-baked. Add &disposition=attachment for downloads or &thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123...?content_type=application/pdf&filename=datasheet.pdf",
+            "title": "Attachment Url"
           },
           "content_type": {
             "anyOf": [
@@ -5075,12 +5180,6 @@
             "example": "omron_g5q_datasheet.pdf",
             "title": "Filename"
           },
-          "has_preview": {
-            "description": "Whether this attachment has a preview image",
-            "example": true,
-            "title": "Has Preview",
-            "type": "boolean"
-          },
           "id": {
             "description": "Unique attachment identifier",
             "example": 123,
@@ -5093,7 +5192,7 @@
             "title": "Part Id",
             "type": "integer"
           },
-          "s3_key": {
+          "preview_url": {
             "anyOf": [
               {
                 "type": "string"
@@ -5102,9 +5201,10 @@
                 "type": "null"
               }
             ],
-            "description": "S3 storage key for the file",
-            "example": "parts/456/attachments/abc123.pdf",
-            "title": "S3 Key"
+            "default": null,
+            "description": "URL for attachment preview image. For images: CAS URL. For PDFs/URLs: static icon endpoint. Null if no preview available.",
+            "example": "/api/cas/abc123...?content_type=image/jpeg",
+            "title": "Preview Url"
           },
           "title": {
             "description": "Title or description of the attachment",
@@ -5138,14 +5238,12 @@
           "part_id",
           "attachment_type",
           "title",
-          "s3_key",
           "url",
           "filename",
           "content_type",
           "file_size",
           "created_at",
-          "updated_at",
-          "has_preview"
+          "updated_at"
         ],
         "title": "PartAttachmentResponseSchema",
         "type": "object"
@@ -5730,18 +5828,6 @@
             "title": "Attachments",
             "type": "array"
           },
-          "cover_attachment": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PartResponseSchema.1a46b79.PartAttachmentResponseSchema"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Cover attachment details"
-          },
           "cover_attachment_id": {
             "anyOf": [
               {
@@ -5754,6 +5840,20 @@
             "description": "ID of the cover attachment image",
             "example": 123,
             "title": "Cover Attachment Id"
+          },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123def456...",
+            "title": "Cover Url"
           },
           "created_at": {
             "description": "Timestamp when the part was created",
@@ -6058,6 +6158,20 @@
             "description": "Type of attachment",
             "example": "image"
           },
+          "attachment_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL with content_type and filename pre-baked. Add &disposition=attachment for downloads or &thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123...?content_type=application/pdf&filename=datasheet.pdf",
+            "title": "Attachment Url"
+          },
           "content_type": {
             "anyOf": [
               {
@@ -6104,17 +6218,25 @@
             "example": "omron_g5q_datasheet.pdf",
             "title": "Filename"
           },
-          "has_preview": {
-            "description": "Whether this attachment has a preview image",
-            "example": true,
-            "title": "Has Preview",
-            "type": "boolean"
-          },
           "id": {
             "description": "Unique attachment identifier",
             "example": 123,
             "title": "Id",
             "type": "integer"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "URL for attachment preview image. For images: CAS URL. For PDFs/URLs: static icon endpoint. Null if no preview available.",
+            "example": "/api/cas/abc123...?content_type=image/jpeg",
+            "title": "Preview Url"
           },
           "title": {
             "description": "Title or description of the attachment",
@@ -6144,139 +6266,9 @@
           "filename",
           "content_type",
           "file_size",
-          "created_at",
-          "has_preview"
+          "created_at"
         ],
         "title": "PartAttachmentListSchema",
-        "type": "object"
-      },
-      "PartResponseSchema.1a46b79.PartAttachmentResponseSchema": {
-        "description": "Schema for full attachment details.",
-        "properties": {
-          "attachment_type": {
-            "$ref": "#/components/schemas/PartResponseSchema.1a46b79.AttachmentType",
-            "description": "Type of attachment",
-            "example": "image"
-          },
-          "content_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "MIME type of the file",
-            "example": "application/pdf",
-            "title": "Content Type"
-          },
-          "created_at": {
-            "description": "Timestamp when the attachment was created",
-            "example": "2024-01-15T10:30:00Z",
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "file_size": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "File size in bytes",
-            "example": 1048576,
-            "title": "File Size"
-          },
-          "filename": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Original filename (for uploaded files)",
-            "example": "omron_g5q_datasheet.pdf",
-            "title": "Filename"
-          },
-          "has_preview": {
-            "description": "Whether this attachment has a preview image",
-            "example": true,
-            "title": "Has Preview",
-            "type": "boolean"
-          },
-          "id": {
-            "description": "Unique attachment identifier",
-            "example": 123,
-            "title": "Id",
-            "type": "integer"
-          },
-          "part_id": {
-            "description": "ID of the associated part",
-            "example": 456,
-            "title": "Part Id",
-            "type": "integer"
-          },
-          "s3_key": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "S3 storage key for the file",
-            "example": "parts/456/attachments/abc123.pdf",
-            "title": "S3 Key"
-          },
-          "title": {
-            "description": "Title or description of the attachment",
-            "example": "Datasheet - OMRON G5Q-1A4",
-            "title": "Title",
-            "type": "string"
-          },
-          "updated_at": {
-            "description": "Timestamp when the attachment was last modified",
-            "example": "2024-01-15T14:45:00Z",
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          },
-          "url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Original URL (for URL attachments)",
-            "example": "https://www.omron.com/products/G5Q-1A4",
-            "title": "Url"
-          }
-        },
-        "required": [
-          "id",
-          "part_id",
-          "attachment_type",
-          "title",
-          "s3_key",
-          "url",
-          "filename",
-          "content_type",
-          "file_size",
-          "created_at",
-          "updated_at",
-          "has_preview"
-        ],
-        "title": "PartAttachmentResponseSchema",
         "type": "object"
       },
       "PartResponseSchema.1a46b79.SellerListSchema": {
@@ -7363,19 +7355,19 @@
       "PartWithTotalSchemaList.a9993e3.PartWithTotalSchema": {
         "description": "Schema for part with calculated total quantity.\n\nOptional fields (cover_url, cover_thumbnail_url, locations, kits, shopping_lists)\nare populated based on the include query parameter.",
         "properties": {
-          "cover_thumbnail_url": {
+          "cover_attachment_id": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
             "default": null,
-            "description": "URL to retrieve the cover attachment thumbnail (when include=cover)",
-            "example": "/api/attachments/123/thumbnail",
-            "title": "Cover Thumbnail Url"
+            "description": "ID of the cover attachment image",
+            "example": 123,
+            "title": "Cover Attachment Id"
           },
           "cover_url": {
             "anyOf": [
@@ -7387,8 +7379,8 @@
               }
             ],
             "default": null,
-            "description": "URL to retrieve the cover attachment (when include=cover)",
-            "example": "/api/attachments/123",
+            "description": "Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123def456...",
             "title": "Cover Url"
           },
           "created_at": {
@@ -7417,12 +7409,6 @@
             "description": "Physical dimensions",
             "example": "20x15x5mm",
             "title": "Dimensions"
-          },
-          "has_cover_attachment": {
-            "description": "True when the part has a cover attachment defined.",
-            "example": true,
-            "title": "Has Cover Attachment",
-            "type": "boolean"
           },
           "input_voltage": {
             "anyOf": [
@@ -7732,7 +7718,6 @@
           "description",
           "type_id",
           "tags",
-          "has_cover_attachment",
           "created_at",
           "updated_at",
           "total_quantity"
@@ -8564,6 +8549,20 @@
       "ShoppingListLineResponseSchema.d9ccce0.PartListSchema": {
         "description": "Schema for lightweight part listings.",
         "properties": {
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123def456...",
+            "title": "Cover Url"
+          },
           "description": {
             "description": "Free text description",
             "example": "12V SPDT relay with 40A contacts",
@@ -8685,6 +8684,20 @@
       "ShoppingListLineResponseSchemaList.a9993e3.PartListSchema": {
         "description": "Schema for lightweight part listings.",
         "properties": {
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123def456...",
+            "title": "Cover Url"
+          },
           "description": {
             "description": "Free text description",
             "example": "12V SPDT relay with 40A contacts",
@@ -9579,6 +9592,20 @@
       "ShoppingListResponseSchema.46f0cf6.PartListSchema": {
         "description": "Schema for lightweight part listings.",
         "properties": {
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123def456...",
+            "title": "Cover Url"
+          },
           "description": {
             "description": "Free text description",
             "example": "12V SPDT relay with 40A contacts",
@@ -11127,6 +11154,26 @@
         "tags": []
       }
     },
+    "/api/cas/{hash_value}": {
+      "get": {
+        "description": "This endpoint is stateless - no database access. All metadata comes from URL params.\n\nQuery params:     content_type: MIME type (optional, defaults to application/octet-stream)     disposition: inline|attachment (optional, defaults to inline if filename set)     filename: filename for Content-Disposition header (optional)     thumbnail: pixel size for square thumbnail (mutually exclusive with content_type)\n\nReturns:     Binary content with Cache-Control: immutable header",
+        "operationId": "get__api_cas_{hash_value}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "hash_value",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {},
+        "summary": "Serve content from CAS storage with immutable caching.",
+        "tags": []
+      }
+    },
     "/api/dashboard/category-distribution": {
       "get": {
         "description": "Returns:     JSON response containing list of part types with their names,     colors, and part counts, ordered by part count descending.",
@@ -11483,6 +11530,26 @@
           }
         },
         "summary": "Readiness probe endpoint for Kubernetes.",
+        "tags": []
+      }
+    },
+    "/api/icons/link": {
+      "get": {
+        "description": "Query params:     version: Hash of icon content for cache busting (ignored by server)\n\nReturns:     SVG icon with Cache-Control: immutable header",
+        "operationId": "get__api_icons_link",
+        "parameters": [],
+        "responses": {},
+        "summary": "Serve link icon with immutable caching.",
+        "tags": []
+      }
+    },
+    "/api/icons/pdf": {
+      "get": {
+        "description": "Query params:     version: Hash of icon content for cache busting (ignored by server)\n\nReturns:     SVG icon with Cache-Control: immutable header",
+        "operationId": "get__api_icons_pdf",
+        "parameters": [],
+        "responses": {},
+        "summary": "Serve PDF icon with immutable caching.",
         "tags": []
       }
     },
@@ -13446,66 +13513,6 @@
         "tags": []
       }
     },
-    "/api/parts/{part_key}/attachments/{attachment_id}/download": {
-      "get": {
-        "description": "",
-        "operationId": "get__api_parts_{part_key}_attachments_{attachment_id}_download",
-        "parameters": [
-          {
-            "description": "",
-            "in": "path",
-            "name": "part_key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "",
-            "in": "path",
-            "name": "attachment_id",
-            "required": true,
-            "schema": {
-              "format": "int32",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {},
-        "summary": "Download or stream attachment file.",
-        "tags": []
-      }
-    },
-    "/api/parts/{part_key}/attachments/{attachment_id}/thumbnail": {
-      "get": {
-        "description": "",
-        "operationId": "get__api_parts_{part_key}_attachments_{attachment_id}_thumbnail",
-        "parameters": [
-          {
-            "description": "",
-            "in": "path",
-            "name": "part_key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "",
-            "in": "path",
-            "name": "attachment_id",
-            "required": true,
-            "schema": {
-              "format": "int32",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {},
-        "summary": "Get attachment thumbnail.",
-        "tags": []
-      }
-    },
     "/api/parts/{part_key}/cover": {
       "delete": {
         "description": "",
@@ -13662,26 +13669,6 @@
           }
         },
         "summary": "Set or clear part cover attachment.",
-        "tags": []
-      }
-    },
-    "/api/parts/{part_key}/cover/thumbnail": {
-      "get": {
-        "description": "",
-        "operationId": "get__api_parts_{part_key}_cover_thumbnail",
-        "parameters": [
-          {
-            "description": "",
-            "in": "path",
-            "name": "part_key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {},
-        "summary": "Get part cover thumbnail.",
         "tags": []
       }
     },

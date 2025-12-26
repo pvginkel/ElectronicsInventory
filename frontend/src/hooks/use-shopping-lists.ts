@@ -201,6 +201,7 @@ function mapConceptLine(line: AnyShoppingListLineResponse): ShoppingListConceptL
       key: line.part.key,
       description: line.part.description,
       manufacturerCode: line.part.manufacturer_code,
+      coverUrl: line.part.cover_url,
     },
     seller: mapSeller(line.seller),
     effectiveSeller: mapSeller(line.effective_seller),

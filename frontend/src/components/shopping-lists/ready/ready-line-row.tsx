@@ -70,6 +70,7 @@ export const ReadyLineRow = forwardRef<HTMLTableRowElement, ReadyLineRowProps>(f
           partKey={line.part.key}
           description={line.part.description}
           manufacturerCode={line.part.manufacturerCode}
+          coverUrl={line.part.coverUrl}
           testId={`shopping-lists.ready.line.${line.id}.part`}
           link={true}
         />

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { DocumentGridBase } from '@/components/documents/document-grid-base';
 import { MediaViewerBase } from '@/components/documents/media-viewer-base';
-import { useCoverAttachment, useSetCoverAttachment } from '@/hooks/use-cover-image';
+import { useSetCoverAttachment } from '@/hooks/use-cover-image';
 import { usePartDocuments, useDeleteDocument } from '@/hooks/use-part-documents';
 import { transformApiDocumentsToDocumentItems } from '@/lib/utils/document-transformers';
 import { useToast } from '@/hooks/use-toast';
@@ -9,28 +9,28 @@ import type { DocumentItem } from '@/types/documents';
 
 interface PartDocumentGridProps {
   partId: string;
-  hasCoverAttachment?: boolean;
+  currentCoverAttachmentId?: number | null;
   onDocumentChange?: () => void;
 }
 
-export function PartDocumentGrid({ 
-  partId, 
-  hasCoverAttachment,
-  onDocumentChange 
+export function PartDocumentGrid({
+  partId,
+  currentCoverAttachmentId,
+  onDocumentChange
 }: PartDocumentGridProps) {
   const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
 
   const { documents: apiDocuments } = usePartDocuments(partId);
-  const { coverAttachment } = useCoverAttachment(partId, hasCoverAttachment);
   const setCoverMutation = useSetCoverAttachment();
   const deleteDocumentMutation = useDeleteDocument();
   const { showException } = useToast();
 
   // Transform API documents to DocumentItem format
   const documents: DocumentItem[] = useMemo(() => {
-    return transformApiDocumentsToDocumentItems(apiDocuments, coverAttachment, partId);
-  }, [apiDocuments, coverAttachment, partId]);
+    const coverAttachment = currentCoverAttachmentId ? { id: currentCoverAttachmentId } : null;
+    return transformApiDocumentsToDocumentItems(apiDocuments, coverAttachment);
+  }, [apiDocuments, currentCoverAttachmentId]);
 
   const handleShowMedia = (document: DocumentItem) => {
     // Open in media viewer for images and PDFs

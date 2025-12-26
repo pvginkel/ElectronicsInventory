@@ -1,4 +1,3 @@
-import { getThumbnailUrl, getViewUrl } from '@/lib/utils/thumbnail-urls';
 import type { DocumentItem } from '@/types/documents';
 
 export interface ApiDocument {
@@ -8,7 +7,8 @@ export interface ApiDocument {
   mimeType?: string | null;
   filename?: string | null;
   url?: string | null;
-  has_image: boolean;
+  previewUrl?: string | null;
+  attachmentUrl?: string | null;
 }
 
 export interface CoverAttachment {
@@ -17,12 +17,11 @@ export interface CoverAttachment {
 
 export function transformApiDocumentsToDocumentItems(
   apiDocuments: ApiDocument[],
-  coverAttachment: CoverAttachment | null | undefined,
-  partId: string
+  coverAttachment: CoverAttachment | null | undefined
 ): DocumentItem[] {
   return apiDocuments.map(doc => {
     const isCover = coverAttachment?.id === parseInt(doc.id);
-    
+
     // Determine document type based on MIME type and attachment type
     let type: 'image' | 'pdf' | 'website';
     if (doc.type === 'url') {
@@ -36,22 +35,20 @@ export function transformApiDocumentsToDocumentItems(
       type = 'image';
     }
 
-    // Determine preview image URL based on type and has_image
-    let previewImageUrl: string | null = null;
-    if (type === 'image') {
-      previewImageUrl = getThumbnailUrl(partId, doc.id, 'medium');
-    } else if (type === 'website' && doc.has_image) {
-      previewImageUrl = getThumbnailUrl(partId, doc.id, 'medium');
-    }
+    // Use preview_url from API (server decides what's previewable)
+    const previewImageUrl = doc.previewUrl ?? null;
+
+    // For websites, use the URL; for files, use attachment_url (optionally with disposition=inline)
+    const assetUrl = type === 'website' && doc.url ? doc.url : (doc.attachmentUrl ?? '');
 
     return {
       id: doc.id,
       title: doc.name,
       type,
       previewImageUrl,
-      assetUrl: type === 'website' && doc.url ? doc.url : getViewUrl(partId, doc.id),
+      assetUrl,
       isCover,
-      hasImage: doc.has_image
+      hasImage: previewImageUrl !== null
     };
   });
 }

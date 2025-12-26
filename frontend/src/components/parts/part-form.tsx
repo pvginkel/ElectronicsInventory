@@ -615,7 +615,6 @@ export function PartForm({
           <DuplicateDocumentGrid
             documents={duplicateDocuments}
             coverDocumentId={coverDocumentId}
-            partId={duplicateFromPartId!}
             onDocumentsChange={handleDocumentsChange}
           />
         </div>

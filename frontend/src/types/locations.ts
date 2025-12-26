@@ -5,7 +5,7 @@ export interface PartAssignment {
   qty: number;
   manufacturer_code?: string;
   description?: string;
-  has_cover_attachment?: boolean;
+  cover_url?: string | null;
 }
 
 export interface LocationWithParts {

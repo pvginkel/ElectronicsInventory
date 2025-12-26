@@ -79,7 +79,7 @@ export function AIPartDuplicateCard({
         <div className="flex-shrink-0 mb-2">
           <CoverImageDisplay
             partId={duplicate.partKey}
-            hasCoverAttachment={false}
+            coverUrl={null}
             size="large"
             className="w-full h-32 rounded-md shadow-sm"
             showPlaceholder={true}
@@ -121,7 +121,7 @@ export function AIPartDuplicateCard({
       <div className="flex-shrink-0 mb-2">
         <CoverImageDisplay
           partId={part.key}
-          hasCoverAttachment={!!part.cover_attachment}
+          coverUrl={part.cover_url}
           size="large"
           className="w-full h-32 rounded-md shadow-sm"
           showPlaceholder={true}

@@ -89,6 +89,7 @@ export function KitBOMTable({ rows, controls }: KitBOMTableProps) {
                 key: row.part.key,
                 description: row.part.description,
                 manufacturerCode: row.part.manufacturerCode,
+                coverUrl: row.part.coverUrl,
               }}
             />
           </td>
@@ -229,6 +230,7 @@ function KitBOMDisplayRow({
           partKey={row.part.key}
           description={row.part.description}
           manufacturerCode={row.part.manufacturerCode}
+          coverUrl={row.part.coverUrl}
           testId={`kits.detail.table.row.${row.id}.part`}
           link={true}
         />

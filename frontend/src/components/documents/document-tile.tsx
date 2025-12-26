@@ -121,6 +121,8 @@ export function DocumentTile({
               src={document.previewImageUrl}
               alt={document.title}
               className="w-full h-full object-cover"
+              data-preview-image
+              data-document-id={document.id}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-muted">

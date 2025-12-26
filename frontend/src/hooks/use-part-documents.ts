@@ -14,7 +14,7 @@ export function usePartDocuments(partId: string | undefined) {
 
   const documents = useMemo(() => {
     if (!query.data) return [];
-    
+
     return query.data.map(attachment => ({
       id: attachment.id.toString(), // Convert number to string for consistency
       name: attachment.title,
@@ -24,7 +24,9 @@ export function usePartDocuments(partId: string | undefined) {
       fileSize: attachment.file_size || null,
       mimeType: attachment.content_type || null,
       createdAt: attachment.created_at,
-      has_image: attachment.has_preview,
+      previewUrl: attachment.preview_url || null,
+      attachmentUrl: attachment.attachment_url || null,
+      has_image: attachment.preview_url !== null,
     }));
   }, [query.data]);
 

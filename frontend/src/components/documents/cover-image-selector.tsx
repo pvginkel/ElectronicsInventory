@@ -3,20 +3,20 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Thumbnail } from '@/components/ui/thumbnail';
 import { usePartDocuments } from '@/hooks/use-part-documents';
-import { useCoverAttachment, useSetCoverAttachment, useRemoveCoverAttachment } from '@/hooks/use-cover-image';
+import { useSetCoverAttachment, useRemoveCoverAttachment } from '@/hooks/use-cover-image';
+import pdfIconSvg from '@/assets/pdf-icon.svg';
 
 interface CoverImageSelectorProps {
   partId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  hasCoverAttachment?: boolean;
+  currentCoverAttachmentId?: number | null;
 }
 
-export function CoverImageSelector({ partId, open, onOpenChange, hasCoverAttachment }: CoverImageSelectorProps) {
+export function CoverImageSelector({ partId, open, onOpenChange, currentCoverAttachmentId }: CoverImageSelectorProps) {
   const [selectedAttachmentId, setSelectedAttachmentId] = useState<number | null>(null);
-  
+
   const { documents, isLoading: documentsLoading } = usePartDocuments(partId);
-  const { coverAttachment } = useCoverAttachment(partId, hasCoverAttachment);
   const setCoverMutation = useSetCoverAttachment();
   const removeCoverMutation = useRemoveCoverAttachment();
 
@@ -45,7 +45,7 @@ export function CoverImageSelector({ partId, open, onOpenChange, hasCoverAttachm
     }
   };
 
-  const currentCoverId = coverAttachment?.id;
+  const currentCoverId = currentCoverAttachmentId;
   const availableAttachments = documents;
 
   return (
@@ -76,16 +76,20 @@ export function CoverImageSelector({ partId, open, onOpenChange, hasCoverAttachm
                 const docIdNum = parseInt(doc.id);
                 const isSelected = selectedAttachmentId === docIdNum;
                 const isCurrent = currentCoverId === docIdNum;
-                const isPdf = doc.type === 'file' && 
-                           (doc.mimeType === 'application/pdf' || 
+                const isPdf = doc.type === 'file' &&
+                           (doc.mimeType === 'application/pdf' ||
                             doc.filename?.toLowerCase().endsWith('.pdf'));
+
+                const fallbackIcon = isPdf ? (
+                  <img src={pdfIconSvg} alt="PDF" width="40%" height="40%" className="text-muted-foreground" />
+                ) : null;
 
                 return (
                   <div
                     key={doc.id}
                     className={`relative cursor-pointer rounded-lg border-2 transition-colors ${
-                      isSelected 
-                        ? 'border-primary bg-primary/10' 
+                      isSelected
+                        ? 'border-primary bg-primary/10'
                         : isCurrent
                           ? 'border-green-500 bg-green-50'
                           : 'border-muted hover:border-muted-foreground/50'
@@ -95,12 +99,10 @@ export function CoverImageSelector({ partId, open, onOpenChange, hasCoverAttachm
                     <div className="p-2">
                       <div className="flex flex-col items-center">
                         <Thumbnail
-                          partKey={partId}
-                          attachmentId={doc.id}
+                          previewUrl={doc.previewUrl}
                           alt={doc.name}
                           size="medium"
-                          hasImage={doc.has_image}
-                          isPdf={isPdf}
+                          fallbackIcon={fallbackIcon}
                           className="mb-2"
                         />
                         <p className="text-xs text-center font-medium truncate w-full">

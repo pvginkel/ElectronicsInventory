@@ -25,6 +25,7 @@ export interface PickListLineContent {
   partKey: string;
   description: string;
   manufacturerCode: string | null;
+  coverUrl: string | null;
 }
 
 export interface PickListLine {
@@ -61,6 +62,7 @@ export interface PickListLineGroup {
   partKey: string;
   description: string;
   manufacturerCode: string | null;
+  coverUrl: string | null;
   lines: PickListLine[];
   lineCount: number;
   openLineCount: number;
@@ -151,6 +153,7 @@ function mapPickListLineContent(
     partKey: content.part_key,
     description,
     manufacturerCode: null,
+    coverUrl: content.cover_url,
   };
 }
 
@@ -183,6 +186,7 @@ export function groupPickListLines(lines: PickListLine[]): PickListLineGroup[] {
         partKey: line.kitContent.partKey,
         description: line.kitContent.description,
         manufacturerCode: line.kitContent.manufacturerCode,
+        coverUrl: line.kitContent.coverUrl,
         lines: [],
         lineCount: 0,
         openLineCount: 0,

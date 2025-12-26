@@ -43,13 +43,13 @@ export function useBoxLocationsWithParts(boxNo: number) {
           ? 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-800 dark:hover:bg-emerald-700'
           : 'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700';
 
-        // Transform part assignments to include has_cover_attachment if backend provides it
+        // Transform part assignments to include cover_url from backend
         const transformedPartAssignments = apiLocation.part_assignments?.map(assignment => ({
           key: assignment.key,
           qty: assignment.qty,
           manufacturer_code: assignment.manufacturer_code,
           description: assignment.description,
-          has_cover_attachment: (assignment as { has_cover_attachment?: boolean }).has_cover_attachment,
+          cover_url: assignment.cover_url ?? null,
         })) || null;
 
         return {

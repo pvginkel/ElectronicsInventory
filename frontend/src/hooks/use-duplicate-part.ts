@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useGetPartsByPartKey } from '@/lib/api/generated/hooks';
 import { usePartDocuments } from './use-part-documents';
-import { useCoverAttachment } from './use-cover-image';
 
 export function useDuplicatePart(partId: string | undefined) {
   const partQuery = useGetPartsByPartKey(
@@ -10,8 +9,6 @@ export function useDuplicatePart(partId: string | undefined) {
   );
 
   const { documents } = usePartDocuments(partId);
-  const hasCoverAttachment = partQuery.data ? Boolean(partQuery.data.cover_attachment) : undefined;
-  const { coverAttachment } = useCoverAttachment(partId, hasCoverAttachment);
 
   // Transform API part data to form data format
   const formData = useMemo(() => {
@@ -39,10 +36,10 @@ export function useDuplicatePart(partId: string | undefined) {
     };
   }, [partQuery.data]);
 
-  // Get cover document ID
+  // Get cover document ID from part data
   const coverDocumentId = useMemo(() => {
-    return coverAttachment?.id || null;
-  }, [coverAttachment]);
+    return partQuery.data?.cover_attachment_id || null;
+  }, [partQuery.data]);
 
   return {
     isLoading: partQuery.isLoading,

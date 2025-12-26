@@ -40,6 +40,7 @@ interface KitBOMRowEditorCreateProps extends KitBOMRowEditorSharedProps {
     key: string;
     description: string;
     manufacturerCode: string | null;
+    coverUrl: string | null;
   };
 }
 
@@ -50,6 +51,7 @@ interface KitBOMRowEditorEditProps extends KitBOMRowEditorSharedProps {
     key: string;
     description: string;
     manufacturerCode: string | null;
+    coverUrl: string | null;
   };
   onPartSelectionChange?: never;
 }
@@ -158,6 +160,7 @@ export function KitBOMRowEditor(props: KitBOMRowEditorProps) {
             partKey={props.partSummary.key}
             description={props.partSummary.description}
             manufacturerCode={props.partSummary.manufacturerCode}
+            coverUrl={props.partSummary.coverUrl}
             testId={`${baseTestId}.part`}
           />
         </div>

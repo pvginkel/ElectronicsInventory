@@ -65,7 +65,7 @@ export function PartListItem({
         <div className="flex-shrink-0">
           <CoverImageDisplay
             partId={part.key}
-            hasCoverAttachment={part.has_cover_attachment}
+            coverUrl={part.cover_url}
             size="medium"
             className="w-16 h-16 rounded-md shadow-sm"
             showPlaceholder={true}

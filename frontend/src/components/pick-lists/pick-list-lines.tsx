@@ -103,6 +103,7 @@ export function PickListLines({
                   partKey={group.partKey}
                   description={group.description}
                   manufacturerCode={group.manufacturerCode}
+                  coverUrl={group.coverUrl}
                   testId={`pick-lists.detail.group.${groupId}.summary`}
                   link={true}
                 />

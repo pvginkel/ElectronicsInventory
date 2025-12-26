@@ -181,7 +181,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
         ? {
             status: 'success',
             partKey: part.key,
-            hasCoverAttachment: Boolean(part.cover_attachment),
+            hasCoverAttachment: Boolean(part.cover_url),
             typeId: part.type_id ?? null,
           }
         : undefined,
@@ -250,7 +250,6 @@ export function PartDetails({ partId }: PartDetailsProps) {
   };
 
   const formattedPart = part ? formatPartForDisplay(part) : null;
-  const hasCoverAttachment = Boolean(part?.cover_attachment);
 
   const breadcrumbs = (
     <>
@@ -676,7 +675,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
                   
                   <CoverImageDisplay
                     partId={partId}
-                    hasCoverAttachment={hasCoverAttachment}
+                    coverUrl={part.cover_url}
                     size="medium"
                     showPlaceholder={false}
                   />
@@ -715,7 +714,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
               <PartDocumentGrid
                 key={documentKey}
                 partId={partId}
-                hasCoverAttachment={hasCoverAttachment}
+                currentCoverAttachmentId={part?.cover_attachment_id ?? null}
                 onDocumentChange={() => setDocumentKey((prev) => prev + 1)}
               />
             </div>

@@ -141,6 +141,7 @@ export interface KitContentPartSummary {
   key: string;
   description: string;
   manufacturerCode: string | null;
+  coverUrl: string | null;
 }
 
 export interface KitContentRow {
@@ -404,6 +405,7 @@ function mapKitContentPart(
     key: part?.key ?? '',
     description: part?.description ?? '',
     manufacturerCode: part?.manufacturer_code ?? null,
+    coverUrl: part?.cover_url ?? null,
   };
 }
 

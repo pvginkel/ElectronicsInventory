@@ -660,6 +660,7 @@ export function UpdateStockDialog({
                   <div className="flex items-start gap-3">
                     <CoverImageDisplay
                       partId={line.part.key}
+                      coverUrl={line.part.coverUrl}
                       size="small"
                     />
                     <div>

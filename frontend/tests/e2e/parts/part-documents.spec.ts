@@ -53,10 +53,10 @@ test('adds, marks cover, and removes documents with the real backend', async ({
     await partsDocuments.waitForPreviewImage(attachmentId);
     const previewImage = partsDocuments.previewImage(attachmentId);
     await expect(previewImage).toHaveAttribute('alt', /Datasheet/i);
-    await expect(previewImage).toHaveAttribute(
-      'src',
-      new RegExp(`/api/parts/${part.key}/attachments/${attachmentId}/thumbnail`)
-    );
+    // Verify preview image uses CAS URL (server-provided preview_url)
+    const src = await previewImage.getAttribute('src');
+    expect(src).toBeTruthy();
+    expect(src).toContain('/api/cas/'); // Verify it's using CAS URL
 
     await expect.poll(async () => (await testData.attachments.list(part.key)).length).toBe(1);
     const attachment = await testData.attachments.get(part.key, attachmentId);

@@ -8,6 +8,7 @@ interface PartInlineSummaryProps {
   partKey: string;
   description: string;
   manufacturerCode?: string | null;
+  coverUrl: string | null;
   className?: string;
   testId?: string;
   link?: boolean;
@@ -18,6 +19,7 @@ export function PartInlineSummary({
   partKey,
   description,
   manufacturerCode,
+  coverUrl,
   className,
   testId,
   link = false,
@@ -48,7 +50,7 @@ export function PartInlineSummary({
 
   const content = showCoverImage ? (
     <div className="flex items-center gap-4">
-      <CoverImageDisplay partId={partKey} size="small" />
+      <CoverImageDisplay partId={partKey} coverUrl={coverUrl} size="small" />
       {textContent}
     </div>
   ) : textContent;

@@ -1,51 +1,33 @@
-import { useState, useMemo, useEffect } from 'react';
-import { useCoverAttachment } from '@/hooks/use-cover-image';
-import { getCoverThumbnailUrl, generateCoverSrcSet, getSizesAttribute } from '@/lib/utils/thumbnail-urls';
-import pdfIconSvg from '@/assets/pdf-icon.svg';
+import { useState, useEffect } from 'react';
+import { appendThumbnailParam, generateSrcSetFromUrl, getSizesAttribute, THUMBNAIL_SIZES } from '@/lib/utils/thumbnail-urls';
 import { ImagePlaceholderIcon } from '@/components/icons/ImagePlaceholderIcon';
-import { cn } from '@/lib/utils';
 
 interface CoverImageDisplayProps {
   partId: string;
-  hasCoverAttachment?: boolean;
+  coverUrl: string | null;
   size?: 'small' | 'medium' | 'large';
   className?: string;
   showPlaceholder?: boolean;
+  alt?: string;
 }
 
-export function CoverImageDisplay({ 
-  partId, 
-  hasCoverAttachment,
-  size = 'medium', 
-  className = '', 
-  showPlaceholder = false 
+export function CoverImageDisplay({
+  partId,
+  coverUrl,
+  size = 'medium',
+  className = '',
+  showPlaceholder = false,
+  alt = 'Part cover image'
 }: CoverImageDisplayProps) {
-  const { coverAttachment, isLoading, dataUpdatedAt } = useCoverAttachment(partId, hasCoverAttachment);
   const [imageError, setImageError] = useState(false);
 
-  const reloadToken = useMemo(() => {
-    if (typeof dataUpdatedAt === 'number') {
-      return dataUpdatedAt.toString();
-    }
-    if (coverAttachment?.updated_at) {
-      return String(coverAttachment.updated_at);
-    }
-    return coverAttachment ? `${coverAttachment.id ?? ''}` : 'initial';
-  }, [coverAttachment, dataUpdatedAt]);
-
-  // Reset image error when cache buster changes (new image to load)
+  // Reset image error when coverUrl changes (new image to load)
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset error state when reloadToken changes (new image)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset error state when coverUrl changes (new image)
     setImageError(false);
-  }, [reloadToken]);
+  }, [coverUrl]);
 
-  if (hasCoverAttachment !== false && isLoading) {
-    return (
-      <div className={cn('rounded-lg bg-muted animate-pulse', getSizeClasses(size), className)} />
-    );
-  }
-
-  if (!coverAttachment) {
+  if (!coverUrl) {
     if (showPlaceholder) {
       return (
         <div className={`rounded-lg bg-muted border-2 border-dashed border-muted-foreground/25 flex items-center justify-center ${getSizeClasses(size)} ${className}`}>
@@ -59,29 +41,29 @@ export function CoverImageDisplay({
     return null;
   }
 
-  const isPdf = coverAttachment.attachment_type === 'pdf' || 
-               (coverAttachment.content_type === 'application/pdf') || 
-               (coverAttachment.filename?.toLowerCase().endsWith('.pdf'));
-
-  if (isPdf || imageError) {
+  if (imageError) {
     return (
       <div className={`rounded-lg bg-muted flex items-center justify-center ${getSizeClasses(size)} ${className}`}>
         <div className="text-center text-muted-foreground">
-          <img src={pdfIconSvg} alt="PDF" width="40%" height="40%" className="mx-auto" />
-          <div className="text-xs mt-1">{coverAttachment.title}</div>
+          <ImagePlaceholderIcon />
+          <div className="text-xs">Image unavailable</div>
         </div>
       </div>
     );
   }
 
+  const sizeValue = THUMBNAIL_SIZES[size];
+  const thumbnailUrl = appendThumbnailParam(coverUrl, sizeValue);
+  const srcSet = generateSrcSetFromUrl(coverUrl);
+
   return (
     <div className={`rounded-lg overflow-hidden bg-muted ${getSizeClasses(size)} ${className}`}>
       <img
-        key={`cover-${partId}-${reloadToken}`}
-        src={getCoverThumbnailUrl(partId, size)}
-        srcSet={generateCoverSrcSet(partId)}
+        key={`cover-${partId}-${coverUrl}`}
+        src={thumbnailUrl ?? undefined}
+        srcSet={srcSet}
         sizes={getSizesAttribute()}
-        alt={coverAttachment.title}
+        alt={alt}
         className="w-full h-full object-cover"
         onError={() => setImageError(true)}
         loading="lazy"

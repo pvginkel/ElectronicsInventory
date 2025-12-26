@@ -47,6 +47,7 @@ export const ConceptLineRow = forwardRef<HTMLTableRowElement, ConceptLineRowProp
           partKey={line.part.key}
           description={line.part.description}
           manufacturerCode={line.part.manufacturerCode}
+          coverUrl={line.part.coverUrl}
           testId={`shopping-lists.concept.row.${line.id}.part`}
           link={true}
         />

@@ -114,6 +114,7 @@ export interface ShoppingListPartSummary {
   key: string;
   description: string;
   manufacturerCode: string | null;
+  coverUrl: string | null;
 }
 
 export interface ShoppingListSellerSummary {
