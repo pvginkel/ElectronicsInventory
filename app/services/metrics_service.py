@@ -135,6 +135,18 @@ class MetricsServiceProtocol(ABC):
         """Record pick list line quantity adjustment."""
         return None
 
+    def record_pick_list_pdf_generated(
+        self, pick_list_id: int, line_count: int, box_count: int
+    ) -> None:
+        """Record pick list PDF generation."""
+        return None
+
+    def record_pick_list_pdf_generation_duration(
+        self, duration: float, status: str
+    ) -> None:
+        """Record pick list PDF generation duration."""
+        return None
+
     @abstractmethod
     def record_ai_analysis(
         self,
@@ -338,6 +350,27 @@ class MetricsService(MetricsServiceProtocol):
         self.pick_list_line_quantity_delta = Histogram(
             'pick_list_line_quantity_delta',
             'Distribution of quantity deltas on line updates'
+        )
+
+        self.pick_list_pdf_generated_total = Counter(
+            'pick_list_pdf_generated_total',
+            'Total pick list PDFs generated'
+        )
+
+        self.pick_list_pdf_line_count = Histogram(
+            'pick_list_pdf_line_count',
+            'Number of lines in generated PDFs'
+        )
+
+        self.pick_list_pdf_box_count = Histogram(
+            'pick_list_pdf_box_count',
+            'Number of boxes in generated PDFs'
+        )
+
+        self.pick_list_pdf_generation_duration_seconds = Histogram(
+            'pick_list_pdf_generation_duration_seconds',
+            'Duration of PDF generation in seconds',
+            ['status']
         )
 
         # Kit Metrics
@@ -799,6 +832,28 @@ class MetricsService(MetricsServiceProtocol):
             self.pick_list_line_quantity_delta.observe(delta)
         except Exception as exc:
             logger.error("Error recording pick list line quantity update metrics: %s", exc)
+
+    def record_pick_list_pdf_generated(
+        self, pick_list_id: int, line_count: int, box_count: int
+    ) -> None:
+        """Record metrics when a pick list PDF is generated."""
+        try:
+            self.pick_list_pdf_generated_total.inc()
+            self.pick_list_pdf_line_count.observe(max(line_count, 0))
+            self.pick_list_pdf_box_count.observe(max(box_count, 0))
+        except Exception as exc:
+            logger.error("Error recording pick list PDF generation metrics: %s", exc)
+
+    def record_pick_list_pdf_generation_duration(
+        self, duration: float, status: str
+    ) -> None:
+        """Record pick list PDF generation duration."""
+        try:
+            self.pick_list_pdf_generation_duration_seconds.labels(status=status).observe(
+                max(duration, 0.0)
+            )
+        except Exception as exc:
+            logger.error("Error recording pick list PDF duration metrics: %s", exc)
 
     def record_shopping_list_line_receipt(self, lines: int, total_qty: int) -> None:
         """Record metrics for shopping list line stock receipts."""
