@@ -98,3 +98,8 @@ class KitContent(db.Model):  # type: ignore[name-defined]
     def part_description(self) -> str | None:
         """Expose the associated part description for schema compatibility."""
         return self.part.description if self.part else None
+
+    @property
+    def cover_url(self) -> str | None:
+        """Expose the associated part cover URL for schema compatibility."""
+        return self.part.cover_url if self.part else None

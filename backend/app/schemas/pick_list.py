@@ -60,6 +60,11 @@ class PickListLineContentSchema(BaseModel):
         description="Description of the part to pick",
         json_schema_extra={"example": "NE555 timer in DIP package"},
     )
+    cover_url: str | None = Field(
+        default=None,
+        description="Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+        json_schema_extra={"example": "/api/cas/abc123def456..."},
+    )
 
 
 class KitPickListLineSchema(BaseModel):

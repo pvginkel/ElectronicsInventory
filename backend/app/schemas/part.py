@@ -375,6 +375,11 @@ class PartListSchema(BaseModel):
         description="Free text description",
         json_schema_extra={"example": "12V SPDT relay with 40A contacts"}
     )
+    cover_url: str | None = Field(
+        default=None,
+        description="Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+        json_schema_extra={"example": "/api/cas/abc123def456..."}
+    )
 
     @computed_field  # type: ignore[prop-decorator]
     @property
