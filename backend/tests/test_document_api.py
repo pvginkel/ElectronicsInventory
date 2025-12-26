@@ -235,9 +235,8 @@ class TestDocumentAPI:
                 assert item['preview_url'] is not None
                 assert item['preview_url'].startswith('/api/cas/')
             elif item['title'] == 'URL 1':
-                # URL attachment without stored image gets link icon
-                assert item['preview_url'] is not None
-                assert item['preview_url'].startswith('/api/icons/link')
+                # URL attachments have no preview
+                assert item['preview_url'] is None
 
     def test_get_single_attachment(self, client: FlaskClient, container: ServiceContainer, session: Session):
         """Test getting single attachment details."""
@@ -681,9 +680,8 @@ class TestDocumentAPI:
         assert attachment_data['attachment_type'] == 'url'
         assert attachment_data['title'] == 'Product Page'
         assert attachment_data['url'] == 'https://example.com/product'
-        # URL attachment without stored image gets link icon
-        assert attachment_data['preview_url'] is not None
-        assert attachment_data['preview_url'].startswith('/api/icons/link')
+        # URL attachments have no preview
+        assert attachment_data['preview_url'] is None
 
     def test_copy_attachment_source_not_found(self, client: FlaskClient, app: Flask, container: ServiceContainer, session: Session):
         """Test copying non-existent attachment via API."""
