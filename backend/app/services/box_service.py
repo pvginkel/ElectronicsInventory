@@ -9,8 +9,10 @@ from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.box import Box
 from app.models.location import Location
 from app.models.part import Part
+from app.models.part_attachment import PartAttachment
 from app.models.part_location import PartLocation
 from app.services.base import BaseService
+from app.utils.cas_url import build_cas_url
 
 if TYPE_CHECKING:
     from app.schemas.box import BoxUsageStatsModel, BoxWithUsageModel
@@ -23,6 +25,7 @@ class PartAssignmentData:
     qty: int
     manufacturer_code: str | None
     description: str
+    cover_url: str | None
 
 
 @dataclass
@@ -210,13 +213,16 @@ class BoxService(BaseService):
 
         # Query locations with their part assignments
         # Use a LEFT JOIN to include empty locations
+        # Also join with PartAttachment to get cover image data
         stmt = select(
             Location.box_no,
             Location.loc_no,
             Part.key,
             PartLocation.qty,
             Part.manufacturer_code,
-            Part.description
+            Part.description,
+            PartAttachment.s3_key.label("cover_s3_key"),
+            PartAttachment.content_type.label("cover_content_type"),
         ).select_from(
             Location
         ).outerjoin(
@@ -225,6 +231,9 @@ class BoxService(BaseService):
             (Location.loc_no == PartLocation.loc_no)
         ).outerjoin(
             Part, PartLocation.part_id == Part.id
+        ).outerjoin(
+            PartAttachment,
+            Part.cover_attachment_id == PartAttachment.id
         ).where(
             Location.box_no == box_no
         ).order_by(Location.loc_no)
@@ -249,11 +258,20 @@ class BoxService(BaseService):
             # Add part assignment if there is one
             if result.key is not None:
                 locations_dict[loc_no].is_occupied = True
+                # Build cover_url if cover attachment is an image
+                cover_url = None
+                if (
+                    result.cover_s3_key
+                    and result.cover_content_type
+                    and result.cover_content_type.startswith("image/")
+                ):
+                    cover_url = build_cas_url(result.cover_s3_key)
                 part_assignment = PartAssignmentData(
                     key=result.key,
                     qty=result.qty,
                     manufacturer_code=result.manufacturer_code,
-                    description=result.description or ""
+                    description=result.description or "",
+                    cover_url=cover_url,
                 )
                 locations_dict[loc_no].part_assignments.append(part_assignment)
 

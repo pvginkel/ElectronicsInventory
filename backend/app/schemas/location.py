@@ -43,6 +43,11 @@ class PartAssignmentSchema(BaseModel):
         description="Part description for display purposes",
         json_schema_extra={"example": "1kΩ resistor, 0603 package"}
     )
+    cover_url: str | None = Field(
+        default=None,
+        description="Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+        json_schema_extra={"example": "/api/cas/abc123def456..."}
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
