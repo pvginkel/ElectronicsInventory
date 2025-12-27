@@ -10,14 +10,18 @@ from flask import Blueprint, current_app, jsonify, request
 from spectree import Response as SpectreeResponse
 
 from app.exceptions import RouteNotAvailableException
+from app.schemas.task_schema import TaskEvent, TaskEventType
 from app.schemas.testing import (
     ContentHtmlQuerySchema,
     ContentImageQuerySchema,
     DeploymentTriggerRequestSchema,
     DeploymentTriggerResponseSchema,
+    TaskEventRequestSchema,
+    TaskEventResponseSchema,
     TestErrorResponseSchema,
     TestResetResponseSchema,
 )
+from app.services.connection_manager import ConnectionManager
 from app.services.container import ServiceContainer
 from app.services.task_service import TaskService
 from app.services.testing_service import TestingService
@@ -316,3 +320,70 @@ def start_test_task(
         "task_id": response.task_id,
         "status": response.status.value
     }), 200
+
+
+# Map string event types to TaskEventType enum
+_EVENT_TYPE_MAP = {
+    "task_started": TaskEventType.TASK_STARTED,
+    "progress_update": TaskEventType.PROGRESS_UPDATE,
+    "task_completed": TaskEventType.TASK_COMPLETED,
+    "task_failed": TaskEventType.TASK_FAILED,
+}
+
+
+@testing_bp.route("/sse/task-event", methods=["POST"])
+@api.validate(json=TaskEventRequestSchema, resp=SpectreeResponse(HTTP_200=TaskEventResponseSchema, HTTP_400=TestErrorResponseSchema))
+@handle_api_errors
+@inject
+def send_task_event(
+    connection_manager: ConnectionManager = Provide[ServiceContainer.connection_manager]
+) -> Any:
+    """Send a fake task event to a specific SSE connection for Playwright testing.
+
+    This endpoint allows the Playwright test suite to simulate task events
+    without running actual background tasks. The event is sent directly to
+    the SSE connection identified by request_id.
+
+    Returns:
+        200: Event sent successfully
+        400: No connection exists for the given request_id
+    """
+    payload = TaskEventRequestSchema.model_validate(request.get_json() or {})
+
+    # Check if connection exists
+    if not connection_manager.has_connection(payload.request_id):
+        return jsonify({
+            "error": f"No SSE connection registered for request_id: {payload.request_id}",
+            "status": "not_found"
+        }), 400
+
+    # Build TaskEvent with proper format (same as TaskService sends)
+    event = TaskEvent(
+        event_type=_EVENT_TYPE_MAP[payload.event_type],
+        task_id=payload.task_id,
+        data=payload.data
+    )
+
+    # Send event to the specific connection
+    # Use mode='json' to serialize datetime to ISO format string
+    success = connection_manager.send_event(
+        payload.request_id,
+        event.model_dump(mode='json'),
+        event_name="task_event",
+        service_type="task"
+    )
+
+    if not success:
+        return jsonify({
+            "error": f"Failed to send event to connection: {payload.request_id}",
+            "status": "send_failed"
+        }), 400
+
+    response_body = TaskEventResponseSchema(
+        requestId=payload.request_id,
+        taskId=payload.task_id,
+        eventType=payload.event_type,
+        delivered=True
+    )
+
+    return jsonify(response_body.model_dump(by_alias=True)), 200
