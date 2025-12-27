@@ -291,7 +291,7 @@ def start_test_task(
         }
 
     Returns:
-        200: Task started successfully with task_id and stream_url
+        200: Task started successfully with task_id and status
     """
     from app.services.base_task import BaseTask
     from tests.test_tasks.test_task import DemoTask, FailingTask
@@ -314,6 +314,5 @@ def start_test_task(
 
     return jsonify({
         "task_id": response.task_id,
-        "stream_url": response.stream_url,
         "status": response.status.value
     }), 200

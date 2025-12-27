@@ -35,12 +35,17 @@ class TestSSEGatewayTasks:
         task_id = resp.json()["task_id"]
 
         # When receiving stream events via gateway
-        client = SSEClient(f"{sse_gateway_server}/api/sse/tasks?task_id={task_id}", strict=True)
+        client = SSEClient(f"{sse_gateway_server}/api/sse/stream?request_id={task_id}", strict=True)
         events = []
 
-        for event in client.connect(timeout=10.0):
+        # Collect events with timeout (connection stays open, collect until we have enough events)
+        timeout = time.perf_counter() + 3.0
+        for event in client.connect(timeout=3.0):
             events.append(event)
-            if event["event"] == "connection_close":
+            # Stop after receiving some progress events
+            if len(events) >= 5:
+                break
+            if time.perf_counter() > timeout:
                 break
 
         # Then we receive task_event events with progress_update
@@ -57,10 +62,10 @@ class TestSSEGatewayTasks:
             assert "timestamp" in event["data"]
             assert "data" in event["data"]
 
-    def test_task_completed_event_closes_connection(
+    def test_task_completed_event_does_not_close_connection(
         self, sse_server: tuple[str, any], sse_gateway_server: str
     ):
-        """Test that task_completed event is sent with close=True, closing the connection."""
+        """Test that task_completed event is sent but connection remains open."""
         server_url, _ = sse_server
         # Given a simple task
         resp = requests.post(
@@ -75,14 +80,21 @@ class TestSSEGatewayTasks:
         task_id = resp.json()["task_id"]
 
         # When receiving stream events
-        client = SSEClient(f"{sse_gateway_server}/api/sse/tasks?task_id={task_id}", strict=True)
+        client = SSEClient(f"{sse_gateway_server}/api/sse/stream?request_id={task_id}", strict=True)
         events = []
 
-        for event in client.connect(timeout=10.0):
+        # Collect events with timeout
+        timeout = time.perf_counter() + 5.0
+        for event in client.connect(timeout=5.0):
             events.append(event)
-            # Gateway closes connection after final event (close=True)
-            # Python sends connection_close event before closing
-            if event["event"] == "connection_close":
+            # Stop after receiving task_completed event
+            task_events = [e for e in events if e["event"] == "task_event"]
+            completed_events = [e for e in task_events if e["data"]["event_type"] == "task_completed"]
+            if len(completed_events) >= 1:
+                # Wait a bit to confirm no connection_close event arrives
+                time.sleep(0.5)
+                break
+            if time.perf_counter() > timeout:
                 break
 
         # Then we receive task_completed event
@@ -99,9 +111,9 @@ class TestSSEGatewayTasks:
         assert "timestamp" in completed["data"]
         assert completed["data"]["data"]["status"] == "success"
 
-        # Validate connection closes with proper reason
-        assert events[-1]["event"] == "connection_close"
-        assert events[-1]["data"]["reason"] == "task_completed"
+        # Validate connection does NOT close (no connection_close event)
+        connection_close_events = [e for e in events if e["event"] == "connection_close"]
+        assert len(connection_close_events) == 0, "Connection should remain open after task completion"
 
     def test_task_not_found_returns_error_and_closes(
         self, sse_gateway_server: str

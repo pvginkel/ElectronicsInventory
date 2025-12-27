@@ -57,7 +57,6 @@ class TestTaskService:
         )
 
         assert response.task_id is not None
-        assert response.stream_url == f"/api/sse/tasks?task_id={response.task_id}"
         assert response.status == TaskStatus.PENDING
 
         # Wait for task completion
@@ -262,7 +261,6 @@ class TestTaskService:
         # Verify cleanup (internal state should be cleared)
         assert len(service._tasks) == 0
         assert len(service._task_instances) == 0
-        assert len(service._event_queues) == 0
 
     def test_automatic_cleanup_of_completed_tasks(self, mock_metrics_service, mock_shutdown_coordinator, mock_connection_manager):
         """Test that completed tasks are automatically cleaned up."""
@@ -380,107 +378,6 @@ class TestTaskService:
         # Cancel task to clean up
         task_service.cancel_task(response.task_id)
 
-    def test_on_connect_with_valid_task(self, task_service, mock_connection_manager):
-        """Test on_connect sends task events for valid task_id."""
-        from app.schemas.sse_gateway_schema import (
-            SSEGatewayConnectCallback,
-            SSEGatewayRequestInfo,
-        )
-
-        # Start a task
-        task = DemoTask()
-        response = task_service.start_task(task, message="test", steps=1, delay=0.01)
-        task_id = response.task_id
-
-        # Wait for task to start
-        time.sleep(0.1)
-
-        # Create connect callback
-        connect_callback = SSEGatewayConnectCallback(
-            action="connect",
-            token="test-token-123",
-            request=SSEGatewayRequestInfo(url=f"/api/sse/tasks?task_id={task_id}", headers={})
-        )
-
-        # Call on_connect
-        task_service.on_connect(connect_callback, task_id)
-
-        # Verify ConnectionManager.send_event was called with task_started event
-        assert mock_connection_manager.send_event.called
-        calls = mock_connection_manager.send_event.call_args_list
-
-        # Find the task_started event
-        task_started_events = [
-            call for call in calls
-            if call[0][1].get("event_type") == TaskEventType.TASK_STARTED
-        ]
-        assert len(task_started_events) > 0
-
-    def test_on_connect_with_nonexistent_task(self, task_service, mock_connection_manager):
-        """Test on_connect sends error event for nonexistent task_id."""
-        from app.schemas.sse_gateway_schema import (
-            SSEGatewayConnectCallback,
-            SSEGatewayRequestInfo,
-        )
-
-        # Create connect callback with nonexistent task_id
-        connect_callback = SSEGatewayConnectCallback(
-            action="connect",
-            token="test-token-456",
-            request=SSEGatewayRequestInfo(url="/api/sse/tasks?task_id=nonexistent", headers={})
-        )
-
-        # Call on_connect with nonexistent task
-        task_service.on_connect(connect_callback, "nonexistent")
-
-        # Verify ConnectionManager.send_event was called with error event
-        assert mock_connection_manager.send_event.called
-        calls = mock_connection_manager.send_event.call_args_list
-
-        # Find the error event
-        error_events = [
-            call for call in calls
-            if call[0][0] == "task:nonexistent" and "error" in call[0][1]
-        ]
-        assert len(error_events) > 0
-        # Verify error message contains "not found"
-        error_event = error_events[0][0][1]
-        assert "not found" in error_event["error"].lower()
-
-    def test_on_disconnect(self, task_service, mock_connection_manager):
-        """Test on_disconnect cleans up connection state."""
-        from app.schemas.sse_gateway_schema import (
-            SSEGatewayConnectCallback,
-            SSEGatewayDisconnectCallback,
-            SSEGatewayRequestInfo,
-        )
-
-        # Start a task and connect
-        task = DemoTask()
-        response = task_service.start_task(task, message="test", steps=1, delay=0.01)
-        task_id = response.task_id
-
-        time.sleep(0.1)
-
-        # Connect first
-        connect_callback = SSEGatewayConnectCallback(
-            action="connect",
-            token="test-token-789",
-            request=SSEGatewayRequestInfo(url=f"/api/sse/tasks?task_id={task_id}", headers={})
-        )
-        task_service.on_connect(connect_callback, task_id)
-
-        # Now disconnect
-        disconnect_callback = SSEGatewayDisconnectCallback(
-            action="disconnect",
-            token="test-token-789",
-            reason="client_disconnect",
-            request=SSEGatewayRequestInfo(url=f"/api/sse/tasks?task_id={task_id}", headers={})
-        )
-        task_service.on_disconnect(disconnect_callback)
-
-        # Verify disconnect was handled (connection_manager should be called)
-        assert mock_connection_manager.send_event.called or mock_connection_manager.unregister_connection.called
 
 
 class TestTaskProgressHandle:
@@ -488,12 +385,10 @@ class TestTaskProgressHandle:
 
     def test_progress_handle_creation(self):
         """Test TaskProgressHandle creation and basic functionality."""
-        from queue import Queue
         from unittest.mock import Mock
 
-        queue = Queue()
         mock_connection_manager = Mock()
-        handle = TaskProgressHandle("test-task-id", queue, mock_connection_manager)
+        handle = TaskProgressHandle("test-task-id", mock_connection_manager)
 
         # Send different types of progress updates
         handle.send_progress_text("Text update")
@@ -506,36 +401,41 @@ class TestTaskProgressHandle:
         # Get all calls
         calls = mock_connection_manager.send_event.call_args_list
 
-        # Check first call (text update)
+        # Check first call (text update) - broadcast mode (request_id=None)
         text_call = calls[0]
-        text_identifier, text_event = text_call[0]
-        assert text_identifier == "task:test-task-id"
+        # call_args has positional args and kwargs
+        request_id = text_call.args[0]
+        text_event = text_call.args[1]
+        event_name = text_call.kwargs["event_name"]
+        service_type = text_call.kwargs["service_type"]
+
+        assert request_id is None  # Broadcast mode
         assert text_event["event_type"] == TaskEventType.PROGRESS_UPDATE
         assert text_event["task_id"] == "test-task-id"
         assert text_event["data"]["text"] == "Text update"
         assert text_event["data"]["value"] == 0.0  # Uses initial progress value
+        assert event_name == "task_event"
+        assert service_type == "task"
 
         # Check second call (value update)
         value_call = calls[1]
-        value_event = value_call[0][1]
+        value_event = value_call.args[1]
         assert value_event["data"]["text"] == "Text update"  # Retains previous text
         assert value_event["data"]["value"] == 0.5
 
         # Check third call (combined update)
         combined_call = calls[2]
-        combined_event = combined_call[0][1]
+        combined_event = combined_call.args[1]
         assert combined_event["data"]["text"] == "Combined update"
         assert combined_event["data"]["value"] == 0.75
 
     def test_progress_handle_full_queue(self):
         """Test progress handle behavior - now sends via ConnectionManager."""
-        from queue import Queue
         from unittest.mock import Mock
 
-        # Queue is no longer used for sending events (events go via ConnectionManager)
-        queue = Queue(maxsize=1)
+        # Events are sent via ConnectionManager (no queue)
         mock_connection_manager = Mock()
-        handle = TaskProgressHandle("test-task-id", queue, mock_connection_manager)
+        handle = TaskProgressHandle("test-task-id", mock_connection_manager)
 
         # Send multiple progress updates
         handle.send_progress_text("First message")

@@ -144,6 +144,10 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
 
     app.container = container
 
+    # Initialize VersionService singleton to register its observer callback
+    # with ConnectionManager. This must happen at startup, not lazily.
+    container.version_service()
+
     # Configure CORS
     CORS(app, origins=settings.CORS_ORIGINS)
 

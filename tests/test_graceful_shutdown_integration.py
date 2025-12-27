@@ -181,7 +181,6 @@ class TestTaskServiceShutdownIntegration:
         # After shutdown, internal state should be cleared
         assert len(task_service._tasks) == 0
         assert len(task_service._task_instances) == 0
-        assert len(task_service._event_queues) == 0
 
 
 class TestTempFileManagerShutdownIntegration:

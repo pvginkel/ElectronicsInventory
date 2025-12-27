@@ -40,7 +40,7 @@ class TestSSEGatewayVersion:
 
         # When connecting to SSE Gateway AFTER event was queued
         client = SSEClient(
-            f"{sse_gateway_server}/api/sse/utils/version?request_id={request_id}",
+            f"{sse_gateway_server}/api/sse/stream?request_id={request_id}",
             strict=True
         )
         events = []
@@ -83,7 +83,7 @@ class TestSSEGatewayVersion:
 
         # Connect to SSE Gateway
         client = SSEClient(
-            f"{sse_gateway_server}/api/sse/utils/version?request_id={request_id}",
+            f"{sse_gateway_server}/api/sse/stream?request_id={request_id}",
             strict=True
         )
 

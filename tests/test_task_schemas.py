@@ -225,24 +225,20 @@ class TestTaskStartResponse:
         """Test TaskStartResponse creation and validation."""
         response = TaskStartResponse(
             task_id="test-task-123",
-            stream_url="/api/tasks/test-task-123/stream",
             status=TaskStatus.PENDING
         )
 
         assert response.task_id == "test-task-123"
-        assert response.stream_url == "/api/tasks/test-task-123/stream"
         assert response.status == TaskStatus.PENDING
 
     def test_task_start_response_serialization(self):
         """Test TaskStartResponse serialization."""
         response = TaskStartResponse(
             task_id="test-task-123",
-            stream_url="/api/tasks/test-task-123/stream",
             status=TaskStatus.PENDING
         )
 
         data = response.model_dump()
 
         assert data["task_id"] == "test-task-123"
-        assert data["stream_url"] == "/api/tasks/test-task-123/stream"
         assert data["status"] == "pending"

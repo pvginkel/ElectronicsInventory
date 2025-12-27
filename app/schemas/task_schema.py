@@ -54,5 +54,4 @@ class TaskInfo(BaseModel):
 class TaskStartResponse(BaseModel):
     """Response when starting a new task."""
     task_id: str = Field(description="Unique task identifier")
-    stream_url: str = Field(description="SSE stream URL for monitoring progress")
     status: TaskStatus = Field(description="Initial task status")

@@ -12,9 +12,8 @@ from app.schemas.sse_gateway_schema import (
     SSEGatewayConnectCallback,
     SSEGatewayDisconnectCallback,
 )
+from app.services.connection_manager import ConnectionManager
 from app.services.container import ServiceContainer
-from app.services.task_service import TaskService
-from app.services.version_service import VersionService
 from app.utils.error_handling import handle_api_errors
 
 logger = logging.getLogger(__name__)
@@ -44,71 +43,23 @@ def _authenticate_callback(secret_from_query: str | None, settings: Settings) ->
     return secret_from_query == expected_secret
 
 
-def _route_to_service(url: str) -> tuple[str, str] | None:
-    """Route callback URL to appropriate service.
-
-    Args:
-        url: Client request URL from callback
-
-    Returns:
-        Tuple of (service_type, identifier) or None if not routable
-    """
-    # Parse URL to extract path and query parameters
-    parsed = urlparse(url)
-    path = parsed.path
-    query_params = parse_qs(parsed.query)
-
-    # Route based on URL pattern
-    if path.startswith("/api/sse/tasks"):
-        # Extract task_id from query parameter
-        task_ids = query_params.get("task_id", [])
-        if not task_ids or not task_ids[0]:
-            logger.error(f"Missing task_id in callback URL: {url}")
-            return None
-        task_id = task_ids[0]
-        # Validate task_id doesn't contain colon (reserved for identifier prefix)
-        if ":" in task_id:
-            logger.error(f"Invalid task_id contains colon: {task_id}")
-            return None
-        return ("task", task_id)
-
-    elif path.startswith("/api/sse/utils/version"):
-        # Extract request_id from query parameter
-        request_ids = query_params.get("request_id", [])
-        if not request_ids or not request_ids[0]:
-            logger.error(f"Missing request_id in callback URL: {url}")
-            return None
-        request_id = request_ids[0]
-        # Validate request_id doesn't contain colon
-        if ":" in request_id:
-            logger.error(f"Invalid request_id contains colon: {request_id}")
-            return None
-        return ("version", request_id)
-
-    else:
-        logger.error(f"Unknown callback URL pattern: {url}")
-        return None
-
-
 @sse_bp.route("/callback", methods=["POST"])
 @handle_api_errors
 @inject
 def handle_callback(
-    task_service: TaskService = Provide[ServiceContainer.task_service],
-    version_service: VersionService = Provide[ServiceContainer.version_service],
+    connection_manager: ConnectionManager = Provide[ServiceContainer.connection_manager],
     settings: Settings = Provide[ServiceContainer.config],
 ) -> tuple[Response, int] | Response:
     """Handle SSE Gateway connect/disconnect callbacks.
 
     This endpoint receives callbacks from the SSE Gateway when clients connect
-    or disconnect. It routes the callback to the appropriate service based on
-    the URL pattern in the callback payload.
+    or disconnect. It extracts the request_id from the callback URL and calls
+    ConnectionManager, which then notifies observers.
 
     Returns:
-        200 with optional event data on connect
-        200 empty on disconnect
+        200 on success
         401 if authentication fails (production only)
-        400 if payload invalid or URL not routable
+        400 if payload invalid or request_id missing
     """
     # Authenticate request (production only)
     secret = request.args.get("secret")
@@ -137,22 +88,28 @@ def handle_callback(
             # Validate as connect callback
             connect_callback = SSEGatewayConnectCallback.model_validate(payload)
 
-            # Route to appropriate service
-            route_result = _route_to_service(connect_callback.request.url)
-            if not route_result:
-                return jsonify(
-                    {"error": f"Cannot route URL: {connect_callback.request.url}"}
-                ), 400
+            # Extract request_id from URL query params
+            parsed = urlparse(connect_callback.request.url)
+            query_params = parse_qs(parsed.query)
+            request_ids = query_params.get("request_id", [])
 
-            service_type, identifier = route_result
+            if not request_ids or not request_ids[0]:
+                logger.error(f"Missing request_id in callback URL: {connect_callback.request.url}")
+                return jsonify({"error": "Missing request_id in URL"}), 400
 
-            # Call service-specific on_connect handler
-            if service_type == "task":
-                task_service.on_connect(connect_callback, identifier)
-            elif service_type == "version":
-                version_service.on_connect(connect_callback, identifier)
-            else:
-                return jsonify({"error": f"Unknown service type: {service_type}"}), 400
+            request_id = request_ids[0]
+
+            # Validate request_id doesn't contain colon
+            if ":" in request_id:
+                logger.error(f"Invalid request_id contains colon: {request_id}")
+                return jsonify({"error": "Invalid request_id format"}), 400
+
+            # Register connection with ConnectionManager (observers will be notified)
+            connection_manager.on_connect(
+                request_id,
+                connect_callback.token,
+                connect_callback.request.url
+            )
 
             # Return empty JSON response (SSE Gateway only checks status code)
             return jsonify({}), 200
@@ -161,25 +118,8 @@ def handle_callback(
             # Validate as disconnect callback
             disconnect_callback = SSEGatewayDisconnectCallback.model_validate(payload)
 
-            # Route to appropriate service
-            route_result = _route_to_service(disconnect_callback.request.url)
-            if not route_result:
-                # Stale disconnect for unknown URL; log and accept
-                logger.debug(
-                    f"Disconnect callback for unknown URL: "
-                    f"{disconnect_callback.request.url}"
-                )
-                return jsonify({}), 200
-
-            service_type, identifier = route_result
-
-            # Call service-specific on_disconnect handler
-            if service_type == "task":
-                task_service.on_disconnect(disconnect_callback)
-            elif service_type == "version":
-                version_service.on_disconnect(disconnect_callback)
-            else:
-                return jsonify({"error": f"Unknown service type: {service_type}"}), 400
+            # Notify ConnectionManager of disconnect
+            connection_manager.on_disconnect(disconnect_callback.token)
 
             # Return empty success
             return jsonify({}), 200
