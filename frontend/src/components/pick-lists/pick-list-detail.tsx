@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Printer } from 'lucide-react';
 
 import { DetailScreenLayout } from '@/components/layout/detail-screen-layout';
 import { Card } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/ui/dialog';
 import { KeyValueBadge, StatusBadge } from '@/components/ui';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PickListLines } from '@/components/pick-lists/pick-list-lines';
+import { MediaViewerBase } from '@/components/documents/media-viewer-base';
 import { usePickListDetail, buildPickListDetailQueryKey } from '@/hooks/use-pick-list-detail';
 import { usePickListExecution } from '@/hooks/use-pick-list-execution';
 import { usePickListLineQuantityUpdate } from '@/hooks/use-pick-list-line-quantity-update';
@@ -20,6 +21,7 @@ import { useUiStateInstrumentation, beginUiState, endUiState } from '@/lib/test/
 import { useConfirm } from '@/hooks/use-confirm';
 import type { KitStatus } from '@/types/kits';
 import type { PickListDetail as PickListDetailModel, PickListLineGroup } from '@/types/pick-lists';
+import type { DocumentItem } from '@/types/documents';
 
 const NUMBER_FORMATTER = new Intl.NumberFormat();
 
@@ -47,6 +49,7 @@ export function PickListDetail({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { confirm, confirmProps } = useConfirm();
+  const [isPdfViewerOpen, setIsPdfViewerOpen] = useState(false);
 
   const {
     pickListId: normalizedPickListId,
@@ -160,6 +163,16 @@ export function PickListDetail({
       ? { status: resolvedKitStatus, search: kitOverviewSearch }
       : { status: resolvedKitStatus };
   }, [resolvedKitStatus, kitOverviewSearch]);
+
+  // Construct PDF document for MediaViewerBase
+  const pdfDocument: DocumentItem | null = detail ? {
+    id: 'pick-list-pdf',
+    type: 'pdf' as const,
+    title: `Pick List ${detail.id}`,
+    assetUrl: `/api/pick-lists/${detail.id}/pdf`,
+    previewImageUrl: null,
+    isCover: false,
+  } : null;
 
   const handleDeletePickList = async () => {
     if (!detail || !normalizedPickListId) {
@@ -299,14 +312,24 @@ export function PickListDetail({
   ) : null;
 
   const actions = detail ? (
-    <Button
-      variant="outline"
-      onClick={handleDeletePickList}
-      disabled={deletePickListMutation.isPending}
-      data-testid="pick-lists.detail.actions.delete"
-    >
-      Delete Pick List
-    </Button>
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        onClick={() => setIsPdfViewerOpen(true)}
+        title="View PDF"
+        data-testid="pick-lists.detail.actions.view-pdf"
+      >
+        <Printer className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="outline"
+        onClick={handleDeletePickList}
+        disabled={deletePickListMutation.isPending}
+        data-testid="pick-lists.detail.actions.delete"
+      >
+        Delete Pick List
+      </Button>
+    </div>
   ) : null;
 
   const content = renderContent({
@@ -345,6 +368,13 @@ export function PickListDetail({
         {content}
       </DetailScreenLayout>
       <ConfirmDialog {...confirmProps} />
+      <MediaViewerBase
+        isOpen={isPdfViewerOpen}
+        onClose={() => setIsPdfViewerOpen(false)}
+        documents={pdfDocument ? [pdfDocument] : []}
+        currentDocumentId={pdfDocument ? pdfDocument.id : null}
+        onNavigate={undefined}
+      />
     </div>
   );
 }

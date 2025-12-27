@@ -14314,6 +14314,27 @@
         "tags": []
       }
     },
+    "/api/pick-lists/{pick_list_id}/pdf": {
+      "get": {
+        "description": "",
+        "operationId": "get__api_pick-lists_{pick_list_id}_pdf",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "pick_list_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {},
+        "summary": "Generate and return a PDF report for the pick list.",
+        "tags": []
+      }
+    },
     "/api/sellers": {
       "get": {
         "description": "",

@@ -2,6 +2,7 @@ import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
 import { waitForListLoading, waitForUiState } from '../../support/helpers';
 import type { PartKitReservationsResponseSchema_d12d9a5 } from '@/lib/api/generated/hooks';
+import type { createApiClient, createTestDataBundle } from '../../api';
 
 test.describe('Pick list detail workspace', () => {
   test('shows live availability and highlights shortfalls', async ({ pickLists, testData, apiClient, page }) => {
@@ -992,5 +993,145 @@ test.describe('Pick list detail workspace', () => {
     const updatedLine = updatedPickList.lines?.find((l) => l.id === lineId);
     expect(updatedLine?.quantity_to_pick).toBe(0);
     expect(updatedLine?.status).toBe('open'); // Line remains open with 0 quantity
+  });
+
+  // Helper function to create a pick list for PDF viewer tests
+  async function createPickListForPdfTest(
+    testData: ReturnType<typeof createTestDataBundle>,
+    apiClient: ReturnType<typeof createApiClient>
+  ) {
+    const partDescription = testData.parts.randomPartDescription('PDF Test Part');
+    const { part } = await testData.parts.create({
+      overrides: { description: partDescription },
+    });
+
+    const stockBox = await testData.boxes.create({
+      overrides: { description: 'PDF Test Box' },
+    });
+
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: stockBox.box_no, loc_no: 1, qty: 100 },
+      })
+    );
+
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('PDF Kit'),
+        build_target: 5,
+      },
+    });
+
+    const partReservations = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+
+    await testData.kits.addContent(kit.id, {
+      partId: partReservations.part_id,
+      requiredPerUnit: 2,
+    });
+
+    return testData.kits.createPickList(kit.id, {
+      requestedUnits: 1,
+    });
+  }
+
+  test('opens PDF viewer when clicking View PDF button', async ({
+    pickLists,
+    testData,
+    apiClient,
+    page,
+  }) => {
+    const pickList = await createPickListForPdfTest(testData, apiClient);
+
+    // Navigate to pick list detail
+    const listReady = waitForListLoading(page, 'pickLists.detail', 'ready');
+    const linesReady = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
+    const uiReady = waitForUiState(page, 'pickLists.detail.load', 'ready');
+
+    await pickLists.gotoDetail(pickList.id);
+    await Promise.all([listReady, linesReady, uiReady]);
+
+    // Verify View PDF button is visible
+    await expect(pickLists.viewPdfButton).toBeVisible();
+
+    // Click View PDF button
+    await pickLists.viewPdfButton.click();
+
+    // Verify PDF viewer dialog opens
+    const pdfDialog = page.getByRole('dialog');
+    await expect(pdfDialog).toBeVisible();
+
+    // Verify PDF iframe is present with correct URL
+    const pdfIframe = pdfDialog.locator('iframe');
+    await expect(pdfIframe).toBeVisible();
+    const iframeSrc = await pdfIframe.getAttribute('src');
+    expect(iframeSrc).toBe(`/api/pick-lists/${pickList.id}/pdf`);
+
+    // Verify dialog title
+    await expect(pdfDialog.getByText(`Pick List ${pickList.id}`)).toBeVisible();
+  });
+
+  test('closes PDF viewer when pressing Escape key', async ({
+    pickLists,
+    testData,
+    apiClient,
+    page,
+  }) => {
+    const pickList = await createPickListForPdfTest(testData, apiClient);
+
+    // Navigate to pick list detail
+    const listReady = waitForListLoading(page, 'pickLists.detail', 'ready');
+    const linesReady = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
+    const uiReady = waitForUiState(page, 'pickLists.detail.load', 'ready');
+
+    await pickLists.gotoDetail(pickList.id);
+    await Promise.all([listReady, linesReady, uiReady]);
+
+    // Open PDF viewer
+    await pickLists.viewPdfButton.click();
+
+    const pdfDialog = page.getByRole('dialog');
+    await expect(pdfDialog).toBeVisible();
+
+    // Press Escape key
+    await page.keyboard.press('Escape');
+
+    // Verify dialog is closed
+    await expect(pdfDialog).not.toBeVisible();
+  });
+
+  test('closes PDF viewer when clicking close button', async ({
+    pickLists,
+    testData,
+    apiClient,
+    page,
+  }) => {
+    const pickList = await createPickListForPdfTest(testData, apiClient);
+
+    // Navigate to pick list detail
+    const listReady = waitForListLoading(page, 'pickLists.detail', 'ready');
+    const linesReady = waitForListLoading(page, 'pickLists.detail.lines', 'ready');
+    const uiReady = waitForUiState(page, 'pickLists.detail.load', 'ready');
+
+    await pickLists.gotoDetail(pickList.id);
+    await Promise.all([listReady, linesReady, uiReady]);
+
+    // Open PDF viewer
+    await pickLists.viewPdfButton.click();
+
+    const pdfDialog = page.getByRole('dialog');
+    await expect(pdfDialog).toBeVisible();
+
+    // Click close button using stable testId selector
+    const closeButton = page.getByTestId('media-viewer.close');
+    await expect(closeButton).toBeVisible();
+    await closeButton.click();
+
+    // Verify dialog is closed
+    await expect(pdfDialog).not.toBeVisible();
   });
 });

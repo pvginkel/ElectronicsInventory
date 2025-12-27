@@ -17,6 +17,7 @@ export class PickListsPage extends BasePage {
   readonly availabilityError: Locator;
   readonly breadcrumbKitLink: Locator;
   readonly deleteButton: Locator;
+  readonly viewPdfButton: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -29,6 +30,7 @@ export class PickListsPage extends BasePage {
     this.availabilityError = page.getByTestId('pick-lists.detail.availability.error');
     this.breadcrumbKitLink = page.getByTestId('pick-lists.detail.breadcrumbs.kit');
     this.deleteButton = page.getByTestId('pick-lists.detail.actions.delete');
+    this.viewPdfButton = page.getByTestId('pick-lists.detail.actions.view-pdf');
   }
 
   async gotoDetail(pickListId: number, search?: PickListDetailSearchParams): Promise<void> {

@@ -228,8 +228,9 @@ export function MediaViewerBase({
                   </svg>
                 }
                 tooltip="Download"
+                testId="media-viewer.download"
               />
-              
+
               <IconButton
                 onClick={onClose}
                 icon={
@@ -239,6 +240,7 @@ export function MediaViewerBase({
                   </svg>
                 }
                 tooltip="Close"
+                testId="media-viewer.close"
               />
             </div>
           </div>

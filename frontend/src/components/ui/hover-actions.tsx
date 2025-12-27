@@ -25,14 +25,16 @@ interface IconButtonProps {
   tooltip?: string;
   variant?: 'default' | 'destructive';
   size?: 'sm' | 'md';
+  testId?: string;
 }
 
-export function IconButton({ 
-  onClick, 
-  icon, 
-  tooltip, 
+export function IconButton({
+  onClick,
+  icon,
+  tooltip,
   variant = 'default',
-  size = 'sm'
+  size = 'sm',
+  testId,
 }: IconButtonProps) {
   const sizeClasses = {
     sm: 'w-8 h-8',
@@ -59,6 +61,7 @@ export function IconButton({
         ${tooltip ? 'relative' : ''}
       `}
       title={tooltip}
+      data-testid={testId}
     >
       {icon}
     </button>
