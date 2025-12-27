@@ -106,7 +106,7 @@ export function AIPartProgressStep({
         <div className="text-center space-y-2">
           <h4 className="text-sm font-medium">What's happening?</h4>
           <div className="text-xs text-muted-foreground space-y-1">
-            <p>• Analyzing text and images for part identification</p>
+            <p>• Analyzing text for part identification</p>
             <p>• Searching for datasheets and documentation</p>
             <p>• Generating part specifications and tags</p>
           </div>

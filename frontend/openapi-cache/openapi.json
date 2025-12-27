@@ -10311,17 +10311,110 @@
         "title": "StorageSummarySchema",
         "type": "object"
       },
+      "TaskEventRequestSchema.355d24f": {
+        "description": "Request schema for sending fake task events in testing mode.",
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional event-specific data payload",
+            "examples": [
+              {
+                "text": "Processing...",
+                "value": 0.5
+              }
+            ],
+            "title": "Data"
+          },
+          "event_type": {
+            "description": "Type of task event to send",
+            "enum": [
+              "task_started",
+              "progress_update",
+              "task_completed",
+              "task_failed"
+            ],
+            "examples": [
+              "progress_update"
+            ],
+            "title": "Event Type",
+            "type": "string"
+          },
+          "request_id": {
+            "description": "Request ID of the SSE connection to send the event to",
+            "examples": [
+              "playwright-run-1234"
+            ],
+            "title": "Request Id",
+            "type": "string"
+          },
+          "task_id": {
+            "description": "Task identifier for the event",
+            "examples": [
+              "task-xyz-456"
+            ],
+            "title": "Task Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "task_id",
+          "event_type"
+        ],
+        "title": "TaskEventRequestSchema",
+        "type": "object"
+      },
+      "TaskEventResponseSchema.355d24f": {
+        "description": "Response schema for task event send acknowledgement.",
+        "properties": {
+          "delivered": {
+            "description": "Whether the event was delivered successfully",
+            "examples": [
+              true
+            ],
+            "title": "Delivered",
+            "type": "boolean"
+          },
+          "eventType": {
+            "description": "Echoed event type",
+            "title": "Eventtype",
+            "type": "string"
+          },
+          "requestId": {
+            "description": "Echoed request ID",
+            "title": "Requestid",
+            "type": "string"
+          },
+          "taskId": {
+            "description": "Echoed task ID",
+            "title": "Taskid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "requestId",
+          "taskId",
+          "eventType",
+          "delivered"
+        ],
+        "title": "TaskEventResponseSchema",
+        "type": "object"
+      },
       "TaskStartResponse.70db092": {
         "description": "Response when starting a new task.",
         "properties": {
           "status": {
             "$ref": "#/components/schemas/TaskStartResponse.70db092.TaskStatus",
             "description": "Initial task status"
-          },
-          "stream_url": {
-            "description": "SSE stream URL for monitoring progress",
-            "title": "Stream Url",
-            "type": "string"
           },
           "task_id": {
             "description": "Unique task identifier",
@@ -10331,7 +10424,6 @@
         },
         "required": [
           "task_id",
-          "stream_url",
           "status"
         ],
         "title": "TaskStartResponse",
@@ -15695,7 +15787,7 @@
     },
     "/api/sse/callback": {
       "post": {
-        "description": "This endpoint receives callbacks from the SSE Gateway when clients connect or disconnect. It routes the callback to the appropriate service based on the URL pattern in the callback payload.\n\nReturns:     200 with optional event data on connect     200 empty on disconnect     401 if authentication fails (production only)     400 if payload invalid or URL not routable",
+        "description": "This endpoint receives callbacks from the SSE Gateway when clients connect or disconnect. It extracts the request_id from the callback URL and calls ConnectionManager, which then notifies observers.\n\nReturns:     200 on success     401 if authentication fails (production only)     400 if payload invalid or request_id missing",
         "operationId": "post__api_sse_callback",
         "parameters": [],
         "responses": {},
@@ -15940,9 +16032,50 @@
         "tags": []
       }
     },
+    "/api/testing/sse/task-event": {
+      "post": {
+        "description": "This endpoint allows the Playwright test suite to simulate task events without running actual background tasks. The event is sent directly to the SSE connection identified by request_id.\n\nReturns:     200: Event sent successfully     400: No connection exists for the given request_id",
+        "operationId": "post__api_testing_sse_task-event",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskEventRequestSchema.355d24f"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskEventResponseSchema.355d24f"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestErrorResponseSchema.355d24f"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Send a fake task event to a specific SSE connection for Playwright testing.",
+        "tags": []
+      }
+    },
     "/api/testing/tasks/start": {
       "post": {
-        "description": "Request body:     {         \"task_type\": \"demo_task\" | \"failing_task\",         \"params\": { ... task-specific parameters ... }     }\n\nReturns:     200: Task started successfully with task_id and stream_url",
+        "description": "Request body:     {         \"task_type\": \"demo_task\" | \"failing_task\",         \"params\": { ... task-specific parameters ... }     }\n\nReturns:     200: Task started successfully with task_id and status",
         "operationId": "post__api_testing_tasks_start",
         "parameters": [],
         "responses": {},

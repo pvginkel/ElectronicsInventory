@@ -27,8 +27,8 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
   const [error, setError] = useState<string | null>(null);
 
   const {
-    connect: connectSSE,
-    disconnect: disconnectSSE,
+    subscribeToTask,
+    unsubscribe: unsubscribeSSE,
     progress,
     result: sseResult
   } = useSSETask<AIPartAnalysisResult>({
@@ -106,29 +106,14 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
       }
 
       const responseData = await response.json();
-      const analysisTaskId = responseData.task_id;
-      const streamUrl = responseData.stream_url;
-      
-      if (!analysisTaskId || !streamUrl) {
-        throw new Error('Invalid response: missing task_id or stream_url');
+      const taskId = responseData.task_id;
+
+      if (!taskId) {
+        throw new Error('Invalid response: missing task_id');
       }
-      
-      // Ensure stream URL is absolute
-      const absoluteStreamUrl = streamUrl.startsWith('http')
-        ? streamUrl
-        : (() => {
-            if (typeof window !== 'undefined') {
-              try {
-                return new URL(streamUrl, window.location.origin).toString();
-              } catch {
-                // Fall through to returning the original stream URL
-              }
-            }
-            return streamUrl;
-          })();
-      
-      // Connect to SSE stream for progress updates
-      connectSSE(absoluteStreamUrl);
+
+      // Subscribe to task events via unified SSE stream
+      subscribeToTask(taskId);
       
     } catch (error) {
       console.error('Failed to submit analysis request:', error);
@@ -142,13 +127,13 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
       }
       options.onError?.(errorMessage);
     }
-  }, [isAnalyzing, connectSSE, options]);
+  }, [isAnalyzing, subscribeToTask, options]);
 
   const cancelAnalysis = useCallback(() => {
-    disconnectSSE();
+    unsubscribeSSE();
     setIsAnalyzing(false);
     setError(null);
-  }, [disconnectSSE]);
+  }, [unsubscribeSSE]);
 
   // Transform SSE result when available
   const result = sseResult ? transformAIPartAnalysisResult(sseResult) : null;

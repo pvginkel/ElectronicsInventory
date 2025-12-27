@@ -1,4 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { isTestMode } from '@/lib/config/test-mode';
+import { emitTestEvent } from '@/lib/test/event-emitter';
+import type { SseTestEvent } from '@/types/test-events';
+import { useSseContext } from '@/contexts/sse-context';
 
 interface SSEProgressEvent {
   event_type: 'progress_update';
@@ -38,14 +42,12 @@ interface UseSSETaskOptions {
   onProgress?: (message: string, percentage?: number) => void;
   onResult?: <T>(data: T) => void;
   onError?: (message: string, code?: string) => void;
-  retryAttempts?: number;
-  retryDelay?: number;
 }
 
 interface UseSSETaskReturn<T> {
-  connect: (streamUrl: string) => void;
-  disconnect: () => void;
-  isConnected: boolean;
+  subscribeToTask: (taskId: string) => void;
+  unsubscribe: () => void;
+  isSubscribed: boolean;
   error: string | null;
   result: T | null;
   progress: {
@@ -55,63 +57,81 @@ interface UseSSETaskReturn<T> {
 }
 
 export function useSSETask<T = unknown>(options: UseSSETaskOptions = {}): UseSSETaskReturn<T> {
-  const [isConnected, setIsConnected] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<T | null>(null);
   const [progress, setProgress] = useState<{ message: string; percentage?: number } | null>(null);
-  
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const retryCountRef = useRef(0);
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
+  const currentTaskIdRef = useRef<string | null>(null);
+  const unsubscribeListenerRef = useRef<(() => void) | null>(null);
+
   const {
     onProgress,
     onResult,
     onError,
-    retryAttempts = 3,
-    retryDelay = 1000
   } = options;
 
-  const disconnect = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
+  const { registerTaskListener } = useSseContext();
+
+  const unsubscribe = useCallback(() => {
+    if (unsubscribeListenerRef.current) {
+      unsubscribeListenerRef.current();
+      unsubscribeListenerRef.current = null;
     }
-    if (retryTimeoutRef.current) {
-      clearTimeout(retryTimeoutRef.current);
-      retryTimeoutRef.current = null;
-    }
-    setIsConnected(false);
-    retryCountRef.current = 0;
+    currentTaskIdRef.current = null;
+    setIsSubscribed(false);
   }, []);
 
-  const connectRef = useRef<((streamUrl: string) => void) | null>(null);
+  const subscribeToTask = useCallback((taskId: string) => {
+    // Unsubscribe from any previous task
+    unsubscribe();
 
-  const connect = useCallback((streamUrl: string) => {
-    // Clean up existing connection
-    disconnect();
-
-    // Reset state
+    // Reset state for new subscription
     setError(null);
     setResult(null);
     setProgress(null);
+    setIsSubscribed(true);
+    currentTaskIdRef.current = taskId;
 
-    const eventSource = new EventSource(streamUrl);
-    eventSourceRef.current = eventSource;
+    // Emit test event for subscription start
+    if (isTestMode()) {
+      const payload: Omit<SseTestEvent, 'timestamp'> = {
+        kind: 'sse',
+        streamId: 'task',
+        phase: 'open',
+        event: 'task_subscription',
+        data: { taskId },
+      };
+      emitTestEvent(payload);
+    }
 
-    eventSource.onopen = () => {
-      setIsConnected(true);
-      setError(null);
-      retryCountRef.current = 0;
-    };
+    // Register listener for task events
+    const unsubscribeListener = registerTaskListener((event) => {
+      // Filter events by task ID
+      if (event.taskId !== currentTaskIdRef.current) {
+        return;
+      }
 
-    eventSource.addEventListener('task_event', (event) => {
       try {
-        const parsedEvent: SSEEvent<T> = JSON.parse(event.data);
+        // Parse event data as SSEEvent - keep data nested under data property
+        const parsedEvent = {
+          event_type: event.eventType,
+          data: event.data,
+        } as SSEEvent<T>;
 
         switch (parsedEvent.event_type) {
           case 'task_started': {
-            // Don't need to do anything special for task_started
+            // Emit test event
+            if (isTestMode()) {
+              const payload: Omit<SseTestEvent, 'timestamp'> = {
+                kind: 'sse',
+                streamId: 'task',
+                phase: 'message',
+                event: 'task_started',
+                data: { taskId: event.taskId },
+              };
+              emitTestEvent(payload);
+            }
             break;
           }
 
@@ -122,6 +142,17 @@ export function useSSETask<T = unknown>(options: UseSSETaskOptions = {}): UseSSE
             };
             setProgress(progressData);
             onProgress?.(progressData.message, progressData.percentage);
+
+            if (isTestMode()) {
+              const payload: Omit<SseTestEvent, 'timestamp'> = {
+                kind: 'sse',
+                streamId: 'task',
+                phase: 'message',
+                event: 'progress_update',
+                data: { taskId: event.taskId, ...progressData },
+              };
+              emitTestEvent(payload);
+            }
             break;
           }
 
@@ -130,13 +161,36 @@ export function useSSETask<T = unknown>(options: UseSSETaskOptions = {}): UseSSE
               // Task completed successfully
               setResult(parsedEvent.data.analysis);
               onResult?.(parsedEvent.data.analysis);
+
+              if (isTestMode()) {
+                const payload: Omit<SseTestEvent, 'timestamp'> = {
+                  kind: 'sse',
+                  streamId: 'task',
+                  phase: 'message',
+                  event: 'task_completed',
+                  data: { taskId: event.taskId, success: true },
+                };
+                emitTestEvent(payload);
+              }
             } else {
               // Task completed but with failure
               const errorMessage = parsedEvent.data.error_message || 'Analysis failed';
               setError(errorMessage);
               onError?.(errorMessage);
+
+              if (isTestMode()) {
+                const payload: Omit<SseTestEvent, 'timestamp'> = {
+                  kind: 'sse',
+                  streamId: 'task',
+                  phase: 'error',
+                  event: 'task_completed',
+                  data: { taskId: event.taskId, success: false, error: errorMessage },
+                };
+                emitTestEvent(payload);
+              }
             }
-            disconnect(); // Task completed (either success or failure)
+            // Auto-unsubscribe on completion
+            unsubscribe();
             break;
           }
 
@@ -145,57 +199,43 @@ export function useSSETask<T = unknown>(options: UseSSETaskOptions = {}): UseSSE
             const errorCode = parsedEvent.data.code;
             setError(errorMessage);
             onError?.(errorMessage, errorCode);
-            disconnect(); // Task failed
+
+            if (isTestMode()) {
+              const payload: Omit<SseTestEvent, 'timestamp'> = {
+                kind: 'sse',
+                streamId: 'task',
+                phase: 'error',
+                event: 'task_failed',
+                data: { taskId: event.taskId, error: errorMessage, code: errorCode },
+              };
+              emitTestEvent(payload);
+            }
+
+            // Auto-unsubscribe on failure
+            unsubscribe();
             break;
           }
         }
       } catch (parseError) {
-        console.error('Failed to parse SSE event:', parseError);
+        console.error('Failed to parse SSE task event:', parseError);
         setError('Invalid server response format');
       }
     });
 
-    // Also listen for generic messages in case they're not named events
-    eventSource.onmessage = () => {
-      // This is just a fallback - the real processing happens in task_event listener
-      console.log('Received generic SSE message - this might indicate an issue with event naming');
-    };
-
-    eventSource.onerror = (event) => {
-      console.error('EventSource error:', event);
-
-      if (retryCountRef.current < retryAttempts) {
-        retryCountRef.current++;
-        const delay = retryDelay * Math.pow(2, retryCountRef.current - 1); // Exponential backoff
-
-        retryTimeoutRef.current = setTimeout(() => {
-          if (eventSourceRef.current?.readyState === EventSource.CLOSED) {
-            connectRef.current?.(streamUrl); // Retry connection using ref
-          }
-        }, delay);
-      } else {
-        setError('Connection failed after multiple attempts');
-        disconnect();
-      }
-    };
-  }, [disconnect, onProgress, onResult, onError, retryAttempts, retryDelay]);
-
-  // Update ref when connect function changes
-  useEffect(() => {
-    connectRef.current = connect;
-  }, [connect]);
+    unsubscribeListenerRef.current = unsubscribeListener;
+  }, [registerTaskListener, onProgress, onResult, onError, unsubscribe]);
 
   // Clean up on unmount
   useEffect(() => {
     return () => {
-      disconnect();
+      unsubscribe();
     };
-  }, [disconnect]);
+  }, [unsubscribe]);
 
   return {
-    connect,
-    disconnect,
-    isConnected,
+    subscribeToTask,
+    unsubscribe,
+    isSubscribed,
     error,
     result,
     progress

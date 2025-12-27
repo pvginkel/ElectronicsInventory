@@ -1,9 +1,9 @@
 /**
- * SharedWorker for multiplexing version SSE connection across browser tabs
+ * SharedWorker for multiplexing unified SSE connection across browser tabs
  *
- * This worker maintains a single EventSource connection to the version SSE endpoint
- * and broadcasts updates to all connected tabs via MessagePort. When the last tab
- * disconnects, the worker closes the SSE connection to conserve resources.
+ * This worker maintains a single EventSource connection to the unified SSE endpoint
+ * and broadcasts both version and task events to all connected tabs via MessagePort.
+ * When the last tab disconnects, the worker closes the SSE connection to conserve resources.
  */
 
 // Type definitions for worker messages
@@ -19,11 +19,12 @@ interface TestEventMetadata {
 type WorkerMessage =
   | { type: 'connected'; requestId: string; __testEvent?: TestEventMetadata }
   | { type: 'version'; version: string; correlationId?: string; requestId?: string; __testEvent?: TestEventMetadata }
+  | { type: 'task_event'; taskId: string; eventType: string; data: unknown; __testEvent?: TestEventMetadata }
   | { type: 'disconnected'; reason?: string; __testEvent?: TestEventMetadata }
   | { type: 'error'; error: string; __testEvent?: TestEventMetadata };
 
 type TabCommand =
-  | { type: 'connect'; requestId: string; isTestMode?: boolean }
+  | { type: 'connect'; isTestMode?: boolean }
   | { type: 'disconnect' };
 
 interface VersionEvent {
@@ -33,6 +34,22 @@ interface VersionEvent {
   request_id?: string;
   requestId?: string;
   [key: string]: unknown;
+}
+
+interface TaskEvent {
+  task_id: string;
+  event_type: string;
+  data: unknown;
+}
+
+// Token generation utility (inline version of makeUniqueToken)
+const TOKEN_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+function makeUniqueToken(length = 32): string {
+  let token = '';
+  for (let i = 0; i < length; i++) {
+    token += TOKEN_CHARS.charAt(Math.floor(Math.random() * TOKEN_CHARS.length));
+  }
+  return token;
 }
 
 // Worker state
@@ -68,13 +85,14 @@ function broadcast(message: WorkerMessage, testEventOnly = false): void {
  * Create test event metadata for instrumentation
  */
 function createTestEvent(
+  streamId: string,
   phase: 'open' | 'message' | 'error' | 'close',
   event: string,
   data?: unknown
 ): TestEventMetadata {
   return {
     kind: 'sse',
-    streamId: 'deployment.version',
+    streamId,
     phase,
     event,
     data,
@@ -120,47 +138,50 @@ function scheduleReconnect(): void {
   console.debug(`Version SSE worker: Scheduling reconnection in ${delay}ms (attempt ${retryCount})`);
 
   retryTimeout = setTimeout(() => {
-    if (ports.size > 0 && currentRequestId) {
-      createEventSource(currentRequestId);
+    if (ports.size > 0) {
+      createEventSource();
     }
   }, delay);
 }
 
 /**
- * Create EventSource connection to version SSE endpoint
+ * Create EventSource connection to unified SSE endpoint
  */
-function createEventSource(requestId: string): void {
+function createEventSource(): void {
   // Clean up existing connection
   if (eventSource) {
     eventSource.close();
     eventSource = null;
   }
 
-  currentRequestId = requestId;
+  // Generate worker-owned request ID if not already set
+  if (!currentRequestId) {
+    currentRequestId = makeUniqueToken(32);
+  }
 
   // Build SSE URL with request_id parameter
-  const params = new URLSearchParams({ request_id: requestId });
-  const url = `/api/sse/utils/version?${params.toString()}`;
+  const params = new URLSearchParams({ request_id: currentRequestId });
+  const url = `/api/sse/stream?${params.toString()}`;
 
-  console.debug(`Version SSE worker: Creating EventSource for requestId=${requestId}`);
+  console.debug(`SSE worker: Creating EventSource for requestId=${currentRequestId}`);
 
   eventSource = new EventSource(url);
 
   eventSource.onopen = () => {
-    console.debug('Version SSE worker: SSE connection opened');
+    console.debug('SSE worker: SSE connection opened');
     retryCount = 0;
 
     const message: WorkerMessage = {
       type: 'connected',
-      requestId,
+      requestId: currentRequestId!,
     };
 
     // Include test event metadata for test-mode tabs
     const hasTestModePorts = Array.from(ports).some(port => portTestModeMap.get(port));
     if (hasTestModePorts) {
-      message.__testEvent = createTestEvent('open', 'connected', {
-        requestId,
-        correlationId: requestId,
+      message.__testEvent = createTestEvent('deployment.version', 'open', 'connected', {
+        requestId: currentRequestId,
+        correlationId: currentRequestId,
       });
     }
 
@@ -172,21 +193,21 @@ function createEventSource(requestId: string): void {
       const versionData: VersionEvent = JSON.parse(event.data);
       currentVersion = versionData.version;
 
-      console.debug(`Version SSE worker: Received version=${currentVersion}`);
+      console.debug(`SSE worker: Received version=${currentVersion}`);
 
-      const correlation = versionData.correlationId ?? versionData.correlation_id ?? requestId;
+      const correlation = versionData.correlationId ?? versionData.correlation_id ?? currentRequestId!;
 
       const message: WorkerMessage = {
         type: 'version',
         version: versionData.version,
         correlationId: correlation,
-        requestId: versionData.requestId ?? versionData.request_id ?? requestId,
+        requestId: versionData.requestId ?? versionData.request_id ?? currentRequestId!,
       };
 
       // Include test event metadata for test-mode tabs
       const hasTestModePorts = Array.from(ports).some(port => portTestModeMap.get(port));
       if (hasTestModePorts) {
-        message.__testEvent = createTestEvent('message', 'version', {
+        message.__testEvent = createTestEvent('deployment.version', 'message', 'version', {
           ...versionData,
           requestId: message.requestId,
           correlationId: correlation,
@@ -195,17 +216,47 @@ function createEventSource(requestId: string): void {
 
       broadcast(message);
     } catch (parseError) {
-      console.error('Version SSE worker: Failed to parse version event:', parseError);
+      console.error('SSE worker: Failed to parse version event:', parseError);
       // Disconnect and reconnect on invalid event
       closeConnection();
       scheduleReconnect();
     }
   });
 
+  eventSource.addEventListener('task_event', (event) => {
+    try {
+      const taskData: TaskEvent = JSON.parse(event.data);
+
+      console.debug(`SSE worker: Received task_event for task=${taskData.task_id}, type=${taskData.event_type}`);
+
+      const message: WorkerMessage = {
+        type: 'task_event',
+        taskId: taskData.task_id,
+        eventType: taskData.event_type,
+        data: taskData.data,
+      };
+
+      // Include test event metadata for test-mode tabs
+      const hasTestModePorts = Array.from(ports).some(port => portTestModeMap.get(port));
+      if (hasTestModePorts) {
+        message.__testEvent = createTestEvent('task', 'message', taskData.event_type, {
+          taskId: taskData.task_id,
+          eventType: taskData.event_type,
+          data: taskData.data,
+        });
+      }
+
+      broadcast(message);
+    } catch (parseError) {
+      console.error('SSE worker: Failed to parse task_event:', parseError);
+      // Don't disconnect on task event parse errors - other events may still work
+    }
+  });
+
   eventSource.addEventListener('connection_close', (event) => {
     try {
       const data = JSON.parse(event.data);
-      console.debug('Version SSE worker: Connection closed by backend:', data.reason);
+      console.debug('SSE worker: Connection closed by backend:', data.reason);
     } catch {
       // Ignore parse errors for connection_close
     }
@@ -216,7 +267,7 @@ function createEventSource(requestId: string): void {
   });
 
   eventSource.onerror = (event) => {
-    console.error('Version SSE worker: EventSource error:', event);
+    console.error('SSE worker: EventSource error:', event);
 
     const errorMessage: WorkerMessage = {
       type: 'error',
@@ -226,7 +277,7 @@ function createEventSource(requestId: string): void {
     // Include test event metadata for test-mode tabs
     const hasTestModePorts = Array.from(ports).some(port => portTestModeMap.get(port));
     if (hasTestModePorts) {
-      errorMessage.__testEvent = createTestEvent('error', 'error', {
+      errorMessage.__testEvent = createTestEvent('deployment.version', 'error', 'error', {
         error: 'SSE connection error',
       });
     }
@@ -244,8 +295,8 @@ function createEventSource(requestId: string): void {
 /**
  * Handle tab connection
  */
-function handleConnect(port: MessagePort, requestId: string, isTestMode = false): void {
-  console.debug(`Version SSE worker: Tab connected (${ports.size + 1} active ports)`);
+function handleConnect(port: MessagePort, isTestMode = false): void {
+  console.debug(`SSE worker: Tab connected (${ports.size + 1} active ports)`);
 
   // Track test mode for this port
   if (isTestMode) {
@@ -255,10 +306,10 @@ function handleConnect(port: MessagePort, requestId: string, isTestMode = false)
   // Add port to connected set
   ports.add(port);
 
-  // If this is the first connection, create SSE connection with the provided requestId.
-  // Subsequent tabs share the existing connection (their requestId is ignored).
+  // If this is the first connection, create SSE connection with worker-generated requestId.
+  // Subsequent tabs share the existing connection.
   if (!eventSource) {
-    createEventSource(requestId);
+    createEventSource();
   } else if (eventSource.readyState === EventSource.OPEN) {
     // SSE already connected - send connected message to new tab
     const connectedMessage: WorkerMessage = {
@@ -268,7 +319,7 @@ function handleConnect(port: MessagePort, requestId: string, isTestMode = false)
 
     // Include test event metadata if tab is in test mode
     if (isTestMode) {
-      connectedMessage.__testEvent = createTestEvent('open', 'connected', {
+      connectedMessage.__testEvent = createTestEvent('deployment.version', 'open', 'connected', {
         requestId: currentRequestId,
         correlationId: currentRequestId,
       });
@@ -277,7 +328,7 @@ function handleConnect(port: MessagePort, requestId: string, isTestMode = false)
     try {
       port.postMessage(connectedMessage);
     } catch (error) {
-      console.error('Version SSE worker: Failed to send connected message to new tab:', error);
+      console.error('SSE worker: Failed to send connected message to new tab:', error);
       ports.delete(port);
       return;
     }
@@ -292,7 +343,7 @@ function handleConnect(port: MessagePort, requestId: string, isTestMode = false)
 
       // Include test event metadata if tab is in test mode
       if (isTestMode) {
-        versionMessage.__testEvent = createTestEvent('message', 'version', {
+        versionMessage.__testEvent = createTestEvent('deployment.version', 'message', 'version', {
           version: currentVersion,
           requestId: currentRequestId,
           correlationId: currentRequestId,
@@ -302,7 +353,7 @@ function handleConnect(port: MessagePort, requestId: string, isTestMode = false)
       try {
         port.postMessage(versionMessage);
       } catch (error) {
-        console.error('Version SSE worker: Failed to send cached version to new tab:', error);
+        console.error('SSE worker: Failed to send cached version to new tab:', error);
         ports.delete(port);
       }
     }
@@ -318,11 +369,11 @@ function handleDisconnect(port: MessagePort): void {
   ports.delete(port);
   portTestModeMap.delete(port);
 
-  console.debug(`Version SSE worker: Tab disconnected (${ports.size} active ports)`);
+  console.debug(`SSE worker: Tab disconnected (${ports.size} active ports)`);
 
   // If no more tabs are connected, close the SSE connection
   if (ports.size === 0) {
-    console.debug('Version SSE worker: Last tab disconnected, closing SSE connection');
+    console.debug('SSE worker: Last tab disconnected, closing SSE connection');
     closeConnection();
   }
 }
@@ -339,7 +390,7 @@ self.addEventListener('connect', (event) => {
 
     switch (command.type) {
       case 'connect':
-        handleConnect(port, command.requestId, command.isTestMode);
+        handleConnect(port, command.isTestMode);
         break;
 
       case 'disconnect':
@@ -347,17 +398,17 @@ self.addEventListener('connect', (event) => {
         break;
 
       default:
-        console.warn('Version SSE worker: Unknown command:', command);
+        console.warn('SSE worker: Unknown command:', command);
     }
   };
 
   // Handle port closure (browser may not always send explicit disconnect)
   port.addEventListener('messageerror', () => {
-    console.debug('Version SSE worker: Port message error, removing port');
+    console.debug('SSE worker: Port message error, removing port');
     handleDisconnect(port);
   });
 
   port.start();
 });
 
-console.debug('Version SSE worker: Initialized');
+console.debug('SSE worker: Initialized');

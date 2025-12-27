@@ -3,7 +3,7 @@ import { createContext } from 'react';
 export interface DeploymentContextValue {
   isNewVersionAvailable: boolean;
   currentVersion: string | null;
-  deploymentRequestId: string;
+  deploymentRequestId: string | null;
   checkForUpdates: () => void;
   reloadApp: () => void;
 }

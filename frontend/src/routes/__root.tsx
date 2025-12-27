@@ -3,6 +3,7 @@ import { createRootRoute, Outlet } from '@tanstack/react-router';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Sidebar } from '@/components/layout/sidebar';
 import { ToastProvider } from '@/contexts/toast-context';
+import { SseContextProvider } from '@/contexts/sse-context-provider';
 import { DeploymentProvider } from '@/contexts/deployment-context';
 import { DeploymentNotificationBar } from '@/components/ui/deployment-notification-bar';
 import { queryClient, setToastFunction } from '@/lib/query-client';
@@ -32,11 +33,13 @@ function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <DeploymentProvider>
-          <QuerySetup>
-            <AppShellFrame />
-          </QuerySetup>
-        </DeploymentProvider>
+        <SseContextProvider>
+          <DeploymentProvider>
+            <QuerySetup>
+              <AppShellFrame />
+            </QuerySetup>
+          </DeploymentProvider>
+        </SseContextProvider>
       </ToastProvider>
     </QueryClientProvider>
   );

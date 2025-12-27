@@ -340,7 +340,7 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
   const actionsNode = (onCreatePart || onCreateWithAI) ? (
     <div className="flex flex-wrap gap-2">
       {onCreateWithAI && (
-        <Button onClick={onCreateWithAI} variant="ai_assisted">
+        <Button onClick={onCreateWithAI} variant="ai_assisted" data-testid="parts.list.add-with-ai">
           Add Part with AI
         </Button>
       )}

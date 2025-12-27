@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { getDeploymentRequestId } from '@/lib/config/sse-request-id'
 import { isTestMode } from '@/lib/config/test-mode'
 import { useVersionSSE } from '../hooks/use-version-sse'
+import { useSseContext } from './sse-context'
 import { DeploymentContext } from './deployment-context-base'
 import type { DeploymentContextValue } from './deployment-context-base'
 
@@ -21,50 +21,31 @@ export function DeploymentProvider({ children }: DeploymentProviderProps) {
   const [isNewVersionAvailable, setIsNewVersionAvailable] = useState(false)
   const [currentVersion, setCurrentVersion] = useState<string | null>(null)
 
-  const [deploymentRequestId, setDeploymentRequestId] = useState<string>(() => getDeploymentRequestId())
-
-  const { connect, disconnect, isConnected, version } = useVersionSSE()
+  const { isConnected, version } = useVersionSSE()
+  const sseContext = useSseContext()
+  const { requestId } = sseContext
 
   const isConnectedRef = useRef(isConnected)
-  const deploymentRequestIdRef = useRef<string | null>(deploymentRequestId ?? null)
+  const deploymentRequestIdRef = useRef<string | null>(requestId)
   const deploymentControlsRef = useRef<DeploymentBridge | null>(null)
+  const sseContextRef = useRef(sseContext)
 
   useEffect(() => {
     isConnectedRef.current = isConnected
   }, [isConnected])
 
   useEffect(() => {
-    deploymentRequestIdRef.current = deploymentRequestId ?? null
-  }, [deploymentRequestId])
+    deploymentRequestIdRef.current = requestId
+  }, [requestId])
 
-  const refreshRequestId = useCallback(() => {
-    const nextRequestId = getDeploymentRequestId()
-    setDeploymentRequestId(nextRequestId)
-    return nextRequestId
-  }, [])
-
-  const startConnection = useCallback(
-    (requestId?: string) => {
-      const nextRequestId = requestId ?? refreshRequestId()
-      if (requestId) {
-        setDeploymentRequestId(requestId)
-      }
-      connect({ requestId: nextRequestId })
-      return nextRequestId
-    },
-    [connect, refreshRequestId]
-  )
-
-  const connectWithRequestId = useCallback(
-    (requestId?: string) => {
-      startConnection(requestId)
-    },
-    [startConnection]
-  )
+  useEffect(() => {
+    sseContextRef.current = sseContext
+  }, [sseContext])
 
   const checkForUpdates = useCallback(() => {
-    connectWithRequestId()
-  }, [connectWithRequestId])
+    // Trigger SSE reconnection (for window focus handler)
+    sseContext.reconnect()
+  }, [sseContext])
 
   const reloadApp = useCallback(() => {
     window.location.reload()
@@ -84,21 +65,11 @@ export function DeploymentProvider({ children }: DeploymentProviderProps) {
     }
   }, [version, currentVersion])
 
-  const shouldAutoConnect = !isTestMode() && !import.meta.env.DEV
-
-  // Connect SSE on mount when enabled
+  // Handle window focus to trigger reconnection (production mode or SharedWorker test mode)
   useEffect(() => {
-    if (!shouldAutoConnect) {
-      return
-    }
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional SSE connection initiation
-    connectWithRequestId()
-    return () => disconnect()
-  }, [connectWithRequestId, disconnect, shouldAutoConnect])
-
-  // Handle window focus to trigger reconnection when enabled
-  useEffect(() => {
+    const hasSharedWorkerParam = typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).has('__sharedWorker')
+    const shouldAutoConnect = (!isTestMode() && !import.meta.env.DEV) || hasSharedWorkerParam
     if (!shouldAutoConnect) {
       return
     }
@@ -109,7 +80,7 @@ export function DeploymentProvider({ children }: DeploymentProviderProps) {
 
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, [checkForUpdates, shouldAutoConnect])
+  }, [checkForUpdates])
 
   useEffect(() => {
     if (!isTestMode()) {
@@ -126,11 +97,14 @@ export function DeploymentProvider({ children }: DeploymentProviderProps) {
 
     if (!deploymentControlsRef.current) {
       deploymentControlsRef.current = {
-        connect: (requestId?: string) => {
-          connectWithRequestId(requestId)
+        connect: () => {
+          // In test mode, manually trigger SSE connection
+          // This allows tests to control connection timing and request ID
+          sseContextRef.current.reconnect()
         },
         disconnect: () => {
-          disconnect()
+          // No-op: disconnection is not exposed from SseContextProvider
+          // Tests should rely on connection state rather than explicit disconnect
         },
         getStatus: () => ({
           isConnected: isConnectedRef.current,
@@ -151,12 +125,12 @@ export function DeploymentProvider({ children }: DeploymentProviderProps) {
       }
       deploymentControlsRef.current = null
     }
-  }, [connectWithRequestId, disconnect])
+  }, [])
 
   const contextValue: DeploymentContextValue = {
     isNewVersionAvailable,
     currentVersion,
-    deploymentRequestId,
+    deploymentRequestId: requestId,
     checkForUpdates,
     reloadApp
   }
