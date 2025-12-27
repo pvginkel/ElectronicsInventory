@@ -64,95 +64,144 @@ class TestVersionService:
             assert "version" in result
             assert result["version"] == "unknown"
 
-    def test_queue_version_event_for_pending_subscriber(self, version_service: VersionService):
-        """Events should be queued for subscribers that have not connected yet."""
+    def test_queue_version_event_stores_as_pending(self, version_service: VersionService, container: ServiceContainer):
+        """Events should be stored as pending and broadcast."""
+        from unittest.mock import Mock
+
         request_id = "vs-pending"
 
+        # Mock ConnectionManager to verify broadcast
+        mock_connection_manager = Mock()
+        version_service.connection_manager = mock_connection_manager
+
+        # Queue a version event
         delivered = version_service.queue_version_event(request_id, "1.0.0")
-        assert delivered is False
+        assert delivered is True  # Returns True after broadcasting
 
-        queue = version_service.register_subscriber(request_id)
-        try:
-            event_name, payload = queue.get_nowait()
-            assert event_name == "version"
-            assert payload["version"] == "1.0.0"
-        finally:
-            version_service.unregister_subscriber(request_id)
+        # Verify it was broadcast via ConnectionManager
+        mock_connection_manager.send_event.assert_called_once()
+        call_args = mock_connection_manager.send_event.call_args
+        # call_args has positional args and kwargs
+        assert call_args.args[0] is None  # None = broadcast mode
+        assert call_args.args[1] == {"version": "1.0.0"}
+        assert call_args.kwargs["event_name"] == "version"
+        assert call_args.kwargs["service_type"] == "version"
 
-    def test_queue_version_event_for_active_subscriber(self, version_service: VersionService):
-        """Events should be delivered immediately to active subscribers."""
+        # Verify it was stored as pending
+        assert request_id in version_service._pending_version
+        assert version_service._pending_version[request_id] == {"version": "1.0.0"}
+
+    def test_queue_version_event_with_changelog(self, version_service: VersionService):
+        """Events with changelog should be stored and broadcast."""
+        from unittest.mock import Mock
+
         request_id = "vs-active"
-        queue = version_service.register_subscriber(request_id)
 
-        try:
-            delivered = version_service.queue_version_event(request_id, "2.0.0", changelog="Details")
-            assert delivered is True
-            event_name, payload = queue.get_nowait()
-            assert event_name == "version"
-            assert payload == {"version": "2.0.0", "changelog": "Details"}
-        finally:
-            version_service.unregister_subscriber(request_id)
+        # Mock ConnectionManager
+        mock_connection_manager = Mock()
+        version_service.connection_manager = mock_connection_manager
 
-    def test_unregister_subscriber_removes_listener(self, version_service: VersionService):
-        """Unregistering should drop live queues and fall back to pending events."""
-        request_id = "vs-unregister"
-        version_service.register_subscriber(request_id)
-        version_service.unregister_subscriber(request_id)
+        # Queue version with changelog
+        delivered = version_service.queue_version_event(request_id, "2.0.0", changelog="Details")
+        assert delivered is True
 
+        # Verify it was broadcast
+        call_args = mock_connection_manager.send_event.call_args
+        assert call_args.args[1] == {"version": "2.0.0", "changelog": "Details"}
+
+        # Verify it was stored as pending
+        assert version_service._pending_version[request_id] == {"version": "2.0.0", "changelog": "Details"}
+
+    def test_shutdown_returns_false_for_queue_version_event(self, version_service: VersionService):
+        """Shutdown should prevent new version events from being queued."""
+        request_id = "vs-shutdown"
+
+        # Trigger shutdown
+        version_service._handle_lifetime_event(LifetimeEvent.PREPARE_SHUTDOWN)
+
+        # Try to queue event during shutdown
         delivered = version_service.queue_version_event(request_id, "3.1.4")
         assert delivered is False
 
-        queue = version_service.register_subscriber(request_id)
-        try:
-            event_name, payload = queue.get_nowait()
-            assert event_name == "version"
-            assert payload["version"] == "3.1.4"
-        finally:
-            version_service.unregister_subscriber(request_id)
-
-    def test_shutdown_sends_connection_close(self, version_service: VersionService):
-        """Shutdown notifications should flush connection close events to subscribers."""
-        request_id = "vs-shutdown"
-        queue = version_service.register_subscriber(request_id)
-
-        version_service._handle_lifetime_event(LifetimeEvent.PREPARE_SHUTDOWN)
-        event_name, payload = queue.get_nowait()
-        assert event_name == "connection_close"
-        assert payload["reason"] == "server_shutdown"
-
+        # Clean up shutdown state for other tests
         version_service._handle_lifetime_event(LifetimeEvent.SHUTDOWN)
-
-        # Reset service state for subsequent tests
         version_service._is_shutting_down = False
-        version_service._pending_events.clear()
-        version_service._start_cleanup_thread()
 
     def test_queue_version_event_thread_safety(self, version_service: VersionService):
         """Concurrent queue writers should not drop events."""
+        from unittest.mock import Mock
+
         request_id = "vs-threaded"
-        queue = version_service.register_subscriber(request_id)
 
-        try:
-            versions = [f"{idx}" for idx in range(10)]
+        # Mock ConnectionManager to avoid real HTTP calls
+        mock_connection_manager = Mock()
+        version_service.connection_manager = mock_connection_manager
 
-            def worker(version: str) -> None:
-                version_service.queue_version_event(request_id, version)
+        versions = [f"{idx}" for idx in range(10)]
 
-            threads = [threading.Thread(target=worker, args=(version,)) for version in versions]
-            for thread in threads:
-                thread.start()
-            for thread in threads:
-                thread.join()
+        def worker(version: str) -> None:
+            version_service.queue_version_event(request_id, version)
 
-            received = []
-            while True:
-                received.append(queue.get_nowait()[1]["version"])
-                if len(received) == len(versions):
-                    break
+        threads = [threading.Thread(target=worker, args=(version,)) for version in versions]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
 
-            assert sorted(received) == sorted(versions)
-        finally:
-            version_service.unregister_subscriber(request_id)
+        # Verify all events were broadcast
+        assert mock_connection_manager.send_event.call_count == len(versions)
+
+        # Last pending version should be one of the queued versions
+        assert request_id in version_service._pending_version
+        assert version_service._pending_version[request_id]["version"] in versions
+
+    def test_pending_version_persists_after_send(self, version_service: VersionService):
+        """Test pending version NOT cleared after sending, persists for reconnect."""
+        from unittest.mock import Mock
+
+        request_id = "req1"
+
+        # Mock ConnectionManager
+        mock_connection_manager = Mock()
+        mock_connection_manager.send_event.return_value = True
+        version_service.connection_manager = mock_connection_manager
+
+        # Given pending version queued
+        version_service.queue_version_event(request_id, "1.2.3", "Bug fixes")
+
+        # Verify it was stored
+        assert request_id in version_service._pending_version
+        assert version_service._pending_version[request_id]["version"] == "1.2.3"
+
+        # Reset mock to track next call
+        mock_connection_manager.reset_mock()
+        mock_connection_manager.send_event.return_value = True
+
+        # When connection established and version sent
+        version_service._on_connect_callback(request_id)
+
+        # Verify version was sent (targeted send with request_id)
+        mock_connection_manager.send_event.assert_called_once()
+        call_args = mock_connection_manager.send_event.call_args
+        assert call_args.args[0] == request_id  # Targeted send
+        assert call_args.args[1]["version"] == "1.2.3"
+
+        # Then pending version still stored (NOT cleared)
+        assert request_id in version_service._pending_version
+        assert version_service._pending_version[request_id]["version"] == "1.2.3"
+
+        # Reset mock again
+        mock_connection_manager.reset_mock()
+        mock_connection_manager.send_event.return_value = True
+
+        # When same request_id reconnects
+        version_service._on_connect_callback(request_id)
+
+        # Then same pending version sent again
+        assert mock_connection_manager.send_event.call_count == 1
+        second_call_args = mock_connection_manager.send_event.call_args
+        assert second_call_args.args[0] == request_id
+        assert second_call_args.args[1]["version"] == "1.2.3"
 
 
 class TestSSEUtils:

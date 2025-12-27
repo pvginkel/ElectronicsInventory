@@ -165,11 +165,10 @@ class MetricsServiceProtocol(ABC):
         pass
 
     @abstractmethod
-    def record_sse_gateway_connection(self, service: str, action: str) -> None:
+    def record_sse_gateway_connection(self, action: str) -> None:
         """Record SSE Gateway connection lifecycle events.
 
         Args:
-            service: Service type (task or version)
             action: Action type (connect or disconnect)
         """
         pass
@@ -516,7 +515,7 @@ class MetricsService(MetricsServiceProtocol):
         self.sse_gateway_connections_total = Counter(
             'sse_gateway_connections_total',
             'Total SSE Gateway connection lifecycle events',
-            ['service', 'action']
+            ['action']
         )
 
         self.sse_gateway_events_sent_total = Counter(
@@ -533,8 +532,7 @@ class MetricsService(MetricsServiceProtocol):
 
         self.sse_gateway_active_connections = Gauge(
             'sse_gateway_active_connections',
-            'Current number of active SSE Gateway connections',
-            ['service']
+            'Current number of active SSE Gateway connections'
         )
 
     def update_inventory_metrics(self) -> None:
@@ -955,24 +953,22 @@ class MetricsService(MetricsServiceProtocol):
         except Exception as e:
             logger.error(f"Error recording AI analysis metrics: {e}")
 
-    def record_sse_gateway_connection(self, service: str, action: str) -> None:
+    def record_sse_gateway_connection(self, action: str) -> None:
         """Record SSE Gateway connection lifecycle events.
 
         Args:
-            service: Service type (task or version)
             action: Action type (connect or disconnect)
         """
         try:
             self.sse_gateway_connections_total.labels(
-                service=service,
                 action=action
             ).inc()
 
             # Update active connection gauge
             if action == "connect":
-                self.sse_gateway_active_connections.labels(service=service).inc()
+                self.sse_gateway_active_connections.inc()
             elif action == "disconnect":
-                self.sse_gateway_active_connections.labels(service=service).dec()
+                self.sse_gateway_active_connections.dec()
 
         except Exception as e:
             logger.error(f"Error recording SSE Gateway connection metric: {e}")

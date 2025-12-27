@@ -1,20 +1,21 @@
 """Connection manager for SSE Gateway integration.
 
-This service manages the bidirectional mapping between service identifiers
-(like "task:abc123" or "version:xyz789") and SSE Gateway tokens. It handles
-connection lifecycle events and provides an interface for sending events via
-HTTP to the SSE Gateway.
+This service manages the bidirectional mapping between request IDs
+and SSE Gateway tokens. It handles connection lifecycle events and provides
+an interface for sending events (targeted or broadcast) via HTTP to the SSE Gateway.
 
 Key responsibilities:
-- Maintain bidirectional mappings: identifier <-> token
+- Maintain bidirectional mappings: request_id <-> token
 - Handle connection replacement (close old, register new)
-- Send events via HTTP POST to SSE Gateway
+- Send events via HTTP POST to SSE Gateway (targeted or broadcast)
+- Notify observers when connections are established
 - Clean up stale connections on failures
 """
 
 import json
 import logging
 import threading
+from collections.abc import Callable
 from time import perf_counter
 from typing import Any
 
@@ -50,22 +51,39 @@ class ConnectionManager:
         self.http_timeout = http_timeout
 
         # Bidirectional mappings
-        # Forward: service_identifier -> connection info (token, url)
+        # Forward: request_id -> connection info (token, url)
         self._connections: dict[str, dict[str, str]] = {}
-        # Reverse: token -> service_identifier (for disconnect callback)
-        self._token_to_identifier: dict[str, str] = {}
+        # Reverse: token -> request_id (for disconnect callback)
+        self._token_to_request_id: dict[str, str] = {}
+
+        # Observer callbacks for connection events
+        self._on_connect_callbacks: list[Callable[[str], None]] = []
 
         # Thread safety
         self._lock = threading.RLock()
 
-    def on_connect(self, identifier: str, token: str, url: str) -> None:
-        """Register a new connection from SSE Gateway.
+    def register_on_connect(self, callback: Callable[[str], None]) -> None:
+        """Register a callback to be notified when connections are established.
 
-        If a connection already exists for this identifier, the old connection
-        is closed before registering the new one (only one connection per identifier).
+        Callbacks are invoked with the request_id after a connection is registered.
+        Each callback is wrapped in exception handling; failures are logged but
+        don't prevent other callbacks from running or the connection from being established.
 
         Args:
-            identifier: Service-specific identifier (e.g., "task:abc123")
+            callback: Function to call with request_id when connection established
+        """
+        with self._lock:
+            self._on_connect_callbacks.append(callback)
+
+    def on_connect(self, request_id: str, token: str, url: str) -> None:
+        """Register a new connection from SSE Gateway.
+
+        If a connection already exists for this request_id, the old connection
+        is closed before registering the new one (only one connection per request_id).
+        After registration, all registered observer callbacks are notified.
+
+        Args:
+            request_id: Plain request ID (no prefix, e.g., "abc123")
             token: Gateway-generated connection token
             url: Original client request URL
         """
@@ -74,35 +92,34 @@ class ConnectionManager:
         # Update mappings under lock (fast, no I/O)
         with self._lock:
             # Check for existing connection
-            existing = self._connections.get(identifier)
+            existing = self._connections.get(request_id)
             if existing:
                 old_token_to_close = existing["token"]
                 logger.debug(
                     "Found existing connection, will close after releasing lock",
                     extra={
-                        "identifier": identifier,
+                        "request_id": request_id,
                         "old_token": old_token_to_close,
                         "new_token": token,
                     }
                 )
                 # Remove old reverse mapping
-                self._token_to_identifier.pop(old_token_to_close, None)
+                self._token_to_request_id.pop(old_token_to_close, None)
 
             # Register new connection (atomic update of both mappings)
-            self._connections[identifier] = {
+            self._connections[request_id] = {
                 "token": token,
                 "url": url,
             }
-            self._token_to_identifier[token] = identifier
+            self._token_to_request_id[token] = request_id
 
-            # Extract service type for metrics
-            service_type = self._extract_service_type(identifier)
-            self.metrics_service.record_sse_gateway_connection(service_type, "connect")
+            # Record connection metric (no service_type dimension)
+            self.metrics_service.record_sse_gateway_connection("connect")
 
             logger.info(
                 "Registered SSE Gateway connection",
                 extra={
-                    "identifier": identifier,
+                    "request_id": request_id,
                     "token": token,
                     "url": url,
                 }
@@ -110,21 +127,40 @@ class ConnectionManager:
 
         # Close old connection OUTSIDE the lock (best-effort, avoids blocking other callbacks)
         if old_token_to_close:
-            self._close_connection_internal(old_token_to_close, identifier)
+            self._close_connection_internal(old_token_to_close, request_id)
+
+        # Copy callbacks list under lock to prevent race during iteration
+        with self._lock:
+            callbacks_to_notify = list(self._on_connect_callbacks)
+
+        # Notify all observers OUTSIDE the lock (each wrapped in exception handling)
+        for callback in callbacks_to_notify:
+            try:
+                callback(request_id)
+            except Exception as e:
+                logger.warning(
+                    "Observer callback raised exception during on_connect",
+                    exc_info=True,
+                    extra={
+                        "request_id": request_id,
+                        "callback": getattr(callback, "__name__", repr(callback)),
+                        "error": str(e),
+                    }
+                )
 
     def on_disconnect(self, token: str) -> None:
         """Handle disconnect callback from SSE Gateway.
 
-        Uses reverse mapping to find identifier. Verifies token matches current
+        Uses reverse mapping to find request_id. Verifies token matches current
         connection before removing (ignores stale disconnect callbacks).
 
         Args:
             token: Gateway connection token from disconnect callback
         """
         with self._lock:
-            # Look up identifier via reverse mapping
-            identifier = self._token_to_identifier.get(token)
-            if not identifier:
+            # Look up request_id via reverse mapping
+            request_id = self._token_to_request_id.get(token)
+            if not request_id:
                 logger.debug(
                     "Disconnect callback for unknown token (expected for stale disconnects)",
                     extra={"token": token}
@@ -132,79 +168,129 @@ class ConnectionManager:
                 return
 
             # Verify token matches current forward mapping
-            current_conn = self._connections.get(identifier)
+            current_conn = self._connections.get(request_id)
             if not current_conn or current_conn["token"] != token:
                 logger.debug(
                     "Disconnect callback with mismatched token (stale disconnect after replacement)",
                     extra={
                         "token": token,
-                        "identifier": identifier,
+                        "request_id": request_id,
                         "current_token": current_conn["token"] if current_conn else None,
                     }
                 )
                 # Clean up reverse mapping but don't touch forward mapping
-                self._token_to_identifier.pop(token, None)
+                self._token_to_request_id.pop(token, None)
                 return
 
             # Remove both mappings
-            del self._connections[identifier]
-            del self._token_to_identifier[token]
+            del self._connections[request_id]
+            del self._token_to_request_id[token]
 
-            # Extract service type for metrics
-            service_type = self._extract_service_type(identifier)
-            self.metrics_service.record_sse_gateway_connection(service_type, "disconnect")
+            # Record disconnect metric (no service_type dimension)
+            self.metrics_service.record_sse_gateway_connection("disconnect")
 
             logger.info(
                 "Unregistered SSE Gateway connection",
                 extra={
-                    "identifier": identifier,
+                    "request_id": request_id,
                     "token": token,
                 }
             )
 
-    def has_connection(self, identifier: str) -> bool:
-        """Check if a connection exists for the given identifier.
+    def has_connection(self, request_id: str) -> bool:
+        """Check if a connection exists for the given request_id.
 
         Args:
-            identifier: Service-specific identifier
+            request_id: Request identifier
 
         Returns:
             True if connection exists, False otherwise
         """
         with self._lock:
-            return identifier in self._connections
+            return request_id in self._connections
 
     def send_event(
         self,
-        identifier: str,
+        request_id: str | None,
         event_data: dict[str, Any],
-        event_name: str = "message",
-        close: bool = False
+        event_name: str,
+        service_type: str
     ) -> bool:
-        """Send an event to the SSE Gateway for delivery to the client.
+        """Send an event to the SSE Gateway for delivery to client(s).
 
         Args:
-            identifier: Service-specific identifier
+            request_id: Request identifier for targeted send, or None for broadcast to all connections
             event_data: Event payload (will be JSON-serialized)
             event_name: SSE event name
-            close: Whether to close connection after sending
+            service_type: Service type for metrics ("task" or "version")
 
         Returns:
-            True if event sent successfully, False otherwise
+            True if event sent successfully to at least one connection, False otherwise
         """
+        # Broadcast mode: send to all active connections
+        if request_id is None:
+            with self._lock:
+                tokens_to_send = [(req_id, conn["token"]) for req_id, conn in self._connections.items()]
+
+            if not tokens_to_send:
+                logger.debug("Broadcast event: no active connections")
+                return False
+
+            logger.debug(
+                "Broadcasting event to connections",
+                extra={"event_name": event_name, "connection_count": len(tokens_to_send)}
+            )
+
+            # Send to each connection serially
+            success_count = 0
+            for req_id, token in tokens_to_send:
+                if self._send_event_to_token(token, event_data, event_name, service_type, req_id):
+                    success_count += 1
+
+            logger.debug(
+                "Broadcast complete",
+                extra={
+                    "event_name": event_name,
+                    "success_count": success_count,
+                    "total_count": len(tokens_to_send)
+                }
+            )
+            return success_count > 0
+
+        # Targeted mode: send to specific request_id
         with self._lock:
-            conn_info = self._connections.get(identifier)
+            conn_info = self._connections.get(request_id)
             if not conn_info:
                 logger.warning(
-                    "Cannot send event: no connection for identifier",
-                    extra={"identifier": identifier}
+                    "Cannot send event: no connection for request_id",
+                    extra={"request_id": request_id}
                 )
                 return False
 
             token = conn_info["token"]
 
-        # Release lock before HTTP call
-        service_type = self._extract_service_type(identifier)
+        return self._send_event_to_token(token, event_data, event_name, service_type, request_id)
+
+    def _send_event_to_token(
+        self,
+        token: str,
+        event_data: dict[str, Any],
+        event_name: str,
+        service_type: str,
+        request_id: str | None = None
+    ) -> bool:
+        """Send an event to a specific token via SSE Gateway.
+
+        Args:
+            token: Gateway connection token
+            event_data: Event payload
+            event_name: SSE event name
+            service_type: Service type for metrics
+            request_id: Request ID for logging (optional)
+
+        Returns:
+            True if sent successfully, False otherwise
+        """
         start_time = perf_counter()
 
         try:
@@ -216,7 +302,7 @@ class ConnectionManager:
             send_request = SSEGatewaySendRequest(
                 token=token,
                 event=event,
-                close=close
+                close=False  # Connections never close on event send
             )
 
             # POST to SSE Gateway
@@ -232,11 +318,13 @@ class ConnectionManager:
                 # Connection gone; clean up stale mapping
                 logger.warning(
                     "SSE Gateway returned 404: connection not found; removing stale mapping",
-                    extra={"identifier": identifier, "token": token}
+                    extra={"request_id": request_id, "token": token}
                 )
-                with self._lock:
-                    self._connections.pop(identifier, None)
-                    self._token_to_identifier.pop(token, None)
+                # Only clean up if we have the request_id (known mapping)
+                if request_id:
+                    with self._lock:
+                        self._connections.pop(request_id, None)
+                        self._token_to_request_id.pop(token, None)
                 self.metrics_service.record_sse_gateway_event(service_type, "error")
                 return False
 
@@ -244,7 +332,7 @@ class ConnectionManager:
                 logger.error(
                     "SSE Gateway returned non-2xx status",
                     extra={
-                        "identifier": identifier,
+                        "request_id": request_id,
                         "status_code": response.status_code,
                         "response_body": response.text,
                     }
@@ -255,9 +343,8 @@ class ConnectionManager:
             logger.debug(
                 "Sent event to SSE Gateway",
                 extra={
-                    "identifier": identifier,
+                    "request_id": request_id,
                     "event_name": event_name,
-                    "close": close,
                 }
             )
             self.metrics_service.record_sse_gateway_event(service_type, "success")
@@ -265,10 +352,10 @@ class ConnectionManager:
 
         except requests.RequestException as e:
             logger.error(
-                "Failed to send event to SSE Gateway ",
+                "Failed to send event to SSE Gateway",
                 exc_info=e,
                 extra={
-                    "identifier": identifier,
+                    "request_id": request_id,
                     "error": str(e),
                     "error_type": type(e).__name__,
                 }
@@ -280,12 +367,12 @@ class ConnectionManager:
             duration = perf_counter() - start_time
             self.metrics_service.record_sse_gateway_send_duration(service_type, duration)
 
-    def _close_connection_internal(self, token: str, identifier: str) -> None:
+    def _close_connection_internal(self, token: str, request_id: str) -> None:
         """Close a connection via SSE Gateway (best-effort, no retries).
 
         Args:
             token: Gateway connection token
-            identifier: Service-specific identifier (for logging)
+            request_id: Request identifier (for logging)
         """
         try:
             send_request = SSEGatewaySendRequest(
@@ -304,7 +391,7 @@ class ConnectionManager:
                 logger.warning(
                     "Failed to close old connection",
                     extra={
-                        "identifier": identifier,
+                        "request_id": request_id,
                         "token": token,
                         "status_code": response.status_code,
                     }
@@ -314,21 +401,8 @@ class ConnectionManager:
                 "Exception while closing old connection (continuing anyway)",
                 exc_info=True,
                 extra={
-                    "identifier": identifier,
+                    "request_id": request_id,
                     "token": token,
                     "error": str(e),
                 }
             )
-
-    def _extract_service_type(self, identifier: str) -> str:
-        """Extract service type from identifier (e.g., "task:abc123" -> "task").
-
-        Args:
-            identifier: Service-specific identifier with prefix
-
-        Returns:
-            Service type string (task or version)
-        """
-        if ":" in identifier:
-            return identifier.split(":", 1)[0]
-        return "unknown"

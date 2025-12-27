@@ -279,13 +279,20 @@ class TestTestingEndpoints:
         assert html_result.preview_image is not None
         assert html_result.preview_image.content_type == "image/png"
 
-    def test_deployment_trigger_endpoint_queues_event_for_future_subscriber(
+    def test_deployment_trigger_endpoint_stores_as_pending_and_broadcasts(
         self,
         client: FlaskClient,
         container: ServiceContainer,
     ):
+        """Test that deployment trigger stores version as pending and broadcasts."""
+        from unittest.mock import Mock
+
         version_service = container.version_service()
         request_id = "playwright-queued"
+
+        # Mock ConnectionManager to verify broadcast
+        mock_connection_manager = Mock()
+        version_service.connection_manager = mock_connection_manager
 
         response = client.post(
             "/api/testing/deployments/version",
@@ -296,53 +303,64 @@ class TestTestingEndpoints:
         payload = response.get_json()
         assert payload == {
             "requestId": request_id,
-            "delivered": False,
-            "status": "queued"
+            "delivered": True,  # Now always True after broadcast
+            "status": "delivered"  # Status is "delivered" after broadcast
         }
 
-        queue = version_service.register_subscriber(request_id)
-        try:
-            event_name, event_payload = queue.get_nowait()
-            assert event_name == "version"
-            assert event_payload["version"] == "2024.01.0"
-        finally:
-            version_service.unregister_subscriber(request_id)
+        # Verify it was broadcast
+        mock_connection_manager.send_event.assert_called_once()
+        call_args = mock_connection_manager.send_event.call_args
+        assert call_args.args[0] is None  # Broadcast mode
+        assert call_args.args[1] == {"version": "2024.01.0"}
 
-    def test_deployment_trigger_endpoint_delivers_to_active_subscriber(
+        # Verify it was stored as pending
+        assert request_id in version_service._pending_version
+        assert version_service._pending_version[request_id] == {"version": "2024.01.0"}
+
+    def test_deployment_trigger_endpoint_with_changelog(
         self,
         client: FlaskClient,
         container: ServiceContainer,
     ):
+        """Test deployment trigger with changelog."""
+        from unittest.mock import Mock
+
         version_service = container.version_service()
         request_id = "playwright-live"
-        queue = version_service.register_subscriber(request_id)
 
-        try:
-            response = client.post(
-                "/api/testing/deployments/version",
-                json={
-                    "request_id": request_id,
-                    "version": "2024.02.1",
-                    "changelog": "Testing banner copy"
-                }
-            )
+        # Mock ConnectionManager
+        mock_connection_manager = Mock()
+        version_service.connection_manager = mock_connection_manager
 
-            assert response.status_code == 202
-            payload = response.get_json()
-            assert payload == {
-                "requestId": request_id,
-                "delivered": True,
-                "status": "delivered"
-            }
-
-            event_name, event_payload = queue.get_nowait()
-            assert event_name == "version"
-            assert event_payload == {
+        response = client.post(
+            "/api/testing/deployments/version",
+            json={
+                "request_id": request_id,
                 "version": "2024.02.1",
                 "changelog": "Testing banner copy"
             }
-        finally:
-            version_service.unregister_subscriber(request_id)
+        )
+
+        assert response.status_code == 202
+        payload = response.get_json()
+        assert payload == {
+            "requestId": request_id,
+            "delivered": True,
+            "status": "delivered"
+        }
+
+        # Verify it was broadcast with changelog
+        call_args = mock_connection_manager.send_event.call_args
+        assert call_args.args[1] == {
+            "version": "2024.02.1",
+            "changelog": "Testing banner copy"
+        }
+
+        # Verify it was stored as pending
+        assert version_service._pending_version[request_id] == {
+            "version": "2024.02.1",
+            "changelog": "Testing banner copy"
+        }
 
     @patch('app.services.testing_service.drop_all_tables')
     def test_reset_endpoint_error_handling(self, mock_drop_tables, client: FlaskClient):
