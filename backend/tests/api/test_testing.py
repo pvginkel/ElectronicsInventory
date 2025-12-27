@@ -688,6 +688,7 @@ class TestTestingEndpointsNonTestingMode:
             ("/api/testing/content/html?title=Fixture", "GET"),
             ("/api/testing/content/html-with-banner?title=Fixture", "GET"),
             ("/api/testing/deployments/version", "POST"),
+            ("/api/testing/sse/task-event", "POST"),
         ]
 
         for endpoint, method in endpoints:
@@ -700,3 +701,166 @@ class TestTestingEndpointsNonTestingMode:
             data = response.get_json()
             assert data["code"] == "ROUTE_NOT_AVAILABLE"
             assert "testing mode" in data["error"]
+
+
+class TestTaskEventEndpoint:
+    """Test the SSE task event endpoint for Playwright testing."""
+
+    def test_send_task_event_success(self, client: FlaskClient, container: ServiceContainer):
+        """Test successful task event delivery to an active connection."""
+        connection_manager = container.connection_manager()
+
+        # Mock has_connection to return True and send_event to return True
+        with patch.object(connection_manager, 'has_connection', return_value=True), \
+             patch.object(connection_manager, 'send_event', return_value=True) as mock_send:
+
+            response = client.post("/api/testing/sse/task-event", json={
+                "request_id": "playwright-test-123",
+                "task_id": "task-abc",
+                "event_type": "progress_update",
+                "data": {"text": "Processing...", "value": 0.5}
+            })
+
+            assert response.status_code == 200
+            payload = response.get_json()
+            assert payload == {
+                "requestId": "playwright-test-123",
+                "taskId": "task-abc",
+                "eventType": "progress_update",
+                "delivered": True
+            }
+
+            # Verify send_event was called with correct parameters
+            mock_send.assert_called_once()
+            call_args = mock_send.call_args
+            assert call_args.args[0] == "playwright-test-123"  # request_id
+            assert call_args.kwargs["event_name"] == "task_event"
+            assert call_args.kwargs["service_type"] == "task"
+
+            # Verify the event data structure
+            event_data = call_args.args[1]
+            assert event_data["task_id"] == "task-abc"
+            assert event_data["event_type"] == "progress_update"
+            assert event_data["data"] == {"text": "Processing...", "value": 0.5}
+
+    def test_send_task_event_no_connection(self, client: FlaskClient, container: ServiceContainer):
+        """Test 400 error when no connection exists for the request_id."""
+        # The connection_manager won't have any connections registered,
+        # so any request_id should trigger the 400 response
+        response = client.post("/api/testing/sse/task-event", json={
+            "request_id": "nonexistent-connection",
+            "task_id": "task-xyz",
+            "event_type": "task_started"
+        })
+
+        assert response.status_code == 400
+        payload = response.get_json()
+        assert "error" in payload
+        assert "nonexistent-connection" in payload["error"]
+
+    def test_send_task_event_send_failure(self, client: FlaskClient, container: ServiceContainer):
+        """Test 400 error when send_event fails (connection disappears during send)."""
+        connection_manager = container.connection_manager()
+
+        # Patch send_event to return True during on_connect (so connection isn't cleaned up)
+        # then return False during the actual task event send
+        call_count = [0]
+
+        def mock_send_event(*args, **kwargs):
+            call_count[0] += 1
+            # First call is from VersionService during on_connect - let it succeed
+            if call_count[0] == 1:
+                return True
+            # Second call is from the actual test - make it fail
+            return False
+
+        with patch.object(connection_manager, 'send_event', side_effect=mock_send_event):
+            # Register the connection - VersionService callback will use first send_event call
+            connection_manager.on_connect("test-connection", "test-token", "http://example.com")
+
+            response = client.post("/api/testing/sse/task-event", json={
+                "request_id": "test-connection",
+                "task_id": "task-fail",
+                "event_type": "task_completed"
+            })
+
+            assert response.status_code == 400
+            payload = response.get_json()
+            assert "error" in payload
+            assert "Failed to send event" in payload["error"]
+
+    def test_send_task_event_all_event_types(self, client: FlaskClient, container: ServiceContainer):
+        """Test all supported event types."""
+        connection_manager = container.connection_manager()
+        event_types = ["task_started", "progress_update", "task_completed", "task_failed"]
+
+        with patch.object(connection_manager, 'has_connection', return_value=True), \
+             patch.object(connection_manager, 'send_event', return_value=True) as mock_send:
+
+            for event_type in event_types:
+                response = client.post("/api/testing/sse/task-event", json={
+                    "request_id": "test-connection",
+                    "task_id": f"task-{event_type}",
+                    "event_type": event_type
+                })
+
+                assert response.status_code == 200
+                payload = response.get_json()
+                assert payload["eventType"] == event_type
+                assert payload["delivered"] is True
+
+            # Verify send_event was called for each event type
+            assert mock_send.call_count == len(event_types)
+
+    def test_send_task_event_with_null_data(self, client: FlaskClient, container: ServiceContainer):
+        """Test task event with null/missing data field."""
+        connection_manager = container.connection_manager()
+
+        with patch.object(connection_manager, 'has_connection', return_value=True), \
+             patch.object(connection_manager, 'send_event', return_value=True) as mock_send:
+
+            response = client.post("/api/testing/sse/task-event", json={
+                "request_id": "test-connection",
+                "task_id": "task-no-data",
+                "event_type": "task_started"
+                # data field omitted
+            })
+
+            assert response.status_code == 200
+
+            # Verify the event data has None for data field
+            event_data = mock_send.call_args.args[1]
+            assert event_data["data"] is None
+
+    def test_send_task_event_invalid_event_type(self, client: FlaskClient):
+        """Test validation error for invalid event type."""
+        response = client.post("/api/testing/sse/task-event", json={
+            "request_id": "test-connection",
+            "task_id": "task-invalid",
+            "event_type": "invalid_event_type"
+        })
+
+        assert response.status_code == 400
+
+    def test_send_task_event_missing_required_fields(self, client: FlaskClient):
+        """Test validation error for missing required fields."""
+        # Missing task_id
+        response = client.post("/api/testing/sse/task-event", json={
+            "request_id": "test-connection",
+            "event_type": "task_started"
+        })
+        assert response.status_code == 400
+
+        # Missing request_id
+        response = client.post("/api/testing/sse/task-event", json={
+            "task_id": "task-xyz",
+            "event_type": "task_started"
+        })
+        assert response.status_code == 400
+
+        # Missing event_type
+        response = client.post("/api/testing/sse/task-event", json={
+            "request_id": "test-connection",
+            "task_id": "task-xyz"
+        })
+        assert response.status_code == 400
