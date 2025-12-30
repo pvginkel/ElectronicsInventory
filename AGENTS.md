@@ -22,6 +22,15 @@ app/
 - The container includes the standard project toolchain; request Dockerfile updates if more tooling is needed.
 - With Git safeguarded externally, no additional safety guardrails are enforced beyond the project’s own guidelines.
 
+## Deprecation and Backwards Compatibility
+
+This app follows the BFF pattern—the backend serves only this frontend. Changes to the backend are immediately accompanied by frontend updates, so:
+
+- Make breaking changes freely; no backwards compatibility needed.
+- Remove replaced/unused code and endpoints entirely (no deprecation markers).
+- Don't include migration hints in error messages.
+- Document frontend impact in `docs/features/<FEATURE>/frontend_impact.md` when the frontend dev needs update instructions.
+
 ## Code Organization Patterns
 
 ### 1. API Layer (`app/api/`)
