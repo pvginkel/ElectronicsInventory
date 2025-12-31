@@ -11,17 +11,23 @@ from app.models.part import Part
 from app.services.kit_reservation_service import KitReservationService
 
 
-def test_reserved_totals_exclude_archived_and_subject(session):
-    part = Part(key="RS01", description="Resistor stack")
-    other_part = Part(key="RS02", description="Comparator")
+def test_reserved_totals_exclude_archived_and_subject(session, make_attachment_set):
+    part_attachment_set = make_attachment_set()
+    part = Part(key="RS01", description="Resistor stack", attachment_set_id=part_attachment_set.id)
+    other_part_attachment_set = make_attachment_set()
+    other_part = Part(key="RS02", description="Comparator", attachment_set_id=other_part_attachment_set.id)
 
-    subject = Kit(name="Subject Kit", build_target=2, status=KitStatus.ACTIVE)
-    other_active = Kit(name="Other Active", build_target=3, status=KitStatus.ACTIVE)
+    subject_attachment_set = make_attachment_set()
+    subject = Kit(name="Subject Kit", build_target=2, status=KitStatus.ACTIVE, attachment_set_id=subject_attachment_set.id)
+    other_active_attachment_set = make_attachment_set()
+    other_active = Kit(name="Other Active", build_target=3, status=KitStatus.ACTIVE, attachment_set_id=other_active_attachment_set.id)
+    archived_attachment_set = make_attachment_set()
     archived = Kit(
         name="Archived Kit",
         build_target=5,
         status=KitStatus.ARCHIVED,
         archived_at=datetime.now(UTC),
+        attachment_set_id=archived_attachment_set.id,
     )
 
     session.add_all([part, other_part, subject, other_active, archived])
@@ -57,9 +63,11 @@ def test_reserved_totals_handles_empty_input(session):
     assert service.get_reserved_totals_for_parts([]) == {}
 
 
-def test_reserved_totals_allow_zero_build_target(session):
-    part = Part(key="RSZ0", description="Zero target resistor")
-    kit = Kit(name="Zero Target Kit", build_target=0, status=KitStatus.ACTIVE)
+def test_reserved_totals_allow_zero_build_target(session, make_attachment_set):
+    part_attachment_set = make_attachment_set()
+    part = Part(key="RSZ0", description="Zero target resistor", attachment_set_id=part_attachment_set.id)
+    kit_attachment_set = make_attachment_set()
+    kit = Kit(name="Zero Target Kit", build_target=0, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set.id)
     session.add_all([part, kit])
     session.flush()
     session.add(KitContent(kit=kit, part=part, required_per_unit=5))
@@ -75,9 +83,11 @@ def test_reserved_totals_allow_zero_build_target(session):
     assert entries[0].reserved_quantity == 0
 
 
-def test_list_active_reservations_returns_metadata(session):
-    part = Part(key="LM358", description="Op-amp")
-    kit = Kit(name="Audio Preamp", build_target=4, status=KitStatus.ACTIVE)
+def test_list_active_reservations_returns_metadata(session, make_attachment_set):
+    part_attachment_set = make_attachment_set()
+    part = Part(key="LM358", description="Op-amp", attachment_set_id=part_attachment_set.id)
+    kit_attachment_set = make_attachment_set()
+    kit = Kit(name="Audio Preamp", build_target=4, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set.id)
 
     session.add_all([part, kit])
     session.flush()
@@ -101,10 +111,13 @@ def test_list_active_reservations_returns_metadata(session):
     assert len(fresh_entries) == 1
 
 
-def test_get_reservations_by_part_ids_includes_multiple_parts(session):
-    resistor = Part(key="R100", description="Resistor")
-    capacitor = Part(key="C100", description="Capacitor")
-    kit = Kit(name="Mixed Kit", build_target=2, status=KitStatus.ACTIVE)
+def test_get_reservations_by_part_ids_includes_multiple_parts(session, make_attachment_set):
+    resistor_attachment_set = make_attachment_set()
+    resistor = Part(key="R100", description="Resistor", attachment_set_id=resistor_attachment_set.id)
+    capacitor_attachment_set = make_attachment_set()
+    capacitor = Part(key="C100", description="Capacitor", attachment_set_id=capacitor_attachment_set.id)
+    kit_attachment_set = make_attachment_set()
+    kit = Kit(name="Mixed Kit", build_target=2, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set.id)
     session.add_all([resistor, capacitor, kit])
     session.flush()
     session.add_all(
@@ -123,14 +136,18 @@ def test_get_reservations_by_part_ids_includes_multiple_parts(session):
     assert reservations[capacitor.id][0].reserved_quantity == 10
 
 
-def test_list_kits_for_part_returns_active_only(session):
-    part = Part(key="IC01", description="Logic IC")
-    active = Kit(name="Synth Controller", build_target=3, status=KitStatus.ACTIVE)
+def test_list_kits_for_part_returns_active_only(session, make_attachment_set):
+    part_attachment_set = make_attachment_set()
+    part = Part(key="IC01", description="Logic IC", attachment_set_id=part_attachment_set.id)
+    active_attachment_set = make_attachment_set()
+    active = Kit(name="Synth Controller", build_target=3, status=KitStatus.ACTIVE, attachment_set_id=active_attachment_set.id)
+    archived_attachment_set = make_attachment_set()
     archived = Kit(
         name="Old Controller",
         build_target=5,
         status=KitStatus.ARCHIVED,
         archived_at=datetime.now(UTC),
+        attachment_set_id=archived_attachment_set.id,
     )
     session.add_all([part, active, archived])
     session.flush()

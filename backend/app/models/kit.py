@@ -6,13 +6,23 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    CheckConstraint,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import db
+from app.utils.cas_url import build_cas_url
 
 if TYPE_CHECKING:
+    from app.models.attachment_set import AttachmentSet
     from app.models.kit_content import KitContent
     from app.models.kit_pick_list import KitPickList
     from app.models.kit_shopping_list_link import KitShoppingListLink
@@ -50,6 +60,9 @@ class Kit(db.Model):  # type: ignore[name-defined]
         server_default=KitStatus.ACTIVE.value,
         index=True,
     )
+    attachment_set_id: Mapped[int] = mapped_column(
+        ForeignKey("attachment_sets.id"), nullable=False
+    )
     archived_at: Mapped[datetime | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=func.now()
@@ -86,6 +99,13 @@ class Kit(db.Model):  # type: ignore[name-defined]
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    attachment_set: Mapped[AttachmentSet] = relationship(
+        "AttachmentSet",
+        lazy="selectin",
+        foreign_keys=[attachment_set_id],
+        cascade="all, delete-orphan",
+        single_parent=True
+    )
 
     @property
     def is_archived(self) -> bool:
@@ -106,6 +126,21 @@ class Kit(db.Model):  # type: ignore[name-defined]
     def shopping_list_badge_count(self, value: int) -> None:
         """Store computed badge count for API serialization."""
         self._shopping_list_badge_count = value
+
+    @property
+    def cover_url(self) -> str | None:
+        """Build CAS URL for the cover image from AttachmentSet.
+
+        Returns the base URL for the cover image, or None if no cover is set
+        or the cover is not an image (e.g., a PDF).
+        Client can append ?thumbnail=<size> to get a specific thumbnail size.
+        """
+        if self.attachment_set and self.attachment_set.cover_attachment:
+            cover = self.attachment_set.cover_attachment
+            if cover.has_preview:
+                return build_cas_url(cover.s3_key)
+
+        return None
 
     def __repr__(self) -> str:
         return (

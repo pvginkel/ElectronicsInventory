@@ -1,4 +1,4 @@
-"""Part attachment model for Electronics Inventory."""
+"""Attachment model for managing files and URLs across entities."""
 
 from datetime import datetime
 from enum import Enum
@@ -12,7 +12,7 @@ from app.extensions import db
 from app.utils.cas_url import build_cas_url
 
 if TYPE_CHECKING:
-    from app.models.part import Part
+    from app.models.attachment_set import AttachmentSet
 
 
 class AttachmentType(str, Enum):
@@ -23,14 +23,14 @@ class AttachmentType(str, Enum):
     PDF = "pdf"
 
 
-class PartAttachment(db.Model):  # type: ignore[name-defined]
-    """Model representing attachments (images, PDFs, URLs) for electronics parts."""
+class Attachment(db.Model):  # type: ignore[name-defined]
+    """Model representing attachments (images, PDFs, URLs) for any entity with an AttachmentSet."""
 
-    __tablename__ = "part_attachments"
+    __tablename__ = "attachments"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    part_id: Mapped[int] = mapped_column(
-        ForeignKey("parts.id", ondelete="CASCADE"), nullable=False
+    attachment_set_id: Mapped[int] = mapped_column(
+        ForeignKey("attachment_sets.id", ondelete="CASCADE"), nullable=False
     )
     attachment_type: Mapped[AttachmentType] = mapped_column(
         SQLEnum(AttachmentType, name="attachment_type", values_callable=lambda obj: [e.value for e in obj]),
@@ -50,13 +50,13 @@ class PartAttachment(db.Model):  # type: ignore[name-defined]
     )
 
     # Relationships
-    part: Mapped["Part"] = relationship(
-        "Part", back_populates="attachments", lazy="selectin",
-        foreign_keys=[part_id]
+    attachment_set: Mapped["AttachmentSet"] = relationship(
+        "AttachmentSet", back_populates="attachments", lazy="selectin",
+        foreign_keys=[attachment_set_id]
     )
 
     def __repr__(self) -> str:
-        return f"<PartAttachment {self.id}: {self.attachment_type.value} - {self.title}>"
+        return f"<Attachment {self.id}: {self.attachment_type.value} - {self.title}>"
 
     @property
     def has_preview(self) -> bool:

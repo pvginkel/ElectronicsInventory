@@ -357,38 +357,44 @@ class TestDatabaseConstraints:
 
             assert db.session.query(ShoppingListSellerNote).count() == 0
 
-    def test_kit_name_uniqueness(self, app: Flask):
+    def test_kit_name_uniqueness(self, app: Flask, make_attachment_set_flask):
         """Kit names must remain unique."""
         with app.app_context():
-            first = Kit(name="Duplicate Kit", build_target=1)
-            second = Kit(name="Duplicate Kit", build_target=2)
+            attachment_set1 = make_attachment_set_flask()
+            attachment_set2 = make_attachment_set_flask()
+            first = Kit(name="Duplicate Kit", build_target=1, attachment_set_id=attachment_set1.id)
+            second = Kit(name="Duplicate Kit", build_target=2, attachment_set_id=attachment_set2.id)
             db.session.add_all([first, second])
 
             with pytest.raises(exc.IntegrityError):
                 db.session.commit()
             db.session.rollback()
 
-    def test_kit_build_target_non_negative_constraint(self, app: Flask):
+    def test_kit_build_target_non_negative_constraint(self, app: Flask, make_attachment_set_flask):
         """Build target constraint enforces non-negative values."""
         with app.app_context():
-            zero_allowed = Kit(name="Zero Target", build_target=0)
+            attachment_set1 = make_attachment_set_flask()
+            zero_allowed = Kit(name="Zero Target", build_target=0, attachment_set_id=attachment_set1.id)
             db.session.add(zero_allowed)
             db.session.commit()
 
-            negative = Kit(name="Negative Target", build_target=-1)
+            attachment_set2 = make_attachment_set_flask()
+            negative = Kit(name="Negative Target", build_target=-1, attachment_set_id=attachment_set2.id)
             db.session.add(negative)
 
             with pytest.raises(exc.IntegrityError):
                 db.session.commit()
             db.session.rollback()
 
-    def test_archived_kits_require_timestamp(self, app: Flask):
+    def test_archived_kits_require_timestamp(self, app: Flask, make_attachment_set_flask):
         """Archived kits must include an archived_at timestamp."""
         with app.app_context():
+            attachment_set1 = make_attachment_set_flask()
             missing_timestamp = Kit(
                 name="Missing Timestamp",
                 build_target=1,
                 status=KitStatus.ARCHIVED,
+                attachment_set_id=attachment_set1.id,
             )
             db.session.add(missing_timestamp)
 
@@ -396,19 +402,22 @@ class TestDatabaseConstraints:
                 db.session.commit()
             db.session.rollback()
 
+            attachment_set2 = make_attachment_set_flask()
             stamped = Kit(
                 name="Stamped Archived",
                 build_target=1,
                 status=KitStatus.ARCHIVED,
                 archived_at=datetime.now(UTC),
+                attachment_set_id=attachment_set2.id,
             )
             db.session.add(stamped)
             db.session.commit()
 
-    def test_kit_pick_list_requested_units_positive(self, app: Flask):
+    def test_kit_pick_list_requested_units_positive(self, app: Flask, make_attachment_set_flask):
         """Kit pick list requested units must be positive."""
         with app.app_context():
-            kit = Kit(name="Pick Constraint Kit", build_target=1)
+            attachment_set = make_attachment_set_flask()
+            kit = Kit(name="Pick Constraint Kit", build_target=1, attachment_set_id=attachment_set.id)
             db.session.add(kit)
             db.session.flush()
 
@@ -423,10 +432,11 @@ class TestDatabaseConstraints:
                 db.session.commit()
             db.session.rollback()
 
-    def test_kit_shopping_list_link_uniqueness(self, app: Flask):
+    def test_kit_shopping_list_link_uniqueness(self, app: Flask, make_attachment_set_flask):
         """Kit-shopping list link enforces uniqueness."""
         with app.app_context():
-            kit = Kit(name="Link Kit", build_target=1)
+            attachment_set = make_attachment_set_flask()
+            kit = Kit(name="Link Kit", build_target=1, attachment_set_id=attachment_set.id)
             shopping_list = ShoppingList(name="Link List", status=ShoppingListStatus.CONCEPT)
             db.session.add_all([kit, shopping_list])
             db.session.flush()
@@ -454,10 +464,11 @@ class TestDatabaseConstraints:
                 db.session.commit()
             db.session.rollback()
 
-    def test_cascade_delete_kit_removes_links_and_pick_lists(self, app: Flask):
+    def test_cascade_delete_kit_removes_links_and_pick_lists(self, app: Flask, make_attachment_set_flask):
         """Deleting a kit cascades to related child tables."""
         with app.app_context():
-            kit = Kit(name="Cascade Kit", build_target=1)
+            attachment_set = make_attachment_set_flask()
+            kit = Kit(name="Cascade Kit", build_target=1, attachment_set_id=attachment_set.id)
             shopping_list = ShoppingList(name="Cascade List", status=ShoppingListStatus.CONCEPT)
             db.session.add_all([kit, shopping_list])
             db.session.flush()
@@ -483,11 +494,13 @@ class TestDatabaseConstraints:
             assert db.session.query(KitShoppingListLink).count() == 0
             assert db.session.query(KitPickList).count() == 0
 
-    def test_kit_content_required_per_unit_positive(self, app: Flask):
+    def test_kit_content_required_per_unit_positive(self, app: Flask, make_attachment_set_flask):
         """Ensure kit contents enforce positive required quantities."""
         with app.app_context():
-            kit = Kit(name="Constraint Kit", build_target=1)
-            part = Part(key="QC01", description="Constraint Part")
+            kit_attachment_set = make_attachment_set_flask()
+            part_attachment_set = make_attachment_set_flask()
+            kit = Kit(name="Constraint Kit", build_target=1, attachment_set_id=kit_attachment_set.id)
+            part = Part(key="QC01", description="Constraint Part", attachment_set_id=part_attachment_set.id)
             db.session.add_all([kit, part])
             db.session.flush()
 
@@ -502,11 +515,13 @@ class TestDatabaseConstraints:
                 db.session.commit()
             db.session.rollback()
 
-    def test_kit_content_unique_per_kit_part(self, app: Flask):
+    def test_kit_content_unique_per_kit_part(self, app: Flask, make_attachment_set_flask):
         """Ensure kit contents enforce uniqueness per kit and part."""
         with app.app_context():
-            kit = Kit(name="Unique Kit", build_target=1)
-            part = Part(key="QC02", description="Unique Part")
+            kit_attachment_set = make_attachment_set_flask()
+            part_attachment_set = make_attachment_set_flask()
+            kit = Kit(name="Unique Kit", build_target=1, attachment_set_id=kit_attachment_set.id)
+            part = Part(key="QC02", description="Unique Part", attachment_set_id=part_attachment_set.id)
             db.session.add_all([kit, part])
             db.session.flush()
 
@@ -521,12 +536,14 @@ class TestDatabaseConstraints:
                 db.session.commit()
             db.session.rollback()
 
-    def test_pick_list_line_quantity_non_negative(self, app: Flask):
+    def test_pick_list_line_quantity_non_negative(self, app: Flask, make_attachment_set_flask):
         """Pick list line quantity_to_pick must be >= 0 (negative rejected)."""
         with app.app_context():
+            kit_attachment_set = make_attachment_set_flask()
+            part_attachment_set = make_attachment_set_flask()
             box = Box(box_no=50, description="Constraint Box", capacity=2)
-            kit = Kit(name="Line Constraint Kit", build_target=1)
-            part = Part(key="PLC01", description="Constraint Part")
+            kit = Kit(name="Line Constraint Kit", build_target=1, attachment_set_id=kit_attachment_set.id)
+            part = Part(key="PLC01", description="Constraint Part", attachment_set_id=part_attachment_set.id)
             db.session.add_all([box, kit, part])
             db.session.flush()
 
@@ -571,12 +588,14 @@ class TestDatabaseConstraints:
                 db.session.commit()
             db.session.rollback()
 
-    def test_pick_list_line_unique_constraint(self, app: Flask):
+    def test_pick_list_line_unique_constraint(self, app: Flask, make_attachment_set_flask):
         """Duplicate allocations for the same content/location are rejected."""
         with app.app_context():
+            kit_attachment_set = make_attachment_set_flask()
+            part_attachment_set = make_attachment_set_flask()
             box = Box(box_no=51, description="Unique Box", capacity=2)
-            kit = Kit(name="Line Unique Kit", build_target=1)
-            part = Part(key="PLC02", description="Unique Part")
+            kit = Kit(name="Line Unique Kit", build_target=1, attachment_set_id=kit_attachment_set.id)
+            part = Part(key="PLC02", description="Unique Part", attachment_set_id=part_attachment_set.id)
             db.session.add_all([box, kit, part])
             db.session.flush()
 

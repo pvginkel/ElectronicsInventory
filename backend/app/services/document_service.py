@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session, lazyload
 
 from app.config import Settings
 from app.exceptions import InvalidOperationException, RecordNotFoundException
+from app.models.attachment import Attachment, AttachmentType
 from app.models.part import Part
-from app.models.part_attachment import AttachmentType, PartAttachment
 from app.schemas.upload_document import DocumentContentSchema, UploadDocumentSchema
 from app.services.base import BaseService
 from app.services.download_cache_service import DownloadCacheService
@@ -169,7 +169,7 @@ class DocumentService(BaseService):
             max_mb = max_size / (1024 * 1024)
             raise InvalidOperationException("validate file size", f"file too large, maximum size: {max_mb:.1f}MB")
 
-    def create_file_attachment(self, part_key: str, title: str, file_data: BinaryIO, filename: str) -> PartAttachment:
+    def create_file_attachment(self, part_key: str, title: str, file_data: BinaryIO, filename: str) -> Attachment:
         """Create a file attachment (image or PDF) for a part.
 
         Args:
@@ -179,7 +179,7 @@ class DocumentService(BaseService):
             filename: Original filename
 
         Returns:
-            Created PartAttachment
+            Created Attachment
 
         Raises:
             RecordNotFoundException: If part not found
@@ -200,7 +200,7 @@ class DocumentService(BaseService):
             filename=filename,
             title=title)
 
-    def create_url_attachment(self, part_key: str, title: str, url: str) -> PartAttachment:
+    def create_url_attachment(self, part_key: str, title: str, url: str) -> Attachment:
         """Create a URL attachment with thumbnail extraction.
 
         Args:
@@ -209,7 +209,7 @@ class DocumentService(BaseService):
             url: URL to attach
 
         Returns:
-            Created PartAttachment
+            Created Attachment
 
         Raises:
             RecordNotFoundException: If part not found
@@ -238,7 +238,7 @@ class DocumentService(BaseService):
 
     def _create_attachment(self, part_key: str, content: DocumentContentSchema | None, title: str,
                             url: str | None = None, filename: str | None = None,
-                            attachment_type: AttachmentType | None = None) -> PartAttachment:
+                            attachment_type: AttachmentType | None = None) -> Attachment:
         if not content and not url:
             raise InvalidOperationException("create attachment", "either content or URL must be provided")
 
@@ -278,8 +278,8 @@ class DocumentService(BaseService):
             upload_s3_key = None
             file_size = None
 
-        attachment = PartAttachment(
-            part_id=part.id,
+        attachment = Attachment(
+            attachment_set_id=part.attachment_set_id,
             attachment_type=attachment_type,
             title=title,
             s3_key=upload_s3_key,
@@ -292,8 +292,9 @@ class DocumentService(BaseService):
         self.db.add(attachment)
         self.db.flush()
 
-        if not part.cover_attachment_id:
-            part.cover_attachment_id = attachment.id
+        # Auto-set cover if this is the first image attachment
+        if attachment_type == AttachmentType.IMAGE and part.attachment_set and not part.attachment_set.cover_attachment_id:
+            part.attachment_set.cover_attachment_id = attachment.id
             self.db.flush()
 
         if upload_payload and upload_s3_key:
@@ -323,32 +324,32 @@ class DocumentService(BaseService):
 
         return attachment
 
-    def get_attachment(self, attachment_id: int) -> PartAttachment:
+    def get_attachment(self, attachment_id: int) -> Attachment:
         """Get attachment by ID.
 
         Args:
             attachment_id: ID of the attachment
 
         Returns:
-            PartAttachment
+            Attachment
 
         Raises:
             RecordNotFoundException: If attachment not found
         """
-        stmt = select(PartAttachment).where(PartAttachment.id == attachment_id)
+        stmt = select(Attachment).where(Attachment.id == attachment_id)
         attachment = self.db.scalar(stmt)
         if not attachment:
             raise RecordNotFoundException("Attachment", attachment_id)
         return attachment
 
-    def get_part_attachments(self, part_key: str) -> list[PartAttachment]:
+    def get_part_attachments(self, part_key: str) -> list[Attachment]:
         """Get all attachments for a part.
 
         Args:
             part_key: Part key
 
         Returns:
-            List of PartAttachment
+            List of Attachment
 
         Raises:
             RecordNotFoundException: If part not found
@@ -360,7 +361,7 @@ class DocumentService(BaseService):
 
         return part.attachments
 
-    def update_attachment(self, attachment_id: int, title: str | None = None) -> PartAttachment:
+    def update_attachment(self, attachment_id: int, title: str | None = None) -> Attachment:
         """Update attachment metadata.
 
         Args:
@@ -368,7 +369,7 @@ class DocumentService(BaseService):
             title: New title (optional)
 
         Returns:
-            Updated PartAttachment
+            Updated Attachment
 
         Raises:
             RecordNotFoundException: If attachment not found
@@ -395,11 +396,11 @@ class DocumentService(BaseService):
         is_cover_image = part.cover_attachment_id == attachment_id
 
         if is_cover_image:
-            stmt = select(PartAttachment).where(
-                PartAttachment.part_id == part.id,
-                PartAttachment.attachment_type == AttachmentType.IMAGE,
-                PartAttachment.id != attachment_id
-            ).order_by(PartAttachment.created_at)
+            stmt = select(Attachment).where(
+                Attachment.part_id == part.id,
+                Attachment.attachment_type == AttachmentType.IMAGE,
+                Attachment.id != attachment_id
+            ).order_by(Attachment.created_at)
 
             new_cover = self.db.scalar(stmt)
             part.cover_attachment_id = new_cover.id if new_cover else None
@@ -483,17 +484,19 @@ class DocumentService(BaseService):
             raise RecordNotFoundException("Part", part_key)
 
         if attachment_id is not None:
-            # Verify attachment exists and belongs to this part
+            # Verify attachment exists and belongs to this part's attachment set
             attachment = self.get_attachment(attachment_id)
-            if attachment.part_id != part.id:
+            if attachment.attachment_set_id != part.attachment_set_id:
                 raise InvalidOperationException("set part cover attachment", "attachment does not belong to this part")
 
-        part.cover_attachment_id = attachment_id
-        self.db.commit()
-        # Refresh the part to reload the relationship
-        self.db.refresh(part)
+        # Set cover on the part's attachment set
+        if part.attachment_set:
+            part.attachment_set.cover_attachment_id = attachment_id
+            self.db.commit()
+            # Refresh the part to reload the relationship
+            self.db.refresh(part)
 
-    def get_part_cover_attachment(self, part_key: str) -> PartAttachment | None:
+    def get_part_cover_attachment(self, part_key: str) -> Attachment | None:
         """Get part cover attachment.
 
         This method is optimized to avoid loading the full Part with all its
@@ -504,7 +507,7 @@ class DocumentService(BaseService):
             part_key: Part key
 
         Returns:
-            PartAttachment or None if no cover set
+            Attachment or None if no cover set
 
         Raises:
             RecordNotFoundException: If part not found
@@ -523,13 +526,13 @@ class DocumentService(BaseService):
 
         # Query the attachment directly, explicitly preventing eager loading of part
         attachment_stmt = (
-            select(PartAttachment)
-            .where(PartAttachment.id == cover_attachment_id)
-            .options(lazyload(PartAttachment.part))
+            select(Attachment)
+            .where(Attachment.id == cover_attachment_id)
+            .options(lazyload(Attachment.part))
         )
         return self.db.scalar(attachment_stmt)
 
-    def copy_attachment_to_part(self, attachment_id: int, target_part_key: str, set_as_cover: bool = False) -> PartAttachment:
+    def copy_attachment_to_part(self, attachment_id: int, target_part_key: str, set_as_cover: bool = False) -> Attachment:
         """Copy a single attachment from one part to another.
 
         Args:
@@ -538,7 +541,7 @@ class DocumentService(BaseService):
             set_as_cover: Whether to set the copied attachment as target part's cover
 
         Returns:
-            Newly created PartAttachment
+            Newly created Attachment
 
         Raises:
             RecordNotFoundException: If source attachment or target part not found
@@ -556,7 +559,7 @@ class DocumentService(BaseService):
         # CAS keys are content-addressed and immutable - just reuse the same key
         new_s3_key = source_attachment.s3_key
 
-        new_attachment = PartAttachment(
+        new_attachment = Attachment(
             part_id=target_part.id,
             attachment_type=source_attachment.attachment_type,
             title=source_attachment.title,

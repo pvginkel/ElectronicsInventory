@@ -14,16 +14,24 @@ from app.models.type import Type
 @pytest.fixture
 def sample_part(session) -> Part:
     """Create a sample part for testing."""
+    from app.models.attachment_set import AttachmentSet
+
     # Create a part type first
     part_type = Type(name="Test Type")
     session.add(part_type)
+    session.flush()
+
+    # Create an attachment set for the part
+    attachment_set = AttachmentSet()
+    session.add(attachment_set)
     session.flush()
 
     part = Part(
         key="TEST",
         manufacturer_code="TEST-001",
         type_id=part_type.id,
-        description="Test part for document testing"
+        description="Test part for document testing",
+        attachment_set_id=attachment_set.id
     )
     session.add(part)
     session.flush()

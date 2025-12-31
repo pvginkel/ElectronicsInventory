@@ -9,7 +9,6 @@ from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.box import Box
 from app.models.location import Location
 from app.models.part import Part
-from app.models.part_attachment import PartAttachment
 from app.models.part_location import PartLocation
 from app.services.base import BaseService
 from app.utils.cas_url import build_cas_url
@@ -214,6 +213,9 @@ class BoxService(BaseService):
         # Query locations with their part assignments
         # Use a LEFT JOIN to include empty locations
         # Also join with PartAttachment to get cover image data
+        from app.models.attachment import Attachment
+        from app.models.attachment_set import AttachmentSet
+
         stmt = select(
             Location.box_no,
             Location.loc_no,
@@ -221,8 +223,8 @@ class BoxService(BaseService):
             PartLocation.qty,
             Part.manufacturer_code,
             Part.description,
-            PartAttachment.s3_key.label("cover_s3_key"),
-            PartAttachment.content_type.label("cover_content_type"),
+            Attachment.s3_key.label("cover_s3_key"),
+            Attachment.content_type.label("cover_content_type"),
         ).select_from(
             Location
         ).outerjoin(
@@ -232,8 +234,10 @@ class BoxService(BaseService):
         ).outerjoin(
             Part, PartLocation.part_id == Part.id
         ).outerjoin(
-            PartAttachment,
-            Part.cover_attachment_id == PartAttachment.id
+            AttachmentSet, Part.attachment_set_id == AttachmentSet.id
+        ).outerjoin(
+            Attachment,
+            AttachmentSet.cover_attachment_id == Attachment.id
         ).where(
             Location.box_no == box_no
         ).order_by(Location.loc_no)

@@ -6,8 +6,8 @@ from flask import Flask
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
+from app.models.attachment import Attachment, AttachmentType
 from app.models.part import Part
-from app.models.part_attachment import PartAttachment
 from app.models.quantity_history import QuantityHistory
 from app.models.type import Type
 from app.services.container import ServiceContainer
@@ -80,14 +80,15 @@ class TestDashboardAPI:
         data = response.get_json()
         assert data == []
 
-    def test_get_recent_activity_success_with_data(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_recent_activity_success_with_data(self, app: Flask, client: FlaskClient, session: Session, make_attachment_set):
         """Test GET /api/dashboard/recent-activity returns correct activity data."""
         # Create test data
         type_obj = Type(name="LED")
         session.add(type_obj)
         session.flush()
 
-        part = Part(key="LED1", description="Red LED", type_id=type_obj.id)
+        attachment_set = make_attachment_set()
+        part = Part(key="LED1", description="Red LED", type_id=type_obj.id, attachment_set_id=attachment_set.id)
         session.add(part)
         session.flush()
 
@@ -119,14 +120,15 @@ class TestDashboardAPI:
         assert activity['location_reference'] == '1-5'
         assert activity['timestamp'] is not None
 
-    def test_get_recent_activity_with_limit_parameter(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_recent_activity_with_limit_parameter(self, app: Flask, client: FlaskClient, session: Session, make_attachment_set):
         """Test GET /api/dashboard/recent-activity with limit parameter."""
         # Create test data
         type_obj = Type(name="Resistor")
         session.add(type_obj)
         session.flush()
 
-        part = Part(key="RES1", description="10k Resistor", type_id=type_obj.id)
+        attachment_set = make_attachment_set()
+        part = Part(key="RES1", description="10k Resistor", type_id=type_obj.id, attachment_set_id=attachment_set.id)
         session.add(part)
         session.flush()
 
@@ -307,7 +309,7 @@ class TestDashboardAPI:
         data = response.get_json()
         assert data == []
 
-    def test_get_category_distribution_success_with_types(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_category_distribution_success_with_types(self, app: Flask, client: FlaskClient, session: Session, make_attachment_set):
         """Test GET /api/dashboard/category-distribution returns correct distribution."""
         # Create types with different part counts
         type1 = Type(name="Resistor")
@@ -316,10 +318,13 @@ class TestDashboardAPI:
         session.flush()
 
         # Create parts (Resistor: 2, LED: 1)
+        attachment_set1 = make_attachment_set()
+        attachment_set2 = make_attachment_set()
+        attachment_set3 = make_attachment_set()
         parts = [
-            Part(key="RES1", description="Resistor 1", type_id=type1.id),
-            Part(key="RES2", description="Resistor 2", type_id=type1.id),
-            Part(key="LED1", description="LED 1", type_id=type2.id),
+            Part(key="RES1", description="Resistor 1", type_id=type1.id, attachment_set_id=attachment_set1.id),
+            Part(key="RES2", description="Resistor 2", type_id=type1.id, attachment_set_id=attachment_set2.id),
+            Part(key="LED1", description="LED 1", type_id=type2.id, attachment_set_id=attachment_set3.id),
         ]
         session.add_all(parts)
         session.commit()
@@ -356,22 +361,23 @@ class TestDashboardAPI:
         assert data['count'] == 0
         assert data['sample_parts'] == []
 
-    def test_get_parts_without_documents_success_with_undocumented(self, app: Flask, client: FlaskClient, session: Session):
+    def test_get_parts_without_documents_success_with_undocumented(self, app: Flask, client: FlaskClient, session: Session, make_attachment_set):
         """Test GET /api/dashboard/parts-without-documents with undocumented parts."""
         # Create test data
         type_obj = Type(name="Sensor")
         session.add(type_obj)
         session.flush()
 
-        documented_part = Part(key="SEN1", description="Documented Sensor", type_id=type_obj.id)
-        undocumented_part = Part(key="SEN2", description="Undocumented Sensor", type_id=type_obj.id)
+        attachment_set1 = make_attachment_set()
+        attachment_set2 = make_attachment_set()
+        documented_part = Part(key="SEN1", description="Documented Sensor", type_id=type_obj.id, attachment_set_id=attachment_set1.id)
+        undocumented_part = Part(key="SEN2", description="Undocumented Sensor", type_id=type_obj.id, attachment_set_id=attachment_set2.id)
         session.add_all([documented_part, undocumented_part])
         session.flush()
 
-        # Add attachment only to documented part
-        from app.models.part_attachment import AttachmentType
-        attachment = PartAttachment(
-            part_id=documented_part.id,
+        # Add attachment only to documented part's attachment_set
+        attachment = Attachment(
+            attachment_set_id=attachment_set1.id,
             attachment_type=AttachmentType.PDF,
             title="Sensor Specification",
             filename="sensor_spec.pdf",

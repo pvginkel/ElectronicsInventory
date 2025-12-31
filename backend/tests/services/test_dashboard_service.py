@@ -5,8 +5,8 @@ from datetime import UTC, datetime, timedelta
 from flask import Flask
 from sqlalchemy.orm import Session
 
+from app.models.attachment import Attachment, AttachmentType
 from app.models.part import Part
-from app.models.part_attachment import PartAttachment
 from app.models.quantity_history import QuantityHistory
 from app.models.type import Type
 from app.services.container import ServiceContainer
@@ -91,7 +91,7 @@ class TestDashboardService:
         assert activities == []
 
     def test_get_recent_activity_with_limit(
-        self, app: Flask, session: Session, container: ServiceContainer
+        self, app: Flask, session: Session, container: ServiceContainer, make_attachment_set
     ):
         """Test get_recent_activity respects limit parameter."""
         service = container.dashboard_service()
@@ -101,7 +101,8 @@ class TestDashboardService:
         session.add(type_obj)
         session.flush()
 
-        part = Part(key="ABCD", description="Test Part", type_id=type_obj.id)
+        attachment_set = make_attachment_set()
+        part = Part(key="ABCD", description="Test Part", type_id=type_obj.id, attachment_set_id=attachment_set.id)
         session.add(part)
         session.flush()
 
@@ -130,7 +131,7 @@ class TestDashboardService:
         assert activities[2]['delta_qty'] == 3  # Third most recent (i=2)
 
     def test_get_recent_activity_includes_part_details(
-        self, app: Flask, session: Session, container: ServiceContainer
+        self, app: Flask, session: Session, container: ServiceContainer, make_attachment_set
     ):
         """Test get_recent_activity includes correct part details."""
         service = container.dashboard_service()
@@ -140,7 +141,8 @@ class TestDashboardService:
         session.add(type_obj)
         session.flush()
 
-        part = Part(key="RSTR", description="10k Ohm Resistor", type_id=type_obj.id)
+        attachment_set = make_attachment_set()
+        part = Part(key="RSTR", description="10k Ohm Resistor", type_id=type_obj.id, attachment_set_id=attachment_set.id)
         session.add(part)
         session.flush()
 
@@ -299,7 +301,7 @@ class TestDashboardService:
         assert distribution == []
 
     def test_get_category_distribution_ordered_by_count(
-        self, app: Flask, session: Session, container: ServiceContainer
+        self, app: Flask, session: Session, container: ServiceContainer, make_attachment_set
     ):
         """Test get_category_distribution returns types ordered by part count descending."""
         service = container.dashboard_service()
@@ -313,12 +315,12 @@ class TestDashboardService:
 
         # Create parts (Resistor: 3, Capacitor: 1, LED: 2)
         parts = [
-            Part(key="RES1", description="Resistor 1", type_id=type1.id),
-            Part(key="RES2", description="Resistor 2", type_id=type1.id),
-            Part(key="RES3", description="Resistor 3", type_id=type1.id),
-            Part(key="CAP1", description="Capacitor 1", type_id=type2.id),
-            Part(key="LED1", description="LED 1", type_id=type3.id),
-            Part(key="LED2", description="LED 2", type_id=type3.id),
+            Part(key="RES1", description="Resistor 1", type_id=type1.id, attachment_set_id=make_attachment_set().id),
+            Part(key="RES2", description="Resistor 2", type_id=type1.id, attachment_set_id=make_attachment_set().id),
+            Part(key="RES3", description="Resistor 3", type_id=type1.id, attachment_set_id=make_attachment_set().id),
+            Part(key="CAP1", description="Capacitor 1", type_id=type2.id, attachment_set_id=make_attachment_set().id),
+            Part(key="LED1", description="LED 1", type_id=type3.id, attachment_set_id=make_attachment_set().id),
+            Part(key="LED2", description="LED 2", type_id=type3.id, attachment_set_id=make_attachment_set().id),
         ]
         session.add_all(parts)
         session.commit()
@@ -346,7 +348,7 @@ class TestDashboardService:
         assert result['sample_parts'] == []
 
     def test_get_parts_without_documents_all_documented(
-        self, app: Flask, session: Session, container: ServiceContainer
+        self, app: Flask, session: Session, container: ServiceContainer, make_attachment_set
     ):
         """Test get_parts_without_documents when all parts have documents."""
         service = container.dashboard_service()
@@ -356,14 +358,14 @@ class TestDashboardService:
         session.add(type_obj)
         session.flush()
 
-        part = Part(key="IC01", description="Microcontroller", type_id=type_obj.id)
+        attachment_set = make_attachment_set()
+        part = Part(key="IC01", description="Microcontroller", type_id=type_obj.id, attachment_set_id=attachment_set.id)
         session.add(part)
         session.flush()
 
-        # Add attachment to part
-        from app.models.part_attachment import AttachmentType
-        attachment = PartAttachment(
-            part_id=part.id,
+        # Add attachment to the attachment_set
+        attachment = Attachment(
+            attachment_set_id=attachment_set.id,
             attachment_type=AttachmentType.PDF,
             title="Component Datasheet",
             filename="datasheet.pdf",
@@ -379,7 +381,7 @@ class TestDashboardService:
         assert result['sample_parts'] == []
 
     def test_get_parts_without_documents_mixed_documentation(
-        self, app: Flask, session: Session, container: ServiceContainer
+        self, app: Flask, session: Session, container: ServiceContainer, make_attachment_set
     ):
         """Test get_parts_without_documents with mixed documentation status."""
         service = container.dashboard_service()
@@ -390,16 +392,18 @@ class TestDashboardService:
         session.flush()
 
         # Create parts
-        documented_part = Part(key="SEN1", description="Documented Sensor", type_id=type_obj.id)
-        undocumented_part1 = Part(key="SEN2", description="Undocumented Sensor 1", type_id=type_obj.id)
-        undocumented_part2 = Part(key="SEN3", description="Undocumented Sensor 2", type_id=type_obj.id)
+        documented_part_attachment_set = make_attachment_set()
+        documented_part = Part(key="SEN1", description="Documented Sensor", type_id=type_obj.id, attachment_set_id=documented_part_attachment_set.id)
+        undocumented_part1_attachment_set = make_attachment_set()
+        undocumented_part1 = Part(key="SEN2", description="Undocumented Sensor 1", type_id=type_obj.id, attachment_set_id=undocumented_part1_attachment_set.id)
+        undocumented_part2_attachment_set = make_attachment_set()
+        undocumented_part2 = Part(key="SEN3", description="Undocumented Sensor 2", type_id=type_obj.id, attachment_set_id=undocumented_part2_attachment_set.id)
         session.add_all([documented_part, undocumented_part1, undocumented_part2])
         session.flush()
 
-        # Add attachment only to documented_part
-        from app.models.part_attachment import AttachmentType
-        attachment = PartAttachment(
-            part_id=documented_part.id,
+        # Add attachment only to documented_part's attachment_set
+        attachment = Attachment(
+            attachment_set_id=documented_part_attachment_set.id,
             attachment_type=AttachmentType.PDF,
             title="Sensor Specification",
             filename="sensor_spec.pdf",
@@ -428,7 +432,7 @@ class TestDashboardService:
         assert sample_part['type_name'] == 'Sensor'
 
     def test_get_parts_without_documents_sample_limit(
-        self, app: Flask, session: Session, container: ServiceContainer
+        self, app: Flask, session: Session, container: ServiceContainer, make_attachment_set
     ):
         """Test get_parts_without_documents limits sample to 10 parts."""
         service = container.dashboard_service()
@@ -441,7 +445,8 @@ class TestDashboardService:
         # Create 15 undocumented parts
         parts = []
         for i in range(15):
-            part = Part(key=f"CON{i:02d}", description=f"Connector {i}", type_id=type_obj.id)
+            attachment_set = make_attachment_set()
+            part = Part(key=f"CON{i:02d}", description=f"Connector {i}", type_id=type_obj.id, attachment_set_id=attachment_set.id)
             parts.append(part)
 
         session.add_all(parts)

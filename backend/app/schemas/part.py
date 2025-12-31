@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from app.schemas.part_attachment import PartAttachmentListSchema
 from app.schemas.part_kits import PartKitUsageSchema
 from app.schemas.part_shopping_list import PartShoppingListMembershipSchema
 from app.schemas.seller import SellerListSchema
@@ -275,13 +274,9 @@ class PartResponseSchema(BaseModel):
         description="Product page URL",
         json_schema_extra={"example": "https://www.digikey.com/en/products/detail/G5Q-1A4"}
     )
-    cover_attachment_id: int | None = Field(
-        description="ID of the cover attachment image",
-        json_schema_extra={"example": 123}
-    )
-    attachments: list[PartAttachmentListSchema] = Field(
-        description="List of part attachments (images, PDFs, URLs)",
-        default=[]
+    attachment_set_id: int = Field(
+        description="ID of the attachment set for this part",
+        json_schema_extra={"example": 456}
     )
     used_in_kits: bool = Field(
         default=False,
@@ -489,11 +484,6 @@ class PartWithTotalSchema(BaseModel):
     total_quantity: int = Field(
         description="Total quantity across all locations",
         json_schema_extra={"example": 150}
-    )
-    cover_attachment_id: int | None = Field(
-        default=None,
-        description="ID of the cover attachment image",
-        json_schema_extra={"example": 123}
     )
     cover_url: str | None = Field(
         default=None,

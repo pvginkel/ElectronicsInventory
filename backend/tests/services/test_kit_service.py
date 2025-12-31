@@ -3,12 +3,14 @@
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy.orm import Session
 
 from app.exceptions import (
     InvalidOperationException,
     RecordNotFoundException,
     ResourceConflictException,
 )
+from app.models.attachment_set import AttachmentSet
 from app.models.kit import Kit, KitStatus
 from app.models.kit_content import KitContent
 from app.models.kit_pick_list import KitPickList, KitPickListStatus
@@ -176,6 +178,19 @@ def kit_reservation_stub() -> KitReservationStub:
     return KitReservationStub()
 
 
+class AttachmentSetStub:
+    """Minimal stub for AttachmentSetService that creates real attachment sets."""
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def create_attachment_set(self) -> AttachmentSet:
+        attachment_set = AttachmentSet()
+        self.db.add(attachment_set)
+        self.db.flush()
+        return attachment_set
+
+
 @pytest.fixture
 def kit_service(
     session,
@@ -189,6 +204,7 @@ def kit_service(
         metrics_service=metrics_stub,
         inventory_service=inventory_stub,
         kit_reservation_service=kit_reservation_stub,
+        attachment_set_service=AttachmentSetStub(session),
     )
 
 
@@ -200,6 +216,7 @@ class TestKitService:
         session,
         kit_service: KitService,
         metrics_stub: MetricsStub,
+        make_attachment_set,
     ):
         concept_list = ShoppingList(
             name="Concept BOM",
@@ -215,18 +232,22 @@ class TestKitService:
         )
         session.add_all([concept_list, ready_list, done_list])
 
+        active_kit_attachment_set = make_attachment_set()
         active_kit = Kit(
             name="Synth Demo Kit",
             description="Demo kit for synthesizer workshops",
             build_target=3,
             status=KitStatus.ACTIVE,
+            attachment_set_id=active_kit_attachment_set.id,
         )
+        archived_kit_attachment_set = make_attachment_set()
         archived_kit = Kit(
             name="Archived Reference",
             description="Archived kit for regression testing",
             build_target=1,
             status=KitStatus.ARCHIVED,
             archived_at=datetime.now(UTC),
+            attachment_set_id=archived_kit_attachment_set.id,
         )
         session.add_all([active_kit, archived_kit])
         session.flush()
@@ -299,9 +320,12 @@ class TestKitService:
         self,
         session,
         kit_service: KitService,
+        make_attachment_set,
     ) -> None:
-        first = Kit(name="First Kit", build_target=1, status=KitStatus.ACTIVE)
-        second = Kit(name="Second Kit", build_target=1, status=KitStatus.ACTIVE)
+        first_attachment_set = make_attachment_set()
+        first = Kit(name="First Kit", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=first_attachment_set.id)
+        second_attachment_set = make_attachment_set()
+        second = Kit(name="Second Kit", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=second_attachment_set.id)
         session.add_all([first, second])
         session.commit()
 
@@ -312,8 +336,10 @@ class TestKitService:
         self,
         session,
         kit_service: KitService,
+        make_attachment_set,
     ) -> None:
-        kit = Kit(name="Unique Kit", build_target=1, status=KitStatus.ACTIVE)
+        attachment_set = make_attachment_set()
+        kit = Kit(name="Unique Kit", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=attachment_set.id)
         session.add(kit)
         session.commit()
 
@@ -324,8 +350,10 @@ class TestKitService:
         self,
         session,
         kit_service: KitService,
+        make_attachment_set,
     ) -> None:
-        kit = Kit(name="Present Kit", build_target=1, status=KitStatus.ACTIVE)
+        attachment_set = make_attachment_set()
+        kit = Kit(name="Present Kit", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=attachment_set.id)
         session.add(kit)
         session.commit()
 
@@ -336,9 +364,10 @@ class TestKitService:
         self,
         session,
         kit_service: KitService,
+        make_attachment_set,
     ) -> None:
         kits = [
-            Kit(name=f"Kit {index}", build_target=1, status=KitStatus.ACTIVE)
+            Kit(name=f"Kit {index}", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=make_attachment_set().id)
             for index in range(3)
         ]
         session.add_all(kits)
@@ -370,13 +399,17 @@ class TestKitService:
         self,
         session,
         kit_service: KitService,
+        make_attachment_set,
     ):
-        kit = Kit(name="Mutable Kit", description="First", build_target=2)
+        kit_attachment_set = make_attachment_set()
+        kit = Kit(name="Mutable Kit", description="First", build_target=2, attachment_set_id=kit_attachment_set.id)
+        archived_attachment_set = make_attachment_set()
         archived = Kit(
             name="Frozen Kit",
             build_target=1,
             status=KitStatus.ARCHIVED,
             archived_at=datetime.now(UTC),
+            attachment_set_id=archived_attachment_set.id,
         )
         session.add_all([kit, archived])
         session.commit()
@@ -402,9 +435,12 @@ class TestKitService:
         self,
         session,
         kit_service: KitService,
+        make_attachment_set,
     ):
-        first = Kit(name="Alpha Kit", build_target=1)
-        second = Kit(name="Beta Kit", build_target=1)
+        first_attachment_set = make_attachment_set()
+        first = Kit(name="Alpha Kit", build_target=1, attachment_set_id=first_attachment_set.id)
+        second_attachment_set = make_attachment_set()
+        second = Kit(name="Beta Kit", build_target=1, attachment_set_id=second_attachment_set.id)
         session.add_all([first, second])
         session.commit()
 
@@ -416,8 +452,10 @@ class TestKitService:
         session,
         kit_service: KitService,
         metrics_stub: MetricsStub,
+        make_attachment_set,
     ):
-        kit = Kit(name="Lifecycle Kit", build_target=2)
+        attachment_set = make_attachment_set()
+        kit = Kit(name="Lifecycle Kit", build_target=2, attachment_set_id=attachment_set.id)
         session.add(kit)
         session.commit()
 
@@ -445,10 +483,14 @@ class TestKitService:
         metrics_stub: MetricsStub,
         inventory_stub: InventoryStub,
         kit_reservation_stub: KitReservationStub,
+        make_attachment_set,
     ):
-        kit = Kit(name="Detail Kit", build_target=2, status=KitStatus.ACTIVE)
-        part_a = Part(key="P001", description="Shift register")
-        part_b = Part(key="P002", description="Op amp")
+        kit_attachment_set = make_attachment_set()
+        kit = Kit(name="Detail Kit", build_target=2, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set.id)
+        part_a_attachment_set = make_attachment_set()
+        part_a = Part(key="P001", description="Shift register", attachment_set_id=part_a_attachment_set.id)
+        part_b_attachment_set = make_attachment_set()
+        part_b = Part(key="P002", description="Op amp", attachment_set_id=part_b_attachment_set.id)
         session.add_all([kit, part_a, part_b])
         session.flush()
 
@@ -495,9 +537,12 @@ class TestKitService:
         session,
         kit_service: KitService,
         metrics_stub: MetricsStub,
+        make_attachment_set,
     ):
-        kit = Kit(name="Create Kit", build_target=1)
-        part = Part(key="CA01", description="Capacitor")
+        kit_attachment_set = make_attachment_set()
+        kit = Kit(name="Create Kit", build_target=1, attachment_set_id=kit_attachment_set.id)
+        part_attachment_set = make_attachment_set()
+        part = Part(key="CA01", description="Capacitor", attachment_set_id=part_attachment_set.id)
         session.add_all([kit, part])
         session.commit()
 
@@ -523,9 +568,12 @@ class TestKitService:
         session,
         kit_service: KitService,
         metrics_stub: MetricsStub,
+        make_attachment_set,
     ):
-        kit = Kit(name="Update Kit", build_target=2)
-        part = Part(key="UP01", description="Timer")
+        kit_attachment_set = make_attachment_set()
+        kit = Kit(name="Update Kit", build_target=2, attachment_set_id=kit_attachment_set.id)
+        part_attachment_set = make_attachment_set()
+        part = Part(key="UP01", description="Timer", attachment_set_id=part_attachment_set.id)
         content = KitContent(kit=kit, part=part, required_per_unit=2)
         session.add_all([kit, part, content])
         session.commit()
@@ -562,9 +610,12 @@ class TestKitService:
         session,
         kit_service: KitService,
         metrics_stub: MetricsStub,
+        make_attachment_set,
     ):
-        kit = Kit(name="Delete Kit", build_target=1)
-        part = Part(key="DL01", description="LED")
+        kit_attachment_set = make_attachment_set()
+        kit = Kit(name="Delete Kit", build_target=1, attachment_set_id=kit_attachment_set.id)
+        part_attachment_set = make_attachment_set()
+        part = Part(key="DL01", description="LED", attachment_set_id=part_attachment_set.id)
         content = KitContent(kit=kit, part=part, required_per_unit=1)
         session.add_all([kit, part, content])
         session.commit()
@@ -581,9 +632,11 @@ class TestKitService:
         self,
         session,
         kit_service: KitService,
+        make_attachment_set,
     ):
         """Delete a kit with no child records."""
-        kit = Kit(name="Simple Kit", build_target=1)
+        attachment_set = make_attachment_set()
+        kit = Kit(name="Simple Kit", build_target=1, attachment_set_id=attachment_set.id)
         session.add(kit)
         session.commit()
 
@@ -596,11 +649,15 @@ class TestKitService:
         self,
         session,
         kit_service: KitService,
+        make_attachment_set,
     ):
         """Delete a kit with contents removes all content records."""
-        kit = Kit(name="Kit With Contents", build_target=1)
-        part_a = Part(key="KDC1", description="Resistor")
-        part_b = Part(key="KDC2", description="Capacitor")
+        kit_attachment_set = make_attachment_set()
+        kit = Kit(name="Kit With Contents", build_target=1, attachment_set_id=kit_attachment_set.id)
+        part_a_attachment_set = make_attachment_set()
+        part_a = Part(key="KDC1", description="Resistor", attachment_set_id=part_a_attachment_set.id)
+        part_b_attachment_set = make_attachment_set()
+        part_b = Part(key="KDC2", description="Capacitor", attachment_set_id=part_b_attachment_set.id)
         session.add_all([kit, part_a, part_b])
         session.flush()
 
@@ -623,9 +680,11 @@ class TestKitService:
         self,
         session,
         kit_service: KitService,
+        make_attachment_set,
     ):
         """Delete a kit with pick lists removes all pick list records and lines."""
-        kit = Kit(name="Kit With Pick Lists", build_target=1)
+        attachment_set = make_attachment_set()
+        kit = Kit(name="Kit With Pick Lists", build_target=1, attachment_set_id=attachment_set.id)
         session.add(kit)
         session.flush()
 
@@ -649,9 +708,11 @@ class TestKitService:
         self,
         session,
         kit_service: KitService,
+        make_attachment_set,
     ):
         """Delete a kit with shopping list links removes all link records."""
-        kit = Kit(name="Kit With Links", build_target=1)
+        attachment_set = make_attachment_set()
+        kit = Kit(name="Kit With Links", build_target=1, attachment_set_id=attachment_set.id)
         shopping_list = ShoppingList(
             name="Test List",
             status=ShoppingListStatus.CONCEPT,
@@ -683,9 +744,11 @@ class TestKitService:
         self,
         session,
         kit_service: KitService,
+        make_attachment_set,
     ):
         """Delete an active kit without status restriction."""
-        kit = Kit(name="Active Kit", build_target=1, status=KitStatus.ACTIVE)
+        attachment_set = make_attachment_set()
+        kit = Kit(name="Active Kit", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=attachment_set.id)
         session.add(kit)
         session.commit()
 
@@ -698,13 +761,16 @@ class TestKitService:
         self,
         session,
         kit_service: KitService,
+        make_attachment_set,
     ):
         """Delete an archived kit without status restriction."""
+        attachment_set = make_attachment_set()
         kit = Kit(
             name="Archived Kit",
             build_target=1,
             status=KitStatus.ARCHIVED,
             archived_at=datetime.now(UTC),
+            attachment_set_id=attachment_set.id,
         )
         session.add(kit)
         session.commit()

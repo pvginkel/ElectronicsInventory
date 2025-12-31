@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import select
 
 from app.exceptions import InvalidOperationException, RecordNotFoundException
+from app.models.attachment_set import AttachmentSet
 from app.models.box import Box
 from app.models.kit import Kit, KitStatus
 from app.models.kit_content import KitContent
@@ -20,6 +21,19 @@ from app.services.inventory_service import InventoryService
 from app.services.kit_pick_list_service import KitPickListService
 from app.services.kit_reservation_service import KitReservationService
 from app.services.part_service import PartService
+
+
+class AttachmentSetStub:
+    """Minimal stub for AttachmentSetService that creates real attachment sets."""
+
+    def __init__(self, db):
+        self.db = db
+
+    def create_attachment_set(self) -> AttachmentSet:
+        attachment_set = AttachmentSet()
+        self.db.add(attachment_set)
+        self.db.flush()
+        return attachment_set
 
 
 class PickListMetricsStub:
@@ -69,7 +83,7 @@ def metrics_stub() -> PickListMetricsStub:
 def part_service(session) -> PartService:
     """Create a PartService bound to the test session."""
 
-    return PartService(session)
+    return PartService(session, attachment_set_service=AttachmentSetStub(session))
 
 
 @pytest.fixture
@@ -114,8 +128,9 @@ def _create_location(session, *, box_no: int, loc_no: int) -> Location:
     return location
 
 
-def _create_part(session, key: str, description: str) -> Part:
-    part = Part(key=key, description=description)
+def _create_part(session, make_attachment_set, key: str, description: str) -> Part:
+    attachment_set = make_attachment_set()
+    part = Part(key=key, description=description, attachment_set_id=attachment_set.id)
     session.add(part)
     session.flush()
     return part
@@ -134,8 +149,9 @@ def _attach_location(session, part: Part, location: Location, qty: int) -> PartL
     return assignment
 
 
-def _create_active_kit(session, name: str = "Test Kit") -> Kit:
-    kit = Kit(name=name, build_target=1, status=KitStatus.ACTIVE)
+def _create_active_kit(session, make_attachment_set, name: str = "Test Kit") -> Kit:
+    attachment_set = make_attachment_set()
+    kit = Kit(name=name, build_target=1, status=KitStatus.ACTIVE, attachment_set_id=attachment_set.id)
     session.add(kit)
     session.flush()
     return kit
@@ -156,10 +172,13 @@ class TestKitPickListService:
         session,
         kit_pick_list_service: KitPickListService,
         metrics_stub: PickListMetricsStub,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part_a = _create_part(session, "ALOC", "Amplifier")
-        part_b = _create_part(session, "BLOC", "Buffer")
+        kit = _create_active_kit(session, make_attachment_set)
+        part_a = _create_part(session, make_attachment_set, "ALOC", "Amplifier")
+        part_b = _create_part(session, make_attachment_set, "BLOC", "Buffer")
         content_a = _attach_content(session, kit, part_a, required_per_unit=3)
         content_b = _attach_content(session, kit, part_b, required_per_unit=1)
 
@@ -197,9 +216,12 @@ class TestKitPickListService:
         session,
         kit_pick_list_service: KitPickListService,
         metrics_stub: PickListMetricsStub,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "LOW", "Limited Stock Part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "LOW", "Limited Stock Part")
         _attach_content(session, kit, part, required_per_unit=5)
 
         location = _create_location(session, box_no=30, loc_no=1)
@@ -216,13 +238,16 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        competitor = Kit(name="Competing Kit", build_target=3, status=KitStatus.ACTIVE)
+        kit = _create_active_kit(session, make_attachment_set)
+        competitor = Kit(name="Competing Kit", build_target=3, status=KitStatus.ACTIVE, attachment_set_id=make_attachment_set().id)
         session.add(competitor)
         session.flush()
 
-        part = _create_part(session, "RESF", "Reservation sensitive part")
+        part = _create_part(session, make_attachment_set, "RESF", "Reservation sensitive part")
         _attach_content(session, kit, part, required_per_unit=2)
         _attach_content(session, competitor, part, required_per_unit=1)
 
@@ -238,12 +263,15 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = Kit(name="Archived Kit", build_target=1, status=KitStatus.ARCHIVED, archived_at=datetime.now(UTC))
+        kit = Kit(name="Archived Kit", build_target=1, status=KitStatus.ARCHIVED, archived_at=datetime.now(UTC), attachment_set_id=make_attachment_set().id)
         session.add(kit)
         session.flush()
 
-        part = _create_part(session, "ARCH", "Archived Part")
+        part = _create_part(session, make_attachment_set, "ARCH", "Archived Part")
         _attach_content(session, kit, part, required_per_unit=1)
         location = _create_location(session, box_no=40, loc_no=1)
         _attach_location(session, part, location, qty=1)
@@ -256,9 +284,12 @@ class TestKitPickListService:
         session,
         kit_pick_list_service: KitPickListService,
         metrics_stub: PickListMetricsStub,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "RESV", "Reserved Part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "RESV", "Reserved Part")
         _attach_content(session, kit, part, required_per_unit=1)
         location = _create_location(session, box_no=41, loc_no=1)
         _attach_location(session, part, location, qty=1)
@@ -278,9 +309,12 @@ class TestKitPickListService:
         session,
         kit_pick_list_service: KitPickListService,
         metrics_stub: PickListMetricsStub,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "PICK", "Picker Part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "PICK", "Picker Part")
         _attach_content(session, kit, part, required_per_unit=2)
         location = _create_location(session, box_no=50, loc_no=1)
         assignment = _attach_location(session, part, location, qty=3)
@@ -310,9 +344,12 @@ class TestKitPickListService:
         session,
         kit_pick_list_service: KitPickListService,
         metrics_stub: PickListMetricsStub,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "UNDO", "Undo Part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "UNDO", "Undo Part")
         _attach_content(session, kit, part, required_per_unit=1)
         location = _create_location(session, box_no=60, loc_no=1)
         assignment = _attach_location(session, part, location, qty=2)
@@ -345,9 +382,12 @@ class TestKitPickListService:
         kit_pick_list_service: KitPickListService,
         session,
         metrics_stub: PickListMetricsStub,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "NOOP", "No-op Part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "NOOP", "No-op Part")
         _attach_content(session, kit, part, required_per_unit=1)
         location = _create_location(session, box_no=70, loc_no=1)
         _attach_location(session, part, location, qty=1)
@@ -364,9 +404,12 @@ class TestKitPickListService:
         session,
         kit_pick_list_service: KitPickListService,
         metrics_stub: PickListMetricsStub,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "DETAIL", "Detail Part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "DETAIL", "Detail Part")
         _attach_content(session, kit, part, required_per_unit=1)
         location = _create_location(session, box_no=80, loc_no=1)
         _attach_location(session, part, location, qty=2)
@@ -382,9 +425,12 @@ class TestKitPickListService:
         session,
         kit_pick_list_service: KitPickListService,
         metrics_stub: PickListMetricsStub,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "LIST", "List Part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "LIST", "List Part")
         _attach_content(session, kit, part, required_per_unit=1)
         location = _create_location(session, box_no=90, loc_no=1)
         _attach_location(session, part, location, qty=10)
@@ -402,17 +448,20 @@ class TestKitPickListService:
         session,
         kit_pick_list_service: KitPickListService,
         metrics_stub: PickListMetricsStub,
-    ) -> None:
-        kit_a = _create_active_kit(session, name="Kit A")
-        kit_b = _create_active_kit(session, name="Kit B")
-        kit_empty = _create_active_kit(session, name="Kit Empty")
 
-        part_a = _create_part(session, "PA", "Kit A Part")
+        make_attachment_set,
+
+    ) -> None:
+        kit_a = _create_active_kit(session, make_attachment_set, name="Kit A")
+        kit_b = _create_active_kit(session, make_attachment_set, name="Kit B")
+        kit_empty = _create_active_kit(session, make_attachment_set, name="Kit Empty")
+
+        part_a = _create_part(session, make_attachment_set, "PA", "Kit A Part")
         _attach_content(session, kit_a, part_a, required_per_unit=1)
         location_a = _create_location(session, box_no=95, loc_no=1)
         _attach_location(session, part_a, location_a, qty=10)
 
-        part_b = _create_part(session, "PB", "Kit B Part")
+        part_b = _create_part(session, make_attachment_set, "PB", "Kit B Part")
         _attach_content(session, kit_b, part_b, required_per_unit=1)
         location_b = _create_location(session, box_no=96, loc_no=1)
         _attach_location(session, part_b, location_b, qty=10)
@@ -447,9 +496,12 @@ class TestKitPickListService:
         session,
         kit_pick_list_service: KitPickListService,
         metrics_stub: PickListMetricsStub,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session, name="Kit Done")
-        part = _create_part(session, "PD", "Done Part")
+        kit = _create_active_kit(session, make_attachment_set, name="Kit Done")
+        part = _create_part(session, make_attachment_set, "PD", "Done Part")
         _attach_content(session, kit, part, required_per_unit=1)
         location = _create_location(session, box_no=97, loc_no=1)
         _attach_location(session, part, location, qty=5)
@@ -475,6 +527,9 @@ class TestKitPickListService:
     def test_list_pick_lists_for_missing_kit_raises(
         self,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
         with pytest.raises(RecordNotFoundException):
             kit_pick_list_service.list_pick_lists_for_kit(9999)
@@ -483,9 +538,12 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "TIME", "Timestamp Part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "TIME", "Timestamp Part")
         _attach_content(session, kit, part, required_per_unit=1)
         location_a = _create_location(session, box_no=101, loc_no=1)
         _attach_location(session, part, location_a, qty=1)
@@ -508,9 +566,12 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "UNDO2", "Undo Timestamp Part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "UNDO2", "Undo Timestamp Part")
         _attach_content(session, kit, part, required_per_unit=1)
         location = _create_location(session, box_no=103, loc_no=1)
         _attach_location(session, part, location, qty=1)
@@ -532,10 +593,13 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
         """Undoing a zero-quantity picked line should reset status without inventory ops."""
-        kit = _create_active_kit(session)
-        part = _create_part(session, "UNDZ", "Undo Zero Part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "UNDZ", "Undo Zero Part")
         _attach_content(session, kit, part, required_per_unit=1)
         location = _create_location(session, box_no=104, loc_no=1)
         _attach_location(session, part, location, qty=10)
@@ -568,9 +632,12 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "DEL1", "Delete Part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "DEL1", "Delete Part")
         _attach_content(session, kit, part, required_per_unit=1)
         location = _create_location(session, box_no=110, loc_no=1)
         _attach_location(session, part, location, qty=5)
@@ -593,9 +660,12 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "DEL2", "Delete Completed Part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "DEL2", "Delete Completed Part")
         _attach_content(session, kit, part, required_per_unit=1)
         location = _create_location(session, box_no=111, loc_no=1)
         _attach_location(session, part, location, qty=3)
@@ -624,9 +694,12 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "DEL3", "Delete Mixed Part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "DEL3", "Delete Mixed Part")
         _attach_content(session, kit, part, required_per_unit=1)
         location_a = _create_location(session, box_no=112, loc_no=1)
         _attach_location(session, part, location_a, qty=1)
@@ -653,6 +726,9 @@ class TestKitPickListService:
     def test_delete_pick_list_raises_for_nonexistent_id(
         self,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
         with pytest.raises(RecordNotFoundException):
             kit_pick_list_service.delete_pick_list(9999)
@@ -661,9 +737,12 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "DEL4", "Delete List Part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "DEL4", "Delete List Part")
         _attach_content(session, kit, part, required_per_unit=1)
         location = _create_location(session, box_no=114, loc_no=1)
         _attach_location(session, part, location, qty=10)
@@ -684,9 +763,12 @@ class TestKitPickListService:
         session,
         kit_pick_list_service: KitPickListService,
         metrics_stub: PickListMetricsStub,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "UPD1", "Update quantity part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "UPD1", "Update quantity part")
         _attach_content(session, kit, part, required_per_unit=10)
         location = _create_location(session, box_no=200, loc_no=1)
         _attach_location(session, part, location, qty=50)
@@ -713,9 +795,12 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "UPD2", "Zero quantity part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "UPD2", "Zero quantity part")
         _attach_content(session, kit, part, required_per_unit=5)
         location = _create_location(session, box_no=201, loc_no=1)
         _attach_location(session, part, location, qty=20)
@@ -736,9 +821,12 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "UPD3", "Recalc totals part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "UPD3", "Recalc totals part")
         _attach_content(session, kit, part, required_per_unit=8)
         location = _create_location(session, box_no=202, loc_no=1)
         _attach_location(session, part, location, qty=30)
@@ -761,9 +849,12 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "UPD4", "Completed line part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "UPD4", "Completed line part")
         _attach_content(session, kit, part, required_per_unit=2)
         location = _create_location(session, box_no=203, loc_no=1)
         _attach_location(session, part, location, qty=10)
@@ -784,9 +875,12 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "UPD5", "Completed pick list part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "UPD5", "Completed pick list part")
         _attach_content(session, kit, part, required_per_unit=3)
         location = _create_location(session, box_no=204, loc_no=1)
         _attach_location(session, part, location, qty=15)
@@ -807,6 +901,9 @@ class TestKitPickListService:
     def test_update_line_quantity_raises_for_nonexistent_pick_list(
         self,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
         with pytest.raises(RecordNotFoundException):
             kit_pick_list_service.update_line_quantity(9999, 1, 5)
@@ -815,9 +912,12 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "UPD6", "Nonexistent line part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "UPD6", "Nonexistent line part")
         _attach_content(session, kit, part, required_per_unit=2)
         location = _create_location(session, box_no=205, loc_no=1)
         _attach_location(session, part, location, qty=10)
@@ -832,9 +932,12 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "UPD7", "Different pick list part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "UPD7", "Different pick list part")
         _attach_content(session, kit, part, required_per_unit=2)
         location = _create_location(session, box_no=206, loc_no=1)
         _attach_location(session, part, location, qty=20)
@@ -852,10 +955,13 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part1 = _create_part(session, "UPD8", "First part")
-        part2 = _create_part(session, "UPD9", "Second part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part1 = _create_part(session, make_attachment_set, "UPD8", "First part")
+        part2 = _create_part(session, make_attachment_set, "UPD9", "Second part")
         _attach_content(session, kit, part1, required_per_unit=3)
         _attach_content(session, kit, part2, required_per_unit=5)
         location = _create_location(session, box_no=207, loc_no=1)
@@ -883,9 +989,12 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
     ) -> None:
-        kit = _create_active_kit(session)
-        part = _create_part(session, "UP10", "Zero pick part")
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "UP10", "Zero pick part")
         _attach_content(session, kit, part, required_per_unit=4)
         location = _create_location(session, box_no=208, loc_no=1)
         _attach_location(session, part, location, qty=10)

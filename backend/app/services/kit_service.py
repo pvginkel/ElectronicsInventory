@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from time import perf_counter
+from typing import Any
 
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.exc import IntegrityError
@@ -39,6 +40,7 @@ class KitService(BaseService):
         metrics_service: MetricsServiceProtocol | None = None,
         inventory_service: InventoryService | None = None,
         kit_reservation_service: KitReservationService | None = None,
+        attachment_set_service: Any = None,
     ):
         """Initialize service with database session and dependencies."""
         super().__init__(db)
@@ -46,10 +48,13 @@ class KitService(BaseService):
             raise ValueError("inventory_service dependency is required")
         if kit_reservation_service is None:
             raise ValueError("kit_reservation_service dependency is required")
+        if attachment_set_service is None:
+            raise ValueError("attachment_set_service dependency is required")
 
         self.metrics_service = metrics_service
         self.inventory_service = inventory_service
         self.kit_reservation_service = kit_reservation_service
+        self.attachment_set_service = attachment_set_service
 
     def list_kits(
         self,
@@ -400,17 +405,26 @@ class KitService(BaseService):
         description: str | None = None,
         build_target: int = 1,
     ) -> Kit:
-        """Create a new kit in active status."""
+        """Create a new kit in active status with attachment set.
+
+        Every kit gets an AttachmentSet created during kit creation to
+        enforce the invariant that all kits have an attachment set.
+        """
         if build_target < 0:
             raise InvalidOperationException(
                 "create kit",
                 "build target cannot be negative",
             )
 
+        # Create attachment set first (eager creation)
+        attachment_set = self.attachment_set_service.create_attachment_set()
+        attachment_set_id = attachment_set.id
+
         kit = Kit(
             name=name,
             description=description,
             build_target=build_target,
+            attachment_set_id=attachment_set_id,
         )
         self.db.add(kit)
         try:

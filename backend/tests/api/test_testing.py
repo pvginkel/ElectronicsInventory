@@ -17,7 +17,7 @@ from sqlalchemy.pool import StaticPool
 
 from app import create_app
 from app.config import Settings
-from app.models.part_attachment import AttachmentType
+from app.models.attachment import AttachmentType
 from app.services.container import ServiceContainer
 from app.services.download_cache_service import DownloadResult
 from app.utils.log_capture import LogCaptureHandler, SSELogClient

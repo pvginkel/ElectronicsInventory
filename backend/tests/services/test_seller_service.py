@@ -216,7 +216,7 @@ class TestSellerService:
         with pytest.raises(RecordNotFoundException):
             service.get_seller(seller_id)
 
-    def test_delete_seller_with_associated_parts(self, app: Flask, session: Session, container: ServiceContainer):
+    def test_delete_seller_with_associated_parts(self, app: Flask, session: Session, container: ServiceContainer, make_attachment_set):
         """Test deleting a seller that has associated parts raises InvalidOperationException."""
         service = container.seller_service()
 
@@ -232,11 +232,13 @@ class TestSellerService:
         session.flush()
 
         # Create part with this seller
+        attachment_set = make_attachment_set()
         part = Part(
             key="TEST",
             description="Test part",
             seller_id=seller.id,
-            type_id=test_type.id
+            type_id=test_type.id,
+            attachment_set_id=attachment_set.id,
         )
         session.add(part)
         session.flush()

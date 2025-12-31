@@ -2,12 +2,12 @@
 
 from datetime import UTC, datetime
 
+from app.models.attachment import Attachment, AttachmentType
 from app.models.box import Box
 from app.models.kit import Kit, KitStatus
 from app.models.kit_content import KitContent
 from app.models.location import Location
 from app.models.part import Part
-from app.models.part_attachment import AttachmentType, PartAttachment
 from app.models.part_location import PartLocation
 from app.models.seller import Seller
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
@@ -17,9 +17,11 @@ from app.models.shopping_list_line import ShoppingListLine, ShoppingListLineStat
 class TestPartsApi:
     """API tests for part detail usage flags and kit listings."""
 
-    def test_get_part_sets_used_in_kits_flag(self, client, session):
-        part = Part(key="SW01", description="Toggle switch")
-        kit = Kit(name="Synth Panel", build_target=3, status=KitStatus.ACTIVE)
+    def test_get_part_sets_used_in_kits_flag(self, client, session, make_attachment_set):
+        part_attachment_set = make_attachment_set()
+        kit_attachment_set = make_attachment_set()
+        part = Part(key="SW01", description="Toggle switch", attachment_set_id=part_attachment_set.id)
+        kit = Kit(name="Synth Panel", build_target=3, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set.id)
         session.add_all([part, kit])
         session.flush()
         session.add(KitContent(kit=kit, part=part, required_per_unit=2))
@@ -31,8 +33,9 @@ class TestPartsApi:
         assert payload["key"] == part.key
         assert payload["used_in_kits"] is True
 
-    def test_get_part_used_in_kits_false_without_reservations(self, client, session):
-        part = Part(key="SW02", description="Unused switch")
+    def test_get_part_used_in_kits_false_without_reservations(self, client, session, make_attachment_set):
+        attachment_set = make_attachment_set()
+        part = Part(key="SW02", description="Unused switch", attachment_set_id=attachment_set.id)
         session.add(part)
         session.commit()
 
@@ -41,15 +44,20 @@ class TestPartsApi:
         payload = response.get_json()
         assert payload["used_in_kits"] is False
 
-    def test_list_part_kits_returns_usage_and_records_metrics(self, client, session, container):
-        part = Part(key="IO12", description="I/O expander")
-        unused = Part(key="IO13", description="Unassigned expander")
-        active_kit = Kit(name="Control Surface", build_target=4, status=KitStatus.ACTIVE)
+    def test_list_part_kits_returns_usage_and_records_metrics(self, client, session, container, make_attachment_set):
+        part_attachment_set1 = make_attachment_set()
+        part_attachment_set2 = make_attachment_set()
+        kit_attachment_set1 = make_attachment_set()
+        kit_attachment_set2 = make_attachment_set()
+        part = Part(key="IO12", description="I/O expander", attachment_set_id=part_attachment_set1.id)
+        unused = Part(key="IO13", description="Unassigned expander", attachment_set_id=part_attachment_set2.id)
+        active_kit = Kit(name="Control Surface", build_target=4, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set1.id)
         archived_kit = Kit(
             name="Legacy Surface",
             build_target=5,
             status=KitStatus.ARCHIVED,
             archived_at=datetime.now(UTC),
+            attachment_set_id=kit_attachment_set2.id,
         )
         session.add_all([part, unused, active_kit, archived_kit])
         session.flush()
@@ -90,9 +98,10 @@ class TestPartsApi:
 class TestPartsListIncludeParameter:
     """Tests for the consolidated parts list endpoint with include parameter."""
 
-    def test_list_parts_without_include_returns_basic_data(self, client, session):
+    def test_list_parts_without_include_returns_basic_data(self, client, session, make_attachment_set):
         """Verify that without include parameter, only basic part data is returned."""
-        part = Part(key="R001", description="100 ohm resistor", type_id=1)
+        attachment_set = make_attachment_set()
+        part = Part(key="R001", description="100 ohm resistor", type_id=1, attachment_set_id=attachment_set.id)
         session.add(part)
         session.commit()
 
@@ -108,7 +117,7 @@ class TestPartsListIncludeParameter:
         assert payload[0].get("shopping_lists") is None
         assert payload[0].get("cover_url") is None
 
-    def test_list_parts_include_locations(self, client, session):
+    def test_list_parts_include_locations(self, client, session, make_attachment_set):
         """Verify include=locations adds location data."""
         # Create box and locations
         box = Box(box_no=1, description="Test Box", capacity=10)
@@ -120,7 +129,8 @@ class TestPartsListIncludeParameter:
         session.flush()
 
         # Create part with locations
-        part = Part(key="C001", description="10uF capacitor", type_id=1)
+        attachment_set = make_attachment_set()
+        part = Part(key="C001", description="10uF capacitor", type_id=1, attachment_set_id=attachment_set.id)
         session.add(part)
         session.flush()
 
@@ -142,10 +152,12 @@ class TestPartsListIncludeParameter:
         assert payload[0]["locations"][0]["loc_no"] == 1
         assert payload[0]["locations"][0]["qty"] == 50
 
-    def test_list_parts_include_kits(self, client, session):
+    def test_list_parts_include_kits(self, client, session, make_attachment_set):
         """Verify include=kits adds kit membership data."""
-        part = Part(key="IC01", description="ATmega328P", type_id=1)
-        kit = Kit(name="Arduino Clone", build_target=5, status=KitStatus.ACTIVE)
+        part_attachment_set = make_attachment_set()
+        kit_attachment_set = make_attachment_set()
+        part = Part(key="IC01", description="ATmega328P", type_id=1, attachment_set_id=part_attachment_set.id)
+        kit = Kit(name="Arduino Clone", build_target=5, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set.id)
         session.add_all([part, kit])
         session.flush()
         session.add(KitContent(kit=kit, part=part, required_per_unit=1))
@@ -161,9 +173,10 @@ class TestPartsListIncludeParameter:
         assert payload[0]["kits"][0]["reserved_quantity"] == 5
         assert payload[0]["kits"][0]["status"] == KitStatus.ACTIVE.value
 
-    def test_list_parts_include_shopping_lists(self, client, session):
+    def test_list_parts_include_shopping_lists(self, client, session, make_attachment_set):
         """Verify include=shopping_lists adds shopping list membership data."""
-        part = Part(key="LED1", description="Red LED", type_id=1)
+        attachment_set = make_attachment_set()
+        part = Part(key="LED1", description="Red LED", type_id=1, attachment_set_id=attachment_set.id)
         seller = Seller(name="DigiKey", website="digikey.com")
         shopping_list = ShoppingList(name="Q1 Order", status=ShoppingListStatus.CONCEPT)
         session.add_all([part, seller, shopping_list])
@@ -189,17 +202,18 @@ class TestPartsListIncludeParameter:
         assert payload[0]["shopping_lists"][0]["needed"] == 100
         assert payload[0]["shopping_lists"][0]["seller"]["name"] == "DigiKey"
 
-    def test_list_parts_include_cover(self, client, session):
+    def test_list_parts_include_cover(self, client, session, make_attachment_set):
         """Verify include=cover adds cover URLs when attachment exists."""
         # Create part with cover attachment (need actual attachment for CAS URL)
-        part_with_cover = Part(key="SW10", description="Button with cover", type_id=1)
+        attachment_set1 = make_attachment_set()
+        part_with_cover = Part(key="SW10", description="Button with cover", type_id=1, attachment_set_id=attachment_set1.id)
         session.add(part_with_cover)
         session.flush()
 
         # Create attachment with CAS s3_key
         test_hash = "abc123def456" * 5 + "abcd"  # 64 char hash
-        attachment = PartAttachment(
-            part_id=part_with_cover.id,
+        attachment = Attachment(
+            attachment_set_id=attachment_set1.id,
             attachment_type=AttachmentType.IMAGE,
             title="Cover Image",
             s3_key=f"cas/{test_hash}",
@@ -208,10 +222,13 @@ class TestPartsListIncludeParameter:
         session.add(attachment)
         session.flush()
 
-        part_with_cover.cover_attachment_id = attachment.id
+        # Set as cover attachment in the attachment_set
+        attachment_set1.cover_attachment_id = attachment.id
+        session.flush()
 
         # Part without cover
-        part_no_cover = Part(key="SW11", description="Button without cover", type_id=1)
+        attachment_set2 = make_attachment_set()
+        part_no_cover = Part(key="SW11", description="Button without cover", type_id=1, attachment_set_id=attachment_set2.id)
         session.add(part_no_cover)
         session.commit()
 
@@ -229,7 +246,7 @@ class TestPartsListIncludeParameter:
         part_no_cover_data = next(p for p in payload if p["key"] == "SW11")
         assert part_no_cover_data.get("cover_url") is None
 
-    def test_list_parts_include_all(self, client, session):
+    def test_list_parts_include_all(self, client, session, make_attachment_set):
         """Verify include=locations,kits,shopping_lists,cover includes all optional data."""
         # Setup complete data
         box = Box(box_no=1, description="Full Test Box", capacity=10)
@@ -240,16 +257,18 @@ class TestPartsListIncludeParameter:
         session.add(loc)
         session.flush()
 
-        part = Part(key="FULL", description="Fully loaded part", type_id=1)
-        kit = Kit(name="Test Kit", build_target=2, status=KitStatus.ACTIVE)
+        part_attachment_set = make_attachment_set()
+        kit_attachment_set = make_attachment_set()
+        part = Part(key="FULL", description="Fully loaded part", type_id=1, attachment_set_id=part_attachment_set.id)
+        kit = Kit(name="Test Kit", build_target=2, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set.id)
         shopping_list = ShoppingList(name="Test List", status=ShoppingListStatus.CONCEPT)
         session.add_all([part, kit, shopping_list])
         session.flush()
 
         # Create cover attachment with CAS s3_key (must be 64 hex chars)
         test_hash = "abc123def456" * 5 + "abcd"  # 64 char hash
-        attachment = PartAttachment(
-            part_id=part.id,
+        attachment = Attachment(
+            attachment_set_id=part_attachment_set.id,
             attachment_type=AttachmentType.IMAGE,
             title="Cover",
             s3_key=f"cas/{test_hash}",
@@ -257,7 +276,8 @@ class TestPartsListIncludeParameter:
         )
         session.add(attachment)
         session.flush()
-        part.cover_attachment_id = attachment.id
+        part_attachment_set.cover_attachment_id = attachment.id
+        session.flush()
 
         part_loc = PartLocation(part_id=part.id, box_no=1, loc_no=1, location_id=loc.id, qty=10)
         kit_content = KitContent(kit=kit, part=part, required_per_unit=3)

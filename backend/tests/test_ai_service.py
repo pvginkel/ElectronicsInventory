@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.exceptions import InvalidOperationException
-from app.models.part_attachment import AttachmentType
+from app.models.attachment import AttachmentType
 from app.models.type import Type
 from app.schemas.ai_part_analysis import DocumentSuggestionSchema
 from app.services.ai_model import (

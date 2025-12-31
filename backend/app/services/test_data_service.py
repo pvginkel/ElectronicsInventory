@@ -12,6 +12,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.exceptions import InvalidOperationException
+from app.models.attachment import Attachment, AttachmentType
+from app.models.attachment_set import AttachmentSet
 from app.models.box import Box
 from app.models.kit import Kit, KitStatus
 from app.models.kit_content import KitContent
@@ -20,7 +22,6 @@ from app.models.kit_pick_list_line import KitPickListLine, PickListLineStatus
 from app.models.kit_shopping_list_link import KitShoppingListLink
 from app.models.location import Location
 from app.models.part import Part
-from app.models.part_attachment import AttachmentType, PartAttachment
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
 from app.models.seller import Seller
@@ -185,6 +186,11 @@ class TestDataService(BaseService):
                 else:
                     raise InvalidOperationException("load parts data", f"unknown seller_id '{part_data['seller_id']}' in part {part_data['key']}")
 
+            # Create attachment set for this part
+            attachment_set = AttachmentSet()
+            self.db.add(attachment_set)
+            self.db.flush()
+
             part = Part(
                 key=part_data["key"],
                 manufacturer_code=part_data.get("manufacturer_code"),
@@ -195,6 +201,7 @@ class TestDataService(BaseService):
                 product_page=part_data.get("product_page"),
                 seller_id=seller_id,
                 seller_link=part_data.get("seller_link"),
+                attachment_set_id=attachment_set.id,
                 package=part_data.get("package"),
                 pin_count=part_data.get("pin_count"),
                 pin_pitch=part_data.get("pin_pitch"),
@@ -281,12 +288,18 @@ class TestDataService(BaseService):
                         f"invalid archived_at value '{archived_at_raw}' for kit {name}",
                     ) from exc
 
+            # Create attachment set for this kit
+            attachment_set = AttachmentSet()
+            self.db.add(attachment_set)
+            self.db.flush()
+
             kit = Kit(
                 name=name,
                 description=kit_data.get("description"),
                 build_target=kit_data.get("build_target", 1),
                 status=status,
                 archived_at=archived_at,
+                attachment_set_id=attachment_set.id,
             )
             self.db.add(kit)
             self.db.flush()
@@ -801,7 +814,7 @@ class TestDataService(BaseService):
         1. Reads the image file from part_images/
         2. Computes SHA-256 hash
         3. Uploads to S3 using CAS format (cas/{hash})
-        4. Creates a PartAttachment record
+        4. Creates a Attachment record
         5. Sets the attachment as the part's cover
 
         Args:
@@ -881,7 +894,7 @@ class TestDataService(BaseService):
             content_type = mimetypes.guess_type(image_filename)[0] or "image/png"
 
             # Create attachment record
-            attachment = PartAttachment(
+            attachment = Attachment(
                 part_id=part.id,
                 attachment_type=AttachmentType.IMAGE,
                 title=f"Cover image for {part_key}",

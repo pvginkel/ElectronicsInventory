@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.exceptions import InvalidOperationException
-from app.models.part_attachment import AttachmentType
+from app.models.attachment import AttachmentType
 from app.schemas.ai_part_analysis import (
     AIPartAnalysisResultSchema,
     DocumentSuggestionSchema,
@@ -260,7 +260,7 @@ class AIService(BaseService):
             original_url = url
 
             # Determine content type string and URLs based on detected type
-            from app.models.part_attachment import AttachmentType
+            from app.models.attachment import AttachmentType
             if upload_doc.detected_type == AttachmentType.PDF:
                 content_type_str = "pdf"
                 original_url = f"/api/parts/attachment-proxy/content?url={encoded_url}"

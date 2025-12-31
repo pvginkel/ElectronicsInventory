@@ -282,7 +282,7 @@ class TestTestDataService:
                 assert part.type_id is None
                 assert part.description == "Unknown part"
 
-    def test_load_part_locations_success(self, app: Flask, session: Session, container: ServiceContainer):
+    def test_load_part_locations_success(self, app: Flask, session: Session, container: ServiceContainer, make_attachment_set):
         """Test successful loading of part location assignments."""
         with app.app_context():
             # Create test data
@@ -294,7 +294,8 @@ class TestTestDataService:
             session.add(location)
             session.flush()
 
-            part = Part(key="ABCD", description="Test Part")
+            attachment_set = make_attachment_set()
+            part = Part(key="ABCD", description="Test Part", attachment_set_id=attachment_set.id)
             session.add(part)
             session.flush()
 
@@ -326,11 +327,12 @@ class TestTestDataService:
                 assert pl.qty == 50
                 assert pl.location_id == location.id
 
-    def test_load_part_locations_location_not_found(self, app: Flask, session: Session, container: ServiceContainer):
+    def test_load_part_locations_location_not_found(self, app: Flask, session: Session, container: ServiceContainer, make_attachment_set):
         """Test error handling when location doesn't exist."""
         with app.app_context():
             # Create a part but no corresponding location/box
-            part = Part(key="ABCD", description="Test part")
+            attachment_set = make_attachment_set()
+            part = Part(key="ABCD", description="Test part", attachment_set_id=attachment_set.id)
             session.add(part)
             session.flush()
 
@@ -354,11 +356,12 @@ class TestTestDataService:
 
                 assert "location 1-1 not found" in str(exc_info.value)
 
-    def test_load_quantity_history_success(self, app: Flask, session: Session, container: ServiceContainer):
+    def test_load_quantity_history_success(self, app: Flask, session: Session, container: ServiceContainer, make_attachment_set):
         """Test successful loading of quantity history."""
         with app.app_context():
             # Create test part
-            part = Part(key="ABCD", description="Test Part")
+            attachment_set = make_attachment_set()
+            part = Part(key="ABCD", description="Test Part", attachment_set_id=attachment_set.id)
             session.add(part)
             session.flush()
 
@@ -455,11 +458,13 @@ class TestTestDataService:
                 assert loaded.status == KitStatus.ARCHIVED
                 assert loaded.archived_at == datetime.fromisoformat("2024-03-01T12:00:00")
 
-    def test_load_kit_contents_success(self, app: Flask, session: Session, container: ServiceContainer):
+    def test_load_kit_contents_success(self, app: Flask, session: Session, container: ServiceContainer, make_attachment_set):
         """Kit contents loader should attach parts to kits."""
         with app.app_context():
-            kit = Kit(name="Content Kit", build_target=2)
-            part = Part(key="KC01", description="Content Part")
+            kit_attachment_set = make_attachment_set()
+            part_attachment_set = make_attachment_set()
+            kit = Kit(name="Content Kit", build_target=2, attachment_set_id=kit_attachment_set.id)
+            part = Part(key="KC01", description="Content Part", attachment_set_id=part_attachment_set.id)
             session.add_all([kit, part])
             session.flush()
 
@@ -544,10 +549,11 @@ class TestTestDataService:
                         shopping_lists_map,
                     )
 
-    def test_load_kit_pick_lists_invalid_status(self, app: Flask, session: Session, container: ServiceContainer):
+    def test_load_kit_pick_lists_invalid_status(self, app: Flask, session: Session, container: ServiceContainer, make_attachment_set):
         """Invalid pick list status values should raise errors."""
         with app.app_context():
-            kit = Kit(name="Pick Status Kit", build_target=1)
+            attachment_set = make_attachment_set()
+            kit = Kit(name="Pick Status Kit", build_target=1, attachment_set_id=attachment_set.id)
             session.add(kit)
             session.flush()
 

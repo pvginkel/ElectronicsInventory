@@ -10,18 +10,20 @@ from app.models.part import Part
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 
 
-def _seed_badge_data(session) -> Kit:
+def _seed_badge_data(session, make_attachment_set) -> Kit:
     """Create a kit with linked shopping lists and pick lists for GET tests."""
     concept_list = ShoppingList(name="Concept List", status=ShoppingListStatus.CONCEPT)
     ready_list = ShoppingList(name="Ready List", status=ShoppingListStatus.READY)
     done_list = ShoppingList(name="Done List", status=ShoppingListStatus.DONE)
     session.add_all([concept_list, ready_list, done_list])
 
+    attachment_set = make_attachment_set()
     kit = Kit(
         name="Synth Overview Kit",
         description="Kit used to validate overview listing",
         build_target=4,
         status=KitStatus.ACTIVE,
+        attachment_set_id=attachment_set.id,
     )
     session.add(kit)
     session.flush()
@@ -75,15 +77,18 @@ def _seed_badge_data(session) -> Kit:
     return kit
 
 
-def _seed_kit_with_content(session) -> tuple[Kit, Part, KitContent]:
+def _seed_kit_with_content(session, make_attachment_set) -> tuple[Kit, Part, KitContent]:
     """Create a kit with a single kit content for detail tests."""
+    kit_attachment_set = make_attachment_set()
+    part_attachment_set = make_attachment_set()
     kit = Kit(
         name="Detail API Kit",
         description="Kit for detail endpoint",
         build_target=2,
         status=KitStatus.ACTIVE,
+        attachment_set_id=kit_attachment_set.id,
     )
-    part = Part(key="AP01", description="Detail part")
+    part = Part(key="AP01", description="Detail part", attachment_set_id=part_attachment_set.id)
     session.add_all([kit, part])
     session.flush()
 
@@ -101,8 +106,8 @@ def _seed_kit_with_content(session) -> tuple[Kit, Part, KitContent]:
 class TestKitsApi:
     """API-level tests covering kit overview and lifecycle endpoints."""
 
-    def test_list_kits_returns_active_by_default(self, client, session):
-        kit = _seed_badge_data(session)
+    def test_list_kits_returns_active_by_default(self, client, session, make_attachment_set):
+        kit = _seed_badge_data(session, make_attachment_set)
 
         response = client.get("/api/kits")
         assert response.status_code == 200, response.get_data(as_text=True)
@@ -117,9 +122,11 @@ class TestKitsApi:
         assert archived_response.status_code == 200
         assert archived_response.get_json() == []
 
-    def test_list_kits_query_filters_results(self, client, session):
-        kit = Kit(name="Portable Recorder Kit", description="Field recorder build", build_target=2)
-        other = Kit(name="Bench Supply Kit", description="Bench power supply", build_target=1)
+    def test_list_kits_query_filters_results(self, client, session, make_attachment_set):
+        attachment_set_1 = make_attachment_set()
+        attachment_set_2 = make_attachment_set()
+        kit = Kit(name="Portable Recorder Kit", description="Field recorder build", build_target=2, attachment_set_id=attachment_set_1.id)
+        other = Kit(name="Bench Supply Kit", description="Bench power supply", build_target=1, attachment_set_id=attachment_set_2.id)
         session.add_all([kit, other])
         session.commit()
 
@@ -169,8 +176,9 @@ class TestKitsApi:
         )
         assert negative_response.status_code == 400
 
-    def test_update_kit_endpoint(self, client, session):
-        kit = Kit(name="Mutable API Kit", description="Original", build_target=1)
+    def test_update_kit_endpoint(self, client, session, make_attachment_set):
+        attachment_set = make_attachment_set()
+        kit = Kit(name="Mutable API Kit", description="Original", build_target=1, attachment_set_id=attachment_set.id)
         session.add(kit)
         session.commit()
 
@@ -200,8 +208,9 @@ class TestKitsApi:
         empty_payload = client.patch(f"/api/kits/{kit.id}", json={})
         assert empty_payload.status_code == 409
 
-    def test_archive_and_unarchive_endpoints(self, client, session):
-        kit = Kit(name="Lifecycle API Kit", build_target=2)
+    def test_archive_and_unarchive_endpoints(self, client, session, make_attachment_set):
+        attachment_set = make_attachment_set()
+        kit = Kit(name="Lifecycle API Kit", build_target=2, attachment_set_id=attachment_set.id)
         session.add(kit)
         session.commit()
 
@@ -226,12 +235,14 @@ class TestKitsApi:
         response = client.get("/api/kits?status=bogus")
         assert response.status_code == 400
 
-    def test_update_archived_kit_returns_error(self, client, session):
+    def test_update_archived_kit_returns_error(self, client, session, make_attachment_set):
+        attachment_set = make_attachment_set()
         kit = Kit(
             name="Archived API Kit",
             build_target=1,
             status=KitStatus.ARCHIVED,
             archived_at=datetime.now(UTC),
+            attachment_set_id=attachment_set.id,
         )
         session.add(kit)
         session.commit()
@@ -242,8 +253,8 @@ class TestKitsApi:
         )
         assert response.status_code == 409
 
-    def test_get_kit_shopping_lists_endpoint(self, client, session):
-        kit = _seed_badge_data(session)
+    def test_get_kit_shopping_lists_endpoint(self, client, session, make_attachment_set):
+        kit = _seed_badge_data(session, make_attachment_set)
 
         response = client.get(f"/api/kits/{kit.id}/shopping-lists")
         assert response.status_code == 200
@@ -256,8 +267,8 @@ class TestKitsApi:
             assert "honor_reserved" in entry
             assert "snapshot_kit_updated_at" in entry
 
-    def test_post_kit_shopping_lists_creates_new_list(self, client, session):
-        kit, part, _ = _seed_kit_with_content(session)
+    def test_post_kit_shopping_lists_creates_new_list(self, client, session, make_attachment_set):
+        kit, part, _ = _seed_kit_with_content(session, make_attachment_set)
 
         response = client.post(
             f"/api/kits/{kit.id}/shopping-lists",
@@ -281,8 +292,8 @@ class TestKitsApi:
         assert line_payload["needed"] == kit.build_target * 2
         assert line_payload["note"].startswith("[From Kit")
 
-    def test_post_kit_shopping_lists_appends_existing_list(self, client, session):
-        kit, _, _ = _seed_kit_with_content(session)
+    def test_post_kit_shopping_lists_appends_existing_list(self, client, session, make_attachment_set):
+        kit, _, _ = _seed_kit_with_content(session, make_attachment_set)
 
         initial_response = client.post(
             f"/api/kits/{kit.id}/shopping-lists",
@@ -313,8 +324,8 @@ class TestKitsApi:
         assert data["lines_modified"] == 1
         assert data["shopping_list"]["lines"][0]["needed"] == base_needed + 2
 
-    def test_post_kit_shopping_lists_rejects_non_concept(self, client, session):
-        kit, _, _ = _seed_kit_with_content(session)
+    def test_post_kit_shopping_lists_rejects_non_concept(self, client, session, make_attachment_set):
+        kit, _, _ = _seed_kit_with_content(session, make_attachment_set)
         shopping_list = ShoppingList(name="Ready Target", status=ShoppingListStatus.READY)
         session.add(shopping_list)
         session.commit()
@@ -331,12 +342,14 @@ class TestKitsApi:
         assert response.status_code == 409
         assert "concept" in response.get_json()["error"].lower()
 
-    def test_post_kit_shopping_lists_rejects_archived_kits(self, client, session):
+    def test_post_kit_shopping_lists_rejects_archived_kits(self, client, session, make_attachment_set):
+        attachment_set = make_attachment_set()
         kit = Kit(
             name="Archived Push",
             build_target=1,
             status=KitStatus.ARCHIVED,
             archived_at=datetime.now(UTC),
+            attachment_set_id=attachment_set.id,
         )
         session.add(kit)
         session.commit()
@@ -352,9 +365,10 @@ class TestKitsApi:
 
         assert response.status_code == 409
 
-    def test_post_kits_shopping_list_memberships_query(self, client, session):
-        kit_with_links = _seed_badge_data(session)
-        empty_kit = Kit(name="Empty Membership", build_target=1, status=KitStatus.ACTIVE)
+    def test_post_kits_shopping_list_memberships_query(self, client, session, make_attachment_set):
+        kit_with_links = _seed_badge_data(session, make_attachment_set)
+        attachment_set = make_attachment_set()
+        empty_kit = Kit(name="Empty Membership", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=attachment_set.id)
         session.add(empty_kit)
         session.commit()
 
@@ -386,9 +400,10 @@ class TestKitsApi:
         ]
         assert "Done List" in done_names
 
-    def test_post_kits_pick_list_memberships_query(self, client, session):
-        kit_with_pick_lists = _seed_badge_data(session)
-        extra = Kit(name="No Picks", build_target=1, status=KitStatus.ACTIVE)
+    def test_post_kits_pick_list_memberships_query(self, client, session, make_attachment_set):
+        kit_with_pick_lists = _seed_badge_data(session, make_attachment_set)
+        attachment_set = make_attachment_set()
+        extra = Kit(name="No Picks", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=attachment_set.id)
         session.add(extra)
         session.commit()
 
@@ -419,8 +434,9 @@ class TestKitsApi:
         }
         assert KitPickListStatus.COMPLETED.value in include_statuses
 
-    def test_post_kits_membership_query_missing_kit_returns_404(self, client, session):
-        kit = Kit(name="Existing Kit", build_target=1, status=KitStatus.ACTIVE)
+    def test_post_kits_membership_query_missing_kit_returns_404(self, client, session, make_attachment_set):
+        attachment_set = make_attachment_set()
+        kit = Kit(name="Existing Kit", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=attachment_set.id)
         session.add(kit)
         session.commit()
 
@@ -430,8 +446,8 @@ class TestKitsApi:
         )
         assert response.status_code == 404
 
-    def test_get_kit_detail_endpoint_returns_computed_fields(self, client, session):
-        kit, part, _ = _seed_kit_with_content(session)
+    def test_get_kit_detail_endpoint_returns_computed_fields(self, client, session, make_attachment_set):
+        kit, part, _ = _seed_kit_with_content(session, make_attachment_set)
 
         shopping_list = ShoppingList(name="Detail Link", status=ShoppingListStatus.CONCEPT)
         session.add(shopping_list)
@@ -477,9 +493,10 @@ class TestKitsApi:
         assert pick_summary["open_line_count"] == 0
         assert pick_summary["is_archived_ui"] is False
 
-    def test_kit_detail_includes_active_reservation_breakdown(self, client, session):
-        kit, part, content = _seed_kit_with_content(session)
-        other = Kit(name="Other Reserve Kit", build_target=2, status=KitStatus.ACTIVE)
+    def test_kit_detail_includes_active_reservation_breakdown(self, client, session, make_attachment_set):
+        kit, part, content = _seed_kit_with_content(session, make_attachment_set)
+        attachment_set = make_attachment_set()
+        other = Kit(name="Other Reserve Kit", build_target=2, status=KitStatus.ACTIVE, attachment_set_id=attachment_set.id)
         session.add(other)
         session.flush()
         session.add(KitContent(kit=other, part=part, required_per_unit=1))
@@ -493,9 +510,10 @@ class TestKitsApi:
         assert reservations[0]["kit_id"] == other.id
         assert reservations[0]["reserved_quantity"] == other.build_target
 
-    def test_create_kit_content_endpoint(self, client, session):
-        kit, part, _ = _seed_kit_with_content(session)
-        new_part = Part(key="AP02", description="New content part")
+    def test_create_kit_content_endpoint(self, client, session, make_attachment_set):
+        kit, part, _ = _seed_kit_with_content(session, make_attachment_set)
+        attachment_set = make_attachment_set()
+        new_part = Part(key="AP02", description="New content part", attachment_set_id=attachment_set.id)
         session.add(new_part)
         session.commit()
 
@@ -519,8 +537,8 @@ class TestKitsApi:
         )
         assert duplicate.status_code == 409
 
-    def test_update_kit_content_endpoint(self, client, session):
-        kit, part, content = _seed_kit_with_content(session)
+    def test_update_kit_content_endpoint(self, client, session, make_attachment_set):
+        kit, part, content = _seed_kit_with_content(session, make_attachment_set)
         stale_version = content.version
 
         response = client.patch(
@@ -544,21 +562,24 @@ class TestKitsApi:
         )
         assert conflict.status_code == 409
 
-    def test_delete_kit_content_endpoint(self, client, session):
-        kit, _, content = _seed_kit_with_content(session)
+    def test_delete_kit_content_endpoint(self, client, session, make_attachment_set):
+        kit, _, content = _seed_kit_with_content(session, make_attachment_set)
 
         response = client.delete(f"/api/kits/{kit.id}/contents/{content.id}")
         assert response.status_code == 204
         assert session.get(KitContent, content.id) is None
 
-    def test_kit_content_operations_blocked_for_archived_kit(self, client, session):
+    def test_kit_content_operations_blocked_for_archived_kit(self, client, session, make_attachment_set):
+        kit_attachment_set = make_attachment_set()
+        part_attachment_set = make_attachment_set()
         kit = Kit(
             name="Archived Content Kit",
             build_target=1,
             status=KitStatus.ARCHIVED,
             archived_at=datetime.now(UTC),
+            attachment_set_id=kit_attachment_set.id,
         )
-        part = Part(key="AP03", description="Archived part")
+        part = Part(key="AP03", description="Archived part", attachment_set_id=part_attachment_set.id)
         session.add_all([kit, part])
         session.flush()
         content = KitContent(kit=kit, part=part, required_per_unit=1)
@@ -580,17 +601,18 @@ class TestKitsApi:
         delete_response = client.delete(f"/api/kits/{kit.id}/contents/{content.id}")
         assert delete_response.status_code == 409
 
-    def test_create_kit_content_invalid_part_returns_404(self, client, session):
-        kit, _, _ = _seed_kit_with_content(session)
+    def test_create_kit_content_invalid_part_returns_404(self, client, session, make_attachment_set):
+        kit, _, _ = _seed_kit_with_content(session, make_attachment_set)
         response = client.post(
             f"/api/kits/{kit.id}/contents",
             json={"part_id": 99999, "required_per_unit": 1},
         )
         assert response.status_code == 404
 
-    def test_delete_kit_endpoint_success(self, client, session):
+    def test_delete_kit_endpoint_success(self, client, session, make_attachment_set):
         """Delete kit returns HTTP 204 and removes kit from database."""
-        kit = Kit(name="Kit To Delete", build_target=1)
+        attachment_set = make_attachment_set()
+        kit = Kit(name="Kit To Delete", build_target=1, attachment_set_id=attachment_set.id)
         session.add(kit)
         session.commit()
 
@@ -607,10 +629,12 @@ class TestKitsApi:
         payload = response.get_json()
         assert "error" in payload
 
-    def test_delete_kit_endpoint_cascades_child_records(self, client, session):
+    def test_delete_kit_endpoint_cascades_child_records(self, client, session, make_attachment_set):
         """Delete kit with child records removes all related data."""
-        kit = Kit(name="Kit With Children", build_target=1)
-        part = Part(key="DK01", description="Delete test part")
+        kit_attachment_set = make_attachment_set()
+        part_attachment_set = make_attachment_set()
+        kit = Kit(name="Kit With Children", build_target=1, attachment_set_id=kit_attachment_set.id)
+        part = Part(key="DK01", description="Delete test part", attachment_set_id=part_attachment_set.id)
         shopping_list = ShoppingList(name="Delete List", status=ShoppingListStatus.CONCEPT)
         session.add_all([kit, part, shopping_list])
         session.flush()

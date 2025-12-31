@@ -16,16 +16,20 @@ from app.services.kit_reservation_service import KitReservationUsage
 
 def _create_kit_with_content(
     session,
+    make_attachment_set,
     *,
     note: str = "BOM note",
     build_target: int = 2,
 ) -> tuple[Kit, KitContent]:
+    kit_attachment_set = make_attachment_set()
     kit = Kit(
         name=f"Kit-{datetime.now(UTC).timestamp()}",
         build_target=build_target,
         status=KitStatus.ACTIVE,
+        attachment_set_id=kit_attachment_set.id,
     )
-    part = Part(key=f"P{int(datetime.now(UTC).timestamp())}", description="Test part")
+    part_attachment_set = make_attachment_set()
+    part = Part(key=f"P{int(datetime.now(UTC).timestamp())}", description="Test part", attachment_set_id=part_attachment_set.id)
     session.add_all([kit, part])
     session.flush()
 
@@ -45,9 +49,9 @@ def _create_kit_with_content(
 class TestKitShoppingListService:
     """Service tests covering create, append, listing, and unlink flows."""
 
-    def test_create_list_creates_link_and_lines(self, session, container):
+    def test_create_list_creates_link_and_lines(self, session, container, make_attachment_set):
         service = container.kit_shopping_list_service()
-        kit, content = _create_kit_with_content(session)
+        kit, content = _create_kit_with_content(session, make_attachment_set)
 
         result = service.create_or_append_list(
             kit.id,
@@ -81,9 +85,9 @@ class TestKitShoppingListService:
         assert "[From Kit" in (line.note or "")
         assert "BOM note" in (line.note or "")
 
-    def test_zero_build_target_defaults_raise_and_emit_metrics(self, session, container):
+    def test_zero_build_target_defaults_raise_and_emit_metrics(self, session, container, make_attachment_set):
         service = container.kit_shopping_list_service()
-        kit, _ = _create_kit_with_content(session, build_target=0)
+        kit, _ = _create_kit_with_content(session, make_attachment_set, build_target=0)
 
         class PushMetricsRecorder:
             def __init__(self) -> None:
@@ -116,10 +120,10 @@ class TestKitShoppingListService:
 
         assert metrics_recorder.push_events == [("error", False)]
 
-    def test_append_existing_list_merges_quantities_and_notes(self, session, container):
+    def test_append_existing_list_merges_quantities_and_notes(self, session, container, make_attachment_set):
         service = container.kit_shopping_list_service()
         shopping_list_service = container.shopping_list_service()
-        kit, content = _create_kit_with_content(session)
+        kit, content = _create_kit_with_content(session, make_attachment_set)
 
         initial = service.create_or_append_list(
             kit.id,
@@ -150,9 +154,9 @@ class TestKitShoppingListService:
         assert refreshed.lines[0].needed == expected_needed
         assert refreshed.lines[0].note.count("[From Kit") == 2
 
-    def test_honor_reserved_adjusts_needed_quantities(self, session, container, monkeypatch):
+    def test_honor_reserved_adjusts_needed_quantities(self, session, container, monkeypatch, make_attachment_set):
         service = container.kit_shopping_list_service()
-        kit, content = _create_kit_with_content(session, note="")
+        kit, content = _create_kit_with_content(session, make_attachment_set, note="")
         part = content.part
 
         monkeypatch.setattr(
@@ -197,9 +201,9 @@ class TestKitShoppingListService:
         assert result.link is not None
         assert result.link.honor_reserved is True
 
-    def test_zero_shortage_returns_noop(self, session, container, monkeypatch):
+    def test_zero_shortage_returns_noop(self, session, container, monkeypatch, make_attachment_set):
         service = container.kit_shopping_list_service()
-        kit, content = _create_kit_with_content(session, note="")
+        kit, content = _create_kit_with_content(session, make_attachment_set, note="")
         part = content.part
 
         monkeypatch.setattr(
@@ -226,13 +230,15 @@ class TestKitShoppingListService:
         assert result.link is None
         assert result.shopping_list is None
 
-    def test_archived_kit_rejected(self, session, container):
+    def test_archived_kit_rejected(self, session, container, make_attachment_set):
         service = container.kit_shopping_list_service()
+        attachment_set = make_attachment_set()
         kit = Kit(
             name="Archived",
             build_target=1,
             status=KitStatus.ARCHIVED,
             archived_at=datetime.now(UTC),
+            attachment_set_id=attachment_set.id,
         )
         session.add(kit)
         session.commit()
@@ -247,9 +253,9 @@ class TestKitShoppingListService:
                 new_list_name="Should Fail",
             )
 
-    def test_non_concept_target_rejected(self, session, container):
+    def test_non_concept_target_rejected(self, session, container, make_attachment_set):
         service = container.kit_shopping_list_service()
-        kit, _ = _create_kit_with_content(session)
+        kit, _ = _create_kit_with_content(session, make_attachment_set)
         shopping_list = ShoppingList(
             name="Ready List",
             status=ShoppingListStatus.READY,
@@ -267,9 +273,9 @@ class TestKitShoppingListService:
                 new_list_name=None,
             )
 
-    def test_list_endpoints_return_hydrated_metadata(self, session, container):
+    def test_list_endpoints_return_hydrated_metadata(self, session, container, make_attachment_set):
         service = container.kit_shopping_list_service()
-        kit, _ = _create_kit_with_content(session)
+        kit, _ = _create_kit_with_content(session, make_attachment_set)
         result = service.create_or_append_list(
             kit.id,
             units=None,
@@ -291,9 +297,9 @@ class TestKitShoppingListService:
         assert list_links[0].kit_name == kit.name
         assert list_links[0].kit_status == KitStatus.ACTIVE
 
-    def test_unlink_deletes_row(self, session, container):
+    def test_unlink_deletes_row(self, session, container, make_attachment_set):
         service = container.kit_shopping_list_service()
-        kit, _ = _create_kit_with_content(session)
+        kit, _ = _create_kit_with_content(session, make_attachment_set)
         result = service.create_or_append_list(
             kit.id,
             units=None,
@@ -312,14 +318,20 @@ class TestKitShoppingListService:
         with pytest.raises(RecordNotFoundException):
             service.unlink(link.id)
 
-    def test_list_links_for_kits_bulk_groups_and_orders(self, session, container):
+    def test_list_links_for_kits_bulk_groups_and_orders(self, session, container, make_attachment_set):
         service = container.kit_shopping_list_service()
-        kit_a = Kit(name="Kit A", build_target=1, status=KitStatus.ACTIVE)
-        kit_b = Kit(name="Kit B", build_target=1, status=KitStatus.ACTIVE)
-        kit_empty = Kit(name="Kit Empty", build_target=1, status=KitStatus.ACTIVE)
-        part_a = Part(key="KA-BULK", description="Kit A Part")
-        part_b = Part(key="KB-BULK", description="Kit B Part")
-        part_empty = Part(key="KC-BULK", description="Kit Empty Part")
+        kit_a_attachment_set = make_attachment_set()
+        kit_a = Kit(name="Kit A", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=kit_a_attachment_set.id)
+        kit_b_attachment_set = make_attachment_set()
+        kit_b = Kit(name="Kit B", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=kit_b_attachment_set.id)
+        kit_empty_attachment_set = make_attachment_set()
+        kit_empty = Kit(name="Kit Empty", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=kit_empty_attachment_set.id)
+        part_a_attachment_set = make_attachment_set()
+        part_a = Part(key="KA-BULK", description="Kit A Part", attachment_set_id=part_a_attachment_set.id)
+        part_b_attachment_set = make_attachment_set()
+        part_b = Part(key="KB-BULK", description="Kit B Part", attachment_set_id=part_b_attachment_set.id)
+        part_empty_attachment_set = make_attachment_set()
+        part_empty = Part(key="KC-BULK", description="Kit Empty Part", attachment_set_id=part_empty_attachment_set.id)
         session.add_all([kit_a, kit_b, kit_empty, part_a, part_b, part_empty])
         session.flush()
         session.add_all(
@@ -381,9 +393,9 @@ class TestKitShoppingListService:
         assert names_for_a == ["Kit A Latest", "Kit A Base"]
         assert memberships.get(kit_empty.id) == []
 
-    def test_list_links_for_kits_bulk_include_done_flag(self, session, container):
+    def test_list_links_for_kits_bulk_include_done_flag(self, session, container, make_attachment_set):
         service = container.kit_shopping_list_service()
-        kit, _ = _create_kit_with_content(session)
+        kit, _ = _create_kit_with_content(session, make_attachment_set)
 
         result = service.create_or_append_list(
             kit.id,
