@@ -19,6 +19,7 @@ from app.schemas.attachment_set import (
 from app.schemas.common import ErrorResponseSchema
 from app.services.attachment_set_service import AttachmentSetService
 from app.services.container import ServiceContainer
+from app.services.document_service import DocumentService
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
@@ -42,7 +43,10 @@ def get_attachment_set(set_id: int, service: AttachmentSetService = Provide[Serv
 @attachment_sets_bp.route("/<int:set_id>/attachments", methods=["POST"])
 @handle_api_errors
 @inject
-def create_attachment(set_id: int, service: AttachmentSetService = Provide[ServiceContainer.attachment_set_service]) -> Any:
+def create_attachment(
+    set_id: int,
+    document_service: DocumentService = Provide[ServiceContainer.document_service]
+) -> Any:
     """Create a new attachment (file upload or URL) for an attachment set."""
     content_type = request.content_type
 
@@ -60,8 +64,8 @@ def create_attachment(set_id: int, service: AttachmentSetService = Provide[Servi
             return jsonify({'error': 'Title is required'}), 400
 
         # Create file attachment
-        attachment = service.create_file_attachment(
-            set_id=set_id,
+        attachment = document_service.create_file_attachment(
+            attachment_set_id=set_id,
             title=title,
             file_data=cast(BinaryIO, file.stream),
             filename=file.filename
@@ -72,8 +76,8 @@ def create_attachment(set_id: int, service: AttachmentSetService = Provide[Servi
     elif content_type and content_type.startswith('application/json'):
         # URL attachment
         data = AttachmentCreateUrlSchema.model_validate(request.get_json())
-        attachment = service.create_url_attachment(
-            set_id=set_id,
+        attachment = document_service.create_url_attachment(
+            attachment_set_id=set_id,
             title=data.title,
             url=data.url
         )
