@@ -135,6 +135,11 @@ class KitSummarySchema(BaseModel):
         description="Timestamp when the kit was last modified",
         json_schema_extra={"example": "2024-04-10T15:30:00Z"},
     )
+    cover_url: str | None = Field(
+        default=None,
+        description="Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+        json_schema_extra={"example": "/api/cas/abc123def456..."}
+    )
     shopping_list_badge_count: int = Field(
         default=0,
         description="Number of concept/ready shopping lists linked to the kit",

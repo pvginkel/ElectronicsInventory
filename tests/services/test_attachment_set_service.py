@@ -775,3 +775,166 @@ class TestGetAttachmentFileData:
             attachment_set_service.get_attachment_file_data(set2.id, attachment.id)
 
         assert "does not belong to set" in str(exc_info.value)
+
+
+class TestAttachmentPreviewUrl:
+    """Tests for attachment preview_url property behavior."""
+
+    def test_image_attachment_has_preview_url(
+        self,
+        attachment_set_service: AttachmentSetService,
+        attachment_set: AttachmentSet,
+        sample_image_file,
+    ):
+        """Test that image attachments have preview_url set to the CAS URL."""
+        with patch("magic.from_buffer") as mock_magic:
+            mock_magic.return_value = "image/png"
+
+            attachment = attachment_set_service.create_file_attachment(
+                set_id=attachment_set.id,
+                title="Test Image",
+                file_data=sample_image_file,
+                filename="test.png",
+            )
+
+        # Verify has_preview is True for images
+        assert attachment.has_preview is True
+
+        # Verify preview_url is set and matches attachment_url
+        assert attachment.preview_url is not None
+        assert attachment.preview_url == attachment.attachment_url
+
+        # Verify it's a valid CAS URL
+        assert attachment.preview_url.startswith("/api/cas/")
+        assert "content_type=image/png" in attachment.preview_url
+
+    def test_pdf_attachment_has_icon_preview_url(
+        self,
+        attachment_set_service: AttachmentSetService,
+        attachment_set: AttachmentSet,
+        sample_pdf_file,
+    ):
+        """Test that PDF attachments have preview_url set to the PDF icon."""
+        with patch("magic.from_buffer") as mock_magic:
+            mock_magic.return_value = "application/pdf"
+
+            attachment = attachment_set_service.create_file_attachment(
+                set_id=attachment_set.id,
+                title="Test PDF",
+                file_data=sample_pdf_file,
+                filename="test.pdf",
+            )
+
+        # Verify has_preview is False for PDFs
+        assert attachment.has_preview is False
+
+        # Verify preview_url is set to PDF icon
+        assert attachment.preview_url is not None
+        assert attachment.preview_url.startswith("/api/icons/pdf")
+        assert "version=" in attachment.preview_url
+
+    def test_url_attachment_has_no_preview_url(
+        self,
+        attachment_set_service: AttachmentSetService,
+        attachment_set: AttachmentSet,
+    ):
+        """Test that URL attachments have no preview_url."""
+        attachment = attachment_set_service.create_url_attachment(
+            set_id=attachment_set.id,
+            title="External Link",
+            url="https://example.com/document",
+        )
+
+        # Verify has_preview is False for URLs
+        assert attachment.has_preview is False
+
+        # Verify preview_url is None
+        assert attachment.preview_url is None
+
+    def test_image_preview_url_serialized_in_response_schema(
+        self,
+        attachment_set_service: AttachmentSetService,
+        attachment_set: AttachmentSet,
+        sample_image_file,
+    ):
+        """Test that preview_url is included when serializing to response schema."""
+        from app.schemas.attachment_set import AttachmentResponseSchema, AttachmentListSchema
+
+        with patch("magic.from_buffer") as mock_magic:
+            mock_magic.return_value = "image/jpeg"
+
+            attachment = attachment_set_service.create_file_attachment(
+                set_id=attachment_set.id,
+                title="JPEG Image",
+                file_data=sample_image_file,
+                filename="photo.jpg",
+            )
+
+        # Test AttachmentResponseSchema serialization
+        response = AttachmentResponseSchema.model_validate(attachment)
+        assert response.preview_url is not None
+        assert response.preview_url.startswith("/api/cas/")
+        assert "content_type=image/jpeg" in response.preview_url
+
+        # Test AttachmentListSchema serialization
+        list_schema = AttachmentListSchema.model_validate(attachment)
+        assert list_schema.preview_url is not None
+        assert list_schema.preview_url == response.preview_url
+
+    def test_preview_url_in_attachment_set_response(
+        self,
+        attachment_set_service: AttachmentSetService,
+        attachment_set: AttachmentSet,
+        sample_image_file,
+        session: Session,
+    ):
+        """Test that preview_url is included when serializing attachment set with attachments."""
+        from app.schemas.attachment_set import AttachmentSetResponseSchema
+
+        with patch("magic.from_buffer") as mock_magic:
+            mock_magic.return_value = "image/png"
+
+            attachment_set_service.create_file_attachment(
+                set_id=attachment_set.id,
+                title="Image 1",
+                file_data=sample_image_file,
+                filename="image1.png",
+            )
+
+        # Refresh to get updated relationships
+        session.refresh(attachment_set)
+
+        # Serialize the entire attachment set
+        response = AttachmentSetResponseSchema.model_validate(attachment_set)
+
+        assert len(response.attachments) == 1
+        assert response.attachments[0].preview_url is not None
+        assert response.attachments[0].preview_url.startswith("/api/cas/")
+
+    def test_preview_url_model_dump_includes_value(
+        self,
+        attachment_set_service: AttachmentSetService,
+        attachment_set: AttachmentSet,
+        sample_image_file,
+    ):
+        """Test that model_dump() includes preview_url in the output dictionary."""
+        from app.schemas.attachment_set import AttachmentResponseSchema
+
+        with patch("magic.from_buffer") as mock_magic:
+            mock_magic.return_value = "image/png"
+
+            attachment = attachment_set_service.create_file_attachment(
+                set_id=attachment_set.id,
+                title="PNG Image",
+                file_data=sample_image_file,
+                filename="image.png",
+            )
+
+        response = AttachmentResponseSchema.model_validate(attachment)
+        dumped = response.model_dump()
+
+        # Verify preview_url is in the dumped dictionary
+        assert "preview_url" in dumped
+        assert dumped["preview_url"] is not None
+        assert dumped["preview_url"].startswith("/api/cas/")
+        assert "content_type=image/png" in dumped["preview_url"]

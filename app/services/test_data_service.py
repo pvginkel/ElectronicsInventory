@@ -895,7 +895,7 @@ class TestDataService(BaseService):
 
             # Create attachment record
             attachment = Attachment(
-                part_id=part.id,
+                attachment_set_id=part.attachment_set_id,
                 attachment_type=AttachmentType.IMAGE,
                 title=f"Cover image for {part_key}",
                 s3_key=cas_key,
@@ -906,8 +906,8 @@ class TestDataService(BaseService):
             self.db.add(attachment)
             self.db.flush()  # Get attachment ID
 
-            # Set as cover attachment
-            part.cover_attachment_id = attachment.id
+            # Set as cover attachment on the attachment set
+            part.attachment_set.cover_attachment_id = attachment.id
             loaded_count += 1
 
         # Fail if any images couldn't be loaded
