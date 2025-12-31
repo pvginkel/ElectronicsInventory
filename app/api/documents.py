@@ -3,27 +3,19 @@
 import io
 import logging
 from io import BytesIO
-from typing import Any, BinaryIO, cast
+from typing import Any
 from urllib.parse import quote
 
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, jsonify, request, send_file
 from spectree import Response as SpectreeResponse
-from werkzeug.datastructures import FileStorage
 
-from app.models.part_attachment import AttachmentType
+from app.models.attachment import AttachmentType
+from app.schemas.attachment_set import AttachmentResponseSchema
 from app.schemas.common import ErrorResponseSchema
 from app.schemas.copy_attachment import (
     CopyAttachmentRequestSchema,
     CopyAttachmentResponseSchema,
-)
-from app.schemas.part_attachment import (
-    CoverAttachmentResponseSchema,
-    PartAttachmentCreateUrlSchema,
-    PartAttachmentListSchema,
-    PartAttachmentResponseSchema,
-    PartAttachmentUpdateSchema,
-    SetCoverAttachmentSchema,
 )
 from app.schemas.url_preview import UrlPreviewRequestSchema, UrlPreviewResponseSchema
 from app.services.container import ServiceContainer
@@ -35,147 +27,6 @@ from app.utils.spectree_config import api
 documents_bp = Blueprint("documents", __name__, url_prefix="/parts")
 
 logger = logging.getLogger(__name__)
-
-
-# Part Cover Image Management
-@documents_bp.route("/<part_key>/cover", methods=["PUT"])
-@api.validate(json=SetCoverAttachmentSchema, resp=SpectreeResponse(HTTP_200=CoverAttachmentResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
-@inject
-def set_part_cover(part_key: str, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
-    """Set or clear part cover attachment."""
-    data = SetCoverAttachmentSchema.model_validate(request.get_json())
-    document_service.set_part_cover_attachment(part_key, data.attachment_id)
-
-    # Get updated cover attachment
-    cover_attachment = document_service.get_part_cover_attachment(part_key)
-    response_data = {
-        'attachment_id': cover_attachment.id if cover_attachment else None,
-        'attachment': PartAttachmentResponseSchema.model_validate(cover_attachment).model_dump() if cover_attachment else None
-    }
-
-    return response_data, 200
-
-
-@documents_bp.route("/<part_key>/cover", methods=["DELETE"])
-@api.validate(resp=SpectreeResponse(HTTP_200=CoverAttachmentResponseSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
-@inject
-def clear_part_cover(part_key: str, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
-    """Clear part cover attachment."""
-    document_service.set_part_cover_attachment(part_key, None)
-
-    response_data = {
-        'attachment_id': None,
-        'attachment': None
-    }
-
-    return response_data, 200
-
-
-@documents_bp.route("/<part_key>/cover", methods=["GET"])
-@api.validate(resp=SpectreeResponse(HTTP_200=CoverAttachmentResponseSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
-@inject
-def get_part_cover(part_key: str, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
-    """Get part cover attachment details."""
-    cover_attachment = document_service.get_part_cover_attachment(part_key)
-
-    response_data = {
-        'attachment_id': cover_attachment.id if cover_attachment else None,
-        'attachment': PartAttachmentResponseSchema.model_validate(cover_attachment).model_dump() if cover_attachment else None
-    }
-
-    return response_data, 200
-
-
-# Part Attachments Management
-@documents_bp.route("/<part_key>/attachments", methods=["POST"])
-@handle_api_errors
-@inject
-def create_attachment(part_key: str, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
-    """Create a new attachment (file upload or URL)."""
-    content_type = request.content_type
-
-    if content_type and content_type.startswith('multipart/form-data'):
-        # File upload
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file provided'}), 400
-
-        file: FileStorage = request.files['file']
-        if not file or not file.filename:
-            return jsonify({'error': 'No file selected'}), 400
-
-        title = request.form.get('title')
-        if not title:
-            return jsonify({'error': 'Title is required'}), 400
-
-        # Create file attachment
-        attachment = document_service.create_file_attachment(
-            part_key=part_key,
-            title=title,
-            file_data=cast(BinaryIO, file.stream),
-            filename=file.filename
-        )
-
-        return PartAttachmentResponseSchema.model_validate(attachment).model_dump(), 201
-
-    elif content_type and content_type.startswith('application/json'):
-        # URL attachment
-        data = PartAttachmentCreateUrlSchema.model_validate(request.get_json())
-        attachment = document_service.create_url_attachment(
-            part_key=part_key,
-            title=data.title,
-            url=data.url
-        )
-
-        return PartAttachmentResponseSchema.model_validate(attachment).model_dump(), 201
-
-    else:
-        return jsonify({'error': 'Invalid content type. Use multipart/form-data for files or application/json for URLs'}), 400
-
-
-@documents_bp.route("/<part_key>/attachments", methods=["GET"])
-@api.validate(resp=SpectreeResponse(HTTP_200=list[PartAttachmentListSchema], HTTP_404=ErrorResponseSchema))
-@handle_api_errors
-@inject
-def list_attachments(part_key: str, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
-    """List all attachments for a part."""
-    attachments = document_service.get_part_attachments(part_key)
-    return [PartAttachmentListSchema.model_validate(attachment).model_dump() for attachment in attachments], 200
-
-
-@documents_bp.route("/<part_key>/attachments/<int:attachment_id>", methods=["GET"])
-@api.validate(resp=SpectreeResponse(HTTP_200=PartAttachmentResponseSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
-@inject
-def get_attachment(part_key: str, attachment_id: int, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
-    """Get attachment details."""
-    attachment = document_service.get_attachment(attachment_id)
-    return PartAttachmentResponseSchema.model_validate(attachment).model_dump(), 200
-
-
-@documents_bp.route("/<part_key>/attachments/<int:attachment_id>", methods=["PUT"])
-@api.validate(json=PartAttachmentUpdateSchema, resp=SpectreeResponse(HTTP_200=PartAttachmentResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
-@inject
-def update_attachment(part_key: str, attachment_id: int, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
-    """Update attachment metadata."""
-    data = PartAttachmentUpdateSchema.model_validate(request.get_json())
-    attachment = document_service.update_attachment(attachment_id, data.title)
-
-    return PartAttachmentResponseSchema.model_validate(attachment).model_dump(), 200
-
-
-@documents_bp.route("/<part_key>/attachments/<int:attachment_id>", methods=["DELETE"])
-@api.validate(resp=SpectreeResponse(HTTP_204=None, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
-@inject
-def delete_attachment(part_key: str, attachment_id: int, document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
-    """Delete attachment."""
-    document_service.delete_attachment(attachment_id)
-
-    return '', 204
 
 
 # Attachment Copying Endpoints
@@ -196,7 +47,7 @@ def copy_attachment(document_service: DocumentService = Provide[ServiceContainer
 
     # Return response with created attachment details
     response_data = CopyAttachmentResponseSchema(
-        attachment=PartAttachmentResponseSchema.model_validate(new_attachment)
+        attachment=AttachmentResponseSchema.model_validate(new_attachment)
     )
 
     return response_data.model_dump(), 200

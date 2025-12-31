@@ -9,6 +9,7 @@ api_bp = Blueprint("api", __name__, url_prefix="/api")
 # Import and register all resource blueprints
 # Note: Imports are done after api_bp creation to avoid circular imports
 from app.api.ai_parts import ai_parts_bp  # noqa: E402
+from app.api.attachment_sets import attachment_sets_bp  # noqa: E402
 from app.api.boxes import boxes_bp  # noqa: E402
 from app.api.dashboard import dashboard_bp  # noqa: E402
 from app.api.documents import documents_bp  # noqa: E402
@@ -28,6 +29,7 @@ from app.api.types import types_bp  # noqa: E402
 from app.api.utils import utils_bp  # noqa: E402
 
 api_bp.register_blueprint(ai_parts_bp)  # type: ignore[attr-defined]
+api_bp.register_blueprint(attachment_sets_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(boxes_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(dashboard_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(documents_bp)  # type: ignore[attr-defined]

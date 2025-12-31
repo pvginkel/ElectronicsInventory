@@ -17,6 +17,16 @@ from app.services.base import BaseService
 class PartService(BaseService):
     """Service class for part management operations."""
 
+    def __init__(self, db: Any, attachment_set_service: Any):
+        """Initialize part service with dependencies.
+
+        Args:
+            db: SQLAlchemy database session
+            attachment_set_service: Attachment set service for managing attachments (required)
+        """
+        super().__init__(db)
+        self.attachment_set_service = attachment_set_service
+
     def generate_part_key(self) -> str:
         """Generate unique 4-character part key with collision handling."""
         max_attempts = 3
@@ -52,8 +62,16 @@ class PartService(BaseService):
         series: str | None = None,
         dimensions: str | None = None,
     ) -> Part:
-        """Create a new part with auto-generated key."""
+        """Create a new part with auto-generated key and attachment set.
+
+        Every part gets an AttachmentSet created during part creation to
+        enforce the invariant that all parts have an attachment set.
+        """
         key = self.generate_part_key()
+
+        # Create attachment set first (eager creation)
+        attachment_set = self.attachment_set_service.create_attachment_set()
+        attachment_set_id = attachment_set.id
 
         part = Part(
             key=key,
@@ -74,6 +92,7 @@ class PartService(BaseService):
             mounting_type=mounting_type,
             series=series,
             dimensions=dimensions,
+            attachment_set_id=attachment_set_id,
         )
         self.db.add(part)
         self.db.flush()  # Get the ID immediately
@@ -84,8 +103,6 @@ class PartService(BaseService):
         stmt = select(Part).options(
             selectinload(Part.type),
             selectinload(Part.seller),
-            selectinload(Part.attachments),
-            selectinload(Part.cover_attachment),
         ).where(Part.key == part_key)
         part = self.db.execute(stmt).scalar_one_or_none()
         if not part:

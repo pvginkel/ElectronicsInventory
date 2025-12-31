@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, Field
 
-from app.models.part_attachment import AttachmentType
+from app.models.attachment import AttachmentType
 
 
 class DocumentContentSchema(BaseModel):

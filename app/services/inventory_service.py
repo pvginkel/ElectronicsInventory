@@ -334,7 +334,11 @@ class InventoryService(BaseService):
         # Eager-load seller since the API serializes it for every part
         options = [selectinload(Part.seller)]
         if include_cover:
-            options.append(selectinload(Part.cover_attachment))
+            # Eager-load attachment_set and its cover_attachment
+            from app.models.attachment_set import AttachmentSet
+            options.append(
+                selectinload(Part.attachment_set).selectinload(AttachmentSet.cover_attachment)
+            )
 
         stmt = select(
             Part,

@@ -304,7 +304,7 @@ class TestSellerAPI:
         assert "error" in data
         assert "Seller 999 was not found" in data["error"]
 
-    def test_delete_seller_with_parts(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
+    def test_delete_seller_with_parts(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer, make_attachment_set):
         """Test DELETE /api/sellers/{id} with associated parts returns 409."""
         # Create seller
         service = container.seller_service()
@@ -316,11 +316,13 @@ class TestSellerAPI:
         session.flush()
 
         # Create part with this seller
+        attachment_set = make_attachment_set()
         part = Part(
             key="TEST",
             description="Test part",
             seller_id=seller.id,
-            type_id=test_type.id
+            type_id=test_type.id,
+            attachment_set_id=attachment_set.id
         )
         session.add(part)
         session.commit()

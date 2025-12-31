@@ -7,7 +7,6 @@ from sqlalchemy import func, select
 
 from app.models.box import Box
 from app.models.part import Part
-from app.models.part_attachment import PartAttachment
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
 from app.models.type import Type
@@ -218,11 +217,27 @@ class DashboardService(BaseService):
             Dictionary containing count of undocumented parts
             and list of first 10 part details.
         """
-        # Simplified approach: find parts without entries in part_attachments table
-        # Use a simpler LEFT JOIN approach
-        parts_without_docs_stmt = select(Part).outerjoin(
-            PartAttachment, Part.id == PartAttachment.part_id
-        ).where(PartAttachment.id.is_(None))
+        # Find parts whose attachment_set has no attachments
+        # Import Attachment model for the query
+        from app.models.attachment import Attachment
+        from app.models.attachment_set import AttachmentSet
+
+        # Subquery to count attachments per attachment_set
+        attachment_count_subquery = select(
+            Attachment.attachment_set_id,
+            func.count(Attachment.id).label('attachment_count')
+        ).group_by(Attachment.attachment_set_id).subquery()
+
+        # Find parts where the attachment_set has 0 attachments or no attachments at all
+        parts_without_docs_stmt = select(Part).join(
+            AttachmentSet, Part.attachment_set_id == AttachmentSet.id
+        ).outerjoin(
+            attachment_count_subquery,
+            AttachmentSet.id == attachment_count_subquery.c.attachment_set_id
+        ).where(
+            (attachment_count_subquery.c.attachment_count.is_(None)) |
+            (attachment_count_subquery.c.attachment_count == 0)
+        )
 
         # Get all undocumented parts (for counting)
         all_undocumented_parts = self.db.execute(parts_without_docs_stmt).scalars().all()

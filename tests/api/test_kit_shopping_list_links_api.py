@@ -5,9 +5,11 @@ from app.models.kit_content import KitContent
 from app.models.part import Part
 
 
-def _create_link(session, container):
-    kit = Kit(name="Link API Kit", build_target=1, status=KitStatus.ACTIVE)
-    part = Part(key="APIL", description="API Link Part")
+def _create_link(session, container, make_attachment_set):
+    kit_attachment_set = make_attachment_set()
+    part_attachment_set = make_attachment_set()
+    kit = Kit(name="Link API Kit", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set.id)
+    part = Part(key="APIL", description="API Link Part", attachment_set_id=part_attachment_set.id)
     session.add_all([kit, part])
     session.flush()
 
@@ -35,8 +37,8 @@ def _create_link(session, container):
 class TestKitShoppingListLinkApi:
     """Ensure DELETE endpoint manages link lifecycle."""
 
-    def test_delete_link_removes_record(self, client, session, container):
-        kit, link = _create_link(session, container)
+    def test_delete_link_removes_record(self, client, session, container, make_attachment_set):
+        kit, link = _create_link(session, container, make_attachment_set)
         assert link is not None
 
         response = client.delete(f"/api/kit-shopping-list-links/{link.id}")

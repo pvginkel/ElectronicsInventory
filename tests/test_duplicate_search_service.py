@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.config import Settings
+from app.models.attachment_set import AttachmentSet
 from app.models.part import Part
 from app.models.type import Type
 from app.schemas.duplicate_search import (
@@ -18,6 +19,19 @@ from app.services.duplicate_search_service import DuplicateSearchService
 from app.services.part_service import PartService
 from app.utils.ai.ai_runner import AIResponse, AIRunner
 from tests.testing_utils import StubMetricsService
+
+
+class AttachmentSetStub:
+    """Minimal stub for AttachmentSetService that creates real attachment sets."""
+
+    def __init__(self, db):
+        self.db = db
+
+    def create_attachment_set(self) -> AttachmentSet:
+        attachment_set = AttachmentSet()
+        self.db.add(attachment_set)
+        self.db.flush()
+        return attachment_set
 
 
 @pytest.fixture
@@ -40,12 +54,18 @@ def mock_metrics_service():
 
 
 @pytest.fixture
-def sample_parts(session: Session) -> list[Part]:
+def sample_parts(session: Session, make_attachment_set) -> list[Part]:
     """Create sample parts for testing."""
+
     # Create a type
     relay_type = Type(name="Relay")
     session.add(relay_type)
     session.flush()
+
+    # Create attachment sets for each part
+    attachment_set1 = make_attachment_set()
+    attachment_set2 = make_attachment_set()
+    attachment_set3 = make_attachment_set()
 
     parts = [
         Part(
@@ -59,6 +79,7 @@ def sample_parts(session: Session) -> list[Part]:
             series="G5Q",
             voltage_rating="5V",
             pin_count=5,
+            attachment_set_id=attachment_set1.id,
         ),
         Part(
             key="XYZW",
@@ -71,6 +92,7 @@ def sample_parts(session: Session) -> list[Part]:
             series="G5Q",
             voltage_rating="5V",
             pin_count=5,
+            attachment_set_id=attachment_set2.id,
         ),
         Part(
             key="EFGH",
@@ -82,6 +104,7 @@ def sample_parts(session: Session) -> list[Part]:
             package="THT",
             voltage_rating="5V",
             pin_count=8,
+            attachment_set_id=attachment_set3.id,
         ),
     ]
 
@@ -97,7 +120,8 @@ class TestDuplicateSearchService:
         self, session: Session, test_settings: Settings, sample_parts: list[Part], mock_metrics_service
     ):
         """Test duplicate search with exact MPN match."""
-        part_service = PartService(db=session)
+        attachment_set_service = AttachmentSetStub(db=session)
+        part_service = PartService(db=session, attachment_set_service=attachment_set_service)
 
         # Create mock AI runner that returns high-confidence match
         mock_runner = Mock(spec=AIRunner)
@@ -132,7 +156,8 @@ class TestDuplicateSearchService:
         self, session: Session, test_settings: Settings, sample_parts: list[Part], mock_metrics_service
     ):
         """Test duplicate search returning multiple matches with mixed confidence."""
-        part_service = PartService(db=session)
+        attachment_set_service = AttachmentSetStub(db=session)
+        part_service = PartService(db=session, attachment_set_service=attachment_set_service)
 
         # Mock runner returns both high and medium confidence matches
         mock_runner = Mock(spec=AIRunner)
@@ -171,7 +196,8 @@ class TestDuplicateSearchService:
         self, session: Session, test_settings: Settings, sample_parts: list[Part], mock_metrics_service
     ):
         """Test duplicate search with no matches found."""
-        part_service = PartService(db=session)
+        attachment_set_service = AttachmentSetStub(db=session)
+        part_service = PartService(db=session, attachment_set_service=attachment_set_service)
 
         mock_runner = Mock(spec=AIRunner)
         mock_response = Mock(spec=AIResponse)
@@ -194,7 +220,8 @@ class TestDuplicateSearchService:
         self, session: Session, test_settings: Settings, mock_metrics_service
     ):
         """Test duplicate search with empty inventory."""
-        part_service = PartService(db=session)
+        attachment_set_service = AttachmentSetStub(db=session)
+        part_service = PartService(db=session, attachment_set_service=attachment_set_service)
 
         # No AI runner needed - should return early
         service = DuplicateSearchService(
@@ -213,7 +240,8 @@ class TestDuplicateSearchService:
         self, session: Session, test_settings: Settings, sample_parts: list[Part], mock_metrics_service
     ):
         """Test graceful handling of LLM returning invalid response schema."""
-        part_service = PartService(db=session)
+        attachment_set_service = AttachmentSetStub(db=session)
+        part_service = PartService(db=session, attachment_set_service=attachment_set_service)
 
         # Mock runner returns invalid response that fails Pydantic validation
         mock_runner = Mock(spec=AIRunner)
@@ -238,7 +266,8 @@ class TestDuplicateSearchService:
         self, session: Session, test_settings: Settings, sample_parts: list[Part], mock_metrics_service
     ):
         """Test graceful handling of network/API errors."""
-        part_service = PartService(db=session)
+        attachment_set_service = AttachmentSetStub(db=session)
+        part_service = PartService(db=session, attachment_set_service=attachment_set_service)
 
         mock_runner = Mock(spec=AIRunner)
         mock_runner.run.side_effect = Exception("Network error")
@@ -260,7 +289,8 @@ class TestDuplicateSearchService:
         self, session: Session, test_settings: Settings, sample_parts: list[Part], mock_metrics_service
     ):
         """Test that prompt includes parts inventory as JSON."""
-        part_service = PartService(db=session)
+        attachment_set_service = AttachmentSetStub(db=session)
+        part_service = PartService(db=session, attachment_set_service=attachment_set_service)
 
         service = DuplicateSearchService(
             config=test_settings,
@@ -284,7 +314,8 @@ class TestDuplicateSearchService:
         self, session: Session, test_settings: Settings, sample_parts: list[Part], mock_metrics_service
     ):
         """Test duplicate search with generic description (should find no high-confidence matches)."""
-        part_service = PartService(db=session)
+        attachment_set_service = AttachmentSetStub(db=session)
+        part_service = PartService(db=session, attachment_set_service=attachment_set_service)
 
         mock_runner = Mock(spec=AIRunner)
         mock_response = Mock(spec=AIResponse)

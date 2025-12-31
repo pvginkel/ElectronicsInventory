@@ -194,6 +194,49 @@ def container(app: Flask):
     return container
 
 
+@pytest.fixture
+def make_attachment_set(session):
+    """Helper fixture to create AttachmentSet instances for testing.
+
+    Returns a callable that creates and persists an AttachmentSet.
+    Usage:
+        attachment_set = make_attachment_set()
+        kit = Kit(..., attachment_set_id=attachment_set.id)
+    """
+    from app.models.attachment_set import AttachmentSet
+
+    def _make():
+        attachment_set = AttachmentSet()
+        session.add(attachment_set)
+        session.flush()
+        return attachment_set
+
+    return _make
+
+
+@pytest.fixture
+def make_attachment_set_flask(app: Flask):
+    """Helper fixture to create AttachmentSet instances using Flask's db.session.
+
+    Returns a callable that creates and persists an AttachmentSet.
+    This variant is for tests using app context and Flask's db.session.
+    Usage:
+        with app.app_context():
+            attachment_set = make_attachment_set_flask()
+            kit = Kit(..., attachment_set_id=attachment_set.id)
+    """
+    from app.extensions import db
+    from app.models.attachment_set import AttachmentSet
+
+    def _make():
+        attachment_set = AttachmentSet()
+        db.session.add(attachment_set)
+        db.session.flush()
+        return attachment_set
+
+    return _make
+
+
 # Import document fixtures to make them available to all tests
 from .test_document_fixtures import (  # noqa
     large_image_file,

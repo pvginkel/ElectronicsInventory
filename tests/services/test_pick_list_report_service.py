@@ -48,6 +48,7 @@ def report_service(metrics_stub: ReportMetricsStub) -> PickListReportService:
 
 def _create_pick_list(
     session,
+    make_attachment_set,
     *,
     kit_name: str = "Test Kit",
     requested_units: int = 1,
@@ -57,6 +58,7 @@ def _create_pick_list(
 
     Args:
         session: Database session
+        make_attachment_set: Fixture to create attachment sets
         kit_name: Name of the kit
         requested_units: Number of units to build
         lines_data: List of (box_no, loc_no, part_key, part_description, quantity_to_pick)
@@ -65,7 +67,8 @@ def _create_pick_list(
         Created pick list with lines
     """
     # Create kit
-    kit = Kit(name=kit_name, build_target=1, status=KitStatus.ACTIVE)
+    kit_attachment_set = make_attachment_set()
+    kit = Kit(name=kit_name, build_target=1, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set.id)
     session.add(kit)
     session.flush()
 
@@ -102,7 +105,8 @@ def _create_pick_list(
                 session.flush()
 
             # Create part
-            part = Part(key=part_key, description=part_description)
+            part_attachment_set = make_attachment_set()
+            part = Part(key=part_key, description=part_description, attachment_set_id=part_attachment_set.id)
             session.add(part)
             session.flush()
 
@@ -130,11 +134,12 @@ class TestPickListReportService:
     """Test suite for PDF report generation."""
 
     def test_generate_pdf_returns_bytesio_buffer(
-        self, session, report_service: PickListReportService
+        self, session, report_service: PickListReportService, make_attachment_set
     ) -> None:
         """Test that generate_pdf returns a BytesIO buffer."""
         pick_list = _create_pick_list(
             session,
+            make_attachment_set,
             lines_data=[
                 (1, 1, "ABCD", "Test resistor", 10),
             ],
@@ -146,11 +151,12 @@ class TestPickListReportService:
         assert result.tell() == 0  # Should be seeked to start
 
     def test_generate_pdf_creates_valid_pdf(
-        self, session, report_service: PickListReportService
+        self, session, report_service: PickListReportService, make_attachment_set
     ) -> None:
         """Test that the generated PDF is valid and readable."""
         pick_list = _create_pick_list(
             session,
+            make_attachment_set,
             lines_data=[
                 (1, 1, "ABCD", "Test resistor", 10),
             ],
@@ -164,11 +170,12 @@ class TestPickListReportService:
         assert data == b"%PDF", "PDF should start with %PDF magic bytes"
 
     def test_generate_pdf_with_multiple_lines_same_box(
-        self, session, report_service: PickListReportService
+        self, session, report_service: PickListReportService, make_attachment_set
     ) -> None:
         """Test PDF generation with multiple lines in the same box."""
         pick_list = _create_pick_list(
             session,
+            make_attachment_set,
             kit_name="Multi-Line Kit",
             requested_units=2,
             lines_data=[
@@ -187,11 +194,12 @@ class TestPickListReportService:
         assert len(data) > 100, "PDF should have content"
 
     def test_generate_pdf_with_multiple_boxes(
-        self, session, report_service: PickListReportService
+        self, session, report_service: PickListReportService, make_attachment_set
     ) -> None:
         """Test PDF generation groups lines by box number."""
         pick_list = _create_pick_list(
             session,
+            make_attachment_set,
             kit_name="Multi-Box Kit",
             lines_data=[
                 (2, 10, "XXXX", "Part in Box 2", 4),
@@ -210,11 +218,12 @@ class TestPickListReportService:
         assert len(data) > 100, "PDF should have content"
 
     def test_generate_pdf_with_zero_lines(
-        self, session, report_service: PickListReportService
+        self, session, report_service: PickListReportService, make_attachment_set
     ) -> None:
         """Test PDF generation handles empty pick lists gracefully."""
         pick_list = _create_pick_list(
             session,
+            make_attachment_set,
             kit_name="Empty Kit",
             lines_data=[],  # No lines
         )
@@ -228,12 +237,13 @@ class TestPickListReportService:
         assert len(data) > 100, "PDF should have content"
 
     def test_generate_pdf_with_long_description(
-        self, session, report_service: PickListReportService
+        self, session, report_service: PickListReportService, make_attachment_set
     ) -> None:
         """Test that long part descriptions are truncated properly."""
         long_description = "A" * 100  # Very long description
         pick_list = _create_pick_list(
             session,
+            make_attachment_set,
             lines_data=[
                 (1, 1, "LONG", long_description, 1),
             ],
@@ -247,11 +257,12 @@ class TestPickListReportService:
         assert data.startswith(b"%PDF"), "Should generate valid PDF"
 
     def test_generate_pdf_records_metrics(
-        self, session, report_service: PickListReportService, metrics_stub: ReportMetricsStub
+        self, session, report_service: PickListReportService, metrics_stub: ReportMetricsStub, make_attachment_set
     ) -> None:
         """Test that PDF generation records appropriate metrics."""
         pick_list = _create_pick_list(
             session,
+            make_attachment_set,
             lines_data=[
                 (1, 1, "ABCD", "Part 1", 5),
                 (2, 3, "EFGH", "Part 2", 3),
@@ -274,11 +285,12 @@ class TestPickListReportService:
         assert status == "success"
 
     def test_generate_pdf_includes_pick_list_metadata(
-        self, session, report_service: PickListReportService
+        self, session, report_service: PickListReportService, make_attachment_set
     ) -> None:
         """Test that PDF includes pick list header information."""
         pick_list = _create_pick_list(
             session,
+            make_attachment_set,
             kit_name="Metadata Test Kit",
             requested_units=5,
             lines_data=[
@@ -294,11 +306,12 @@ class TestPickListReportService:
         assert len(data) > 100, "PDF should have content"
 
     def test_generate_pdf_sorts_lines_within_box(
-        self, session, report_service: PickListReportService
+        self, session, report_service: PickListReportService, make_attachment_set
     ) -> None:
         """Test that lines within a box are sorted by location number."""
         pick_list = _create_pick_list(
             session,
+            make_attachment_set,
             lines_data=[
                 (1, 15, "CCCC", "Part at loc 15", 1),
                 (1, 3, "AAAA", "Part at loc 3", 1),
@@ -315,11 +328,12 @@ class TestPickListReportService:
         assert data.startswith(b"%PDF"), "Should generate valid PDF"
 
     def test_generate_pdf_with_special_characters_in_description(
-        self, session, report_service: PickListReportService
+        self, session, report_service: PickListReportService, make_attachment_set
     ) -> None:
         """Test PDF generation handles special characters in descriptions."""
         pick_list = _create_pick_list(
             session,
+            make_attachment_set,
             lines_data=[
                 (1, 1, "SPEC", "Resistor 1kΩ ±5% (SMD 0603)", 10),
             ],

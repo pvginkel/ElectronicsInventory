@@ -5,6 +5,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.config import Settings
 from app.services.ai_service import AIService
+from app.services.attachment_set_service import AttachmentSetService
 from app.services.box_service import BoxService
 from app.services.connection_manager import ConnectionManager
 from app.services.dashboard_service import DashboardService
@@ -49,8 +50,31 @@ class ServiceContainer(containers.DeclarativeContainer):
         session_maker.provided.call()
     )
 
+    # Document management services - defined early for service dependencies
+    s3_service = providers.Factory(S3Service, db=db_session, settings=config)
+
+    image_service = providers.Factory(
+        ImageService,
+        db=db_session,
+        s3_service=s3_service,
+        settings=config
+    )
+
+    # AttachmentSet service - manages attachments for Parts and Kits
+    attachment_set_service = providers.Factory(
+        AttachmentSetService,
+        db=db_session,
+        s3_service=s3_service,
+        image_service=image_service,
+        settings=config
+    )
+
     # Service providers - Factory creates new instances for each request
-    part_service = providers.Factory(PartService, db=db_session)
+    part_service = providers.Factory(
+        PartService,
+        db=db_session,
+        attachment_set_service=attachment_set_service
+    )
     box_service = providers.Factory(BoxService, db=db_session)
     type_service = providers.Factory(TypeService, db=db_session)
     seller_service = providers.Factory(SellerService, db=db_session)
@@ -81,18 +105,9 @@ class ServiceContainer(containers.DeclarativeContainer):
         download_timeout=30
     )
 
-    # Document management services
-    s3_service = providers.Factory(S3Service, db=db_session, settings=config)
-
     # Test data service - depends on s3_service for loading part images
     test_data_service = providers.Factory(TestDataService, db=db_session, s3_service=s3_service)
 
-    image_service = providers.Factory(
-        ImageService,
-        db=db_session,
-        s3_service=s3_service,
-        settings=config
-    )
     html_handler = providers.Factory(
         HtmlDocumentHandler,
         download_cache_service=download_cache_service,
@@ -160,6 +175,7 @@ class ServiceContainer(containers.DeclarativeContainer):
         metrics_service=metrics_service,
         inventory_service=inventory_service,
         kit_reservation_service=kit_reservation_service,
+        attachment_set_service=attachment_set_service,
     )
 
     # URL interceptor registry with LCSC interceptor

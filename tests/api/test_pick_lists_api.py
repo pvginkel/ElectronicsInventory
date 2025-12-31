@@ -15,17 +15,20 @@ from app.models.part_location import PartLocation
 
 def _seed_kit_with_inventory(
     session,
+    make_attachment_set,
     *,
     part_key: str = "PK01",
     required_per_unit: int = 2,
     initial_qty: int = 6,
     requested_units: int = 1,
 ) -> tuple[Kit, Part, KitContent, Location]:
-    kit = Kit(name="Pick List API Kit", build_target=1, status=KitStatus.ACTIVE)
+    kit_attachment_set = make_attachment_set()
+    part_attachment_set = make_attachment_set()
+    kit = Kit(name="Pick List API Kit", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set.id)
     session.add(kit)
     session.flush()
 
-    part = Part(key=part_key, description="API pick part")
+    part = Part(key=part_key, description="API pick part", attachment_set_id=part_attachment_set.id)
     session.add(part)
     session.flush()
 
@@ -57,8 +60,8 @@ def _seed_kit_with_inventory(
 class TestPickListsApi:
     """Integration tests for pick list REST endpoints."""
 
-    def test_create_pick_list_returns_detail(self, client, session) -> None:
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=2, initial_qty=10)
+    def test_create_pick_list_returns_detail(self, client, session, make_attachment_set) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=2, initial_qty=10)
 
         response = client.post(
             f"/api/kits/{kit.id}/pick-lists",
@@ -73,9 +76,10 @@ class TestPickListsApi:
         assert data["line_count"] >= 1
         assert all(line["status"] == "open" for line in data["lines"])
 
-    def test_create_pick_list_insufficient_stock(self, client, session) -> None:
+    def test_create_pick_list_insufficient_stock(self, client, session, make_attachment_set) -> None:
         kit, _, _, _ = _seed_kit_with_inventory(
             session,
+            make_attachment_set,
             required_per_unit=5,
             initial_qty=2,
         )
@@ -89,8 +93,8 @@ class TestPickListsApi:
         payload = response.get_json()
         assert "insufficient stock" in payload["error"].lower()
 
-    def test_get_pick_list_detail(self, client, session) -> None:
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=1, initial_qty=5)
+    def test_get_pick_list_detail(self, client, session, make_attachment_set) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=1, initial_qty=5)
         creation = client.post(
             f"/api/kits/{kit.id}/pick-lists",
             json={"requested_units": 2},
@@ -103,8 +107,8 @@ class TestPickListsApi:
         assert data["id"] == pick_list_id
         assert len(data["lines"]) >= 1
 
-    def test_pick_line_endpoint_updates_inventory(self, client, session) -> None:
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=1, initial_qty=3)
+    def test_pick_line_endpoint_updates_inventory(self, client, session, make_attachment_set) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=1, initial_qty=3)
         creation = client.post(
             f"/api/kits/{kit.id}/pick-lists",
             json={"requested_units": 1},
@@ -138,8 +142,8 @@ class TestPickListsApi:
         else:
             assert updated_assignment.qty == initial_qty - line_qty
 
-    def test_undo_line_endpoint_reopens_line(self, client, session) -> None:
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=1, initial_qty=3)
+    def test_undo_line_endpoint_reopens_line(self, client, session, make_attachment_set) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=1, initial_qty=3)
         creation = client.post(
             f"/api/kits/{kit.id}/pick-lists",
             json={"requested_units": 1},
@@ -171,8 +175,8 @@ class TestPickListsApi:
         ).scalar_one()
         assert refreshed_assignment.qty == initial_qty
 
-    def test_list_pick_lists_for_kit_returns_summaries(self, client, session) -> None:
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=1, initial_qty=6)
+    def test_list_pick_lists_for_kit_returns_summaries(self, client, session, make_attachment_set) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=1, initial_qty=6)
         client.post(f"/api/kits/{kit.id}/pick-lists", json={"requested_units": 1})
         client.post(f"/api/kits/{kit.id}/pick-lists", json={"requested_units": 2})
 
@@ -186,8 +190,8 @@ class TestPickListsApi:
         response = client.get("/api/pick-lists/9999")
         assert response.status_code == 404
 
-    def test_delete_pick_list_returns_204(self, client, session) -> None:
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=1, initial_qty=3)
+    def test_delete_pick_list_returns_204(self, client, session, make_attachment_set) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=1, initial_qty=3)
         creation = client.post(
             f"/api/kits/{kit.id}/pick-lists",
             json={"requested_units": 1},
@@ -206,8 +210,8 @@ class TestPickListsApi:
         payload = response.get_json()
         assert "error" in payload
 
-    def test_delete_pick_list_removes_all_lines(self, client, session) -> None:
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=1, initial_qty=5)
+    def test_delete_pick_list_removes_all_lines(self, client, session, make_attachment_set) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=1, initial_qty=5)
         creation = client.post(
             f"/api/kits/{kit.id}/pick-lists",
             json={"requested_units": 2},
@@ -226,8 +230,8 @@ class TestPickListsApi:
                 select(KitPickListLine).where(KitPickListLine.id == line_id)
             ).scalar_one_or_none() is None
 
-    def test_delete_pick_list_completed_preserves_inventory_history(self, client, session) -> None:
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=1, initial_qty=3)
+    def test_delete_pick_list_completed_preserves_inventory_history(self, client, session, make_attachment_set) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=1, initial_qty=3)
         creation = client.post(
             f"/api/kits/{kit.id}/pick-lists",
             json={"requested_units": 1},
@@ -250,8 +254,8 @@ class TestPickListsApi:
         history_record = session.get(QuantityHistory, inventory_change_id)
         assert history_record is not None
 
-    def test_update_pick_list_line_quantity_updates_quantity(self, client, session) -> None:
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=10, initial_qty=50)
+    def test_update_pick_list_line_quantity_updates_quantity(self, client, session, make_attachment_set) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=10, initial_qty=50)
         creation = client.post(
             f"/api/kits/{kit.id}/pick-lists",
             json={"requested_units": 1},
@@ -273,8 +277,8 @@ class TestPickListsApi:
         assert data["total_quantity_to_pick"] == 5
         assert data["remaining_quantity"] == 5
 
-    def test_update_pick_list_line_quantity_allows_zero(self, client, session) -> None:
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=5, initial_qty=20)
+    def test_update_pick_list_line_quantity_allows_zero(self, client, session, make_attachment_set) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=5, initial_qty=20)
         creation = client.post(
             f"/api/kits/{kit.id}/pick-lists",
             json={"requested_units": 1},
@@ -294,8 +298,8 @@ class TestPickListsApi:
         assert updated_line["quantity_to_pick"] == 0
         assert updated_line["status"] == "open"
 
-    def test_update_pick_list_line_quantity_updates_timestamp(self, client, session) -> None:
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=8, initial_qty=30)
+    def test_update_pick_list_line_quantity_updates_timestamp(self, client, session, make_attachment_set) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=8, initial_qty=30)
         creation = client.post(
             f"/api/kits/{kit.id}/pick-lists",
             json={"requested_units": 1},
@@ -314,8 +318,8 @@ class TestPickListsApi:
         assert "updated_at" in data
         assert data["updated_at"] is not None
 
-    def test_update_pick_list_line_quantity_missing_field_returns_400(self, client, session) -> None:
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=5, initial_qty=20)
+    def test_update_pick_list_line_quantity_missing_field_returns_400(self, client, session, make_attachment_set) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=5, initial_qty=20)
         creation = client.post(
             f"/api/kits/{kit.id}/pick-lists",
             json={"requested_units": 1},
@@ -331,8 +335,8 @@ class TestPickListsApi:
 
         assert response.status_code == 400
 
-    def test_update_pick_list_line_quantity_negative_returns_400(self, client, session) -> None:
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=5, initial_qty=20)
+    def test_update_pick_list_line_quantity_negative_returns_400(self, client, session, make_attachment_set) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=5, initial_qty=20)
         creation = client.post(
             f"/api/kits/{kit.id}/pick-lists",
             json={"requested_units": 1},
@@ -356,8 +360,8 @@ class TestPickListsApi:
 
         assert response.status_code == 404
 
-    def test_update_pick_list_line_quantity_nonexistent_line_returns_404(self, client, session) -> None:
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=5, initial_qty=20)
+    def test_update_pick_list_line_quantity_nonexistent_line_returns_404(self, client, session, make_attachment_set) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=5, initial_qty=20)
         creation = client.post(
             f"/api/kits/{kit.id}/pick-lists",
             json={"requested_units": 1},
@@ -371,8 +375,8 @@ class TestPickListsApi:
 
         assert response.status_code == 404
 
-    def test_update_pick_list_line_quantity_completed_line_returns_409(self, client, session) -> None:
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=2, initial_qty=10)
+    def test_update_pick_list_line_quantity_completed_line_returns_409(self, client, session, make_attachment_set) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=2, initial_qty=10)
         creation = client.post(
             f"/api/kits/{kit.id}/pick-lists",
             json={"requested_units": 1},
@@ -392,8 +396,8 @@ class TestPickListsApi:
         payload = response.get_json()
         assert "cannot edit completed pick list line" in payload["error"].lower()
 
-    def test_update_pick_list_line_quantity_completed_pick_list_returns_409(self, client, session) -> None:
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=3, initial_qty=15)
+    def test_update_pick_list_line_quantity_completed_pick_list_returns_409(self, client, session, make_attachment_set) -> None:
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=3, initial_qty=15)
         creation = client.post(
             f"/api/kits/{kit.id}/pick-lists",
             json={"requested_units": 1},
@@ -413,9 +417,9 @@ class TestPickListsApi:
         payload = response.get_json()
         assert "cannot edit" in payload["error"].lower()
 
-    def test_get_pick_list_pdf_returns_pdf(self, client, session) -> None:
+    def test_get_pick_list_pdf_returns_pdf(self, client, session, make_attachment_set) -> None:
         """Test GET /pick-lists/{id}/pdf returns a valid PDF."""
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=2, initial_qty=10)
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=2, initial_qty=10)
         creation = client.post(
             f"/api/kits/{kit.id}/pick-lists",
             json={"requested_units": 1},
@@ -428,9 +432,9 @@ class TestPickListsApi:
         assert response.content_type == "application/pdf"
         assert response.data.startswith(b"%PDF-")  # PDF magic bytes
 
-    def test_get_pick_list_pdf_includes_correct_headers(self, client, session) -> None:
+    def test_get_pick_list_pdf_includes_correct_headers(self, client, session, make_attachment_set) -> None:
         """Test PDF response has correct Content-Disposition and Cache-Control headers."""
-        kit, _, _, _ = _seed_kit_with_inventory(session, required_per_unit=1, initial_qty=5)
+        kit, _, _, _ = _seed_kit_with_inventory(session, make_attachment_set, required_per_unit=1, initial_qty=5)
         creation = client.post(
             f"/api/kits/{kit.id}/pick-lists",
             json={"requested_units": 1},
@@ -453,16 +457,19 @@ class TestPickListsApi:
         payload = response.get_json()
         assert "error" in payload
 
-    def test_get_pick_list_pdf_with_multiple_boxes(self, client, session) -> None:
+    def test_get_pick_list_pdf_with_multiple_boxes(self, client, session, make_attachment_set) -> None:
         """Test PDF generation with lines from multiple boxes."""
         # Create a more complex scenario with multiple boxes
-        kit = Kit(name="Multi-box Kit", build_target=1, status=KitStatus.ACTIVE)
+        kit_attachment_set = make_attachment_set()
+        kit = Kit(name="Multi-box Kit", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set.id)
         session.add(kit)
         session.flush()
 
         # Create parts and boxes
-        part1 = Part(key="AAA1", description="Part in box 1")
-        part2 = Part(key="BBB2", description="Part in box 2")
+        part1_attachment_set = make_attachment_set()
+        part2_attachment_set = make_attachment_set()
+        part1 = Part(key="AAA1", description="Part in box 1", attachment_set_id=part1_attachment_set.id)
+        part2 = Part(key="BBB2", description="Part in box 2", attachment_set_id=part2_attachment_set.id)
         session.add_all([part1, part2])
         session.flush()
 
@@ -517,14 +524,16 @@ class TestPickListsApi:
         assert response.content_type == "application/pdf"
         assert len(response.data) > 0
 
-    def test_get_pick_list_pdf_with_zero_lines(self, client, session) -> None:
+    def test_get_pick_list_pdf_with_zero_lines(self, client, session, make_attachment_set) -> None:
         """Test PDF generation handles empty pick lists gracefully."""
         # Create a kit with content but no inventory
-        kit = Kit(name="Empty Pick List Kit", build_target=1, status=KitStatus.ACTIVE)
+        kit_attachment_set = make_attachment_set()
+        part_attachment_set = make_attachment_set()
+        kit = Kit(name="Empty Pick List Kit", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set.id)
         session.add(kit)
         session.flush()
 
-        part = Part(key="NOQT", description="Part with no quantity")
+        part = Part(key="NOQT", description="Part with no quantity", attachment_set_id=part_attachment_set.id)
         session.add(part)
         session.flush()
 

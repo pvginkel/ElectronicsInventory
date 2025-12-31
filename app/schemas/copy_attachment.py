@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.schemas.part_attachment import PartAttachmentResponseSchema
+from app.schemas.attachment_set import AttachmentResponseSchema
 
 
 class CopyAttachmentRequestSchema(BaseModel):
@@ -32,7 +32,7 @@ class CopyAttachmentResponseSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    attachment: PartAttachmentResponseSchema = Field(
+    attachment: AttachmentResponseSchema = Field(
         ...,
         description="Details of the newly created attachment"
     )

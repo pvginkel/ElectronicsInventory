@@ -2,7 +2,6 @@
 
 import json
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
 
 from flask import Flask
 from flask.testing import FlaskClient
@@ -798,35 +797,42 @@ class TestPartsAPI:
             assert updated_data["package"] == "QFP-24"  # Updated
             assert updated_data["cover_url"] is None
 
-    @patch('app.utils.mime_handling.magic.from_buffer', return_value='image/png')
-    @patch('app.services.s3_service.S3Service.upload_file', return_value=True)
-    @patch('app.services.s3_service.S3Service.file_exists', return_value=False)
-    @patch('app.services.s3_service.S3Service.generate_cas_key', return_value="cas/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
-    def test_part_cover_attachment_indicator(self, mock_generate_cas_key, mock_file_exists, mock_upload, mock_magic, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer, sample_image_file):
+    def test_part_cover_attachment_indicator(self, app: Flask, client: FlaskClient, session: Session, container: ServiceContainer):
         """Ensure part responses report cover attachment availability consistently."""
+        from app.models.attachment import Attachment, AttachmentType
+
         with app.app_context():
             part = container.part_service().create_part("Part needing cover flag")
+            part_key = part.key  # Save the key before committing
+            attachment_set_id = part.attachment_set_id  # Save attachment_set_id
             session.commit()
 
             # Initial detail response should report no cover
-            detail_response = client.get(f"/api/parts/{part.key}")
+            detail_response = client.get(f"/api/parts/{part_key}")
             assert detail_response.status_code == 200
             detail_data = json.loads(detail_response.data)
             assert detail_data["cover_url"] is None
 
             # Create an image attachment which becomes the cover
-            document_service = container.document_service()
-            sample_image_file.seek(0)
-            document_service.create_file_attachment(
-                part_key=part.key,
+            test_hash = "abc123def456" * 5 + "abcd"  # 64 char hash
+            attachment = Attachment(
+                attachment_set_id=attachment_set_id,
+                attachment_type=AttachmentType.IMAGE,
                 title="Cover image",
-                file_data=sample_image_file,
-                filename="cover.png"
+                s3_key=f"cas/{test_hash}",
+                content_type="image/png"
             )
+            session.add(attachment)
+            session.flush()
+
+            # Set as cover - fetch the attachment_set
+            from app.models.attachment_set import AttachmentSet
+            attachment_set = session.get(AttachmentSet, attachment_set_id)
+            attachment_set.cover_attachment_id = attachment.id
             session.commit()
 
             # Detail endpoint should now reflect the cover assignment
-            updated_detail = client.get(f"/api/parts/{part.key}")
+            updated_detail = client.get(f"/api/parts/{part_key}")
             assert updated_detail.status_code == 200
             updated_detail_data = json.loads(updated_detail.data)
             assert updated_detail_data["cover_url"] is not None
@@ -836,7 +842,7 @@ class TestPartsAPI:
             assert parts_list.status_code == 200
             list_data = json.loads(parts_list.data)
             # Find our part and check it has a cover_url
-            test_part_data = next((item for item in list_data if item["key"] == part.key), None)
+            test_part_data = next((item for item in list_data if item["key"] == part_key), None)
             assert test_part_data is not None
             assert "cover_url" in test_part_data
             assert test_part_data["cover_url"] is not None
@@ -845,7 +851,7 @@ class TestPartsAPI:
             assert parts_with_locations.status_code == 200
             list_with_locations = json.loads(parts_with_locations.data)
             # Find our part and check it has a cover_url
-            test_part_with_loc = next((item for item in list_with_locations if item["key"] == part.key), None)
+            test_part_with_loc = next((item for item in list_with_locations if item["key"] == part_key), None)
             assert test_part_with_loc is not None
             assert "cover_url" in test_part_with_loc
             assert test_part_with_loc["cover_url"] is not None
@@ -1196,17 +1202,25 @@ class TestPartsAPI:
         client: FlaskClient,
         session: Session,
         container: ServiceContainer,
+        make_attachment_set,
     ):
         """Active kits reserving a part appear in the debug listing."""
         with app.app_context():
             part = container.part_service().create_part("Reserved capacitor")
-            kit_a = Kit(name="Synth Prep", build_target=2, status=KitStatus.ACTIVE)
-            kit_b = Kit(name="Drum Machine", build_target=1, status=KitStatus.ACTIVE)
+
+            # Create attachment sets for kits
+            attachment_set_a = make_attachment_set()
+            attachment_set_b = make_attachment_set()
+            attachment_set_archived = make_attachment_set()
+
+            kit_a = Kit(name="Synth Prep", build_target=2, status=KitStatus.ACTIVE, attachment_set_id=attachment_set_a.id)
+            kit_b = Kit(name="Drum Machine", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=attachment_set_b.id)
             archived = Kit(
                 name="Retired Kit",
                 build_target=4,
                 status=KitStatus.ARCHIVED,
                 archived_at=datetime.now(UTC),
+                attachment_set_id=attachment_set_archived.id,
             )
             session.add_all([kit_a, kit_b, archived])
             session.flush()

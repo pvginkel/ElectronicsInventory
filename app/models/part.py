@@ -20,8 +20,8 @@ from app.extensions import db
 from app.utils.cas_url import build_cas_url
 
 if TYPE_CHECKING:
+    from app.models.attachment_set import AttachmentSet
     from app.models.kit_content import KitContent
-    from app.models.part_attachment import PartAttachment
     from app.models.part_location import PartLocation
     from app.models.quantity_history import QuantityHistory
     from app.models.seller import Seller
@@ -49,8 +49,8 @@ class Part(db.Model):  # type: ignore[name-defined]
         ForeignKey("sellers.id"), nullable=True
     )
     seller_link: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    cover_attachment_id: Mapped[int | None] = mapped_column(
-        ForeignKey("part_attachments.id", use_alter=True, name="fk_parts_cover_attachment"), nullable=True
+    attachment_set_id: Mapped[int] = mapped_column(
+        ForeignKey("attachment_sets.id"), nullable=False
     )
 
     # Extended technical fields
@@ -91,45 +91,33 @@ class Part(db.Model):  # type: ignore[name-defined]
     quantity_history: Mapped[list["QuantityHistory"]] = relationship(
         "QuantityHistory", back_populates="part", cascade="all, delete-orphan", lazy="select"
     )
-    attachments: Mapped[list["PartAttachment"]] = relationship(
-        "PartAttachment",
-        back_populates="part",
-        cascade="all, delete-orphan",
-        lazy="select",
-        foreign_keys="PartAttachment.part_id"
-    )
     kit_contents: Mapped[list["KitContent"]] = relationship(
         "KitContent",
         back_populates="part",
         lazy="select",
     )
-    cover_attachment: Mapped[Optional["PartAttachment"]] = relationship(
-        "PartAttachment",
+    attachment_set: Mapped["AttachmentSet"] = relationship(
+        "AttachmentSet",
         lazy="select",
-        post_update=True,
-        foreign_keys=[cover_attachment_id]
+        foreign_keys=[attachment_set_id],
+        cascade="all, delete-orphan",
+        single_parent=True
     )
 
     @property
-    def has_cover_attachment(self) -> bool:
-        """Return whether a cover attachment has been assigned without triggering relationship loads."""
-        return self.cover_attachment_id is not None
-
-    @property
     def cover_url(self) -> str | None:
-        """Build CAS URL for the cover image.
+        """Build CAS URL for the cover image from AttachmentSet.
 
         Returns the base URL for the cover image, or None if no cover is set
         or the cover is not an image (e.g., a PDF).
         Client can append ?thumbnail=<size> to get a specific thumbnail size.
         """
-        if not self.cover_attachment:
-            return None
+        if self.attachment_set and self.attachment_set.cover_attachment:
+            cover = self.attachment_set.cover_attachment
+            if cover.has_preview:
+                return build_cas_url(cover.s3_key)
 
-        if not self.cover_attachment.has_preview:
-            return None
-
-        return build_cas_url(self.cover_attachment.s3_key)
+        return None
 
     def __repr__(self) -> str:
         specs = []

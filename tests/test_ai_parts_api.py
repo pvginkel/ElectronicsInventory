@@ -639,8 +639,8 @@ class TestAIPartsAPI:
         """
         from unittest.mock import patch
 
+        from app.models.attachment import Attachment, AttachmentType
         from app.models.part import Part
-        from app.models.part_attachment import AttachmentType, PartAttachment
         from app.models.type import Type
         from app.schemas.upload_document import (
             DocumentContentSchema,
@@ -716,8 +716,8 @@ class TestAIPartsAPI:
                 part = session.query(Part).filter_by(key=part_key).first()
                 assert part is not None
 
-                # Verify both attachments were created
-                attachments = session.query(PartAttachment).filter_by(part_id=part.id).all()
+                # Verify both attachments were created via the attachment set
+                attachments = session.query(Attachment).filter_by(attachment_set_id=part.attachment_set_id).all()
                 assert len(attachments) == 2
 
                 # Find which attachment is image1 and which is image2
@@ -734,9 +734,10 @@ class TestAIPartsAPI:
 
                 # THE CRITICAL TEST: The second image should be the cover image
                 # This assertion should FAIL before the fix, demonstrating the bug
-                assert part.cover_attachment_id == image2_attachment.id, \
+                cover_id = part.attachment_set.cover_attachment_id if part.attachment_set else None
+                assert cover_id == image2_attachment.id, \
                     f"Expected image2.jpg (attachment {image2_attachment.id}) to be cover, " \
-                    f"but cover is attachment {part.cover_attachment_id}. " \
+                    f"but cover is attachment {cover_id}. " \
                     f"Image1: {image1_attachment.id}, Image2: {image2_attachment.id}"
 
     def test_create_part_cover_image_with_webpage_bug(self, client: FlaskClient, app: Flask, session: Session):
@@ -747,8 +748,8 @@ class TestAIPartsAPI:
         """
         from unittest.mock import patch
 
+        from app.models.attachment import Attachment, AttachmentType
         from app.models.part import Part
-        from app.models.part_attachment import AttachmentType, PartAttachment
         from app.models.type import Type
         from app.schemas.upload_document import (
             DocumentContentSchema,
@@ -824,8 +825,8 @@ class TestAIPartsAPI:
                 part = session.query(Part).filter_by(key=part_key).first()
                 assert part is not None
 
-                # Verify both attachments were created
-                attachments = session.query(PartAttachment).filter_by(part_id=part.id).all()
+                # Verify both attachments were created via the attachment set
+                attachments = session.query(Attachment).filter_by(attachment_set_id=part.attachment_set_id).all()
                 assert len(attachments) == 2
 
                 # Find which attachment is image and which is webpage
@@ -842,9 +843,10 @@ class TestAIPartsAPI:
 
                 # THE CRITICAL TEST: The webpage should be the cover attachment
                 # This assertion should FAIL before the fix, demonstrating the bug
-                assert part.cover_attachment_id == webpage_attachment.id, \
+                cover_id = part.attachment_set.cover_attachment_id if part.attachment_set else None
+                assert cover_id == webpage_attachment.id, \
                     f"Expected datasheet.html (attachment {webpage_attachment.id}) to be cover, " \
-                    f"but cover is attachment {part.cover_attachment_id}. " \
+                    f"but cover is attachment {cover_id}. " \
                     f"Image: {image_attachment.id}, Webpage: {webpage_attachment.id}"
 
     def test_create_part_with_attachment_failure_should_rollback(self, client: FlaskClient, app: Flask, session: Session):

@@ -7,7 +7,7 @@ import pytest
 from PIL import Image
 from sqlalchemy.orm import Session
 
-from app.models.part_attachment import AttachmentType
+from app.models.attachment import AttachmentType
 from app.services.container import ServiceContainer
 from app.services.download_cache_service import DownloadResult
 
@@ -422,25 +422,3 @@ class TestDocumentIntegration:
         assert result.preview_image is not None
         assert result.preview_image.content == youtube_thumb
 
-    def test_file_upload_ignores_provided_content_type(
-        self, container: ServiceContainer, session: Session, sample_part, create_test_image
-    ):
-        """Test that file upload uses python-magic, not provided content_type."""
-        document_service = container.document_service()
-
-        # Image data but wrong content type provided
-        image_data = create_test_image()
-        file_obj = io.BytesIO(image_data)
-
-        with patch('magic.from_buffer', return_value='image/jpeg'):
-            with patch.object(document_service.s3_service, 'upload_file'):
-                attachment = document_service.create_file_attachment(
-                    part_key=sample_part.key,
-                    title="Schematic",
-                    file_data=file_obj,
-                    filename="schematic.doc"  # Wrong extension
-                )
-
-        # Should use detected type, not provided type
-        assert attachment.content_type == "image/jpeg"
-        assert attachment.attachment_type == AttachmentType.IMAGE

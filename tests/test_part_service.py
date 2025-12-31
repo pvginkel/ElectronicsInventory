@@ -7,8 +7,22 @@ from flask import Flask
 from sqlalchemy.orm import Session
 
 from app.exceptions import RecordNotFoundException
+from app.models.attachment_set import AttachmentSet
 from app.models.part import Part
 from app.services.container import ServiceContainer
+
+
+class AttachmentSetStub:
+    """Minimal stub for AttachmentSetService that creates real attachment sets."""
+
+    def __init__(self, db):
+        self.db = db
+
+    def create_attachment_set(self) -> AttachmentSet:
+        attachment_set = AttachmentSet()
+        self.db.add(attachment_set)
+        self.db.flush()
+        return attachment_set
 
 
 class TestPartService:
@@ -502,7 +516,7 @@ class TestPartService:
                 part_service.get_part_ids_by_keys([part.key, unknown_key])
 
 
-def test_get_all_parts_for_search_returns_all_parts(session: Session):
+def test_get_all_parts_for_search_returns_all_parts(session: Session, make_attachment_set):
     """Test get_all_parts_for_search returns all parts with proper structure."""
     from app.models.part import Part
     from app.models.type import Type
@@ -513,6 +527,11 @@ def test_get_all_parts_for_search_returns_all_parts(session: Session):
     micro_type = Type(name="Microcontroller")
     session.add_all([relay_type, micro_type])
     session.flush()
+
+    # Create attachment sets
+    attachment_set1 = make_attachment_set()
+    attachment_set2 = make_attachment_set()
+    attachment_set3 = make_attachment_set()
 
     # Create sample parts
     part1 = Part(
@@ -525,25 +544,29 @@ def test_get_all_parts_for_search_returns_all_parts(session: Session):
         pin_count=8,
         pin_pitch="2.54mm",
         voltage_rating="12V",
-        series="G5Q"
+        series="G5Q",
+        attachment_set_id=attachment_set1.id
     )
     part2 = Part(
         key="EFGH",
         description="Arduino board",
         manufacturer_code="A000066",
         manufacturer="Arduino",
-        type=micro_type
+        type=micro_type,
+        attachment_set_id=attachment_set2.id
     )
     part3 = Part(
         key="IJKL",
         description="Minimal part",
         # All optional fields are None
+        attachment_set_id=attachment_set3.id
     )
     session.add_all([part1, part2, part3])
     session.flush()
 
     # Get parts for search
-    service = PartService(db=session)
+    attachment_set_service = AttachmentSetStub(db=session)
+    service = PartService(db=session, attachment_set_service=attachment_set_service)
     result = service.get_all_parts_for_search()
 
     # Verify all parts returned
@@ -575,49 +598,60 @@ def test_get_all_parts_for_search_handles_empty_database(session: Session):
     """Test get_all_parts_for_search with empty database."""
     from app.services.part_service import PartService
 
-    service = PartService(db=session)
+    attachment_set_service = AttachmentSetStub(db=session)
+    service = PartService(db=session, attachment_set_service=attachment_set_service)
     result = service.get_all_parts_for_search()
 
     assert result == []
 
 
-def test_get_all_parts_for_search_handles_tags(session: Session):
+def test_get_all_parts_for_search_handles_tags(session: Session, make_attachment_set):
     """Test get_all_parts_for_search properly includes tags."""
     from app.models.part import Part
     from app.services.part_service import PartService
+
+    # Create attachment set
+    attachment_set = make_attachment_set()
 
     # Create part with tags
     part = Part(
         key="TEST",
         description="Part with tags",
-        tags=["SMD", "0603", "10k"]
+        tags=["SMD", "0603", "10k"],
+        attachment_set_id=attachment_set.id
     )
     session.add(part)
     session.flush()
 
     # Get parts for search
-    service = PartService(db=session)
+    attachment_set_service = AttachmentSetStub(db=session)
+    service = PartService(db=session, attachment_set_service=attachment_set_service)
     result = service.get_all_parts_for_search()
 
     assert len(result) == 1
     assert result[0]["tags"] == ["SMD", "0603", "10k"]
 
 
-def test_get_all_parts_for_search_excludes_quantity_and_images(session: Session):
+def test_get_all_parts_for_search_excludes_quantity_and_images(session: Session, make_attachment_set):
     """Test that search data excludes quantity, locations, images, and documents."""
     from app.models.part import Part
     from app.services.part_service import PartService
 
+    # Create attachment set
+    attachment_set = make_attachment_set()
+
     # Create part (quantity tracked separately in part_locations)
     part = Part(
         key="TEST",
-        description="Test part"
+        description="Test part",
+        attachment_set_id=attachment_set.id
     )
     session.add(part)
     session.flush()
 
     # Get parts for search
-    service = PartService(db=session)
+    attachment_set_service = AttachmentSetStub(db=session)
+    service = PartService(db=session, attachment_set_service=attachment_set_service)
     result = service.get_all_parts_for_search()
 
     # Verify excluded fields are not present

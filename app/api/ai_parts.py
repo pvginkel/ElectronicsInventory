@@ -10,7 +10,7 @@ from werkzeug.datastructures import FileStorage
 
 from app.config import Settings
 from app.exceptions import InvalidOperationException
-from app.models.part_attachment import PartAttachment
+from app.models.attachment import Attachment
 from app.schemas.ai_part_analysis import (
     AIPartAnalysisTaskResultSchema,
     AIPartCreateSchema,
@@ -162,7 +162,7 @@ def create_part_from_ai_analysis(
         dimensions=data.dimensions
     )
 
-    cover_image : PartAttachment | None = None
+    cover_image: Attachment | None = None
 
     # Attach documents from AI suggestions using proper document service methods
     for doc in data.documents:
