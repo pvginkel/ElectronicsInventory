@@ -69,17 +69,21 @@ export class DocumentGridPage extends BasePage {
     const pendingResponses: Array<Promise<unknown>> = [];
 
     if (options?.partKey) {
+      // Wait for POST to attachment-sets endpoint (frontend uses this for uploads)
       pendingResponses.push(
         this.page.waitForResponse(response => {
           return response.request().method() === 'POST'
-            && response.url().includes(`/api/parts/${options.partKey}/attachments`);
+            && response.url().includes('/api/attachment-sets/')
+            && response.url().includes('/attachments');
         })
       );
+      // Wait for the subsequent GET from attachment-sets endpoint (refetch after upload)
       pendingResponses.push(
         this.page.waitForResponse(response => {
           const request = response.request();
           return request.method() === 'GET'
-            && response.url().includes(`/api/parts/${options.partKey}/attachments`);
+            && response.url().includes('/api/attachment-sets/')
+            && response.url().includes('/attachments');
         })
       );
     }
@@ -104,19 +108,22 @@ export class DocumentGridPage extends BasePage {
     const pendingResponses: Array<Promise<unknown>> = [];
 
     if (options?.partKey) {
+      // Wait for DELETE to attachment-sets endpoint (frontend uses this for delete)
       pendingResponses.push(
         this.page.waitForResponse(response => {
           const request = response.request();
           return request.method() === 'DELETE'
-            && response.url().includes(`/api/parts/${options.partKey}/attachments/`)
+            && response.url().includes('/api/attachment-sets/')
             && response.url().endsWith(`/${attachmentId}`);
         })
       );
+      // Wait for the subsequent GET to refetch attachments
       pendingResponses.push(
         this.page.waitForResponse(response => {
           const request = response.request();
           return request.method() === 'GET'
-            && response.url().includes(`/api/parts/${options.partKey}/attachments`);
+            && response.url().includes('/api/attachment-sets/')
+            && response.url().includes('/attachments');
         })
       );
     }
@@ -140,17 +147,21 @@ export class DocumentGridPage extends BasePage {
     const pendingResponses: Array<Promise<unknown>> = [];
 
     if (options?.partKey) {
+      // Wait for PUT to attachment-sets cover endpoint (frontend uses attachment-set cover endpoint)
       pendingResponses.push(
         this.page.waitForResponse(response => {
           return response.request().method() === 'PUT'
-            && response.url().includes(`/api/parts/${options.partKey}/cover`);
+            && response.url().includes('/api/attachment-sets/')
+            && response.url().includes('/cover');
         })
       );
+      // Wait for the subsequent GET to refetch attachments
       pendingResponses.push(
         this.page.waitForResponse(response => {
           const request = response.request();
           return request.method() === 'GET'
-            && response.url().includes(`/api/parts/${options.partKey}/attachments`);
+            && response.url().includes('/api/attachment-sets/')
+            && response.url().includes('/attachments');
         })
       );
     }

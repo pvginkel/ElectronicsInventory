@@ -24,7 +24,11 @@ test.describe('Cover presence with CAS URLs', () => {
 
     await testData.attachments.setCover(coveredPart.key, coverAttachment.id);
 
-    await expect.poll(async () => (await testData.parts.getDetail(coveredPart.key)).cover_attachment_id).toBe(coverAttachment.id);
+    // Verify cover is set by checking the cover endpoint
+    await expect.poll(async () => {
+      const cover = await testData.attachments.getCover(coveredPart.key);
+      return cover.cover_attachment_id;
+    }).toBe(coverAttachment.id);
 
     // Verify cover_url is populated for covered part
     await expect.poll(async () => {
@@ -34,7 +38,6 @@ test.describe('Cover presence with CAS URLs', () => {
 
     // Verify cover_url is null for uncovered part
     const uncoveredDetail = await testData.parts.getDetail(uncoveredPart.key);
-    expect(uncoveredDetail.cover_attachment_id).toBeNull();
     expect(uncoveredDetail.cover_url).toBeNull();
 
     await parts.gotoList();
@@ -48,7 +51,9 @@ test.describe('Cover presence with CAS URLs', () => {
     await expect(parts.coverPlaceholder(uncoveredPart.key)).toBeVisible();
 
     const currentCover = await testData.attachments.getCover(coveredPart.key);
-    expect(currentCover.attachment_id).toBe(coverAttachment.id);
-    expect(currentCover.attachment?.title).toBe(COVER_TITLE);
+    expect(currentCover.cover_attachment_id).toBe(coverAttachment.id);
+    // Note: The new AttachmentSetCoverSchema only has cover_attachment_id and cover_url,
+    // not the full attachment object. Use cover_url to verify the cover is set.
+    expect(currentCover.cover_url).toBeTruthy();
   });
 });

@@ -860,6 +860,410 @@
         "title": "AddStockSchema",
         "type": "object"
       },
+      "AttachmentListSchemaList.a9993e3": {
+        "items": {
+          "$ref": "#/components/schemas/AttachmentListSchemaList.a9993e3.AttachmentListSchema"
+        },
+        "title": "AttachmentListSchemaList",
+        "type": "array"
+      },
+      "AttachmentListSchemaList.a9993e3.AttachmentListSchema": {
+        "description": "Schema for lightweight attachment listing.",
+        "properties": {
+          "attachment_type": {
+            "$ref": "#/components/schemas/AttachmentListSchemaList.a9993e3.AttachmentType"
+          },
+          "attachment_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Attachment Url"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Preview Url"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "attachment_type",
+          "title"
+        ],
+        "title": "AttachmentListSchema",
+        "type": "object"
+      },
+      "AttachmentListSchemaList.a9993e3.AttachmentType": {
+        "description": "Enum for attachment types.",
+        "enum": [
+          "url",
+          "image",
+          "pdf"
+        ],
+        "title": "AttachmentType",
+        "type": "string"
+      },
+      "AttachmentResponseSchema.20ffa95": {
+        "description": "Schema for full attachment details.",
+        "properties": {
+          "attachment_set_id": {
+            "description": "ID of the associated attachment set",
+            "example": 456,
+            "title": "Attachment Set Id",
+            "type": "integer"
+          },
+          "attachment_type": {
+            "$ref": "#/components/schemas/AttachmentResponseSchema.20ffa95.AttachmentType",
+            "description": "Type of attachment",
+            "example": "image"
+          },
+          "attachment_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL with content_type and filename pre-baked. Add &disposition=attachment for downloads or &thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123...?content_type=application/pdf&filename=datasheet.pdf",
+            "title": "Attachment Url"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MIME type of the file",
+            "example": "application/pdf",
+            "title": "Content Type"
+          },
+          "created_at": {
+            "description": "Timestamp when the attachment was created",
+            "example": "2024-01-15T10:30:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "file_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "File size in bytes",
+            "example": 1048576,
+            "title": "File Size"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Original filename (for uploaded files)",
+            "example": "omron_g5q_datasheet.pdf",
+            "title": "Filename"
+          },
+          "id": {
+            "description": "Unique attachment identifier",
+            "example": 123,
+            "title": "Id",
+            "type": "integer"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Preview URL (CAS URL for images, PDF icon for PDFs, None for URLs)",
+            "example": "/api/cas/abc123...?content_type=image/jpeg",
+            "title": "Preview Url"
+          },
+          "title": {
+            "description": "Title or description of the attachment",
+            "example": "Datasheet - OMRON G5Q-1A4",
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "Timestamp when the attachment was last modified",
+            "example": "2024-01-15T14:45:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Original URL (for URL attachments)",
+            "example": "https://www.omron.com/products/G5Q-1A4",
+            "title": "Url"
+          }
+        },
+        "required": [
+          "id",
+          "attachment_set_id",
+          "attachment_type",
+          "title",
+          "url",
+          "filename",
+          "content_type",
+          "file_size",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AttachmentResponseSchema",
+        "type": "object"
+      },
+      "AttachmentResponseSchema.20ffa95.AttachmentType": {
+        "description": "Enum for attachment types.",
+        "enum": [
+          "url",
+          "image",
+          "pdf"
+        ],
+        "title": "AttachmentType",
+        "type": "string"
+      },
+      "AttachmentSetCoverSchema.20ffa95": {
+        "description": "Schema for attachment set cover information.",
+        "properties": {
+          "cover_attachment_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the cover attachment, or null if no cover set",
+            "example": 123,
+            "title": "Cover Attachment Id"
+          },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "CAS URL for the cover image, or null if no cover set",
+            "example": "/api/cas/abc123...?content_type=image/jpeg",
+            "title": "Cover Url"
+          }
+        },
+        "required": [
+          "cover_attachment_id",
+          "cover_url"
+        ],
+        "title": "AttachmentSetCoverSchema",
+        "type": "object"
+      },
+      "AttachmentSetCoverUpdateSchema.20ffa95": {
+        "description": "Schema for updating attachment set cover.",
+        "properties": {
+          "attachment_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Attachment ID to set as cover, or null to clear cover",
+            "example": 123,
+            "title": "Attachment Id"
+          }
+        },
+        "required": [
+          "attachment_id"
+        ],
+        "title": "AttachmentSetCoverUpdateSchema",
+        "type": "object"
+      },
+      "AttachmentSetResponseSchema.20ffa95": {
+        "description": "Schema for full attachment set details.",
+        "properties": {
+          "attachments": {
+            "description": "List of attachments in this set",
+            "items": {
+              "$ref": "#/components/schemas/AttachmentSetResponseSchema.20ffa95.AttachmentListSchema"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
+          "cover_attachment_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the cover attachment",
+            "example": 123,
+            "title": "Cover Attachment Id"
+          },
+          "created_at": {
+            "description": "Timestamp when the set was created",
+            "example": "2024-01-15T10:30:00Z",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique attachment set identifier",
+            "example": 789,
+            "title": "Id",
+            "type": "integer"
+          },
+          "updated_at": {
+            "description": "Timestamp when the set was last modified",
+            "example": "2024-01-15T14:45:00Z",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "cover_attachment_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AttachmentSetResponseSchema",
+        "type": "object"
+      },
+      "AttachmentSetResponseSchema.20ffa95.AttachmentListSchema": {
+        "description": "Schema for lightweight attachment listing.",
+        "properties": {
+          "attachment_type": {
+            "$ref": "#/components/schemas/AttachmentSetResponseSchema.20ffa95.AttachmentType"
+          },
+          "attachment_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Attachment Url"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Preview Url"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "attachment_type",
+          "title"
+        ],
+        "title": "AttachmentListSchema",
+        "type": "object"
+      },
+      "AttachmentSetResponseSchema.20ffa95.AttachmentType": {
+        "description": "Enum for attachment types.",
+        "enum": [
+          "url",
+          "image",
+          "pdf"
+        ],
+        "title": "AttachmentType",
+        "type": "string"
+      },
+      "AttachmentUpdateSchema.20ffa95": {
+        "description": "Schema for updating attachment metadata.",
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Updated title or description",
+            "example": "Updated Datasheet - OMRON G5Q-1A4",
+            "title": "Title"
+          }
+        },
+        "title": "AttachmentUpdateSchema",
+        "type": "object"
+      },
       "BoxCreateSchema.6d5ef0b": {
         "description": "Schema for creating a new box.",
         "properties": {
@@ -1216,7 +1620,7 @@
         "description": "Schema for copy attachment response.",
         "properties": {
           "attachment": {
-            "$ref": "#/components/schemas/CopyAttachmentResponseSchema.9a8bd74.PartAttachmentResponseSchema",
+            "$ref": "#/components/schemas/CopyAttachmentResponseSchema.9a8bd74.AttachmentResponseSchema",
             "description": "Details of the newly created attachment"
           }
         },
@@ -1226,19 +1630,15 @@
         "title": "CopyAttachmentResponseSchema",
         "type": "object"
       },
-      "CopyAttachmentResponseSchema.9a8bd74.AttachmentType": {
-        "description": "Enum for attachment types.",
-        "enum": [
-          "url",
-          "image",
-          "pdf"
-        ],
-        "title": "AttachmentType",
-        "type": "string"
-      },
-      "CopyAttachmentResponseSchema.9a8bd74.PartAttachmentResponseSchema": {
+      "CopyAttachmentResponseSchema.9a8bd74.AttachmentResponseSchema": {
         "description": "Schema for full attachment details.",
         "properties": {
+          "attachment_set_id": {
+            "description": "ID of the associated attachment set",
+            "example": 456,
+            "title": "Attachment Set Id",
+            "type": "integer"
+          },
           "attachment_type": {
             "$ref": "#/components/schemas/CopyAttachmentResponseSchema.9a8bd74.AttachmentType",
             "description": "Type of attachment",
@@ -1310,12 +1710,6 @@
             "title": "Id",
             "type": "integer"
           },
-          "part_id": {
-            "description": "ID of the associated part",
-            "example": 456,
-            "title": "Part Id",
-            "type": "integer"
-          },
           "preview_url": {
             "anyOf": [
               {
@@ -1326,7 +1720,7 @@
               }
             ],
             "default": null,
-            "description": "URL for attachment preview image. For images: CAS URL. For PDFs/URLs: static icon endpoint. Null if no preview available.",
+            "description": "Preview URL (CAS URL for images, PDF icon for PDFs, None for URLs)",
             "example": "/api/cas/abc123...?content_type=image/jpeg",
             "title": "Preview Url"
           },
@@ -1359,7 +1753,7 @@
         },
         "required": [
           "id",
-          "part_id",
+          "attachment_set_id",
           "attachment_type",
           "title",
           "url",
@@ -1369,45 +1763,10 @@
           "created_at",
           "updated_at"
         ],
-        "title": "PartAttachmentResponseSchema",
+        "title": "AttachmentResponseSchema",
         "type": "object"
       },
-      "CoverAttachmentResponseSchema.f950e1b": {
-        "description": "Schema for cover attachment response.",
-        "properties": {
-          "attachment": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/CoverAttachmentResponseSchema.f950e1b.PartAttachmentResponseSchema"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Cover attachment details, or null if none set"
-          },
-          "attachment_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Current cover attachment ID, or null if none set",
-            "example": 123,
-            "title": "Attachment Id"
-          }
-        },
-        "required": [
-          "attachment_id"
-        ],
-        "title": "CoverAttachmentResponseSchema",
-        "type": "object"
-      },
-      "CoverAttachmentResponseSchema.f950e1b.AttachmentType": {
+      "CopyAttachmentResponseSchema.9a8bd74.AttachmentType": {
         "description": "Enum for attachment types.",
         "enum": [
           "url",
@@ -1416,142 +1775,6 @@
         ],
         "title": "AttachmentType",
         "type": "string"
-      },
-      "CoverAttachmentResponseSchema.f950e1b.PartAttachmentResponseSchema": {
-        "description": "Schema for full attachment details.",
-        "properties": {
-          "attachment_type": {
-            "$ref": "#/components/schemas/CoverAttachmentResponseSchema.f950e1b.AttachmentType",
-            "description": "Type of attachment",
-            "example": "image"
-          },
-          "attachment_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Base CAS URL with content_type and filename pre-baked. Add &disposition=attachment for downloads or &thumbnail=<size> for thumbnails.",
-            "example": "/api/cas/abc123...?content_type=application/pdf&filename=datasheet.pdf",
-            "title": "Attachment Url"
-          },
-          "content_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "MIME type of the file",
-            "example": "application/pdf",
-            "title": "Content Type"
-          },
-          "created_at": {
-            "description": "Timestamp when the attachment was created",
-            "example": "2024-01-15T10:30:00Z",
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "file_size": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "File size in bytes",
-            "example": 1048576,
-            "title": "File Size"
-          },
-          "filename": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Original filename (for uploaded files)",
-            "example": "omron_g5q_datasheet.pdf",
-            "title": "Filename"
-          },
-          "id": {
-            "description": "Unique attachment identifier",
-            "example": 123,
-            "title": "Id",
-            "type": "integer"
-          },
-          "part_id": {
-            "description": "ID of the associated part",
-            "example": 456,
-            "title": "Part Id",
-            "type": "integer"
-          },
-          "preview_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "URL for attachment preview image. For images: CAS URL. For PDFs/URLs: static icon endpoint. Null if no preview available.",
-            "example": "/api/cas/abc123...?content_type=image/jpeg",
-            "title": "Preview Url"
-          },
-          "title": {
-            "description": "Title or description of the attachment",
-            "example": "Datasheet - OMRON G5Q-1A4",
-            "title": "Title",
-            "type": "string"
-          },
-          "updated_at": {
-            "description": "Timestamp when the attachment was last modified",
-            "example": "2024-01-15T14:45:00Z",
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          },
-          "url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Original URL (for URL attachments)",
-            "example": "https://www.omron.com/products/G5Q-1A4",
-            "title": "Url"
-          }
-        },
-        "required": [
-          "id",
-          "part_id",
-          "attachment_type",
-          "title",
-          "url",
-          "filename",
-          "content_type",
-          "file_size",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "PartAttachmentResponseSchema",
-        "type": "object"
       },
       "DashboardStatsSchema.b67cf98": {
         "description": "Schema for dashboard statistics response.",
@@ -3506,11 +3729,31 @@
             "example": "2024-03-20T18:45:00Z",
             "title": "Archived At"
           },
+          "attachment_set_id": {
+            "description": "ID of the attachment set for this kit",
+            "example": 789,
+            "title": "Attachment Set Id",
+            "type": "integer"
+          },
           "build_target": {
             "description": "Target quantity of complete kits to keep on hand",
             "example": 5,
             "title": "Build Target",
             "type": "integer"
+          },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123def456...",
+            "title": "Cover Url"
           },
           "created_at": {
             "description": "Timestamp when the kit was created",
@@ -3577,6 +3820,7 @@
           "description",
           "status",
           "build_target",
+          "attachment_set_id",
           "archived_at",
           "created_at",
           "updated_at"
@@ -4688,6 +4932,20 @@
             "title": "Build Target",
             "type": "integer"
           },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123def456...",
+            "title": "Cover Url"
+          },
           "description": {
             "anyOf": [
               {
@@ -4972,313 +5230,6 @@
           "qty"
         ],
         "title": "MoveStockSchema",
-        "type": "object"
-      },
-      "PartAttachmentListSchemaList.a9993e3": {
-        "items": {
-          "$ref": "#/components/schemas/PartAttachmentListSchemaList.a9993e3.PartAttachmentListSchema"
-        },
-        "title": "PartAttachmentListSchemaList",
-        "type": "array"
-      },
-      "PartAttachmentListSchemaList.a9993e3.AttachmentType": {
-        "description": "Enum for attachment types.",
-        "enum": [
-          "url",
-          "image",
-          "pdf"
-        ],
-        "title": "AttachmentType",
-        "type": "string"
-      },
-      "PartAttachmentListSchemaList.a9993e3.PartAttachmentListSchema": {
-        "description": "Schema for lightweight attachment listings.",
-        "properties": {
-          "attachment_type": {
-            "$ref": "#/components/schemas/PartAttachmentListSchemaList.a9993e3.AttachmentType",
-            "description": "Type of attachment",
-            "example": "image"
-          },
-          "attachment_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Base CAS URL with content_type and filename pre-baked. Add &disposition=attachment for downloads or &thumbnail=<size> for thumbnails.",
-            "example": "/api/cas/abc123...?content_type=application/pdf&filename=datasheet.pdf",
-            "title": "Attachment Url"
-          },
-          "content_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "MIME type of the file",
-            "example": "application/pdf",
-            "title": "Content Type"
-          },
-          "created_at": {
-            "description": "Timestamp when the attachment was created",
-            "example": "2024-01-15T10:30:00Z",
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "file_size": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "File size in bytes",
-            "example": 1048576,
-            "title": "File Size"
-          },
-          "filename": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Original filename (for uploaded files)",
-            "example": "omron_g5q_datasheet.pdf",
-            "title": "Filename"
-          },
-          "id": {
-            "description": "Unique attachment identifier",
-            "example": 123,
-            "title": "Id",
-            "type": "integer"
-          },
-          "preview_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "URL for attachment preview image. For images: CAS URL. For PDFs/URLs: static icon endpoint. Null if no preview available.",
-            "example": "/api/cas/abc123...?content_type=image/jpeg",
-            "title": "Preview Url"
-          },
-          "title": {
-            "description": "Title or description of the attachment",
-            "example": "Datasheet - OMRON G5Q-1A4",
-            "title": "Title",
-            "type": "string"
-          },
-          "url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Original URL (for URL attachments)",
-            "example": "https://www.omron.com/products/G5Q-1A4",
-            "title": "Url"
-          }
-        },
-        "required": [
-          "id",
-          "attachment_type",
-          "title",
-          "url",
-          "filename",
-          "content_type",
-          "file_size",
-          "created_at"
-        ],
-        "title": "PartAttachmentListSchema",
-        "type": "object"
-      },
-      "PartAttachmentResponseSchema.f950e1b": {
-        "description": "Schema for full attachment details.",
-        "properties": {
-          "attachment_type": {
-            "$ref": "#/components/schemas/PartAttachmentResponseSchema.f950e1b.AttachmentType",
-            "description": "Type of attachment",
-            "example": "image"
-          },
-          "attachment_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Base CAS URL with content_type and filename pre-baked. Add &disposition=attachment for downloads or &thumbnail=<size> for thumbnails.",
-            "example": "/api/cas/abc123...?content_type=application/pdf&filename=datasheet.pdf",
-            "title": "Attachment Url"
-          },
-          "content_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "MIME type of the file",
-            "example": "application/pdf",
-            "title": "Content Type"
-          },
-          "created_at": {
-            "description": "Timestamp when the attachment was created",
-            "example": "2024-01-15T10:30:00Z",
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "file_size": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "File size in bytes",
-            "example": 1048576,
-            "title": "File Size"
-          },
-          "filename": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Original filename (for uploaded files)",
-            "example": "omron_g5q_datasheet.pdf",
-            "title": "Filename"
-          },
-          "id": {
-            "description": "Unique attachment identifier",
-            "example": 123,
-            "title": "Id",
-            "type": "integer"
-          },
-          "part_id": {
-            "description": "ID of the associated part",
-            "example": 456,
-            "title": "Part Id",
-            "type": "integer"
-          },
-          "preview_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "URL for attachment preview image. For images: CAS URL. For PDFs/URLs: static icon endpoint. Null if no preview available.",
-            "example": "/api/cas/abc123...?content_type=image/jpeg",
-            "title": "Preview Url"
-          },
-          "title": {
-            "description": "Title or description of the attachment",
-            "example": "Datasheet - OMRON G5Q-1A4",
-            "title": "Title",
-            "type": "string"
-          },
-          "updated_at": {
-            "description": "Timestamp when the attachment was last modified",
-            "example": "2024-01-15T14:45:00Z",
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          },
-          "url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Original URL (for URL attachments)",
-            "example": "https://www.omron.com/products/G5Q-1A4",
-            "title": "Url"
-          }
-        },
-        "required": [
-          "id",
-          "part_id",
-          "attachment_type",
-          "title",
-          "url",
-          "filename",
-          "content_type",
-          "file_size",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "PartAttachmentResponseSchema",
-        "type": "object"
-      },
-      "PartAttachmentResponseSchema.f950e1b.AttachmentType": {
-        "description": "Enum for attachment types.",
-        "enum": [
-          "url",
-          "image",
-          "pdf"
-        ],
-        "title": "AttachmentType",
-        "type": "string"
-      },
-      "PartAttachmentUpdateSchema.f950e1b": {
-        "description": "Schema for updating attachment metadata.",
-        "properties": {
-          "title": {
-            "anyOf": [
-              {
-                "maxLength": 255,
-                "minLength": 1,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Updated title or description",
-            "example": "Updated Datasheet - OMRON G5Q-1A4",
-            "title": "Title"
-          }
-        },
-        "title": "PartAttachmentUpdateSchema",
         "type": "object"
       },
       "PartCreateSchema.1a46b79": {
@@ -5819,27 +5770,11 @@
       "PartResponseSchema.1a46b79": {
         "description": "Schema for full part details with relationships.",
         "properties": {
-          "attachments": {
-            "default": [],
-            "description": "List of part attachments (images, PDFs, URLs)",
-            "items": {
-              "$ref": "#/components/schemas/PartResponseSchema.1a46b79.PartAttachmentListSchema"
-            },
-            "title": "Attachments",
-            "type": "array"
-          },
-          "cover_attachment_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "ID of the cover attachment image",
-            "example": 123,
-            "title": "Cover Attachment Id"
+          "attachment_set_id": {
+            "description": "ID of the attachment set for this part",
+            "example": 456,
+            "title": "Attachment Set Id",
+            "type": "integer"
           },
           "cover_url": {
             "anyOf": [
@@ -6133,142 +6068,11 @@
           "description",
           "tags",
           "seller_link",
-          "cover_attachment_id",
+          "attachment_set_id",
           "created_at",
           "updated_at"
         ],
         "title": "PartResponseSchema",
-        "type": "object"
-      },
-      "PartResponseSchema.1a46b79.AttachmentType": {
-        "description": "Enum for attachment types.",
-        "enum": [
-          "url",
-          "image",
-          "pdf"
-        ],
-        "title": "AttachmentType",
-        "type": "string"
-      },
-      "PartResponseSchema.1a46b79.PartAttachmentListSchema": {
-        "description": "Schema for lightweight attachment listings.",
-        "properties": {
-          "attachment_type": {
-            "$ref": "#/components/schemas/PartResponseSchema.1a46b79.AttachmentType",
-            "description": "Type of attachment",
-            "example": "image"
-          },
-          "attachment_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Base CAS URL with content_type and filename pre-baked. Add &disposition=attachment for downloads or &thumbnail=<size> for thumbnails.",
-            "example": "/api/cas/abc123...?content_type=application/pdf&filename=datasheet.pdf",
-            "title": "Attachment Url"
-          },
-          "content_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "MIME type of the file",
-            "example": "application/pdf",
-            "title": "Content Type"
-          },
-          "created_at": {
-            "description": "Timestamp when the attachment was created",
-            "example": "2024-01-15T10:30:00Z",
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "file_size": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "File size in bytes",
-            "example": 1048576,
-            "title": "File Size"
-          },
-          "filename": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Original filename (for uploaded files)",
-            "example": "omron_g5q_datasheet.pdf",
-            "title": "Filename"
-          },
-          "id": {
-            "description": "Unique attachment identifier",
-            "example": 123,
-            "title": "Id",
-            "type": "integer"
-          },
-          "preview_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "URL for attachment preview image. For images: CAS URL. For PDFs/URLs: static icon endpoint. Null if no preview available.",
-            "example": "/api/cas/abc123...?content_type=image/jpeg",
-            "title": "Preview Url"
-          },
-          "title": {
-            "description": "Title or description of the attachment",
-            "example": "Datasheet - OMRON G5Q-1A4",
-            "title": "Title",
-            "type": "string"
-          },
-          "url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Original URL (for URL attachments)",
-            "example": "https://www.omron.com/products/G5Q-1A4",
-            "title": "Url"
-          }
-        },
-        "required": [
-          "id",
-          "attachment_type",
-          "title",
-          "url",
-          "filename",
-          "content_type",
-          "file_size",
-          "created_at"
-        ],
-        "title": "PartAttachmentListSchema",
         "type": "object"
       },
       "PartResponseSchema.1a46b79.SellerListSchema": {
@@ -7355,20 +7159,6 @@
       "PartWithTotalSchemaList.a9993e3.PartWithTotalSchema": {
         "description": "Schema for part with calculated total quantity.\n\nOptional fields (cover_url, cover_thumbnail_url, locations, kits, shopping_lists)\nare populated based on the include query parameter.",
         "properties": {
-          "cover_attachment_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "ID of the cover attachment image",
-            "example": 123,
-            "title": "Cover Attachment Id"
-          },
           "cover_url": {
             "anyOf": [
               {
@@ -8075,29 +7865,6 @@
           }
         },
         "title": "SellerUpdateSchema",
-        "type": "object"
-      },
-      "SetCoverAttachmentSchema.f950e1b": {
-        "description": "Schema for setting part cover attachment.",
-        "properties": {
-          "attachment_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Attachment ID to set as cover, or null to clear",
-            "example": 123,
-            "title": "Attachment Id"
-          }
-        },
-        "required": [
-          "attachment_id"
-        ],
-        "title": "SetCoverAttachmentSchema",
         "type": "object"
       },
       "ShoppingListCreateSchema.46f0cf6": {
@@ -10934,6 +10701,476 @@
         "tags": []
       }
     },
+    "/api/attachment-sets/{set_id}": {
+      "get": {
+        "description": "",
+        "operationId": "get__api_attachment-sets_{set_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "set_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentSetResponseSchema.20ffa95"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Get attachment set details with all attachments.",
+        "tags": []
+      }
+    },
+    "/api/attachment-sets/{set_id}/attachments": {
+      "get": {
+        "description": "",
+        "operationId": "get__api_attachment-sets_{set_id}_attachments",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "set_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentListSchemaList.a9993e3"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "List all attachments for an attachment set.",
+        "tags": []
+      },
+      "post": {
+        "description": "",
+        "operationId": "post__api_attachment-sets_{set_id}_attachments",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "set_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {},
+        "summary": "Create a new attachment (file upload or URL) for an attachment set.",
+        "tags": []
+      }
+    },
+    "/api/attachment-sets/{set_id}/attachments/{attachment_id}": {
+      "delete": {
+        "description": "",
+        "operationId": "delete__api_attachment-sets_{set_id}_attachments_{attachment_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "set_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "",
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Delete an attachment and reassign cover if necessary.",
+        "tags": []
+      },
+      "get": {
+        "description": "",
+        "operationId": "get__api_attachment-sets_{set_id}_attachments_{attachment_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "set_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "",
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentResponseSchema.20ffa95"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Get a specific attachment and verify it belongs to the set.",
+        "tags": []
+      },
+      "put": {
+        "description": "",
+        "operationId": "put__api_attachment-sets_{set_id}_attachments_{attachment_id}",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "set_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "",
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachmentUpdateSchema.20ffa95"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentResponseSchema.20ffa95"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Update attachment metadata.",
+        "tags": []
+      }
+    },
+    "/api/attachment-sets/{set_id}/cover": {
+      "delete": {
+        "description": "",
+        "operationId": "delete__api_attachment-sets_{set_id}_cover",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "set_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentSetCoverSchema.20ffa95"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Clear cover attachment for an attachment set.",
+        "tags": []
+      },
+      "get": {
+        "description": "",
+        "operationId": "get__api_attachment-sets_{set_id}_cover",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "set_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentSetCoverSchema.20ffa95"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Get cover attachment details for an attachment set.",
+        "tags": []
+      },
+      "put": {
+        "description": "",
+        "operationId": "put__api_attachment-sets_{set_id}_cover",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "set_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachmentSetCoverUpdateSchema.20ffa95"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentSetCoverSchema.20ffa95"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Set cover attachment for an attachment set.",
+        "tags": []
+      }
+    },
     "/api/boxes": {
       "get": {
         "description": "",
@@ -13358,416 +13595,6 @@
           }
         },
         "summary": "Update part details.",
-        "tags": []
-      }
-    },
-    "/api/parts/{part_key}/attachments": {
-      "get": {
-        "description": "",
-        "operationId": "get__api_parts_{part_key}_attachments",
-        "parameters": [
-          {
-            "description": "",
-            "in": "path",
-            "name": "part_key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PartAttachmentListSchemaList.a9993e3"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationError.6a07bef"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Not Found"
-          }
-        },
-        "summary": "List all attachments for a part.",
-        "tags": []
-      },
-      "post": {
-        "description": "",
-        "operationId": "post__api_parts_{part_key}_attachments",
-        "parameters": [
-          {
-            "description": "",
-            "in": "path",
-            "name": "part_key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {},
-        "summary": "Create a new attachment (file upload or URL).",
-        "tags": []
-      }
-    },
-    "/api/parts/{part_key}/attachments/{attachment_id}": {
-      "delete": {
-        "description": "",
-        "operationId": "delete__api_parts_{part_key}_attachments_{attachment_id}",
-        "parameters": [
-          {
-            "description": "",
-            "in": "path",
-            "name": "part_key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "",
-            "in": "path",
-            "name": "attachment_id",
-            "required": true,
-            "schema": {
-              "format": "int32",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "No Content"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationError.6a07bef"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Not Found"
-          }
-        },
-        "summary": "Delete attachment.",
-        "tags": []
-      },
-      "get": {
-        "description": "",
-        "operationId": "get__api_parts_{part_key}_attachments_{attachment_id}",
-        "parameters": [
-          {
-            "description": "",
-            "in": "path",
-            "name": "part_key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "",
-            "in": "path",
-            "name": "attachment_id",
-            "required": true,
-            "schema": {
-              "format": "int32",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PartAttachmentResponseSchema.f950e1b"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationError.6a07bef"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Not Found"
-          }
-        },
-        "summary": "Get attachment details.",
-        "tags": []
-      },
-      "put": {
-        "description": "",
-        "operationId": "put__api_parts_{part_key}_attachments_{attachment_id}",
-        "parameters": [
-          {
-            "description": "",
-            "in": "path",
-            "name": "part_key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "",
-            "in": "path",
-            "name": "attachment_id",
-            "required": true,
-            "schema": {
-              "format": "int32",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PartAttachmentUpdateSchema.f950e1b"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PartAttachmentResponseSchema.f950e1b"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Not Found"
-          }
-        },
-        "summary": "Update attachment metadata.",
-        "tags": []
-      }
-    },
-    "/api/parts/{part_key}/cover": {
-      "delete": {
-        "description": "",
-        "operationId": "delete__api_parts_{part_key}_cover",
-        "parameters": [
-          {
-            "description": "",
-            "in": "path",
-            "name": "part_key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CoverAttachmentResponseSchema.f950e1b"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationError.6a07bef"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Not Found"
-          }
-        },
-        "summary": "Clear part cover attachment.",
-        "tags": []
-      },
-      "get": {
-        "description": "",
-        "operationId": "get__api_parts_{part_key}_cover",
-        "parameters": [
-          {
-            "description": "",
-            "in": "path",
-            "name": "part_key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CoverAttachmentResponseSchema.f950e1b"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationError.6a07bef"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Not Found"
-          }
-        },
-        "summary": "Get part cover attachment details.",
-        "tags": []
-      },
-      "put": {
-        "description": "",
-        "operationId": "put__api_parts_{part_key}_cover",
-        "parameters": [
-          {
-            "description": "",
-            "in": "path",
-            "name": "part_key",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SetCoverAttachmentSchema.f950e1b"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CoverAttachmentResponseSchema.f950e1b"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
-                }
-              }
-            },
-            "description": "Not Found"
-          }
-        },
-        "summary": "Set or clear part cover attachment.",
         "tags": []
       }
     },

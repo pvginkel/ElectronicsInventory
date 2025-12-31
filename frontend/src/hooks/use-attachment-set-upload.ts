@@ -6,36 +6,36 @@ import { parseApiError } from '@/lib/utils/error-parsing';
 import { makeUniqueToken } from '@/lib/utils/random';
 
 export interface UploadProgress {
-  partId: string;
+  attachmentSetId: number;
   progress: number;
   isUploading: boolean;
   error?: string;
 }
 
-export interface DocumentUploadOptions {
-  partId: string;
+export interface AttachmentSetUploadOptions {
+  attachmentSetId: number;
   file?: File;
   url?: string;
   name: string;
   onProgress?: (progress: number) => void;
 }
 
-export interface DocumentUploadResult {
+export interface AttachmentSetUploadResult {
   id: number;
   title: string;
 }
 
-export function useDocumentUpload() {
+export function useAttachmentSetUpload() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, UploadProgress>>({});
   const queryClient = useQueryClient();
   const toast = useToast();
 
-  function createUploadKey(partId: string): string {
-    return `${partId}-${makeUniqueToken(12)}`;
+  function createUploadKey(attachmentSetId: number): string {
+    return `${attachmentSetId}-${makeUniqueToken(12)}`;
   }
 
-  const uploadDocument = useCallback(async (options: DocumentUploadOptions): Promise<DocumentUploadResult> => {
-    const { partId, file, url, name, onProgress } = options;
+  const uploadAttachment = useCallback(async (options: AttachmentSetUploadOptions): Promise<AttachmentSetUploadResult> => {
+    const { attachmentSetId, file, url, name, onProgress } = options;
 
     // Validate inputs
     if (!file && !url) {
@@ -59,24 +59,12 @@ export function useDocumentUpload() {
       }
     }
 
-    // Get the part's attachment_set_id from the query cache
-    const partData = queryClient.getQueryData<{ attachment_set_id: number }>([
-      'getPartsByPartKey',
-      { path: { part_key: partId } }
-    ]);
-
-    if (!partData?.attachment_set_id) {
-      throw new Error('Part attachment set ID not found. Please refresh and try again.');
-    }
-
-    const attachmentSetId = partData.attachment_set_id;
-
     // Set initial upload state
-    const uploadKey = createUploadKey(partId);
+    const uploadKey = createUploadKey(attachmentSetId);
     setUploadProgress(prev => ({
       ...prev,
       [uploadKey]: {
-        partId,
+        attachmentSetId,
         progress: 0,
         isUploading: true,
       }
@@ -104,7 +92,6 @@ export function useDocumentUpload() {
           [uploadKey]: { ...prev[uploadKey], progress: 50 }
         }));
 
-        // Use attachment-set endpoint
         response = await fetch(`/api/attachment-sets/${attachmentSetId}/attachments`, {
           method: 'POST',
           body: formData,
@@ -123,7 +110,6 @@ export function useDocumentUpload() {
           [uploadKey]: { ...prev[uploadKey], progress: 50 }
         }));
 
-        // Use attachment-set endpoint
         response = await fetch(`/api/attachment-sets/${attachmentSetId}/attachments`, {
           method: 'POST',
           headers: {
@@ -143,8 +129,8 @@ export function useDocumentUpload() {
         throw new Error(`Upload failed: ${response.status} ${errorText}`);
       }
 
-      // Parse the response to get the document data
-      const documentData = await response.json();
+      // Parse the response to get the attachment data
+      const attachmentData = await response.json();
 
       // Complete progress
       onProgress?.(100);
@@ -161,11 +147,6 @@ export function useDocumentUpload() {
         queryKey: ['getAttachmentSetsCoverBySetId', { path: { set_id: attachmentSetId } }]
       });
 
-      // Also invalidate part queries to refresh cover_url
-      queryClient.invalidateQueries({
-        queryKey: ['getPartsByPartKey', { path: { part_key: partId } }]
-      });
-
       // Clean up progress after a delay
       setTimeout(() => {
         setUploadProgress(prev => {
@@ -175,10 +156,10 @@ export function useDocumentUpload() {
         });
       }, 2000);
 
-      // Return the document data
+      // Return the attachment data
       return {
-        id: documentData.id,
-        title: documentData.title
+        id: attachmentData.id,
+        title: attachmentData.title
       };
 
     } catch (error) {
@@ -210,7 +191,7 @@ export function useDocumentUpload() {
   }, [queryClient, toast]);
 
   return {
-    uploadDocument,
+    uploadAttachment,
     uploadProgress,
     isUploading: Object.values(uploadProgress).some(p => p.isUploading),
   };

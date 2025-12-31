@@ -3,7 +3,8 @@ import { appendThumbnailParam, generateSrcSetFromUrl, getSizesAttribute, THUMBNA
 import { ImagePlaceholderIcon } from '@/components/icons/ImagePlaceholderIcon';
 
 interface CoverImageDisplayProps {
-  partId: string;
+  partId?: string;
+  kitId?: string;
   coverUrl: string | null;
   size?: 'small' | 'medium' | 'large';
   className?: string;
@@ -13,12 +14,16 @@ interface CoverImageDisplayProps {
 
 export function CoverImageDisplay({
   partId,
+  kitId,
   coverUrl,
   size = 'medium',
   className = '',
   showPlaceholder = false,
-  alt = 'Part cover image'
+  alt
 }: CoverImageDisplayProps) {
+  // Determine default alt text based on entity type
+  const defaultAlt = partId ? 'Part cover image' : kitId ? 'Kit cover image' : 'Cover image';
+  const altText = alt ?? defaultAlt;
   const [imageError, setImageError] = useState(false);
 
   // Reset image error when coverUrl changes (new image to load)
@@ -63,7 +68,7 @@ export function CoverImageDisplay({
         src={thumbnailUrl ?? undefined}
         srcSet={srcSet}
         sizes={getSizesAttribute()}
-        alt={alt}
+        alt={altText}
         className="w-full h-full object-cover"
         onError={() => setImageError(true)}
         loading="lazy"

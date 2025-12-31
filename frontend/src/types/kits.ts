@@ -23,6 +23,7 @@ export interface KitSummary {
   updatedAt: string;
   shoppingListBadgeCount: number;
   pickListBadgeCount: number;
+  coverUrl: string | null;
 }
 
 export interface KitOverviewBuckets {
@@ -58,6 +59,7 @@ export function mapKitSummary(model: KitSummarySchemaList_a9993e3_KitSummarySche
     updatedAt: model.updated_at,
     shoppingListBadgeCount: model.shopping_list_badge_count ?? 0,
     pickListBadgeCount: model.pick_list_badge_count ?? 0,
+    coverUrl: model.cover_url ?? null,
   };
 }
 
@@ -72,6 +74,7 @@ export function toKitSummaryRecord(summary: KitSummary): KitSummaryRecord {
     updated_at: summary.updatedAt,
     shopping_list_badge_count: summary.shoppingListBadgeCount,
     pick_list_badge_count: summary.pickListBadgeCount,
+    cover_url: summary.coverUrl,
   };
 }
 
@@ -303,6 +306,9 @@ export interface KitDetail {
   createdAt: string;
   updatedAt: string;
   contents: KitContentRow[];
+  // Backend fields that will be available once kit attachments are implemented:
+  attachmentSetId?: number;
+  coverUrl?: string | null;
 }
 
 export interface KitContentAggregates {
@@ -329,6 +335,10 @@ export function mapKitDetail(model: KitDetailResponseSchema_b98797e): KitDetail 
     createdAt: model.created_at,
     updatedAt: model.updated_at,
     contents: mapKitContents(model.contents),
+    // @ts-expect-error - Backend fields not yet implemented, will be available after kit attachment implementation
+    attachmentSetId: model.attachment_set_id,
+    // @ts-expect-error - Backend fields not yet implemented, will be available after kit attachment implementation
+    coverUrl: model.cover_url ?? null,
   };
 }
 

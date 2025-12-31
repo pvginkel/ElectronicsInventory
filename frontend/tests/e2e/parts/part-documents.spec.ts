@@ -70,13 +70,17 @@ test('adds, marks cover, and removes documents with the real backend', async ({
     await expect.poll(async () => {
       try {
         const cover = await testData.attachments.getCover(part.key);
-        return cover.attachment_id;
+        return cover.cover_attachment_id;
       } catch {
         return null;
       }
     }).toBe(attachmentId);
 
-    await expect.poll(async () => (await testData.parts.getDetail(part.key)).cover_attachment_id).toBe(attachmentId);
+    // Verify cover_url is set on the part
+    await expect.poll(async () => {
+      const detail = await testData.parts.getDetail(part.key);
+      return detail.cover_url;
+    }).toBeTruthy();
 
     // Capture URL before deletion to verify link doesn't open after confirming deletion
     const urlBefore = page.url();
@@ -90,11 +94,13 @@ test('adds, marks cover, and removes documents with the real backend', async ({
     await expect.poll(async () => {
       try {
         const cover = await testData.attachments.getCover(part.key);
-        return cover.attachment_id;
+        return cover.cover_attachment_id;
       } catch {
         return null;
       }
     }).toBeNull();
-    await expect.poll(async () => (await testData.parts.getDetail(part.key)).cover_attachment_id).toBeNull();
+    // Verify cover_url is cleared (always null after deletion)
+    const partDetailAfterDelete = await testData.parts.getDetail(part.key);
+    expect(partDetailAfterDelete.cover_url).toBeNull();
   });
 });

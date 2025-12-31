@@ -12,15 +12,17 @@ import { LinkIcon } from '@/components/icons/LinkIcon';
 import pdfIconSvg from '@/assets/pdf-icon.svg';
 
 interface AddDocumentModalProps {
-  partId: string;
+  partId?: string;
+  attachmentSetId?: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDocumentAdded?: () => void;
 }
 
-export function AddDocumentModal({ 
-  partId, 
-  open, 
+export function AddDocumentModal({
+  partId,
+  attachmentSetId,
+  open,
   onOpenChange,
   onDocumentAdded
 }: AddDocumentModalProps) {
@@ -30,8 +32,9 @@ export function AddDocumentModal({
   }
 
   return (
-    <AddDocumentModalContent 
+    <AddDocumentModalContent
       partId={partId}
+      attachmentSetId={attachmentSetId}
       open={open}
       onOpenChange={onOpenChange}
       onDocumentAdded={onDocumentAdded}
@@ -39,9 +42,10 @@ export function AddDocumentModal({
   );
 }
 
-function AddDocumentModalContent({ 
-  partId, 
-  open, 
+function AddDocumentModalContent({
+  partId,
+  attachmentSetId,
+  open,
   onOpenChange,
   onDocumentAdded
 }: AddDocumentModalProps) {
@@ -60,7 +64,7 @@ function AddDocumentModalContent({
       handleNameChange,
       handleSubmit,
     },
-  } = useAddDocumentModal(partId);
+  } = useAddDocumentModal(partId ? { partId } : { attachmentSetId });
 
   // Reset camera state when modal closes
   useEffect(() => {

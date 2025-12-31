@@ -1,7 +1,7 @@
 import { test, expect } from '../../support/fixtures';
 
 test.describe('Parts - Duplication', () => {
-  test('duplicates part along with attachments', async ({ parts, partsDocuments, testData, apiClient }) => {
+  test('duplicates part along with attachments', async ({ parts, partsDocuments, testData }) => {
     const typeName = testData.types.randomTypeName('Sensors');
     const type = await testData.types.create({ name: typeName });
     const { part } = await testData.parts.create({
@@ -42,13 +42,11 @@ test.describe('Parts - Duplication', () => {
     expect(newKey).toBeTruthy();
     expect(newKey).not.toBe(part.key);
 
-    const { data } = await apiClient.GET('/api/parts/{part_key}/attachments', {
-      params: { path: { part_key: newKey! } },
-    });
+    const attachments = await testData.attachments.list(newKey!);
 
-    expect(data).toBeTruthy();
-    expect(data).toHaveLength(2);
-    const titles = data!.map(doc => doc.title).sort();
+    expect(attachments).toBeTruthy();
+    expect(attachments).toHaveLength(2);
+    const titles = attachments.map(doc => doc.title).sort();
     expect(titles).toEqual(['Application Note', 'Datasheet']);
 
     await expect(partsDocuments.gridRoot).toBeVisible();

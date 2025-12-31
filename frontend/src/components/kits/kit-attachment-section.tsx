@@ -1,38 +1,36 @@
 import { useState, useMemo } from 'react';
-import { useGetPartsByPartKey } from '@/lib/api/generated/hooks';
 import { DocumentGridBase } from '@/components/documents/document-grid-base';
 import { MediaViewerBase } from '@/components/documents/media-viewer-base';
-import { useSetCoverAttachment } from '@/hooks/use-cover-image';
-import { usePartDocuments, useDeleteDocument } from '@/hooks/use-part-documents';
+import { useAttachmentSetDocuments } from '@/hooks/use-attachment-set-documents';
 import { useAttachmentSetCoverInfo } from '@/hooks/use-attachment-set-cover-info';
+import { useSetAttachmentSetCover } from '@/hooks/use-attachment-set-cover';
+import { useDeleteAttachmentSetsAttachmentsBySetIdAndAttachmentId } from '@/lib/api/generated/hooks';
 import { transformApiDocumentsToDocumentItems } from '@/lib/utils/document-transformers';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import type { DocumentItem } from '@/types/documents';
 
-interface PartDocumentGridProps {
-  partId: string;
+interface KitAttachmentSectionProps {
+  kitId: number;
+  attachmentSetId: number;
+  isArchived: boolean;
   onDocumentChange?: () => void;
 }
 
-export function PartDocumentGrid({
-  partId,
+export function KitAttachmentSection({
+  kitId,
+  attachmentSetId,
+  isArchived,
   onDocumentChange
-}: PartDocumentGridProps) {
+}: KitAttachmentSectionProps) {
   const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
 
-  // Get the part to obtain its attachment_set_id
-  const partQuery = useGetPartsByPartKey(
-    { path: { part_key: partId } },
-    { enabled: !!partId }
-  );
-  const attachmentSetId = partQuery.data?.attachment_set_id;
-
-  // Fetch documents and cover info from the attachment set
-  const { documents: apiDocuments } = usePartDocuments(partId);
+  const queryClient = useQueryClient();
+  const { documents: apiDocuments } = useAttachmentSetDocuments(attachmentSetId);
   const { coverAttachmentId } = useAttachmentSetCoverInfo(attachmentSetId);
-  const setCoverMutation = useSetCoverAttachment();
-  const deleteDocumentMutation = useDeleteDocument();
+  const setCoverMutation = useSetAttachmentSetCover();
+  const deleteDocumentMutation = useDeleteAttachmentSetsAttachmentsBySetIdAndAttachmentId();
   const { showException } = useToast();
 
   // Transform API documents to DocumentItem format
@@ -48,11 +46,25 @@ export function PartDocumentGrid({
   };
 
   const handleToggleCover = async (documentId: string) => {
+    if (isArchived) {
+      showException('Cannot modify attachments', new Error('Archived kits cannot be edited'));
+      return;
+    }
+
     try {
       await setCoverMutation.mutateAsync({
-        path: { part_key: partId },
-        body: { attachment_id: parseInt(documentId) }
+        attachmentSetId,
+        attachmentId: parseInt(documentId)
       });
+
+      // Invalidate kit queries to refresh cover_url
+      await queryClient.invalidateQueries({
+        queryKey: ['getKitsByKitId', { path: { kit_id: kitId } }]
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['getKits']
+      });
+
       onDocumentChange?.();
     } catch (error) {
       showException('Failed to set cover', error);
@@ -60,13 +72,30 @@ export function PartDocumentGrid({
   };
 
   const handleDelete = async (documentId: string): Promise<boolean> => {
+    if (isArchived) {
+      showException('Cannot modify attachments', new Error('Archived kits cannot be edited'));
+      return false;
+    }
+
     try {
       await deleteDocumentMutation.mutateAsync({
-        path: { 
-          part_key: partId, 
+        path: {
+          set_id: attachmentSetId,
           attachment_id: parseInt(documentId)
         }
       });
+
+      // Invalidate kit queries
+      await queryClient.invalidateQueries({
+        queryKey: ['getAttachmentSetsAttachmentsBySetId', { path: { set_id: attachmentSetId } }]
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['getKitsByKitId', { path: { kit_id: kitId } }]
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['getKits']
+      });
+
       onDocumentChange?.();
       return true;
     } catch (error) {
@@ -85,15 +114,15 @@ export function PartDocumentGrid({
   };
 
   return (
-    <div data-testid="parts.documents.grid">
+    <div data-testid="kits.detail.documents.grid">
       <DocumentGridBase
         documents={documents}
         onShowMedia={handleShowMedia}
         onToggleCover={handleToggleCover}
         onDelete={handleDelete}
-        showCoverToggle={true}
+        showCoverToggle={!isArchived}
       />
-      
+
       <MediaViewerBase
         documents={documents.filter(doc => doc.type !== 'website')} // Only show images and PDFs in viewer
         currentDocumentId={currentDocumentId}

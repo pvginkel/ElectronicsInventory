@@ -78,7 +78,7 @@ export function CoverImageSelector({ partId, open, onOpenChange, currentCoverAtt
                 const isCurrent = currentCoverId === docIdNum;
                 const isPdf = doc.type === 'file' &&
                            (doc.mimeType === 'application/pdf' ||
-                            doc.filename?.toLowerCase().endsWith('.pdf'));
+                            (doc.filename !== null && (doc.filename as string).toLowerCase().endsWith('.pdf')));
 
                 const fallbackIcon = isPdf ? (
                   <img src={pdfIconSvg} alt="PDF" width="40%" height="40%" className="text-muted-foreground" />

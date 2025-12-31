@@ -3,9 +3,9 @@ import { getBackendUrl } from '../../support/backend-url';
 import { makeUnique } from '../../support/helpers';
 import type { components } from '../../../src/lib/api/generated/types';
 
-type AttachmentResponse = components['schemas']['PartAttachmentResponseSchema.f950e1b'];
-type AttachmentListItem = components['schemas']['PartAttachmentListSchemaList.a9993e3.PartAttachmentListSchema'];
-type CoverResponse = components['schemas']['CoverAttachmentResponseSchema.f950e1b'];
+type AttachmentResponse = components['schemas']['AttachmentResponseSchema.20ffa95'];
+type AttachmentListItem = components['schemas']['AttachmentListSchemaList.a9993e3.AttachmentListSchema'];
+type CoverResponse = components['schemas']['AttachmentSetCoverSchema.20ffa95'];
 
 export interface CreateUrlAttachmentOptions {
   title?: string;
@@ -38,6 +38,10 @@ export class AttachmentTestFactory {
     this.backendUrl = backendUrl ?? getBackendUrl();
   }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Part attachment methods (via part's attachment_set_id)
+  // ─────────────────────────────────────────────────────────────────────────────
+
   /**
    * Create a URL-based attachment for a part. Defaults to using the deterministic
    * /api/testing/content/image?text=... helper so image previews stay stable.
@@ -46,9 +50,10 @@ export class AttachmentTestFactory {
     partKey: string,
     options: CreateUrlAttachmentOptions = {}
   ): Promise<AttachmentResponse> {
+    const attachmentSetId = await this.getPartAttachmentSetId(partKey);
     const title = options.title ?? makeUnique('Attachment');
     const defaultUrl = this.buildDeterministicImageUrl(options.previewText ?? title);
-    const response = await fetch(this.buildUrl(`/api/parts/${encodeURIComponent(partKey)}/attachments`), {
+    const response = await fetch(this.buildUrl(`/api/attachment-sets/${attachmentSetId}/attachments`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -67,6 +72,7 @@ export class AttachmentTestFactory {
     partKey: string,
     options: CreateBinaryAttachmentOptions = {}
   ): Promise<AttachmentResponse> {
+    const attachmentSetId = await this.getPartAttachmentSetId(partKey);
     const title = options.title ?? makeUnique('Attachment');
     const filename = options.filename ?? this.sanitizeFilename(`${title}.pdf`);
     const contentType = options.contentType ?? 'application/pdf';
@@ -79,7 +85,7 @@ export class AttachmentTestFactory {
       : new Uint8Array(fileContents);
     formData.set('file', new Blob([normalizedArray.buffer], { type: contentType }), filename);
 
-    const response = await fetch(this.buildUrl(`/api/parts/${encodeURIComponent(partKey)}/attachments`), {
+    const response = await fetch(this.buildUrl(`/api/attachment-sets/${attachmentSetId}/attachments`), {
       method: 'POST',
       body: formData,
     });
@@ -88,8 +94,9 @@ export class AttachmentTestFactory {
   }
 
   async list(partKey: string): Promise<AttachmentListItem[]> {
-    const { data, error, response } = await this.client.GET('/api/parts/{part_key}/attachments', {
-      params: { path: { part_key: partKey } },
+    const attachmentSetId = await this.getPartAttachmentSetId(partKey);
+    const { data, error, response } = await this.client.GET('/api/attachment-sets/{set_id}/attachments', {
+      params: { path: { set_id: attachmentSetId } },
     });
 
     await this.assertResponse(response, error);
@@ -97,8 +104,9 @@ export class AttachmentTestFactory {
   }
 
   async get(partKey: string, attachmentId: number): Promise<AttachmentResponse> {
-    const { data, error, response } = await this.client.GET('/api/parts/{part_key}/attachments/{attachment_id}', {
-      params: { path: { part_key: partKey, attachment_id: attachmentId } },
+    const attachmentSetId = await this.getPartAttachmentSetId(partKey);
+    const { data, error, response } = await this.client.GET('/api/attachment-sets/{set_id}/attachments/{attachment_id}', {
+      params: { path: { set_id: attachmentSetId, attachment_id: attachmentId } },
     });
 
     await this.assertResponse(response, error);
@@ -109,16 +117,18 @@ export class AttachmentTestFactory {
   }
 
   async delete(partKey: string, attachmentId: number): Promise<void> {
-    const { error, response } = await this.client.DELETE('/api/parts/{part_key}/attachments/{attachment_id}', {
-      params: { path: { part_key: partKey, attachment_id: attachmentId } },
+    const attachmentSetId = await this.getPartAttachmentSetId(partKey);
+    const { error, response } = await this.client.DELETE('/api/attachment-sets/{set_id}/attachments/{attachment_id}', {
+      params: { path: { set_id: attachmentSetId, attachment_id: attachmentId } },
     });
 
     await this.assertResponse(response, error);
   }
 
   async getCover(partKey: string): Promise<CoverResponse> {
-    const { data, error, response } = await this.client.GET('/api/parts/{part_key}/cover', {
-      params: { path: { part_key: partKey } },
+    const attachmentSetId = await this.getPartAttachmentSetId(partKey);
+    const { data, error, response } = await this.client.GET('/api/attachment-sets/{set_id}/cover', {
+      params: { path: { set_id: attachmentSetId } },
     });
 
     await this.assertResponse(response, error);
@@ -129,7 +139,8 @@ export class AttachmentTestFactory {
   }
 
   async setCover(partKey: string, attachmentId: number | null): Promise<CoverResponse> {
-    const response = await fetch(this.buildUrl(`/api/parts/${encodeURIComponent(partKey)}/cover`), {
+    const attachmentSetId = await this.getPartAttachmentSetId(partKey);
+    const response = await fetch(this.buildUrl(`/api/attachment-sets/${attachmentSetId}/cover`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ attachment_id: attachmentId }),
@@ -139,11 +150,157 @@ export class AttachmentTestFactory {
   }
 
   async clearCover(partKey: string): Promise<void> {
-    const response = await fetch(this.buildUrl(`/api/parts/${encodeURIComponent(partKey)}/cover`), {
+    const attachmentSetId = await this.getPartAttachmentSetId(partKey);
+    const response = await fetch(this.buildUrl(`/api/attachment-sets/${attachmentSetId}/cover`), {
       method: 'DELETE',
     });
 
     await this.assertResponse(response);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Kit attachment methods (via kit's attachment_set_id)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  async createUrlForKit(
+    kitId: number,
+    options: CreateUrlAttachmentOptions = {}
+  ): Promise<AttachmentResponse> {
+    const attachmentSetId = await this.getKitAttachmentSetId(kitId);
+    const title = options.title ?? makeUnique('Attachment');
+    const defaultUrl = this.buildDeterministicImageUrl(options.previewText ?? title);
+    const response = await fetch(this.buildUrl(`/api/attachment-sets/${attachmentSetId}/attachments`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        url: options.url ?? defaultUrl,
+      }),
+    });
+
+    return this.parseAttachmentResponse(response);
+  }
+
+  async createBinaryForKit(
+    kitId: number,
+    options: CreateBinaryAttachmentOptions = {}
+  ): Promise<AttachmentResponse> {
+    const attachmentSetId = await this.getKitAttachmentSetId(kitId);
+    const title = options.title ?? makeUnique('Attachment');
+    const filename = options.filename ?? this.sanitizeFilename(`${title}.pdf`);
+    const contentType = options.contentType ?? 'application/pdf';
+    const fileContents = options.fileContents ?? await this.fetchTestingPdfBytes();
+
+    const formData = new FormData();
+    formData.set('title', title);
+    const normalizedArray = fileContents instanceof ArrayBuffer
+      ? new Uint8Array(fileContents)
+      : new Uint8Array(fileContents);
+    formData.set('file', new Blob([normalizedArray.buffer], { type: contentType }), filename);
+
+    const response = await fetch(this.buildUrl(`/api/attachment-sets/${attachmentSetId}/attachments`), {
+      method: 'POST',
+      body: formData,
+    });
+
+    return this.parseAttachmentResponse(response);
+  }
+
+  async listForKit(kitId: number): Promise<AttachmentListItem[]> {
+    const attachmentSetId = await this.getKitAttachmentSetId(kitId);
+    const { data, error, response } = await this.client.GET('/api/attachment-sets/{set_id}/attachments', {
+      params: { path: { set_id: attachmentSetId } },
+    });
+
+    await this.assertResponse(response, error);
+    return data ?? [];
+  }
+
+  async getForKit(kitId: number, attachmentId: number): Promise<AttachmentResponse> {
+    const attachmentSetId = await this.getKitAttachmentSetId(kitId);
+    const { data, error, response } = await this.client.GET('/api/attachment-sets/{set_id}/attachments/{attachment_id}', {
+      params: { path: { set_id: attachmentSetId, attachment_id: attachmentId } },
+    });
+
+    await this.assertResponse(response, error);
+    if (!data) {
+      throw new Error('Attachment lookup succeeded but returned no payload');
+    }
+    return data;
+  }
+
+  async deleteForKit(kitId: number, attachmentId: number): Promise<void> {
+    const attachmentSetId = await this.getKitAttachmentSetId(kitId);
+    const { error, response } = await this.client.DELETE('/api/attachment-sets/{set_id}/attachments/{attachment_id}', {
+      params: { path: { set_id: attachmentSetId, attachment_id: attachmentId } },
+    });
+
+    await this.assertResponse(response, error);
+  }
+
+  async getCoverForKit(kitId: number): Promise<CoverResponse> {
+    const attachmentSetId = await this.getKitAttachmentSetId(kitId);
+    const { data, error, response } = await this.client.GET('/api/attachment-sets/{set_id}/cover', {
+      params: { path: { set_id: attachmentSetId } },
+    });
+
+    await this.assertResponse(response, error);
+    if (!data) {
+      throw new Error('Cover lookup succeeded but returned no payload');
+    }
+    return data;
+  }
+
+  async setCoverForKit(kitId: number, attachmentId: number | null): Promise<CoverResponse> {
+    const attachmentSetId = await this.getKitAttachmentSetId(kitId);
+    const response = await fetch(this.buildUrl(`/api/attachment-sets/${attachmentSetId}/cover`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ attachment_id: attachmentId }),
+    });
+
+    return this.parseCoverResponse(response);
+  }
+
+  async clearCoverForKit(kitId: number): Promise<void> {
+    const attachmentSetId = await this.getKitAttachmentSetId(kitId);
+    const response = await fetch(this.buildUrl(`/api/attachment-sets/${attachmentSetId}/cover`), {
+      method: 'DELETE',
+    });
+
+    await this.assertResponse(response);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Helper methods
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  private async getPartAttachmentSetId(partKey: string): Promise<number> {
+    const { data, error, response } = await this.client.GET('/api/parts/{part_key}', {
+      params: { path: { part_key: partKey } },
+    });
+
+    await this.assertResponse(response, error);
+    if (!data) {
+      throw new Error(`Part ${partKey} not found`);
+    }
+    return data.attachment_set_id;
+  }
+
+  private async getKitAttachmentSetId(kitId: number): Promise<number> {
+    // The kit detail endpoint (GET /api/kits/{kit_id}) returns KitDetailResponseSchema
+    // which doesn't include attachment_set_id. We use PATCH with empty body to get
+    // KitResponseSchema which includes attachment_set_id.
+    const { data, error, response } = await this.client.PATCH('/api/kits/{kit_id}', {
+      params: { path: { kit_id: kitId } },
+      body: { build_target: null, description: null, name: null },
+    });
+
+    await this.assertResponse(response, error);
+    if (!data) {
+      throw new Error(`Kit ${kitId} not found`);
+    }
+    return data.attachment_set_id;
   }
 
   private async parseAttachmentResponse(response: Response): Promise<AttachmentResponse> {

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useDocumentUpload } from './use-document-upload';
+import { useAttachmentSetUpload } from './use-attachment-set-upload';
 import { useUrlPreview } from './use-url-preview';
 import { extractFilenameFromFile, generateTimestampFilename } from '@/lib/utils/filename-extraction';
 
@@ -11,12 +12,34 @@ export interface DocumentToAdd {
   preview?: string; // For image previews
 }
 
-export function useAddDocumentModal(partId: string) {
+interface UseAddDocumentModalOptions {
+  partId?: string;
+  attachmentSetId?: number;
+}
+
+export function useAddDocumentModal(options: UseAddDocumentModalOptions | string) {
+  // Support both legacy string partId and new options object
+  const { partId, attachmentSetId } = typeof options === 'string'
+    ? { partId: options, attachmentSetId: undefined }
+    : options;
+
+  // Validate that exactly one ID is provided
+  if (!partId && !attachmentSetId) {
+    throw new Error('Either partId or attachmentSetId must be provided');
+  }
+  if (partId && attachmentSetId) {
+    throw new Error('Only one of partId or attachmentSetId should be provided');
+  }
+
   const [isOpen, setIsOpen] = useState(false);
   const [document, setDocument] = useState<DocumentToAdd>({ name: ''});
   const [uploadProgress, setUploadProgress] = useState(0);
-  
-  const { uploadDocument, isUploading } = useDocumentUpload();
+
+  // Use the appropriate upload hook based on which ID is provided
+  const partUploadHook = useDocumentUpload();
+  const attachmentSetUploadHook = useAttachmentSetUpload();
+  const isUploading = partId ? partUploadHook.isUploading : attachmentSetUploadHook.isUploading;
+
   const { previewState, processUrl, clearPreview } = useUrlPreview();
 
   const clearDocument = useCallback(() => {
@@ -104,16 +127,26 @@ export function useAddDocumentModal(partId: string) {
   const handleSubmit = useCallback(async () => {
     if (!document || !document.name.trim()) return;
 
-    await uploadDocument({
-      partId,
-      file: document.file,
-      url: document.url,
-      name: document.name.trim(),
-      onProgress: setUploadProgress,
-    });
+    if (partId) {
+      await partUploadHook.uploadDocument({
+        partId,
+        file: document.file,
+        url: document.url,
+        name: document.name.trim(),
+        onProgress: setUploadProgress,
+      });
+    } else if (attachmentSetId) {
+      await attachmentSetUploadHook.uploadAttachment({
+        attachmentSetId,
+        file: document.file,
+        url: document.url,
+        name: document.name.trim(),
+        onProgress: setUploadProgress,
+      });
+    }
 
     closeModal();
-  }, [document, partId, uploadDocument, closeModal]);
+  }, [document, partId, attachmentSetId, partUploadHook, attachmentSetUploadHook, closeModal]);
 
   // Sync previewState with document when URL preview data becomes available
   useEffect(() => {

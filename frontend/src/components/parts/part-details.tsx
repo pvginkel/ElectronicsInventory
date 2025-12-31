@@ -714,7 +714,6 @@ export function PartDetails({ partId }: PartDetailsProps) {
               <PartDocumentGrid
                 key={documentKey}
                 partId={partId}
-                currentCoverAttachmentId={part?.cover_attachment_id ?? null}
                 onDocumentChange={() => setDocumentKey((prev) => prev + 1)}
               />
             </div>
