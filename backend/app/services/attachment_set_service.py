@@ -2,7 +2,6 @@
 
 import logging
 from io import BytesIO
-from typing import BinaryIO
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -14,7 +13,6 @@ from app.models.attachment_set import AttachmentSet
 from app.services.base import BaseService
 from app.services.image_service import ImageService
 from app.services.s3_service import S3Service
-from app.utils.mime_handling import detect_mime_type
 
 logger = logging.getLogger(__name__)
 
@@ -68,152 +66,6 @@ class AttachmentSetService(BaseService):
         if not attachment_set:
             raise RecordNotFoundException("AttachmentSet", set_id)
         return attachment_set
-
-    def _validate_file_size(self, file_size: int, is_image: bool = False) -> None:
-        """Validate file size against limits.
-
-        Args:
-            file_size: Size of the file in bytes
-            is_image: Whether this is an image file
-
-        Raises:
-            InvalidOperationException: If file size exceeds limits
-        """
-        if is_image:
-            max_size = self.settings.MAX_IMAGE_SIZE
-        else:
-            max_size = self.settings.MAX_FILE_SIZE
-
-        if file_size > max_size:
-            max_mb = max_size / (1024 * 1024)
-            raise InvalidOperationException("validate file size", f"file too large, maximum size: {max_mb:.1f}MB")
-
-    def create_file_attachment(self, set_id: int, title: str, file_data: BinaryIO,
-                                 filename: str) -> Attachment:
-        """Create a file attachment (image or PDF) for an attachment set.
-
-        Args:
-            set_id: AttachmentSet ID
-            title: Title/description of the attachment
-            file_data: File data
-            filename: Original filename
-
-        Returns:
-            Created Attachment instance
-
-        Raises:
-            RecordNotFoundException: If attachment set not found
-            InvalidOperationException: If file validation fails or S3 upload fails
-        """
-        # Verify attachment set exists
-        attachment_set = self.get_attachment_set(set_id)
-
-        # Read and validate file data
-        file_data.seek(0)
-        file_bytes = file_data.read()
-        file_size = len(file_bytes)
-
-        # Detect actual content type using python-magic
-        detected_type = detect_mime_type(file_bytes, None)
-
-        # Validate file type
-        allowed_image_types = self.settings.ALLOWED_IMAGE_TYPES
-        allowed_file_types = self.settings.ALLOWED_FILE_TYPES
-        all_allowed = allowed_image_types + allowed_file_types
-
-        if detected_type not in all_allowed:
-            raise InvalidOperationException("create file attachment", f"file type not allowed: {detected_type}")
-
-        # Validate file size
-        is_image = detected_type.startswith('image/')
-        self._validate_file_size(file_size, is_image)
-
-        # Determine attachment type
-        if detected_type == 'application/pdf':
-            attachment_type = AttachmentType.PDF
-        elif is_image:
-            attachment_type = AttachmentType.IMAGE
-        else:
-            raise InvalidOperationException("create file attachment", f"unsupported file type: {detected_type}")
-
-        # Generate CAS key (content-addressable storage)
-        s3_key = self.s3_service.generate_cas_key(file_bytes)
-
-        # Create attachment instance
-        attachment = Attachment(
-            attachment_set_id=attachment_set.id,
-            attachment_type=attachment_type,
-            title=title,
-            s3_key=s3_key,
-            filename=filename,
-            content_type=detected_type,
-            file_size=file_size
-        )
-
-        self.db.add(attachment)
-        self.db.flush()
-
-        # Auto-set as cover if this is the first image and set has no cover
-        if attachment_type == AttachmentType.IMAGE and not attachment_set.cover_attachment_id:
-            attachment_set.cover_attachment_id = attachment.id
-            self.db.flush()
-            logger.info(f"Auto-assigned attachment {attachment.id} as cover for set {set_id}")
-
-        # Upload to S3 (with deduplication check)
-        if self.s3_service.file_exists(s3_key):
-            logger.info(f"Content already exists in CAS for attachment {attachment.id}, skipping upload")
-        else:
-            # Database state is durable; perform external upload
-            try:
-                self.s3_service.upload_file(BytesIO(file_bytes), s3_key, detected_type)
-            except InvalidOperationException:
-                logger.exception(
-                    "Failed to upload attachment to S3 for set %s (attachment_id=%s, key=%s)",
-                    set_id,
-                    attachment.id,
-                    s3_key,
-                )
-                raise
-            except Exception as exc:  # pragma: no cover - unexpected failure path
-                logger.exception(
-                    "Unexpected error uploading attachment to S3 for set %s (attachment_id=%s, key=%s)",
-                    set_id,
-                    attachment.id,
-                    s3_key,
-                )
-                raise InvalidOperationException("upload attachment", "unexpected S3 upload error") from exc
-
-        return attachment
-
-    def create_url_attachment(self, set_id: int, title: str, url: str) -> Attachment:
-        """Create a URL attachment for an attachment set.
-
-        Args:
-            set_id: AttachmentSet ID
-            title: Title/description of the attachment
-            url: URL to attach
-
-        Returns:
-            Created Attachment instance
-
-        Raises:
-            RecordNotFoundException: If attachment set not found
-        """
-        # Verify attachment set exists
-        attachment_set = self.get_attachment_set(set_id)
-
-        # Create URL attachment (no S3 content)
-        attachment = Attachment(
-            attachment_set_id=attachment_set.id,
-            attachment_type=AttachmentType.URL,
-            title=title,
-            url=url
-        )
-
-        self.db.add(attachment)
-        self.db.flush()
-
-        return attachment
 
     def get_attachments(self, set_id: int) -> list[Attachment]:
         """Get all attachments for an attachment set.

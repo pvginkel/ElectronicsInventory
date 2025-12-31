@@ -177,7 +177,7 @@ def create_part_from_ai_analysis(
 
         # Create document attachment from URL - this will handle downloading and processing
         attachment = document_service.create_url_attachment(
-            part_key=part.key,  # Use part key, not ID
+            attachment_set_id=part.attachment_set_id,
             title=title,
             url=doc.url
         )

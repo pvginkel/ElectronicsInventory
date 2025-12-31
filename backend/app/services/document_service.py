@@ -5,11 +5,12 @@ from io import BytesIO
 from typing import BinaryIO
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session, lazyload
+from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.attachment import Attachment, AttachmentType
+from app.models.attachment_set import AttachmentSet
 from app.models.part import Part
 from app.schemas.upload_document import DocumentContentSchema, UploadDocumentSchema
 from app.services.base import BaseService
@@ -169,11 +170,12 @@ class DocumentService(BaseService):
             max_mb = max_size / (1024 * 1024)
             raise InvalidOperationException("validate file size", f"file too large, maximum size: {max_mb:.1f}MB")
 
-    def create_file_attachment(self, part_key: str, title: str, file_data: BinaryIO, filename: str) -> Attachment:
-        """Create a file attachment (image or PDF) for a part.
+    def create_file_attachment(self, attachment_set_id: int, title: str,
+                                file_data: BinaryIO, filename: str) -> Attachment:
+        """Create a file attachment (image or PDF) for an attachment set.
 
         Args:
-            part_key: Part key to attach to
+            attachment_set_id: AttachmentSet ID to attach to
             title: Title/description of the attachment
             file_data: File data
             filename: Original filename
@@ -182,7 +184,7 @@ class DocumentService(BaseService):
             Created Attachment
 
         Raises:
-            RecordNotFoundException: If part not found
+            RecordNotFoundException: If attachment set not found
             InvalidOperationException: If file validation fails
         """
         # Read file data for validation
@@ -192,7 +194,7 @@ class DocumentService(BaseService):
         validated_content_type = detect_mime_type(file_bytes, None)
 
         return self._create_attachment(
-            part_key=part_key,
+            attachment_set_id=attachment_set_id,
             content=DocumentContentSchema(
                 content=file_bytes,
                 content_type=validated_content_type
@@ -200,11 +202,11 @@ class DocumentService(BaseService):
             filename=filename,
             title=title)
 
-    def create_url_attachment(self, part_key: str, title: str, url: str) -> Attachment:
+    def create_url_attachment(self, attachment_set_id: int, title: str, url: str) -> Attachment:
         """Create a URL attachment with thumbnail extraction.
 
         Args:
-            part_key: Part key to attach to
+            attachment_set_id: AttachmentSet ID to attach to
             title: Title/description of the attachment
             url: URL to attach
 
@@ -212,7 +214,7 @@ class DocumentService(BaseService):
             Created Attachment
 
         Raises:
-            RecordNotFoundException: If part not found
+            RecordNotFoundException: If attachment set not found
             InvalidOperationException: If URL processing fails
         """
         # Process URL to determine content
@@ -229,23 +231,24 @@ class DocumentService(BaseService):
             content = upload_doc.content
 
         return self._create_attachment(
-            part_key=part_key,
+            attachment_set_id=attachment_set_id,
             content=content,
             url=url,
             title=final_title,
             attachment_type=upload_doc.detected_type
         )
 
-    def _create_attachment(self, part_key: str, content: DocumentContentSchema | None, title: str,
+    def _create_attachment(self, attachment_set_id: int, content: DocumentContentSchema | None, title: str,
                             url: str | None = None, filename: str | None = None,
                             attachment_type: AttachmentType | None = None) -> Attachment:
         if not content and not url:
             raise InvalidOperationException("create attachment", "either content or URL must be provided")
 
-        stmt = select(Part).where(Part.key == part_key)
-        part = self.db.scalar(stmt)
-        if not part:
-            raise RecordNotFoundException("Part", part_key)
+        # Verify attachment set exists
+        stmt = select(AttachmentSet).where(AttachmentSet.id == attachment_set_id)
+        attachment_set = self.db.scalar(stmt)
+        if not attachment_set:
+            raise RecordNotFoundException("AttachmentSet", attachment_set_id)
 
         upload_payload: DocumentContentSchema | None = content
         upload_s3_key: str | None
@@ -279,7 +282,7 @@ class DocumentService(BaseService):
             file_size = None
 
         attachment = Attachment(
-            attachment_set_id=part.attachment_set_id,
+            attachment_set_id=attachment_set_id,
             attachment_type=attachment_type,
             title=title,
             s3_key=upload_s3_key,
@@ -293,8 +296,8 @@ class DocumentService(BaseService):
         self.db.flush()
 
         # Auto-set cover if this is the first image attachment
-        if attachment_type == AttachmentType.IMAGE and part.attachment_set and not part.attachment_set.cover_attachment_id:
-            part.attachment_set.cover_attachment_id = attachment.id
+        if attachment_type == AttachmentType.IMAGE and not attachment_set.cover_attachment_id:
+            attachment_set.cover_attachment_id = attachment.id
             self.db.flush()
 
         if upload_payload and upload_s3_key:
@@ -307,16 +310,16 @@ class DocumentService(BaseService):
                     self.s3_service.upload_file(BytesIO(upload_payload.content), upload_s3_key, upload_payload.content_type)
                 except InvalidOperationException:
                     logger.exception(
-                        "Failed to upload attachment to S3 for part %s (attachment_id=%s, key=%s)",
-                        part_key,
+                        "Failed to upload attachment to S3 for set %s (attachment_id=%s, key=%s)",
+                        attachment_set_id,
                         attachment.id,
                         upload_s3_key,
                     )
                     raise
                 except Exception as exc:  # pragma: no cover - unexpected failure path
                     logger.exception(
-                        "Unexpected error uploading attachment to S3 for part %s (attachment_id=%s, key=%s)",
-                        part_key,
+                        "Unexpected error uploading attachment to S3 for set %s (attachment_id=%s, key=%s)",
+                        attachment_set_id,
                         attachment.id,
                         upload_s3_key,
                     )
@@ -392,18 +395,18 @@ class DocumentService(BaseService):
             RecordNotFoundException: If attachment not found
         """
         attachment = self.get_attachment(attachment_id)
-        part = attachment.part
-        is_cover_image = part.cover_attachment_id == attachment_id
+        attachment_set = attachment.attachment_set
+        is_cover_image = attachment_set and attachment_set.cover_attachment_id == attachment_id
 
         if is_cover_image:
             stmt = select(Attachment).where(
-                Attachment.part_id == part.id,
+                Attachment.attachment_set_id == attachment_set.id,
                 Attachment.attachment_type == AttachmentType.IMAGE,
                 Attachment.id != attachment_id
             ).order_by(Attachment.created_at)
 
             new_cover = self.db.scalar(stmt)
-            part.cover_attachment_id = new_cover.id if new_cover else None
+            attachment_set.cover_attachment_id = new_cover.id if new_cover else None
 
         self.db.delete(attachment)
         self.db.flush()
@@ -501,7 +504,7 @@ class DocumentService(BaseService):
 
         This method is optimized to avoid loading the full Part with all its
         eager-loaded relationships. It queries the attachment directly via a
-        subquery on the part's cover_attachment_id.
+        subquery on the part's attachment set's cover_attachment_id.
 
         Args:
             part_key: Part key
@@ -512,24 +515,27 @@ class DocumentService(BaseService):
         Raises:
             RecordNotFoundException: If part not found
         """
-        # First, get just the cover_attachment_id from the part (no relationship loading)
-        stmt = select(Part.id, Part.cover_attachment_id).where(Part.key == part_key)
+        # First, get just the attachment_set_id from the part (no relationship loading)
+        stmt = select(Part.id, Part.attachment_set_id).where(Part.key == part_key)
         result = self.db.execute(stmt).first()
 
         if not result:
             raise RecordNotFoundException("Part", part_key)
 
-        part_id, cover_attachment_id = result
+        part_id, attachment_set_id = result
+
+        if attachment_set_id is None:
+            return None
+
+        # Get the cover_attachment_id from the attachment set
+        set_stmt = select(AttachmentSet.cover_attachment_id).where(AttachmentSet.id == attachment_set_id)
+        cover_attachment_id = self.db.scalar(set_stmt)
 
         if cover_attachment_id is None:
             return None
 
-        # Query the attachment directly, explicitly preventing eager loading of part
-        attachment_stmt = (
-            select(Attachment)
-            .where(Attachment.id == cover_attachment_id)
-            .options(lazyload(Attachment.part))
-        )
+        # Query the attachment directly
+        attachment_stmt = select(Attachment).where(Attachment.id == cover_attachment_id)
         return self.db.scalar(attachment_stmt)
 
     def copy_attachment_to_part(self, attachment_id: int, target_part_key: str, set_as_cover: bool = False) -> Attachment:
@@ -560,7 +566,7 @@ class DocumentService(BaseService):
         new_s3_key = source_attachment.s3_key
 
         new_attachment = Attachment(
-            part_id=target_part.id,
+            attachment_set_id=target_part.attachment_set_id,
             attachment_type=source_attachment.attachment_type,
             title=source_attachment.title,
             s3_key=new_s3_key,
@@ -574,8 +580,8 @@ class DocumentService(BaseService):
         self.db.flush()
 
         # Handle cover attachment logic
-        if set_as_cover:
-            target_part.cover_attachment_id = new_attachment.id
+        if set_as_cover and target_part.attachment_set:
+            target_part.attachment_set.cover_attachment_id = new_attachment.id
             self.db.flush()
 
         # CAS keys are shared - no S3 copy needed since content is immutable

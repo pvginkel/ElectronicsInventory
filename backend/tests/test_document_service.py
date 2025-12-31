@@ -157,9 +157,8 @@ class TestDocumentService:
             # when it tries to validate the unsupported content type
 
             with pytest.raises(InvalidOperationException) as exc_info:
-                # Note: This method is deprecated and expects part_key, but will fail before that
                 document_service.create_url_attachment(
-                    part_key=sample_part.key,
+                    attachment_set_id=sample_part.attachment_set_id,
                     title="Favicon",
                     url="https://example.com/favicon.ico"
                 )
