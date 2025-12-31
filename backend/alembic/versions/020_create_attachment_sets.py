@@ -36,10 +36,11 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     """Migrate to AttachmentSet aggregate pattern."""
 
-    # Step 1: Create attachment_sets table (without cover FK initially)
+    # Step 1: Create attachment_sets table (cover FK added later after attachments exist)
     op.create_table(
         'attachment_sets',
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column('cover_attachment_id', sa.Integer(), nullable=True),
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
         sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
         sa.PrimaryKeyConstraint('id')
@@ -142,8 +143,9 @@ def upgrade() -> None:
 
     # Step 9: Make attachment_set_id NOT NULL and add FK constraints
     # First drop the old part_id FK from attachments
-    op.drop_constraint('attachments_part_id_fkey', 'attachments', type_='foreignkey')
-    op.drop_index('ix_part_attachments_part_id', 'attachments')
+    # Note: constraint name is based on original table name (part_attachments)
+    op.drop_constraint('part_attachments_part_id_fkey', 'attachments', type_='foreignkey')
+    # Note: ix_part_attachments_part_id was dropped in migration 008 and never recreated
 
     # Make attachment_set_id NOT NULL on attachments and add FK
     op.alter_column('attachments', 'attachment_set_id', nullable=False)
@@ -194,7 +196,7 @@ def upgrade() -> None:
     # Step 10: Drop part_id column and old cover_attachment_id from parts
     op.drop_column('attachments', 'part_id')
 
-    op.drop_index('ix_parts_cover_attachment_id', 'parts')
+    # Note: ix_parts_cover_attachment_id was dropped in migration 008 and never recreated
     op.drop_constraint('fk_parts_cover_attachment', 'parts', type_='foreignkey')
     op.drop_column('parts', 'cover_attachment_id')
 
