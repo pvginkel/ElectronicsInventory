@@ -4,6 +4,7 @@ export interface ApiDocument {
   id: string;
   name: string;
   type: string;
+  attachmentType?: 'url' | 'image' | 'pdf'; // Original type from API
   mimeType?: string | null;
   filename?: string | null;
   url?: string | null;
@@ -22,10 +23,14 @@ export function transformApiDocumentsToDocumentItems(
   return apiDocuments.map(doc => {
     const isCover = coverAttachment?.id === parseInt(doc.id);
 
-    // Determine document type based on MIME type and attachment type
+    // Determine document type based on attachment_type from API, MIME type, or filename
     let type: 'image' | 'pdf' | 'website';
-    if (doc.type === 'url') {
+    if (doc.type === 'url' || doc.attachmentType === 'url') {
       type = 'website';
+    } else if (doc.attachmentType === 'pdf') {
+      type = 'pdf';
+    } else if (doc.attachmentType === 'image') {
+      type = 'image';
     } else if (doc.mimeType?.startsWith('image/')) {
       type = 'image';
     } else if (doc.mimeType === 'application/pdf' || doc.filename?.toLowerCase().endsWith('.pdf')) {
