@@ -24,6 +24,7 @@ import { KitPickListCreateDialog } from '@/components/kits/kit-pick-list-create-
 import { useKitShoppingListUnlinkMutation } from '@/hooks/use-kit-shopping-list-links';
 import { useToast } from '@/hooks/use-toast';
 import { useConfirm } from '@/hooks/use-confirm';
+import { useAttachmentSetClipboardPaste } from '@/hooks/use-attachment-set-clipboard-paste';
 import { emitTestEvent } from '@/lib/test/event-emitter';
 import { ApiError } from '@/lib/api/api-error';
 import { trackFormError, trackFormSubmit, trackFormSuccess } from '@/lib/test/form-instrumentation';
@@ -550,6 +551,13 @@ function KitDetailLoaded({
 }: KitDetailLoadedProps) {
   const [showAddDocument, setShowAddDocument] = useState(false);
   const [documentKey, setDocumentKey] = useState(0);
+
+  // Enable clipboard paste for image uploads
+  useAttachmentSetClipboardPaste({
+    attachmentSetId: detail.attachmentSetId,
+    enabled: detail.status !== 'archived',
+    onUploadSuccess: () => setDocumentKey((prev) => prev + 1),
+  });
 
   const kitContents = useKitContents({
     detail,
