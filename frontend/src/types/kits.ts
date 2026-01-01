@@ -306,9 +306,8 @@ export interface KitDetail {
   createdAt: string;
   updatedAt: string;
   contents: KitContentRow[];
-  // Backend fields that will be available once kit attachments are implemented:
-  attachmentSetId?: number;
-  coverUrl?: string | null;
+  attachmentSetId: number;
+  coverUrl: string | null;
 }
 
 export interface KitContentAggregates {
@@ -335,9 +334,7 @@ export function mapKitDetail(model: KitDetailResponseSchema_b98797e): KitDetail 
     createdAt: model.created_at,
     updatedAt: model.updated_at,
     contents: mapKitContents(model.contents),
-    // @ts-expect-error - Backend fields not yet implemented, will be available after kit attachment implementation
     attachmentSetId: model.attachment_set_id,
-    // @ts-expect-error - Backend fields not yet implemented, will be available after kit attachment implementation
     coverUrl: model.cover_url ?? null,
   };
 }

@@ -2479,6 +2479,12 @@
             "example": "2024-03-20T18:45:00Z",
             "title": "Archived At"
           },
+          "attachment_set_id": {
+            "description": "ID of the attachment set for this kit",
+            "example": 789,
+            "title": "Attachment Set Id",
+            "type": "integer"
+          },
           "build_target": {
             "description": "Target quantity of complete kits to keep on hand",
             "example": 5,
@@ -2492,6 +2498,20 @@
             },
             "title": "Contents",
             "type": "array"
+          },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+            "example": "/api/cas/abc123def456...",
+            "title": "Cover Url"
           },
           "created_at": {
             "description": "Timestamp when the kit was created",
@@ -2574,6 +2594,7 @@
           "description",
           "status",
           "build_target",
+          "attachment_set_id",
           "archived_at",
           "created_at",
           "updated_at"

@@ -610,50 +610,46 @@ function KitDetailLoaded({
         </CardContent>
       </Card>
 
-      {/* Documents/Attachments Section - Only show when backend supports it */}
-      {detail.attachmentSetId !== undefined && (
-        <>
-          <Card>
-            <CardHeader className="flex flex-col gap-3 border-b border-border/70 px-4 py-3 md:flex-row md:items-center md:justify-between space-y-0">
-              <div>
-                <CardTitle>Documents</CardTitle>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setShowAddDocument(true)}
-                  disabled={detail.status === 'archived'}
-                  title={detail.status === 'archived' ? 'Archived kits cannot be edited' : undefined}
-                  aria-disabled={detail.status === 'archived' ? 'true' : undefined}
-                  data-testid="kits.detail.documents.add"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add document
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <KitAttachmentSection
-                key={documentKey}
-                kitId={detail.id}
-                attachmentSetId={detail.attachmentSetId}
-                isArchived={detail.status === 'archived'}
-                onDocumentChange={() => setDocumentKey((prev) => prev + 1)}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Add Document Modal */}
-          <AddDocumentModal
+      {/* Documents/Attachments Section */}
+      <Card>
+        <CardHeader className="flex flex-col gap-3 border-b border-border/70 px-4 py-3 md:flex-row md:items-center md:justify-between space-y-0">
+          <div>
+            <CardTitle>Documents</CardTitle>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowAddDocument(true)}
+              disabled={detail.status === 'archived'}
+              title={detail.status === 'archived' ? 'Archived kits cannot be edited' : undefined}
+              aria-disabled={detail.status === 'archived' ? 'true' : undefined}
+              data-testid="kits.detail.documents.add"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add document
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <KitAttachmentSection
+            key={documentKey}
+            kitId={detail.id}
             attachmentSetId={detail.attachmentSetId}
-            open={showAddDocument}
-            onOpenChange={setShowAddDocument}
-            onDocumentAdded={() => setDocumentKey((prev) => prev + 1)}
+            isArchived={detail.status === 'archived'}
+            onDocumentChange={() => setDocumentKey((prev) => prev + 1)}
           />
-        </>
-      )}
+        </CardContent>
+      </Card>
+
+      {/* Add Document Modal */}
+      <AddDocumentModal
+        attachmentSetId={detail.attachmentSetId}
+        open={showAddDocument}
+        onOpenChange={setShowAddDocument}
+        onDocumentAdded={() => setDocumentKey((prev) => prev + 1)}
+      />
     </div>
   );
 }
