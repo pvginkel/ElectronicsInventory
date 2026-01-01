@@ -578,6 +578,15 @@ class KitDetailResponseSchema(BaseModel):
         description="Target quantity of complete kits to keep on hand",
         json_schema_extra={"example": 5},
     )
+    attachment_set_id: int = Field(
+        description="ID of the attachment set for this kit",
+        json_schema_extra={"example": 789}
+    )
+    cover_url: str | None = Field(
+        default=None,
+        description="Base CAS URL for cover image. Add ?thumbnail=<size> for thumbnails.",
+        json_schema_extra={"example": "/api/cas/abc123def456..."}
+    )
     archived_at: datetime | None = Field(
         description="Timestamp when kit was archived, if applicable",
         json_schema_extra={"example": "2024-03-20T18:45:00Z"},
