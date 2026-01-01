@@ -76,7 +76,7 @@ class TestTempFileManager:
             cleaned_count = manager.cleanup_old_files()
 
             # Check that old directories were cleaned up
-            assert cleaned_count == 3  # All directories are cleaned up in current implementation
+            assert cleaned_count == 2  # The 2 temp directories created before sleep
             assert not temp_dir1.exists()
             assert not temp_dir2.exists()
             assert temp_dir3.exists()  # New directory should remain
@@ -359,9 +359,10 @@ class TestTempFileManager:
         """Test that cache directory is created during initialization."""
         with make_temp_file_manager() as manager:
             # Cache directory should be created during initialization
+            # cache_path is the same as base_path
             assert manager.cache_path.exists()
             assert manager.cache_path.is_dir()
-            assert str(manager.cache_path).endswith("download_cache")
+            assert manager.cache_path == manager.base_path
 
     def test_cached_content_namedtuple(self):
         """Test CachedContent namedtuple structure."""

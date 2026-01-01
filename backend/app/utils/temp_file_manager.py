@@ -49,12 +49,9 @@ class TempFileManager:
         self._cleanup_thread: threading.Thread | None = None
         self._shutdown_event = threading.Event()
 
-        # Ensure base directory exists
+        # Ensure base directory exists (also used for download cache)
         self.base_path.mkdir(parents=True, exist_ok=True)
-
-        # Ensure download cache directory exists
-        self.cache_path = self.base_path / "download_cache"
-        self.cache_path.mkdir(parents=True, exist_ok=True)
+        self.cache_path = self.base_path
 
         # Register shutdown notification
         self.shutdown_coordinator.register_lifetime_notification(self._on_lifetime_event)
