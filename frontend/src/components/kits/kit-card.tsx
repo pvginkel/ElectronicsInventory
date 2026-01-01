@@ -52,60 +52,15 @@ export function KitCard({
       search={search}
       data-testid={`kits.overview.card.${kit.id}`}
     >
-        <div className="flex items-start gap-4">
-          {/* Cover Image - only show when backend supports it */}
-          {kit.coverUrl !== undefined && (
-            <CoverImageDisplay
-              kitId={kit.id.toString()}
-              coverUrl={kit.coverUrl}
-              size="medium"
-              className="w-16 h-16 rounded-md shadow-sm flex-shrink-0"
-              showPlaceholder={true}
-            />
-          )}
-
-          {/* Content */}
-          <div className="flex-1 min-w-0 space-y-2">
-            <div className="flex items-start justify-between gap-3">
-              <CardTitle className="text-xl font-semibold leading-tight">{kit.name}</CardTitle>
-              <div className="flex flex-col items-end gap-2">
+      <div className="flex flex-col gap-1">
+        {/* Row 1: Title and build target */}
+        <div className="flex items-start justify-between gap-3">
+          <CardTitle className="text-xl font-semibold leading-tight">{kit.name}</CardTitle>
+          <div className="flex items-center gap-2">
             <QuantityBadge
               quantity={kit.buildTarget}
               testId={`kits.overview.card.${kit.id}.quantity`}
             />
-            <div
-              className="flex items-center gap-2"
-              data-testid={`kits.overview.card.${kit.id}.activity`}
-            >
-              {showShoppingIndicator ? (
-                <MembershipIndicator<KitShoppingListMembershipSummary>
-                  summary={shoppingIndicator.summary}
-                  status={shoppingIndicator.status}
-                  fetchStatus={shoppingIndicator.fetchStatus}
-                  error={shoppingIndicator.error}
-                  testId={`kits.overview.card.${kit.id}.shopping-indicator`}
-                  icon={ShoppingCart}
-                  ariaLabel={getKitShoppingIndicatorLabel}
-                  hasMembership={kitHasShoppingMembership}
-                  renderTooltip={renderKitShoppingTooltip}
-                  errorMessage="Failed to load kit shopping list memberships."
-                />
-              ) : null}
-              {showPickIndicator ? (
-                <MembershipIndicator<KitPickListMembershipSummary>
-                  summary={pickIndicator.summary}
-                  status={pickIndicator.status}
-                  fetchStatus={pickIndicator.fetchStatus}
-                  error={pickIndicator.error}
-                  testId={`kits.overview.card.${kit.id}.pick-indicator`}
-                  icon={ClipboardList}
-                  ariaLabel={getKitPickIndicatorLabel}
-                  hasMembership={kitHasOpenPickList}
-                  renderTooltip={renderKitPickTooltip}
-                  errorMessage="Failed to load kit pick list memberships."
-                />
-              ) : null}
-            </div>
             {kit.status === 'archived' && (
               <StatusBadge
                 color="inactive"
@@ -113,16 +68,60 @@ export function KitCard({
                 testId={`kits.overview.card.${kit.id}.status`}
               />
             )}
-              </div>
-            </div>
+          </div>
+        </div>
 
-            {hasDescription ? (
-              <CardDescription className="line-clamp-3 text-sm text-muted-foreground">
-                {kit.description}
-              </CardDescription>
+        {/* Row 2: Description and activity icons */}
+        <div className="flex items-center justify-between gap-3">
+          {hasDescription ? (
+            <CardDescription className="line-clamp-2 text-sm text-muted-foreground flex-1">
+              {kit.description}
+            </CardDescription>
+          ) : <div className="flex-1" />}
+          <div
+            className="flex items-center gap-2 shrink-0"
+            data-testid={`kits.overview.card.${kit.id}.activity`}
+          >
+            {showShoppingIndicator ? (
+              <MembershipIndicator<KitShoppingListMembershipSummary>
+                summary={shoppingIndicator.summary}
+                status={shoppingIndicator.status}
+                fetchStatus={shoppingIndicator.fetchStatus}
+                error={shoppingIndicator.error}
+                testId={`kits.overview.card.${kit.id}.shopping-indicator`}
+                icon={ShoppingCart}
+                ariaLabel={getKitShoppingIndicatorLabel}
+                hasMembership={kitHasShoppingMembership}
+                renderTooltip={renderKitShoppingTooltip}
+                errorMessage="Failed to load kit shopping list memberships."
+              />
+            ) : null}
+            {showPickIndicator ? (
+              <MembershipIndicator<KitPickListMembershipSummary>
+                summary={pickIndicator.summary}
+                status={pickIndicator.status}
+                fetchStatus={pickIndicator.fetchStatus}
+                error={pickIndicator.error}
+                testId={`kits.overview.card.${kit.id}.pick-indicator`}
+                icon={ClipboardList}
+                ariaLabel={getKitPickIndicatorLabel}
+                hasMembership={kitHasOpenPickList}
+                renderTooltip={renderKitPickTooltip}
+                errorMessage="Failed to load kit pick list memberships."
+              />
             ) : null}
           </div>
         </div>
+
+        {/* Cover Image - full content width, 16:9 aspect ratio, below content */}
+        <CoverImageDisplay
+          kitId={kit.id.toString()}
+          coverUrl={kit.coverUrl}
+          size="large"
+          className="!w-full !h-auto aspect-video mt-4"
+          showPlaceholder={true}
+        />
+      </div>
     </CardLink>
   );
 }
