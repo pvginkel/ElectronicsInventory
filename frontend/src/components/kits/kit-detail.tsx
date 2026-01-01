@@ -620,23 +620,18 @@ function KitDetailLoaded({
 
       {/* Documents/Attachments Section */}
       <Card>
-        <CardHeader className="flex flex-col gap-3 border-b border-border/70 px-4 py-3 md:flex-row md:items-center md:justify-between space-y-0">
-          <div>
+        <CardHeader>
+          <div className="flex items-center justify-between">
             <CardTitle>Documents</CardTitle>
-          </div>
-          <div className="flex items-center gap-3">
             <Button
-              type="button"
-              variant="secondary"
-              size="sm"
               onClick={() => setShowAddDocument(true)}
+              size="sm"
               disabled={detail.status === 'archived'}
               title={detail.status === 'archived' ? 'Archived kits cannot be edited' : undefined}
               aria-disabled={detail.status === 'archived' ? 'true' : undefined}
               data-testid="kits.detail.documents.add"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Add document
+              Add Document
             </Button>
           </div>
         </CardHeader>
