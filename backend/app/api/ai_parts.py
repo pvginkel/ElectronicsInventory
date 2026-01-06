@@ -9,16 +9,21 @@ from spectree import Response as SpectreeResponse
 from werkzeug.datastructures import FileStorage
 
 from app.config import Settings
-from app.exceptions import InvalidOperationException
+from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.attachment import Attachment
 from app.schemas.ai_part_analysis import (
     AIPartAnalysisTaskResultSchema,
     AIPartCreateSchema,
 )
+from app.schemas.ai_part_cleanup import (
+    AIPartCleanupTaskResultSchema,
+    CleanupPartRequestSchema,
+)
 from app.schemas.common import ErrorResponseSchema
 from app.schemas.part import PartResponseSchema
 from app.schemas.task_schema import TaskStartResponse
 from app.services.ai_part_analysis_task import AIPartAnalysisTask
+from app.services.ai_part_cleanup_task import AIPartCleanupTask
 from app.services.container import ServiceContainer
 from app.services.document_service import DocumentService
 from app.services.part_service import PartService
@@ -251,3 +256,154 @@ def get_analysis_result(
             'error': 'Invalid result data format',
             'details': {'message': f'Task result validation failed: {str(e)}', 'field': 'result'}
         }), 404
+
+
+@ai_parts_bp.route("/cleanup", methods=["POST"])
+@api.validate(
+    json=CleanupPartRequestSchema,
+    resp=SpectreeResponse(HTTP_201=TaskStartResponse, HTTP_400=ErrorResponseSchema),
+)
+@handle_api_errors
+@inject
+def cleanup_part(
+    task_service: TaskService = Provide[ServiceContainer.task_service],
+    container: ServiceContainer = Provide[ServiceContainer],
+    settings: Settings = Provide[ServiceContainer.config],
+    part_service: PartService = Provide[ServiceContainer.part_service],
+) -> Any:
+    """
+    Start AI cleanup task for an existing part.
+
+    Accepts JSON with part_key and returns task ID and stream URL for
+    monitoring progress via SSE.
+    """
+    data = CleanupPartRequestSchema.model_validate(request.get_json())
+
+    # Validate part exists
+    try:
+        part_service.get_part(data.part_key)
+    except RecordNotFoundException:
+        return jsonify(
+            {
+                "error": f"Part with key {data.part_key} not found",
+                "details": {
+                    "message": f"No part found with key: {data.part_key}",
+                    "field": "part_key",
+                },
+            }
+        ), 400
+
+    # Short-circuit when real AI usage is disabled and no dummy response is configured
+    if not settings.real_ai_allowed and not settings.OPENAI_DUMMY_RESPONSE_PATH:
+        exception = InvalidOperationException(
+            "perform AI cleanup",
+            "real AI usage is disabled in testing mode",
+        )
+        return _build_error_response(
+            exception.message,
+            {"message": "The requested operation cannot be performed"},
+            code=exception.error_code,
+            status_code=400,
+        )
+
+    # Create and start the AI cleanup task
+    task = AIPartCleanupTask(container=container)
+
+    task_start_response = task_service.start_task(task=task, part_key=data.part_key)
+
+    return task_start_response.model_dump(), 201
+
+
+@ai_parts_bp.route("/cleanup/<task_id>/result", methods=["GET"])
+@api.validate(
+    resp=SpectreeResponse(
+        HTTP_200=AIPartCleanupTaskResultSchema, HTTP_404=ErrorResponseSchema
+    )
+)
+@handle_api_errors
+@inject
+def get_cleanup_result(
+    task_id: str,
+    task_service: TaskService = Provide[ServiceContainer.task_service],
+) -> Any:
+    """
+    Get the result of a completed AI part cleanup task.
+
+    This endpoint provides access to the structured cleanup result data
+    with proper OpenAPI schema documentation. While the same data is available
+    via SSE during task execution, this endpoint ensures the result schema
+    is included in the API documentation for client code generation.
+
+    Args:
+        task_id: The UUID of the completed cleanup task
+
+    Returns:
+        AIPartCleanupTaskResultSchema: The structured cleanup result
+
+    Raises:
+        404: If task is not found or not completed
+    """
+    # Get task status
+    task_info = task_service.get_task_status(task_id)
+    if not task_info:
+        return (
+            jsonify(
+                {
+                    "error": "Task not found",
+                    "details": {
+                        "message": f"No task found with ID: {task_id}",
+                        "field": "task_id",
+                    },
+                }
+            ),
+            404,
+        )
+
+    # Check if task is completed
+    if task_info.status != "completed":
+        return (
+            jsonify(
+                {
+                    "error": f"Task not completed (status: {task_info.status})",
+                    "details": {
+                        "message": "Task must be completed to retrieve results",
+                        "field": "status",
+                    },
+                }
+            ),
+            404,
+        )
+
+    # Check if task has result data
+    if not task_info.result:
+        return (
+            jsonify(
+                {
+                    "error": "No result data available",
+                    "details": {
+                        "message": "Task completed but no result data found",
+                        "field": "result",
+                    },
+                }
+            ),
+            404,
+        )
+
+    # Validate and return the result as properly typed schema
+    try:
+        result = AIPartCleanupTaskResultSchema.model_validate(task_info.result)
+        return result.model_dump(), 200
+    except Exception as e:
+        logger.error(f"Failed to validate task result for task {task_id}: {e}")
+        return (
+            jsonify(
+                {
+                    "error": "Invalid result data format",
+                    "details": {
+                        "message": f"Task result validation failed: {str(e)}",
+                        "field": "result",
+                    },
+                }
+            ),
+            404,
+        )

@@ -3,20 +3,23 @@
 import json
 import logging
 import os
-from typing import cast
+from typing import Any, cast
 from urllib.parse import quote
 
 from jinja2 import Environment
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
 from app.config import Settings
-from app.exceptions import InvalidOperationException
+from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.attachment import AttachmentType
+from app.models.part import Part
 from app.schemas.ai_part_analysis import (
     AIPartAnalysisResultSchema,
     DocumentSuggestionSchema,
     PartAnalysisDetailsSchema,
 )
+from app.schemas.ai_part_cleanup import CleanedPartDataSchema
 from app.schemas.duplicate_search import DuplicateMatchEntry
 from app.services.ai_model import PartAnalysisSuggestion
 from app.services.base import BaseService
@@ -289,14 +292,171 @@ class AIService(BaseService):
             logger.error(f"Failed to parse OpenAI response as JSON: {e}")
             raise Exception("Invalid response format from AI service") from e
 
-    def _build_prompt(self, categories: list[str]) -> str:
+    def cleanup_part(self, part_key: str, progress_handle: ProgressHandle) -> CleanedPartDataSchema:
+        """
+        Clean up and improve existing part data using AI.
+
+        Args:
+            part_key: 4-character part key to clean up
+            progress_handle: Interface for sending progress updates
+
+        Returns:
+            CleanedPartDataSchema with improved part data
+
+        Raises:
+            RecordNotFoundException: If part not found
+            InvalidOperationException: If AI disabled
+            Exception: If OpenAI API call fails
+        """
+        # Fetch target part with relationships
+        stmt = select(Part).where(Part.key == part_key).options(
+            selectinload(Part.type),
+            selectinload(Part.seller)
+        )
+        target_part = self.db.execute(stmt).scalar_one_or_none()
+
+        if not target_part:
+            raise RecordNotFoundException("Part", part_key)
+
+        # Fetch all other parts for context (excluding target)
+        all_parts_stmt = select(Part).where(Part.key != part_key).options(
+            selectinload(Part.type),
+            selectinload(Part.seller)
+        )
+        all_parts = self.db.execute(all_parts_stmt).scalars().all()
+
+        # Check part count limit to prevent OOM
+        if len(all_parts) > 10000:
+            raise InvalidOperationException(
+                "cleanup part",
+                f"Too many parts for cleanup context (limit: 10000, current: {len(all_parts)})"
+            )
+
+        # Get existing type names for context
+        existing_types = self.type_service.get_all_types()
+        type_names = [t.name for t in existing_types]
+
+        # Serialize all parts (except target) to JSON context
+        def serialize_part(part: Part) -> dict[str, Any]:
+            return {
+                "key": part.key,
+                "manufacturer_code": part.manufacturer_code,
+                "type": part.type.name if part.type else None,
+                "description": part.description,
+                "manufacturer": part.manufacturer,
+                "tags": part.tags or [],
+                "package": part.package,
+                "pin_count": part.pin_count,
+                "pin_pitch": part.pin_pitch,
+                "voltage_rating": part.voltage_rating,
+                "input_voltage": part.input_voltage,
+                "output_voltage": part.output_voltage,
+                "mounting_type": part.mounting_type,
+                "series": part.series,
+                "dimensions": part.dimensions,
+                "product_page": part.product_page,
+                "seller": part.seller.name if part.seller else None,
+                "seller_link": part.seller_link
+            }
+
+        context_parts = [serialize_part(p) for p in all_parts]
+        target_part_json = serialize_part(target_part)
+
+        # Build cleanup prompt
+        user_prompt = f"""Clean up this part:
+
+Target Part:
+{json.dumps(target_part_json, indent=2)}
+
+All Other Parts (for consistency reference):
+{json.dumps(context_parts, indent=2)}
+
+Review the target part against the field normalization rules and improve data quality. Return the complete cleaned part data in analysis_result."""
+
+        try:
+            if self.config.OPENAI_DUMMY_RESPONSE_PATH:
+                with open(self.config.OPENAI_DUMMY_RESPONSE_PATH) as f:
+                    ai_response = PartAnalysisSuggestion.model_validate(json.loads(f.read()))
+            else:
+                if not self.real_ai_allowed:
+                    raise InvalidOperationException(
+                        "perform AI cleanup",
+                        "real AI usage is disabled in testing mode",
+                    )
+
+                if not self.runner:
+                    raise InvalidOperationException(
+                        "perform AI cleanup",
+                        "the AI runner is not initialized",
+                    )
+
+                # Build system prompt with mode="cleanup"
+                system_prompt = self._build_prompt(type_names, mode="cleanup")
+
+                request = AIRequest(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    model=self.config.OPENAI_MODEL,
+                    verbosity=self.config.OPENAI_VERBOSITY,
+                    reasoning_effort=self.config.OPENAI_REASONING_EFFORT,
+                    reasoning_summary="auto",
+                    response_model=PartAnalysisSuggestion,
+                )
+
+                # Pass only url_classifier_function (exclude duplicate_search_function for cleanup)
+                response = self.runner.run(
+                    request,
+                    [self.url_classifier_function],
+                    progress_handle,
+                    True
+                )
+
+                ai_response = cast(PartAnalysisSuggestion, response.response)
+
+            # Extract analysis result (cleanup mode always populates this)
+            if not ai_response.analysis_result:
+                raise Exception("AI cleanup returned no analysis_result")
+
+            analysis_details = ai_response.analysis_result
+
+            # Map to CleanedPartDataSchema
+            cleaned_part = CleanedPartDataSchema(
+                key=part_key,
+                manufacturer_code=analysis_details.manufacturer_part_number,
+                type=analysis_details.product_category,
+                description=analysis_details.product_name,
+                manufacturer=analysis_details.manufacturer,
+                tags=analysis_details.tags or [],
+                package=analysis_details.package_type,
+                pin_count=analysis_details.part_pin_count,
+                pin_pitch=analysis_details.part_pin_pitch,
+                voltage_rating=analysis_details.voltage_rating,
+                input_voltage=analysis_details.input_voltage,
+                output_voltage=analysis_details.output_voltage,
+                mounting_type=analysis_details.mounting_type,
+                series=analysis_details.product_family,
+                dimensions=analysis_details.physical_dimensions,
+                product_page=analysis_details.product_page_urls[0] if analysis_details.product_page_urls else None,
+                # Preserve existing seller data - AI doesn't modify these; frontend handles seller changes
+                seller=target_part_json.get("seller"),
+                seller_link=target_part_json.get("seller_link")
+            )
+
+            return cleaned_part
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse OpenAI cleanup response as JSON: {e}")
+            raise Exception("Invalid response format from AI cleanup service") from e
+
+    def _build_prompt(self, categories: list[str], mode: str = "analysis") -> str:
         context = {
             "categories": categories,
-            "mouser_api_available": self.mouser_enabled
+            "mouser_api_available": self.mouser_enabled,
+            "mode": mode
         }
 
         prompt_path = os.path.join(
-            os.path.dirname(__file__), "prompts", "part_search.md"
+            os.path.dirname(__file__), "prompts", "part_analysis.md"
         )
         with open(prompt_path) as f:
             template_str = f.read()
