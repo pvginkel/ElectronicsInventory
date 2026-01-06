@@ -10,9 +10,9 @@ from app.schemas.mouser import (
     MouserSearchResponse,
 )
 from app.services.base_task import ProgressHandle
-from app.services.download_cache_service import DownloadCacheService, DownloadResult
+from app.services.download_cache_service import DownloadCacheService
 from app.services.mouser_service import MouserService
-from app.utils.ai.ai_runner import AIResponse, AIRunner
+from app.utils.ai.ai_runner import AIRunner
 from app.utils.ai.mouser_search import (
     SearchMouserByKeywordFunction,
     SearchMouserByPartNumberFunction,
