@@ -258,6 +258,7 @@ class ServiceContainer(containers.DeclarativeContainer):
         config=config,
         temp_file_manager=temp_file_manager,
         type_service=type_service,
+        seller_service=seller_service,
         download_cache_service=download_cache_service,
         document_service=document_service,
         metrics_service=metrics_service,
