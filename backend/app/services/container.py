@@ -20,6 +20,7 @@ from app.services.kit_reservation_service import KitReservationService
 from app.services.kit_service import KitService
 from app.services.kit_shopping_list_service import KitShoppingListService
 from app.services.metrics_service import MetricsService
+from app.services.mouser_service import MouserService
 from app.services.part_service import PartService
 from app.services.pick_list_report_service import PickListReportService
 from app.services.s3_service import S3Service
@@ -35,6 +36,12 @@ from app.services.url_transformers import LCSCInterceptor, URLInterceptorRegistr
 from app.services.version_service import VersionService
 from app.utils.ai.ai_runner import AIRunner
 from app.utils.ai.duplicate_search import DuplicateSearchFunction
+from app.utils.ai.extract_specs import ExtractPartSpecsFromURLFunction
+from app.utils.ai.mouser_image import GetMouserImageFromProductDetailUrlFunction
+from app.utils.ai.mouser_search import (
+    SearchMouserByKeywordFunction,
+    SearchMouserByPartNumberFunction,
+)
 from app.utils.reset_lock import ResetLock
 from app.utils.shutdown_coordinator import ShutdownCoordinator
 from app.utils.temp_file_manager import TempFileManager
@@ -228,6 +235,35 @@ class ServiceContainer(containers.DeclarativeContainer):
         duplicate_search_service=duplicate_search_service
     )
 
+    # Mouser service and functions
+    mouser_service = providers.Factory(
+        MouserService,
+        config=config,
+        download_cache_service=download_cache_service,
+        metrics_service=metrics_service
+    )
+
+    mouser_part_number_search_function = providers.Factory(
+        SearchMouserByPartNumberFunction,
+        mouser_service=mouser_service
+    )
+
+    mouser_keyword_search_function = providers.Factory(
+        SearchMouserByKeywordFunction,
+        mouser_service=mouser_service
+    )
+
+    mouser_image_function = providers.Factory(
+        GetMouserImageFromProductDetailUrlFunction,
+        download_cache_service=download_cache_service
+    )
+
+    extract_specs_function = providers.Factory(
+        ExtractPartSpecsFromURLFunction,
+        download_cache_service=download_cache_service,
+        ai_runner=ai_runner
+    )
+
     # AI service
     ai_service = providers.Factory(
         AIService,
@@ -238,7 +274,11 @@ class ServiceContainer(containers.DeclarativeContainer):
         download_cache_service=download_cache_service,
         document_service=document_service,
         metrics_service=metrics_service,
-        duplicate_search_function=duplicate_search_function
+        duplicate_search_function=duplicate_search_function,
+        mouser_part_number_search_function=mouser_part_number_search_function,
+        mouser_keyword_search_function=mouser_keyword_search_function,
+        mouser_image_function=mouser_image_function,
+        extract_specs_function=extract_specs_function
     )
 
     # Version service - Singleton managing SSE subscribers

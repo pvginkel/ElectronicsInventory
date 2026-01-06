@@ -1,7 +1,9 @@
 """Download cache service for centralized URL downloading and caching."""
 
+import hashlib
+import json
 import logging
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import requests
 import validators
@@ -77,6 +79,72 @@ class DownloadCacheService:
             logger.warning(f"Failed to cache content for URL: {url}")
 
         return result
+
+    def post_cached_json(
+        self,
+        url: str,
+        json_body: dict[str, Any],
+        headers: dict[str, str] | None = None,
+        timeout: int | None = None,
+    ) -> dict[str, Any]:
+        """
+        Execute a POST request with JSON body, using cache.
+
+        Cache key is derived from method, URL, and JSON body hash to ensure
+        different request bodies to the same URL produce different cache entries.
+
+        Args:
+            url: URL to POST to
+            json_body: JSON body to send
+            headers: Optional additional headers
+            timeout: Optional timeout override
+
+        Returns:
+            Parsed JSON response
+
+        Raises:
+            requests.RequestException: On network errors
+            ValueError: On invalid response
+        """
+        # Build composite cache key: {url}#POST#{body_hash}
+        body_json = json.dumps(json_body, sort_keys=True).encode('utf-8')
+        body_hash = hashlib.sha256(body_json).hexdigest()
+        cache_key = f"{url}#POST#{body_hash}"
+
+        # Check cache first
+        cached = self.temp_file_manager.get_cached(cache_key)
+        if cached is not None:
+            logger.debug(f"Cache hit for POST request to {url}")
+            return json.loads(cached.content.decode('utf-8'))
+
+        # Cache miss - make actual request
+        logger.debug(f"Cache miss for POST request to {url}, sending request...")
+
+        request_headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+        }
+        if headers:
+            request_headers.update(headers)
+
+        response = requests.post(
+            url,
+            json=json_body,
+            headers=request_headers,
+            timeout=timeout or self.download_timeout,
+        )
+        response.raise_for_status()
+        response_data = response.json()
+
+        # Cache the response
+        response_bytes = json.dumps(response_data).encode('utf-8')
+        if self.temp_file_manager.cache(cache_key, response_bytes, "application/json"):
+            logger.debug(f"Successfully cached POST response for {url}")
+        else:
+            logger.warning(f"Failed to cache POST response for {url}")
+
+        return response_data
 
     def validate_url(self, url: str) -> bool:
         """

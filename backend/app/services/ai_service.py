@@ -50,6 +50,10 @@ class AIService(BaseService):
         document_service: DocumentService,
         metrics_service: MetricsServiceProtocol,
         duplicate_search_function: AIFunction,
+        mouser_part_number_search_function: AIFunction,
+        mouser_keyword_search_function: AIFunction,
+        mouser_image_function: AIFunction,
+        extract_specs_function: AIFunction,
     ) -> None:
         super().__init__(db)
         self.config = config
@@ -61,6 +65,15 @@ class AIService(BaseService):
         self.duplicate_search_function = duplicate_search_function
         self.real_ai_allowed = config.real_ai_allowed
         self.runner: AIRunner | None = None
+
+        # Mouser function tools - conditionally enabled based on API key
+        self.mouser_enabled = bool(config.MOUSER_SEARCH_API_KEY)
+        self.mouser_part_number_search_function = mouser_part_number_search_function
+        self.mouser_keyword_search_function = mouser_keyword_search_function
+
+        # Image and spec extraction functions - always available (no API key required)
+        self.mouser_image_function = mouser_image_function
+        self.extract_specs_function = extract_specs_function
 
         # Initialize OpenAI client only when real AI interactions are permitted
         if self.real_ai_allowed:
@@ -123,10 +136,26 @@ class AIService(BaseService):
                     response_model=PartAnalysisSuggestion,
                 )
 
-                # Pass both url_classifier and duplicate_search functions to the runner
+                # Build function tools list
+                function_tools: list[AIFunction] = [
+                    self.url_classifier_function,
+                    self.duplicate_search_function,
+                    # Always include image and spec extraction functions
+                    self.mouser_image_function,
+                    self.extract_specs_function,
+                ]
+
+                # Conditionally include Mouser search functions if API key configured
+                if self.mouser_enabled:
+                    function_tools.extend([
+                        self.mouser_part_number_search_function,
+                        self.mouser_keyword_search_function,
+                    ])
+
+                # Pass all available functions to the runner
                 response = self.runner.run(
                     request,
-                    [self.url_classifier_function, self.duplicate_search_function],
+                    function_tools,
                     progress_handle,
                     True
                 )
@@ -234,7 +263,8 @@ class AIService(BaseService):
 
     def _build_prompt(self, categories: list[str]) -> str:
         context = {
-            "categories": categories
+            "categories": categories,
+            "mouser_api_available": self.mouser_enabled
         }
 
         prompt_path = os.path.join(

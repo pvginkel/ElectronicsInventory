@@ -295,3 +295,110 @@ class TestSellerService:
         assert seller.website == long_website
         assert len(seller.name) == 255
         assert len(seller.website) == 500
+
+    def test_get_or_create_seller_creates_new(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test get_or_create_seller creates a new seller when it doesn't exist."""
+        service = container.seller_service()
+
+        # Create seller using get_or_create with explicit website
+        seller = service.get_or_create_seller("Mouser", "https://www.mouser.com")
+
+        assert seller.id is not None
+        assert seller.name == "Mouser"
+        assert seller.website == "https://www.mouser.com"
+        assert seller.created_at is not None
+
+    def test_get_or_create_seller_creates_new_with_default_website(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test get_or_create_seller creates a new seller with generated placeholder website."""
+        service = container.seller_service()
+
+        # Create seller using get_or_create without website (generates placeholder)
+        seller = service.get_or_create_seller("DigiKey")
+
+        assert seller.id is not None
+        assert seller.name == "DigiKey"
+        # Should generate placeholder website from seller name
+        assert seller.website == "https://www.digikey.com"
+        assert seller.created_at is not None
+
+    def test_get_or_create_seller_returns_existing(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test get_or_create_seller returns existing seller."""
+        service = container.seller_service()
+
+        # Create seller first
+        original_seller = service.create_seller("DigiKey", "https://www.digikey.com")
+        original_id = original_seller.id
+
+        # Call get_or_create with same name
+        retrieved_seller = service.get_or_create_seller("DigiKey")
+
+        # Should return the same seller, not create a new one
+        assert retrieved_seller.id == original_id
+        assert retrieved_seller.name == "DigiKey"
+        assert retrieved_seller.website == "https://www.digikey.com"
+
+    def test_get_or_create_seller_case_insensitive(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test get_or_create_seller is case-insensitive."""
+        service = container.seller_service()
+
+        # Create seller with lowercase
+        original_seller = service.create_seller("mouser", "https://www.mouser.com")
+        original_id = original_seller.id
+
+        # Try to get_or_create with different case
+        retrieved_seller = service.get_or_create_seller("Mouser")
+
+        # Should return existing seller (case-insensitive match)
+        assert retrieved_seller.id == original_id
+        assert retrieved_seller.name == "mouser"  # Original case preserved
+
+    def test_get_or_create_seller_case_insensitive_uppercase(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test get_or_create_seller is case-insensitive with uppercase."""
+        service = container.seller_service()
+
+        # Create seller with uppercase
+        original_seller = service.create_seller("DIGIKEY", "https://www.digikey.com")
+        original_id = original_seller.id
+
+        # Try to get_or_create with lowercase
+        retrieved_seller = service.get_or_create_seller("digikey")
+
+        # Should return existing seller (case-insensitive match)
+        assert retrieved_seller.id == original_id
+        assert retrieved_seller.name == "DIGIKEY"  # Original case preserved
+
+    def test_get_or_create_seller_race_condition(self, app: Flask, session: Session, container: ServiceContainer):
+        """Test get_or_create_seller handles race condition gracefully."""
+        from unittest.mock import patch
+
+        from sqlalchemy.exc import IntegrityError
+
+        service = container.seller_service()
+
+        # Simulate race condition: first call creates seller, second call gets IntegrityError
+        # then successfully retrieves it
+        call_count = [0]
+
+        original_add = session.add
+
+        def mock_add(instance):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                # First call: raise IntegrityError to simulate race condition
+                raise IntegrityError("duplicate key", None, None)
+            else:
+                # Subsequent calls: normal behavior
+                return original_add(instance)
+
+        # Pre-create the seller that would be created in the "race"
+        service.create_seller("Amazon", "https://www.amazon.com")
+        session.flush()
+
+        # Now test the race condition handling
+        with patch.object(session, 'add', side_effect=mock_add):
+            # This should catch the IntegrityError and retry by querying
+            seller = service.get_or_create_seller("Amazon")
+
+            # Should successfully return the existing seller
+            assert seller.name == "Amazon"
+            assert seller.website == "https://www.amazon.com"

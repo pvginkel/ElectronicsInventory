@@ -133,6 +133,11 @@ class Settings(BaseSettings):
         description="When true, disallows real AI analysis requests regardless of API key configuration",
     )
 
+    # Mouser API settings
+    MOUSER_SEARCH_API_KEY: str = Field(
+        default="", description="Mouser Search API key for part search integration"
+    )
+
     # Task management settings
     TASK_MAX_WORKERS: int = Field(
         default=4,

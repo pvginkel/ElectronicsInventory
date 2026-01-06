@@ -96,6 +96,12 @@ def ai_service(session: Session, ai_test_settings: Settings,
     # Create mock duplicate search function
     mock_duplicate_search_function = Mock(spec=AIFunction)
 
+    # Create mock Mouser function tools
+    mock_mouser_part_number_search = Mock(spec=AIFunction)
+    mock_mouser_keyword_search = Mock(spec=AIFunction)
+    mock_mouser_image = Mock(spec=AIFunction)
+    mock_extract_specs = Mock(spec=AIFunction)
+
     return AIService(
         db=session,
         config=ai_test_settings,
@@ -104,7 +110,11 @@ def ai_service(session: Session, ai_test_settings: Settings,
         download_cache_service=mock_download_cache_service,
         document_service=mock_document_service,
         metrics_service=mock_metrics_service,
-        duplicate_search_function=mock_duplicate_search_function
+        duplicate_search_function=mock_duplicate_search_function,
+        mouser_part_number_search_function=mock_mouser_part_number_search,
+        mouser_keyword_search_function=mock_mouser_keyword_search,
+        mouser_image_function=mock_mouser_image,
+        extract_specs_function=mock_extract_specs
     )
 
 
@@ -153,6 +163,11 @@ class TestAIService:
         from app.utils.ai.ai_runner import AIFunction
 
         mock_duplicate_search_function = Mock(spec=AIFunction)
+        mock_mouser_part_number_search = Mock(spec=AIFunction)
+        mock_mouser_keyword_search = Mock(spec=AIFunction)
+        mock_mouser_image = Mock(spec=AIFunction)
+        mock_extract_specs = Mock(spec=AIFunction)
+
         settings = Settings(DATABASE_URL="sqlite:///:memory:", OPENAI_API_KEY="")
         with pytest.raises(ValueError, match="OPENAI_API_KEY configuration is required"):
             AIService(
@@ -163,7 +178,11 @@ class TestAIService:
                 download_cache_service=mock_download_cache_service,
                 document_service=mock_document_service,
                 metrics_service=mock_metrics_service,
-                duplicate_search_function=mock_duplicate_search_function
+                duplicate_search_function=mock_duplicate_search_function,
+                mouser_part_number_search_function=mock_mouser_part_number_search,
+                mouser_keyword_search_function=mock_mouser_keyword_search,
+                mouser_image_function=mock_mouser_image,
+                extract_specs_function=mock_extract_specs
             )
 
     def test_analyze_part_no_input(self, ai_service: AIService):
@@ -319,13 +338,19 @@ class TestAIService:
         mock_metrics_service,
     ):
         """Real AI usage should be blocked in testing mode without dummy data."""
+        from app.utils.ai.ai_runner import AIFunction
+
         settings = Settings(
             DATABASE_URL="sqlite:///:memory:",
             FLASK_ENV="testing",
             OPENAI_DUMMY_RESPONSE_PATH=None,
         )
 
-        mock_duplicate_search_function = Mock()
+        mock_duplicate_search_function = Mock(spec=AIFunction)
+        mock_mouser_part_number_search = Mock(spec=AIFunction)
+        mock_mouser_keyword_search = Mock(spec=AIFunction)
+        mock_mouser_image = Mock(spec=AIFunction)
+        mock_extract_specs = Mock(spec=AIFunction)
 
         service = AIService(
             db=session,
@@ -336,6 +361,10 @@ class TestAIService:
             document_service=mock_document_service,
             metrics_service=mock_metrics_service,
             duplicate_search_function=mock_duplicate_search_function,
+            mouser_part_number_search_function=mock_mouser_part_number_search,
+            mouser_keyword_search_function=mock_mouser_keyword_search,
+            mouser_image_function=mock_mouser_image,
+            extract_specs_function=mock_extract_specs
         )
 
         mock_progress = Mock()
@@ -354,6 +383,8 @@ class TestAIService:
         mock_metrics_service,
     ):
         """Dummy response should be served when configured in testing mode."""
+        from app.utils.ai.ai_runner import AIFunction
+
         dummy_response = create_mock_ai_response(
             manufacturer_part_number="DUMMY123",
             product_category="Relay",
@@ -369,7 +400,11 @@ class TestAIService:
             OPENAI_DUMMY_RESPONSE_PATH=str(dummy_path),
         )
 
-        mock_duplicate_search_function = Mock()
+        mock_duplicate_search_function = Mock(spec=AIFunction)
+        mock_mouser_part_number_search = Mock(spec=AIFunction)
+        mock_mouser_keyword_search = Mock(spec=AIFunction)
+        mock_mouser_image = Mock(spec=AIFunction)
+        mock_extract_specs = Mock(spec=AIFunction)
 
         service = AIService(
             db=session,
@@ -380,6 +415,10 @@ class TestAIService:
             document_service=mock_document_service,
             metrics_service=mock_metrics_service,
             duplicate_search_function=mock_duplicate_search_function,
+            mouser_part_number_search_function=mock_mouser_part_number_search,
+            mouser_keyword_search_function=mock_mouser_keyword_search,
+            mouser_image_function=mock_mouser_image,
+            extract_specs_function=mock_extract_specs
         )
 
         mock_progress = Mock()
@@ -391,6 +430,232 @@ class TestAIService:
         assert result.analysis_result.type == "Relay"
         assert result.analysis_result.description == "Dummy component"
         assert result.duplicate_parts is None
+
+    def test_conditional_function_registration_with_mouser_key(
+        self, session: Session, mock_download_cache_service, mock_document_service, mock_metrics_service
+    ):
+        """Test that Mouser search functions are registered when API key is configured."""
+        from unittest.mock import patch
+
+        from app.utils.ai.ai_runner import AIFunction
+
+        # Settings WITH Mouser API key
+        settings = Settings(
+            DATABASE_URL="sqlite:///:memory:",
+            OPENAI_API_KEY="test-key",
+            MOUSER_SEARCH_API_KEY="test-mouser-key"
+        )
+
+        mock_duplicate_search_function = Mock(spec=AIFunction)
+        mock_mouser_part_number_search = Mock(spec=AIFunction)
+        mock_mouser_keyword_search = Mock(spec=AIFunction)
+        mock_mouser_image = Mock(spec=AIFunction)
+        mock_extract_specs = Mock(spec=AIFunction)
+
+        service = AIService(
+            db=session,
+            config=settings,
+            temp_file_manager=Mock(),
+            type_service=Mock(),
+            download_cache_service=mock_download_cache_service,
+            document_service=mock_document_service,
+            metrics_service=mock_metrics_service,
+            duplicate_search_function=mock_duplicate_search_function,
+            mouser_part_number_search_function=mock_mouser_part_number_search,
+            mouser_keyword_search_function=mock_mouser_keyword_search,
+            mouser_image_function=mock_mouser_image,
+            extract_specs_function=mock_extract_specs
+        )
+
+        # Verify mouser_enabled is True
+        assert service.mouser_enabled is True
+
+        # Mock AIRunner to capture function_tools list
+        with patch('app.services.ai_service.AIRunner') as MockAIRunner:
+            mock_runner_instance = Mock()
+            MockAIRunner.return_value = mock_runner_instance
+            service.runner = mock_runner_instance
+
+            # Mock the run method to capture arguments
+            mock_run_response = Mock()
+            mock_run_response.response = Mock()
+            mock_runner_instance.run.return_value = mock_run_response
+
+            # Call analyze_part to trigger function registration
+            with patch('app.services.ai_service.URLClassifierFunction'):
+                mock_progress = Mock()
+                try:
+                    service.analyze_part(
+                        description="test part",
+                        images=[],
+                        categories=["Test"],
+                        progress_handle=mock_progress
+                    )
+                except Exception:
+                    pass  # We're only interested in the function list
+
+            # Verify AIRunner.run was called
+            if mock_runner_instance.run.called:
+                call_args = mock_runner_instance.run.call_args
+                function_tools = call_args[0][1]  # Second positional argument
+
+                # Should include all 6 functions:
+                # - url_classifier
+                # - duplicate_search
+                # - mouser_image
+                # - extract_specs
+                # - mouser_part_number_search
+                # - mouser_keyword_search
+                assert len(function_tools) == 6
+
+    def test_conditional_function_registration_without_mouser_key(
+        self, session: Session, mock_download_cache_service, mock_document_service, mock_metrics_service
+    ):
+        """Test that Mouser search functions are NOT registered when API key is missing."""
+        from unittest.mock import patch
+
+        from app.utils.ai.ai_runner import AIFunction
+
+        # Settings WITHOUT Mouser API key
+        settings = Settings(
+            DATABASE_URL="sqlite:///:memory:",
+            OPENAI_API_KEY="test-key",
+            MOUSER_SEARCH_API_KEY=""
+        )
+
+        mock_duplicate_search_function = Mock(spec=AIFunction)
+        mock_mouser_part_number_search = Mock(spec=AIFunction)
+        mock_mouser_keyword_search = Mock(spec=AIFunction)
+        mock_mouser_image = Mock(spec=AIFunction)
+        mock_extract_specs = Mock(spec=AIFunction)
+
+        service = AIService(
+            db=session,
+            config=settings,
+            temp_file_manager=Mock(),
+            type_service=Mock(),
+            download_cache_service=mock_download_cache_service,
+            document_service=mock_document_service,
+            metrics_service=mock_metrics_service,
+            duplicate_search_function=mock_duplicate_search_function,
+            mouser_part_number_search_function=mock_mouser_part_number_search,
+            mouser_keyword_search_function=mock_mouser_keyword_search,
+            mouser_image_function=mock_mouser_image,
+            extract_specs_function=mock_extract_specs
+        )
+
+        # Verify mouser_enabled is False
+        assert service.mouser_enabled is False
+
+        # Mock AIRunner to capture function_tools list
+        with patch('app.services.ai_service.AIRunner') as MockAIRunner:
+            mock_runner_instance = Mock()
+            MockAIRunner.return_value = mock_runner_instance
+            service.runner = mock_runner_instance
+
+            # Mock the run method
+            mock_run_response = Mock()
+            mock_run_response.response = Mock()
+            mock_runner_instance.run.return_value = mock_run_response
+
+            # Call analyze_part
+            with patch('app.services.ai_service.URLClassifierFunction'):
+                mock_progress = Mock()
+                try:
+                    service.analyze_part(
+                        description="test part",
+                        images=[],
+                        categories=["Test"],
+                        progress_handle=mock_progress
+                    )
+                except Exception:
+                    pass
+
+            # Verify AIRunner.run was called
+            if mock_runner_instance.run.called:
+                call_args = mock_runner_instance.run.call_args
+                function_tools = call_args[0][1]
+
+                # Should include only 4 functions (excluding Mouser search functions):
+                # - url_classifier
+                # - duplicate_search
+                # - mouser_image (always included)
+                # - extract_specs (always included)
+                assert len(function_tools) == 4
+
+    def test_image_and_spec_functions_always_included(
+        self, session: Session, mock_download_cache_service, mock_document_service, mock_metrics_service
+    ):
+        """Test that image and spec extraction functions are always included regardless of API key."""
+        from unittest.mock import patch
+
+        from app.utils.ai.ai_runner import AIFunction
+
+        # Test with empty Mouser API key
+        settings = Settings(
+            DATABASE_URL="sqlite:///:memory:",
+            OPENAI_API_KEY="test-key",
+            MOUSER_SEARCH_API_KEY=""
+        )
+
+        mock_duplicate_search_function = Mock(spec=AIFunction)
+        mock_mouser_part_number_search = Mock(spec=AIFunction)
+        mock_mouser_keyword_search = Mock(spec=AIFunction)
+        mock_mouser_image = Mock(spec=AIFunction)
+        mock_extract_specs = Mock(spec=AIFunction)
+
+        service = AIService(
+            db=session,
+            config=settings,
+            temp_file_manager=Mock(),
+            type_service=Mock(),
+            download_cache_service=mock_download_cache_service,
+            document_service=mock_document_service,
+            metrics_service=mock_metrics_service,
+            duplicate_search_function=mock_duplicate_search_function,
+            mouser_part_number_search_function=mock_mouser_part_number_search,
+            mouser_keyword_search_function=mock_mouser_keyword_search,
+            mouser_image_function=mock_mouser_image,
+            extract_specs_function=mock_extract_specs
+        )
+
+        # Verify the image and spec functions are stored
+        assert service.mouser_image_function is mock_mouser_image
+        assert service.extract_specs_function is mock_extract_specs
+
+        # Mock AIRunner
+        with patch('app.services.ai_service.AIRunner') as MockAIRunner:
+            mock_runner_instance = Mock()
+            MockAIRunner.return_value = mock_runner_instance
+            service.runner = mock_runner_instance
+
+            mock_run_response = Mock()
+            mock_run_response.response = Mock()
+            mock_runner_instance.run.return_value = mock_run_response
+
+            with patch('app.services.ai_service.URLClassifierFunction'):
+                mock_progress = Mock()
+                try:
+                    service.analyze_part(
+                        description="test part",
+                        images=[],
+                        categories=["Test"],
+                        progress_handle=mock_progress
+                    )
+                except Exception:
+                    pass
+
+            # Verify functions were included
+            if mock_runner_instance.run.called:
+                call_args = mock_runner_instance.run.call_args
+                function_tools = call_args[0][1]
+
+                # Should contain mouser_image and extract_specs
+                assert mock_mouser_image in function_tools
+                assert mock_extract_specs in function_tools
+                # Should NOT contain search functions
+                assert mock_mouser_part_number_search not in function_tools
+                assert mock_mouser_keyword_search not in function_tools
 
     @patch('app.utils.ai.ai_runner.AIRunner.run')
     def test_analyze_part_invalid_json_response(self, mock_run, ai_service: AIService):

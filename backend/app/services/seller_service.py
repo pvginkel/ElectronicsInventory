@@ -115,3 +115,41 @@ class SellerService(BaseService):
 
         self.db.delete(seller)
         self.db.flush()
+
+    def get_or_create_seller(self, name: str, website: str | None = None) -> Seller:
+        """Get an existing seller by name or create a new one with minimal data.
+
+        Args:
+            name: Seller name
+            website: Seller website (defaults to placeholder if not provided)
+
+        Returns:
+            Existing or newly created Seller instance
+        """
+        # Try to find existing seller (case-insensitive)
+        seller = self.db.scalar(
+            select(Seller).where(Seller.name.ilike(name))
+        )
+
+        if seller:
+            return seller
+
+        # Create new seller with placeholder website if not provided
+        if website is None:
+            website = f"https://www.{name.lower().replace(' ', '')}.com"
+
+        # Create new seller
+        try:
+            seller = Seller(name=name, website=website)
+            self.db.add(seller)
+            self.db.flush()
+            return seller
+        except IntegrityError as e:
+            # Handle race condition: another transaction created the seller
+            self.db.rollback()
+            seller = self.db.scalar(
+                select(Seller).where(Seller.name.ilike(name))
+            )
+            if seller:
+                return seller
+            raise ResourceConflictException("seller", name) from e
