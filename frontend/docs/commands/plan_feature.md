@@ -32,6 +32,8 @@ The answer is 42
 
 > If the prompt stays ambiguous **after** code/doc research, ask a **small, blocking set** of clarifying questions; otherwise proceed.
 
+* **User Requirements Checklist** (provided by the orchestrator). The orchestrator extracts explicit requirements from the user's prompt and provides a pre-built checklist. You **must include this checklist verbatim** in the plan output — do not rephrase, reinterpret, or omit any items.
+
 ---
 
 ## Deliverable format (headings to include in the plan)
@@ -69,6 +71,18 @@ Use the template in `<intent_scope_template>` for each plan:
 
 <dependencies, data freshness, rollout limits, cross-repo handoffs>
 </intent_scope_template>
+
+### 1a) User Requirements Checklist
+
+This section contains the explicit requirements extracted from the user's prompt by the orchestrator. **Include the checklist exactly as provided — do not modify, rephrase, or omit any items.**
+
+This checklist serves as a verification artifact: after implementation, a separate agent will use it to confirm that every requirement has been addressed.
+
+<user_requirements_checklist_template>
+**User Requirements Checklist**
+
+<checklist items provided verbatim by the orchestrator>
+</user_requirements_checklist_template>
 
 ### 2) Affected Areas & File Map (with repository evidence)
 

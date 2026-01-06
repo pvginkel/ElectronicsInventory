@@ -14,16 +14,18 @@ This document describes the workflow for executing a reviewed plan. The orchestr
 When a user provides the location of a reviewed plan, the orchestrating agent is responsible for:
 
 1. Delegating code implementation to the code-writer agent
-2. Coordinating comprehensive code reviews through the code-reviewer agent
-3. Resolving identified issues
-4. Ensuring quality delivery before completion
-5. Creating a comprehensive plan execution report
+2. Verifying all user requirements from the checklist have been implemented
+3. Coordinating comprehensive code reviews through the code-reviewer agent
+4. Resolving identified issues
+5. Ensuring quality delivery before completion
+6. Creating a comprehensive plan execution report
 
 ## Output Artifacts
 
 The workflow produces these artifacts in the same folder as the plan:
 
 - `plan.md` — The feature plan (provided by user)
+- `requirements_verification.md` — Verification that all checklist items were implemented
 - `code_review.md` — Comprehensive code review findings
 - `plan_execution_report.md` — Final execution summary (required)
 
@@ -58,7 +60,48 @@ Before proceeding to code review:
 - [ ] Review git diff for unexpected changes
 - [ ] Verify new test specs were created as required by plan
 
-### Step 3: Code Review
+### Step 3: Requirements Verification
+
+**Purpose**: Verify that every item in the User Requirements Checklist (section 1a of the plan) has been implemented.
+
+**Critical**: Use a **fresh agent session** for each verification run. Do NOT reuse agent sessions for this step.
+
+1. **Launch a new verification agent** (use the `Explore` agent type):
+   - Provide the path to the plan containing the User Requirements Checklist
+   - Instruct the agent to find concrete evidence (code, tests, or other artifacts) that each checklist item has been implemented
+   - The agent must produce a verification report with pass/fail status for each item
+
+   ```
+   Use the Task tool with the Explore agent to verify implementation of all requirements.
+
+   Read the User Requirements Checklist from section 1a of docs/features/<FEATURE_NAME>/plan.md.
+
+   For EACH checklist item, find concrete evidence in the codebase that proves it has been implemented. Evidence can include:
+   - Code that implements the functionality
+   - Tests that verify the behavior
+   - UI components or configuration changes
+
+   Produce a verification report with:
+   - Each checklist item
+   - PASS or FAIL status
+   - Evidence location (file:line) or explanation of what's missing
+
+   Write the report to: docs/features/<FEATURE_NAME>/requirements_verification.md
+   ```
+
+2. **Review the verification report**:
+   - If all items pass: proceed to Step 4 (Code Review)
+   - If any items fail: continue to step 3 below
+
+3. **Handle gaps** (if any items failed):
+   - Feed the failed items back to the code-writer agent with instructions to address the gaps
+   - After the code-writer addresses the gaps, run the verification checkpoint (Step 2) again
+   - Then run Requirements Verification again **with a fresh agent session** (do NOT resume the previous verification agent)
+   - Repeat until all checklist items pass
+
+**Output**: `docs/features/<FEATURE_NAME>/requirements_verification.md`
+
+### Step 4: Code Review
 
 Use the **code-reviewer agent** to perform a comprehensive review:
 
@@ -93,7 +136,7 @@ Use the **code-reviewer agent** to perform a comprehensive review:
    - Place subsequent reviews at new locations: `code_review_2.md`, `code_review_3.md`, etc.
    - Repeat the review and resolution steps until quality standards are met
 
-### Step 4: Plan Execution Report
+### Step 5: Plan Execution Report
 
 **Required**: Create a comprehensive `plan_execution_report.md` document in the same folder as the plan.
 
@@ -130,6 +173,7 @@ The report MUST include:
 Before considering the work complete:
 
 - All plan requirements are implemented
+- **Requirements verification has passed** (all checklist items from section 1a confirmed)
 - Code review has been completed with decision GO or GO-WITH-CONDITIONS
 - ALL issues identified in code review are resolved (BLOCKER, MAJOR, and MINOR)
 - `pnpm check` passes with no errors
@@ -153,32 +197,38 @@ Before considering the work complete:
    → Run affected test suites
    → Review git diff
 
-4. Orchestrator: Delete existing code_review.md if present
+4. Orchestrator: Requirements verification (NEW agent session)
+   → Launch Explore agent to verify User Requirements Checklist
+   → Agent reads checklist from plan section 1a
+   → Agent finds evidence for each item, writes requirements_verification.md
+   → If any items FAIL: feed gaps to code-writer, re-run steps 3-4 with fresh agent
 
-5. Orchestrator: Launch code-reviewer agent
+5. Orchestrator: Delete existing code_review.md if present
+
+6. Orchestrator: Launch code-reviewer agent
    → Specify plan path: docs/features/shopping-cart/plan.md
    → Specify review output: docs/features/shopping-cart/code_review.md
    → Request review of unstaged changes
 
-6. Orchestrator: Review the code_review.md document
+7. Orchestrator: Review the code_review.md document
    → Answer questions about UI patterns by searching codebase
    → Answer questions about data handling by finding similar implementations
 
-7. Orchestrator: Request code-reviewer agent to resolve ALL identified issues
+8. Orchestrator: Request code-reviewer agent to resolve ALL identified issues
    → Provide context about specific issues to fix (including minor ones)
 
-8. Orchestrator: Verification checkpoint (after fixes)
+9. Orchestrator: Verification checkpoint (after fixes)
    → Run `pnpm check` again
    → Run ALL affected test suites
    → Verify fixes address review findings
 
-9. Orchestrator: If confident, create plan_execution_report.md
-   → Include status, summary, what was implemented, files changed
-   → Document verification results
-   → List any outstanding work or suggestions
-   → Provide next steps for user
+10. Orchestrator: If confident, create plan_execution_report.md
+    → Include status, summary, what was implemented, files changed
+    → Document verification results
+    → List any outstanding work or suggestions
+    → Provide next steps for user
 
-10. Orchestrator: Mark work complete
+11. Orchestrator: Mark work complete
     → If not confident after 3 iterations, escalate to user
 ```
 
