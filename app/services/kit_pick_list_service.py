@@ -90,9 +90,8 @@ class KitPickListService(BaseService):
             base_available_by_location: dict[int, int] = {}
             total_available = 0
             for candidate in part_locations:
-                reserved_for_location = reserved_by_location.get(
-                    candidate.location_id, 0
-                )
+                reservation_key = (content.part_id, candidate.location_id)
+                reserved_for_location = reserved_by_location.get(reservation_key, 0)
                 available_quantity = max(candidate.qty - reserved_for_location, 0)
                 base_available_by_location[candidate.location_id] = (
                     available_quantity
@@ -136,8 +135,9 @@ class KitPickListService(BaseService):
 
                 planned_lines.append((content, allocation, candidate))
                 remaining -= allocation
-                reserved_by_location[candidate.location_id] = (
-                    reserved_by_location.get(candidate.location_id, 0) + allocation
+                reservation_key = (content.part_id, candidate.location_id)
+                reserved_by_location[reservation_key] = (
+                    reserved_by_location.get(reservation_key, 0) + allocation
                 )
 
             if remaining > 0:
@@ -522,25 +522,28 @@ class KitPickListService(BaseService):
     def _load_open_line_reservations(
         self,
         location_ids: Sequence[int],
-    ) -> dict[int, int]:
-        """Return reserved quantities for locations from open pick list lines."""
+    ) -> dict[tuple[int, int], int]:
+        """Return reserved quantities for (part_id, location_id) from open pick list lines."""
         if not location_ids:
             return {}
 
         unique_ids = tuple(dict.fromkeys(location_ids))
         stmt = (
             select(
+                KitContent.part_id,
                 KitPickListLine.location_id,
                 func.coalesce(func.sum(KitPickListLine.quantity_to_pick), 0),
             )
+            .join(KitContent, KitContent.id == KitPickListLine.kit_content_id)
             .where(
                 KitPickListLine.location_id.in_(unique_ids),
                 KitPickListLine.status == PickListLineStatus.OPEN,
             )
-            .group_by(KitPickListLine.location_id)
+            .group_by(KitContent.part_id, KitPickListLine.location_id)
         )
 
-        reservations = {
-            location_id: int(total or 0) for location_id, total in self.db.execute(stmt)
+        reservations: dict[tuple[int, int], int] = {
+            (int(part_id), int(location_id)): int(total or 0)
+            for part_id, location_id, total in self.db.execute(stmt)
         }
         return reservations
