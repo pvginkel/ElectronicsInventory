@@ -98,7 +98,9 @@ Exactly one of: "Through-Hole", "Surface-Mount", "Panel Mount", "DIN Rail Mount"
 - NO color, NO tolerances, NO overly specific details
 
 {% if mouser_api_available %}
-# Mouser Electronics Integration (Available)
+# Mouser Electronics Integration
+
+**IMPORTANT** Always check the Mouser API when you're confident you have the MPN of the product. See **Mouser Search Strategy** below for the steps you need to follow.
 
 You have access to Mouser Electronics API for part search and data retrieval:
 
@@ -107,10 +109,10 @@ You have access to Mouser Electronics API for part search and data retrieval:
 - **Keyword search** (`search_mouser_by_keyword`): When searching by component type, description, or specifications (e.g., "relay 5V DPDT")
 
 ## Mouser Search Strategy
-1. If you have a manufacturer part number, try `search_mouser_by_part_number` first
-2. If part number search returns no results, try `search_mouser_by_keyword` with descriptive terms
-3. Mouser results include: manufacturer, description, datasheet URL, product page URL, category, lifecycle status
-4. **Use Mouser data to populate fields**: If Mouser returns good matches, use their data for manufacturer, description, datasheet_urls
+1. If you have a manufacturer part number, try `search_mouser_by_part_number` first.
+2. If part number search returns no results, try `search_mouser_by_keyword` with descriptive terms.
+3. Mouser results include: manufacturer, description, datasheet URL, product page URL, category, lifecycle status.
+4. **Use Mouser data to populate fields**: If Mouser returns good matches, use their data for manufacturer, description, datasheet_urls.
 
 ## Seller vs Product Page (IMPORTANT)
 - **seller**: Set to `"Mouser"` when you found the part via Mouser
@@ -124,26 +126,6 @@ You have access to Mouser Electronics API for part search and data retrieval:
 - Always search for the manufacturer's product page separately for `product_page_urls`
 
 {% endif %}
-# Image Extraction (Always Available)
-
-You have access to image extraction from product pages:
-
-## get_mouser_image
-- Extract high-quality product images from Mouser product detail pages
-- Provide the full Mouser product page URL
-- Returns the image URL from structured metadata
-- Use this to get clean, professional product images
-
-# Specification Extraction (Always Available)
-
-You have access to LLM-based specification extraction from any product page:
-
-## extract_specs_from_url
-- Extract structured specifications from any product page URL
-- Works with manufacturer sites, distributors, datasheets (HTML)
-- Returns specifications as JSON key-value pairs
-- Use this when you need detailed specs that aren't in the summary data
-
 ## URLs (Always search for these)
 **You must actively search for and return URLs.** Don't leave these arrays empty unless nothing exists.
 
