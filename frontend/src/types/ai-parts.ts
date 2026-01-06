@@ -39,8 +39,10 @@ export interface TransformedAIPartAnalysisResult {
   inputVoltage?: string;
   outputVoltage?: string;
   productPageUrl?: string;
-  seller?: null;
-  sellerLink?: null;
+  seller?: string;
+  sellerIsExisting?: boolean;
+  existingSellerId?: number;
+  sellerLink?: string;
 
   // Duplicate detection field (present when duplicate_parts populated)
   duplicateParts?: DuplicatePartEntry[];

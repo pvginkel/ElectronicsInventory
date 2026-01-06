@@ -42,6 +42,8 @@ export interface AiAnalysisResult {
   output_voltage: string | null;
   product_page?: string | null;
   seller?: string | null;
+  seller_is_existing?: boolean;
+  existing_seller_id?: number | string | null;
   seller_link?: string | null;
   [key: string]: unknown;
 }
@@ -114,6 +116,8 @@ const defaultAnalysis: AiAnalysisResult = {
   output_voltage: null,
   product_page: 'https://example.com/relay',
   seller: null,
+  seller_is_existing: false,
+  existing_seller_id: null,
   seller_link: null,
 };
 

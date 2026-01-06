@@ -518,7 +518,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
                             ) : null}
 
                             {part.seller_link ? (
-                              <DescriptionItem label="Product Page" variant="compact">
+                              <DescriptionItem label="Seller Link" variant="compact">
                                 <ExternalLink href={part.seller_link}>
                                   {part.seller_link}
                                 </ExternalLink>

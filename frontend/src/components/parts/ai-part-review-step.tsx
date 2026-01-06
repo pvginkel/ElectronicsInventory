@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { TypeSelector } from '@/components/types/type-selector';
 import { TypeCreateDialog } from '@/components/types/type-create-dialog';
 import { SellerSelector } from '@/components/sellers/seller-selector';
+import { SellerCreateDialog } from '@/components/sellers/seller-create-dialog';
 import { TagsInput } from './tags-input';
 import { MountingTypeSelector } from './mounting-type-selector';
 import { AIDocumentGridWrapper } from './ai-document-grid-wrapper';
@@ -13,6 +14,7 @@ import { AIPartDuplicateBar } from './ai-duplicate-bar';
 import { Alert } from '@/components/ui/alert';
 import { transformToCreateSchema } from '@/lib/utils/ai-parts';
 import { useCreateType } from '@/hooks/use-types';
+import { useCreateSeller } from '@/hooks/use-sellers';
 import type { components } from '@/lib/api/generated/types';
 import type { TransformedAIPartAnalysisResult } from '@/types/ai-parts';
 import { ExternalLink } from '@/components/ui';
@@ -42,7 +44,9 @@ interface PartFormData {
   inputVoltage: string;
   outputVoltage: string;
   productPageUrl: string;
+  sellerIsExisting: boolean;
   sellerId?: number;
+  suggestedSellerName?: string;
   sellerLink: string;
 }
 
@@ -81,14 +85,19 @@ export function AIPartReviewStep({
     inputVoltage: analysisResult.inputVoltage || '',
     outputVoltage: analysisResult.outputVoltage || '',
     productPageUrl: analysisResult.productPageUrl || '',
-    sellerId: undefined, // AI analysis provides seller name as string, user needs to select from dropdown
+    // Invariant: sellerId and suggestedSellerName are mutually exclusive based on sellerIsExisting
+    sellerIsExisting: analysisResult.sellerIsExisting || false,
+    sellerId: analysisResult.sellerIsExisting ? analysisResult.existingSellerId ?? undefined : undefined,
+    suggestedSellerName: !analysisResult.sellerIsExisting ? (analysisResult.seller || undefined) : undefined,
     sellerLink: analysisResult.sellerLink || '',
   }));
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  
+  const [showCreateSellerDialog, setShowCreateSellerDialog] = useState(false);
+
   const createTypeMutation = useCreateType();
+  const createSellerMutation = useCreateSeller();
 
   const updateField = useCallback(<K extends keyof PartFormData>(
     field: K,
@@ -120,15 +129,19 @@ export function AIPartReviewStep({
 
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.description.trim()) {
       newErrors.description = 'Description is required';
     }
-    
+
     if (formData.suggestedTypeName && !formData.typeId) {
       newErrors.type = 'Please create the suggested type or select an existing one';
     } else if (!formData.suggestedTypeName && !formData.typeId) {
       newErrors.type = 'Type is required';
+    }
+
+    if (formData.suggestedSellerName && !formData.sellerId) {
+      newErrors.seller = 'Please create the suggested seller or select an existing one';
     }
 
     setErrors(newErrors);
@@ -199,6 +212,35 @@ export function AIPartReviewStep({
   const handleCancelCreateType = useCallback(() => {
     setShowCreateDialog(false);
   }, []);
+
+  const handleCreateSuggestedSeller = useCallback(() => {
+    if (formData.suggestedSellerName) {
+      setShowCreateSellerDialog(true);
+    }
+  }, [formData.suggestedSellerName]);
+
+  const handleClearSellerSuggestion = useCallback(() => {
+    updateField('suggestedSellerName', undefined);
+    updateField('sellerId', undefined);
+    updateField('sellerIsExisting', false);
+  }, [updateField]);
+
+  const handleConfirmCreateSeller = useCallback(async (data: { name: string; website: string }) => {
+    if (!data.name.trim() || !data.website.trim()) return;
+
+    try {
+      const result = await createSellerMutation.mutateAsync({
+        body: { name: data.name, website: data.website }
+      });
+
+      updateField('sellerId', result.id);
+      updateField('suggestedSellerName', undefined);
+      updateField('sellerIsExisting', true);
+      setShowCreateSellerDialog(false);
+    } catch {
+      // Error handling is automatic via the global error handling system
+    }
+  }, [updateField, createSellerMutation]);
 
   return (
     <div className="flex flex-col h-full" data-testid="parts.ai.review-step">
@@ -465,11 +507,44 @@ export function AIPartReviewStep({
 
             <div>
               <Label>Seller</Label>
-              <SellerSelector
-                value={formData.sellerId}
-                onChange={(value) => updateField('sellerId', value)}
-                error={errors.sellerId}
-              />
+              {formData.suggestedSellerName ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+                    <div className="flex-1">
+                      <span className="text-sm text-muted-foreground">Suggested seller:</span>
+                      <div className="font-medium">{formData.suggestedSellerName}</div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCreateSuggestedSeller}
+                      disabled={createSellerMutation.isPending}
+                    >
+                      Create Seller
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearSellerSuggestion}
+                      className="p-2"
+                      aria-label="Remove suggestion"
+                    >
+                      <ClearButtonIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {errors.seller && (
+                    <p className="text-sm text-destructive">{errors.seller}</p>
+                  )}
+                </div>
+              ) : (
+                <SellerSelector
+                  value={formData.sellerId}
+                  onChange={(value) => updateField('sellerId', value)}
+                  error={errors.seller}
+                />
+              )}
             </div>
 
             <div>
@@ -558,6 +633,16 @@ export function AIPartReviewStep({
           onCancel={handleCancelCreateType}
           isLoading={createTypeMutation.isPending}
           open={showCreateDialog}
+        />
+      )}
+
+      {showCreateSellerDialog && formData.suggestedSellerName && (
+        <SellerCreateDialog
+          initialName={formData.suggestedSellerName}
+          onSuccess={handleConfirmCreateSeller}
+          onCancel={() => setShowCreateSellerDialog(false)}
+          open={showCreateSellerDialog}
+          onOpenChange={setShowCreateSellerDialog}
         />
       )}
     </div>

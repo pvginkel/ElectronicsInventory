@@ -379,7 +379,7 @@ export function SseContextProvider({ children }: SseContextProviderProps) {
     // Dev mode without SharedWorker uses manual connection control
     const hasSharedWorkerParam = typeof window !== 'undefined' &&
       new URLSearchParams(window.location.search).has('__sharedWorker');
-    const shouldAutoConnect = (!isTestMode() && !import.meta.env.DEV) || hasSharedWorkerParam;
+    const shouldAutoConnect = !isTestMode() || hasSharedWorkerParam;
     if (!shouldAutoConnect) {
       return;
     }

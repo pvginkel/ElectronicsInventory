@@ -208,6 +208,20 @@
             "title": "Documents",
             "type": "array"
           },
+          "existing_seller_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ID of existing seller if seller_is_existing is True",
+            "example": 1,
+            "title": "Existing Seller Id"
+          },
           "existing_type_id": {
             "anyOf": [
               {
@@ -347,6 +361,41 @@
             "description": "AI-suggested manufacturer product page URL",
             "example": "https://www.arduino.cc/en/Main/arduinoBoardUno",
             "title": "Product Page"
+          },
+          "seller": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "AI-suggested seller name (e.g., 'Mouser')",
+            "example": "Mouser",
+            "title": "Seller"
+          },
+          "seller_is_existing": {
+            "default": false,
+            "description": "Whether the suggested seller matches an existing seller in the system",
+            "example": true,
+            "title": "Seller Is Existing",
+            "type": "boolean"
+          },
+          "seller_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "AI-suggested seller product page URL",
+            "example": "https://www.mouser.com/ProductDetail/123456",
+            "title": "Seller Link"
           },
           "series": {
             "anyOf": [

@@ -77,8 +77,10 @@ export function transformAIPartAnalysisResult(
     inputVoltage: analysis?.input_voltage ?? undefined,
     outputVoltage: analysis?.output_voltage ?? undefined,
     productPageUrl: analysis?.product_page ?? undefined,
-    seller: null, // Seller info not provided by AI analysis
-    sellerLink: null, // Must be provided by user
+    seller: analysis?.seller ?? undefined,
+    sellerIsExisting: analysis?.seller_is_existing ?? undefined,
+    existingSellerId: analysis?.existing_seller_id ?? undefined,
+    sellerLink: analysis?.seller_link ?? undefined,
   };
 
   // Add duplicate parts if present
