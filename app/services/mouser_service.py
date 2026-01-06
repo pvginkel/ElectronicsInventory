@@ -3,6 +3,7 @@
 import logging
 import time
 from typing import Any
+from urllib.parse import quote_plus
 
 import requests
 
@@ -35,7 +36,6 @@ class MouserService:
             download_cache_service: Service for caching HTTP responses
             metrics_service: Service for recording metrics
         """
-        self.config = config
         self.download_cache_service = download_cache_service
         self.metrics_service = metrics_service
         self.api_key = config.MOUSER_SEARCH_API_KEY
@@ -55,7 +55,7 @@ class MouserService:
             logger.error(error_msg)
             return MouserSearchResponse(error=error_msg)
 
-        url = f"{self.MOUSER_API_BASE_URL}/search/partnumber"
+        url = f"{self.MOUSER_API_BASE_URL}/search/partnumber?apikey={quote_plus(self.api_key)}"
 
         # Build request body according to Mouser API spec
         body = {
@@ -99,7 +99,7 @@ class MouserService:
             logger.error(error_msg)
             return MouserSearchResponse(error=error_msg)
 
-        url = f"{self.MOUSER_API_BASE_URL}/search/keyword"
+        url = f"{self.MOUSER_API_BASE_URL}/search/keyword?apikey={quote_plus(self.api_key)}"
 
         # Build request body according to Mouser API spec
         body = {
@@ -190,7 +190,6 @@ class MouserService:
             response_data = self.download_cache_service.post_cached_json(
                 url=url,
                 json_body=body,
-                headers={"apiKey": self.api_key},
                 timeout=30,
             )
             duration = time.perf_counter() - start_time

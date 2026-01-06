@@ -52,8 +52,6 @@ class AIService(BaseService):
         duplicate_search_function: AIFunction,
         mouser_part_number_search_function: AIFunction,
         mouser_keyword_search_function: AIFunction,
-        mouser_image_function: AIFunction,
-        extract_specs_function: AIFunction,
     ) -> None:
         super().__init__(db)
         self.config = config
@@ -70,10 +68,6 @@ class AIService(BaseService):
         self.mouser_enabled = bool(config.MOUSER_SEARCH_API_KEY)
         self.mouser_part_number_search_function = mouser_part_number_search_function
         self.mouser_keyword_search_function = mouser_keyword_search_function
-
-        # Image and spec extraction functions - always available (no API key required)
-        self.mouser_image_function = mouser_image_function
-        self.extract_specs_function = extract_specs_function
 
         # Initialize OpenAI client only when real AI interactions are permitted
         if self.real_ai_allowed:
@@ -140,9 +134,6 @@ class AIService(BaseService):
                 function_tools: list[AIFunction] = [
                     self.url_classifier_function,
                     self.duplicate_search_function,
-                    # Always include image and spec extraction functions
-                    self.mouser_image_function,
-                    self.extract_specs_function,
                 ]
 
                 # Conditionally include Mouser search functions if API key configured

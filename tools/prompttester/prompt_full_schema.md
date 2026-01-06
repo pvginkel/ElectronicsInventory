@@ -97,6 +97,35 @@ Exactly one of: "Through-Hole", "Surface-Mount", "Panel Mount", "DIN Rail Mount"
 - NO duplicates, NO quantitative values (resistance, capacitance, lengths)
 - NO color, NO tolerances, NO overly specific details
 
+{% if mouser_api_available %}
+# Mouser Electronics Integration
+
+**IMPORTANT** Always check the Mouser API when you're confident you've found the MPN of the product. See **Mouser Search Strategy** below for the steps you need to follow.
+
+You have access to Mouser Electronics API for part search and data retrieval:
+
+## When to Use Mouser Search
+- **Part number search** (`search_mouser_by_part_number`): When you have a specific manufacturer part number or Mouser part number
+- **Keyword search** (`search_mouser_by_keyword`): When searching by component type, description, or specifications (e.g., "relay 5V DPDT")
+
+## Mouser Search Strategy
+1. If you have a manufacturer part number, try `search_mouser_by_part_number` first.
+2. If part number search returns no results, try `search_mouser_by_keyword` with descriptive terms.
+3. Mouser results include: manufacturer, description, datasheet URL, product page URL, category, lifecycle status.
+4. **Use Mouser data to populate fields**: If Mouser returns good matches, use their data for manufacturer, description, datasheet_urls.
+
+## Seller vs Product Page (IMPORTANT)
+- **seller**: Set to `"Mouser"` when you found the part via Mouser
+- **seller_url**: Set to the Mouser `ProductDetailUrl` (this is where the user can buy the part)
+- **product_page_urls**: Should be the **manufacturer's** product page, NOT Mouser's page. Search for the manufacturer's official page for this part.
+
+## Mouser Result Priority
+- Prefer Mouser datasheets when available (authoritative and current)
+- If Mouser has the part, it's likely the right match (Mouser is a major distributor)
+- Use Mouser data for manufacturer name, MPN, description, and datasheet URLs
+- Always search for the manufacturer's product page separately for `product_page_urls`
+
+{% endif %}
 ## URLs (Always search for these)
 **You must actively search for and return URLs.** Don't leave these arrays empty unless nothing exists.
 
