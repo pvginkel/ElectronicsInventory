@@ -24,7 +24,10 @@ from app.services.download_cache_service import DownloadCacheService
 from app.services.mouser_service import MouserService
 from app.utils.ai.ai_runner import AIFunction, AIRequest, AIRunner
 from app.utils.ai.duplicate_search import DuplicateSearchFunction
-from app.utils.ai.mouser_search import SearchMouserByKeywordFunction, SearchMouserByPartNumberFunction
+from app.utils.ai.mouser_search import (
+    SearchMouserByKeywordFunction,
+    SearchMouserByPartNumberFunction,
+)
 from app.utils.file_parsers import get_types_from_setup
 from app.utils.temp_file_manager import TempFileManager
 from tools.prompttester.model import (
