@@ -24,6 +24,7 @@ from app.services.base_task import ProgressHandle
 from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
 from app.services.metrics_service import MetricsServiceProtocol
+from app.services.seller_service import SellerService
 from app.services.type_service import TypeService
 from app.utils.ai.ai_runner import AIFunction, AIRequest, AIRunner
 from app.utils.ai.url_classification import (
@@ -46,6 +47,7 @@ class AIService(BaseService):
         config: Settings,
         temp_file_manager: TempFileManager,
         type_service: TypeService,
+        seller_service: SellerService,
         download_cache_service: DownloadCacheService,
         document_service: DocumentService,
         metrics_service: MetricsServiceProtocol,
@@ -57,6 +59,7 @@ class AIService(BaseService):
         self.config = config
         self.temp_file_manager = temp_file_manager
         self.type_service = type_service
+        self.seller_service = seller_service
         self.download_cache_service = download_cache_service
         self.document_service = document_service
         self.url_classifier_function = URLClassifierFunctionImpl(download_cache_service, document_service)
@@ -215,6 +218,36 @@ class AIService(BaseService):
                             existing_type_id = type_obj.id
                             break
 
+                # Determine if seller is existing or new
+                suggested_seller = analysis_details.seller
+                seller_is_existing = False
+                existing_seller_id = None
+
+                if suggested_seller:
+                    existing_sellers = self.seller_service.get_all_sellers()
+                    suggested_lower = suggested_seller.lower()
+
+                    # Try exact match first (case-insensitive)
+                    for seller_obj in existing_sellers:
+                        if seller_obj.name.lower() == suggested_lower:
+                            seller_is_existing = True
+                            existing_seller_id = seller_obj.id
+                            break
+
+                    # If no exact match, try partial match
+                    if not seller_is_existing:
+                        partial_matches = []
+                        for seller_obj in existing_sellers:
+                            seller_name_lower = seller_obj.name.lower()
+                            # Check if one contains the other
+                            if suggested_lower in seller_name_lower or seller_name_lower in suggested_lower:
+                                partial_matches.append(seller_obj)
+
+                        # Only use partial match if there's exactly one
+                        if len(partial_matches) == 1:
+                            seller_is_existing = True
+                            existing_seller_id = partial_matches[0].id
+
                 # Build analysis details schema
                 product_page: str | None = None
                 if len(analysis_details.product_page_urls) > 0:
@@ -237,8 +270,12 @@ class AIService(BaseService):
                     series=analysis_details.product_family,
                     dimensions=analysis_details.physical_dimensions,
                     documents=documents,
+                    seller=suggested_seller,
+                    seller_link=analysis_details.seller_url,
                     type_is_existing=type_is_existing,
-                    existing_type_id=existing_type_id
+                    existing_type_id=existing_type_id,
+                    seller_is_existing=seller_is_existing,
+                    existing_seller_id=existing_seller_id,
                 )
 
             # Return all fields (any combination can be populated based on LLM response)
