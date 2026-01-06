@@ -1,11 +1,10 @@
 """Tests for AttachmentSetService."""
 
 import io
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from flask import Flask
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -547,7 +546,10 @@ class TestAttachmentPreviewUrl:
         session: Session,
     ):
         """Test that preview_url is included when serializing to response schema."""
-        from app.schemas.attachment_set import AttachmentResponseSchema, AttachmentListSchema
+        from app.schemas.attachment_set import (
+            AttachmentListSchema,
+            AttachmentResponseSchema,
+        )
 
         attachment = create_test_attachment(
             session, attachment_set,

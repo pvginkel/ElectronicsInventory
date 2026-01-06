@@ -1128,3 +1128,323 @@ class TestAIService:
         assert result.analysis_failure_reason is not None
         assert result.analysis_failure_reason == "Check these similar parts but please verify specifications"
 
+
+class TestAIServiceCleanupPart:
+    """Test cases for AIService.cleanup_part()."""
+
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_cleanup_part_success(self, mock_run, ai_service: AIService, session: Session):
+        """Test successful cleanup of an existing part."""
+        from app.models.attachment_set import AttachmentSet
+        from app.models.part import Part
+        from app.utils.ai.ai_runner import AIResponse
+
+        # Create a part in the database
+        attachment_set = AttachmentSet()
+        session.add(attachment_set)
+        session.flush()
+
+        part = Part(
+            key="TEST",
+            description="Old description",
+            manufacturer_code="OLD-123",
+            attachment_set_id=attachment_set.id
+        )
+        session.add(part)
+        session.flush()
+
+        # Mock AI response
+        mock_response = PartAnalysisSuggestion(
+            analysis_result=PartAnalysisDetails(
+                product_name="Improved description",
+                product_family="Test Family",
+                product_category="Relay",
+                manufacturer="Test Manufacturer",
+                manufacturer_part_number="NEW-456",
+                package_type="DIP-8",
+                mounting_type="Through-Hole",
+                part_pin_count=8,
+                part_pin_pitch="2.54mm",
+                voltage_rating="5V",
+                input_voltage=None,
+                output_voltage=None,
+                physical_dimensions="10x10mm",
+                tags=["relay", "test"],
+                product_page_urls=["https://example.com/product"],
+                datasheet_urls=[],
+                pinout_urls=[]
+            ),
+            duplicate_parts=None,
+            analysis_failure_reason=None
+        )
+        mock_run.return_value = AIResponse(
+            response=mock_response,
+            output_text="Cleaned",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
+        )
+
+        # Execute
+        mock_progress = Mock()
+        result = ai_service.cleanup_part(part_key="TEST", progress_handle=mock_progress)
+
+        # Verify result
+        assert result.key == "TEST"
+        assert result.description == "Improved description"
+        assert result.manufacturer_code == "NEW-456"
+        assert result.manufacturer == "Test Manufacturer"
+        assert result.type == "Relay"
+        assert result.package == "DIP-8"
+        assert result.mounting_type == "Through-Hole"
+        assert result.pin_count == 8
+        assert result.voltage_rating == "5V"
+        assert result.tags == ["relay", "test"]
+        assert result.product_page == "https://example.com/product"
+
+    def test_cleanup_part_not_found(self, ai_service: AIService):
+        """Test cleanup_part raises RecordNotFoundException for non-existent part."""
+        from app.exceptions import RecordNotFoundException
+
+        mock_progress = Mock()
+        with pytest.raises(RecordNotFoundException):
+            ai_service.cleanup_part(part_key="ZZZZ", progress_handle=mock_progress)
+
+    def test_cleanup_part_ai_disabled(self, session: Session, temp_file_manager: TempFileManager,
+                                       mock_type_service: TypeService,
+                                       mock_download_cache_service: DownloadCacheService,
+                                       mock_document_service: DocumentService, mock_metrics_service):
+        """Test cleanup_part raises InvalidOperationException when AI is disabled."""
+        from app.models.attachment_set import AttachmentSet
+        from app.models.part import Part
+        from app.utils.ai.ai_runner import AIFunction
+
+        # Create AI service with DISABLE_REAL_AI_ANALYSIS=True and no dummy response
+        mock_duplicate_search_function = Mock(spec=AIFunction)
+        settings = Settings(
+            DATABASE_URL="sqlite:///:memory:",
+            OPENAI_API_KEY="test-key",
+            DISABLE_REAL_AI_ANALYSIS=True,  # This makes real_ai_allowed=False
+            OPENAI_DUMMY_RESPONSE_PATH=None
+        )
+        ai_service = AIService(
+            db=session,
+            config=settings,
+            temp_file_manager=temp_file_manager,
+            type_service=mock_type_service,
+            download_cache_service=mock_download_cache_service,
+            document_service=mock_document_service,
+            metrics_service=mock_metrics_service,
+            duplicate_search_function=mock_duplicate_search_function
+        )
+
+        # Create a part
+        attachment_set = AttachmentSet()
+        session.add(attachment_set)
+        session.flush()
+
+        part = Part(
+            key="TEST",
+            description="Test",
+            attachment_set_id=attachment_set.id
+        )
+        session.add(part)
+        session.flush()
+
+        mock_progress = Mock()
+        with pytest.raises(InvalidOperationException):
+            ai_service.cleanup_part(part_key="TEST", progress_handle=mock_progress)
+
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_cleanup_part_excludes_duplicate_search(self, mock_run, ai_service: AIService, session: Session):
+        """Test that cleanup_part only passes URLClassifier (not duplicate search) to AI runner."""
+        from app.models.attachment_set import AttachmentSet
+        from app.models.part import Part
+        from app.utils.ai.ai_runner import AIResponse
+
+        # Create a part
+        attachment_set = AttachmentSet()
+        session.add(attachment_set)
+        session.flush()
+
+        part = Part(
+            key="TEST",
+            description="Test",
+            attachment_set_id=attachment_set.id
+        )
+        session.add(part)
+        session.flush()
+
+        # Mock AI response using helper that fills all required fields
+        mock_response = create_mock_ai_response(product_name="Test")
+        mock_run.return_value = AIResponse(
+            response=mock_response,
+            output_text="OK",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
+        )
+
+        mock_progress = Mock()
+        ai_service.cleanup_part(part_key="TEST", progress_handle=mock_progress)
+
+        # Verify the tool list passed to runner - should only have URL classifier
+        assert mock_run.called
+        call_args = mock_run.call_args
+        tools = call_args[0][1]  # Second positional arg is the tool list
+        assert len(tools) == 1
+        # Verify it's the URL classifier by checking class name, not the duplicate search
+        assert "URLClassifier" in type(tools[0]).__name__
+
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_cleanup_part_preserves_seller_data(self, mock_run, ai_service: AIService, session: Session):
+        """Test that cleanup_part preserves existing seller data."""
+        from app.models.attachment_set import AttachmentSet
+        from app.models.part import Part
+        from app.models.seller import Seller
+        from app.utils.ai.ai_runner import AIResponse
+
+        # Create a seller
+        seller = Seller(name="DigiKey", website="https://digikey.com")
+        session.add(seller)
+        session.flush()
+
+        # Create a part with seller
+        attachment_set = AttachmentSet()
+        session.add(attachment_set)
+        session.flush()
+
+        part = Part(
+            key="TEST",
+            description="Test part",
+            seller_id=seller.id,
+            seller_link="https://digikey.com/product/123",
+            attachment_set_id=attachment_set.id
+        )
+        session.add(part)
+        session.flush()
+
+        # Mock AI response using helper (AI doesn't return seller fields)
+        mock_response = create_mock_ai_response(product_name="Cleaned test part", tags=["test"])
+        mock_run.return_value = AIResponse(
+            response=mock_response,
+            output_text="OK",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
+        )
+
+        mock_progress = Mock()
+        result = ai_service.cleanup_part(part_key="TEST", progress_handle=mock_progress)
+
+        # Verify seller data is preserved
+        assert result.seller == "DigiKey"
+        assert result.seller_link == "https://digikey.com/product/123"
+
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_cleanup_part_builds_context_with_all_other_parts(
+        self, mock_run, ai_service: AIService, session: Session
+    ):
+        """Test that cleanup_part includes all other parts in context."""
+        from app.models.attachment_set import AttachmentSet
+        from app.models.part import Part
+        from app.utils.ai.ai_runner import AIResponse
+
+        # Create multiple parts
+        parts_data = [
+            ("AAAA", "Part A"),
+            ("BBBB", "Part B"),
+            ("CCCC", "Part C"),  # Target part
+            ("DDDD", "Part D"),
+        ]
+
+        for key, desc in parts_data:
+            attachment_set = AttachmentSet()
+            session.add(attachment_set)
+            session.flush()
+            part = Part(key=key, description=desc, attachment_set_id=attachment_set.id)
+            session.add(part)
+
+        session.flush()
+
+        # Mock AI response using helper
+        mock_response = create_mock_ai_response(product_name="Cleaned Part C")
+        mock_run.return_value = AIResponse(
+            response=mock_response,
+            output_text="OK",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
+        )
+
+        mock_progress = Mock()
+        ai_service.cleanup_part(part_key="CCCC", progress_handle=mock_progress)
+
+        # Verify the user prompt contains context parts (all except target)
+        call_args = mock_run.call_args
+        request = call_args[0][0]
+        user_prompt = request.user_prompt
+
+        # Should contain context parts
+        assert "AAAA" in user_prompt
+        assert "BBBB" in user_prompt
+        assert "DDDD" in user_prompt
+        # Target part should be in target section, not context
+        assert "Target Part:" in user_prompt
+        assert '"key": "CCCC"' in user_prompt
+
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_cleanup_part_prompt_uses_cleanup_mode(self, mock_run, ai_service: AIService, session: Session):
+        """Test that cleanup_part builds prompt with mode='cleanup'."""
+        from app.models.attachment_set import AttachmentSet
+        from app.models.part import Part
+        from app.utils.ai.ai_runner import AIResponse
+
+        # Create a part
+        attachment_set = AttachmentSet()
+        session.add(attachment_set)
+        session.flush()
+
+        part = Part(key="TEST", description="Test", attachment_set_id=attachment_set.id)
+        session.add(part)
+        session.flush()
+
+        # Mock AI response using helper
+        mock_response = create_mock_ai_response(product_name="Test")
+        mock_run.return_value = AIResponse(
+            response=mock_response,
+            output_text="OK",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
+        )
+
+        mock_progress = Mock()
+        ai_service.cleanup_part(part_key="TEST", progress_handle=mock_progress)
+
+        # Verify the system prompt contains cleanup-mode content
+        call_args = mock_run.call_args
+        request = call_args[0][0]
+        system_prompt = request.system_prompt
+
+        # Cleanup mode should have specific instructions
+        assert "existing" in system_prompt.lower()
+        assert "data quality" in system_prompt.lower()
+        # Should NOT have duplicate detection instructions (that's analysis mode)
+        assert "find_duplicates" not in system_prompt
+
