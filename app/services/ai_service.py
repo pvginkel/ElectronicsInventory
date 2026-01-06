@@ -14,6 +14,8 @@ from app.config import Settings
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.attachment import AttachmentType
 from app.models.part import Part
+from app.models.seller import Seller
+from app.models.type import Type
 from app.schemas.ai_part_analysis import (
     AIPartAnalysisResultSchema,
     DocumentSuggestionSchema,
@@ -205,51 +207,13 @@ class AIService(BaseService):
                         if document:
                             documents.append(document)
 
-                # Determine if type is existing or new
-                suggested_type = analysis_details.product_category
-                type_is_existing = False
-                existing_type_id = None
-
-                if suggested_type:
-                    proposed_prefix = "Proposed:"
-                    if suggested_type.startswith(proposed_prefix):
-                        suggested_type = suggested_type[len(proposed_prefix):].strip()
-
-                    for type_obj in existing_types:
-                        if type_obj.name.lower() == suggested_type.lower():
-                            type_is_existing = True
-                            existing_type_id = type_obj.id
-                            break
-
-                # Determine if seller is existing or new
-                suggested_seller = analysis_details.seller
-                seller_is_existing = False
-                existing_seller_id = None
-
-                if suggested_seller:
-                    existing_sellers = self.seller_service.get_all_sellers()
-                    suggested_lower = suggested_seller.lower()
-
-                    # Try exact match first (case-insensitive)
-                    for seller_obj in existing_sellers:
-                        if seller_obj.name.lower() == suggested_lower:
-                            seller_is_existing = True
-                            existing_seller_id = seller_obj.id
-                            break
-
-                    # If no exact match, try partial match
-                    if not seller_is_existing:
-                        partial_matches = []
-                        for seller_obj in existing_sellers:
-                            seller_name_lower = seller_obj.name.lower()
-                            # Check if one contains the other
-                            if suggested_lower in seller_name_lower or seller_name_lower in suggested_lower:
-                                partial_matches.append(seller_obj)
-
-                        # Only use partial match if there's exactly one
-                        if len(partial_matches) == 1:
-                            seller_is_existing = True
-                            existing_seller_id = partial_matches[0].id
+                # Resolve type and seller against existing records
+                suggested_type, type_is_existing, existing_type_id = self._resolve_type(
+                    analysis_details.product_category, existing_types
+                )
+                suggested_seller, seller_is_existing, existing_seller_id = self._resolve_seller(
+                    analysis_details.seller
+                )
 
                 # Build analysis details schema
                 product_page: str | None = None
@@ -419,11 +383,21 @@ Review the target part against the field normalization rules and improve data qu
 
             analysis_details = ai_response.analysis_result
 
+            # Resolve type against existing types
+            suggested_type, type_is_existing, existing_type_id = self._resolve_type(
+                analysis_details.product_category, existing_types
+            )
+
+            # For cleanup, preserve existing seller from original part data
+            suggested_seller = target_part_json.get("seller")
+            seller_link = target_part_json.get("seller_link")
+            _, seller_is_existing, existing_seller_id = self._resolve_seller(suggested_seller)
+
             # Map to CleanedPartDataSchema
             cleaned_part = CleanedPartDataSchema(
                 key=part_key,
                 manufacturer_code=analysis_details.manufacturer_part_number,
-                type=analysis_details.product_category,
+                type=suggested_type,
                 description=analysis_details.product_name,
                 manufacturer=analysis_details.manufacturer,
                 tags=analysis_details.tags or [],
@@ -437,9 +411,12 @@ Review the target part against the field normalization rules and improve data qu
                 series=analysis_details.product_family,
                 dimensions=analysis_details.physical_dimensions,
                 product_page=analysis_details.product_page_urls[0] if analysis_details.product_page_urls else None,
-                # Preserve existing seller data - AI doesn't modify these; frontend handles seller changes
-                seller=target_part_json.get("seller"),
-                seller_link=target_part_json.get("seller_link")
+                seller=suggested_seller,
+                seller_link=seller_link,
+                type_is_existing=type_is_existing,
+                existing_type_id=existing_type_id,
+                seller_is_existing=seller_is_existing,
+                existing_seller_id=existing_seller_id,
             )
 
             return cleaned_part
@@ -465,6 +442,65 @@ Review the target part against the field normalization rules and improve data qu
         template_inline = env_inline.from_string(template_str)
 
         return template_inline.render(**context)
+
+    def _resolve_type(
+        self, suggested_type: str | None, existing_types: list[Type]
+    ) -> tuple[str | None, bool, int | None]:
+        """
+        Resolve a suggested type name against existing types.
+
+        Strips "Proposed:" prefix and performs case-insensitive matching.
+
+        Returns:
+            Tuple of (resolved_name, is_existing, existing_id)
+        """
+        if not suggested_type:
+            return None, False, None
+
+        # Strip "Proposed:" prefix if present
+        proposed_prefix = "Proposed:"
+        if suggested_type.startswith(proposed_prefix):
+            suggested_type = suggested_type[len(proposed_prefix):].strip()
+
+        # Try case-insensitive match
+        for type_obj in existing_types:
+            if type_obj.name.lower() == suggested_type.lower():
+                return suggested_type, True, type_obj.id
+
+        return suggested_type, False, None
+
+    def _resolve_seller(self, suggested_seller: str | None) -> tuple[str | None, bool, int | None]:
+        """
+        Resolve a suggested seller name against existing sellers.
+
+        Tries exact match first (case-insensitive), then partial match
+        if there's exactly one result.
+
+        Returns:
+            Tuple of (seller_name, is_existing, existing_id)
+        """
+        if not suggested_seller:
+            return None, False, None
+
+        existing_sellers = self.seller_service.get_all_sellers()
+        suggested_lower = suggested_seller.lower()
+
+        # Try exact match first (case-insensitive)
+        for seller_obj in existing_sellers:
+            if seller_obj.name.lower() == suggested_lower:
+                return suggested_seller, True, seller_obj.id
+
+        # Try partial match - only use if exactly one match
+        partial_matches: list[Seller] = []
+        for seller_obj in existing_sellers:
+            seller_name_lower = seller_obj.name.lower()
+            if suggested_lower in seller_name_lower or seller_name_lower in suggested_lower:
+                partial_matches.append(seller_obj)
+
+        if len(partial_matches) == 1:
+            return suggested_seller, True, partial_matches[0].id
+
+        return suggested_seller, False, None
 
     def _document_from_link(self, url: str, document_type: str) -> DocumentSuggestionSchema | None:
         try:

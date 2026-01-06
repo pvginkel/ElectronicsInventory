@@ -84,8 +84,16 @@ def mock_metrics_service():
 
 
 @pytest.fixture
+def mock_seller_service(session: Session):
+    """Create a seller service for testing."""
+    from app.services.seller_service import SellerService
+    return SellerService(db=session)
+
+
+@pytest.fixture
 def ai_service(session: Session, ai_test_settings: Settings,
                temp_file_manager: TempFileManager, mock_type_service: TypeService,
+               mock_seller_service,
                mock_download_cache_service: DownloadCacheService,
                mock_document_service: DocumentService, mock_metrics_service):
     """Create AI service instance for testing."""
@@ -99,22 +107,19 @@ def ai_service(session: Session, ai_test_settings: Settings,
     # Create mock Mouser function tools
     mock_mouser_part_number_search = Mock(spec=AIFunction)
     mock_mouser_keyword_search = Mock(spec=AIFunction)
-    mock_mouser_image = Mock(spec=AIFunction)
-    mock_extract_specs = Mock(spec=AIFunction)
 
     return AIService(
         db=session,
         config=ai_test_settings,
         temp_file_manager=temp_file_manager,
         type_service=mock_type_service,
+        seller_service=mock_seller_service,
         download_cache_service=mock_download_cache_service,
         document_service=mock_document_service,
         metrics_service=mock_metrics_service,
         duplicate_search_function=mock_duplicate_search_function,
         mouser_part_number_search_function=mock_mouser_part_number_search,
         mouser_keyword_search_function=mock_mouser_keyword_search,
-        mouser_image_function=mock_mouser_image,
-        extract_specs_function=mock_extract_specs
     )
 
 
@@ -154,7 +159,7 @@ class TestAIService:
     """Test cases for AIService."""
 
     def test_init_without_api_key(self, session: Session, temp_file_manager: TempFileManager,
-                                  mock_type_service: TypeService,
+                                  mock_type_service: TypeService, mock_seller_service,
                                   mock_download_cache_service: DownloadCacheService,
                                   mock_document_service: DocumentService, mock_metrics_service):
         """Test AI service initialization without API key."""
@@ -165,8 +170,6 @@ class TestAIService:
         mock_duplicate_search_function = Mock(spec=AIFunction)
         mock_mouser_part_number_search = Mock(spec=AIFunction)
         mock_mouser_keyword_search = Mock(spec=AIFunction)
-        mock_mouser_image = Mock(spec=AIFunction)
-        mock_extract_specs = Mock(spec=AIFunction)
 
         settings = Settings(DATABASE_URL="sqlite:///:memory:", OPENAI_API_KEY="")
         with pytest.raises(ValueError, match="OPENAI_API_KEY configuration is required"):
@@ -175,14 +178,13 @@ class TestAIService:
                 config=settings,
                 temp_file_manager=temp_file_manager,
                 type_service=mock_type_service,
+                seller_service=mock_seller_service,
                 download_cache_service=mock_download_cache_service,
                 document_service=mock_document_service,
                 metrics_service=mock_metrics_service,
                 duplicate_search_function=mock_duplicate_search_function,
                 mouser_part_number_search_function=mock_mouser_part_number_search,
                 mouser_keyword_search_function=mock_mouser_keyword_search,
-                mouser_image_function=mock_mouser_image,
-                extract_specs_function=mock_extract_specs
             )
 
     def test_analyze_part_no_input(self, ai_service: AIService):
@@ -333,6 +335,7 @@ class TestAIService:
         session: Session,
         temp_file_manager: TempFileManager,
         mock_type_service: TypeService,
+        mock_seller_service,
         mock_download_cache_service: DownloadCacheService,
         mock_document_service: DocumentService,
         mock_metrics_service,
@@ -349,22 +352,19 @@ class TestAIService:
         mock_duplicate_search_function = Mock(spec=AIFunction)
         mock_mouser_part_number_search = Mock(spec=AIFunction)
         mock_mouser_keyword_search = Mock(spec=AIFunction)
-        mock_mouser_image = Mock(spec=AIFunction)
-        mock_extract_specs = Mock(spec=AIFunction)
 
         service = AIService(
             db=session,
             config=settings,
             temp_file_manager=temp_file_manager,
             type_service=mock_type_service,
+            seller_service=mock_seller_service,
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
             metrics_service=mock_metrics_service,
             duplicate_search_function=mock_duplicate_search_function,
             mouser_part_number_search_function=mock_mouser_part_number_search,
             mouser_keyword_search_function=mock_mouser_keyword_search,
-            mouser_image_function=mock_mouser_image,
-            extract_specs_function=mock_extract_specs
         )
 
         mock_progress = Mock()
@@ -378,6 +378,7 @@ class TestAIService:
         session: Session,
         temp_file_manager: TempFileManager,
         mock_type_service: TypeService,
+        mock_seller_service,
         mock_download_cache_service: DownloadCacheService,
         mock_document_service: DocumentService,
         mock_metrics_service,
@@ -403,22 +404,19 @@ class TestAIService:
         mock_duplicate_search_function = Mock(spec=AIFunction)
         mock_mouser_part_number_search = Mock(spec=AIFunction)
         mock_mouser_keyword_search = Mock(spec=AIFunction)
-        mock_mouser_image = Mock(spec=AIFunction)
-        mock_extract_specs = Mock(spec=AIFunction)
 
         service = AIService(
             db=session,
             config=settings,
             temp_file_manager=temp_file_manager,
             type_service=mock_type_service,
+            seller_service=mock_seller_service,
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
             metrics_service=mock_metrics_service,
             duplicate_search_function=mock_duplicate_search_function,
             mouser_part_number_search_function=mock_mouser_part_number_search,
             mouser_keyword_search_function=mock_mouser_keyword_search,
-            mouser_image_function=mock_mouser_image,
-            extract_specs_function=mock_extract_specs
         )
 
         mock_progress = Mock()
@@ -432,7 +430,8 @@ class TestAIService:
         assert result.duplicate_parts is None
 
     def test_conditional_function_registration_with_mouser_key(
-        self, session: Session, mock_download_cache_service, mock_document_service, mock_metrics_service
+        self, session: Session, mock_seller_service, mock_download_cache_service,
+        mock_document_service, mock_metrics_service
     ):
         """Test that Mouser search functions are registered when API key is configured."""
         from unittest.mock import patch
@@ -449,22 +448,19 @@ class TestAIService:
         mock_duplicate_search_function = Mock(spec=AIFunction)
         mock_mouser_part_number_search = Mock(spec=AIFunction)
         mock_mouser_keyword_search = Mock(spec=AIFunction)
-        mock_mouser_image = Mock(spec=AIFunction)
-        mock_extract_specs = Mock(spec=AIFunction)
 
         service = AIService(
             db=session,
             config=settings,
             temp_file_manager=Mock(),
             type_service=Mock(),
+            seller_service=mock_seller_service,
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
             metrics_service=mock_metrics_service,
             duplicate_search_function=mock_duplicate_search_function,
             mouser_part_number_search_function=mock_mouser_part_number_search,
             mouser_keyword_search_function=mock_mouser_keyword_search,
-            mouser_image_function=mock_mouser_image,
-            extract_specs_function=mock_extract_specs
         )
 
         # Verify mouser_enabled is True
@@ -499,17 +495,16 @@ class TestAIService:
                 call_args = mock_runner_instance.run.call_args
                 function_tools = call_args[0][1]  # Second positional argument
 
-                # Should include all 6 functions:
+                # Should include 4 functions when Mouser is enabled:
                 # - url_classifier
                 # - duplicate_search
-                # - mouser_image
-                # - extract_specs
                 # - mouser_part_number_search
                 # - mouser_keyword_search
-                assert len(function_tools) == 6
+                assert len(function_tools) == 4
 
     def test_conditional_function_registration_without_mouser_key(
-        self, session: Session, mock_download_cache_service, mock_document_service, mock_metrics_service
+        self, session: Session, mock_seller_service, mock_download_cache_service,
+        mock_document_service, mock_metrics_service
     ):
         """Test that Mouser search functions are NOT registered when API key is missing."""
         from unittest.mock import patch
@@ -526,22 +521,19 @@ class TestAIService:
         mock_duplicate_search_function = Mock(spec=AIFunction)
         mock_mouser_part_number_search = Mock(spec=AIFunction)
         mock_mouser_keyword_search = Mock(spec=AIFunction)
-        mock_mouser_image = Mock(spec=AIFunction)
-        mock_extract_specs = Mock(spec=AIFunction)
 
         service = AIService(
             db=session,
             config=settings,
             temp_file_manager=Mock(),
             type_service=Mock(),
+            seller_service=mock_seller_service,
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
             metrics_service=mock_metrics_service,
             duplicate_search_function=mock_duplicate_search_function,
             mouser_part_number_search_function=mock_mouser_part_number_search,
             mouser_keyword_search_function=mock_mouser_keyword_search,
-            mouser_image_function=mock_mouser_image,
-            extract_specs_function=mock_extract_specs
         )
 
         # Verify mouser_enabled is False
@@ -576,86 +568,10 @@ class TestAIService:
                 call_args = mock_runner_instance.run.call_args
                 function_tools = call_args[0][1]
 
-                # Should include only 4 functions (excluding Mouser search functions):
+                # Should include only 2 functions (excluding Mouser search functions):
                 # - url_classifier
                 # - duplicate_search
-                # - mouser_image (always included)
-                # - extract_specs (always included)
-                assert len(function_tools) == 4
-
-    def test_image_and_spec_functions_always_included(
-        self, session: Session, mock_download_cache_service, mock_document_service, mock_metrics_service
-    ):
-        """Test that image and spec extraction functions are always included regardless of API key."""
-        from unittest.mock import patch
-
-        from app.utils.ai.ai_runner import AIFunction
-
-        # Test with empty Mouser API key
-        settings = Settings(
-            DATABASE_URL="sqlite:///:memory:",
-            OPENAI_API_KEY="test-key",
-            MOUSER_SEARCH_API_KEY=""
-        )
-
-        mock_duplicate_search_function = Mock(spec=AIFunction)
-        mock_mouser_part_number_search = Mock(spec=AIFunction)
-        mock_mouser_keyword_search = Mock(spec=AIFunction)
-        mock_mouser_image = Mock(spec=AIFunction)
-        mock_extract_specs = Mock(spec=AIFunction)
-
-        service = AIService(
-            db=session,
-            config=settings,
-            temp_file_manager=Mock(),
-            type_service=Mock(),
-            download_cache_service=mock_download_cache_service,
-            document_service=mock_document_service,
-            metrics_service=mock_metrics_service,
-            duplicate_search_function=mock_duplicate_search_function,
-            mouser_part_number_search_function=mock_mouser_part_number_search,
-            mouser_keyword_search_function=mock_mouser_keyword_search,
-            mouser_image_function=mock_mouser_image,
-            extract_specs_function=mock_extract_specs
-        )
-
-        # Verify the image and spec functions are stored
-        assert service.mouser_image_function is mock_mouser_image
-        assert service.extract_specs_function is mock_extract_specs
-
-        # Mock AIRunner
-        with patch('app.services.ai_service.AIRunner') as MockAIRunner:
-            mock_runner_instance = Mock()
-            MockAIRunner.return_value = mock_runner_instance
-            service.runner = mock_runner_instance
-
-            mock_run_response = Mock()
-            mock_run_response.response = Mock()
-            mock_runner_instance.run.return_value = mock_run_response
-
-            with patch('app.services.ai_service.URLClassifierFunction'):
-                mock_progress = Mock()
-                try:
-                    service.analyze_part(
-                        description="test part",
-                        images=[],
-                        categories=["Test"],
-                        progress_handle=mock_progress
-                    )
-                except Exception:
-                    pass
-
-            # Verify functions were included
-            if mock_runner_instance.run.called:
-                call_args = mock_runner_instance.run.call_args
-                function_tools = call_args[0][1]
-
-                # Should contain mouser_image and extract_specs
-                assert mock_mouser_image in function_tools
-                assert mock_extract_specs in function_tools
-                # Should NOT contain search functions
-                assert mock_mouser_part_number_search not in function_tools
-                assert mock_mouser_keyword_search not in function_tools
+                assert len(function_tools) == 2
 
     @patch('app.utils.ai.ai_runner.AIRunner.run')
     def test_analyze_part_invalid_json_response(self, mock_run, ai_service: AIService):
@@ -1214,7 +1130,7 @@ class TestAIServiceCleanupPart:
             ai_service.cleanup_part(part_key="ZZZZ", progress_handle=mock_progress)
 
     def test_cleanup_part_ai_disabled(self, session: Session, temp_file_manager: TempFileManager,
-                                       mock_type_service: TypeService,
+                                       mock_type_service: TypeService, mock_seller_service,
                                        mock_download_cache_service: DownloadCacheService,
                                        mock_document_service: DocumentService, mock_metrics_service):
         """Test cleanup_part raises InvalidOperationException when AI is disabled."""
@@ -1224,6 +1140,8 @@ class TestAIServiceCleanupPart:
 
         # Create AI service with DISABLE_REAL_AI_ANALYSIS=True and no dummy response
         mock_duplicate_search_function = Mock(spec=AIFunction)
+        mock_mouser_part_number_search = Mock(spec=AIFunction)
+        mock_mouser_keyword_search = Mock(spec=AIFunction)
         settings = Settings(
             DATABASE_URL="sqlite:///:memory:",
             OPENAI_API_KEY="test-key",
@@ -1235,10 +1153,13 @@ class TestAIServiceCleanupPart:
             config=settings,
             temp_file_manager=temp_file_manager,
             type_service=mock_type_service,
+            seller_service=mock_seller_service,
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
             metrics_service=mock_metrics_service,
-            duplicate_search_function=mock_duplicate_search_function
+            duplicate_search_function=mock_duplicate_search_function,
+            mouser_part_number_search_function=mock_mouser_part_number_search,
+            mouser_keyword_search_function=mock_mouser_keyword_search,
         )
 
         # Create a part
@@ -1447,4 +1368,113 @@ class TestAIServiceCleanupPart:
         assert "data quality" in system_prompt.lower()
         # Should NOT have duplicate detection instructions (that's analysis mode)
         assert "find_duplicates" not in system_prompt
+
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_cleanup_part_resolves_type_and_seller(self, mock_run, ai_service: AIService, session: Session):
+        """Test that cleanup_part resolves type and seller against existing records."""
+        from sqlalchemy import select
+
+        from app.models.attachment_set import AttachmentSet
+        from app.models.part import Part
+        from app.models.seller import Seller
+        from app.models.type import Type
+        from app.utils.ai.ai_runner import AIResponse
+
+        # Get existing "Relay" type (loaded from types.txt)
+        relay_type = session.execute(select(Type).where(Type.name == "Relay")).scalar_one()
+
+        # Create a seller for testing
+        digikey_seller = Seller(name="DigiKey", website="https://digikey.com")
+        session.add(digikey_seller)
+        session.flush()
+
+        # Create a part with the existing type and seller
+        attachment_set = AttachmentSet()
+        session.add(attachment_set)
+        session.flush()
+
+        part = Part(
+            key="TEST",
+            description="Test Relay",
+            type_id=relay_type.id,
+            seller_id=digikey_seller.id,
+            seller_link="https://digikey.com/product/123",
+            attachment_set_id=attachment_set.id
+        )
+        session.add(part)
+        session.flush()
+
+        # Mock AI response with a type that matches existing
+        mock_response = create_mock_ai_response(
+            product_name="Improved Test Relay",
+            product_category="Relay"  # Matches existing type
+        )
+        mock_run.return_value = AIResponse(
+            response=mock_response,
+            output_text="OK",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
+        )
+
+        mock_progress = Mock()
+        result = ai_service.cleanup_part(part_key="TEST", progress_handle=mock_progress)
+
+        # Verify type resolution - should match existing type
+        assert result.type == "Relay"
+        assert result.type_is_existing is True
+        assert result.existing_type_id == relay_type.id
+
+        # Verify seller resolution - should match existing seller
+        assert result.seller == "DigiKey"
+        assert result.seller_is_existing is True
+        assert result.existing_seller_id == digikey_seller.id
+        assert result.seller_link == "https://digikey.com/product/123"
+
+    @patch('app.utils.ai.ai_runner.AIRunner.run')
+    def test_cleanup_part_new_type_not_existing(self, mock_run, ai_service: AIService, session: Session):
+        """Test that cleanup_part correctly identifies when AI suggests a new type."""
+        from app.models.attachment_set import AttachmentSet
+        from app.models.part import Part
+        from app.utils.ai.ai_runner import AIResponse
+
+        # Create a part without type
+        attachment_set = AttachmentSet()
+        session.add(attachment_set)
+        session.flush()
+
+        part = Part(
+            key="TEST",
+            description="Test Widget",
+            attachment_set_id=attachment_set.id
+        )
+        session.add(part)
+        session.flush()
+
+        # Mock AI response with a type that doesn't exist
+        mock_response = create_mock_ai_response(
+            product_name="Test Widget",
+            product_category="Proposed: Custom Widget"  # New type with Proposed: prefix
+        )
+        mock_run.return_value = AIResponse(
+            response=mock_response,
+            output_text="OK",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
+        )
+
+        mock_progress = Mock()
+        result = ai_service.cleanup_part(part_key="TEST", progress_handle=mock_progress)
+
+        # Verify type resolution - should be marked as new
+        assert result.type == "Custom Widget"  # Prefix stripped
+        assert result.type_is_existing is False
+        assert result.existing_type_id is None
 
