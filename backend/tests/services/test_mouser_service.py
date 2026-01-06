@@ -122,11 +122,12 @@ class TestMouserServicePartNumberSearch:
 
         result = mouser_service.search_by_part_number("OMRON-G5Q-1A4")
 
-        # Verify API call
+        # Verify API call - apikey is in URL query param, no headers
         assert mock_download_cache_service.post_cached_json.called
         call_args = mock_download_cache_service.post_cached_json.call_args
-        assert call_args.kwargs['url'] == "https://api.mouser.com/api/v1/search/partnumber"
-        assert call_args.kwargs['headers']['apiKey'] == "test-mouser-api-key-12345"
+        assert "apikey=test-mouser-api-key-12345" in call_args.kwargs['url']
+        assert call_args.kwargs['url'].startswith("https://api.mouser.com/api/v1/search/partnumber")
+        assert 'headers' not in call_args.kwargs  # API key is in URL, not headers
 
         # Verify result
         assert result.error is None
@@ -238,10 +239,11 @@ class TestMouserServiceKeywordSearch:
 
         result = mouser_service.search_by_keyword("relay 5V")
 
-        # Verify API call
+        # Verify API call - apikey is in URL query param, no headers
         assert mock_download_cache_service.post_cached_json.called
         call_args = mock_download_cache_service.post_cached_json.call_args
-        assert call_args.kwargs['url'] == "https://api.mouser.com/api/v1/search/keyword"
+        assert "apikey=test-mouser-api-key-12345" in call_args.kwargs['url']
+        assert call_args.kwargs['url'].startswith("https://api.mouser.com/api/v1/search/keyword")
 
         # Verify request body
         json_body = call_args.kwargs['json_body']

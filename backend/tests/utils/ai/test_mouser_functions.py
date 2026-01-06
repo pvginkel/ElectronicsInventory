@@ -111,7 +111,7 @@ class TestSearchMouserByKeywordFunction:
         assert func.get_model() == MouserSearchByKeywordRequest
 
     def test_execute_success(self, mock_mouser_service, mock_progress_handle):
-        """Should execute keyword search with all parameters."""
+        """Should execute keyword search with hardcoded pagination values."""
         # Setup mock service response
         mock_response = MouserSearchResponse(
             parts=[],
@@ -119,27 +119,23 @@ class TestSearchMouserByKeywordFunction:
         )
         mock_mouser_service.search_by_keyword.return_value = mock_response
 
-        # Create function and execute with pagination
+        # Create function and execute - schema only accepts keyword
         func = SearchMouserByKeywordFunction(mock_mouser_service)
-        request = MouserSearchByKeywordRequest(
-            keyword="relay 5V",
-            record_count=20,
-            starting_record=10
-        )
+        request = MouserSearchByKeywordRequest(keyword="relay 5V")
         result = func.execute(request, mock_progress_handle)
 
-        # Verify service was called with all parameters
+        # Verify service was called with hardcoded pagination (50, 0)
         mock_mouser_service.search_by_keyword.assert_called_once_with(
             keyword="relay 5V",
-            record_count=20,
-            starting_record=10
+            record_count=50,
+            starting_record=0
         )
 
         # Verify result
         assert isinstance(result, MouserSearchResponse)
 
     def test_execute_with_defaults(self, mock_mouser_service, mock_progress_handle):
-        """Should use default pagination values."""
+        """Should use hardcoded pagination values (50 records)."""
         mock_response = MouserSearchResponse(parts=[], total_results=0)
         mock_mouser_service.search_by_keyword.return_value = mock_response
 
@@ -147,9 +143,9 @@ class TestSearchMouserByKeywordFunction:
         request = MouserSearchByKeywordRequest(keyword="relay")
         _result = func.execute(request, mock_progress_handle)
 
-        # Verify defaults were used
+        # Verify hardcoded values were used
         mock_mouser_service.search_by_keyword.assert_called_once_with(
             keyword="relay",
-            record_count=10,  # Default
-            starting_record=0  # Default
+            record_count=50,  # Hardcoded in function
+            starting_record=0  # Hardcoded in function
         )
