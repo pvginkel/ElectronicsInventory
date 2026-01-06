@@ -48,12 +48,31 @@ Write the change brief to: docs/features/<FEATURE_NAME>/change_brief.md
 
 Use the `plan-writer` agent to create a detailed implementation based on the change brief.
 
+**Before invoking the plan-writer agent**, you (the orchestrator) must:
+
+1. **Extract explicit requirements** from the user's original prompt
+2. **Build a User Requirements Checklist** — each item should capture one explicit requirement from the user's prompt. The wording does not need to match exactly, but must be unambiguous.
+3. **Include this checklist in your prompt to the plan-writer agent** with instructions to include it verbatim in the plan
+
+Example checklist format:
+```
+- [ ] Add confirmation dialog before delete action
+- [ ] Call the API endpoint and handle errors
+- [ ] Update local state after successful deletion
+- [ ] Show toast notification on success
+```
+
 ```
 Use the Task tool with the plan-writer agent to create a plan for delivering the change described in docs/features/<FEATURE_NAME>/change_brief.md.
 
 Since this is a minor change, resolve all questions autonomously.
 
 Write the plan to: docs/features/<FEATURE_NAME>/plan.md
+
+**User Requirements Checklist** (include verbatim in section 1a of the plan):
+- [ ] <requirement 1>
+- [ ] <requirement 2>
+- [ ] ...
 ```
 
 **Important**: Provide the explicit full path to the plan file in your agent prompt (e.g., `docs/features/bug_fix/change_brief.md` and `docs/features/bug_fix/plan.md`).
