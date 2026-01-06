@@ -1015,3 +1015,87 @@ class TestKitPickListService:
         assert refreshed_line.status == PickListLineStatus.COMPLETED
         assert refreshed_pick_list is not None
         assert refreshed_pick_list.status == KitPickListStatus.COMPLETED
+
+    def test_create_pick_list_allows_multiple_parts_at_same_location(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
+    ) -> None:
+        """Verify parts sharing a location can all be allocated independently.
+
+        Regression test for bug where reservation tracking was keyed by location_id
+        alone, causing later parts to incorrectly see earlier parts' allocations as
+        blocking their own stock at the same physical location.
+        """
+        kit = _create_active_kit(session, make_attachment_set)
+
+        # Create a shared location
+        shared_location = _create_location(session, box_no=300, loc_no=1)
+
+        # Create multiple parts at the same location, each with exactly 1 unit
+        part_a = _create_part(session, make_attachment_set, "SAMA", "Part A at shared loc")
+        part_b = _create_part(session, make_attachment_set, "SAMB", "Part B at shared loc")
+        part_c = _create_part(session, make_attachment_set, "SAMC", "Part C at shared loc")
+
+        _attach_content(session, kit, part_a, required_per_unit=1)
+        _attach_content(session, kit, part_b, required_per_unit=1)
+        _attach_content(session, kit, part_c, required_per_unit=1)
+
+        _attach_location(session, part_a, shared_location, qty=1)
+        _attach_location(session, part_b, shared_location, qty=1)
+        _attach_location(session, part_c, shared_location, qty=1)
+
+        # Should succeed - each part has independent stock at the same location
+        pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        session.flush()
+
+        assert pick_list.status is KitPickListStatus.OPEN
+        assert len(pick_list.lines) == 3
+        assert all(line.quantity_to_pick == 1 for line in pick_list.lines)
+        assert all(line.location_id == shared_location.id for line in pick_list.lines)
+
+    def test_create_pick_list_respects_per_part_reservations_at_shared_location(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+
+        make_attachment_set,
+
+    ) -> None:
+        """Verify existing open pick list lines correctly reserve per-part stock.
+
+        When an existing pick list has reserved stock at a location for one part,
+        it should NOT block allocation for a different part at the same location.
+        """
+        kit = _create_active_kit(session, make_attachment_set)
+
+        # Create a shared location with enough stock for two pick lists
+        shared_location = _create_location(session, box_no=301, loc_no=1)
+
+        part_a = _create_part(session, make_attachment_set, "RSVA", "Reserved Part A")
+        part_b = _create_part(session, make_attachment_set, "RSVB", "Reserved Part B")
+
+        _attach_content(session, kit, part_a, required_per_unit=1)
+        _attach_content(session, kit, part_b, required_per_unit=1)
+
+        # Part A has 2 units, Part B has 1 unit - both at same location
+        _attach_location(session, part_a, shared_location, qty=2)
+        _attach_location(session, part_b, shared_location, qty=1)
+
+        # First pick list reserves 1 of Part A and 1 of Part B
+        first_pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        session.flush()
+
+        # Second pick list should succeed for Part A (has 1 remaining)
+        # but Part B reservation should correctly block (only 1 total, already reserved)
+        with pytest.raises(InvalidOperationException) as exc_info:
+            kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+
+        # Should fail on Part B, not Part A
+        assert "RSVB" in str(exc_info.value)
+
+        # Verify first pick list was created correctly
+        assert len(first_pick_list.lines) == 2
