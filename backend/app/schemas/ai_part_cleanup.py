@@ -115,6 +115,30 @@ class CleanedPartDataSchema(BaseModel):
         json_schema_extra={"example": "https://www.digikey.com/..."}
     )
 
+    # Type resolution metadata (same as AI analysis)
+    type_is_existing: bool = Field(
+        default=False,
+        description="Whether the suggested type matches an existing type in the system",
+        json_schema_extra={"example": True}
+    )
+    existing_type_id: int | None = Field(
+        default=None,
+        description="ID of existing type if type_is_existing is True",
+        json_schema_extra={"example": 5}
+    )
+
+    # Seller resolution metadata (same as AI analysis)
+    seller_is_existing: bool = Field(
+        default=False,
+        description="Whether the suggested seller matches an existing seller in the system",
+        json_schema_extra={"example": True}
+    )
+    existing_seller_id: int | None = Field(
+        default=None,
+        description="ID of existing seller if seller_is_existing is True",
+        json_schema_extra={"example": 1}
+    )
+
     model_config = ConfigDict(from_attributes=True)
 
 
