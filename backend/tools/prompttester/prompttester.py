@@ -7,6 +7,7 @@ import time
 import traceback
 from dataclasses import dataclass
 from typing import Any, cast
+from unittest.mock import Mock
 
 from dotenv import load_dotenv
 from jinja2 import Environment
@@ -19,9 +20,13 @@ from app.schemas.duplicate_search import (
 )
 from app.services.ai_model import PartAnalysisSuggestion
 from app.services.base_task import ProgressHandle
+from app.services.download_cache_service import DownloadCacheService
+from app.services.mouser_service import MouserService
 from app.utils.ai.ai_runner import AIFunction, AIRequest, AIRunner
 from app.utils.ai.duplicate_search import DuplicateSearchFunction
+from app.utils.ai.mouser_search import SearchMouserByKeywordFunction, SearchMouserByPartNumberFunction
 from app.utils.file_parsers import get_types_from_setup
+from app.utils.temp_file_manager import TempFileManager
 from tools.prompttester.model import (
     AllUrlsSchema,
     BasicInformationSchema,
@@ -188,6 +193,8 @@ class RunParameters:
     filename_prefix: str
     url_classifier: AIFunction
     duplicate_search: AIFunction
+    search_mouser_by_keyword: AIFunction
+    search_mouser_by_part_number: AIFunction
     progress_handle: ProgressImpl
 
 
@@ -227,7 +234,20 @@ def run_full_tests(queries: list[str], models: dict[str, list[str] | None], runs
     output_path = os.path.join(os.path.dirname(__file__), "output")
     os.makedirs(output_path, exist_ok=True)
 
+    mouser_api_key = os.getenv("MOUSER_API_KEY", None)
+    if not mouser_api_key:
+        raise RuntimeError("MOUSER_API_KEY environment variable not set")
+
+    config_mock = Mock()
+    config_mock.MOUSER_SEARCH_API_KEY = mouser_api_key
+
+    temp_file_manager = TempFileManager(tmp_path, 1, Mock())
+    download_cache_service = DownloadCacheService(temp_file_manager)
+    mouser_service = MouserService(config_mock, download_cache_service, Mock()) # type: ignore
+
     duplicate_search = DuplicateSearchFunction(get_duplicate_search_service(runner, "gpt-5-mini")) # type: ignore
+    search_mouser_by_part_number = SearchMouserByPartNumberFunction(mouser_service)
+    search_mouser_by_keyword = SearchMouserByKeywordFunction(mouser_service)
 
     progress_handle = ProgressImpl()
     url_classifier = URLClassifierFunctionImpl(tmp_path)
@@ -254,6 +274,8 @@ def run_full_tests(queries: list[str], models: dict[str, list[str] | None], runs
                             filename_prefix=filename_prefix,
                             url_classifier=url_classifier,
                             duplicate_search=duplicate_search,
+                            search_mouser_by_keyword=search_mouser_by_keyword,
+                            search_mouser_by_part_number=search_mouser_by_part_number,
                             progress_handle=progress_handle
                         )
 
@@ -290,7 +312,8 @@ def single_run(query: str, run_parameters: RunParameters) -> None:
 
 def get_full_schema(query: str, run_parameters: RunParameters) -> PartAnalysisSuggestion:
     system_prompt = render_template("prompt_full_schema.md", {
-        "categories": get_types_from_setup()
+        "categories": get_types_from_setup(),
+        "mouser_api_available": True
     })
     user_prompt = query
 
@@ -298,7 +321,12 @@ def get_full_schema(query: str, run_parameters: RunParameters) -> PartAnalysisSu
         system_prompt,
         user_prompt,
         run_parameters,
-        [run_parameters.url_classifier, run_parameters.duplicate_search],
+        [
+            run_parameters.url_classifier,
+            run_parameters.duplicate_search,
+            run_parameters.search_mouser_by_keyword,
+            run_parameters.search_mouser_by_part_number
+        ],
         PartAnalysisSuggestion,
         f"{run_parameters.filename_prefix}_full-schema"
     )
@@ -581,11 +609,11 @@ def full_tests():
         # "DFRobot Gravity SGP40",
         # "generic tht resistor 1/4w 1% 10k",
         # "banana",
-        # "sharp c n12 pc817",
+        "sharp c n12 pc817",
         # "IRLZ44N",
         # "Ben's electronics Oled i2c 0.96 inch geel blauw 128*64",
         # "Ben's Electronics SKU KO70",
-        "TCRT5000"
+        # "TCRT5000"
     ]
 
     run_full_tests(

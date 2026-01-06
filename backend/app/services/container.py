@@ -36,8 +36,6 @@ from app.services.url_transformers import LCSCInterceptor, URLInterceptorRegistr
 from app.services.version_service import VersionService
 from app.utils.ai.ai_runner import AIRunner
 from app.utils.ai.duplicate_search import DuplicateSearchFunction
-from app.utils.ai.extract_specs import ExtractPartSpecsFromURLFunction
-from app.utils.ai.mouser_image import GetMouserImageFromProductDetailUrlFunction
 from app.utils.ai.mouser_search import (
     SearchMouserByKeywordFunction,
     SearchMouserByPartNumberFunction,
@@ -253,17 +251,6 @@ class ServiceContainer(containers.DeclarativeContainer):
         mouser_service=mouser_service
     )
 
-    mouser_image_function = providers.Factory(
-        GetMouserImageFromProductDetailUrlFunction,
-        download_cache_service=download_cache_service
-    )
-
-    extract_specs_function = providers.Factory(
-        ExtractPartSpecsFromURLFunction,
-        download_cache_service=download_cache_service,
-        ai_runner=ai_runner
-    )
-
     # AI service
     ai_service = providers.Factory(
         AIService,
@@ -276,9 +263,7 @@ class ServiceContainer(containers.DeclarativeContainer):
         metrics_service=metrics_service,
         duplicate_search_function=duplicate_search_function,
         mouser_part_number_search_function=mouser_part_number_search_function,
-        mouser_keyword_search_function=mouser_keyword_search_function,
-        mouser_image_function=mouser_image_function,
-        extract_specs_function=extract_specs_function
+        mouser_keyword_search_function=mouser_keyword_search_function
     )
 
     # Version service - Singleton managing SSE subscribers

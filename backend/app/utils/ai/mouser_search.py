@@ -128,8 +128,8 @@ class SearchMouserByKeywordFunction(AIFunction):
             logger.info(f"Executing Mouser keyword search: {search_request.keyword}")
             response = self.mouser_service.search_by_keyword(
                 keyword=search_request.keyword,
-                record_count=search_request.record_count,
-                starting_record=search_request.starting_record
+                record_count=50,
+                starting_record=0
             )
             logger.info(
                 f"Mouser keyword search returned {len(response.parts)} parts"
