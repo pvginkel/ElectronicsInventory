@@ -43,6 +43,8 @@ class PartAnalysisDetails(BaseModel):
     product_page_urls: list[str] = Field(...)
     datasheet_urls: list[str] = Field(...)
     pinout_urls: list[str] = Field(...)
+    seller: str | None = Field(default=None, description="Seller name (e.g., 'Mouser')")
+    seller_url: str | None = Field(default=None, description="Seller product page URL")
 
 
 class PartAnalysisSuggestion(BaseModel):
