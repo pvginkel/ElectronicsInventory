@@ -125,8 +125,17 @@ class Settings(BaseSettings):
     OPENAI_MAX_OUTPUT_TOKENS: int | None = Field(
         default=None, description="Maximum output tokens for OpenAI responses"
     )
-    OPENAI_DUMMY_RESPONSE_PATH: str | None = Field(
-        default=None, description="Path to a JSON file containing a dummy response"
+    AI_ANALYSIS_CACHE_PATH: str | None = Field(
+        default=None,
+        description="Path to a JSON file for caching AI analysis responses. "
+        "If the file exists, its contents are returned instead of calling the AI. "
+        "If the file doesn't exist, the AI response is saved there for future replay."
+    )
+    AI_CLEANUP_CACHE_PATH: str | None = Field(
+        default=None,
+        description="Path to a JSON file for caching AI cleanup responses. "
+        "If the file exists, its contents are returned instead of calling the AI. "
+        "If the file doesn't exist, the AI response is saved there for future replay."
     )
     DISABLE_REAL_AI_ANALYSIS: bool = Field(
         default=False,

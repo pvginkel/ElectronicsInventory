@@ -36,7 +36,7 @@ def ai_test_settings() -> Settings:
         OPENAI_REASONING_EFFORT="low",
         OPENAI_VERBOSITY="medium",
         OPENAI_MAX_OUTPUT_TOKENS=None,
-        OPENAI_DUMMY_RESPONSE_PATH=None,  # Override .env file setting for tests
+        AI_ANALYSIS_CACHE_PATH=None,  # Override .env file setting for tests
     )
 
 
@@ -346,7 +346,7 @@ class TestAIService:
         settings = Settings(
             DATABASE_URL="sqlite:///:memory:",
             FLASK_ENV="testing",
-            OPENAI_DUMMY_RESPONSE_PATH=None,
+            AI_ANALYSIS_CACHE_PATH=None,
         )
 
         mock_duplicate_search_function = Mock(spec=AIFunction)
@@ -398,7 +398,7 @@ class TestAIService:
         settings = Settings(
             DATABASE_URL="sqlite:///:memory:",
             FLASK_ENV="testing",
-            OPENAI_DUMMY_RESPONSE_PATH=str(dummy_path),
+            AI_ANALYSIS_CACHE_PATH=str(dummy_path),
         )
 
         mock_duplicate_search_function = Mock(spec=AIFunction)
@@ -1146,7 +1146,7 @@ class TestAIServiceCleanupPart:
             DATABASE_URL="sqlite:///:memory:",
             OPENAI_API_KEY="test-key",
             DISABLE_REAL_AI_ANALYSIS=True,  # This makes real_ai_allowed=False
-            OPENAI_DUMMY_RESPONSE_PATH=None
+            AI_ANALYSIS_CACHE_PATH=None
         )
         ai_service = AIService(
             db=session,

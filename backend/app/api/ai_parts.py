@@ -103,8 +103,8 @@ def analyze_part(
             'details': {'message': 'Either text field or image file must be provided', 'field': None}
         }), 400
 
-    # Short-circuit when real AI usage is disabled and no dummy response is configured
-    if not settings.real_ai_allowed and not settings.OPENAI_DUMMY_RESPONSE_PATH:
+    # Short-circuit when real AI usage is disabled and no cache response is available
+    if not settings.real_ai_allowed and not settings.AI_ANALYSIS_CACHE_PATH:
         exception = InvalidOperationException(
             "perform AI analysis",
             "real AI usage is disabled in testing mode",
@@ -293,8 +293,8 @@ def cleanup_part(
             }
         ), 400
 
-    # Short-circuit when real AI usage is disabled and no dummy response is configured
-    if not settings.real_ai_allowed and not settings.OPENAI_DUMMY_RESPONSE_PATH:
+    # Short-circuit when real AI usage is disabled and no cache response is available
+    if not settings.real_ai_allowed and not settings.AI_CLEANUP_CACHE_PATH:
         exception = InvalidOperationException(
             "perform AI cleanup",
             "real AI usage is disabled in testing mode",
