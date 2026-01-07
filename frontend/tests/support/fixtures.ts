@@ -25,7 +25,6 @@ import {
   releaseTestEventBridge,
 } from './helpers/test-events';
 import { ToastHelper, createToastHelper } from './helpers/toast-helpers';
-import { SSEMocker, createSSEMocker } from './helpers/sse-mock';
 import {
   DeploymentSseHelper,
   createDeploymentSseHelper,
@@ -86,14 +85,13 @@ type TestFixtures = {
   pickLists: PickListsPage;
   testEvents: TestEventCapture;
   toastHelper: ToastHelper;
-  sseMocker: SSEMocker;
   fileUploadHelper: FileUploadHelper;
   aiAnalysisMock: (
     options?: AiAnalysisMockOptions
-  ) => Promise<AiAnalysisMockSession>;
+  ) => AiAnalysisMockSession;
   aiCleanupMock: (
     options?: AiCleanupMockOptions
-  ) => Promise<AiCleanupMockSession>;
+  ) => AiCleanupMockSession;
   deploymentSse: DeploymentSseHelper;
 };
 
@@ -335,18 +333,11 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
       await use(toastHelper);
     },
 
-    sseMocker: async ({ page }, use) => {
-      const sseMocker = createSSEMocker(page);
-      await sseMocker.setupSSEMonitoring();
-      await use(sseMocker);
-      sseMocker.closeAllStreams();
-    },
-
-    aiAnalysisMock: async ({ page, sseMocker }, use) => {
+    aiAnalysisMock: async ({ page, backendUrl, deploymentSse }, use) => {
       const sessions: AiAnalysisMockSession[] = [];
 
-      const factory = async (options?: AiAnalysisMockOptions) => {
-        const session = await createAiAnalysisMock(page, sseMocker, options);
+      const factory = (options?: AiAnalysisMockOptions) => {
+        const session = createAiAnalysisMock(page, backendUrl, deploymentSse, options);
         sessions.push(session);
         return session;
       };
@@ -358,11 +349,11 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
       }
     },
 
-    aiCleanupMock: async ({ page, sseMocker }, use) => {
+    aiCleanupMock: async ({ page, backendUrl, deploymentSse }, use) => {
       const sessions: AiCleanupMockSession[] = [];
 
-      const factory = async (options?: AiCleanupMockOptions) => {
-        const session = await createAiCleanupMock(page, sseMocker, options);
+      const factory = (options?: AiCleanupMockOptions) => {
+        const session = createAiCleanupMock(page, backendUrl, deploymentSse, options);
         sessions.push(session);
         return session;
       };

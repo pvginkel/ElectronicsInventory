@@ -108,7 +108,7 @@ test.describe('Instrumentation snapshots', () => {
     parts,
     partsAI,
     aiAnalysisMock,
-    sseTimeout,
+    deploymentSse,
     testEvents,
   }) => {
     await parts.gotoList();
@@ -118,13 +118,14 @@ test.describe('Instrumentation snapshots', () => {
 
     await testEvents.clearEvents();
 
-    const aiSession = await aiAnalysisMock({
-      taskId: makeUnique('ai-failure'),
-    });
+    // Establish SSE connection before creating mock session
+    await deploymentSse.resetRequestId();
+    await deploymentSse.ensureConnected();
+
+    const aiSession = aiAnalysisMock();
 
     await partsAI.submitPrompt('Parts instrumentation failure scenario');
 
-    await aiSession.waitForConnection({ timeout: sseTimeout });
     await expectConsoleError(page, /Analysis failed/i);
     await aiSession.emitFailure('Snapshot instrumentation failure');
 

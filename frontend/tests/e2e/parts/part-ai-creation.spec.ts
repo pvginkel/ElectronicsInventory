@@ -2,8 +2,6 @@ import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
 import { expectConsoleError } from '../../support/helpers';
 
-const streamPath = '/tests/ai-stream/task-123';
-
 test.describe('Parts - AI assisted creation', () => {
   test('creates part from AI analysis flow', async ({
     page,
@@ -13,7 +11,7 @@ test.describe('Parts - AI assisted creation', () => {
     aiAnalysisMock,
     testData,
     apiClient,
-    sseTimeout,
+    deploymentSse,
   }) => {
     const relayTypeName = testData.types.randomTypeName('Relay');
     const relayType = await testData.types.create({ name: relayTypeName });
@@ -26,9 +24,16 @@ test.describe('Parts - AI assisted creation', () => {
     const datasheetUrl = new URL('pdf', testingContentBase).toString();
     const previewImageUrl = new URL(`image?text=${encodeURIComponent('Relay Preview')}`, testingContentBase).toString();
 
-    const aiSession = await aiAnalysisMock({
-      taskId: 'task-123',
-      streamPath,
+    await parts.gotoList();
+    await parts.waitForCards();
+    await parts.openAIDialog();
+    await partsAI.waitForOpen();
+
+    // Establish SSE connection before creating mock session
+    await deploymentSse.resetRequestId();
+    await deploymentSse.ensureConnected();
+
+    const aiSession = aiAnalysisMock({
       analysisOverrides: {
         description: 'OMRON G5Q-1A4 relay',
         manufacturer: 'Omron',
@@ -67,14 +72,8 @@ test.describe('Parts - AI assisted creation', () => {
 
     const analysisResult = aiSession.analysisTemplate;
 
-    await parts.gotoList();
-    await parts.waitForCards();
-    await parts.openAIDialog();
-    await partsAI.waitForOpen();
-
     await partsAI.submitPrompt('OMRON G5Q-1A4 relay 5V 10A');
 
-    await aiSession.waitForConnection({ timeout: sseTimeout });
     await aiSession.emitStarted();
     await aiSession.emitProgress('Analyzing manufacturer code', 0.6);
     await partsAI.waitForProgress(/Analyzing manufacturer code/);
@@ -135,26 +134,26 @@ test.describe('Parts - AI assisted creation', () => {
     parts,
     partsAI,
     aiAnalysisMock,
-    sseTimeout,
+    deploymentSse,
   }) => {
     const failureMessage = 'Could not identify a specific electronic component from the provided text. Please provide more details such as manufacturer name, part number, or component type.';
-
-    const aiSession = await aiAnalysisMock({
-      taskId: 'task-failure-123',
-      streamPath: '/tests/ai-stream/task-failure-123',
-    });
 
     await parts.gotoList();
     await parts.waitForCards();
     await parts.openAIDialog();
     await partsAI.waitForOpen();
 
+    // Establish SSE connection before creating mock session
+    await deploymentSse.resetRequestId();
+    await deploymentSse.ensureConnected();
+
+    const aiSession = aiAnalysisMock();
+
     // Mark the analysis failure as an expected console error
     await expectConsoleError(page, /Analysis failed:/);
 
     await partsAI.submitPrompt('a thing');
 
-    await aiSession.waitForConnection({ timeout: sseTimeout });
     await aiSession.emitStarted();
     await aiSession.emitProgress('Analyzing input', 0.5);
     await partsAI.waitForProgress(/Analyzing input/);
@@ -187,16 +186,23 @@ test.describe('Parts - AI assisted creation', () => {
     partsAI,
     aiAnalysisMock,
     testData,
-    sseTimeout,
+    deploymentSse,
   }) => {
     const relayTypeName = testData.types.randomTypeName('Relay');
     const relayType = await testData.types.create({ name: relayTypeName });
 
     const warningMessage = 'Could not find a datasheet for this part, but analysis was completed based on the part number.';
 
-    const aiSession = await aiAnalysisMock({
-      taskId: 'task-warning-123',
-      streamPath: '/tests/ai-stream/task-warning-123',
+    await parts.gotoList();
+    await parts.waitForCards();
+    await parts.openAIDialog();
+    await partsAI.waitForOpen();
+
+    // Establish SSE connection before creating mock session
+    await deploymentSse.resetRequestId();
+    await deploymentSse.ensureConnected();
+
+    const aiSession = aiAnalysisMock({
       analysisOverrides: {
         description: 'OMRON G5Q-1A4 relay',
         manufacturer: 'Omron',
@@ -216,14 +222,8 @@ test.describe('Parts - AI assisted creation', () => {
       },
     });
 
-    await parts.gotoList();
-    await parts.waitForCards();
-    await parts.openAIDialog();
-    await partsAI.waitForOpen();
-
     await partsAI.submitPrompt('OMRON G5Q-1A4');
 
-    await aiSession.waitForConnection({ timeout: sseTimeout });
     await aiSession.emitStarted();
     await aiSession.emitProgress('Analyzing part number', 0.7);
     await partsAI.waitForProgress(/Analyzing part number/);

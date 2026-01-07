@@ -8,6 +8,7 @@ test.describe('AI Part Analysis - Duplicate Detection', () => {
     partsAI,
     testData,
     aiAnalysisMock,
+    deploymentSse,
   }) => {
     // Create two existing parts that will be returned as duplicates
     const type = await testData.types.create({ name: testData.types.randomTypeName('Relay') });
@@ -34,15 +35,16 @@ test.describe('AI Part Analysis - Duplicate Detection', () => {
     await parts.openAIDialog();
     await partsAI.waitForOpen();
 
+    // Establish SSE connection before creating mock session
+    await deploymentSse.resetRequestId();
+    await deploymentSse.ensureConnected();
+
     // Set up AI analysis mock with duplicate-only response
-    const mock = await aiAnalysisMock();
+    const mock = aiAnalysisMock();
     const searchText = 'OMRON G5Q-1A4';
 
     // Submit analysis
     await partsAI.submitPrompt(searchText);
-
-    // Wait for SSE connection
-    await mock.waitForConnection();
 
     // Emit analysis events with duplicate-only result
     await mock.emitStarted();
@@ -122,6 +124,7 @@ test.describe('AI Part Analysis - Duplicate Detection', () => {
     parts,
     partsAI,
     aiAnalysisMock,
+    deploymentSse,
   }) => {
     // Create existing part
     const type = await testData.types.create({ name: testData.types.randomTypeName('IC') });
@@ -140,12 +143,15 @@ test.describe('AI Part Analysis - Duplicate Detection', () => {
     await parts.openAIDialog();
     await partsAI.waitForOpen();
 
+    // Establish SSE connection before creating mock session
+    await deploymentSse.resetRequestId();
+    await deploymentSse.ensureConnected();
+
     // Set up mock with duplicate response
-    const mock = await aiAnalysisMock();
+    const mock = aiAnalysisMock();
 
     await partsAI.submitPrompt('ATMEGA328P');
 
-    await mock.waitForConnection();
     await mock.emitStarted();
 
     await mock.emitCompleted({
@@ -183,6 +189,7 @@ test.describe('AI Part Analysis - Duplicate Detection', () => {
     parts,
     partsAI,
     aiAnalysisMock,
+    deploymentSse,
   }) => {
     // Create existing part
     const type = await testData.types.create({ name: testData.types.randomTypeName('Resistor') });
@@ -201,11 +208,14 @@ test.describe('AI Part Analysis - Duplicate Detection', () => {
     await parts.openAIDialog();
     await partsAI.waitForOpen();
 
-    const mock = await aiAnalysisMock();
+    // Establish SSE connection before creating mock session
+    await deploymentSse.resetRequestId();
+    await deploymentSse.ensureConnected();
+
+    const mock = aiAnalysisMock();
 
     await partsAI.submitPrompt('10k resistor');
 
-    await mock.waitForConnection();
     await mock.emitStarted();
 
     // Return both analysis AND duplicates
@@ -264,6 +274,7 @@ test.describe('AI Part Analysis - Duplicate Detection', () => {
     parts,
     partsAI,
     aiAnalysisMock,
+    deploymentSse,
   }) => {
     const type = await testData.types.create({ name: testData.types.randomTypeName('Capacitor') });
     const existingPartResult = await testData.parts.create({
@@ -281,11 +292,14 @@ test.describe('AI Part Analysis - Duplicate Detection', () => {
     await parts.openAIDialog();
     await partsAI.waitForOpen();
 
-    const mock = await aiAnalysisMock();
+    // Establish SSE connection before creating mock session
+    await deploymentSse.resetRequestId();
+    await deploymentSse.ensureConnected();
+
+    const mock = aiAnalysisMock();
 
     await partsAI.submitPrompt('100uF cap');
 
-    await mock.waitForConnection();
     await mock.emitStarted();
 
     await mock.emitCompleted({
@@ -327,6 +341,7 @@ test.describe('AI Part Analysis - Duplicate Detection', () => {
     parts,
     partsAI,
     aiAnalysisMock,
+    deploymentSse,
   }) => {
     const type = await testData.types.create({ name: testData.types.randomTypeName('LED') });
 
@@ -349,11 +364,14 @@ test.describe('AI Part Analysis - Duplicate Detection', () => {
     await parts.openAIDialog();
     await partsAI.waitForOpen();
 
-    const mock = await aiAnalysisMock();
+    // Establish SSE connection before creating mock session
+    await deploymentSse.resetRequestId();
+    await deploymentSse.ensureConnected();
+
+    const mock = aiAnalysisMock();
 
     await partsAI.submitPrompt('LED');
 
-    await mock.waitForConnection();
     await mock.emitStarted();
 
     await mock.emitCompleted({

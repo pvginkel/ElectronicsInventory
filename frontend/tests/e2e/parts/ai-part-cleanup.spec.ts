@@ -1,5 +1,5 @@
 import { test, expect } from '../../support/fixtures';
-import { waitTestEvent } from '../../support/helpers';
+import { waitTestEvent, expectConsoleError } from '../../support/helpers';
 import type { FormTestEvent } from '@/types/test-events';
 
 test.describe('AI Part Cleanup', () => {
@@ -9,7 +9,7 @@ test.describe('AI Part Cleanup', () => {
     testData,
     aiCleanupMock,
     apiClient,
-    sseTimeout,
+    deploymentSse,
   }) => {
     // Create a part type and existing part
     const relayTypeName = testData.types.randomTypeName('Relay');
@@ -29,10 +29,16 @@ test.describe('AI Part Cleanup', () => {
     });
     const part = partResult.part;
 
+    // Navigate to part detail page
+    await page.goto(`/parts/${part.key}`);
+    await parts.waitForDetailReady();
+
+    // Establish SSE connection before creating mock session
+    await deploymentSse.resetRequestId();
+    await deploymentSse.ensureConnected();
+
     // Create cleanup mock session
-    const cleanupSession = await aiCleanupMock({
-      taskId: 'cleanup-task-123',
-      streamPath: '/tests/ai-stream/cleanup-task-123',
+    const cleanupSession = aiCleanupMock({
       cleanupOverrides: {
         key: part.key,
         description: 'OMRON G5Q-1A4 relay',
@@ -55,10 +61,6 @@ test.describe('AI Part Cleanup', () => {
       },
     });
 
-    // Navigate to part detail page
-    await page.goto(`/parts/${part.key}`);
-    await parts.waitForDetailReady();
-
     // Open overflow menu and click "Cleanup Part"
     await parts.overflowMenuButton.click();
     const cleanupMenuItem = page.getByRole('menuitem', { name: /cleanup part/i });
@@ -74,9 +76,6 @@ test.describe('AI Part Cleanup', () => {
     const cleanupDialog = page.getByTestId('parts.cleanup.dialog');
     await expect(cleanupDialog).toBeVisible();
     await expect(cleanupDialog).toHaveAttribute('data-step', 'progress');
-
-    // Wait for SSE connection
-    await cleanupSession.waitForConnection({ timeout: sseTimeout });
 
     // Emit cleanup events
     await cleanupSession.emitStarted();
@@ -111,8 +110,8 @@ test.describe('AI Part Cleanup', () => {
     await expect(newValue).toBeVisible();
     await expect(newValue).toHaveText('OMRON G5Q-1A4 relay');
 
-    // Verify arrow separator is present
-    const arrow = descriptionRow.locator('text=→');
+    // Verify arrow separator is present (rendered as ArrowRight icon)
+    const arrow = descriptionRow.locator('svg');
     await expect(arrow).toBeVisible();
 
     // Verify checkbox is present and checked by default
@@ -123,7 +122,10 @@ test.describe('AI Part Cleanup', () => {
     const tagsRow = mergeRows.filter({ hasText: /tags/i }).first();
     await expect(tagsRow).toBeVisible();
     await expect(tagsRow.locator('[data-value-type="old"]')).toHaveText('relay');
-    await expect(tagsRow.locator('[data-value-type="new"]')).toHaveText('relay, 5V, SPDT');
+    // Note: Arrays are sorted before comparison, so order may differ
+    await expect(tagsRow.locator('[data-value-type="new"]')).toContainText('5V');
+    await expect(tagsRow.locator('[data-value-type="new"]')).toContainText('SPDT');
+    await expect(tagsRow.locator('[data-value-type="new"]')).toContainText('relay');
 
     // Test unchecking a checkbox turns values gray
     await descriptionCheckbox.uncheck();
@@ -173,7 +175,7 @@ test.describe('AI Part Cleanup', () => {
     parts,
     testData,
     aiCleanupMock,
-    sseTimeout,
+    deploymentSse,
   }) => {
     // Create part with complete data
     const relayTypeName = testData.types.randomTypeName('Relay');
@@ -192,10 +194,15 @@ test.describe('AI Part Cleanup', () => {
     });
     const part = partResult.part;
 
+    await page.goto(`/parts/${part.key}`);
+    await parts.waitForDetailReady();
+
+    // Establish SSE connection before creating mock session
+    await deploymentSse.resetRequestId();
+    await deploymentSse.ensureConnected();
+
     // Create cleanup mock that returns identical data (no changes)
-    const cleanupSession = await aiCleanupMock({
-      taskId: 'cleanup-nochange-123',
-      streamPath: '/tests/ai-stream/cleanup-nochange-123',
+    const cleanupSession = aiCleanupMock({
       cleanupOverrides: {
         key: part.key,
         description: part.description,
@@ -218,9 +225,6 @@ test.describe('AI Part Cleanup', () => {
       },
     });
 
-    await page.goto(`/parts/${part.key}`);
-    await parts.waitForDetailReady();
-
     // Open cleanup dialog
     await parts.overflowMenuButton.click();
     await page.getByRole('menuitem', { name: /cleanup part/i }).click();
@@ -228,7 +232,6 @@ test.describe('AI Part Cleanup', () => {
     const cleanupDialog = page.getByTestId('parts.cleanup.dialog');
     await expect(cleanupDialog).toBeVisible();
 
-    await cleanupSession.waitForConnection({ timeout: sseTimeout });
     await cleanupSession.emitStarted();
     await cleanupSession.emitProgress('Analyzing...', 0.5);
     await cleanupSession.emitCompleted();
@@ -256,7 +259,7 @@ test.describe('AI Part Cleanup', () => {
     parts,
     testData,
     aiCleanupMock,
-    sseTimeout,
+    deploymentSse,
   }) => {
     const relayTypeName = testData.types.randomTypeName('Relay');
     const relayType = await testData.types.create({ name: relayTypeName });
@@ -269,13 +272,14 @@ test.describe('AI Part Cleanup', () => {
     });
     const part = partResult.part;
 
-    const cleanupSession = await aiCleanupMock({
-      taskId: 'cleanup-error-123',
-      streamPath: '/tests/ai-stream/cleanup-error-123',
-    });
-
     await page.goto(`/parts/${part.key}`);
     await parts.waitForDetailReady();
+
+    // Establish SSE connection before creating mock session
+    await deploymentSse.resetRequestId();
+    await deploymentSse.ensureConnected();
+
+    const cleanupSession = aiCleanupMock();
 
     await parts.overflowMenuButton.click();
     await page.getByRole('menuitem', { name: /cleanup part/i }).click();
@@ -283,11 +287,11 @@ test.describe('AI Part Cleanup', () => {
     const cleanupDialog = page.getByTestId('parts.cleanup.dialog');
     await expect(cleanupDialog).toBeVisible();
 
-    await cleanupSession.waitForConnection({ timeout: sseTimeout });
     await cleanupSession.emitStarted();
 
-    // Emit failure
+    // Emit failure - expect console error from cleanup failure
     const errorMessage = 'Failed to analyze part data. Please try again.';
+    await expectConsoleError(page, /Cleanup failed:/);
     await cleanupSession.emitFailure(errorMessage);
 
     // Verify error state on progress step
@@ -318,7 +322,7 @@ test.describe('AI Part Cleanup', () => {
     testData,
     aiCleanupMock,
     apiClient,
-    sseTimeout,
+    deploymentSse,
   }) => {
     const relayTypeName = testData.types.randomTypeName('Relay');
     const relayType = await testData.types.create({ name: relayTypeName });
@@ -333,7 +337,14 @@ test.describe('AI Part Cleanup', () => {
     });
     const part = partResult.part;
 
-    const cleanupSession = await aiCleanupMock({
+    await page.goto(`/parts/${part.key}`);
+    await parts.waitForDetailReady();
+
+    // Establish SSE connection before creating mock session
+    await deploymentSse.resetRequestId();
+    await deploymentSse.ensureConnected();
+
+    const cleanupSession = aiCleanupMock({
       cleanupOverrides: {
         key: part.key,
         description: 'New description',
@@ -345,22 +356,17 @@ test.describe('AI Part Cleanup', () => {
       },
     });
 
-    await page.goto(`/parts/${part.key}`);
-    await parts.waitForDetailReady();
-
     await parts.overflowMenuButton.click();
     await page.getByRole('menuitem', { name: /cleanup part/i }).click();
 
     const cleanupDialog = page.getByTestId('parts.cleanup.dialog');
-    await cleanupSession.waitForConnection({ timeout: sseTimeout });
     await cleanupSession.emitStarted();
     await cleanupSession.emitCompleted();
 
     await expect(cleanupDialog).toHaveAttribute('data-step', 'merge');
 
-    // Find specific rows
-    const mergeRows = page.getByTestId('parts.cleanup.merge.row');
-    const manufacturerRow = mergeRows.filter({ hasText: /^manufacturer$/i }).first();
+    // Find specific rows using data-field attribute
+    const manufacturerRow = page.locator('[data-testid="parts.cleanup.merge.row"][data-field="manufacturer"]');
 
     // Uncheck the manufacturer row (keep only description and voltage_rating checked)
     const manufacturerCheckbox = manufacturerRow.getByTestId('parts.cleanup.merge.checkbox');
@@ -396,7 +402,7 @@ test.describe('AI Part Cleanup', () => {
     parts,
     testData,
     aiCleanupMock,
-    sseTimeout,
+    deploymentSse,
   }) => {
     const relayTypeName = testData.types.randomTypeName('Relay');
     const relayType = await testData.types.create({ name: relayTypeName });
@@ -410,7 +416,14 @@ test.describe('AI Part Cleanup', () => {
     });
     const part = partResult.part;
 
-    const cleanupSession = await aiCleanupMock({
+    await page.goto(`/parts/${part.key}`);
+    await parts.waitForDetailReady();
+
+    // Establish SSE connection before creating mock session
+    await deploymentSse.resetRequestId();
+    await deploymentSse.ensureConnected();
+
+    const cleanupSession = aiCleanupMock({
       cleanupOverrides: {
         key: part.key,
         description: 'New description',
@@ -421,14 +434,10 @@ test.describe('AI Part Cleanup', () => {
       },
     });
 
-    await page.goto(`/parts/${part.key}`);
-    await parts.waitForDetailReady();
-
     await parts.overflowMenuButton.click();
     await page.getByRole('menuitem', { name: /cleanup part/i }).click();
 
     const cleanupDialog = page.getByTestId('parts.cleanup.dialog');
-    await cleanupSession.waitForConnection({ timeout: sseTimeout });
     await cleanupSession.emitStarted();
     await cleanupSession.emitCompleted();
 
@@ -458,7 +467,7 @@ test.describe('AI Part Cleanup', () => {
     testData,
     aiCleanupMock,
     apiClient,
-    sseTimeout,
+    deploymentSse,
   }) => {
     const existingTypeName = testData.types.randomTypeName('OldType');
     const existingType = await testData.types.create({ name: existingTypeName });
@@ -473,7 +482,14 @@ test.describe('AI Part Cleanup', () => {
 
     const newTypeName = testData.types.randomTypeName('NewType');
 
-    const cleanupSession = await aiCleanupMock({
+    await page.goto(`/parts/${part.key}`);
+    await parts.waitForDetailReady();
+
+    // Establish SSE connection before creating mock session
+    await deploymentSse.resetRequestId();
+    await deploymentSse.ensureConnected();
+
+    const cleanupSession = aiCleanupMock({
       cleanupOverrides: {
         key: part.key,
         description: 'Test part with new type',
@@ -483,14 +499,10 @@ test.describe('AI Part Cleanup', () => {
       },
     });
 
-    await page.goto(`/parts/${part.key}`);
-    await parts.waitForDetailReady();
-
     await parts.overflowMenuButton.click();
     await page.getByRole('menuitem', { name: /cleanup part/i }).click();
 
     const cleanupDialog = page.getByTestId('parts.cleanup.dialog');
-    await cleanupSession.waitForConnection({ timeout: sseTimeout });
     await cleanupSession.emitStarted();
     await cleanupSession.emitCompleted();
 
@@ -503,11 +515,11 @@ test.describe('AI Part Cleanup', () => {
     // Click to open type creation dialog
     await createTypeButton.click();
 
-    const typeDialog = page.getByRole('dialog', { name: /create type/i });
+    const typeDialog = page.getByRole('dialog', { name: /create new type/i });
     await expect(typeDialog).toBeVisible();
 
     // Fill and submit type creation form
-    const typeNameInput = typeDialog.getByLabel(/name/i);
+    const typeNameInput = typeDialog.getByRole('textbox');
     await expect(typeNameInput).toHaveValue(newTypeName);
 
     await typeDialog.getByRole('button', { name: /create/i }).click();
@@ -517,7 +529,7 @@ test.describe('AI Part Cleanup', () => {
 
     // Verify "Create Type" button is replaced with checkbox row
     await expect(createTypeButton).not.toBeVisible();
-    const typeRow = page.getByTestId('parts.cleanup.merge.row').filter({ hasText: /type/i }).first();
+    const typeRow = page.locator('[data-testid="parts.cleanup.merge.row"][data-field="type"]');
     await expect(typeRow).toBeVisible();
     const typeCheckbox = typeRow.getByTestId('parts.cleanup.merge.checkbox');
     await expect(typeCheckbox).toBeVisible();

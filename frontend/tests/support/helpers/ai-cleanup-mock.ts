@@ -1,6 +1,6 @@
-import { Page, Route } from '@playwright/test';
-import { makeUnique } from '../helpers';
-import { SSEMocker } from './sse-mock';
+import { Page } from '@playwright/test';
+import { DeploymentSseHelper } from './deployment-sse';
+import { waitForSseEvent, extractSseData } from './test-events';
 
 export interface AiCleanupResult {
   key: string;
@@ -34,27 +34,14 @@ export interface AiCleanupCompletionOverrides {
   error_message?: string | null;
 }
 
-export interface AiCleanupCleanupResponse {
-  task_id: string;
-  stream_url: string;
-  [key: string]: unknown;
-}
-
 export interface AiCleanupMockOptions {
-  cleanupMatcher?: string | RegExp;
-  taskId?: string;
-  streamPath?: string;
-  streamPattern?: string | RegExp;
   cleanupOverrides?: Partial<AiCleanupResult>;
-  cleanupResponseOverrides?: Partial<AiCleanupCleanupResponse>;
 }
 
 export interface AiCleanupMockSession {
-  taskId: string;
-  streamPath: string;
-  cleanupResponse: AiCleanupCleanupResponse;
+  taskId: string | null;
   cleanupTemplate: AiCleanupResult;
-  waitForConnection(options?: { timeout?: number }): Promise<void>;
+  waitForTaskId(): Promise<string>;
   emitStarted(): Promise<void>;
   emitProgress(text: string, value: number): Promise<void>;
   emitCompleted(overrides?: AiCleanupCompletionOverrides): Promise<void>;
@@ -87,22 +74,6 @@ const defaultCleanup: AiCleanupResult = {
   seller_link: null,
 };
 
-function escapeForRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, (character) => `\\${character}`);
-}
-
-async function fulfillCleanupRoute(
-  route: Route,
-  response: AiCleanupCleanupResponse
-): Promise<void> {
-  // eslint-disable-next-line testing/no-route-mocks -- AI cleanup SSE lacks deterministic backend stream
-  await route.fulfill({
-    status: 200,
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(response),
-  });
-}
-
 function mergeCleanup(
   base: AiCleanupResult,
   overrides?: Partial<AiCleanupResult> | null
@@ -117,56 +88,81 @@ function mergeCleanup(
   };
 }
 
-export async function createAiCleanupMock(
+export function createAiCleanupMock(
   page: Page,
-  sseMocker: SSEMocker,
+  backendUrl: string,
+  deploymentSse: DeploymentSseHelper,
   options: AiCleanupMockOptions = {}
-): Promise<AiCleanupMockSession> {
-  const cleanupMatcher = options.cleanupMatcher ?? '**/api/ai-parts/cleanup';
-  const taskId = options.taskId ?? makeUnique('cleanup-task');
-  const streamPath = options.streamPath ?? `/tests/ai-stream/${taskId}`;
-  const streamPattern = options.streamPattern ?? new RegExp(`${escapeForRegExp(streamPath)}$`);
-
-  const cleanupResponse: AiCleanupCleanupResponse = {
-    task_id: taskId,
-    stream_url: streamPath,
-    ...options.cleanupResponseOverrides,
-  };
-
+): AiCleanupMockSession {
   const cleanupTemplate = mergeCleanup(defaultCleanup, options.cleanupOverrides);
 
   let disposed = false;
+  let taskIdPromise: Promise<string> | null = null;
+  let resolvedTaskId: string | null = null;
 
-  const cleanupHandler = async (route: Route) => {
-    await fulfillCleanupRoute(route, cleanupResponse);
-  };
-
-  // eslint-disable-next-line testing/no-route-mocks -- AI cleanup SSE lacks deterministic backend stream
-  await page.route(cleanupMatcher, cleanupHandler, { times: 1 });
-
-  // eslint-disable-next-line testing/no-route-mocks -- AI cleanup SSE lacks deterministic backend stream
-  await sseMocker.mockSSE({
-    url: streamPattern,
-    events: [],
-  });
-
-  const sendTaskEvent = async (payload: Record<string, unknown>) => {
+  // Lazy initialization: first call to any emission method creates taskIdPromise by waiting for task_subscription event; subsequent calls reuse the cached promise
+  const ensureTaskId = async (): Promise<string> => {
     if (disposed) {
       throw new Error('AI cleanup mock has been disposed');
     }
 
-    await sseMocker.sendEvent(streamPattern, {
-      event: 'task_event',
-      data: {
-        task_id: taskId,
-        timestamp: new Date().toISOString(),
-        ...payload,
-      },
-    });
+    if (!taskIdPromise) {
+      taskIdPromise = (async () => {
+        const subscriptionEvent = await waitForSseEvent(page, {
+          streamId: 'task',
+          phase: 'open',
+          event: 'task_subscription',
+          timeoutMs: 10000,
+        });
+
+        const subscriptionData = extractSseData<{ taskId?: string }>(subscriptionEvent);
+        const taskId = subscriptionData?.taskId;
+
+        if (!taskId || typeof taskId !== 'string' || taskId.trim() === '') {
+          throw new Error('Invalid task subscription event: taskId is missing or empty');
+        }
+
+        // Cache the resolved value for synchronous access via getter
+        resolvedTaskId = taskId;
+        return taskId;
+      })();
+    }
+
+    return await taskIdPromise;
   };
 
-  const waitForConnection = async (options?: { timeout?: number }) => {
-    await sseMocker.waitForConnection(streamPattern, options);
+  const sendTaskEvent = async (payload: {
+    event_type: string;
+    data: unknown;
+  }): Promise<void> => {
+    const taskId = await ensureTaskId();
+    const requestId = await deploymentSse.getRequestId();
+
+    if (!requestId) {
+      throw new Error(
+        'SSE connection lost or not established. Call deploymentSse.ensureConnected() and ensure connection remains active during test execution.'
+      );
+    }
+
+    const response = await page.request.post(`${backendUrl}/api/testing/sse/task-event`, {
+      data: {
+        request_id: requestId,
+        task_id: taskId,
+        event_type: payload.event_type,
+        data: payload.data,
+      },
+    });
+
+    if (response.status() >= 400) {
+      throw new Error(
+        `Failed to send task event: ${payload.event_type} ` +
+        `(status: ${response.status()}, request_id: ${requestId}, task_id: ${taskId})`
+      );
+    }
+  };
+
+  const waitForTaskId = async (): Promise<string> => {
+    return await ensureTaskId();
   };
 
   const emitStarted = async () => {
@@ -194,7 +190,7 @@ export async function createAiCleanupMock(
 
     const completion = {
       success: overrides?.success ?? true,
-      analysis: cleanupPayload ? { cleaned_part: cleanupPayload } : null,
+      cleaned_part: cleanupPayload,
       error_message: overrides?.error_message ?? null,
     };
 
@@ -217,22 +213,16 @@ export async function createAiCleanupMock(
       return;
     }
     disposed = true;
-
-    await page.unroute(cleanupMatcher, cleanupHandler).catch(() => {
-      /* ignore - route may already be removed */
-    });
-
-    await sseMocker.closeStreams(streamPattern).catch(() => {
-      /* ignore - page context might be closed */
-    });
+    // No cleanup needed - no routes or streams to close
   };
 
   return {
-    taskId,
-    streamPath,
-    cleanupResponse,
+    get taskId() {
+      // Return cached taskId if available, otherwise null
+      return resolvedTaskId;
+    },
     cleanupTemplate,
-    waitForConnection,
+    waitForTaskId,
     emitStarted,
     emitProgress,
     emitCompleted,

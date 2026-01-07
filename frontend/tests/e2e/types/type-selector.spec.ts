@@ -56,15 +56,19 @@ test.describe('TypeSelector - AI review flow', () => {
     page,
     testData,
     aiAnalysisMock,
-    sseTimeout,
+    deploymentSse,
   }) => {
     const existingType = await testData.types.create({ name: testData.types.randomTypeName('AIExisting') });
     const alternateType = await testData.types.create({ name: testData.types.randomTypeName('AIFallback') });
     const newTypeName = testData.types.randomTypeName('AINew');
-    const streamPath = '/api/testing/ai-mock-stream';
-    const aiSession = await aiAnalysisMock({
-      taskId: 'mock-task',
-      streamPath,
+
+    await page.goto('/parts');
+
+    // Establish SSE connection before creating mock session
+    await deploymentSse.resetRequestId();
+    await deploymentSse.ensureConnected();
+
+    const aiSession = aiAnalysisMock({
       analysisOverrides: {
         description: 'AI generated part',
         manufacturer: 'Acme AI',
@@ -88,15 +92,12 @@ test.describe('TypeSelector - AI review flow', () => {
       },
     });
 
-    await page.goto('/parts');
-
     await page.getByRole('button', { name: /add part with ai/i }).click();
 
     const input = page.getByLabel('Part Number or Description');
     await input.fill('AI powered component');
     await page.getByRole('button', { name: /analyze part/i }).click();
 
-    await aiSession.waitForConnection({ timeout: sseTimeout });
     await aiSession.emitStarted();
     await aiSession.emitCompleted();
 

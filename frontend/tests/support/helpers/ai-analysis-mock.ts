@@ -1,6 +1,6 @@
-import { Page, Route } from '@playwright/test';
-import { makeUnique } from '../helpers';
-import { SSEMocker } from './sse-mock';
+import { Page } from '@playwright/test';
+import { DeploymentSseHelper } from './deployment-sse';
+import { waitForSseEvent, extractSseData } from './test-events';
 
 interface AiAnalysisDocumentPreview {
   content_type: string;
@@ -56,27 +56,14 @@ export interface AiAnalysisCompletionOverrides {
   error_message?: string | null;
 }
 
-export interface AiAnalysisAnalyzeResponse {
-  task_id: string;
-  stream_url: string;
-  [key: string]: unknown;
-}
-
 export interface AiAnalysisMockOptions {
-  analyzeMatcher?: string | RegExp;
-  taskId?: string;
-  streamPath?: string;
-  streamPattern?: string | RegExp;
   analysisOverrides?: Partial<AiAnalysisResult>;
-  analyzeResponseOverrides?: Partial<AiAnalysisAnalyzeResponse>;
 }
 
 export interface AiAnalysisMockSession {
-  taskId: string;
-  streamPath: string;
-  analyzeResponse: AiAnalysisAnalyzeResponse;
+  taskId: string | null;
   analysisTemplate: AiAnalysisResult;
-  waitForConnection(options?: { timeout?: number }): Promise<void>;
+  waitForTaskId(): Promise<string>;
   emitStarted(): Promise<void>;
   emitProgress(text: string, value: number): Promise<void>;
   emitCompleted(overrides?: AiAnalysisCompletionOverrides): Promise<void>;
@@ -121,22 +108,6 @@ const defaultAnalysis: AiAnalysisResult = {
   seller_link: null,
 };
 
-function escapeForRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, (character) => `\\${character}`);
-}
-
-async function fulfillAnalyzeRoute(
-  route: Route,
-  response: AiAnalysisAnalyzeResponse
-): Promise<void> {
-  // eslint-disable-next-line testing/no-route-mocks -- AI analysis SSE lacks deterministic backend stream
-  await route.fulfill({
-    status: 200,
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(response),
-  });
-}
-
 function mergeAnalysis(
   base: AiAnalysisResult,
   overrides?: Partial<AiAnalysisResult> | null
@@ -151,56 +122,81 @@ function mergeAnalysis(
   };
 }
 
-export async function createAiAnalysisMock(
+export function createAiAnalysisMock(
   page: Page,
-  sseMocker: SSEMocker,
+  backendUrl: string,
+  deploymentSse: DeploymentSseHelper,
   options: AiAnalysisMockOptions = {}
-): Promise<AiAnalysisMockSession> {
-  const analyzeMatcher = options.analyzeMatcher ?? '**/api/ai-parts/analyze';
-  const taskId = options.taskId ?? makeUnique('task');
-  const streamPath = options.streamPath ?? `/tests/ai-stream/${taskId}`;
-  const streamPattern = options.streamPattern ?? new RegExp(`${escapeForRegExp(streamPath)}$`);
-
-  const analyzeResponse: AiAnalysisAnalyzeResponse = {
-    task_id: taskId,
-    stream_url: streamPath,
-    ...options.analyzeResponseOverrides,
-  };
-
+): AiAnalysisMockSession {
   const analysisTemplate = mergeAnalysis(defaultAnalysis, options.analysisOverrides);
 
   let disposed = false;
+  let taskIdPromise: Promise<string> | null = null;
+  let resolvedTaskId: string | null = null;
 
-  const analyzeHandler = async (route: Route) => {
-    await fulfillAnalyzeRoute(route, analyzeResponse);
-  };
-
-  // eslint-disable-next-line testing/no-route-mocks -- AI analysis SSE lacks deterministic backend stream
-  await page.route(analyzeMatcher, analyzeHandler, { times: 1 });
-
-  // eslint-disable-next-line testing/no-route-mocks -- AI analysis SSE lacks deterministic backend stream
-  await sseMocker.mockSSE({
-    url: streamPattern,
-    events: [],
-  });
-
-  const sendTaskEvent = async (payload: Record<string, unknown>) => {
+  // Lazy initialization: first call to any emission method creates taskIdPromise by waiting for task_subscription event; subsequent calls reuse the cached promise
+  const ensureTaskId = async (): Promise<string> => {
     if (disposed) {
       throw new Error('AI analysis mock has been disposed');
     }
 
-    await sseMocker.sendEvent(streamPattern, {
-      event: 'task_event',
-      data: {
-        task_id: taskId,
-        timestamp: new Date().toISOString(),
-        ...payload,
-      },
-    });
+    if (!taskIdPromise) {
+      taskIdPromise = (async () => {
+        const subscriptionEvent = await waitForSseEvent(page, {
+          streamId: 'task',
+          phase: 'open',
+          event: 'task_subscription',
+          timeoutMs: 10000,
+        });
+
+        const subscriptionData = extractSseData<{ taskId?: string }>(subscriptionEvent);
+        const taskId = subscriptionData?.taskId;
+
+        if (!taskId || typeof taskId !== 'string' || taskId.trim() === '') {
+          throw new Error('Invalid task subscription event: taskId is missing or empty');
+        }
+
+        // Cache the resolved value for synchronous access via getter
+        resolvedTaskId = taskId;
+        return taskId;
+      })();
+    }
+
+    return await taskIdPromise;
   };
 
-  const waitForConnection = async (options?: { timeout?: number }) => {
-    await sseMocker.waitForConnection(streamPattern, options);
+  const sendTaskEvent = async (payload: {
+    event_type: string;
+    data: unknown;
+  }): Promise<void> => {
+    const taskId = await ensureTaskId();
+    const requestId = await deploymentSse.getRequestId();
+
+    if (!requestId) {
+      throw new Error(
+        'SSE connection lost or not established. Call deploymentSse.ensureConnected() and ensure connection remains active during test execution.'
+      );
+    }
+
+    const response = await page.request.post(`${backendUrl}/api/testing/sse/task-event`, {
+      data: {
+        request_id: requestId,
+        task_id: taskId,
+        event_type: payload.event_type,
+        data: payload.data,
+      },
+    });
+
+    if (response.status() >= 400) {
+      throw new Error(
+        `Failed to send task event: ${payload.event_type} ` +
+        `(status: ${response.status()}, request_id: ${requestId}, task_id: ${taskId})`
+      );
+    }
+  };
+
+  const waitForTaskId = async (): Promise<string> => {
+    return await ensureTaskId();
   };
 
   const emitStarted = async () => {
@@ -262,22 +258,16 @@ export async function createAiAnalysisMock(
       return;
     }
     disposed = true;
-
-    await page.unroute(analyzeMatcher, analyzeHandler).catch(() => {
-      /* ignore - route may already be removed */
-    });
-
-    await sseMocker.closeStreams(streamPattern).catch(() => {
-      /* ignore - page context might be closed */
-    });
+    // No cleanup needed - no routes or streams to close
   };
 
   return {
-    taskId,
-    streamPath,
-    analyzeResponse,
+    get taskId() {
+      // Return cached taskId if available, otherwise null
+      return resolvedTaskId;
+    },
     analysisTemplate,
-    waitForConnection,
+    waitForTaskId,
     emitStarted,
     emitProgress,
     emitCompleted,
