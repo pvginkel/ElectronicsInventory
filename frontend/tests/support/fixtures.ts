@@ -35,6 +35,11 @@ import type {
   AiAnalysisMockOptions,
   AiAnalysisMockSession,
 } from './helpers/ai-analysis-mock';
+import { createAiCleanupMock } from './helpers/ai-cleanup-mock';
+import type {
+  AiCleanupMockOptions,
+  AiCleanupMockSession,
+} from './helpers/ai-cleanup-mock';
 import { FileUploadHelper, createFileUploadHelper } from './helpers/file-upload';
 import { startBackend, startFrontend, startSSEGateway } from './process/servers';
 import {
@@ -86,6 +91,9 @@ type TestFixtures = {
   aiAnalysisMock: (
     options?: AiAnalysisMockOptions
   ) => Promise<AiAnalysisMockSession>;
+  aiCleanupMock: (
+    options?: AiCleanupMockOptions
+  ) => Promise<AiCleanupMockSession>;
   deploymentSse: DeploymentSseHelper;
 };
 
@@ -339,6 +347,22 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
 
       const factory = async (options?: AiAnalysisMockOptions) => {
         const session = await createAiAnalysisMock(page, sseMocker, options);
+        sessions.push(session);
+        return session;
+      };
+
+      try {
+        await use(factory);
+      } finally {
+        await Promise.all(sessions.map(session => session.dispose()));
+      }
+    },
+
+    aiCleanupMock: async ({ page, sseMocker }, use) => {
+      const sessions: AiCleanupMockSession[] = [];
+
+      const factory = async (options?: AiCleanupMockOptions) => {
+        const session = await createAiCleanupMock(page, sseMocker, options);
         sessions.push(session);
         return session;
       };

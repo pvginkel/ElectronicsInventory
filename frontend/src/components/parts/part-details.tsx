@@ -26,8 +26,10 @@ import { PartDocumentGrid } from './part-document-grid';
 import { AddDocumentModal } from '@/components/documents/add-document-modal';
 import { ShoppingListLinkChip } from '@/components/shopping-lists/shopping-list-link-chip';
 import { MoreVerticalIcon } from '@/components/icons/MoreVerticalIcon';
+import { SparkleIcon } from '@/components/icons/SparkleIcon';
 import { AddToShoppingListDialog } from '@/components/shopping-lists/part/add-to-shopping-list-dialog';
 import { KitLinkChip } from '@/components/kits/kit-link-chip';
+import { AIPartCleanupDialog } from './ai-part-cleanup-dialog';
 import {
   useGetPartsByPartKey,
   useDeletePartsByPartKey,
@@ -59,6 +61,7 @@ export function PartDetails({ partId }: PartDetailsProps) {
   const [documentKey, setDocumentKey] = useState(0);
   const [showAddDocument, setShowAddDocument] = useState(false);
   const [showAddToListDialog, setShowAddToListDialog] = useState(false);
+  const [showCleanupDialog, setShowCleanupDialog] = useState(false);
 
   const membershipQuery = usePartShoppingListMemberships(partId);
   const memberships = membershipQuery.summary.memberships;
@@ -245,6 +248,10 @@ export function PartDetails({ partId }: PartDetailsProps) {
     navigate({ to: '/parts/new', search: { duplicate: partId } });
   };
 
+  const handleCleanupPart = () => {
+    setShowCleanupDialog(true);
+  };
+
   const handleEditPart = () => {
     navigate({ to: '/parts/$partId/edit', params: { partId } });
   };
@@ -304,6 +311,13 @@ export function PartDetails({ partId }: PartDetailsProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onClick={handleCleanupPart}
+            data-testid="parts.detail.actions.cleanup"
+          >
+            <span className="flex-1">Cleanup Part</span>
+            <SparkleIcon className="h-4 w-4 ml-2" />
+          </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => setShowAddToListDialog(true)}
             data-testid="parts.detail.actions.add-to-shopping-list"
@@ -758,6 +772,12 @@ export function PartDetails({ partId }: PartDetailsProps) {
         open={showAddDocument}
         onOpenChange={setShowAddDocument}
         onDocumentAdded={() => setDocumentKey((prev) => prev + 1)}
+      />
+
+      <AIPartCleanupDialog
+        open={showCleanupDialog}
+        onClose={() => setShowCleanupDialog(false)}
+        partId={partId}
       />
 
       <ConfirmDialog {...confirmProps} />
