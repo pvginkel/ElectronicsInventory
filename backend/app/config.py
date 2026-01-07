@@ -137,9 +137,9 @@ class Settings(BaseSettings):
         "If the file exists, its contents are returned instead of calling the AI. "
         "If the file doesn't exist, the AI response is saved there for future replay."
     )
-    DISABLE_REAL_AI_ANALYSIS: bool = Field(
+    AI_TESTING_MODE: bool = Field(
         default=False,
-        description="When true, disallows real AI analysis requests regardless of API key configuration",
+        description="When true, AI endpoints return dummy task IDs for testing without calling real AI",
     )
 
     # Mouser API settings
@@ -203,7 +203,7 @@ class Settings(BaseSettings):
         if self.FLASK_ENV == "production":
             self.SSE_HEARTBEAT_INTERVAL = 30
         if self.FLASK_ENV == "testing":
-            self.DISABLE_REAL_AI_ANALYSIS = True
+            self.AI_TESTING_MODE = True
         return self
 
     @property
@@ -281,7 +281,7 @@ class Settings(BaseSettings):
     @property
     def real_ai_allowed(self) -> bool:
         """Determine whether real AI analysis is permitted for the current settings."""
-        return not self.DISABLE_REAL_AI_ANALYSIS
+        return not self.AI_TESTING_MODE
 
 
 @lru_cache
