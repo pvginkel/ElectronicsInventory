@@ -109,8 +109,14 @@ class AIService(BaseService):
         type_names = [t.name for t in existing_types]
 
         try:
-            if self.config.OPENAI_DUMMY_RESPONSE_PATH:
-                with open(self.config.OPENAI_DUMMY_RESPONSE_PATH) as f:
+            # Check for cached response (record-and-replay pattern)
+            cache_path = self.config.AI_ANALYSIS_CACHE_PATH
+            if cache_path:
+                logger.info(f"AI analysis response cache file configured at {cache_path}")
+                
+            if cache_path and os.path.exists(cache_path):
+                logger.info(f"Loading cached AI analysis response from {cache_path}")
+                with open(cache_path) as f:
                     ai_response = PartAnalysisSuggestion.model_validate(json.loads(f.read()))
             else:
                 if not self.real_ai_allowed:
@@ -160,6 +166,13 @@ class AIService(BaseService):
                 )
 
                 ai_response = cast(PartAnalysisSuggestion, response.response)
+
+                # Save response to cache file if path configured (for future replay)
+                if cache_path:
+                    logger.info(f"Saving AI analysis response to cache: {cache_path}")
+                    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+                    with open(cache_path, "w", encoding="utf-8") as f:
+                        f.write(ai_response.model_dump_json(indent=4))
 
             # Convert LLM response to API schema
             # The LLM can populate:
@@ -338,8 +351,14 @@ All Other Parts (for consistency reference):
 Review the target part against the field normalization rules and improve data quality. Return the complete cleaned part data in analysis_result."""
 
         try:
-            if self.config.OPENAI_DUMMY_RESPONSE_PATH:
-                with open(self.config.OPENAI_DUMMY_RESPONSE_PATH) as f:
+            # Check for cached response (record-and-replay pattern)
+            cache_path = self.config.AI_CLEANUP_CACHE_PATH
+            if cache_path:
+                logger.info(f"AI cleanup response cache file configured at {cache_path}")
+
+            if cache_path and os.path.exists(cache_path):
+                logger.info(f"Loading cached AI cleanup response from {cache_path}")
+                with open(cache_path) as f:
                     ai_response = PartAnalysisSuggestion.model_validate(json.loads(f.read()))
             else:
                 if not self.real_ai_allowed:
@@ -376,6 +395,13 @@ Review the target part against the field normalization rules and improve data qu
                 )
 
                 ai_response = cast(PartAnalysisSuggestion, response.response)
+
+                # Save response to cache file if path configured (for future replay)
+                if cache_path:
+                    logger.info(f"Saving AI cleanup response to cache: {cache_path}")
+                    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+                    with open(cache_path, "w", encoding="utf-8") as f:
+                        f.write(ai_response.model_dump_json(indent=4))
 
             # Extract analysis result (cleanup mode always populates this)
             if not ai_response.analysis_result:

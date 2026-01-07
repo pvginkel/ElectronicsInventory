@@ -54,7 +54,7 @@ def _build_test_settings() -> Settings:
         DEBUG=True,
         FLASK_ENV="testing",
         DISABLE_REAL_AI_ANALYSIS=True,
-        OPENAI_DUMMY_RESPONSE_PATH=None,
+        AI_ANALYSIS_CACHE_PATH=None,
         CORS_ORIGINS=["http://localhost:3000"],
         # Document service configuration
         ALLOWED_IMAGE_TYPES=["image/jpeg", "image/png"],
