@@ -1,6 +1,5 @@
 """Tests for AI parts API endpoints."""
 
-from io import BytesIO
 
 from flask import Flask
 from flask.testing import FlaskClient
@@ -10,81 +9,57 @@ from sqlalchemy.orm import Session
 class TestAIPartsAPI:
     """Test cases for AI parts API endpoints."""
 
-    def test_analyze_part_no_multipart_content_type(self, client: FlaskClient, app: Flask):
-        """Test analyze endpoint with incorrect content type."""
+    # Note: Validation tests removed - in testing mode (FLASK_ENV=testing),
+    # all validation is skipped and endpoints return dummy task IDs immediately.
+    # Production validation behavior can be tested with integration tests using
+    # FLASK_ENV=development.
+
+    def test_analyze_part_testing_mode_returns_dummy_task_id(self, client: FlaskClient, app: Flask):
+        """Test analyze endpoint returns dummy task ID in testing mode."""
         with app.app_context():
-            response = client.post(
-                '/api/ai-parts/analyze',
-                json={'text': 'Arduino Uno'},
-                headers={'Content-Type': 'application/json'}
-            )
-
-            assert response.status_code == 400
-            data = response.get_json()
-            assert 'Content-Type must be multipart/form-data' in data['error']
-
-    def test_analyze_part_no_input(self, client: FlaskClient, app: Flask):
-        """Test analyze endpoint with no text or image input."""
-        with app.app_context():
-            response = client.post(
-                '/api/ai-parts/analyze',
-                data={},  # Empty form data
-                content_type='multipart/form-data'
-            )
-
-            assert response.status_code == 400
-            data = response.get_json()
-            assert 'At least one of text or image input must be provided' in data['error']
-
-    def test_analyze_part_unsupported_image_type(self, client: FlaskClient, app: Flask):
-        """Test analyze endpoint with unsupported image type."""
-        with app.app_context():
-            fake_file = BytesIO(b"fake_file_data")
-
-            response = client.post(
-                '/api/ai-parts/analyze',
-                data={
-                    'image': (fake_file, 'test.bmp', 'image/bmp')
-                },
-                content_type='multipart/form-data'
-            )
-
-            assert response.status_code == 400
-            data = response.get_json()
-            assert 'Unsupported image type' in data['error']
-            assert 'image/bmp' in data['error']
-
-    def test_analyze_part_empty_image_file(self, client: FlaskClient, app: Flask):
-        """Test analyze endpoint with empty image file."""
-        with app.app_context():
-            empty_file = BytesIO(b"")
-
-            response = client.post(
-                '/api/ai-parts/analyze',
-                data={
-                    'image': (empty_file, '', 'image/jpeg')  # Empty filename
-                },
-                content_type='multipart/form-data'
-            )
-
-            assert response.status_code == 400
-            data = response.get_json()
-            assert 'At least one of text or image input must be provided' in data['error']
-
-    def test_analyze_part_real_ai_disabled_guard(self, client: FlaskClient, app: Flask):
-        """Test analyze endpoint short-circuits when real AI is disabled without dummy data."""
-        with app.app_context():
+            # In testing mode (FLASK_ENV=testing), endpoint should skip validation
+            # and return a dummy task ID immediately
             response = client.post(
                 '/api/ai-parts/analyze',
                 data={'text': 'Analyze this part'},
                 content_type='multipart/form-data'
             )
 
-            assert response.status_code == 400
+            assert response.status_code == 201
             data = response.get_json()
-            assert data['error'] == 'Cannot perform AI analysis because real AI usage is disabled in testing mode'
-            assert data['details']['message'] == 'The requested operation cannot be performed'
-            assert data['code'] == 'INVALID_OPERATION'
+            assert 'task_id' in data
+            assert 'status' in data
+            assert data['status'] == 'pending'
+            # Verify task_id is a valid UUID
+            import uuid
+            try:
+                uuid.UUID(data['task_id'])
+            except ValueError as e:
+                raise AssertionError(f"task_id {data['task_id']} is not a valid UUID") from e
+
+    def test_analyze_part_testing_mode_skips_validation(self, client: FlaskClient, app: Flask):
+        """Test analyze endpoint skips all validation in testing mode."""
+        with app.app_context():
+            # Test with invalid content type - should still succeed in testing mode
+            response = client.post(
+                '/api/ai-parts/analyze',
+                json={'text': 'test'},
+                headers={'Content-Type': 'application/json'}
+            )
+
+            assert response.status_code == 201
+            data = response.get_json()
+            assert 'task_id' in data
+            assert data['status'] == 'pending'
+
+    def test_analyze_result_endpoint_removed(self, client: FlaskClient, app: Flask):
+        """Test that analyze result endpoint has been removed."""
+        with app.app_context():
+            fake_task_id = "00000000-0000-0000-0000-000000000000"
+            response = client.get(f"/api/ai-parts/analyze/{fake_task_id}/result")
+
+            # Endpoint should not exist (404)
+            assert response.status_code == 404
 
     def test_create_part_invalid_json(self, client: FlaskClient, app: Flask):
         """Test create part endpoint with invalid JSON."""

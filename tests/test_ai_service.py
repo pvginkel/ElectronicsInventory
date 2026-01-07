@@ -1138,14 +1138,14 @@ class TestAIServiceCleanupPart:
         from app.models.part import Part
         from app.utils.ai.ai_runner import AIFunction
 
-        # Create AI service with DISABLE_REAL_AI_ANALYSIS=True and no dummy response
+        # Create AI service with AI_TESTING_MODE=True and no dummy response
         mock_duplicate_search_function = Mock(spec=AIFunction)
         mock_mouser_part_number_search = Mock(spec=AIFunction)
         mock_mouser_keyword_search = Mock(spec=AIFunction)
         settings = Settings(
             DATABASE_URL="sqlite:///:memory:",
             OPENAI_API_KEY="test-key",
-            DISABLE_REAL_AI_ANALYSIS=True,  # This makes real_ai_allowed=False
+            AI_TESTING_MODE=True,  # This makes real_ai_allowed=False
             AI_ANALYSIS_CACHE_PATH=None
         )
         ai_service = AIService(

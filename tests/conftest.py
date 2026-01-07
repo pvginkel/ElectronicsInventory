@@ -53,7 +53,7 @@ def _build_test_settings() -> Settings:
         SECRET_KEY="test-secret-key",
         DEBUG=True,
         FLASK_ENV="testing",
-        DISABLE_REAL_AI_ANALYSIS=True,
+        AI_TESTING_MODE=True,
         AI_ANALYSIS_CACHE_PATH=None,
         CORS_ORIGINS=["http://localhost:3000"],
         # Document service configuration

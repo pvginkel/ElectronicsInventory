@@ -113,7 +113,7 @@ class AIService(BaseService):
             cache_path = self.config.AI_ANALYSIS_CACHE_PATH
             if cache_path:
                 logger.info(f"AI analysis response cache file configured at {cache_path}")
-                
+
             if cache_path and os.path.exists(cache_path):
                 logger.info(f"Loading cached AI analysis response from {cache_path}")
                 with open(cache_path) as f:
