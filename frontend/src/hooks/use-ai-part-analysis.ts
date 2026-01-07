@@ -31,10 +31,12 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
     unsubscribe: unsubscribeSSE,
     progress,
     result: sseResult
-  } = useSSETask<AIPartAnalysisResult>({
+  } = useSSETask<{ analysis: AIPartAnalysisResult }>({
     onProgress: options.onProgress,
     onResult: <T>(data: T) => {
-      const transformedResult = transformAIPartAnalysisResult(data as AIPartAnalysisResult);
+      // Extract analysis from the task result envelope
+      const envelope = data as { analysis: AIPartAnalysisResult };
+      const transformedResult = transformAIPartAnalysisResult(envelope.analysis);
 
       // Guidepost: Differentiate between hard and soft failures
       // - Hard failure: analysisFailureReason present AND no analysis data (description absent)
@@ -135,8 +137,8 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
     setError(null);
   }, [unsubscribeSSE]);
 
-  // Transform SSE result when available
-  const result = sseResult ? transformAIPartAnalysisResult(sseResult) : null;
+  // Transform SSE result when available - extract analysis from envelope
+  const result = sseResult?.analysis ? transformAIPartAnalysisResult(sseResult.analysis) : null;
 
   return {
     analyzePartFromData,

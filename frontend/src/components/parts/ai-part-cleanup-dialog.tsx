@@ -198,14 +198,14 @@ export function AIPartCleanupDialog({ open, onClose, partId }: AIPartCleanupDial
     <Dialog
       open={open}
       onOpenChange={handleDialogClose}
-      className={cn(
-        currentStep === 'merge' && "w-[calc(100vw-60px)] h-[calc(100vh-60px)] max-w-none max-h"
-      )}
+      className={cn(currentStep === 'merge' && "max-w-[1200px] w-[calc(100vw-60px)] h-[calc(100vh-60px)]")}
+      contentProps={{
+        'data-testid': 'parts.cleanup.dialog',
+        'data-step': currentStep,
+      } as React.ComponentPropsWithoutRef<'div'>}
     >
       <DialogContent
         className={cn(currentStep === 'merge' && "h-full flex flex-col")}
-        data-testid="parts.cleanup.dialog"
-        data-step={currentStep}
       >
         <DialogHeader className="sr-only">
           <DialogTitle>AI Part Cleanup</DialogTitle>

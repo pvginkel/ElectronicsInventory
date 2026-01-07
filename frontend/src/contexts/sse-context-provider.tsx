@@ -74,6 +74,13 @@ export function SseContextProvider({ children }: SseContextProviderProps) {
   const versionListenersRef = useRef<Set<(event: VersionEventData) => void>>(new Set());
   const taskListenersRef = useRef<Set<(event: TaskEventData) => void>>(new Set());
 
+  // Guidepost: Buffer recent task events to handle race conditions
+  // When backend responds very quickly (e.g., cached results), events may arrive
+  // before the client has finished subscribing. This buffer allows late subscribers
+  // to receive events that arrived in the last few seconds.
+  const taskEventBufferRef = useRef<Map<string, { events: TaskEventData[]; timestamp: number }>>(new Map());
+  const TASK_BUFFER_TTL_MS = 10000; // Keep events for 10 seconds
+
   /**
    * Register a listener for version events
    * Returns cleanup function to remove the listener
@@ -97,6 +104,38 @@ export function SseContextProvider({ children }: SseContextProviderProps) {
   }, []);
 
   /**
+   * Subscribe to a specific task's events with buffered event replay
+   * This handles the race condition where events arrive before subscription
+   */
+  const subscribeToTask = useCallback((taskId: string, callback: (event: TaskEventData) => void) => {
+    // First, replay any buffered events for this task
+    const buffer = taskEventBufferRef.current.get(taskId);
+    if (buffer) {
+      for (const event of buffer.events) {
+        try {
+          callback(event);
+        } catch (error) {
+          console.error('Error replaying buffered event:', error);
+        }
+      }
+    }
+
+    // Create a filtered listener that only passes events for this task
+    const filteredListener = (event: TaskEventData) => {
+      if (event.taskId === taskId) {
+        callback(event);
+      }
+    };
+
+    // Register the filtered listener for future events
+    taskListenersRef.current.add(filteredListener);
+
+    return () => {
+      taskListenersRef.current.delete(filteredListener);
+    };
+  }, []);
+
+  /**
    * Dispatch version event to all registered listeners
    */
   const dispatchVersionEvent = useCallback((event: VersionEventData) => {
@@ -113,6 +152,28 @@ export function SseContextProvider({ children }: SseContextProviderProps) {
    * Dispatch task event to all registered listeners
    */
   const dispatchTaskEvent = useCallback((event: TaskEventData) => {
+    // Buffer the event for late subscribers
+    const taskId = event.taskId;
+    // eslint-disable-next-line no-restricted-properties -- Date.now() used for TTL timing, not ID generation
+    const now = Date.now();
+    const buffer = taskEventBufferRef.current;
+
+    // Clean up old buffered events
+    for (const [id, data] of buffer.entries()) {
+      if (now - data.timestamp > TASK_BUFFER_TTL_MS) {
+        buffer.delete(id);
+      }
+    }
+
+    // Add event to buffer
+    if (!buffer.has(taskId)) {
+      buffer.set(taskId, { events: [], timestamp: now });
+    }
+    const taskBuffer = buffer.get(taskId)!;
+    taskBuffer.events.push(event);
+    taskBuffer.timestamp = now;
+
+    // Dispatch to current listeners
     taskListenersRef.current.forEach(listener => {
       try {
         listener(event);
@@ -401,6 +462,7 @@ export function SseContextProvider({ children }: SseContextProviderProps) {
     requestId,
     registerVersionListener,
     registerTaskListener,
+    subscribeToTask,
     reconnect,
   };
 

@@ -12,12 +12,13 @@ interface SSEProgressEvent {
   };
 }
 
-interface SSEResultEvent<T> {
+interface SSEResultEvent {
   event_type: 'task_completed';
   data: {
     success: boolean;
-    analysis: T | null;
     error_message: string | null;
+    // Result data varies by task type (e.g., 'analysis' for AI analysis, 'cleaned_part' for cleanup)
+    [key: string]: unknown;
   };
 }
 
@@ -36,7 +37,7 @@ interface SSEStartedEvent {
   data: null;
 }
 
-type SSEEvent<T> = SSEProgressEvent | SSEResultEvent<T> | SSEErrorEvent | SSEStartedEvent;
+type SSEEvent = SSEProgressEvent | SSEResultEvent | SSEErrorEvent | SSEStartedEvent;
 
 interface UseSSETaskOptions {
   onProgress?: (message: string, percentage?: number) => void;
@@ -71,7 +72,7 @@ export function useSSETask<T = unknown>(options: UseSSETaskOptions = {}): UseSSE
     onError,
   } = options;
 
-  const { registerTaskListener } = useSseContext();
+  const { subscribeToTask: subscribeToTaskContext } = useSseContext();
 
   const unsubscribe = useCallback(() => {
     if (unsubscribeListenerRef.current) {
@@ -105,19 +106,14 @@ export function useSSETask<T = unknown>(options: UseSSETaskOptions = {}): UseSSE
       emitTestEvent(payload);
     }
 
-    // Register listener for task events
-    const unsubscribeListener = registerTaskListener((event) => {
-      // Filter events by task ID
-      if (event.taskId !== currentTaskIdRef.current) {
-        return;
-      }
-
+    // Subscribe to task events via context (handles buffered event replay)
+    const unsubscribeListener = subscribeToTaskContext(taskId, (event) => {
       try {
         // Parse event data as SSEEvent - keep data nested under data property
         const parsedEvent = {
           event_type: event.eventType,
           data: event.data,
-        } as SSEEvent<T>;
+        } as SSEEvent;
 
         switch (parsedEvent.event_type) {
           case 'task_started': {
@@ -157,10 +153,13 @@ export function useSSETask<T = unknown>(options: UseSSETaskOptions = {}): UseSSE
           }
 
           case 'task_completed': {
-            if (parsedEvent.data.success && parsedEvent.data.analysis) {
-              // Task completed successfully
-              setResult(parsedEvent.data.analysis);
-              onResult?.(parsedEvent.data.analysis);
+            // Guidepost: Check for success based on the success flag and absence of error
+            // Different task types may use different field names for results (e.g., 'analysis', 'cleaned_part')
+            // so we pass the entire data object to let consumers extract what they need
+            if (parsedEvent.data.success && !parsedEvent.data.error_message) {
+              // Task completed successfully - pass entire data object to consumer
+              setResult(parsedEvent.data as T);
+              onResult?.(parsedEvent.data as T);
 
               if (isTestMode()) {
                 const payload: Omit<SseTestEvent, 'timestamp'> = {
@@ -174,7 +173,7 @@ export function useSSETask<T = unknown>(options: UseSSETaskOptions = {}): UseSSE
               }
             } else {
               // Task completed but with failure
-              const errorMessage = parsedEvent.data.error_message || 'Analysis failed';
+              const errorMessage = parsedEvent.data.error_message || 'Task failed';
               setError(errorMessage);
               onError?.(errorMessage);
 
@@ -223,7 +222,7 @@ export function useSSETask<T = unknown>(options: UseSSETaskOptions = {}): UseSSE
     });
 
     unsubscribeListenerRef.current = unsubscribeListener;
-  }, [registerTaskListener, onProgress, onResult, onError, unsubscribe]);
+  }, [subscribeToTaskContext, onProgress, onResult, onError, unsubscribe]);
 
   // Clean up on unmount
   useEffect(() => {
