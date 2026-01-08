@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 _prompttester_dir = os.path.dirname(__file__)
 load_dotenv(os.path.join(_prompttester_dir, ".env"))
 
-def full_tests():
+def full_tests() -> None:
     reasoning_efforts : list[str] = [
         # "low",
         "medium",
@@ -49,7 +49,7 @@ def full_tests():
         1
     )
 
-def duplicate_search_tests():
+def duplicate_search_tests() -> None:
     queries : list[tuple[str, list[tuple[str, str]]]] = [
         ("Part number SN74HC595N", [
             ("ABCD", "high"), # 8-bit shift register with output latches; exact MPN match
@@ -74,7 +74,7 @@ def duplicate_search_tests():
         ]
     )
 
-def datasheet_spec_tests():
+def datasheet_spec_tests() -> None:
     queries : list[tuple[str, str]] = [
         # ("Part number SN74HC595N", "https://www.ti.com/lit/ds/symlink/sn54hc595.pdf"),
         ("IRLZ44N", "https://www.infineon.com/assets/row/public/documents/24/49/infineon-irlz44n-datasheet-en.pdf"),
@@ -88,7 +88,7 @@ def datasheet_spec_tests():
         ]
     )
 
-def main():
+def main() -> None:
     full_tests()
     # duplicate_search_tests()
     # datasheet_spec_tests()

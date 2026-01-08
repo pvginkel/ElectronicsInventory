@@ -31,7 +31,7 @@ from tools.prompttester.utils import (
 
 logger = logging.getLogger(__name__)
 
-def run_full_tests(queries: list[str], models: list[tuple[AIType, str, list[str] | None]], runs: int = 1):
+def run_full_tests(queries: list[str], models: list[tuple[AIType, str, list[str] | None]], runs: int = 1) -> None:
     # Initialize runner only if API key is available
     openai_runner: AIRunner | None = OpenAIRunner(os.getenv("OPENAI_API_KEY")) if os.getenv("OPENAI_API_KEY") else None  # type: ignore
 
@@ -47,7 +47,7 @@ def run_full_tests(queries: list[str], models: list[tuple[AIType, str, list[str]
 
     temp_file_manager = get_temp_file_manager()
     download_cache_service = DownloadCacheService(temp_file_manager)
-    mouser_service = MouserService(config_mock, download_cache_service, Mock()) # type: ignore
+    mouser_service = MouserService(config_mock, download_cache_service, Mock())
 
     search_mouser_by_part_number = SearchMouserByPartNumberFunction(mouser_service)
     search_mouser_by_keyword = SearchMouserByKeywordFunction(mouser_service)
@@ -133,7 +133,7 @@ def run_duplicate_search_tests(
     queries: list[tuple[str, list[tuple[str, str]]]],
     models: list[tuple[AIType, str]],
     runs: int = 1
-):
+) -> None:
     """Run duplicate search tests against mock inventory.
 
     Args:
@@ -269,7 +269,7 @@ def run_datasheet_spec_tests(
     queries: list[tuple[str, str]],
     models: list[tuple[AIType, str]],
     runs: int = 1
-):
+) -> None:
     """Run datasheet spec extraction tests.
 
     Args:

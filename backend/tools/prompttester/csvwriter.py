@@ -36,7 +36,7 @@ class Filename:
 
         return Filename(query, model, reasoning_effort, run, key)
 
-def normalize_value(value) -> str:
+def normalize_value(value: object) -> str:
     """Convert values for CSV CSV."""
     if value is None:
         return ""
@@ -54,7 +54,7 @@ def normalize_value(value) -> str:
     return str(value)
 
 
-def main():
+def main() -> None:
     locale.setlocale(locale.LC_ALL, "nl_NL.UTF-8")
 
     output_path = Path(os.path.join(os.path.dirname(__file__), "output"))

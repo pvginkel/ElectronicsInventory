@@ -42,8 +42,8 @@ class LogInterceptor(logging.Handler):
     def _buf(self) -> list[str]:
         # lazily create the per-thread buffer
         if not hasattr(self._tls, "lines"):
-            self._tls.lines = []  # type: ignore[attr-defined]
-        return self._tls.lines  # type: ignore[attr-defined]
+            self._tls.lines = []
+        return self._tls.lines
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
@@ -59,7 +59,7 @@ class LogInterceptor(logging.Handler):
 
     def clear(self) -> None:
         # clears only the *current thread's* buffer
-        self._tls.lines = []  # type: ignore[attr-defined]
+        self._tls.lines = []
 
     def get_logs(self) -> list[str]:
         # returns the *current thread's* logs
@@ -101,7 +101,7 @@ class MockDuplicateSearchService:
     Uses mock inventory data and makes real AI calls to test duplicate detection.
     """
 
-    def __init__(self, ai_runner: AIRunner, mock_inventory: list[dict], model: str):
+    def __init__(self, ai_runner: AIRunner, mock_inventory: list[dict[str, Any]], model: str):
         """Initialize mock duplicate search service.
 
         Args:
@@ -200,7 +200,7 @@ def render_template(prompt_template: str, context: dict[str, Any] | None = None)
 
     return template_inline.render(**(context or {}))
 
-def get_mock_inventory() -> list[dict]:
+def get_mock_inventory() -> list[dict[str, Any]]:
     """Load mock inventory dataset from test data for duplicate search testing.
 
     Loads from app/data/test_data/parts.json and transforms to match
