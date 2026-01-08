@@ -109,6 +109,12 @@ class Settings(BaseSettings):
         description="PostgreSQL result backend for Celery",
     )
 
+    # AI Provider settings
+    AI_PROVIDER: str = Field(
+        default="openai",
+        description="AI provider to use ('openai')"
+    )
+
     # OpenAI settings
     OPENAI_API_KEY: str = Field(
         default="", description="OpenAI API key for AI features"
@@ -137,6 +143,8 @@ class Settings(BaseSettings):
         "If the file exists, its contents are returned instead of calling the AI. "
         "If the file doesn't exist, the AI response is saved there for future replay."
     )
+
+    # Global AI settings
     AI_TESTING_MODE: bool = Field(
         default=False,
         description="When true, AI endpoints return dummy task IDs for testing without calling real AI",

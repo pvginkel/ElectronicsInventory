@@ -21,8 +21,12 @@ class DuplicatePartMatch(BaseModel):
     reasoning: str = Field(...)
 
 
-class PartAnalysisDetails(BaseModel):
-    """Full part analysis details from LLM."""
+class PartAnalysisSpecDetails(BaseModel):
+    """Technical specification details extracted from datasheets or AI analysis.
+
+    This base class contains only technical specs - no URLs or seller info.
+    Used by datasheet extraction where we only want specs from the PDF.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -40,6 +44,15 @@ class PartAnalysisDetails(BaseModel):
     output_voltage: str | None = Field(...)
     physical_dimensions: str | None = Field(...)
     tags: list[str] = Field(...)
+
+
+class PartAnalysisDetails(PartAnalysisSpecDetails):
+    """Full part analysis details from LLM including URLs and seller info.
+
+    Extends PartAnalysisSpecDetails with URL and seller fields that come
+    from web searches and tool calls during full AI analysis.
+    """
+
     product_page_urls: list[str] = Field(...)
     datasheet_urls: list[str] = Field(...)
     pinout_urls: list[str] = Field(...)
