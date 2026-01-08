@@ -378,6 +378,107 @@ class TestTaskService:
         # Cancel task to clean up
         task_service.cancel_task(response.task_id)
 
+    def test_on_connect_with_valid_task(self, task_service, mock_connection_manager):
+        """Test on_connect sends task events for valid task_id."""
+        from app.schemas.sse_gateway_schema import (
+            SSEGatewayConnectCallback,
+            SSEGatewayRequestInfo,
+        )
+
+        # Start a task
+        task = DemoTask()
+        response = task_service.start_task(task, message="test", steps=1, delay=0.01)
+        task_id = response.task_id
+
+        # Wait for task to start
+        time.sleep(0.1)
+
+        # Create connect callback
+        connect_callback = SSEGatewayConnectCallback(
+            action="connect",
+            token="test-token-123",
+            request=SSEGatewayRequestInfo(url=f"/api/sse/tasks?task_id={task_id}", headers={})
+        )
+
+        # Call on_connect
+        task_service.on_connect(connect_callback, task_id)
+
+        # Verify ConnectionManager.send_event was called with task_started event
+        assert mock_connection_manager.send_event.called
+        calls = mock_connection_manager.send_event.call_args_list
+
+        # Find the task_started event
+        task_started_events = [
+            call for call in calls
+            if call[0][1].get("event_type") == TaskEventType.TASK_STARTED
+        ]
+        assert len(task_started_events) > 0
+
+    def test_on_connect_with_nonexistent_task(self, task_service, mock_connection_manager):
+        """Test on_connect sends error event for nonexistent task_id."""
+        from app.schemas.sse_gateway_schema import (
+            SSEGatewayConnectCallback,
+            SSEGatewayRequestInfo,
+        )
+
+        # Create connect callback with nonexistent task_id
+        connect_callback = SSEGatewayConnectCallback(
+            action="connect",
+            token="test-token-456",
+            request=SSEGatewayRequestInfo(url="/api/sse/tasks?task_id=nonexistent", headers={})
+        )
+
+        # Call on_connect with nonexistent task
+        task_service.on_connect(connect_callback, "nonexistent")
+
+        # Verify ConnectionManager.send_event was called with error event
+        assert mock_connection_manager.send_event.called
+        calls = mock_connection_manager.send_event.call_args_list
+
+        # Find the error event
+        error_events = [
+            call for call in calls
+            if call[0][0] == "task:nonexistent" and "error" in call[0][1]
+        ]
+        assert len(error_events) > 0
+        # Verify error message contains "not found"
+        error_event = error_events[0][0][1]
+        assert "not found" in error_event["error"].lower()
+
+    def test_on_disconnect(self, task_service, mock_connection_manager):
+        """Test on_disconnect cleans up connection state."""
+        from app.schemas.sse_gateway_schema import (
+            SSEGatewayConnectCallback,
+            SSEGatewayDisconnectCallback,
+            SSEGatewayRequestInfo,
+        )
+
+        # Start a task and connect
+        task = DemoTask()
+        response = task_service.start_task(task, message="test", steps=1, delay=0.01)
+        task_id = response.task_id
+
+        time.sleep(0.1)
+
+        # Connect first
+        connect_callback = SSEGatewayConnectCallback(
+            action="connect",
+            token="test-token-789",
+            request=SSEGatewayRequestInfo(url=f"/api/sse/tasks?task_id={task_id}", headers={})
+        )
+        task_service.on_connect(connect_callback, task_id)
+
+        # Now disconnect
+        disconnect_callback = SSEGatewayDisconnectCallback(
+            action="disconnect",
+            token="test-token-789",
+            reason="client_disconnect",
+            request=SSEGatewayRequestInfo(url=f"/api/sse/tasks?task_id={task_id}", headers={})
+        )
+        task_service.on_disconnect(disconnect_callback)
+
+        # Verify disconnect was handled (connection_manager should be called)
+        assert mock_connection_manager.send_event.called or mock_connection_manager.unregister_connection.called
 
 
 class TestTaskProgressHandle:

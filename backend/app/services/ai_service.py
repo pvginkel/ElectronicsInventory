@@ -59,6 +59,8 @@ class AIService(BaseService):
         duplicate_search_function: AIFunction,
         mouser_part_number_search_function: AIFunction,
         mouser_keyword_search_function: AIFunction,
+        datasheet_extraction_function: AIFunction,
+        ai_runner: AIRunner | None = None,
     ) -> None:
         super().__init__(db)
         self.config = config
@@ -69,20 +71,14 @@ class AIService(BaseService):
         self.document_service = document_service
         self.url_classifier_function = URLClassifierFunctionImpl(download_cache_service, document_service)
         self.duplicate_search_function = duplicate_search_function
+        self.datasheet_extraction_function = datasheet_extraction_function
         self.real_ai_allowed = config.real_ai_allowed
-        self.runner: AIRunner | None = None
+        self.runner = ai_runner
 
         # Mouser function tools - conditionally enabled based on API key
         self.mouser_enabled = bool(config.MOUSER_SEARCH_API_KEY)
         self.mouser_part_number_search_function = mouser_part_number_search_function
         self.mouser_keyword_search_function = mouser_keyword_search_function
-
-        # Initialize OpenAI client only when real AI interactions are permitted
-        if self.real_ai_allowed:
-            if not config.OPENAI_API_KEY:
-                raise ValueError("OPENAI_API_KEY configuration is required for AI features")
-
-            self.runner = AIRunner(config.OPENAI_API_KEY, metrics_service)
 
     def analyze_part(self, user_prompt: str | None, image_data: bytes | None,
                      image_mime_type: str | None, progress_handle: ProgressHandle) -> AIPartAnalysisResultSchema:
@@ -148,6 +144,7 @@ class AIService(BaseService):
                 function_tools: list[AIFunction] = [
                     self.url_classifier_function,
                     self.duplicate_search_function,
+                    self.datasheet_extraction_function,
                 ]
 
                 # Conditionally include Mouser search functions if API key configured
@@ -458,16 +455,13 @@ Review the target part against the field normalization rules and improve data qu
             "mode": mode
         }
 
-        prompt_path = os.path.join(
-            os.path.dirname(__file__), "prompts", "part_analysis.md"
-        )
-        with open(prompt_path) as f:
-            template_str = f.read()
+        # Use FileSystemLoader to support {% include %} directive
+        from jinja2 import FileSystemLoader
+        prompt_dir = os.path.join(os.path.dirname(__file__), "prompts")
+        env = Environment(loader=FileSystemLoader(prompt_dir))
+        template = env.get_template("part_analysis.md")
 
-        env_inline = Environment()
-        template_inline = env_inline.from_string(template_str)
-
-        return template_inline.render(**context)
+        return template.render(**context)
 
     def _resolve_type(
         self, suggested_type: str | None, existing_types: list[Type]

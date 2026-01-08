@@ -25,6 +25,27 @@ class ProgressHandle(Protocol):
         ...
 
 
+class SubProgressHandle(ProgressHandle):
+    """Progress handle that represents a sub-task of a parent task."""
+
+    def __init__(self, parent: ProgressHandle, start: float, end: float) -> None:
+        self.parent = parent
+        self.start = start
+        self.end = end
+
+    def send_progress_text(self, text: str) -> None:
+        self.parent.send_progress_text(text)
+
+    def send_progress_value(self, value: float) -> None:
+        self.parent.send_progress_value(self._scale_progress_value(value))
+
+    def send_progress(self, text: str, value: float) -> None:
+        self.parent.send_progress(text, self._scale_progress_value(value))
+
+    def _scale_progress_value(self, value: float) -> float:
+        return self.start + (self.end - self.start) * value
+
+
 class BaseTask(ABC):
     """Abstract base class for background tasks with progress reporting capabilities."""
 

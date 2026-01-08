@@ -9,6 +9,7 @@ from app.services.attachment_set_service import AttachmentSetService
 from app.services.box_service import BoxService
 from app.services.connection_manager import ConnectionManager
 from app.services.dashboard_service import DashboardService
+from app.services.datasheet_extraction_service import DatasheetExtractionService
 from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
 from app.services.duplicate_search_service import DuplicateSearchService
@@ -35,14 +36,45 @@ from app.services.type_service import TypeService
 from app.services.url_transformers import LCSCInterceptor, URLInterceptorRegistry
 from app.services.version_service import VersionService
 from app.utils.ai.ai_runner import AIRunner
+from app.utils.ai.datasheet_extraction import ExtractSpecsFromDatasheetFunction
 from app.utils.ai.duplicate_search import DuplicateSearchFunction
 from app.utils.ai.mouser_search import (
     SearchMouserByKeywordFunction,
     SearchMouserByPartNumberFunction,
 )
+from app.utils.ai.openai.openai_runner import OpenAIRunner
 from app.utils.reset_lock import ResetLock
 from app.utils.shutdown_coordinator import ShutdownCoordinator
 from app.utils.temp_file_manager import TempFileManager
+
+
+def _create_ai_runner(cfg: Settings, metrics: "MetricsService") -> AIRunner | None:
+    """Factory function to create AI runner based on configuration.
+
+    Args:
+        cfg: Application settings
+        metrics: Metrics service for tracking AI usage
+
+    Returns:
+        OpenAIRunner instance, or None if AI is disabled
+
+    Raises:
+        ValueError: If AI_PROVIDER doesn't match configured API keys
+    """
+    if not cfg.real_ai_allowed:
+        return None
+
+    if cfg.AI_PROVIDER == "openai":
+        if not cfg.OPENAI_API_KEY:
+            raise ValueError(
+                "OPENAI_API_KEY is required when AI_PROVIDER is set to 'openai'"
+            )
+        return OpenAIRunner(cfg.OPENAI_API_KEY, metrics)
+
+    else:
+        raise ValueError(
+            f"Invalid AI_PROVIDER: {cfg.AI_PROVIDER}. Must be 'openai'"
+        )
 
 
 class ServiceContainer(containers.DeclarativeContainer):
@@ -213,7 +245,7 @@ class ServiceContainer(containers.DeclarativeContainer):
 
     # AI runner - conditional singleton (only when real AI is enabled)
     ai_runner = providers.Singleton(
-        lambda cfg, metrics: AIRunner(cfg.OPENAI_API_KEY, metrics) if cfg.real_ai_allowed and cfg.OPENAI_API_KEY else None,
+        _create_ai_runner,
         cfg=config,
         metrics=metrics_service
     )
@@ -251,6 +283,21 @@ class ServiceContainer(containers.DeclarativeContainer):
         mouser_service=mouser_service
     )
 
+    # Datasheet extraction service and function
+    datasheet_extraction_service = providers.Factory(
+        DatasheetExtractionService,
+        config=config,
+        document_service=document_service,
+        type_service=type_service,
+        ai_runner=ai_runner,
+        temp_file_manager=temp_file_manager
+    )
+
+    datasheet_extraction_function = providers.Factory(
+        ExtractSpecsFromDatasheetFunction,
+        datasheet_extraction_service=datasheet_extraction_service
+    )
+
     # AI service
     ai_service = providers.Factory(
         AIService,
@@ -264,7 +311,9 @@ class ServiceContainer(containers.DeclarativeContainer):
         metrics_service=metrics_service,
         duplicate_search_function=duplicate_search_function,
         mouser_part_number_search_function=mouser_part_number_search_function,
-        mouser_keyword_search_function=mouser_keyword_search_function
+        mouser_keyword_search_function=mouser_keyword_search_function,
+        datasheet_extraction_function=datasheet_extraction_function,
+        ai_runner=ai_runner
     )
 
     # Version service - Singleton managing SSE subscribers

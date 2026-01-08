@@ -9,7 +9,7 @@ from app.schemas.ai_part_cleanup import (
     AIPartCleanupTaskCancelledResultSchema,
     AIPartCleanupTaskResultSchema,
 )
-from app.services.base_task import BaseSessionTask, ProgressHandle
+from app.services.base_task import BaseSessionTask, ProgressHandle, SubProgressHandle
 from app.services.container import ServiceContainer
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ class AIPartCleanupTask(BaseSessionTask):
                 )
 
             # Phase 1: Initialize and validate (0-5%)
-            progress_handle.send_progress("Initializing cleanup analysis", 0.0)
+            progress_handle.send_progress_text("Initializing cleanup analysis")
 
             if self.is_cancelled:
                 return AIPartCleanupTaskCancelledResultSchema()
@@ -60,8 +60,11 @@ class AIPartCleanupTask(BaseSessionTask):
             try:
                 ai_service = self.container.ai_service()
 
+                cleanup_progress_handle = SubProgressHandle(progress_handle, 0.05, 0.8)
+
                 cleaned_part = ai_service.cleanup_part(
-                    part_key=part_key, progress_handle=progress_handle
+                    part_key=part_key,
+                    progress_handle=cleanup_progress_handle
                 )
             except Exception as e:
                 logger.error(f"AI cleanup failed for part {part_key}: {e}")
