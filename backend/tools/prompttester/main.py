@@ -12,7 +12,7 @@ from tools.prompttester.utils import AIType
 
 logger = logging.getLogger(__name__)
 
-# Load .env from the prompttester directory (where CLAUDE_API_KEY is stored)
+# Load .env from the prompttester directory
 _prompttester_dir = os.path.dirname(__file__)
 load_dotenv(os.path.join(_prompttester_dir, ".env"))
 
@@ -25,9 +25,6 @@ def full_tests():
 
     models : list[tuple[AIType, str, list[str] | None]] = [
         (AIType.OPENAI, "gpt-5-mini", reasoning_efforts),
-        # (AIType.CLAUDE, "claude-sonnet-4-5", None),
-        # (AIType.CLAUDE, "claude-opus-4-5", None),
-        # (AIType.CLAUDE, "claude-3-5-haiku-20241022", None),
     ]
 
     queries = [
@@ -73,8 +70,7 @@ def duplicate_search_tests():
     run_duplicate_search_tests(
         queries,
         [
-            # (AIType.OPENAI, "gpt-5-mini"),
-            (AIType.CLAUDE, "claude-sonnet-4-5"),
+            (AIType.OPENAI, "gpt-5-mini"),
         ]
     )
 
@@ -89,7 +85,6 @@ def datasheet_spec_tests():
         queries,
         [
             (AIType.OPENAI, "gpt-5-mini"),
-            # (AIType.CLAUDE, "claude-sonnet-4-5"),
         ]
     )
 

@@ -9,7 +9,6 @@ from app.schemas.duplicate_search import (
 from app.services.download_cache_service import DownloadCacheService
 from app.services.mouser_service import MouserService
 from app.utils.ai.ai_runner import AIRunner
-from app.utils.ai.claude.claude_runner import ClaudeRunner
 from app.utils.ai.datasheet_extraction import ExtractSpecsFromDatasheetFunction
 from app.utils.ai.duplicate_search import DuplicateSearchFunction
 from app.utils.ai.mouser_search import (
@@ -33,9 +32,8 @@ from tools.prompttester.utils import (
 logger = logging.getLogger(__name__)
 
 def run_full_tests(queries: list[str], models: list[tuple[AIType, str, list[str] | None]], runs: int = 1):
-    # Initialize runners only if API keys are available
+    # Initialize runner only if API key is available
     openai_runner: AIRunner | None = OpenAIRunner(os.getenv("OPENAI_API_KEY")) if os.getenv("OPENAI_API_KEY") else None  # type: ignore
-    claude_runner: AIRunner | None = ClaudeRunner(os.getenv("CLAUDE_API_KEY")) if os.getenv("CLAUDE_API_KEY") else None  # type: ignore
 
     output_path = os.path.join(os.path.dirname(__file__), "output")
     os.makedirs(output_path, exist_ok=True)
@@ -60,7 +58,10 @@ def run_full_tests(queries: list[str], models: list[tuple[AIType, str, list[str]
     for query in queries:
         for ai_type, model, reasoning_efforts in models:
             # Select runner based on AI type
-            runner = openai_runner if ai_type == AIType.OPENAI else claude_runner
+            if ai_type != AIType.OPENAI:
+                logger.error(f"Unsupported AI type: {ai_type.value}")
+                continue
+            runner = openai_runner
             if runner is None:
                 logger.error(f"No runner available for {ai_type.value} - API key missing")
                 continue
@@ -78,7 +79,7 @@ def run_full_tests(queries: list[str], models: list[tuple[AIType, str, list[str]
                     filename_prefix += f"_{run + 1}"
 
                     try:
-                        duplicate_search_model = "gpt-5-mini" if ai_type == AIType.OPENAI else "claude-sonnet-4-5"
+                        duplicate_search_model = "gpt-5-mini"
                         duplicate_search = DuplicateSearchFunction(get_duplicate_search_service(runner, duplicate_search_model))  # type: ignore
 
                         logger.info(f"Run: query {query}, query_key {query_key}, model {model}, reasoning_effort {reasoning_effort}")
@@ -148,7 +149,6 @@ def run_duplicate_search_tests(
 
     # Initialize AI runner with stub metrics service
     openai_runner: AIRunner | None = OpenAIRunner(os.getenv("OPENAI_API_KEY")) if os.getenv("OPENAI_API_KEY") else None  # type: ignore
-    claude_runner: AIRunner | None = ClaudeRunner(os.getenv("CLAUDE_API_KEY")) if os.getenv("CLAUDE_API_KEY") else None  # type: ignore
 
     # Run tests for each query/model/reasoning/run combination
     for query, expected_matches in queries:
@@ -172,7 +172,10 @@ def run_duplicate_search_tests(
                     # Clear log buffer for this test run
                     log_interceptor.clear()
 
-                    runner = openai_runner if ai_type == AIType.OPENAI else claude_runner
+                    if ai_type != AIType.OPENAI:
+                        logger.error(f"Unsupported AI type: {ai_type.value}")
+                        continue
+                    runner = openai_runner
                     if not runner:
                         logger.error(f"No runner available for {ai_type.value} - API key missing")
                         continue
@@ -281,7 +284,6 @@ def run_datasheet_spec_tests(
 
     # Initialize AI runner with stub metrics service
     openai_runner: AIRunner | None = OpenAIRunner(os.getenv("OPENAI_API_KEY")) if os.getenv("OPENAI_API_KEY") else None  # type: ignore
-    claude_runner: AIRunner | None = ClaudeRunner(os.getenv("CLAUDE_API_KEY")) if os.getenv("CLAUDE_API_KEY") else None  # type: ignore
 
     progress_handle = ProgressImpl()
 
@@ -306,7 +308,10 @@ def run_datasheet_spec_tests(
                     # Clear log buffer for this test run
                     log_interceptor.clear()
 
-                    runner = openai_runner if ai_type == AIType.OPENAI else claude_runner
+                    if ai_type != AIType.OPENAI:
+                        logger.error(f"Unsupported AI type: {ai_type.value}")
+                        continue
+                    runner = openai_runner
                     if not runner:
                         logger.error(f"No runner available for {ai_type.value} - API key missing")
                         continue

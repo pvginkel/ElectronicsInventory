@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 
 class AIType(Enum):
     OPENAI = "openai"
-    CLAUDE = "claude"
 
 class LogInterceptor(logging.Handler):
     """
