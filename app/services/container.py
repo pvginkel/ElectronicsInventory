@@ -36,7 +36,6 @@ from app.services.type_service import TypeService
 from app.services.url_transformers import LCSCInterceptor, URLInterceptorRegistry
 from app.services.version_service import VersionService
 from app.utils.ai.ai_runner import AIRunner
-from app.utils.ai.claude.claude_runner import ClaudeRunner
 from app.utils.ai.datasheet_extraction import ExtractSpecsFromDatasheetFunction
 from app.utils.ai.duplicate_search import DuplicateSearchFunction
 from app.utils.ai.mouser_search import (
@@ -57,7 +56,7 @@ def _create_ai_runner(cfg: Settings, metrics: "MetricsService") -> AIRunner | No
         metrics: Metrics service for tracking AI usage
 
     Returns:
-        OpenAIRunner or ClaudeRunner instance, or None if AI is disabled
+        OpenAIRunner instance, or None if AI is disabled
 
     Raises:
         ValueError: If AI_PROVIDER doesn't match configured API keys
@@ -65,14 +64,7 @@ def _create_ai_runner(cfg: Settings, metrics: "MetricsService") -> AIRunner | No
     if not cfg.real_ai_allowed:
         return None
 
-    if cfg.AI_PROVIDER == "claude":
-        if not cfg.CLAUDE_API_KEY:
-            raise ValueError(
-                "CLAUDE_API_KEY is required when AI_PROVIDER is set to 'claude'"
-            )
-        return ClaudeRunner(cfg.CLAUDE_API_KEY, metrics)
-
-    elif cfg.AI_PROVIDER == "openai":
+    if cfg.AI_PROVIDER == "openai":
         if not cfg.OPENAI_API_KEY:
             raise ValueError(
                 "OPENAI_API_KEY is required when AI_PROVIDER is set to 'openai'"
@@ -81,7 +73,7 @@ def _create_ai_runner(cfg: Settings, metrics: "MetricsService") -> AIRunner | No
 
     else:
         raise ValueError(
-            f"Invalid AI_PROVIDER: {cfg.AI_PROVIDER}. Must be 'openai' or 'claude'"
+            f"Invalid AI_PROVIDER: {cfg.AI_PROVIDER}. Must be 'openai'"
         )
 
 
