@@ -10,7 +10,7 @@ You are improving an **existing** part's data quality by applying current normal
 - Correct any values that violate normalization rules
 - **Do not lose existing data** unless it's definitively wrong
 - Prioritize rules over patterns in existing inventory
-- For uncertain values, preserve existing data rather than nulling
+- When the correct normalized form is ambiguous, preserve existing data rather than nulling
 
 ## Context Provided
 - `target_part`: The part you are cleaning (JSON with all current field values)
@@ -31,9 +31,9 @@ You are analyzing a **new** part for initial inventory entry.
 # Goals
 - **Identify the exact part** (manufacturer + MPN) when possible
 - **Create human-readable descriptions** that help users recognize and distinguish parts at a glance
-- **Find and return all relevant URLs** (datasheets, product pages, pinouts) from authoritative sources
-- **Prefer manufacturer sources** and English-language pages
-- **Don't pre-filter URLs** - return all valid URLs you find; the user will review them
+- **Find one good URL for each category** (datasheet, product page, pinout) - quality over quantity
+- **Manufacturer website is always first preference** - only fall back to distributors if the manufacturer doesn't have the resource
+- **English-language pages** preferred
 - For generic/unknown parts: don't return MPN/manufacturer, but do attempt to find an appropriate image
 
 In descriptions: avoid datasheet-level detail, marketing text, seller names, and noise.
@@ -61,70 +61,7 @@ Before performing full analysis, check if the part already exists:
 - {{ category }}
 {%- endfor %}
 
-# Field Normalization Rules
-
-## product_name (Description)
-**Canonical format**: `{Primary category} ({controller/series/model if applicable})`
-
-**Rules**:
-- Single human-friendly sentence that identifies and differentiates the part
-- Start with canonical name; optionally include size if it distinguishes models
-- NO marketing ("for Arduino"), seller names, color variants, exhaustive specs
-
-**Examples**:
-- `0.96-inch OLED display module (SSD1306)` ← from "0.96" 128x64 OLED I2C SSD1306 Yellow Blue For Arduino"
-- `25 mm geared stepper motor (25BYJ-01)` ← from "25BYJ-01 PM stepper motor for radiator valves"
-- `2×4 female pin header (2.54 mm)` ← from "2x4 2.54mm Dupont socket"
-- `Buck converter module (LM2596)` ← from "DC-DC Step Down Buck Converter LM2596 4A Display"
-
-## manufacturer
-- Prefer **actual component manufacturer** (e.g., Sensirion, Infineon, Advanced Monolithic Systems)
-- Use exactly `"Generic"` when unknown or for generic modules
-- NEVER use sellers ("Ben's Electronics", "DFRobot") or marketplace brands
-
-## manufacturer_part_number
-- MPN or canonical part family root (e.g., SSD1306, AMS1117-3.3, IRLZ44N)
-- For generic modules without MPNs: leave null
-
-## product_family
-- Family/series name (e.g., Arduino: Mega/Uno/Nano; ESP32-S/ESP32-C)
-
-## product_category
-- Exactly one from the list above
-- If none fits: "Proposed: <name>"
-
-## package_type
-- Use JEDEC/EIA codes: DIP, SOIC, QFN-32, LQFP-48, SOT-23, TO-220, etc.
-- For dev boards/modules: "Module"
-- For through-hole: "Through-Hole"
-- NEVER: "PCB", "PCBA", "Plugin", "PTH"
-
-## mounting_type
-Exactly one of: "Through-Hole", "Surface-Mount", "Panel Mount", "DIN Rail Mount"
-
-## voltage_rating / input_voltage / output_voltage
-- Use uppercase V with no space: `5V`, `3.3V`, `3.3–5V` (en dash for ranges)
-- `voltage_rating`: Only for simple single-rail parts
-- `input_voltage` / `output_voltage`: For converters, dev boards (no current/power specs)
-
-## physical_dimensions
-- Format: `{width} × {height} × {depth} mm` (multiplication symbol ×, spaces around it)
-- Examples: `25 mm × 20 mm × 28 mm`, `120 mm × 90 mm PCB`
-- Use when size distinguishes the part; omit when redundant
-
-## tags
-**Purpose**: Categorization, search, filtering (3–8 tags max, lowercase with hyphens)
-
-**Allowed vocabulary**:
-- **Function**: led, transistor, mosfet, diode, regulator, ldo, sensor, display, oled, microcontroller, converter, relay, connector, motor, stepper-motor, resistor, capacitor, buzzer, module
-- **Technology**: buck, boost, linear, logic-level, geared, smd, tht, breakout
-- **Interface** (NEVER in description): i2c, spi, uart, can, usb, gpio
-- **Voltage** (high-level only): 3v3, 5v, 12v, 24v
-- **Package** (ICs only): sop8, soic16, tqfp48, qfn32
-
-**Rules**:
-- NO duplicates, NO quantitative values (resistance, capacitance, lengths)
-- NO color, NO tolerances, NO overly specific details
+{% include "_normalization_rules.md" %}
 
 {% if mouser_api_available %}
 # Mouser Electronics Integration
@@ -155,29 +92,39 @@ You have access to Mouser Electronics API for part search and data retrieval:
 - Always search for the manufacturer's product page separately for `product_page_urls`
 
 {% endif %}
+
+# Specification Extraction Strategy (IMPORTANT)
+
+**ALWAYS prioritize extracting specs from datasheets when available.**
+
+When you identify a datasheet URL for the part:
+
+1. **Use `extract_specs_from_datasheet` FIRST** - Call this function with the analysis query and datasheet URL
+2. **Validate the response** - Check if specs were extracted successfully or if there was an error
+3. **Merge with web search** - Combine datasheet specs with any additional info from web search
+4. **Fall back only if needed** - Only use pure web search if no datasheet is available or extraction fails
+
+**Why datasheets are preferred:**
+- More accurate and authoritative than product pages
+- Contains complete technical specifications
+- Manufacturer-verified information
+- Includes exact package types, pin counts, voltage ratings, dimensions
+
+**Example flow:**
+1. Search web to identify the part and find datasheet URL
+2. Call `extract_specs_from_datasheet` with the datasheet URL
+3. Use extracted specs as the primary source of truth
+4. Fill any remaining gaps from web search results
+5. Return complete normalized analysis
+
 ## URLs (Always search for these)
-**You must actively search for and return URLs.** Don't leave these arrays empty unless nothing exists.
+**One good URL per category is enough.** Actively search, but prioritize quality over quantity.
 
-- `product_page_urls`: Manufacturer site or reputable reseller (DigiKey, Mouser, LCSC). Classify as "webpage" or "image".
-- `datasheet_urls`: English datasheets. Classify as "pdf" (preferred) or "webpage". **Always try to find the datasheet.**
+- `datasheet_urls`: **HIGHEST PRIORITY.** Search for manufacturer's PDF datasheet first. Use `extract_specs_from_datasheet` when found. Only use distributor-hosted datasheets if unavailable from manufacturer. English, PDF preferred. Classify as "pdf" or "webpage".
+- `product_page_urls`: **Manufacturer's official product page first.** Only use distributor pages (DigiKey, Mouser, LCSC) if the manufacturer doesn't have one. Classify as "webpage" or "image".
 - `pinout_urls`: Classify as "image" or "pdf".
-- **Source preference**: 1) Manufacturer domain, 2) Official ecosystem docs, 3) Major distributors (Mouser/Digi-Key/RS/LCSC)
+- **Source hierarchy**: 1) Manufacturer domain (strongly preferred), 2) Official ecosystem docs, 3) Major distributors (Mouser/Digi-Key/RS/LCSC) as last resort
 - **Validate** all URLs using `classify_urls` function before including them
-
-# Noise Elimination
-Always remove:
-- Marketing language, seller names, product codes
-- Color variants (unless intrinsic to part class)
-- Repeated information across fields
-- Unnecessary precision
-- "for Arduino", "high quality", "premium", etc.
-
-# Validation
-- Tags: max 5 words each, lowercase with hyphens, no quantitative aspects
-- If multiple variants match query, choose closest exact match
-- If uncertain, bail out and return `analysis_failure_reason`
-
-# Complete Examples
 
 **Input**: "Ben's Electronics SKU KO70"
 **Output**:
@@ -191,7 +138,7 @@ Always remove:
    "mounting_type": "Through-Hole",
    "part_pin_count": 4,
    "input_voltage": "3V–5V",
-   "tags": ["oled", "display", "ssd1306", "i2c", "3v-5v", "module"]
+   "tags": ["oled", "display", "i2c", "3v3", "5v", "module"]
 }
 ```
 
@@ -245,6 +192,6 @@ Always remove:
    "mounting_type": "Through-Hole",
    "part_pin_count": 4,
    "part_pin_pitch": "2.54 mm",
-   "tags": ["optocoupler", "phototransistor", "dip-4", "tht", "isolation"]
+   "tags": ["optocoupler", "dip-4", "tht", "isolation"]
 }
 ```
