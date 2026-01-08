@@ -109,6 +109,12 @@ class Settings(BaseSettings):
         description="PostgreSQL result backend for Celery",
     )
 
+    # AI Provider settings
+    AI_PROVIDER: str = Field(
+        default="openai",
+        description="AI provider to use ('openai' or 'claude')"
+    )
+
     # OpenAI settings
     OPENAI_API_KEY: str = Field(
         default="", description="OpenAI API key for AI features"
@@ -137,6 +143,17 @@ class Settings(BaseSettings):
         "If the file exists, its contents are returned instead of calling the AI. "
         "If the file doesn't exist, the AI response is saved there for future replay."
     )
+
+    # Claude settings
+    CLAUDE_API_KEY: str = Field(
+        default="", description="Anthropic Claude API key for AI features"
+    )
+    CLAUDE_MODEL: str = Field(
+        default="claude-3-5-sonnet-20241022",
+        description="Claude model to use for AI analysis"
+    )
+
+    # Global AI settings
     DISABLE_REAL_AI_ANALYSIS: bool = Field(
         default=False,
         description="When true, disallows real AI analysis requests regardless of API key configuration",

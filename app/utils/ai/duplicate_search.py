@@ -56,7 +56,7 @@ class DuplicateSearchFunction(AIFunction):
         Returns:
             DuplicateSearchResponse with list of matches (or empty on error)
         """
-        progress_handle.send_progress_value(0.4)
+        progress_handle.send_progress_text("Searching for duplicates")
 
         search_request = cast(DuplicateSearchRequest, request)
 

@@ -99,7 +99,7 @@ def ai_service(session: Session, ai_test_settings: Settings,
     """Create AI service instance for testing."""
     from unittest.mock import Mock
 
-    from app.utils.ai.ai_runner import AIFunction
+    from app.utils.ai.ai_runner import AIFunction, AIRunner
 
     # Create mock duplicate search function
     mock_duplicate_search_function = Mock(spec=AIFunction)
@@ -107,6 +107,12 @@ def ai_service(session: Session, ai_test_settings: Settings,
     # Create mock Mouser function tools
     mock_mouser_part_number_search = Mock(spec=AIFunction)
     mock_mouser_keyword_search = Mock(spec=AIFunction)
+
+    # Create mock datasheet extraction function
+    mock_datasheet_extraction = Mock(spec=AIFunction)
+
+    # Create a mock runner for tests that will call the runner
+    mock_runner = Mock(spec=AIRunner)
 
     return AIService(
         db=session,
@@ -120,6 +126,8 @@ def ai_service(session: Session, ai_test_settings: Settings,
         duplicate_search_function=mock_duplicate_search_function,
         mouser_part_number_search_function=mock_mouser_part_number_search,
         mouser_keyword_search_function=mock_mouser_keyword_search,
+        datasheet_extraction_function=mock_datasheet_extraction,
+        ai_runner=mock_runner  # Tests will mock the runner's run method
     )
 
 
@@ -162,7 +170,7 @@ class TestAIService:
                                   mock_type_service: TypeService, mock_seller_service,
                                   mock_download_cache_service: DownloadCacheService,
                                   mock_document_service: DocumentService, mock_metrics_service):
-        """Test AI service initialization without API key."""
+        """Test AI service initialization without API key (should not raise error - runner is injected)."""
         from unittest.mock import Mock
 
         from app.utils.ai.ai_runner import AIFunction
@@ -170,22 +178,29 @@ class TestAIService:
         mock_duplicate_search_function = Mock(spec=AIFunction)
         mock_mouser_part_number_search = Mock(spec=AIFunction)
         mock_mouser_keyword_search = Mock(spec=AIFunction)
+        mock_datasheet_extraction = Mock(spec=AIFunction)
 
         settings = Settings(DATABASE_URL="sqlite:///:memory:", OPENAI_API_KEY="")
-        with pytest.raises(ValueError, match="OPENAI_API_KEY configuration is required"):
-            AIService(
-                db=session,
-                config=settings,
-                temp_file_manager=temp_file_manager,
-                type_service=mock_type_service,
-                seller_service=mock_seller_service,
-                download_cache_service=mock_download_cache_service,
-                document_service=mock_document_service,
-                metrics_service=mock_metrics_service,
-                duplicate_search_function=mock_duplicate_search_function,
-                mouser_part_number_search_function=mock_mouser_part_number_search,
-                mouser_keyword_search_function=mock_mouser_keyword_search,
-            )
+
+        # AIService no longer initializes the runner internally, so this should succeed
+        service = AIService(
+            db=session,
+            config=settings,
+            temp_file_manager=temp_file_manager,
+            type_service=mock_type_service,
+            seller_service=mock_seller_service,
+            download_cache_service=mock_download_cache_service,
+            document_service=mock_document_service,
+            metrics_service=mock_metrics_service,
+            duplicate_search_function=mock_duplicate_search_function,
+            mouser_part_number_search_function=mock_mouser_part_number_search,
+            mouser_keyword_search_function=mock_mouser_keyword_search,
+            datasheet_extraction_function=mock_datasheet_extraction,
+            ai_runner=None
+        )
+
+        # Runner should be None since we didn't inject one
+        assert service.runner is None
 
     def test_analyze_part_no_input(self, ai_service: AIService):
         """Test analyze_part with no text or image input."""
@@ -194,8 +209,7 @@ class TestAIService:
         with pytest.raises(NotImplementedError, match="Image input is not yet implemented; user_prompt is required"):
             ai_service.analyze_part(None, None, None, mock_progress)
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_analyze_part_text_only_success(self, mock_run, ai_service: AIService):
+    def test_analyze_part_text_only_success(self, ai_service: AIService):
         """Test successful AI analysis with text input only."""
         # Create structured mock response - using correct PartAnalysisSuggestion fields
         from app.utils.ai.ai_runner import AIResponse
@@ -205,7 +219,7 @@ class TestAIService:
             product_name="Test relay component",
             tags=["relay", "12V"]
         )
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_ai_response,
             output_text="Mock response",
             elapsed_time=1.0,
@@ -231,10 +245,9 @@ class TestAIService:
         assert result.duplicate_parts is None
 
         # Verify the runner was called once
-        mock_run.assert_called_once()
+        ai_service.runner.run.assert_called_once()
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_analyze_part_new_type_suggestion(self, mock_run, ai_service: AIService):
+    def test_analyze_part_new_type_suggestion(self, ai_service: AIService):
         """Test AI analysis suggesting a new type not in the system."""
         # Create structured mock response - using correct PartAnalysisSuggestion fields
         from app.utils.ai.ai_runner import AIResponse
@@ -243,7 +256,7 @@ class TestAIService:
             product_name="Switching power supply",
             tags=["power", "supply", "switching"]
         )
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_ai_response,
             output_text="Mock response",
             elapsed_time=1.0,
@@ -266,10 +279,9 @@ class TestAIService:
         assert result.duplicate_parts is None
 
         # Verify the runner was called once
-        mock_run.assert_called_once()
+        ai_service.runner.run.assert_called_once()
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_analyze_part_with_document_download(self, mock_run, ai_service: AIService):
+    def test_analyze_part_with_document_download(self, ai_service: AIService):
         """Test AI analysis with document download."""
         # Create structured mock response with document URLs
         from app.utils.ai.ai_runner import AIResponse
@@ -280,7 +292,7 @@ class TestAIService:
             tags=["relay", "documentation"],
             datasheet_urls=["https://example.com/datasheet.pdf"]
         )
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_ai_response,
             output_text="Mock response",
             elapsed_time=1.0,
@@ -312,23 +324,22 @@ class TestAIService:
             assert result.duplicate_parts is None
 
             # Verify the runner was called once and _document_from_link was called
-            mock_run.assert_called_once()
+            ai_service.runner.run.assert_called_once()
             # Should be called once for datasheet URL
             assert mock_doc_from_link.call_count == 1
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_analyze_part_openai_api_error(self, mock_run, ai_service: AIService):
+    def test_analyze_part_openai_api_error(self, ai_service: AIService):
         """Test handling of OpenAI API errors."""
         # Mock the OpenAI API call to raise an exception
         from openai import OpenAIError
-        mock_run.side_effect = OpenAIError("API Error")
+        ai_service.runner.run.side_effect = OpenAIError("API Error")
 
         with pytest.raises(OpenAIError, match="API Error"):
             mock_progress = Mock()
             ai_service.analyze_part("Test component", None, None, mock_progress)
 
         # Verify the runner was called
-        mock_run.assert_called_once()
+        ai_service.runner.run.assert_called_once()
 
     def test_analyze_part_disallowed_without_dummy(
         self,
@@ -352,6 +363,7 @@ class TestAIService:
         mock_duplicate_search_function = Mock(spec=AIFunction)
         mock_mouser_part_number_search = Mock(spec=AIFunction)
         mock_mouser_keyword_search = Mock(spec=AIFunction)
+        mock_datasheet_extraction = Mock(spec=AIFunction)
 
         service = AIService(
             db=session,
@@ -365,6 +377,7 @@ class TestAIService:
             duplicate_search_function=mock_duplicate_search_function,
             mouser_part_number_search_function=mock_mouser_part_number_search,
             mouser_keyword_search_function=mock_mouser_keyword_search,
+            datasheet_extraction_function=mock_datasheet_extraction,
         )
 
         mock_progress = Mock()
@@ -404,6 +417,7 @@ class TestAIService:
         mock_duplicate_search_function = Mock(spec=AIFunction)
         mock_mouser_part_number_search = Mock(spec=AIFunction)
         mock_mouser_keyword_search = Mock(spec=AIFunction)
+        mock_datasheet_extraction = Mock(spec=AIFunction)
 
         service = AIService(
             db=session,
@@ -417,6 +431,7 @@ class TestAIService:
             duplicate_search_function=mock_duplicate_search_function,
             mouser_part_number_search_function=mock_mouser_part_number_search,
             mouser_keyword_search_function=mock_mouser_keyword_search,
+            datasheet_extraction_function=mock_datasheet_extraction,
         )
 
         mock_progress = Mock()
@@ -434,9 +449,7 @@ class TestAIService:
         mock_document_service, mock_metrics_service
     ):
         """Test that Mouser search functions are registered when API key is configured."""
-        from unittest.mock import patch
-
-        from app.utils.ai.ai_runner import AIFunction
+        from app.utils.ai.ai_runner import AIFunction, AIRunner
 
         # Settings WITH Mouser API key
         settings = Settings(
@@ -448,6 +461,8 @@ class TestAIService:
         mock_duplicate_search_function = Mock(spec=AIFunction)
         mock_mouser_part_number_search = Mock(spec=AIFunction)
         mock_mouser_keyword_search = Mock(spec=AIFunction)
+        mock_datasheet_extraction = Mock(spec=AIFunction)
+        mock_runner = Mock(spec=AIRunner)
 
         service = AIService(
             db=session,
@@ -461,55 +476,52 @@ class TestAIService:
             duplicate_search_function=mock_duplicate_search_function,
             mouser_part_number_search_function=mock_mouser_part_number_search,
             mouser_keyword_search_function=mock_mouser_keyword_search,
+            datasheet_extraction_function=mock_datasheet_extraction,
+            ai_runner=mock_runner,
         )
 
         # Verify mouser_enabled is True
         assert service.mouser_enabled is True
 
-        # Mock AIRunner to capture function_tools list
-        with patch('app.services.ai_service.AIRunner') as MockAIRunner:
-            mock_runner_instance = Mock()
-            MockAIRunner.return_value = mock_runner_instance
-            service.runner = mock_runner_instance
+        # Mock the run method to capture arguments
+        from app.utils.ai.ai_runner import AIResponse
+        mock_ai_response = create_mock_ai_response(product_name="Test")
+        mock_runner.run.return_value = AIResponse(
+            response=mock_ai_response,
+            output_text="Mock",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
+        )
 
-            # Mock the run method to capture arguments
-            mock_run_response = Mock()
-            mock_run_response.response = Mock()
-            mock_runner_instance.run.return_value = mock_run_response
+        # Call analyze_part to trigger function registration
+        mock_progress = Mock()
+        try:
+            service.analyze_part("test part", None, None, mock_progress)
+        except Exception:
+            pass  # We're only interested in the function list
 
-            # Call analyze_part to trigger function registration
-            with patch('app.services.ai_service.URLClassifierFunction'):
-                mock_progress = Mock()
-                try:
-                    service.analyze_part(
-                        description="test part",
-                        images=[],
-                        categories=["Test"],
-                        progress_handle=mock_progress
-                    )
-                except Exception:
-                    pass  # We're only interested in the function list
+        # Verify runner.run was called
+        if mock_runner.run.called:
+            call_args = mock_runner.run.call_args
+            function_tools = call_args[0][1]  # Second positional argument
 
-            # Verify AIRunner.run was called
-            if mock_runner_instance.run.called:
-                call_args = mock_runner_instance.run.call_args
-                function_tools = call_args[0][1]  # Second positional argument
-
-                # Should include 4 functions when Mouser is enabled:
-                # - url_classifier
-                # - duplicate_search
-                # - mouser_part_number_search
-                # - mouser_keyword_search
-                assert len(function_tools) == 4
+            # Should include 4 functions when Mouser is enabled:
+            # - url_classifier
+            # - duplicate_search
+            # - mouser_part_number_search
+            # - mouser_keyword_search
+            assert len(function_tools) == 4
 
     def test_conditional_function_registration_without_mouser_key(
         self, session: Session, mock_seller_service, mock_download_cache_service,
         mock_document_service, mock_metrics_service
     ):
         """Test that Mouser search functions are NOT registered when API key is missing."""
-        from unittest.mock import patch
-
-        from app.utils.ai.ai_runner import AIFunction
+        from app.utils.ai.ai_runner import AIFunction, AIRunner
 
         # Settings WITHOUT Mouser API key
         settings = Settings(
@@ -521,6 +533,8 @@ class TestAIService:
         mock_duplicate_search_function = Mock(spec=AIFunction)
         mock_mouser_part_number_search = Mock(spec=AIFunction)
         mock_mouser_keyword_search = Mock(spec=AIFunction)
+        mock_datasheet_extraction = Mock(spec=AIFunction)
+        mock_runner = Mock(spec=AIRunner)
 
         service = AIService(
             db=session,
@@ -534,57 +548,55 @@ class TestAIService:
             duplicate_search_function=mock_duplicate_search_function,
             mouser_part_number_search_function=mock_mouser_part_number_search,
             mouser_keyword_search_function=mock_mouser_keyword_search,
+            datasheet_extraction_function=mock_datasheet_extraction,
+            ai_runner=mock_runner,
         )
 
         # Verify mouser_enabled is False
         assert service.mouser_enabled is False
 
-        # Mock AIRunner to capture function_tools list
-        with patch('app.services.ai_service.AIRunner') as MockAIRunner:
-            mock_runner_instance = Mock()
-            MockAIRunner.return_value = mock_runner_instance
-            service.runner = mock_runner_instance
+        # Mock the run method
+        from app.utils.ai.ai_runner import AIResponse
+        mock_ai_response = create_mock_ai_response(product_name="Test")
+        mock_runner.run.return_value = AIResponse(
+            response=mock_ai_response,
+            output_text="Mock",
+            elapsed_time=1.0,
+            input_tokens=100,
+            cached_input_tokens=0,
+            output_tokens=50,
+            reasoning_tokens=0,
+            cost=None
+        )
 
-            # Mock the run method
-            mock_run_response = Mock()
-            mock_run_response.response = Mock()
-            mock_runner_instance.run.return_value = mock_run_response
+        # Call analyze_part
+        mock_progress = Mock()
+        try:
+            service.analyze_part("test part", None, None, mock_progress)
+        except Exception:
+            pass
 
-            # Call analyze_part
-            with patch('app.services.ai_service.URLClassifierFunction'):
-                mock_progress = Mock()
-                try:
-                    service.analyze_part(
-                        description="test part",
-                        images=[],
-                        categories=["Test"],
-                        progress_handle=mock_progress
-                    )
-                except Exception:
-                    pass
+        # Verify runner.run was called
+        if mock_runner.run.called:
+            call_args = mock_runner.run.call_args
+            function_tools = call_args[0][1]
 
-            # Verify AIRunner.run was called
-            if mock_runner_instance.run.called:
-                call_args = mock_runner_instance.run.call_args
-                function_tools = call_args[0][1]
+            # Should include only 2 functions (excluding Mouser search functions):
+            # - url_classifier
+            # - duplicate_search
+            assert len(function_tools) == 2
 
-                # Should include only 2 functions (excluding Mouser search functions):
-                # - url_classifier
-                # - duplicate_search
-                assert len(function_tools) == 2
-
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_analyze_part_invalid_json_response(self, mock_run, ai_service: AIService):
+    def test_analyze_part_invalid_json_response(self, ai_service: AIService):
         """Test handling of invalid JSON response from OpenAI."""
         # Mock the OpenAI API call to raise an exception simulating empty/invalid response
-        mock_run.side_effect = Exception("Empty response from OpenAI status incomplete, incomplete details: parsing error")
+        ai_service.runner.run.side_effect = Exception("Empty response from OpenAI status incomplete, incomplete details: parsing error")
 
         with pytest.raises(Exception, match="Empty response from OpenAI"):
             mock_progress = Mock()
             ai_service.analyze_part("Test component", None, None, mock_progress)
 
         # Verify the runner was called
-        mock_run.assert_called_once()
+        ai_service.runner.run.assert_called_once()
 
     def test_download_document_unsupported_content_type(self, ai_service: AIService):
         """Test handling of unsupported content types."""
@@ -742,8 +754,7 @@ class TestAIService:
             assert result.urls[0].classification == "invalid"
             assert result.urls[0].url == "https://example.com/missing"
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_function_calling_flow_via_analyze_part(self, mock_run, ai_service: AIService):
+    def test_function_calling_flow_via_analyze_part(self, ai_service: AIService):
         """Test that analyze_part can still work with the new function calling implementation."""
         # Mock the entire OpenAI API call to return a structured response
         from app.utils.ai.ai_runner import AIResponse
@@ -752,7 +763,7 @@ class TestAIService:
             product_category="Relay",
             product_name="Function call test relay"
         )
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_ai_response,
             output_text="Mock response",
             elapsed_time=1.0,
@@ -768,7 +779,7 @@ class TestAIService:
         result = ai_service.analyze_part("Test relay with datasheet URL", None, None, mock_progress)
 
         # Verify the runner was called
-        mock_run.assert_called_once()
+        ai_service.runner.run.assert_called_once()
 
         # Verify final result
         assert result.analysis_result is not None
@@ -777,8 +788,7 @@ class TestAIService:
         assert result.analysis_result.description == "Function call test relay"
         assert result.duplicate_parts is None
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_analyze_part_returns_duplicates(self, mock_run, ai_service: AIService):
+    def test_analyze_part_returns_duplicates(self, ai_service: AIService):
         """Test analyze_part returns duplicate_parts path when LLM finds high-confidence duplicates."""
         from app.utils.ai.ai_runner import AIResponse
 
@@ -790,7 +800,7 @@ class TestAIService:
                 DuplicatePartMatch(part_key="EFGH", confidence="medium", reasoning="Similar specs")
             ]
         )
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_response,
             output_text="Found duplicates",
             elapsed_time=1.0,
@@ -814,9 +824,8 @@ class TestAIService:
         assert result.duplicate_parts[1].confidence == "medium"
         assert result.analysis_result is None
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
     def test_analyze_part_duplicates_without_high_confidence_falls_through(
-        self, mock_run, ai_service: AIService
+        self, ai_service: AIService
     ):
         """Test that medium-confidence duplicates are included alongside full analysis."""
         from app.utils.ai.ai_runner import AIResponse
@@ -847,7 +856,7 @@ class TestAIService:
                 DuplicatePartMatch(part_key="WXYZ", confidence="medium", reasoning="Weak match")
             ]
         )
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_response_duplicates,
             output_text="Medium confidence only",
             elapsed_time=1.0,
@@ -870,8 +879,7 @@ class TestAIService:
         assert result.duplicate_parts[0].part_key == "WXYZ"
         assert result.duplicate_parts[0].confidence == "medium"
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_analyze_part_returns_failure_reason_only(self, mock_run, ai_service: AIService):
+    def test_analyze_part_returns_failure_reason_only(self, ai_service: AIService):
         """Test analyze_part returns failure_reason when query is too vague."""
         from app.utils.ai.ai_runner import AIResponse
 
@@ -881,7 +889,7 @@ class TestAIService:
             duplicate_parts=None,
             analysis_failure_reason="Please be more specific - do you need an SMD or through-hole resistor?"
         )
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_response,
             output_text="Query too vague",
             elapsed_time=1.0,
@@ -902,8 +910,7 @@ class TestAIService:
         assert result.analysis_result is None
         assert result.duplicate_parts is None
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_analyze_part_returns_analysis_with_failure_reason(self, mock_run, ai_service: AIService):
+    def test_analyze_part_returns_analysis_with_failure_reason(self, ai_service: AIService):
         """Test analyze_part returns both analysis and failure_reason for partial info."""
         from app.utils.ai.ai_runner import AIResponse
 
@@ -931,7 +938,7 @@ class TestAIService:
             duplicate_parts=None,
             analysis_failure_reason="Partial info available but please specify package type and tolerance"
         )
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_response,
             output_text="Partial analysis",
             elapsed_time=1.0,
@@ -954,8 +961,7 @@ class TestAIService:
         assert result.analysis_failure_reason == "Partial info available but please specify package type and tolerance"
         assert result.duplicate_parts is None
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_analyze_part_returns_duplicates_with_failure_reason(self, mock_run, ai_service: AIService):
+    def test_analyze_part_returns_duplicates_with_failure_reason(self, ai_service: AIService):
         """Test analyze_part returns duplicates and failure_reason for uncertain matches."""
         from app.utils.ai.ai_runner import AIResponse
 
@@ -967,7 +973,7 @@ class TestAIService:
             ],
             analysis_failure_reason="Matches found but may not be exact - please clarify relay coil voltage"
         )
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_response,
             output_text="Uncertain duplicates",
             elapsed_time=1.0,
@@ -990,8 +996,7 @@ class TestAIService:
         assert result.analysis_failure_reason == "Matches found but may not be exact - please clarify relay coil voltage"
         assert result.analysis_result is None
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_analyze_part_all_three_fields_populated(self, mock_run, ai_service: AIService):
+    def test_analyze_part_all_three_fields_populated(self, ai_service: AIService):
         """Test analyze_part with all three fields populated (edge case)."""
         from app.utils.ai.ai_runner import AIResponse
 
@@ -1021,7 +1026,7 @@ class TestAIService:
             ],
             analysis_failure_reason="Check these similar parts but please verify specifications"
         )
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_response,
             output_text="All fields",
             elapsed_time=1.0,
@@ -1048,8 +1053,7 @@ class TestAIService:
 class TestAIServiceCleanupPart:
     """Test cases for AIService.cleanup_part()."""
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_cleanup_part_success(self, mock_run, ai_service: AIService, session: Session):
+    def test_cleanup_part_success(self, ai_service: AIService, session: Session):
         """Test successful cleanup of an existing part."""
         from app.models.attachment_set import AttachmentSet
         from app.models.part import Part
@@ -1093,7 +1097,7 @@ class TestAIServiceCleanupPart:
             duplicate_parts=None,
             analysis_failure_reason=None
         )
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_response,
             output_text="Cleaned",
             elapsed_time=1.0,
@@ -1121,6 +1125,9 @@ class TestAIServiceCleanupPart:
         assert result.tags == ["relay", "test"]
         assert result.product_page == "https://example.com/product"
 
+        # Verify the runner was called once
+        ai_service.runner.run.assert_called_once()
+
     def test_cleanup_part_not_found(self, ai_service: AIService):
         """Test cleanup_part raises RecordNotFoundException for non-existent part."""
         from app.exceptions import RecordNotFoundException
@@ -1142,6 +1149,7 @@ class TestAIServiceCleanupPart:
         mock_duplicate_search_function = Mock(spec=AIFunction)
         mock_mouser_part_number_search = Mock(spec=AIFunction)
         mock_mouser_keyword_search = Mock(spec=AIFunction)
+        mock_datasheet_extraction = Mock(spec=AIFunction)
         settings = Settings(
             DATABASE_URL="sqlite:///:memory:",
             OPENAI_API_KEY="test-key",
@@ -1160,6 +1168,7 @@ class TestAIServiceCleanupPart:
             duplicate_search_function=mock_duplicate_search_function,
             mouser_part_number_search_function=mock_mouser_part_number_search,
             mouser_keyword_search_function=mock_mouser_keyword_search,
+            datasheet_extraction_function=mock_datasheet_extraction,
         )
 
         # Create a part
@@ -1179,8 +1188,7 @@ class TestAIServiceCleanupPart:
         with pytest.raises(InvalidOperationException):
             ai_service.cleanup_part(part_key="TEST", progress_handle=mock_progress)
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_cleanup_part_excludes_duplicate_search(self, mock_run, ai_service: AIService, session: Session):
+    def test_cleanup_part_excludes_duplicate_search(self, ai_service: AIService, session: Session):
         """Test that cleanup_part only passes URLClassifier (not duplicate search) to AI runner."""
         from app.models.attachment_set import AttachmentSet
         from app.models.part import Part
@@ -1201,7 +1209,7 @@ class TestAIServiceCleanupPart:
 
         # Mock AI response using helper that fills all required fields
         mock_response = create_mock_ai_response(product_name="Test")
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_response,
             output_text="OK",
             elapsed_time=1.0,
@@ -1216,15 +1224,14 @@ class TestAIServiceCleanupPart:
         ai_service.cleanup_part(part_key="TEST", progress_handle=mock_progress)
 
         # Verify the tool list passed to runner - should only have URL classifier
-        assert mock_run.called
-        call_args = mock_run.call_args
+        assert ai_service.runner.run.called
+        call_args = ai_service.runner.run.call_args
         tools = call_args[0][1]  # Second positional arg is the tool list
         assert len(tools) == 1
         # Verify it's the URL classifier by checking class name, not the duplicate search
         assert "URLClassifier" in type(tools[0]).__name__
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_cleanup_part_preserves_seller_data(self, mock_run, ai_service: AIService, session: Session):
+    def test_cleanup_part_preserves_seller_data(self, ai_service: AIService, session: Session):
         """Test that cleanup_part preserves existing seller data."""
         from app.models.attachment_set import AttachmentSet
         from app.models.part import Part
@@ -1253,7 +1260,7 @@ class TestAIServiceCleanupPart:
 
         # Mock AI response using helper (AI doesn't return seller fields)
         mock_response = create_mock_ai_response(product_name="Cleaned test part", tags=["test"])
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_response,
             output_text="OK",
             elapsed_time=1.0,
@@ -1271,9 +1278,8 @@ class TestAIServiceCleanupPart:
         assert result.seller == "DigiKey"
         assert result.seller_link == "https://digikey.com/product/123"
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
     def test_cleanup_part_builds_context_with_all_other_parts(
-        self, mock_run, ai_service: AIService, session: Session
+        self, ai_service: AIService, session: Session
     ):
         """Test that cleanup_part includes all other parts in context."""
         from app.models.attachment_set import AttachmentSet
@@ -1299,7 +1305,7 @@ class TestAIServiceCleanupPart:
 
         # Mock AI response using helper
         mock_response = create_mock_ai_response(product_name="Cleaned Part C")
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_response,
             output_text="OK",
             elapsed_time=1.0,
@@ -1314,7 +1320,7 @@ class TestAIServiceCleanupPart:
         ai_service.cleanup_part(part_key="CCCC", progress_handle=mock_progress)
 
         # Verify the user prompt contains context parts (all except target)
-        call_args = mock_run.call_args
+        call_args = ai_service.runner.run.call_args
         request = call_args[0][0]
         user_prompt = request.user_prompt
 
@@ -1326,8 +1332,7 @@ class TestAIServiceCleanupPart:
         assert "Target Part:" in user_prompt
         assert '"key": "CCCC"' in user_prompt
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_cleanup_part_prompt_uses_cleanup_mode(self, mock_run, ai_service: AIService, session: Session):
+    def test_cleanup_part_prompt_uses_cleanup_mode(self, ai_service: AIService, session: Session):
         """Test that cleanup_part builds prompt with mode='cleanup'."""
         from app.models.attachment_set import AttachmentSet
         from app.models.part import Part
@@ -1344,7 +1349,7 @@ class TestAIServiceCleanupPart:
 
         # Mock AI response using helper
         mock_response = create_mock_ai_response(product_name="Test")
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_response,
             output_text="OK",
             elapsed_time=1.0,
@@ -1359,7 +1364,7 @@ class TestAIServiceCleanupPart:
         ai_service.cleanup_part(part_key="TEST", progress_handle=mock_progress)
 
         # Verify the system prompt contains cleanup-mode content
-        call_args = mock_run.call_args
+        call_args = ai_service.runner.run.call_args
         request = call_args[0][0]
         system_prompt = request.system_prompt
 
@@ -1369,8 +1374,7 @@ class TestAIServiceCleanupPart:
         # Should NOT have duplicate detection instructions (that's analysis mode)
         assert "find_duplicates" not in system_prompt
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_cleanup_part_resolves_type_and_seller(self, mock_run, ai_service: AIService, session: Session):
+    def test_cleanup_part_resolves_type_and_seller(self, ai_service: AIService, session: Session):
         """Test that cleanup_part resolves type and seller against existing records."""
         from sqlalchemy import select
 
@@ -1409,7 +1413,7 @@ class TestAIServiceCleanupPart:
             product_name="Improved Test Relay",
             product_category="Relay"  # Matches existing type
         )
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_response,
             output_text="OK",
             elapsed_time=1.0,
@@ -1434,8 +1438,7 @@ class TestAIServiceCleanupPart:
         assert result.existing_seller_id == digikey_seller.id
         assert result.seller_link == "https://digikey.com/product/123"
 
-    @patch('app.utils.ai.ai_runner.AIRunner.run')
-    def test_cleanup_part_new_type_not_existing(self, mock_run, ai_service: AIService, session: Session):
+    def test_cleanup_part_new_type_not_existing(self, ai_service: AIService, session: Session):
         """Test that cleanup_part correctly identifies when AI suggests a new type."""
         from app.models.attachment_set import AttachmentSet
         from app.models.part import Part
@@ -1459,7 +1462,7 @@ class TestAIServiceCleanupPart:
             product_name="Test Widget",
             product_category="Proposed: Custom Widget"  # New type with Proposed: prefix
         )
-        mock_run.return_value = AIResponse(
+        ai_service.runner.run.return_value = AIResponse(
             response=mock_response,
             output_text="OK",
             elapsed_time=1.0,
