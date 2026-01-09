@@ -1,6 +1,6 @@
 """Tests for datasheet spec extraction service and function."""
 
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import pytest
 from flask import Flask
@@ -150,7 +150,8 @@ class TestDatasheetExtractionService:
         with patch.object(service.document_service, 'process_upload_url', side_effect=Exception("404 Not Found")):
             response = service.extract_specs(
                 analysis_query="0.96 inch OLED display module SSD1306",
-                datasheet_url="https://example.com/nonexistent.pdf"
+                datasheet_url="https://example.com/nonexistent.pdf",
+                progress_handle=StubProgressHandle()
             )
 
             assert isinstance(response, ExtractSpecsFromDatasheetResponse)
@@ -177,7 +178,8 @@ class TestDatasheetExtractionService:
         with patch.object(service.document_service, 'process_upload_url', return_value=upload_doc):
             response = service.extract_specs(
                 analysis_query="0.96 inch OLED display module SSD1306",
-                datasheet_url="https://example.com/product.html"
+                datasheet_url="https://example.com/product.html",
+                progress_handle=StubProgressHandle()
             )
 
             assert isinstance(response, ExtractSpecsFromDatasheetResponse)
@@ -239,7 +241,8 @@ class TestDatasheetExtractionService:
             with patch('tempfile.mkstemp', side_effect=OSError("Disk quota exceeded")):
                 response = service.extract_specs(
                     analysis_query="0.96 inch OLED display module SSD1306",
-                    datasheet_url="https://cdn-shop.adafruit.com/datasheets/SSD1306.pdf"
+                    datasheet_url="https://cdn-shop.adafruit.com/datasheets/SSD1306.pdf",
+                    progress_handle=StubProgressHandle()
                 )
 
                 assert isinstance(response, ExtractSpecsFromDatasheetResponse)
@@ -271,7 +274,8 @@ class TestDatasheetExtractionService:
             with patch.object(service.document_service, 'process_upload_url', return_value=upload_doc):
                 response = service.extract_specs(
                     analysis_query="Test query",
-                    datasheet_url="https://example.com/test.pdf"
+                    datasheet_url="https://example.com/test.pdf",
+                    progress_handle=StubProgressHandle()
                 )
 
                 assert isinstance(response, ExtractSpecsFromDatasheetResponse)
@@ -327,7 +331,8 @@ class TestExtractSpecsFromDatasheetFunction:
             # Verify service was called with correct arguments
             mock_extract.assert_called_once_with(
                 analysis_query="Test analysis query",
-                datasheet_url="https://example.com/test.pdf"
+                datasheet_url="https://example.com/test.pdf",
+                progress_handle=ANY
             )
 
             # Verify response is passed through
