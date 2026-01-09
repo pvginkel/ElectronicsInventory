@@ -1,6 +1,6 @@
 """Tests for AI part cleanup task."""
 
-from unittest.mock import Mock
+from unittest.mock import ANY, Mock
 
 import pytest
 
@@ -91,18 +91,22 @@ class TestAIPartCleanupTask:
 
         # Verify AI service was called correctly
         mock_ai_service.cleanup_part.assert_called_once_with(
-            part_key="ABCD", progress_handle=mock_progress_handle
+            part_key="ABCD", progress_handle=ANY  # SubProgressHandle wraps the mock
         )
 
-        # Verify progress updates were sent
-        assert mock_progress_handle.send_progress.call_count >= 2
+        # Verify progress updates were sent (through SubProgressHandle to parent)
+        assert mock_progress_handle.send_progress.call_count >= 1
 
-        # Check specific progress messages
+        # Check specific progress messages (from both send_progress and send_progress_text)
         progress_calls = [
             call.args[0] for call in mock_progress_handle.send_progress.call_args_list
         ]
-        assert any("Initializing cleanup" in msg for msg in progress_calls)
-        assert any("AI cleaning" in msg for msg in progress_calls)
+        progress_text_calls = [
+            call.args[0] for call in mock_progress_handle.send_progress_text.call_args_list
+        ]
+        all_messages = progress_calls + progress_text_calls
+        assert any("Initializing cleanup" in msg for msg in all_messages)
+        assert any("AI cleaning" in msg for msg in all_messages)
 
     def test_execute_part_not_found(
         self, mock_container, mock_ai_service, mock_progress_handle
@@ -272,20 +276,23 @@ class TestAIPartCleanupTask:
         # Verify successful execution
         assert result.success is True
 
-        # Extract all progress calls
+        # Extract all progress calls (both send_progress and send_progress_text)
         progress_calls = mock_progress_handle.send_progress.call_args_list
+        progress_text_calls = mock_progress_handle.send_progress_text.call_args_list
 
         # Verify minimum number of progress updates
         assert len(progress_calls) >= 2
 
-        # Check that we have the expected progress phases from text calls
+        # Check that we have the expected progress phases
         progress_messages = [call.args[0] for call in progress_calls]
+        progress_text_messages = [call.args[0] for call in progress_text_calls]
+        all_messages = progress_messages + progress_text_messages
 
-        # Should have initialization phase
-        assert any("Initializing" in msg for msg in progress_messages)
+        # Should have initialization phase (via send_progress_text)
+        assert any("Initializing" in msg for msg in all_messages)
 
         # Should have AI cleanup phase
-        assert any("AI cleaning" in msg for msg in progress_messages)
+        assert any("AI cleaning" in msg for msg in all_messages)
 
         # Check progress value calls
         if progress_calls:
