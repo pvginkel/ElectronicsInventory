@@ -103,7 +103,7 @@ class PartService:
             selectinload(Part.type),
             selectinload(Part.seller),
         ).where(Part.key == part_key)
-        part = self.db.execute(stmt).scalar_one_or_none()
+        part: Part = self.db.execute(stmt).scalar_one_or_none()
         if not part:
             raise RecordNotFoundException("Part", part_key)
         return part
@@ -137,7 +137,7 @@ class PartService:
     def update_part_details(self, part_key: str, **updates: Any) -> Part:
         """Update part details with only provided fields."""
         stmt = select(Part).where(Part.key == part_key)
-        part = self.db.execute(stmt).scalar_one_or_none()
+        part: Part = self.db.execute(stmt).scalar_one_or_none()
         if not part:
             raise RecordNotFoundException("Part", part_key)
 

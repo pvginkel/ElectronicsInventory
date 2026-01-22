@@ -3,7 +3,7 @@
 import hashlib
 import json
 import logging
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, cast
 
 import requests
 import validators
@@ -115,7 +115,7 @@ class DownloadCacheService:
         cached = self.temp_file_manager.get_cached(cache_key)
         if cached is not None:
             logger.debug(f"Cache hit for POST request to {url}")
-            return json.loads(cached.content.decode('utf-8'))
+            return cast(dict[str, Any], json.loads(cached.content.decode('utf-8')))
 
         # Cache miss - make actual request
         logger.debug(f"Cache miss for POST request to {url}, sending request...")
@@ -135,7 +135,7 @@ class DownloadCacheService:
             timeout=timeout or self.download_timeout,
         )
         response.raise_for_status()
-        response_data = response.json()
+        response_data: dict[str, Any] = response.json()
 
         # Cache the response
         response_bytes = json.dumps(response_data).encode('utf-8')

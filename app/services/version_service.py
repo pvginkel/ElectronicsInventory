@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
-from typing import Any
+from typing import Any, cast
 
 import requests
 
@@ -46,7 +46,7 @@ class VersionService:
             url = self.settings.FRONTEND_VERSION_URL
             response = requests.get(url, timeout=2)
             response.raise_for_status()
-            return json.loads(response.text)
+            return cast(dict[str, Any], json.loads(response.text))
 
         except (requests.RequestException, json.JSONDecodeError) as e:
             logger.warning(f"Failed to fetch frontend version: {e}")

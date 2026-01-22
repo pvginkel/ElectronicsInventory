@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import and_, case, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
@@ -257,7 +257,7 @@ class ShoppingListService:
     def group_lines_by_seller(self, list_id: int) -> list[dict[str, Any]]:
         """Return grouping structures used by the Ready view UI."""
         shopping_list = self._attach_ready_payload(self._load_list_with_lines(list_id))
-        return shopping_list.seller_groups
+        return cast(list[dict[str, Any]], shopping_list.seller_groups)
 
     def list_part_memberships_bulk(
         self,
