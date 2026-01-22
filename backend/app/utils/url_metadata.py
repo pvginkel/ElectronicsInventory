@@ -140,7 +140,7 @@ def get_best_thumbnail_url(metadata: dict[str, Any], download_cache_service: "Do
     for key in ['og_image', 'twitter_image', 'favicon']:
         url = metadata.get(key)
         if url and validate_url(url, download_cache_service):
-            return url
+            return cast(str, url)
     return None
 
 
@@ -157,7 +157,7 @@ def get_best_title(metadata: dict[str, Any]) -> str | None:
     for key in ['og_title', 'twitter_title', 'title']:
         title = metadata.get(key)
         if title and title.strip():
-            return title.strip()
+            return cast(str, title.strip())
     return None
 
 
@@ -174,7 +174,7 @@ def get_best_description(metadata: dict[str, Any]) -> str | None:
     for key in ['og_description', 'twitter_description', 'description']:
         desc = metadata.get(key)
         if desc and desc.strip():
-            return desc.strip()
+            return cast(str, desc.strip())
     return None
 
 

@@ -2,7 +2,7 @@
 
 import logging
 from io import BytesIO
-from typing import BinaryIO
+from typing import BinaryIO, cast
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -361,7 +361,7 @@ class DocumentService:
         if not part:
             raise RecordNotFoundException("Part", part_key)
 
-        return part.attachments
+        return cast(list[Attachment], part.attachments)
 
     def update_attachment(self, attachment_id: int, title: str | None = None) -> Attachment:
         """Update attachment metadata.

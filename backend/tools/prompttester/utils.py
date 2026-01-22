@@ -43,7 +43,7 @@ class LogInterceptor(logging.Handler):
         # lazily create the per-thread buffer
         if not hasattr(self._tls, "lines"):
             self._tls.lines = []
-        return self._tls.lines
+        return cast(list[str], self._tls.lines)
 
     def emit(self, record: logging.LogRecord) -> None:
         try:

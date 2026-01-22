@@ -1,5 +1,7 @@
 """Utility modules for the Electronics Inventory application."""
 
+from typing import cast
+
 from flask import current_app, g, request
 from flask_log_request_id import current_request_id
 from flask_log_request_id.ctx_fetcher import ExecutedOutsideContext
@@ -26,7 +28,7 @@ except ValueError:
 def get_current_correlation_id() -> str | None:
     """Get correlation ID from current request context if available."""
     try:
-        return current_request_id()
+        return cast(str | None, current_request_id())
     except (RuntimeError, ImportError):
         # No request context available or Flask compatibility issue
         return None
