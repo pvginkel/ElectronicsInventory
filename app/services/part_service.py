@@ -11,10 +11,9 @@ from sqlalchemy.orm import selectinload
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.part import Part
 from app.models.part_location import PartLocation
-from app.services.base import BaseService
 
 
-class PartService(BaseService):
+class PartService:
     """Service class for part management operations."""
 
     def __init__(self, db: Any, attachment_set_service: Any):
@@ -24,7 +23,7 @@ class PartService(BaseService):
             db: SQLAlchemy database session
             attachment_set_service: Attachment set service for managing attachments (required)
         """
-        super().__init__(db)
+        self.db = db
         self.attachment_set_service = attachment_set_service
 
     def generate_part_key(self) -> str:

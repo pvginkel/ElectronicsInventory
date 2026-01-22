@@ -1,14 +1,21 @@
 """Setup service for database initialization and sync operations."""
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import select
 
 from app.models.type import Type
-from app.services.base import BaseService
 from app.utils.file_parsers import get_types_from_setup
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
-class SetupService(BaseService):
+
+class SetupService:
     """Service class for database setup and initialization operations."""
+
+    def __init__(self, db: "Session") -> None:
+        self.db = db
 
     def sync_types_from_setup(self) -> int:
         """Sync types from setup file to database.

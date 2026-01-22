@@ -29,7 +29,6 @@ from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.models.shopping_list_line import ShoppingListLine, ShoppingListLineStatus
 from app.models.shopping_list_seller_note import ShoppingListSellerNote
 from app.models.type import Type
-from app.services.base import BaseService
 
 if TYPE_CHECKING:
     from app.services.s3_service import S3Service
@@ -37,7 +36,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class TestDataService(BaseService):
+class TestDataService:
     """Service class for loading fixed test data from JSON files."""
 
     def __init__(self, db: Session, s3_service: "S3Service"):
@@ -47,7 +46,7 @@ class TestDataService(BaseService):
             db: SQLAlchemy database session
             s3_service: S3 service for loading part images (required)
         """
-        super().__init__(db)
+        self.db = db
         self.s3_service = s3_service
 
     def load_full_dataset(self) -> None:

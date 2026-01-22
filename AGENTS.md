@@ -62,8 +62,7 @@ def create_part(part_service=Provide[ServiceContainer.part_service]):
 Services contain all business logic and database operations using instance-based dependency injection.
 
 **Requirements:**
-- Services are instance-based classes. Inherit from `BaseService` when a database session is required; use a simple class when no database access is needed.
-- For services inheriting `BaseService`, inject the database session via the constructor (stored as `self.db`).
+- Services are instance-based classes. For services that need database access, inject the session via the constructor and store it as `self.db`.
 - Return SQLAlchemy model instances, not dicts
 - Raise typed exceptions (`RecordNotFoundException`, `InvalidOperationException`)
 - No HTTP-specific code (no Flask imports)
@@ -71,7 +70,11 @@ Services contain all business logic and database operations using instance-based
 
 **Example pattern:**
 ```python
-class PartService(BaseService):
+class PartService:
+    def __init__(self, db: Session, attachment_set_service: AttachmentSetService):
+        self.db = db
+        self.attachment_set_service = attachment_set_service
+
     def create_part(self, description: str, **kwargs) -> Part:
         # Validation and business logic here
         part = Part(description=description, **kwargs)
@@ -334,13 +337,13 @@ class ServiceContainer(containers.DeclarativeContainer):
 Services that depend on other services receive them via constructor injection:
 
 ```python
-class InventoryService(BaseService):
+class InventoryService:
     def __init__(self, db: Session, part_service: PartService):
-        super().__init__(db)
+        self.db = db
         self.part_service = part_service
 ```
 
-Only use BaseService for factory services that use the database. Singletons need to implement the following pattern when they need database access:
+Factory services that need database access receive the session via the constructor. Singletons that need database access should implement the following pattern:
 
 ```python
 # db_session() returns a context local session (new if this is the first

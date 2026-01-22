@@ -15,7 +15,6 @@ from app.models.shopping_list_line import (
     ShoppingListLine,
     ShoppingListLineStatus,
 )
-from app.services.base import BaseService
 from app.services.seller_service import SellerService
 
 if TYPE_CHECKING:
@@ -23,7 +22,7 @@ if TYPE_CHECKING:
     from app.services.metrics_service import MetricsService
 
 
-class ShoppingListLineService(BaseService):
+class ShoppingListLineService:
     """Service encapsulating CRUD operations for shopping list lines."""
 
     def __init__(
@@ -33,7 +32,7 @@ class ShoppingListLineService(BaseService):
         inventory_service: "InventoryService",
         metrics_service: "MetricsService | None" = None,
     ) -> None:
-        super().__init__(db)
+        self.db = db
         self.seller_service = seller_service
         self.inventory_service = inventory_service
         self.metrics_service = metrics_service

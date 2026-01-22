@@ -23,7 +23,6 @@ from app.models.kit_pick_list import KitPickList, KitPickListStatus
 from app.models.kit_shopping_list_link import KitShoppingListLink
 from app.models.part import Part
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
-from app.services.base import BaseService
 from app.services.inventory_service import InventoryService
 from app.services.kit_reservation_service import KitReservationService
 from app.services.metrics_service import MetricsServiceProtocol
@@ -31,7 +30,7 @@ from app.services.metrics_service import MetricsServiceProtocol
 MAX_BULK_KIT_QUERY = 100
 
 
-class KitService(BaseService):
+class KitService:
     """Service encapsulating kit overview operations and lifecycle rules."""
 
     def __init__(
@@ -43,7 +42,7 @@ class KitService(BaseService):
         attachment_set_service: Any = None,
     ):
         """Initialize service with database session and dependencies."""
-        super().__init__(db)
+        self.db = db
         if inventory_service is None:
             raise ValueError("inventory_service dependency is required")
         if kit_reservation_service is None:

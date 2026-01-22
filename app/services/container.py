@@ -88,11 +88,10 @@ class ServiceContainer(containers.DeclarativeContainer):
     )
 
     # Document management services - defined early for service dependencies
-    s3_service = providers.Factory(S3Service, db=db_session, settings=config)
+    s3_service = providers.Factory(S3Service, settings=config)
 
     image_service = providers.Factory(
         ImageService,
-        db=db_session,
         s3_service=s3_service,
         settings=config
     )

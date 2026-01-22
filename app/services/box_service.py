@@ -10,10 +10,11 @@ from app.models.box import Box
 from app.models.location import Location
 from app.models.part import Part
 from app.models.part_location import PartLocation
-from app.services.base import BaseService
 from app.utils.cas_url import build_cas_url
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from app.schemas.box import BoxUsageStatsModel, BoxWithUsageModel
 
 
@@ -36,8 +37,11 @@ class LocationWithPartData:
     part_assignments: list[PartAssignmentData]
 
 
-class BoxService(BaseService):
+class BoxService:
     """Service class for box and location management operations."""
+
+    def __init__(self, db: "Session") -> None:
+        self.db = db
 
     def create_box(self, description: str, capacity: int) -> Box:
         """Create box and generate all locations (1 to capacity)."""

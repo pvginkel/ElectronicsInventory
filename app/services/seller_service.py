@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -8,11 +10,16 @@ from app.exceptions import (
 )
 from app.models.part import Part
 from app.models.seller import Seller
-from app.services.base import BaseService
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
-class SellerService(BaseService):
+class SellerService:
     """Service for managing seller operations."""
+
+    def __init__(self, db: "Session") -> None:
+        self.db = db
 
     def create_seller(self, name: str, website: str) -> Seller:
         """Create a new seller.

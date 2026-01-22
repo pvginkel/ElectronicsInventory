@@ -6,28 +6,25 @@ import os
 from pathlib import Path
 
 from PIL import Image
-from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.exceptions import InvalidOperationException
 from app.schemas.upload_document import DocumentContentSchema
-from app.services.base import BaseService
 from app.services.s3_service import S3Service
 
 logger = logging.getLogger(__name__)
 
 
-class ImageService(BaseService):
+class ImageService:
     """Service for image processing and thumbnail generation."""
 
-    def __init__(self, db: Session, s3_service: S3Service, settings: Settings):
-        """Initialize image service with database session and S3 service.
+    def __init__(self, s3_service: S3Service, settings: Settings):
+        """Initialize image service with S3 service.
 
         Args:
-            db: SQLAlchemy database session
             s3_service: S3 service for file operations
+            settings: Application settings
         """
-        super().__init__(db)
         self.s3_service = s3_service
         self.settings = settings
         self._ensure_thumbnail_directory()

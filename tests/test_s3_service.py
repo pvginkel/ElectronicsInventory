@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.exceptions import ClientError, NoCredentialsError
 from flask import Flask
-from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.exceptions import InvalidOperationException
@@ -20,10 +19,10 @@ def mock_s3_client():
 
 
 @pytest.fixture
-def s3_service(app: Flask, session, mock_s3_client, test_settings):
+def s3_service(app: Flask, mock_s3_client, test_settings):
     """Create S3Service with mocked client."""
     with app.app_context():
-        service = S3Service(session, test_settings)
+        service = S3Service(test_settings)
         service._s3_client = mock_s3_client
         return service
 
@@ -31,10 +30,10 @@ def s3_service(app: Flask, session, mock_s3_client, test_settings):
 class TestS3Service:
     """Test S3Service functionality."""
 
-    def test_init_creates_client(self, app: Flask, session: Session, test_settings: Settings):
+    def test_init_creates_client(self, app: Flask, test_settings: Settings):
         """Test that S3Service initializes with boto3 client."""
         with app.app_context():
-            service = S3Service(session, test_settings)
+            service = S3Service(test_settings)
             assert service.s3_client is not None
 
     # Note: test_generate_s3_key removed - generate_s3_key was replaced by generate_cas_key
@@ -175,11 +174,11 @@ class TestS3Service:
         args, kwargs = mock_s3_client.upload_fileobj.call_args
         assert "ExtraArgs" not in kwargs
 
-    def test_uses_config_values(self, app: Flask, session: Session, test_settings: Settings):
+    def test_uses_config_values(self, app: Flask, test_settings: Settings):
         """Test that service uses Flask config values."""
         with app.app_context():
             with patch('app.services.s3_service.boto3.client') as mock_boto3:
-                service = S3Service(session, test_settings)
+                service = S3Service(test_settings)
                 # Access the s3_client property to trigger boto3.client call
                 _ = service.s3_client
 

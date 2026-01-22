@@ -8,23 +8,20 @@ import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 from mypy_boto3_s3.client import S3Client
 from mypy_boto3_s3.type_defs import CopySourceTypeDef
-from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.exceptions import InvalidOperationException
-from app.services.base import BaseService
 
 
-class S3Service(BaseService):
+class S3Service:
     """Service for S3-compatible storage operations using Ceph backend."""
 
-    def __init__(self, db: Session, settings: Settings):
-        """Initialize S3 service with database session.
+    def __init__(self, settings: Settings):
+        """Initialize S3 service.
 
         Args:
-            db: SQLAlchemy database session
+            settings: Application settings
         """
-        super().__init__(db)
         self._s3_client: S3Client | None = None
         self.settings = settings
 

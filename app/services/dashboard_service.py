@@ -10,15 +10,17 @@ from app.models.part import Part
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
 from app.models.type import Type
-from app.services.base import BaseService
 from app.services.type_service import TypeService
 
 if TYPE_CHECKING:
-    pass
+    from sqlalchemy.orm import Session
 
 
-class DashboardService(BaseService):
+class DashboardService:
     """Service class for dashboard data aggregation operations."""
+
+    def __init__(self, db: "Session") -> None:
+        self.db = db
 
     def get_dashboard_stats(self) -> dict[str, Any]:
         """Returns aggregated dashboard statistics.

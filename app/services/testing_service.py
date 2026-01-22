@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Any
 from PIL import Image, ImageDraw, ImageFont
 
 from app.database import drop_all_tables, sync_master_data_from_setup, upgrade_database
-from app.services.base import BaseService
 from app.utils.reset_lock import ResetLock
 
 if TYPE_CHECKING:
@@ -21,7 +20,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class TestingService(BaseService):
+class TestingService:
     """Service for testing operations like database reset."""
 
     IMAGE_WIDTH = 400
@@ -39,7 +38,7 @@ class TestingService(BaseService):
             reset_lock: Reset lock for concurrency control
             test_data_service: Service for loading test data
         """
-        super().__init__(db)
+        self.db = db
         self.reset_lock = reset_lock
         self.test_data_service = test_data_service
         self._cached_pdf_bytes: bytes | None = None

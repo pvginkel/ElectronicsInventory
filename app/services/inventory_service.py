@@ -14,7 +14,6 @@ from app.exceptions import (
 from app.models.location import Location
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
-from app.services.base import BaseService
 from app.services.metrics_service import MetricsServiceProtocol
 from app.services.part_service import PartService
 
@@ -24,7 +23,7 @@ if TYPE_CHECKING:
     from app.services.shopping_list_service import ShoppingListService
 
 
-class InventoryService(BaseService):
+class InventoryService:
     """Service class for inventory management operations."""
 
     def __init__(
@@ -44,7 +43,7 @@ class InventoryService(BaseService):
             kit_reservation_service: Optional instance of KitReservationService for bulk kit lookups
             shopping_list_service: Optional instance of ShoppingListService for bulk shopping list lookups
         """
-        super().__init__(db)
+        self.db = db
         self.part_service = part_service
         self.metrics_service = metrics_service
         self.kit_reservation_service = kit_reservation_service

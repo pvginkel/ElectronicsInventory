@@ -13,7 +13,6 @@ from app.models.attachment import Attachment, AttachmentType
 from app.models.attachment_set import AttachmentSet
 from app.models.part import Part
 from app.schemas.upload_document import DocumentContentSchema, UploadDocumentSchema
-from app.services.base import BaseService
 from app.services.download_cache_service import DownloadCacheService
 from app.services.html_document_handler import HtmlDocumentHandler
 from app.services.image_service import ImageService
@@ -26,7 +25,7 @@ from app.utils.url_utils import get_filename_from_url
 logger = logging.getLogger(__name__)
 
 
-class DocumentService(BaseService):
+class DocumentService:
     """Service for managing part documents and attachments."""
 
     def __init__(self, db: Session, s3_service: S3Service, image_service: ImageService,
@@ -42,7 +41,7 @@ class DocumentService(BaseService):
             download_cache_service: Download cache service for URL content
             url_interceptor_registry: Registry for URL interceptors
         """
-        super().__init__(db)
+        self.db = db
         self.s3_service = s3_service
         self.image_service = image_service
         self.html_handler = html_handler

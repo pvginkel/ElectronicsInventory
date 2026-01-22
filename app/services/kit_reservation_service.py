@@ -14,7 +14,6 @@ from app.exceptions import RecordNotFoundException
 from app.models.kit import Kit, KitStatus
 from app.models.kit_content import KitContent
 from app.models.part import Part
-from app.services.base import BaseService
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,11 +30,11 @@ class KitReservationUsage:
     updated_at: datetime
 
 
-class KitReservationService(BaseService):
+class KitReservationService:
     """Aggregate kit reservations to support availability calculations."""
 
     def __init__(self, db: Session):
-        super().__init__(db)
+        self.db = db
         self._usage_cache: dict[int, list[KitReservationUsage]] = {}
 
     def get_reservations_by_part_ids(
