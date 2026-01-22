@@ -9,14 +9,18 @@ from app.exceptions import (
     RecordNotFoundException,
 )
 from app.models.type import Type
-from app.services.base import BaseService
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from app.schemas.type import TypeWithStatsModel
 
 
-class TypeService(BaseService):
+class TypeService:
     """Service class for type management operations."""
+
+    def __init__(self, db: "Session") -> None:
+        self.db = db
 
     def create_type(self, name: str) -> Type:
         """Create a new type."""

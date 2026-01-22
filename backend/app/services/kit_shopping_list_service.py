@@ -14,7 +14,6 @@ from app.models.kit import Kit, KitStatus
 from app.models.kit_content import KitContent
 from app.models.kit_shopping_list_link import KitShoppingListLink
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
-from app.services.base import BaseService
 from app.services.inventory_service import InventoryService
 from app.services.kit_reservation_service import KitReservationService
 from app.services.metrics_service import MetricsServiceProtocol
@@ -43,7 +42,7 @@ class _NeededEntry:
     provenance_note: str | None
 
 
-class KitShoppingListService(BaseService):
+class KitShoppingListService:
     """Service encapsulating kit-to-shopping-list linkage workflows."""
 
     def __init__(
@@ -55,7 +54,7 @@ class KitShoppingListService(BaseService):
         shopping_list_line_service: ShoppingListLineService,
         metrics_service: MetricsServiceProtocol | None = None,
     ) -> None:
-        super().__init__(db)
+        self.db = db
         self.inventory_service = inventory_service
         self.kit_reservation_service = kit_reservation_service
         self.shopping_list_service = shopping_list_service

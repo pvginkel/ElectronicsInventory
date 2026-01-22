@@ -16,13 +16,12 @@ from app.models.kit_content import KitContent
 from app.models.kit_pick_list import KitPickList, KitPickListStatus
 from app.models.kit_pick_list_line import KitPickListLine, PickListLineStatus
 from app.models.part_location import PartLocation
-from app.services.base import BaseService
 from app.services.inventory_service import InventoryService
 from app.services.kit_reservation_service import KitReservationService
 from app.services.metrics_service import MetricsServiceProtocol
 
 
-class KitPickListService(BaseService):
+class KitPickListService:
     """Business logic for pick list creation, picking, and undo flows."""
 
     def __init__(
@@ -32,7 +31,7 @@ class KitPickListService(BaseService):
         kit_reservation_service: KitReservationService,
         metrics_service: MetricsServiceProtocol,
     ) -> None:
-        super().__init__(db)
+        self.db = db
         self.inventory_service = inventory_service
         self.kit_reservation_service = kit_reservation_service
         self.metrics_service = metrics_service

@@ -24,7 +24,6 @@ from app.schemas.ai_part_analysis import (
 from app.schemas.ai_part_cleanup import CleanedPartDataSchema
 from app.schemas.duplicate_search import DuplicateMatchEntry
 from app.services.ai_model import PartAnalysisSuggestion
-from app.services.base import BaseService
 from app.services.base_task import ProgressHandle
 from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
@@ -43,7 +42,7 @@ from app.utils.temp_file_manager import TempFileManager
 logger = logging.getLogger(__name__)
 
 
-class AIService(BaseService):
+class AIService:
     """Service for AI-powered part analysis using OpenAI."""
 
     def __init__(
@@ -62,7 +61,7 @@ class AIService(BaseService):
         datasheet_extraction_function: AIFunction,
         ai_runner: AIRunner | None = None,
     ) -> None:
-        super().__init__(db)
+        self.db = db
         self.config = config
         self.temp_file_manager = temp_file_manager
         self.type_service = type_service

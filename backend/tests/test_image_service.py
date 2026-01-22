@@ -7,7 +7,6 @@ from unittest.mock import MagicMock
 import pytest
 from flask import Flask
 from PIL import Image
-from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.services.image_service import ImageService
@@ -32,9 +31,9 @@ def test_settings(temp_dir: Path):
 
 
 @pytest.fixture
-def image_service(app: Flask, session, mock_s3_service, test_settings):
+def image_service(app: Flask, mock_s3_service, test_settings):
     """Create ImageService with temporary directory."""
-    return ImageService(session, mock_s3_service, test_settings)
+    return ImageService(mock_s3_service, test_settings)
 
 
 @pytest.fixture
@@ -58,9 +57,9 @@ def large_image_bytes():
 class TestImageService:
     """Test ImageService functionality."""
 
-    def test_init_creates_thumbnail_directory(self, session: Session, temp_dir, mock_s3_service, test_settings):
+    def test_init_creates_thumbnail_directory(self, temp_dir, mock_s3_service, test_settings):
         """Test that ImageService creates thumbnail directory."""
-        ImageService(session, mock_s3_service, test_settings)
+        ImageService(mock_s3_service, test_settings)
         assert Path(test_settings.THUMBNAIL_STORAGE_PATH).exists()
 
 

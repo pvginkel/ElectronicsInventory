@@ -10,14 +10,13 @@ from app.config import Settings
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.attachment import Attachment, AttachmentType
 from app.models.attachment_set import AttachmentSet
-from app.services.base import BaseService
 from app.services.image_service import ImageService
 from app.services.s3_service import S3Service
 
 logger = logging.getLogger(__name__)
 
 
-class AttachmentSetService(BaseService):
+class AttachmentSetService:
     """Service for managing attachment sets and their attachments."""
 
     def __init__(self, db: Session, s3_service: S3Service, image_service: ImageService,
@@ -30,7 +29,7 @@ class AttachmentSetService(BaseService):
             image_service: Image processing service
             settings: Application settings
         """
-        super().__init__(db)
+        self.db = db
         self.s3_service = s3_service
         self.image_service = image_service
         self.settings = settings

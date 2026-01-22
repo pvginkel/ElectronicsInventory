@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import and_, case, delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
@@ -21,11 +21,16 @@ from app.models.seller import Seller
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.models.shopping_list_line import ShoppingListLine, ShoppingListLineStatus
 from app.models.shopping_list_seller_note import ShoppingListSellerNote
-from app.services.base import BaseService
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
-class ShoppingListService(BaseService):
+class ShoppingListService:
     """Service encapsulating shopping list operations and invariants."""
+
+    def __init__(self, db: "Session") -> None:
+        self.db = db
 
     def create_list(self, name: str, description: str | None = None) -> ShoppingList:
         """Create a new shopping list in concept status."""
