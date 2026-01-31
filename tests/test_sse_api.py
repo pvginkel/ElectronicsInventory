@@ -97,10 +97,10 @@ class TestSSECallbackAPI:
 
         # Create settings for production
         settings = Settings(
-            FLASK_ENV="production",
-            SSE_CALLBACK_SECRET="my-secret-key",
-            DATABASE_URL="sqlite:///:memory:",
-            SECRET_KEY="test"
+            flask_env="production",
+            sse_callback_secret="my-secret-key",
+            database_url="sqlite:///:memory:",
+            secret_key="test"
         )
 
         # Without secret - should fail
@@ -114,10 +114,10 @@ class TestSSECallbackAPI:
 
         # No secret configured in production - should fail
         settings_no_secret = Settings(
-            FLASK_ENV="production",
-            SSE_CALLBACK_SECRET="",
-            DATABASE_URL="sqlite:///:memory:",
-            SECRET_KEY="test"
+            flask_env="production",
+            sse_callback_secret="",
+            database_url="sqlite:///:memory:",
+            secret_key="test"
         )
         assert _authenticate_callback("any-secret", settings_no_secret) is False
 

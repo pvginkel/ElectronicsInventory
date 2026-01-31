@@ -38,7 +38,7 @@ class MouserService:
         """
         self.download_cache_service = download_cache_service
         self.metrics_service = metrics_service
-        self.api_key = config.MOUSER_SEARCH_API_KEY
+        self.api_key = config.mouser_search_api_key
         self._initialize_metrics()
 
     def search_by_part_number(self, part_number: str) -> MouserSearchResponse:

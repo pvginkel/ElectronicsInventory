@@ -1,13 +1,16 @@
 """Pytest configuration and fixtures."""
 
+import os
 import socket
 import sqlite3
 import threading
 import time
 from collections.abc import Callable, Generator
+from pathlib import Path
 from typing import Any
 
 import pytest
+from dotenv import load_dotenv
 from flask import Flask
 from prometheus_client import REGISTRY
 from sqlalchemy.orm import Session
@@ -18,6 +21,11 @@ from app.config import Settings
 from app.database import upgrade_database
 from app.exceptions import InvalidOperationException
 from app.services.container import ServiceContainer
+
+# Load test environment variables from .env.test
+_TEST_ENV_FILE = Path(__file__).parent.parent / ".env.test"
+if _TEST_ENV_FILE.exists():
+    load_dotenv(_TEST_ENV_FILE, override=True)
 
 
 @pytest.fixture(autouse=True)
@@ -49,19 +57,66 @@ def clear_prometheus_registry():
 def _build_test_settings() -> Settings:
     """Construct base Settings object for tests."""
     return Settings(
-        DATABASE_URL="sqlite:///:memory:",
-        SECRET_KEY="test-secret-key",
-        DEBUG=True,
-        FLASK_ENV="testing",
-        AI_TESTING_MODE=True,
-        AI_ANALYSIS_CACHE_PATH=None,
-        CORS_ORIGINS=["http://localhost:3000"],
+        database_url="sqlite:///:memory:",
+        secret_key="test-secret-key",
+        debug=True,
+        flask_env="testing",
+        ai_testing_mode=True,
+        ai_analysis_cache_path=None,
+        ai_cleanup_cache_path=None,
+        cors_origins=["http://localhost:3000"],
         # Document service configuration
-        ALLOWED_IMAGE_TYPES=["image/jpeg", "image/png"],
-        ALLOWED_FILE_TYPES=["application/pdf"],
-        MAX_IMAGE_SIZE=10 * 1024 * 1024,  # 10MB
-        MAX_FILE_SIZE=100 * 1024 * 1024,  # 100MB
-        SSE_HEARTBEAT_INTERVAL=1,
+        allowed_image_types=["image/jpeg", "image/png"],
+        allowed_file_types=["application/pdf"],
+        max_image_size=10 * 1024 * 1024,  # 10MB
+        max_file_size=100 * 1024 * 1024,  # 100MB
+        sse_heartbeat_interval=1,
+        # S3 configuration (from environment, see .env.test)
+        s3_endpoint_url=os.environ.get("S3_ENDPOINT_URL", "http://localhost:9000"),
+        s3_access_key_id=os.environ.get("S3_ACCESS_KEY_ID", "admin"),
+        s3_secret_access_key=os.environ.get("S3_SECRET_ACCESS_KEY", "password"),
+        s3_bucket_name=os.environ.get("S3_BUCKET_NAME", "electronics-inventory-test-part-attachments"),
+        s3_region=os.environ.get("S3_REGION", "us-east-1"),
+        s3_use_ssl=os.environ.get("S3_USE_SSL", "false").lower() == "true",
+        # Storage paths
+        thumbnail_storage_path="/tmp/thumbnails",
+        download_cache_base_path="/tmp/download_cache",
+        download_cache_cleanup_hours=24,
+        # Celery
+        celery_broker_url="pyamqp://guest@localhost//",
+        celery_result_backend="db+postgresql+psycopg://postgres:@localhost:5432/electronics_inventory",
+        # AI provider
+        ai_provider="openai",
+        openai_api_key="",
+        openai_model="gpt-5-mini",
+        openai_reasoning_effort="low",
+        openai_verbosity="medium",
+        openai_max_output_tokens=None,
+        # Mouser
+        mouser_search_api_key="",
+        # Tasks
+        task_max_workers=4,
+        task_timeout_seconds=300,
+        task_cleanup_interval_seconds=600,
+        # Metrics
+        metrics_update_interval=60,
+        # Shutdown
+        graceful_shutdown_timeout=600,
+        drain_auth_key="",
+        # SSE
+        frontend_version_url="http://localhost:3000/version.json",
+        sse_gateway_url="http://localhost:3001",
+        sse_callback_secret="",
+        # Database pool
+        db_pool_size=20,
+        db_pool_max_overflow=30,
+        db_pool_timeout=10,
+        db_pool_echo=False,
+        # Diagnostics
+        diagnostics_enabled=False,
+        diagnostics_slow_query_threshold_ms=100,
+        diagnostics_slow_request_threshold_ms=500,
+        diagnostics_log_all_queries=False,
     )
 
 @pytest.fixture
@@ -91,11 +146,12 @@ def template_connection() -> Generator[sqlite3.Connection, None, None]:
     """Create a template SQLite database once and apply migrations."""
     conn = sqlite3.connect(":memory:", check_same_thread=False)
 
-    settings = _build_test_settings().model_copy()
-    settings.DATABASE_URL = "sqlite://"
-    settings.set_engine_options_override({
-        "poolclass": StaticPool,
-        "creator": lambda: conn,
+    settings = _build_test_settings().model_copy(update={
+        "database_url": "sqlite://",
+        "sqlalchemy_engine_options": {
+            "poolclass": StaticPool,
+            "creator": lambda: conn,
+        },
     })
 
     template_app = create_app(settings)
@@ -117,11 +173,12 @@ def app(test_settings: Settings, template_connection: sqlite3.Connection) -> Gen
     clone_conn = sqlite3.connect(":memory:", check_same_thread=False)
     template_connection.backup(clone_conn)
 
-    settings = test_settings.model_copy()
-    settings.DATABASE_URL = "sqlite://"
-    settings.set_engine_options_override({
-        "poolclass": StaticPool,
-        "creator": lambda: clone_conn,
+    settings = test_settings.model_copy(update={
+        "database_url": "sqlite://",
+        "sqlalchemy_engine_options": {
+            "poolclass": StaticPool,
+            "creator": lambda: clone_conn,
+        },
     })
 
     app = create_app(settings)
@@ -276,12 +333,13 @@ def sse_server(template_connection: sqlite3.Connection) -> Generator[tuple[str, 
     clone_conn = sqlite3.connect(":memory:", check_same_thread=False)
     template_connection.backup(clone_conn)
 
-    settings = _build_test_settings().model_copy()
-    settings.DATABASE_URL = "sqlite://"
-    settings.FLASK_ENV = "testing"  # Enable testing API endpoints
-    settings.set_engine_options_override({
-        "poolclass": StaticPool,
-        "creator": lambda: clone_conn,
+    settings = _build_test_settings().model_copy(update={
+        "database_url": "sqlite://",
+        "flask_env": "testing",  # Enable testing API endpoints
+        "sqlalchemy_engine_options": {
+            "poolclass": StaticPool,
+            "creator": lambda: clone_conn,
+        },
     })
 
     app = create_app(settings)

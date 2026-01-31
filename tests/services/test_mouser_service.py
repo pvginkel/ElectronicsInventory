@@ -14,8 +14,8 @@ from app.services.mouser_service import MouserService
 def test_settings():
     """Create test settings with Mouser API key."""
     return Settings(
-        DATABASE_URL="sqlite:///:memory:",
-        MOUSER_SEARCH_API_KEY="test-mouser-api-key-12345"
+        database_url="sqlite:///:memory:",
+        mouser_search_api_key="test-mouser-api-key-12345"
     )
 
 
@@ -23,8 +23,8 @@ def test_settings():
 def test_settings_no_key():
     """Create test settings without Mouser API key."""
     return Settings(
-        DATABASE_URL="sqlite:///:memory:",
-        MOUSER_SEARCH_API_KEY=""
+        database_url="sqlite:///:memory:",
+        mouser_search_api_key=""
     )
 
 

@@ -589,23 +589,22 @@ class TestTestingEndpointsNonTestingMode:
         """Create settings with testing mode disabled."""
         # Create a dedicated SQLite connection for this test
         conn = sqlite3.connect(":memory:", check_same_thread=False)
-        settings = Settings(
-            DATABASE_URL="sqlite://",
-            SECRET_KEY="test-secret-key",
-            DEBUG=True,
-            FLASK_ENV="development",  # Not testing mode
-            CORS_ORIGINS=["http://localhost:3000"],
-            ALLOWED_IMAGE_TYPES=["image/jpeg", "image/png"],
-            ALLOWED_FILE_TYPES=["application/pdf"],
-            MAX_IMAGE_SIZE=10 * 1024 * 1024,  # 10MB
-            MAX_FILE_SIZE=100 * 1024 * 1024,  # 100MB
+        return Settings(
+            database_url="sqlite://",
+            secret_key="test-secret-key",
+            debug=True,
+            flask_env="development",  # Not testing mode
+            cors_origins=["http://localhost:3000"],
+            allowed_image_types=["image/jpeg", "image/png"],
+            allowed_file_types=["application/pdf"],
+            max_image_size=10 * 1024 * 1024,  # 10MB
+            max_file_size=100 * 1024 * 1024,  # 100MB
+            # SQLite compatibility options
+            sqlalchemy_engine_options={
+                "poolclass": StaticPool,
+                "creator": lambda: conn,
+            },
         )
-        # Override engine options for SQLite compatibility
-        settings.set_engine_options_override({
-            "poolclass": StaticPool,
-            "creator": lambda: conn,
-        })
-        return settings
 
     @pytest.fixture
     def non_testing_app(self, non_testing_settings: Settings) -> Flask:

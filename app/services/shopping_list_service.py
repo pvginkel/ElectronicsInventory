@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 class ShoppingListService:
     """Service encapsulating shopping list operations and invariants."""
 
-    def __init__(self, db: "Session") -> None:
+    def __init__(self, db: Session) -> None:
         self.db = db
 
     def create_list(self, name: str, description: str | None = None) -> ShoppingList:

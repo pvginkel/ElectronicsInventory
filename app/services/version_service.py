@@ -43,7 +43,7 @@ class VersionService:
     def _fetch_frontend_version(self) -> dict[str, Any]:
         """Fetch frontend version from configured URL."""
         try:
-            url = self.settings.FRONTEND_VERSION_URL
+            url = self.settings.frontend_version_url
             response = requests.get(url, timeout=2)
             response.raise_for_status()
             return cast(dict[str, Any], json.loads(response.text))

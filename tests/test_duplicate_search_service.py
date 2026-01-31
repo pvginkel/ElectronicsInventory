@@ -38,8 +38,8 @@ class AttachmentSetStub:
 def test_settings() -> Settings:
     """Settings for duplicate search testing."""
     return Settings(
-        DATABASE_URL="sqlite:///:memory:",
-        OPENAI_API_KEY="test-api-key",
+        database_url="sqlite:///:memory:",
+        openai_api_key="test-api-key",
         OPENAI_MODEL="gpt-5-mini",
         OPENAI_REASONING_EFFORT="low",
         OPENAI_VERBOSITY="medium",

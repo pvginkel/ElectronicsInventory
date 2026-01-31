@@ -117,8 +117,8 @@ class DatasheetExtractionService:
             ai_request = AIRequest(
                 system_prompt=prompt,
                 user_prompt="Extract technical specifications from the attached datasheet PDF.",
-                model=self.config.OPENAI_MODEL,
-                verbosity=self.config.OPENAI_VERBOSITY,
+                model=self.config.openai_model,
+                verbosity=self.config.openai_verbosity,
                 reasoning_effort=None,
                 reasoning_summary="auto",
                 response_model=ExtractSpecsFromDatasheetResponse,

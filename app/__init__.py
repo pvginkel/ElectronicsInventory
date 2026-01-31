@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from app.config import Settings
 
 from app.app import App
-from app.config import get_settings
+from app.config import Settings
 from app.extensions import db
 from app.services.container import ServiceContainer
 
@@ -21,9 +21,9 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
 
     # Load configuration
     if settings is None:
-        settings = get_settings()
+        settings = Settings.load()
 
-    app.config.from_object(settings)
+    app.config.from_object(settings.to_flask_config())
 
     # Initialize extensions
     db.init_app(app)
@@ -48,7 +48,7 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
 
         # Enable SQLAlchemy pool logging via events if configured
         # (echo_pool config option doesn't work reliably in SQLAlchemy 2.x)
-        if settings.DB_POOL_ECHO:
+        if settings.db_pool_echo:
             import traceback
 
             from sqlalchemy import event
@@ -149,7 +149,7 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
     container.version_service()
 
     # Configure CORS
-    CORS(app, origins=settings.CORS_ORIGINS)
+    CORS(app, origins=settings.cors_origins)
 
     # Initialize Flask-Log-Request-ID for correlation tracking
     from flask_log_request_id import RequestID
@@ -234,7 +234,7 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
         # Initialize and start metrics collection
         try:
             metrics_service = container.metrics_service()
-            metrics_service.start_background_updater(settings.METRICS_UPDATE_INTERVAL)
+            metrics_service.start_background_updater(settings.metrics_update_interval)
             app.logger.info("Prometheus metrics collection started")
         except Exception as e:
             app.logger.warning(f"Failed to start metrics collection: {e}")

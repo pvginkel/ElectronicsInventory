@@ -197,7 +197,7 @@ class HtmlDocumentHandler:
             content_type = detect_mime_type(content, download_result.content_type)
 
             # If it's not in allowed types but magic detected it as an image, try to convert it
-            if content_type not in self.settings.ALLOWED_IMAGE_TYPES:
+            if content_type not in self.settings.allowed_image_types:
                 # Only try conversion if magic detected it as an image
                 if content_type.startswith('image/'):
                     # Try to convert to PNG

@@ -105,7 +105,7 @@ def analyze_part(
         }), 400
 
     # Short-circuit when real AI usage is disabled and no cache response is available
-    if not settings.real_ai_allowed and not settings.AI_ANALYSIS_CACHE_PATH:
+    if not settings.real_ai_allowed and not settings.ai_analysis_cache_path:
         exception = InvalidOperationException(
             "perform AI analysis",
             "real AI usage is disabled in testing mode",
@@ -242,7 +242,7 @@ def cleanup_part(
         ), 400
 
     # Short-circuit when real AI usage is disabled and no cache response is available
-    if not settings.real_ai_allowed and not settings.AI_CLEANUP_CACHE_PATH:
+    if not settings.real_ai_allowed and not settings.ai_cleanup_cache_path:
         exception = InvalidOperationException(
             "perform AI cleanup",
             "real AI usage is disabled in testing mode",

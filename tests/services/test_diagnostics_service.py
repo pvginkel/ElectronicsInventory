@@ -57,16 +57,16 @@ class TestDiagnosticsServiceInit:
 
     def test_service_disabled_by_default(self, test_settings: Settings):
         """Test that diagnostics is disabled by default."""
-        assert test_settings.DIAGNOSTICS_ENABLED is False
+        assert test_settings.diagnostics_enabled is False
         service = DiagnosticsService(test_settings)
         assert service.enabled is False
 
     def test_service_enabled_via_settings(self):
         """Test enabling diagnostics via settings."""
         settings = Settings(
-            DATABASE_URL="sqlite:///:memory:",
-            FLASK_ENV="testing",
-            DIAGNOSTICS_ENABLED=True,
+            database_url="sqlite:///:memory:",
+            flask_env="testing",
+            diagnostics_enabled=True,
         )
         service = DiagnosticsService(settings)
         assert service.enabled is True
@@ -74,11 +74,11 @@ class TestDiagnosticsServiceInit:
     def test_threshold_configuration(self):
         """Test custom threshold configuration."""
         settings = Settings(
-            DATABASE_URL="sqlite:///:memory:",
-            FLASK_ENV="testing",
-            DIAGNOSTICS_ENABLED=True,
-            DIAGNOSTICS_SLOW_QUERY_THRESHOLD_MS=50,
-            DIAGNOSTICS_SLOW_REQUEST_THRESHOLD_MS=200,
+            database_url="sqlite:///:memory:",
+            flask_env="testing",
+            diagnostics_enabled=True,
+            diagnostics_slow_query_threshold_ms=50,
+            diagnostics_slow_request_threshold_ms=200,
         )
         service = DiagnosticsService(settings)
         assert service.slow_query_threshold_ms == 50
@@ -92,12 +92,12 @@ class TestDiagnosticsServiceIntegration:
     def diagnostics_settings(self) -> Settings:
         """Create test settings with diagnostics enabled."""
         return Settings(
-            DATABASE_URL="sqlite:///:memory:",
-            SECRET_KEY="test-key",
-            FLASK_ENV="testing",
-            DIAGNOSTICS_ENABLED=True,
-            DIAGNOSTICS_SLOW_QUERY_THRESHOLD_MS=1000,  # High threshold to avoid log spam
-            DIAGNOSTICS_SLOW_REQUEST_THRESHOLD_MS=5000,
+            database_url="sqlite:///:memory:",
+            secret_key="test-key",
+            flask_env="testing",
+            diagnostics_enabled=True,
+            diagnostics_slow_query_threshold_ms=1000,  # High threshold to avoid log spam
+            diagnostics_slow_request_threshold_ms=5000,
         )
 
     def test_request_timing_recorded(
@@ -133,9 +133,9 @@ class TestDiagnosticsMetrics:
     def test_all_metrics_initialized(self):
         """Test that all required metrics are initialized."""
         settings = Settings(
-            DATABASE_URL="sqlite:///:memory:",
-            FLASK_ENV="testing",
-            DIAGNOSTICS_ENABLED=True,
+            database_url="sqlite:///:memory:",
+            flask_env="testing",
+            diagnostics_enabled=True,
         )
         service = DiagnosticsService(settings)
 

@@ -30,13 +30,13 @@ from tests.testing_utils import StubMetricsService, StubShutdownCoordinator
 def ai_test_settings() -> Settings:
     """Settings for AI service testing."""
     return Settings(
-        DATABASE_URL="sqlite:///:memory:",
-        OPENAI_API_KEY="test-api-key",
+        database_url="sqlite:///:memory:",
+        openai_api_key="test-api-key",
         OPENAI_MODEL="gpt-5-mini",
         OPENAI_REASONING_EFFORT="low",
         OPENAI_VERBOSITY="medium",
         OPENAI_MAX_OUTPUT_TOKENS=None,
-        AI_ANALYSIS_CACHE_PATH=None,  # Override .env file setting for tests
+        ai_analysis_cache_path=None,  # Override .env file setting for tests
     )
 
 
@@ -180,7 +180,7 @@ class TestAIService:
         mock_mouser_keyword_search = Mock(spec=AIFunction)
         mock_datasheet_extraction = Mock(spec=AIFunction)
 
-        settings = Settings(DATABASE_URL="sqlite:///:memory:", OPENAI_API_KEY="")
+        settings = Settings(database_url="sqlite:///:memory:", openai_api_key="")
 
         # AIService no longer initializes the runner internally, so this should succeed
         service = AIService(
@@ -355,9 +355,10 @@ class TestAIService:
         from app.utils.ai.ai_runner import AIFunction
 
         settings = Settings(
-            DATABASE_URL="sqlite:///:memory:",
-            FLASK_ENV="testing",
-            AI_ANALYSIS_CACHE_PATH=None,
+            database_url="sqlite:///:memory:",
+            flask_env="testing",
+            ai_testing_mode=True,
+            ai_analysis_cache_path=None,
         )
 
         mock_duplicate_search_function = Mock(spec=AIFunction)
@@ -409,9 +410,9 @@ class TestAIService:
         dummy_path.write_text(json.dumps(dummy_response.model_dump()))
 
         settings = Settings(
-            DATABASE_URL="sqlite:///:memory:",
-            FLASK_ENV="testing",
-            AI_ANALYSIS_CACHE_PATH=str(dummy_path),
+            database_url="sqlite:///:memory:",
+            flask_env="testing",
+            ai_analysis_cache_path=str(dummy_path),
         )
 
         mock_duplicate_search_function = Mock(spec=AIFunction)
@@ -453,9 +454,9 @@ class TestAIService:
 
         # Settings WITH Mouser API key
         settings = Settings(
-            DATABASE_URL="sqlite:///:memory:",
-            OPENAI_API_KEY="test-key",
-            MOUSER_SEARCH_API_KEY="test-mouser-key"
+            database_url="sqlite:///:memory:",
+            openai_api_key="test-key",
+            mouser_search_api_key="test-mouser-key"
         )
 
         mock_duplicate_search_function = Mock(spec=AIFunction)
@@ -525,9 +526,9 @@ class TestAIService:
 
         # Settings WITHOUT Mouser API key
         settings = Settings(
-            DATABASE_URL="sqlite:///:memory:",
-            OPENAI_API_KEY="test-key",
-            MOUSER_SEARCH_API_KEY=""
+            database_url="sqlite:///:memory:",
+            openai_api_key="test-key",
+            mouser_search_api_key=""
         )
 
         mock_duplicate_search_function = Mock(spec=AIFunction)
@@ -1145,16 +1146,16 @@ class TestAIServiceCleanupPart:
         from app.models.part import Part
         from app.utils.ai.ai_runner import AIFunction
 
-        # Create AI service with AI_TESTING_MODE=True and no dummy response
+        # Create AI service with ai_testing_mode=True and no dummy response
         mock_duplicate_search_function = Mock(spec=AIFunction)
         mock_mouser_part_number_search = Mock(spec=AIFunction)
         mock_mouser_keyword_search = Mock(spec=AIFunction)
         mock_datasheet_extraction = Mock(spec=AIFunction)
         settings = Settings(
-            DATABASE_URL="sqlite:///:memory:",
-            OPENAI_API_KEY="test-key",
-            AI_TESTING_MODE=True,  # This makes real_ai_allowed=False
-            AI_ANALYSIS_CACHE_PATH=None
+            database_url="sqlite:///:memory:",
+            openai_api_key="test-key",
+            ai_testing_mode=True,  # This makes real_ai_allowed=False
+            ai_analysis_cache_path=None
         )
         ai_service = AIService(
             db=session,

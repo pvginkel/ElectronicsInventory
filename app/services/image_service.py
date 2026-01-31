@@ -31,7 +31,7 @@ class ImageService:
 
     def _ensure_thumbnail_directory(self) -> None:
         """Ensure thumbnail storage directory exists."""
-        thumbnail_path = Path(self.settings.THUMBNAIL_STORAGE_PATH)
+        thumbnail_path = Path(self.settings.thumbnail_storage_path)
         thumbnail_path.mkdir(parents=True, exist_ok=True)
 
     def get_thumbnail_for_hash(self, content_hash: str, size: int) -> str:
@@ -52,7 +52,7 @@ class ImageService:
         """
         # Use hash as cache key instead of attachment_id
         thumbnail_path = os.path.join(
-            self.settings.THUMBNAIL_STORAGE_PATH,
+            self.settings.thumbnail_storage_path,
             f"{content_hash}_{size}.jpg"
         )
 
