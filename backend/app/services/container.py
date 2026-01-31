@@ -64,16 +64,16 @@ def _create_ai_runner(cfg: Settings, metrics: "MetricsService") -> AIRunner | No
     if not cfg.real_ai_allowed:
         return None
 
-    if cfg.AI_PROVIDER == "openai":
-        if not cfg.OPENAI_API_KEY:
+    if cfg.ai_provider == "openai":
+        if not cfg.openai_api_key:
             raise ValueError(
                 "OPENAI_API_KEY is required when AI_PROVIDER is set to 'openai'"
             )
-        return OpenAIRunner(cfg.OPENAI_API_KEY, metrics)
+        return OpenAIRunner(cfg.openai_api_key, metrics)
 
     else:
         raise ValueError(
-            f"Invalid AI_PROVIDER: {cfg.AI_PROVIDER}. Must be 'openai'"
+            f"Invalid AI_PROVIDER: {cfg.ai_provider}. Must be 'openai'"
         )
 
 
@@ -124,20 +124,20 @@ class ServiceContainer(containers.DeclarativeContainer):
     # Shutdown coordinator - Singleton for managing graceful shutdown
     shutdown_coordinator = providers.Singleton(
         ShutdownCoordinator,
-        graceful_shutdown_timeout=config.provided.GRACEFUL_SHUTDOWN_TIMEOUT,
+        graceful_shutdown_timeout=config.provided.graceful_shutdown_timeout,
     )
 
     # Utility services
     temp_file_manager = providers.Singleton(
         TempFileManager,
-        base_path=config.provided.DOWNLOAD_CACHE_BASE_PATH,
-        cleanup_age_hours=config.provided.DOWNLOAD_CACHE_CLEANUP_HOURS,
+        base_path=config.provided.download_cache_base_path,
+        cleanup_age_hours=config.provided.download_cache_cleanup_hours,
         shutdown_coordinator=shutdown_coordinator
     )
     download_cache_service = providers.Factory(
         DownloadCacheService,
         temp_file_manager=temp_file_manager,
-        max_download_size=config.provided.MAX_FILE_SIZE,
+        max_download_size=config.provided.max_file_size,
         download_timeout=30
     )
 
@@ -161,7 +161,7 @@ class ServiceContainer(containers.DeclarativeContainer):
     # ConnectionManager - Singleton for SSE Gateway token mapping
     connection_manager = providers.Singleton(
         ConnectionManager,
-        gateway_url=config.provided.SSE_GATEWAY_URL,
+        gateway_url=config.provided.sse_gateway_url,
         metrics_service=metrics_service,
         http_timeout=2.0,  # Short timeout to avoid exceeding SSE Gateway's 5s callback timeout
     )
@@ -237,9 +237,9 @@ class ServiceContainer(containers.DeclarativeContainer):
         metrics_service=metrics_service,
         shutdown_coordinator=shutdown_coordinator,
         connection_manager=connection_manager,
-        max_workers=config.provided.TASK_MAX_WORKERS,
-        task_timeout=config.provided.TASK_TIMEOUT_SECONDS,
-        cleanup_interval=config.provided.TASK_CLEANUP_INTERVAL_SECONDS
+        max_workers=config.provided.task_max_workers,
+        task_timeout=config.provided.task_timeout_seconds,
+        cleanup_interval=config.provided.task_cleanup_interval_seconds
     )
 
     # AI runner - conditional singleton (only when real AI is enabled)

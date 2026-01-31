@@ -30,13 +30,13 @@ def real_ai_settings() -> Settings:
         pytest.skip("OPENAI_API_KEY environment variable required for integration tests")
 
     return Settings(
-        DATABASE_URL="sqlite:///:memory:",
-        OPENAI_API_KEY=api_key,
+        database_url="sqlite:///:memory:",
+        openai_api_key=api_key,
         OPENAI_MODEL="gpt-5-mini",
         OPENAI_REASONING_EFFORT="low",
         OPENAI_VERBOSITY="medium",
         OPENAI_MAX_OUTPUT_TOKENS=None,
-        AI_ANALYSIS_CACHE_PATH=None
+        ai_analysis_cache_path=None
     )
 
 

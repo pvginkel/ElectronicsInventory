@@ -9,15 +9,15 @@ from sqlalchemy.orm import Session
 class TestAIPartsAPI:
     """Test cases for AI parts API endpoints."""
 
-    # Note: Validation tests removed - in testing mode (FLASK_ENV=testing),
+    # Note: Validation tests removed - in testing mode (flask_env=testing),
     # all validation is skipped and endpoints return dummy task IDs immediately.
     # Production validation behavior can be tested with integration tests using
-    # FLASK_ENV=development.
+    # flask_env=development.
 
     def test_analyze_part_testing_mode_returns_dummy_task_id(self, client: FlaskClient, app: Flask):
         """Test analyze endpoint returns dummy task ID in testing mode."""
         with app.app_context():
-            # In testing mode (FLASK_ENV=testing), endpoint should skip validation
+            # In testing mode (flask_env=testing), endpoint should skip validation
             # and return a dummy task ID immediately
             response = client.post(
                 '/api/ai-parts/analyze',

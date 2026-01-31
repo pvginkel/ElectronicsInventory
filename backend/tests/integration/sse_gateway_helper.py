@@ -31,7 +31,7 @@ class SSEGatewayProcess:
         self,
         callback_url: str,
         port: int,
-        gateway_script: str = "/work/ssegateway/scripts/run-gateway.sh",
+        gateway_script: str = "/work/SSEGateway/scripts/run-gateway.sh",
         health_check_url: str | None = None,
         startup_timeout: float = 10.0,
         health_check_interval: float = 0.5,

@@ -74,10 +74,10 @@ class DiagnosticsService:
 
     def __init__(self, settings: "Settings"):
         self.settings = settings
-        self.enabled = settings.DIAGNOSTICS_ENABLED
-        self.slow_query_threshold_ms = settings.DIAGNOSTICS_SLOW_QUERY_THRESHOLD_MS
-        self.slow_request_threshold_ms = settings.DIAGNOSTICS_SLOW_REQUEST_THRESHOLD_MS
-        self.log_all_queries = settings.DIAGNOSTICS_LOG_ALL_QUERIES
+        self.enabled = settings.diagnostics_enabled
+        self.slow_query_threshold_ms = settings.diagnostics_slow_query_threshold_ms
+        self.slow_request_threshold_ms = settings.diagnostics_slow_request_threshold_ms
+        self.log_all_queries = settings.diagnostics_log_all_queries
 
         # Thread-local storage for non-request contexts (background threads)
         self._local = threading.local()

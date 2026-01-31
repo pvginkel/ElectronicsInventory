@@ -53,7 +53,7 @@ class DocumentService:
         """Convert MIME type to AttachmentType."""
         if mime_type == 'text/html':
             return AttachmentType.URL
-        elif mime_type in self.settings.ALLOWED_IMAGE_TYPES:
+        elif mime_type in self.settings.allowed_image_types:
             return AttachmentType.IMAGE
         elif mime_type == 'application/pdf':
             return AttachmentType.PDF
@@ -138,8 +138,8 @@ class DocumentService:
             detected_type = detect_mime_type(file_data, content_type)
 
             # Allowed file types from config
-            allowed_image_types = self.settings.ALLOWED_IMAGE_TYPES
-            allowed_file_types = self.settings.ALLOWED_FILE_TYPES
+            allowed_image_types = self.settings.allowed_image_types
+            allowed_file_types = self.settings.allowed_file_types
             all_allowed = allowed_image_types + allowed_file_types
 
             if detected_type not in all_allowed:
@@ -161,9 +161,9 @@ class DocumentService:
             InvalidOperationException: If file size exceeds limits
         """
         if is_image:
-            max_size = self.settings.MAX_IMAGE_SIZE
+            max_size = self.settings.max_image_size
         else:
-            max_size = self.settings.MAX_FILE_SIZE
+            max_size = self.settings.max_file_size
 
         if file_size > max_size:
             max_mb = max_size / (1024 * 1024)
@@ -256,8 +256,8 @@ class DocumentService:
         if upload_payload:
             file_size = len(upload_payload.content)
 
-            allowed_image_types = self.settings.ALLOWED_IMAGE_TYPES
-            allowed_file_types = self.settings.ALLOWED_FILE_TYPES
+            allowed_image_types = self.settings.allowed_image_types
+            allowed_file_types = self.settings.allowed_file_types
             all_allowed = allowed_image_types + allowed_file_types
 
             if upload_payload.content_type not in all_allowed:

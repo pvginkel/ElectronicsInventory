@@ -101,9 +101,9 @@ class DuplicateSearchService:
             ai_request = AIRequest(
                 system_prompt=system_prompt,
                 user_prompt=request.search,
-                model=self.config.OPENAI_MODEL,
-                verbosity=self.config.OPENAI_VERBOSITY,
-                reasoning_effort=self.config.OPENAI_REASONING_EFFORT,
+                model=self.config.openai_model,
+                verbosity=self.config.openai_verbosity,
+                reasoning_effort=self.config.openai_reasoning_effort,
                 reasoning_summary="auto",
                 response_model=DuplicateMatchLLMResponse,
             )

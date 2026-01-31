@@ -8,7 +8,7 @@ from paste.translogger import TransLogger  # type: ignore[import-untyped]
 from waitress import serve
 
 from app import create_app
-from app.config import get_settings
+from app.config import Settings
 from app.utils.shutdown_coordinator import LifetimeEvent
 
 
@@ -18,7 +18,7 @@ def main() -> None:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 
-    settings = get_settings()
+    settings = Settings.load()
     app = create_app(settings)
 
     host = os.getenv("HOST", "0.0.0.0")
@@ -28,7 +28,7 @@ def main() -> None:
     shutdown_coordinator = app.container.shutdown_coordinator()
 
     # Enable debug mode for development and testing environments
-    debug_mode = settings.FLASK_ENV in ("development", "testing")
+    debug_mode = settings.flask_env in ("development", "testing")
 
     if debug_mode:
         app.logger.info("Running in debug mode")

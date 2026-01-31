@@ -32,11 +32,11 @@ class S3Service:
             try:
                 self._s3_client = boto3.client(
                     's3',
-                    endpoint_url=self.settings.S3_ENDPOINT_URL,
-                    aws_access_key_id=self.settings.S3_ACCESS_KEY_ID,
-                    aws_secret_access_key=self.settings.S3_SECRET_ACCESS_KEY,
-                    region_name=self.settings.S3_REGION,
-                    use_ssl=self.settings.S3_USE_SSL
+                    endpoint_url=self.settings.s3_endpoint_url,
+                    aws_access_key_id=self.settings.s3_access_key_id,
+                    aws_secret_access_key=self.settings.s3_secret_access_key,
+                    region_name=self.settings.s3_region,
+                    use_ssl=self.settings.s3_use_ssl
                 )
             except NoCredentialsError as e:
                 raise InvalidOperationException("initialize S3 client", "credentials not configured") from e
@@ -84,14 +84,14 @@ class S3Service:
             if extra_args is not None:
                 self.s3_client.upload_fileobj(
                     file_obj,
-                    self.settings.S3_BUCKET_NAME,
+                    self.settings.s3_bucket_name,
                     s3_key,
                     ExtraArgs=extra_args,
                 )
             else:
                 self.s3_client.upload_fileobj(
                     file_obj,
-                    self.settings.S3_BUCKET_NAME,
+                    self.settings.s3_bucket_name,
                     s3_key,
                 )
             return True
@@ -114,7 +114,7 @@ class S3Service:
         try:
             file_obj = BytesIO()
             self.s3_client.download_fileobj(
-                self.settings.S3_BUCKET_NAME,
+                self.settings.s3_bucket_name,
                 s3_key,
                 file_obj
             )
@@ -141,13 +141,13 @@ class S3Service:
         """
         try:
             copy_source: CopySourceTypeDef = {
-                'Bucket': self.settings.S3_BUCKET_NAME,
+                'Bucket': self.settings.s3_bucket_name,
                 'Key': source_s3_key
             }
 
             self.s3_client.copy_object(
                 CopySource=copy_source,
-                Bucket=self.settings.S3_BUCKET_NAME,
+                Bucket=self.settings.s3_bucket_name,
                 Key=target_s3_key
             )
             return True
@@ -171,7 +171,7 @@ class S3Service:
         """
         try:
             self.s3_client.delete_object(
-                Bucket=self.settings.S3_BUCKET_NAME,
+                Bucket=self.settings.s3_bucket_name,
                 Key=s3_key
             )
             return True
@@ -190,7 +190,7 @@ class S3Service:
         """
         try:
             self.s3_client.head_object(
-                Bucket=self.settings.S3_BUCKET_NAME,
+                Bucket=self.settings.s3_bucket_name,
                 Key=s3_key
             )
             return True
@@ -214,7 +214,7 @@ class S3Service:
         """
         try:
             response = self.s3_client.head_object(
-                Bucket=self.settings.S3_BUCKET_NAME,
+                Bucket=self.settings.s3_bucket_name,
                 Key=s3_key
             )
 
@@ -241,7 +241,7 @@ class S3Service:
         """
         try:
             # Check if bucket exists
-            self.s3_client.head_bucket(Bucket=self.settings.S3_BUCKET_NAME)
+            self.s3_client.head_bucket(Bucket=self.settings.s3_bucket_name)
             return True
 
         except ClientError as e:
@@ -249,12 +249,12 @@ class S3Service:
             if e.response['Error']['Code'] == '404':
                 try:
                     # Create bucket without location constraint for compatibility
-                    self.s3_client.create_bucket(Bucket=self.settings.S3_BUCKET_NAME)
+                    self.s3_client.create_bucket(Bucket=self.settings.s3_bucket_name)
                     return True
                 except ClientError as create_error:
                     raise InvalidOperationException(
                         "create S3 bucket",
-                        f"failed to create bucket {self.settings.S3_BUCKET_NAME}: {create_error}"
+                        f"failed to create bucket {self.settings.s3_bucket_name}: {create_error}"
                     ) from create_error
             else:
                 # Other errors (permissions, etc.)

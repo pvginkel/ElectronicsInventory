@@ -75,7 +75,7 @@ class AIService:
         self.runner = ai_runner
 
         # Mouser function tools - conditionally enabled based on API key
-        self.mouser_enabled = bool(config.MOUSER_SEARCH_API_KEY)
+        self.mouser_enabled = bool(config.mouser_search_api_key)
         self.mouser_part_number_search_function = mouser_part_number_search_function
         self.mouser_keyword_search_function = mouser_keyword_search_function
 
@@ -105,7 +105,7 @@ class AIService:
 
         try:
             # Check for cached response (record-and-replay pattern)
-            cache_path = self.config.AI_ANALYSIS_CACHE_PATH
+            cache_path = self.config.ai_analysis_cache_path
             if cache_path:
                 logger.info(f"AI analysis response cache file configured at {cache_path}")
 
@@ -132,9 +132,9 @@ class AIService:
                 request = AIRequest(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
-                    model=self.config.OPENAI_MODEL,
-                    verbosity=self.config.OPENAI_VERBOSITY,
-                    reasoning_effort=self.config.OPENAI_REASONING_EFFORT,
+                    model=self.config.openai_model,
+                    verbosity=self.config.openai_verbosity,
+                    reasoning_effort=self.config.openai_reasoning_effort,
                     reasoning_summary="auto",
                     response_model=PartAnalysisSuggestion,
                 )
@@ -348,7 +348,7 @@ Review the target part against the field normalization rules and improve data qu
 
         try:
             # Check for cached response (record-and-replay pattern)
-            cache_path = self.config.AI_CLEANUP_CACHE_PATH
+            cache_path = self.config.ai_cleanup_cache_path
             if cache_path:
                 logger.info(f"AI cleanup response cache file configured at {cache_path}")
 
@@ -375,9 +375,9 @@ Review the target part against the field normalization rules and improve data qu
                 request = AIRequest(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
-                    model=self.config.OPENAI_MODEL,
-                    verbosity=self.config.OPENAI_VERBOSITY,
-                    reasoning_effort=self.config.OPENAI_REASONING_EFFORT,
+                    model=self.config.openai_model,
+                    verbosity=self.config.openai_verbosity,
+                    reasoning_effort=self.config.openai_reasoning_effort,
                     reasoning_summary="auto",
                     response_model=PartAnalysisSuggestion,
                 )

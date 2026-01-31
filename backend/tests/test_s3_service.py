@@ -52,7 +52,7 @@ class TestS3Service:
         mock_s3_client.upload_fileobj.assert_called_once()
         args, kwargs = mock_s3_client.upload_fileobj.call_args
         assert args[0] == file_data
-        assert args[1] == s3_service.settings.S3_BUCKET_NAME
+        assert args[1] == s3_service.settings.s3_bucket_name
         assert args[2] == s3_key
         assert kwargs["ExtraArgs"]["ContentType"] == content_type
 

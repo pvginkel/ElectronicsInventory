@@ -86,7 +86,7 @@ def drain(
     Calls drain() on the shutdown coordinator and returns health status.
     """
     # Check if DRAIN_AUTH_KEY is configured
-    if not settings.DRAIN_AUTH_KEY:
+    if not settings.drain_auth_key:
         logger.error("DRAIN_AUTH_KEY not configured, rejecting drain request")
         return jsonify({"status": "unauthorized", "ready": False}), 401
 
@@ -94,7 +94,7 @@ def drain(
     auth_header = request.headers.get("Authorization", "")
 
     # Validate token
-    if auth_header != f"Bearer {settings.DRAIN_AUTH_KEY}":
+    if auth_header != f"Bearer {settings.drain_auth_key}":
         logger.warning("Drain request with invalid token")
         return jsonify({"status": "unauthorized", "ready": False}), 401
 

@@ -26,7 +26,7 @@ def mock_s3_service():
 @pytest.fixture
 def test_settings(temp_dir: Path):
     return Settings(
-        THUMBNAIL_STORAGE_PATH=str(temp_dir)
+        thumbnail_storage_path=str(temp_dir)
     )
 
 
@@ -60,7 +60,7 @@ class TestImageService:
     def test_init_creates_thumbnail_directory(self, temp_dir, mock_s3_service, test_settings):
         """Test that ImageService creates thumbnail directory."""
         ImageService(mock_s3_service, test_settings)
-        assert Path(test_settings.THUMBNAIL_STORAGE_PATH).exists()
+        assert Path(test_settings.thumbnail_storage_path).exists()
 
 
 def test_convert_image_to_png_success(image_service):

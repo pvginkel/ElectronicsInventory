@@ -32,10 +32,10 @@ def _authenticate_callback(secret_from_query: str | None, settings: Settings) ->
         True if authenticated (or not in production), False otherwise
     """
     # Only require authentication in production
-    if settings.FLASK_ENV != "production":
+    if settings.flask_env != "production":
         return True
 
-    expected_secret = settings.SSE_CALLBACK_SECRET
+    expected_secret = settings.sse_callback_secret
     if not expected_secret:
         logger.error("SSE_CALLBACK_SECRET not configured in production mode")
         return False

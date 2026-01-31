@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-from app.config import get_settings
+from app.config import Settings
 from app.extensions import db
 from app.services.setup_service import SetupService
 
@@ -57,9 +57,9 @@ def _get_alembic_config() -> Config:
     config = Config(str(alembic_cfg_path))
 
     # Override database URL with current Flask configuration
-    settings = get_settings()
+    settings = Settings.load()
     # Convert Flask-SQLAlchemy URL to raw SQLAlchemy URL (remove +psycopg suffix)
-    db_url = settings.DATABASE_URL.replace("+psycopg", "")
+    db_url = settings.database_url.replace("+psycopg", "")
     config.set_main_option("sqlalchemy.url", db_url)
 
     return config
