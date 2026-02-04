@@ -36,8 +36,20 @@ class KitPickListService:
         self.kit_reservation_service = kit_reservation_service
         self.metrics_service = metrics_service
 
-    def create_pick_list(self, kit_id: int, requested_units: int) -> KitPickList:
-        """Create a new pick list with greedy allocation across locations."""
+    def create_pick_list(
+        self,
+        kit_id: int,
+        requested_units: int,
+        shortfall_handling: dict[str, str] | None = None,
+    ) -> KitPickList:
+        """Create a new pick list with greedy allocation across locations.
+
+        Args:
+            kit_id: ID of the kit to create pick list for.
+            requested_units: Number of kit builds to fulfill.
+            shortfall_handling: Optional map of part keys to actions ('reject',
+                'limit', 'omit'). Parts not in the map default to 'reject'.
+        """
         if requested_units < 1:
             raise InvalidOperationException(
                 "create pick list",
@@ -79,7 +91,16 @@ class KitPickListService:
             for location in part_locations
         ]
         reserved_by_location = self._load_open_line_reservations(all_location_ids)
-        planned_lines: list[tuple[KitContent, int, PartLocation]] = []
+
+        # Build a lookup for shortfall actions by part key
+        action_lookup = shortfall_handling or {}
+
+        # Phase 1: Collect shortfall info and determine effective required quantities
+        # This allows us to handle all rejections together and provide better errors
+        parts_to_reject: list[str] = []
+        content_allocation_info: list[
+            tuple[KitContent, int, int, list[PartLocation], dict[int, int], int]
+        ] = []
 
         for content in contents:
             required_total = content.required_per_unit * requested_units
@@ -92,24 +113,63 @@ class KitPickListService:
                 reservation_key = (content.part_id, candidate.location_id)
                 reserved_for_location = reserved_by_location.get(reservation_key, 0)
                 available_quantity = max(candidate.qty - reserved_for_location, 0)
-                base_available_by_location[candidate.location_id] = (
-                    available_quantity
-                )
+                base_available_by_location[candidate.location_id] = available_quantity
                 total_available += available_quantity
 
             reserved_total = reserved_totals.get(content.part_id, 0)
             usable_quantity = max(total_available - reserved_total, 0)
-            if usable_quantity < required_total:
-                raise InvalidOperationException(
-                    "create pick list",
-                    (
-                        f"insufficient stock to allocate {required_total} units of "
-                        f"{part_key} after honoring kit reservations"
-                    ),
-                )
 
+            # Determine if there's a shortfall and what action to take
+            if usable_quantity < required_total:
+                action = action_lookup.get(part_key, "reject")
+                if action == "reject":
+                    parts_to_reject.append(part_key)
+                elif action == "omit":
+                    continue  # Skip this content entirely
+                elif action == "limit":
+                    # Reduce required_total to usable_quantity
+                    required_total = usable_quantity
+
+            # Store info for phase 2 allocation
+            content_allocation_info.append((
+                content,
+                required_total,
+                usable_quantity,
+                part_locations,
+                base_available_by_location,
+                reserved_total,
+            ))
+
+        # Phase 2: Check rejection conditions
+        if parts_to_reject:
+            part_list = ", ".join(parts_to_reject)
+            raise InvalidOperationException(
+                "create pick list",
+                f"insufficient stock for parts with reject handling: {part_list}",
+            )
+
+        # Check if all parts would be omitted (results in zero lines)
+        if not content_allocation_info:
+            raise InvalidOperationException(
+                "create pick list",
+                "all parts would be omitted; cannot create empty pick list",
+            )
+
+        # Phase 3: Perform allocation for remaining parts
+        planned_lines: list[tuple[KitContent, int, PartLocation]] = []
+
+        for (
+            content,
+            required_total,
+            _usable_quantity,
+            part_locations,
+            base_available_by_location,
+            reserved_total,
+        ) in content_allocation_info:
+            part_key = content.part.key if content.part else "unknown"
             remaining = required_total
             remaining_reserved = reserved_total
+
             for candidate in part_locations:
                 if remaining <= 0:
                     break

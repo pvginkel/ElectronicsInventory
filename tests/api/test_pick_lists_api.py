@@ -560,3 +560,214 @@ class TestPickListsApi:
         # Should still generate a valid PDF even with no lines
         assert response.status_code == 200
         assert response.content_type == "application/pdf"
+
+
+class TestShortfallHandlingApi:
+    """API tests for shortfall handling during pick list creation."""
+
+    def test_create_pick_list_with_limit_action(self, client, session, make_attachment_set) -> None:
+        """Limit action should create pick list with reduced quantity."""
+        kit, part, _, _ = _seed_kit_with_inventory(
+            session,
+            make_attachment_set,
+            part_key="LIMT",
+            required_per_unit=10,
+            initial_qty=6,
+        )
+
+        response = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={
+                "requested_units": 1,
+                "shortfall_handling": {"LIMT": {"action": "limit"}},
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data["status"] == "open"
+        assert len(data["lines"]) == 1
+        # Limited to 6 instead of 10
+        assert data["lines"][0]["quantity_to_pick"] == 6
+
+    def test_create_pick_list_with_omit_action(self, client, session, make_attachment_set) -> None:
+        """Omit action should exclude part from pick list."""
+        # Create kit with two parts - one with shortfall
+        kit_attachment_set = make_attachment_set()
+        kit = Kit(name="Omit Test Kit", build_target=1, status=KitStatus.ACTIVE, attachment_set_id=kit_attachment_set.id)
+        session.add(kit)
+        session.flush()
+
+        part1_attachment_set = make_attachment_set()
+        part1 = Part(key="OMIT", description="Part to omit", attachment_set_id=part1_attachment_set.id)
+        session.add(part1)
+        session.flush()
+
+        part2_attachment_set = make_attachment_set()
+        part2 = Part(key="KEEP", description="Part to keep", attachment_set_id=part2_attachment_set.id)
+        session.add(part2)
+        session.flush()
+
+        content1 = KitContent(kit=kit, part=part1, required_per_unit=10)
+        content2 = KitContent(kit=kit, part=part2, required_per_unit=2)
+        session.add_all([content1, content2])
+        session.flush()
+
+        box = Box(box_no=500, description="Omit Test Box", capacity=10)
+        session.add(box)
+        session.flush()
+
+        location = Location(box_id=box.id, box_no=box.box_no, loc_no=1)
+        session.add(location)
+        session.flush()
+
+        # Part 1 has shortfall, Part 2 has enough
+        pl1 = PartLocation(part_id=part1.id, box_no=box.box_no, loc_no=1, location_id=location.id, qty=3)
+        pl2 = PartLocation(part_id=part2.id, box_no=box.box_no, loc_no=1, location_id=location.id, qty=10)
+        session.add_all([pl1, pl2])
+        session.commit()
+
+        response = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={
+                "requested_units": 1,
+                "shortfall_handling": {"OMIT": {"action": "omit"}},
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.get_json()
+        assert len(data["lines"]) == 1
+        assert data["lines"][0]["kit_content"]["part_key"] == "KEEP"
+        assert data["lines"][0]["quantity_to_pick"] == 2
+
+    def test_create_pick_list_all_parts_omitted_returns_409(self, client, session, make_attachment_set) -> None:
+        """Omitting all parts should return 409 conflict."""
+        kit, _, _, _ = _seed_kit_with_inventory(
+            session,
+            make_attachment_set,
+            part_key="OALL",
+            required_per_unit=10,
+            initial_qty=3,
+        )
+
+        response = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={
+                "requested_units": 1,
+                "shortfall_handling": {"OALL": {"action": "omit"}},
+            },
+        )
+
+        assert response.status_code == 409
+        payload = response.get_json()
+        assert "all parts would be omitted" in payload["error"].lower()
+
+    def test_create_pick_list_invalid_action_returns_400(self, client, session, make_attachment_set) -> None:
+        """Invalid action value should return 400 validation error."""
+        kit, _, _, _ = _seed_kit_with_inventory(
+            session,
+            make_attachment_set,
+            part_key="INVL",
+            required_per_unit=5,
+            initial_qty=3,
+        )
+
+        response = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={
+                "requested_units": 1,
+                "shortfall_handling": {"INVL": {"action": "invalid"}},
+            },
+        )
+
+        assert response.status_code == 400
+
+    def test_create_pick_list_shortfall_handling_with_no_shortfall(self, client, session, make_attachment_set) -> None:
+        """shortfall_handling with sufficient stock should use full quantity."""
+        kit, _, _, _ = _seed_kit_with_inventory(
+            session,
+            make_attachment_set,
+            part_key="SUFF",
+            required_per_unit=5,
+            initial_qty=20,
+        )
+
+        response = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={
+                "requested_units": 2,
+                "shortfall_handling": {"SUFF": {"action": "limit"}},
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.get_json()
+        # Should use full required quantity (5 * 2 = 10)
+        assert data["total_quantity_to_pick"] == 10
+
+    def test_create_pick_list_shortfall_handling_unknown_part_ignored(self, client, session, make_attachment_set) -> None:
+        """Unknown part keys in shortfall_handling should be ignored."""
+        kit, _, _, _ = _seed_kit_with_inventory(
+            session,
+            make_attachment_set,
+            part_key="REAL",
+            required_per_unit=3,
+            initial_qty=10,
+        )
+
+        response = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={
+                "requested_units": 1,
+                "shortfall_handling": {"FAKE": {"action": "omit"}},
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.get_json()
+        assert len(data["lines"]) == 1
+        assert data["lines"][0]["quantity_to_pick"] == 3
+
+    def test_create_pick_list_shortfall_handling_missing_returns_400(self, client, session, make_attachment_set) -> None:
+        """Missing action field in shortfall_handling should return 400."""
+        kit, _, _, _ = _seed_kit_with_inventory(
+            session,
+            make_attachment_set,
+            part_key="MISS",
+            required_per_unit=5,
+            initial_qty=3,
+        )
+
+        response = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={
+                "requested_units": 1,
+                "shortfall_handling": {"MISS": {}},
+            },
+        )
+
+        assert response.status_code == 400
+
+    def test_create_pick_list_with_reject_action_returns_409(self, client, session, make_attachment_set) -> None:
+        """Explicit reject action with shortfall should return 409."""
+        kit, _, _, _ = _seed_kit_with_inventory(
+            session,
+            make_attachment_set,
+            part_key="REJE",
+            required_per_unit=10,
+            initial_qty=5,
+        )
+
+        response = client.post(
+            f"/api/kits/{kit.id}/pick-lists",
+            json={
+                "requested_units": 1,
+                "shortfall_handling": {"REJE": {"action": "reject"}},
+            },
+        )
+
+        assert response.status_code == 409
+        payload = response.get_json()
+        assert "insufficient stock" in payload["error"].lower()
+        assert "REJE" in payload["error"]

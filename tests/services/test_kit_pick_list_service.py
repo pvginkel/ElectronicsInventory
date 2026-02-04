@@ -257,7 +257,9 @@ class TestKitPickListService:
         with pytest.raises(InvalidOperationException) as excinfo:
             kit_pick_list_service.create_pick_list(kit.id, requested_units=2)
 
-        assert "honoring kit reservations" in str(excinfo.value).lower()
+        # When other kits have reservations, the part should be rejected due to insufficient stock
+        assert "insufficient stock" in str(excinfo.value).lower()
+        assert "RESF" in str(excinfo.value)
 
     def test_create_pick_list_rejects_archived_kit(
         self,
@@ -1099,3 +1101,328 @@ class TestKitPickListService:
 
         # Verify first pick list was created correctly
         assert len(first_pick_list.lines) == 2
+
+
+class TestShortfallHandling:
+    """Tests for shortfall handling options during pick list creation."""
+
+    def test_shortfall_default_reject_behavior(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        make_attachment_set,
+    ) -> None:
+        """Parts with shortfall and no shortfall_handling should reject."""
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "SHRT", "Shortfall Part")
+        _attach_content(session, kit, part, required_per_unit=10)
+
+        location = _create_location(session, box_no=400, loc_no=1)
+        _attach_location(session, part, location, qty=5)
+
+        with pytest.raises(InvalidOperationException) as exc_info:
+            kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+
+        assert "insufficient stock" in str(exc_info.value).lower()
+        assert "SHRT" in str(exc_info.value)
+
+    def test_shortfall_explicit_reject_action(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        make_attachment_set,
+    ) -> None:
+        """Explicit reject action should fail pick list creation."""
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "REJT", "Reject Part")
+        _attach_content(session, kit, part, required_per_unit=10)
+
+        location = _create_location(session, box_no=401, loc_no=1)
+        _attach_location(session, part, location, qty=5)
+
+        with pytest.raises(InvalidOperationException) as exc_info:
+            kit_pick_list_service.create_pick_list(
+                kit.id,
+                requested_units=1,
+                shortfall_handling={"REJT": "reject"},
+            )
+
+        assert "insufficient stock" in str(exc_info.value).lower()
+        assert "REJT" in str(exc_info.value)
+
+    def test_shortfall_limit_action_creates_reduced_pick_list(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        metrics_stub: PickListMetricsStub,
+        make_attachment_set,
+    ) -> None:
+        """Limit action should create pick list with reduced quantity."""
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "LIMT", "Limited Part")
+        _attach_content(session, kit, part, required_per_unit=10)
+
+        location = _create_location(session, box_no=402, loc_no=1)
+        _attach_location(session, part, location, qty=7)
+
+        pick_list = kit_pick_list_service.create_pick_list(
+            kit.id,
+            requested_units=1,
+            shortfall_handling={"LIMT": "limit"},
+        )
+        session.flush()
+
+        assert pick_list.status is KitPickListStatus.OPEN
+        assert len(pick_list.lines) == 1
+        # Should be limited to available quantity (7), not required (10)
+        assert pick_list.lines[0].quantity_to_pick == 7
+        assert metrics_stub.pick_list_creations[-1] == (kit.id, 1, 1)
+
+    def test_shortfall_omit_action_excludes_part_from_pick_list(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        metrics_stub: PickListMetricsStub,
+        make_attachment_set,
+    ) -> None:
+        """Omit action should exclude part from pick list entirely."""
+        kit = _create_active_kit(session, make_attachment_set)
+        part_a = _create_part(session, make_attachment_set, "OMTA", "Omit Part A")
+        part_b = _create_part(session, make_attachment_set, "OKPB", "OK Part B")
+        _attach_content(session, kit, part_a, required_per_unit=10)
+        _attach_content(session, kit, part_b, required_per_unit=2)
+
+        location = _create_location(session, box_no=403, loc_no=1)
+        # Part A has shortfall (5 < 10)
+        _attach_location(session, part_a, location, qty=5)
+        # Part B has enough stock
+        _attach_location(session, part_b, location, qty=10)
+
+        pick_list = kit_pick_list_service.create_pick_list(
+            kit.id,
+            requested_units=1,
+            shortfall_handling={"OMTA": "omit"},
+        )
+        session.flush()
+
+        assert pick_list.status is KitPickListStatus.OPEN
+        # Only part B should have lines
+        assert len(pick_list.lines) == 1
+        assert pick_list.lines[0].quantity_to_pick == 2
+        assert pick_list.lines[0].kit_content.part.key == "OKPB"
+        assert metrics_stub.pick_list_creations[-1] == (kit.id, 1, 1)
+
+    def test_shortfall_all_parts_omitted_rejects(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        make_attachment_set,
+    ) -> None:
+        """Omitting all parts should reject (cannot create empty pick list)."""
+        kit = _create_active_kit(session, make_attachment_set)
+        part_a = _create_part(session, make_attachment_set, "OMA1", "Omit Part 1")
+        part_b = _create_part(session, make_attachment_set, "OMA2", "Omit Part 2")
+        _attach_content(session, kit, part_a, required_per_unit=10)
+        _attach_content(session, kit, part_b, required_per_unit=10)
+
+        location = _create_location(session, box_no=404, loc_no=1)
+        # Both parts have shortfall
+        _attach_location(session, part_a, location, qty=5)
+        _attach_location(session, part_b, location, qty=5)
+
+        with pytest.raises(InvalidOperationException) as exc_info:
+            kit_pick_list_service.create_pick_list(
+                kit.id,
+                requested_units=1,
+                shortfall_handling={"OMA1": "omit", "OMA2": "omit"},
+            )
+
+        assert "all parts would be omitted" in str(exc_info.value).lower()
+
+    def test_shortfall_all_parts_limited_to_zero_creates_empty_pick_list(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        metrics_stub: PickListMetricsStub,
+        make_attachment_set,
+    ) -> None:
+        """Limiting all parts to zero quantity should create valid pick list.
+
+        Uses reservation from another kit to reduce usable quantity to zero.
+        """
+        kit = _create_active_kit(session, make_attachment_set)
+        other_kit = _create_active_kit(session, make_attachment_set, name="Other Kit")
+
+        part = _create_part(session, make_attachment_set, "LIM0", "Zero Limit Part")
+        _attach_content(session, kit, part, required_per_unit=10)
+        # Other kit reserves all the stock (5 units required for build_target=5)
+        _attach_content(session, other_kit, part, required_per_unit=5)
+
+        location = _create_location(session, box_no=405, loc_no=1)
+        # Part has 5 units, but other kit reserves all of them
+        _attach_location(session, part, location, qty=5)
+
+        pick_list = kit_pick_list_service.create_pick_list(
+            kit.id,
+            requested_units=1,
+            shortfall_handling={"LIM0": "limit"},
+        )
+        session.flush()
+
+        assert pick_list.status is KitPickListStatus.OPEN
+        # Limit to zero usable results in no lines, but the pick list is valid
+        assert len(pick_list.lines) == 0
+        assert metrics_stub.pick_list_creations[-1] == (kit.id, 1, 0)
+
+    def test_shortfall_mixed_actions_multiple_parts(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        metrics_stub: PickListMetricsStub,
+        make_attachment_set,
+    ) -> None:
+        """Mixed shortfall actions should apply correctly to each part."""
+        kit = _create_active_kit(session, make_attachment_set)
+        part_a = _create_part(session, make_attachment_set, "MIX1", "Limited Part")
+        part_b = _create_part(session, make_attachment_set, "MIX2", "Omitted Part")
+        part_c = _create_part(session, make_attachment_set, "MIX3", "Sufficient Part")
+        _attach_content(session, kit, part_a, required_per_unit=10)
+        _attach_content(session, kit, part_b, required_per_unit=10)
+        _attach_content(session, kit, part_c, required_per_unit=5)
+
+        location = _create_location(session, box_no=406, loc_no=1)
+        _attach_location(session, part_a, location, qty=3)  # shortfall
+        _attach_location(session, part_b, location, qty=2)  # shortfall
+        _attach_location(session, part_c, location, qty=10) # sufficient
+
+        pick_list = kit_pick_list_service.create_pick_list(
+            kit.id,
+            requested_units=1,
+            shortfall_handling={
+                "MIX1": "limit",
+                "MIX2": "omit",
+            },
+        )
+        session.flush()
+
+        assert pick_list.status is KitPickListStatus.OPEN
+        assert len(pick_list.lines) == 2
+
+        # Sort lines by part key for predictable assertions
+        lines_by_part = {line.kit_content.part.key: line for line in pick_list.lines}
+
+        assert "MIX1" in lines_by_part
+        assert lines_by_part["MIX1"].quantity_to_pick == 3  # limited to available
+        assert "MIX2" not in lines_by_part  # omitted
+        assert "MIX3" in lines_by_part
+        assert lines_by_part["MIX3"].quantity_to_pick == 5  # full amount
+
+    def test_shortfall_unknown_part_key_ignored(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        make_attachment_set,
+    ) -> None:
+        """Part keys not in kit should be silently ignored."""
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "IGNR", "Real Part")
+        _attach_content(session, kit, part, required_per_unit=5)
+
+        location = _create_location(session, box_no=407, loc_no=1)
+        _attach_location(session, part, location, qty=10)
+
+        # Extra key "FAKE" should be ignored
+        pick_list = kit_pick_list_service.create_pick_list(
+            kit.id,
+            requested_units=1,
+            shortfall_handling={"FAKE": "limit", "ALSO": "omit"},
+        )
+        session.flush()
+
+        assert pick_list.status is KitPickListStatus.OPEN
+        assert len(pick_list.lines) == 1
+        assert pick_list.lines[0].quantity_to_pick == 5
+
+    def test_shortfall_part_without_shortfall_uses_full_quantity(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        make_attachment_set,
+    ) -> None:
+        """Parts with limit action but no shortfall use full required quantity."""
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "FULL", "Full Stock Part")
+        _attach_content(session, kit, part, required_per_unit=5)
+
+        location = _create_location(session, box_no=408, loc_no=1)
+        _attach_location(session, part, location, qty=20)
+
+        # Limit action provided but no shortfall
+        pick_list = kit_pick_list_service.create_pick_list(
+            kit.id,
+            requested_units=2,
+            shortfall_handling={"FULL": "limit"},
+        )
+        session.flush()
+
+        assert pick_list.status is KitPickListStatus.OPEN
+        assert len(pick_list.lines) == 1
+        # Full required quantity should be used (5 * 2 = 10)
+        assert pick_list.lines[0].quantity_to_pick == 10
+
+    def test_shortfall_multiple_parts_reject_lists_all(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        make_attachment_set,
+    ) -> None:
+        """Multiple parts with reject action should list all in error message."""
+        kit = _create_active_kit(session, make_attachment_set)
+        part_a = _create_part(session, make_attachment_set, "REJ1", "Reject Part 1")
+        part_b = _create_part(session, make_attachment_set, "REJ2", "Reject Part 2")
+        _attach_content(session, kit, part_a, required_per_unit=10)
+        _attach_content(session, kit, part_b, required_per_unit=10)
+
+        location = _create_location(session, box_no=409, loc_no=1)
+        _attach_location(session, part_a, location, qty=5)
+        _attach_location(session, part_b, location, qty=5)
+
+        with pytest.raises(InvalidOperationException) as exc_info:
+            kit_pick_list_service.create_pick_list(
+                kit.id,
+                requested_units=1,
+                shortfall_handling={"REJ1": "reject", "REJ2": "reject"},
+            )
+
+        error_msg = str(exc_info.value)
+        assert "REJ1" in error_msg
+        assert "REJ2" in error_msg
+
+    def test_shortfall_limit_with_reservations(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        make_attachment_set,
+    ) -> None:
+        """Limit action should account for kit reservations."""
+        kit = _create_active_kit(session, make_attachment_set)
+        other_kit = _create_active_kit(session, make_attachment_set, name="Other Kit")
+
+        part = _create_part(session, make_attachment_set, "RSLM", "Reserved Limit Part")
+        _attach_content(session, kit, part, required_per_unit=10)
+        _attach_content(session, other_kit, part, required_per_unit=3)
+
+        location = _create_location(session, box_no=410, loc_no=1)
+        _attach_location(session, part, location, qty=8)
+
+        # Other kit reserves 3 units, leaving 5 usable
+        pick_list = kit_pick_list_service.create_pick_list(
+            kit.id,
+            requested_units=1,
+            shortfall_handling={"RSLM": "limit"},
+        )
+        session.flush()
+
+        assert len(pick_list.lines) == 1
+        # 8 total - 3 reserved = 5 usable
+        assert pick_list.lines[0].quantity_to_pick == 5
