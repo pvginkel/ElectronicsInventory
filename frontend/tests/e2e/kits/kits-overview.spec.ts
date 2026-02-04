@@ -67,7 +67,7 @@ test.describe('Kits overview', () => {
     await apiClient.apiRequest(() =>
       apiClient.POST('/api/kits/{kit_id}/pick-lists', {
         params: { path: { kit_id: kitId } },
-        body: { requested_units: 1 },
+        body: { requested_units: 1, shortfall_handling: null },
       })
     );
 

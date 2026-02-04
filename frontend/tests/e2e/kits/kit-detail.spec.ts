@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { test } from '../../support/fixtures';
-import { waitForFormValidationError, waitForListLoading, waitForUiState, waitTestEvent } from '../../support/helpers';
+import { expectConsoleError, waitForFormValidationError, waitForListLoading, waitForUiState, waitTestEvent } from '../../support/helpers';
 import type { UiStateTestEvent, FormTestEvent } from '@/types/test-events';
 import type { KitContentDetailSchema_b98797e } from '@/lib/api/generated/hooks';
 import type {
@@ -537,7 +537,7 @@ test.describe('Kit detail workspace', () => {
     const pickList = await apiClient.apiRequest(() =>
       apiClient.POST('/api/kits/{kit_id}/pick-lists', {
         params: { path: { kit_id: kit.id } },
-        body: { requested_units: 1 },
+        body: { requested_units: 1, shortfall_handling: null },
       })
     );
     const pickListLines = pickList.lines ?? [];
@@ -821,12 +821,13 @@ test.describe('Kit detail workspace', () => {
     const pickListDialog = page.getByRole('dialog', { name: 'Create Pick List' });
     await expect(pickListDialog).toBeVisible();
 
+    // Clicking Continue with empty value should trigger validation error
     const validationEvent = waitTestEvent<FormTestEvent>(
       page,
       'form',
       event => event.formId === 'KitPickList:create' && event.phase === 'validation_error',
     );
-    await kits.detailCreatePickListSubmit.click();
+    await kits.detailCreatePickListContinue.click();
     const validationPayload = await validationEvent;
     expect(validationPayload.metadata?.field).toBe('requestedUnits');
     await expect(kits.detailCreatePickListRequestedUnits).toHaveAttribute('aria-invalid', 'true');
@@ -863,7 +864,8 @@ test.describe('Kit detail workspace', () => {
         event.metadata?.openCount === 1,
     );
 
-    await kits.detailCreatePickListSubmit.click();
+    // Continue button creates the pick list directly when no shortfall
+    await kits.detailCreatePickListContinue.click();
 
     const submitPayload = await submitEvent;
     expect(submitPayload.fields).toMatchObject({
@@ -1526,5 +1528,471 @@ test.describe('Kit detail workspace', () => {
     await toastHelper.dismissToast({ all: true });
 
     await expect(kits.shoppingLinkChip(conceptList.id)).toHaveCount(0);
+  });
+});
+
+test.describe('Pick list shortfall handling', () => {
+  test('shows shortfall step when parts have insufficient stock and allows limit action', async ({
+    kits,
+    page,
+    apiClient,
+    testData,
+    toastHelper,
+  }) => {
+    // Create a part and add limited stock
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Shortfall Test Part' },
+    });
+    await testData.parts.getDetail(part.key);
+    const partReservationMetadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+    const partId = partReservationMetadata.part_id;
+
+    // Add limited stock: 15 units
+    const box = await testData.boxes.create();
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: box.box_no, loc_no: 1, qty: 15 },
+      })
+    );
+
+    // Create kit with content requiring 10 units per build
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Shortfall Kit'),
+        build_target: 5,
+      },
+    });
+
+    await testData.kits.addContent(kit.id, {
+      partId,
+      requiredPerUnit: 10,
+    });
+
+    // Navigate to kit detail
+    const detailReady = waitForListLoading(page, 'kits.detail', 'ready');
+    const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');
+    const panelReady = waitForUiState(page, 'kits.detail.pickLists.panel', 'ready');
+
+    await kits.gotoOverview();
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await kits.openDetailFromCard(kit.id);
+
+    await detailReady;
+    await contentsReady;
+    await panelReady;
+
+    // Open pick list create dialog
+    await kits.pickListPanelAddButton.click();
+    await expect(kits.detailCreatePickListDialog).toBeVisible();
+    await expect(kits.detailCreatePickListStepUnits).toBeVisible();
+
+    // Request 2 units: 10 * 2 = 20 required > 15 available = shortfall
+    await kits.detailCreatePickListRequestedUnits.fill('2');
+    await kits.detailCreatePickListContinue.click();
+
+    // Should transition to shortfall step
+    await expect(kits.detailCreatePickListStepShortfall).toBeVisible();
+    await expect(kits.detailCreatePickListStepUnits).not.toBeVisible();
+
+    // Verify shortfall row is displayed with correct part key
+    const shortfallRow = kits.detailCreatePickListShortfallRow(part.key);
+    await expect(shortfallRow).toBeVisible();
+    await expect(shortfallRow).toContainText(part.key);
+    await expect(shortfallRow).toContainText('20'); // Required quantity
+    await expect(shortfallRow).toContainText('15'); // Available quantity
+    await expect(shortfallRow).toContainText('5');  // Shortfall amount
+
+    // Submit button should be disabled until action is selected
+    await expect(kits.detailCreatePickListSubmit).toBeDisabled();
+
+    // Select "Limit" action for the shortfall part
+    const limitRadio = kits.detailCreatePickListShortfallRadio(part.key, 'limit');
+    await limitRadio.click();
+    await expect(limitRadio).toBeChecked();
+
+    // Submit button should now be enabled
+    await expect(kits.detailCreatePickListSubmit).toBeEnabled();
+
+    // Submit and verify pick list is created
+    const successEvent = waitTestEvent<FormTestEvent>(
+      page,
+      'form',
+      event => event.formId === 'KitPickList:create' && event.phase === 'success',
+    );
+    const loadingReady = waitForListLoading(page, 'kits.detail.pickLists.create', 'ready');
+
+    await kits.detailCreatePickListSubmit.click();
+
+    const successPayload = await successEvent;
+    expect(successPayload.fields).toMatchObject({
+      kitId: kit.id,
+      requestedUnits: 2,
+      hasShortfall: true,
+      shortfallCount: 1,
+    });
+    expect(successPayload.fields?.pickListId).toBeDefined();
+
+    await loadingReady;
+    await toastHelper.expectSuccessToast(/Created pick list/i);
+    await expect(kits.detailCreatePickListDialog).not.toBeVisible();
+
+    // Verify pick list was created in the panel
+    const pickListId = successPayload.fields?.pickListId as number;
+    await expect(kits.pickListPanelOpenItem(pickListId)).toBeVisible();
+  });
+
+  test('skips shortfall step when all parts have sufficient stock', async ({
+    kits,
+    page,
+    apiClient,
+    testData,
+    toastHelper,
+  }) => {
+    // Create a part and add plenty of stock
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Sufficient Stock Part' },
+    });
+    await testData.parts.getDetail(part.key);
+    const partReservationMetadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+    const partId = partReservationMetadata.part_id;
+
+    // Add sufficient stock: 100 units
+    const box = await testData.boxes.create();
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: box.box_no, loc_no: 1, qty: 100 },
+      })
+    );
+
+    // Create kit with content requiring 5 units per build
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('No Shortfall Kit'),
+        build_target: 10,
+      },
+    });
+
+    await testData.kits.addContent(kit.id, {
+      partId,
+      requiredPerUnit: 5,
+    });
+
+    // Navigate to kit detail
+    const detailReady = waitForListLoading(page, 'kits.detail', 'ready');
+    const contentsReady = waitForListLoading(page, 'kits.detail.contents', 'ready');
+    const panelReady = waitForUiState(page, 'kits.detail.pickLists.panel', 'ready');
+
+    await kits.gotoOverview();
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await kits.openDetailFromCard(kit.id);
+
+    await detailReady;
+    await contentsReady;
+    await panelReady;
+
+    // Open pick list create dialog
+    await kits.pickListPanelAddButton.click();
+    await expect(kits.detailCreatePickListDialog).toBeVisible();
+    await expect(kits.detailCreatePickListStepUnits).toBeVisible();
+
+    // Request 2 units: 5 * 2 = 10 required < 100 available = no shortfall
+    await kits.detailCreatePickListRequestedUnits.fill('2');
+
+    // Submit should skip shortfall step and create pick list directly
+    const successEvent = waitTestEvent<FormTestEvent>(
+      page,
+      'form',
+      event => event.formId === 'KitPickList:create' && event.phase === 'success',
+    );
+    const loadingReady = waitForListLoading(page, 'kits.detail.pickLists.create', 'ready');
+
+    await kits.detailCreatePickListContinue.click();
+
+    const successPayload = await successEvent;
+    expect(successPayload.fields).toMatchObject({
+      kitId: kit.id,
+      requestedUnits: 2,
+      hasShortfall: false,
+      shortfallCount: 0,
+    });
+
+    await loadingReady;
+    await toastHelper.expectSuccessToast(/Created pick list/i);
+    await expect(kits.detailCreatePickListDialog).not.toBeVisible();
+
+    // Shortfall step should never have been visible
+    // (Dialog should go directly from units to success)
+  });
+
+  test('back button returns to units step preserving input value', async ({
+    kits,
+    page,
+    apiClient,
+    testData,
+  }) => {
+    // Create a part with limited stock
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Back Button Test Part' },
+    });
+    await testData.parts.getDetail(part.key);
+    const partReservationMetadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+    const partId = partReservationMetadata.part_id;
+
+    const box = await testData.boxes.create();
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: box.box_no, loc_no: 1, qty: 10 },
+      })
+    );
+
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Back Button Kit'),
+        build_target: 5,
+      },
+    });
+
+    await testData.kits.addContent(kit.id, {
+      partId,
+      requiredPerUnit: 8,
+    });
+
+    // Navigate to kit detail
+    await kits.gotoOverview();
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await kits.openDetailFromCard(kit.id);
+    await waitForListLoading(page, 'kits.detail', 'ready');
+    await waitForListLoading(page, 'kits.detail.contents', 'ready');
+    await waitForUiState(page, 'kits.detail.pickLists.panel', 'ready');
+
+    // Open dialog and go to shortfall step
+    await kits.pickListPanelAddButton.click();
+    await expect(kits.detailCreatePickListDialog).toBeVisible();
+
+    await kits.detailCreatePickListRequestedUnits.fill('2');
+    await kits.detailCreatePickListContinue.click();
+
+    await expect(kits.detailCreatePickListStepShortfall).toBeVisible();
+
+    // Click back button
+    await kits.detailCreatePickListBack.click();
+
+    // Should return to units step with value preserved
+    await expect(kits.detailCreatePickListStepUnits).toBeVisible();
+    await expect(kits.detailCreatePickListStepShortfall).not.toBeVisible();
+    await expect(kits.detailCreatePickListRequestedUnits).toHaveValue('2');
+  });
+
+  test('shows error when all parts are omitted', async ({
+    kits,
+    page,
+    apiClient,
+    testData,
+    toastHelper,
+  }) => {
+    // Create a part with limited stock
+    const { part } = await testData.parts.create({
+      overrides: { description: 'Omit All Test Part' },
+    });
+    await testData.parts.getDetail(part.key);
+    const partReservationMetadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part.key } },
+      })
+    );
+    const partId = partReservationMetadata.part_id;
+
+    const box = await testData.boxes.create();
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part.key } },
+        body: { box_no: box.box_no, loc_no: 1, qty: 5 },
+      })
+    );
+
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Omit All Kit'),
+        build_target: 5,
+      },
+    });
+
+    await testData.kits.addContent(kit.id, {
+      partId,
+      requiredPerUnit: 10,
+    });
+
+    // Navigate to kit detail
+    await kits.gotoOverview();
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await kits.openDetailFromCard(kit.id);
+    await waitForListLoading(page, 'kits.detail', 'ready');
+    await waitForListLoading(page, 'kits.detail.contents', 'ready');
+    await waitForUiState(page, 'kits.detail.pickLists.panel', 'ready');
+
+    // Open dialog and go to shortfall step
+    await kits.pickListPanelAddButton.click();
+    await expect(kits.detailCreatePickListDialog).toBeVisible();
+
+    await kits.detailCreatePickListRequestedUnits.fill('1');
+    await kits.detailCreatePickListContinue.click();
+
+    await expect(kits.detailCreatePickListStepShortfall).toBeVisible();
+
+    // Select "Omit" for the only shortfall part
+    const omitRadio = kits.detailCreatePickListShortfallRadio(part.key, 'omit');
+    await omitRadio.click();
+
+    // Expect console error for the 409 response
+    await expectConsoleError(page, /409|conflict|omit|cannot/i);
+
+    // Submit - should fail with error toast from backend
+    await kits.detailCreatePickListSubmit.click();
+
+    // Backend returns error - toast should show the error message
+    await toastHelper.expectErrorToast(/cannot|omit|empty/i);
+
+    // Dialog should remain open on shortfall step
+    await expect(kits.detailCreatePickListDialog).toBeVisible();
+    await expect(kits.detailCreatePickListStepShortfall).toBeVisible();
+  });
+
+  test('handles multiple shortfall parts with mixed actions', async ({
+    kits,
+    page,
+    apiClient,
+    testData,
+    toastHelper,
+  }) => {
+    // Create two parts with limited stock
+    const { part: part1 } = await testData.parts.create({
+      overrides: { description: 'Multi Shortfall Part 1' },
+    });
+    const { part: part2 } = await testData.parts.create({
+      overrides: { description: 'Multi Shortfall Part 2' },
+    });
+    await testData.parts.getDetail(part1.key);
+    await testData.parts.getDetail(part2.key);
+
+    const part1Metadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part1.key } },
+      })
+    );
+    const part2Metadata = await apiClient.apiRequest<PartKitReservationsResponseSchema_d12d9a5>(() =>
+      apiClient.GET('/api/parts/{part_key}/kit-reservations', {
+        params: { path: { part_key: part2.key } },
+      })
+    );
+
+    // Add limited stock for both parts
+    const box = await testData.boxes.create();
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part1.key } },
+        body: { box_no: box.box_no, loc_no: 1, qty: 15 },
+      })
+    );
+    await apiClient.apiRequest(() =>
+      apiClient.POST('/api/inventory/parts/{part_key}/stock', {
+        params: { path: { part_key: part2.key } },
+        body: { box_no: box.box_no, loc_no: 2, qty: 8 },
+      })
+    );
+
+    // Create kit with both parts
+    const kit = await testData.kits.create({
+      overrides: {
+        name: testData.kits.randomKitName('Multi Shortfall Kit'),
+        build_target: 5,
+      },
+    });
+
+    await testData.kits.addContent(kit.id, {
+      partId: part1Metadata.part_id,
+      requiredPerUnit: 10,
+    });
+    await testData.kits.addContent(kit.id, {
+      partId: part2Metadata.part_id,
+      requiredPerUnit: 5,
+    });
+
+    // Navigate to kit detail
+    await kits.gotoOverview();
+    const searchReady = waitForListLoading(page, 'kits.overview', 'ready');
+    await kits.search(kit.name);
+    await searchReady;
+    await kits.openDetailFromCard(kit.id);
+    await waitForListLoading(page, 'kits.detail', 'ready');
+    await waitForListLoading(page, 'kits.detail.contents', 'ready');
+    await waitForUiState(page, 'kits.detail.pickLists.panel', 'ready');
+
+    // Open dialog and go to shortfall step
+    await kits.pickListPanelAddButton.click();
+    await kits.detailCreatePickListRequestedUnits.fill('2');
+    await kits.detailCreatePickListContinue.click();
+
+    await expect(kits.detailCreatePickListStepShortfall).toBeVisible();
+
+    // Both parts should show shortfall rows
+    // Part 1: 10 * 2 = 20 required, 15 available
+    // Part 2: 5 * 2 = 10 required, 8 available
+    await expect(kits.detailCreatePickListShortfallRow(part1.key)).toBeVisible();
+    await expect(kits.detailCreatePickListShortfallRow(part2.key)).toBeVisible();
+
+    // Submit should be disabled until all parts have actions
+    await expect(kits.detailCreatePickListSubmit).toBeDisabled();
+
+    // Select limit for part1, omit for part2
+    await kits.detailCreatePickListShortfallRadio(part1.key, 'limit').click();
+    await expect(kits.detailCreatePickListSubmit).toBeDisabled(); // Still disabled - part2 has no action
+
+    await kits.detailCreatePickListShortfallRadio(part2.key, 'omit').click();
+    await expect(kits.detailCreatePickListSubmit).toBeEnabled(); // Now enabled
+
+    // Submit and verify success
+    const successEvent = waitTestEvent<FormTestEvent>(
+      page,
+      'form',
+      event => event.formId === 'KitPickList:create' && event.phase === 'success',
+    );
+    const loadingReady = waitForListLoading(page, 'kits.detail.pickLists.create', 'ready');
+
+    await kits.detailCreatePickListSubmit.click();
+
+    const successPayload = await successEvent;
+    expect(successPayload.fields).toMatchObject({
+      kitId: kit.id,
+      requestedUnits: 2,
+      hasShortfall: true,
+      shortfallCount: 2,
+    });
+
+    await loadingReady;
+    await toastHelper.expectSuccessToast(/Created pick list/i);
+    await expect(kits.detailCreatePickListDialog).not.toBeVisible();
   });
 });

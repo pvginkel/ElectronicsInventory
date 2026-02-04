@@ -10,8 +10,13 @@ type KitContentUpdateSchema = components['schemas']['KitContentUpdateSchema.b987
 type KitDetailResponseSchema = components['schemas']['KitDetailResponseSchema.b98797e'];
 type KitPickListCreateSchema = components['schemas']['KitPickListCreateSchema.b247181'];
 type KitPickListDetailSchema = components['schemas']['KitPickListDetailSchema.b247181'];
+type ShortfallAction = components['schemas']['KitPickListCreateSchema.b247181.ShortfallAction'];
 type KitShoppingListRequestSchema = components['schemas']['KitShoppingListRequestSchema.b98797e'];
 type KitShoppingListLinkResponseSchema = components['schemas']['KitShoppingListLinkResponseSchema.b98797e'];
+
+export interface PickListShortfallHandling {
+  [partKey: string]: { action: ShortfallAction };
+}
 
 interface KitCreateOptions {
   overrides?: Partial<KitCreateSchema>;
@@ -187,13 +192,20 @@ export class KitTestFactory {
 
   /**
    * Create a pick list for the specified kit and return the detail payload.
+   * @param kitId The kit ID to create the pick list for
+   * @param options.requestedUnits Number of kit builds to fulfill (defaults to 1)
+   * @param options.shortfallHandling Optional map of part keys to shortfall actions
    */
   async createPickList(
     kitId: number,
-    options?: { requestedUnits?: number }
+    options?: {
+      requestedUnits?: number;
+      shortfallHandling?: PickListShortfallHandling | null;
+    }
   ): Promise<KitPickListDetailSchema> {
     const payload: KitPickListCreateSchema = {
       requested_units: options?.requestedUnits ?? 1,
+      shortfall_handling: options?.shortfallHandling ?? null,
     };
 
     return apiRequest(() =>

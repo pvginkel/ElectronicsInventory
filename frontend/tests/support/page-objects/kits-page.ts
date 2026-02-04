@@ -50,6 +50,10 @@ export class KitsPage extends BasePage {
   readonly detailCreatePickListRequestedUnits: Locator;
   readonly detailCreatePickListSubmit: Locator;
   readonly detailCreatePickListCancel: Locator;
+  readonly detailCreatePickListContinue: Locator;
+  readonly detailCreatePickListBack: Locator;
+  readonly detailCreatePickListStepUnits: Locator;
+  readonly detailCreatePickListStepShortfall: Locator;
   readonly detailEditDisabledWrapper: Locator;
   readonly detailSummary: Locator;
   readonly detailTable: Locator;
@@ -121,6 +125,10 @@ export class KitsPage extends BasePage {
     this.detailCreatePickListRequestedUnits = page.getByTestId('kits.detail.pick-list.create.field.requested-units');
     this.detailCreatePickListSubmit = page.getByTestId('kits.detail.pick-list.create.submit');
     this.detailCreatePickListCancel = page.getByTestId('kits.detail.pick-list.create.cancel');
+    this.detailCreatePickListContinue = page.getByTestId('kits.detail.pick-list.create.continue');
+    this.detailCreatePickListBack = page.getByTestId('kits.detail.pick-list.create.back');
+    this.detailCreatePickListStepUnits = page.getByTestId('kits.detail.pick-list.create.step.units');
+    this.detailCreatePickListStepShortfall = page.getByTestId('kits.detail.pick-list.create.step.shortfall');
     this.detailEditDisabledWrapper = page.getByTestId('kits.detail.actions.edit.disabled-wrapper');
     this.detailSummary = page.getByTestId('kits.detail.table.summary');
     this.detailTable = page.getByTestId('kits.detail.table');
@@ -360,5 +368,24 @@ export class KitsPage extends BasePage {
   detailEditorCancel(mode: 'create' | 'edit', rowId?: number): Locator {
     const suffix = mode === 'create' ? 'create' : `edit.${rowId ?? 'active'}`;
     return this.page.getByTestId(`kits.detail.table.editor.${suffix}.cancel`);
+  }
+
+  // --- Pick List Shortfall Handling ---
+
+  /**
+   * Returns the locator for a shortfall row in the pick list creation dialog.
+   * @param partKey The part key identifying the shortfall row
+   */
+  detailCreatePickListShortfallRow(partKey: string): Locator {
+    return this.page.getByTestId(`kits.detail.pick-list.create.shortfall.row.${partKey}`);
+  }
+
+  /**
+   * Returns the locator for a shortfall action radio button.
+   * @param partKey The part key identifying the shortfall row
+   * @param action The action type ('limit' or 'omit')
+   */
+  detailCreatePickListShortfallRadio(partKey: string, action: 'limit' | 'omit'): Locator {
+    return this.page.getByTestId(`kits.detail.pick-list.create.shortfall.row.${partKey}.${action}`);
   }
 }

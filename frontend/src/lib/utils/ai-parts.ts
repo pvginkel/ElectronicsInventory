@@ -1,9 +1,11 @@
 import type { components } from '@/lib/api/generated/types';
-import type { DuplicatePartEntry, TransformedAIPartAnalysisResult } from '@/types/ai-parts';
-
-type DocumentSuggestionSchema = components['schemas']['AIPartCreateSchema.63ff6da.DocumentSuggestionSchema'];
-type AIPartAnalysisResultSchema = components['schemas']['AIPartAnalysisTaskResultSchema.63ff6da.AIPartAnalysisResultSchema'];
-type DuplicateMatchEntry = components['schemas']['AIPartAnalysisTaskResultSchema.63ff6da.DuplicateMatchEntry'];
+import type {
+  AIPartAnalysisResultSchema,
+  DocumentSuggestionSchema,
+  DuplicateMatchEntry,
+  DuplicatePartEntry,
+  TransformedAIPartAnalysisResult,
+} from '@/types/ai-parts';
 
 /**
  * Deduplicate documents by URL to prevent duplicate downloads and storage

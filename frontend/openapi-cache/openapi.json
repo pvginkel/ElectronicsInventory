@@ -1,524 +1,6 @@
 {
   "components": {
     "schemas": {
-      "AIPartAnalysisTaskResultSchema.63ff6da": {
-        "description": "Schema for task result returned by AI analysis task.",
-        "properties": {
-          "analysis": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AIPartAnalysisTaskResultSchema.63ff6da.AIPartAnalysisResultSchema"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Analysis results if successful"
-          },
-          "error_message": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Error message if analysis failed",
-            "example": "Failed to analyze image: unsupported format",
-            "title": "Error Message"
-          },
-          "success": {
-            "description": "Whether the analysis completed successfully",
-            "example": true,
-            "title": "Success",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "success"
-        ],
-        "title": "AIPartAnalysisTaskResultSchema",
-        "type": "object"
-      },
-      "AIPartAnalysisTaskResultSchema.63ff6da.AIPartAnalysisResultSchema": {
-        "description": "Schema for AI analysis result with flexible response paths.\n\nThe LLM can populate:\n- Only analysis_result (full analysis, no duplicates found)\n- Only duplicate_parts (high-confidence duplicates found, no analysis needed)\n- Only analysis_failure_reason (query too vague/ambiguous, cannot proceed)\n- Multiple fields (e.g., medium-confidence duplicates with full analysis, or partial analysis with failure reason)\n\nAll fields are optional; LLM prompt guidance determines which to populate.",
-        "properties": {
-          "analysis_failure_reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Explanation when the query lacks sufficient information to identify a specific part",
-            "title": "Analysis Failure Reason"
-          },
-          "analysis_result": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AIPartAnalysisTaskResultSchema.63ff6da.PartAnalysisDetailsSchema"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Full part analysis when no high-confidence duplicates found or duplicate search not performed"
-          },
-          "duplicate_parts": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/AIPartAnalysisTaskResultSchema.63ff6da.DuplicateMatchEntry"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "List of potential duplicate parts when duplicates are found (includes high and medium confidence matches)",
-            "title": "Duplicate Parts"
-          }
-        },
-        "title": "AIPartAnalysisResultSchema",
-        "type": "object"
-      },
-      "AIPartAnalysisTaskResultSchema.63ff6da.DocumentSuggestionSchema": {
-        "description": "Schema for AI-suggested document.",
-        "properties": {
-          "document_type": {
-            "description": "Type of document (datasheet, manual, schematic, etc.)",
-            "example": "datasheet",
-            "title": "Document Type",
-            "type": "string"
-          },
-          "is_cover_image": {
-            "default": false,
-            "description": "Image to become the cover image",
-            "title": "Is Cover Image",
-            "type": "boolean"
-          },
-          "preview": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/AIPartAnalysisTaskResultSchema.63ff6da.UrlPreviewResponseSchema"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "URL preview metadata including title and image URL"
-          },
-          "url": {
-            "description": "Original URL from which the document was downloaded",
-            "example": "https://www.example.com/datasheet.pdf",
-            "title": "Url",
-            "type": "string"
-          }
-        },
-        "required": [
-          "url",
-          "document_type"
-        ],
-        "title": "DocumentSuggestionSchema",
-        "type": "object"
-      },
-      "AIPartAnalysisTaskResultSchema.63ff6da.DuplicateMatchEntry": {
-        "additionalProperties": false,
-        "description": "Schema for a single duplicate match result.",
-        "properties": {
-          "confidence": {
-            "description": "Confidence level of the match (high or medium only)",
-            "enum": [
-              "high",
-              "medium"
-            ],
-            "example": "high",
-            "title": "Confidence",
-            "type": "string"
-          },
-          "part_key": {
-            "description": "4-character key of the potentially duplicate part",
-            "example": "ABCD",
-            "title": "Part Key",
-            "type": "string"
-          },
-          "reasoning": {
-            "description": "Explanation of why this part matches",
-            "example": "Exact manufacturer part number match with same manufacturer",
-            "title": "Reasoning",
-            "type": "string"
-          }
-        },
-        "required": [
-          "part_key",
-          "confidence",
-          "reasoning"
-        ],
-        "title": "DuplicateMatchEntry",
-        "type": "object"
-      },
-      "AIPartAnalysisTaskResultSchema.63ff6da.PartAnalysisDetailsSchema": {
-        "description": "Schema for full AI part analysis details.",
-        "properties": {
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-generated part description",
-            "example": "Arduino Uno R3 microcontroller development board with ATmega328P",
-            "title": "Description"
-          },
-          "dimensions": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-suggested physical dimensions",
-            "example": "68.6x53.4mm",
-            "title": "Dimensions"
-          },
-          "documents": {
-            "default": [],
-            "description": "AI-suggested and downloaded documents",
-            "example": [],
-            "items": {
-              "$ref": "#/components/schemas/AIPartAnalysisTaskResultSchema.63ff6da.DocumentSuggestionSchema"
-            },
-            "title": "Documents",
-            "type": "array"
-          },
-          "existing_seller_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "ID of existing seller if seller_is_existing is True",
-            "example": 1,
-            "title": "Existing Seller Id"
-          },
-          "existing_type_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "ID of existing type if type_is_existing is True",
-            "example": 5,
-            "title": "Existing Type Id"
-          },
-          "input_voltage": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-suggested input voltage range/specification",
-            "example": "5-12V DC",
-            "title": "Input Voltage"
-          },
-          "manufacturer": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-suggested manufacturer company name",
-            "example": "Arduino",
-            "title": "Manufacturer"
-          },
-          "manufacturer_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-suggested manufacturer part number",
-            "example": "Arduino A000066",
-            "title": "Manufacturer Code"
-          },
-          "mounting_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-suggested mounting type",
-            "example": "Breadboard Compatible",
-            "title": "Mounting Type"
-          },
-          "output_voltage": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-suggested output voltage range/specification",
-            "example": "3.3V",
-            "title": "Output Voltage"
-          },
-          "package": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-suggested physical package/form factor",
-            "example": "Arduino Uno Form Factor",
-            "title": "Package"
-          },
-          "pin_count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-suggested number of pins/connections",
-            "example": 32,
-            "title": "Pin Count"
-          },
-          "pin_pitch": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-suggested component pin pitch/spacing",
-            "example": "2.54mm",
-            "title": "Pin Pitch"
-          },
-          "product_page": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-suggested manufacturer product page URL",
-            "example": "https://www.arduino.cc/en/Main/arduinoBoardUno",
-            "title": "Product Page"
-          },
-          "seller": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-suggested seller name (e.g., 'Mouser')",
-            "example": "Mouser",
-            "title": "Seller"
-          },
-          "seller_is_existing": {
-            "default": false,
-            "description": "Whether the suggested seller matches an existing seller in the system",
-            "example": true,
-            "title": "Seller Is Existing",
-            "type": "boolean"
-          },
-          "seller_link": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-suggested seller product page URL",
-            "example": "https://www.mouser.com/ProductDetail/123456",
-            "title": "Seller Link"
-          },
-          "series": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-suggested component series",
-            "example": "Arduino Uno",
-            "title": "Series"
-          },
-          "tags": {
-            "default": [],
-            "description": "AI-suggested tags for the part",
-            "example": [
-              "arduino",
-              "microcontroller",
-              "ATmega328P",
-              "development"
-            ],
-            "items": {
-              "type": "string"
-            },
-            "title": "Tags",
-            "type": "array"
-          },
-          "type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-suggested type name for frontend display and type creation (not used in part creation)",
-            "example": "Microcontroller",
-            "title": "Type"
-          },
-          "type_is_existing": {
-            "default": false,
-            "description": "Whether the suggested type matches an existing type in the system",
-            "example": true,
-            "title": "Type Is Existing",
-            "type": "boolean"
-          },
-          "voltage_rating": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "AI-suggested operating voltage",
-            "example": "5V/3.3V",
-            "title": "Voltage Rating"
-          }
-        },
-        "title": "PartAnalysisDetailsSchema",
-        "type": "object"
-      },
-      "AIPartAnalysisTaskResultSchema.63ff6da.UrlPreviewResponseSchema": {
-        "description": "Schema for URL preview responses.",
-        "properties": {
-          "content_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Content type",
-            "title": "Content Type"
-          },
-          "image_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Backend endpoint URL for preview image",
-            "title": "Image Url"
-          },
-          "original_url": {
-            "description": "Original URL",
-            "title": "Original Url",
-            "type": "string"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Page title",
-            "title": "Title"
-          }
-        },
-        "required": [
-          "original_url",
-          "content_type"
-        ],
-        "title": "UrlPreviewResponseSchema",
-        "type": "object"
-      },
       "AIPartCreateSchema.63ff6da": {
         "additionalProperties": false,
         "description": "Schema for creating a part from AI suggestions.",
@@ -1597,6 +1079,25 @@
           "part_count"
         ],
         "title": "CategoryDistributionSchema",
+        "type": "object"
+      },
+      "CleanupPartRequestSchema.3bb1613": {
+        "description": "Schema for requesting AI part cleanup.",
+        "properties": {
+          "part_key": {
+            "description": "4-character part key to clean up",
+            "example": "ABCD",
+            "maxLength": 4,
+            "minLength": 4,
+            "pattern": "^[A-Z]{4}$",
+            "title": "Part Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "part_key"
+        ],
+        "title": "CleanupPartRequestSchema",
         "type": "object"
       },
       "ContentHtmlQuerySchema.355d24f": {
@@ -3194,12 +2695,61 @@
             "minimum": 1,
             "title": "Requested Units",
             "type": "integer"
+          },
+          "shortfall_handling": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/KitPickListCreateSchema.b247181.ShortfallActionSchema"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional map of part keys to shortfall actions. Parts not in the map default to 'reject' behavior.",
+            "example": {
+              "ABCD": {
+                "action": "limit"
+              },
+              "DEFG": {
+                "action": "omit"
+              }
+            },
+            "title": "Shortfall Handling"
           }
         },
         "required": [
           "requested_units"
         ],
         "title": "KitPickListCreateSchema",
+        "type": "object"
+      },
+      "KitPickListCreateSchema.b247181.ShortfallAction": {
+        "description": "Actions for handling part shortfall during pick list creation.",
+        "enum": [
+          "reject",
+          "limit",
+          "omit"
+        ],
+        "title": "ShortfallAction",
+        "type": "string"
+      },
+      "KitPickListCreateSchema.b247181.ShortfallActionSchema": {
+        "description": "Schema for specifying a shortfall handling action.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/KitPickListCreateSchema.b247181.ShortfallAction",
+            "description": "Action to take when part has insufficient stock",
+            "example": "limit"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "ShortfallActionSchema",
         "type": "object"
       },
       "KitPickListDetailSchema.b247181": {
@@ -10679,43 +10229,33 @@
         "tags": []
       }
     },
-    "/api/ai-parts/analyze/{task_id}/result": {
-      "get": {
-        "description": "This endpoint provides access to the structured analysis result data with proper OpenAPI schema documentation. While the same data is available via SSE during task execution, this endpoint ensures the result schema is included in the API documentation for client code generation.\n\nArgs:     task_id: The UUID of the completed analysis task\n\nReturns:     AIPartAnalysisTaskResultSchema: The structured analysis result\n\nRaises:     404: If task is not found or not completed",
-        "operationId": "get__api_ai-parts_analyze_{task_id}_result",
-        "parameters": [
-          {
-            "description": "",
-            "in": "path",
-            "name": "task_id",
-            "required": true,
-            "schema": {
-              "type": "string"
+    "/api/ai-parts/cleanup": {
+      "post": {
+        "description": "Accepts JSON with part_key and returns task ID and stream URL for monitoring progress via SSE.",
+        "operationId": "post__api_ai-parts_cleanup",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CleanupPartRequestSchema.3bb1613"
+              }
             }
-          }
-        ],
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AIPartAnalysisTaskResultSchema.63ff6da"
+                  "$ref": "#/components/schemas/TaskStartResponse.70db092"
                 }
               }
             },
-            "description": "OK"
+            "description": "Created"
           },
           "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationError.6a07bef"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "404": {
             "content": {
               "application/json": {
                 "schema": {
@@ -10723,10 +10263,10 @@
                 }
               }
             },
-            "description": "Not Found"
+            "description": "Bad Request"
           }
         },
-        "summary": "Get the result of a completed AI part analysis task.",
+        "summary": "Start AI cleanup task for an existing part.",
         "tags": []
       }
     },

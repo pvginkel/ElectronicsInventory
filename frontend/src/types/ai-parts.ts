@@ -1,6 +1,59 @@
 import type { components } from '@/lib/api/generated/types';
 
-type DocumentSuggestionSchema = components['schemas']['AIPartCreateSchema.63ff6da.DocumentSuggestionSchema'];
+export type DocumentSuggestionSchema = components['schemas']['AIPartCreateSchema.63ff6da.DocumentSuggestionSchema'];
+
+/**
+ * Raw API types for AI part analysis SSE results.
+ * These schemas are delivered via SSE (not REST), so they're not in the OpenAPI spec.
+ * Defined here to match the backend schema structure (snake_case).
+ */
+
+/**
+ * Raw duplicate match entry from API (snake_case)
+ */
+export interface DuplicateMatchEntry {
+  part_key: string;
+  confidence: 'high' | 'medium';
+  reasoning: string;
+}
+
+/**
+ * Raw part analysis details from API (snake_case)
+ */
+export interface PartAnalysisDetailsSchema {
+  manufacturer_code: string | null;
+  type: string | null;
+  description: string | null;
+  tags: string[];
+  manufacturer: string | null;
+  product_page: string | null;
+  package: string | null;
+  pin_count: number | null;
+  pin_pitch: string | null;
+  voltage_rating: string | null;
+  input_voltage: string | null;
+  output_voltage: string | null;
+  mounting_type: string | null;
+  series: string | null;
+  dimensions: string | null;
+  documents: DocumentSuggestionSchema[];
+  seller: string | null;
+  seller_link: string | null;
+  type_is_existing: boolean;
+  existing_type_id: number | null;
+  seller_is_existing: boolean;
+  existing_seller_id: number | null;
+}
+
+/**
+ * Raw AI analysis result from API (snake_case)
+ * This is what comes through SSE after the analysis task completes.
+ */
+export interface AIPartAnalysisResultSchema {
+  analysis_result: PartAnalysisDetailsSchema | null;
+  duplicate_parts: DuplicateMatchEntry[] | null;
+  analysis_failure_reason: string | null;
+}
 
 /**
  * Frontend TypeScript types for AI part analysis duplicate detection.

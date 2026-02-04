@@ -1,11 +1,8 @@
 import { useState, useCallback } from 'react';
-import type { components } from '@/lib/api/generated/types';
-import type { TransformedAIPartAnalysisResult } from '@/types/ai-parts';
+import type { AIPartAnalysisResultSchema, TransformedAIPartAnalysisResult } from '@/types/ai-parts';
 import { useSSETask } from './use-sse-task';
 import { transformAIPartAnalysisResult } from '@/lib/utils/ai-parts';
 import { emitComponentError } from '@/lib/test/error-instrumentation';
-
-type AIPartAnalysisResult = components['schemas']['AIPartAnalysisTaskResultSchema.63ff6da.AIPartAnalysisResultSchema'];
 
 interface UseAIPartAnalysisOptions {
   onProgress?: (message: string, percentage?: number) => void;
@@ -31,11 +28,11 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
     unsubscribe: unsubscribeSSE,
     progress,
     result: sseResult
-  } = useSSETask<{ analysis: AIPartAnalysisResult }>({
+  } = useSSETask<{ analysis: AIPartAnalysisResultSchema }>({
     onProgress: options.onProgress,
     onResult: <T>(data: T) => {
       // Extract analysis from the task result envelope
-      const envelope = data as { analysis: AIPartAnalysisResult };
+      const envelope = data as { analysis: AIPartAnalysisResultSchema };
       const transformedResult = transformAIPartAnalysisResult(envelope.analysis);
 
       // Guidepost: Differentiate between hard and soft failures
@@ -84,14 +81,14 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
     try {
       setIsAnalyzing(true);
       setError(null);
-      
+
       // Create FormData for multipart submission
       const formData = new FormData();
-      
+
       if (data.text) {
         formData.append('text', data.text);
       }
-      
+
       if (data.image) {
         formData.append('image', data.image);
       }
@@ -116,7 +113,7 @@ export function useAIPartAnalysis(options: UseAIPartAnalysisOptions = {}): UseAI
 
       // Subscribe to task events via unified SSE stream
       subscribeToTask(taskId);
-      
+
     } catch (error) {
       console.error('Failed to submit analysis request:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to start analysis';

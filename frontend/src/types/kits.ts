@@ -496,3 +496,68 @@ function clampNonNegative(value: number | null | undefined): number {
   }
   return Math.max(0, value);
 }
+
+// --- Shortfall Handling Types and Utilities ---
+
+export type ShortfallAction = 'limit' | 'omit';
+
+/**
+ * Represents a part with insufficient stock for the requested pick list units.
+ * Used in the two-step pick list creation dialog to collect user decisions.
+ */
+export interface ShortfallPartRow {
+  partKey: string;
+  partDescription: string;
+  requiredQuantity: number;  // requestedUnits * requiredPerUnit
+  availableQuantity: number;
+  shortfallAmount: number;   // requiredQuantity - availableQuantity
+  selectedAction: ShortfallAction | null;
+}
+
+/**
+ * Calculates parts with insufficient stock for the requested number of kit builds.
+ * A part has a shortfall when: requestedUnits * requiredPerUnit > available
+ *
+ * @param contents Kit content rows with availability data
+ * @param requestedUnits Number of kit builds to fulfill
+ * @returns Array of shortfall parts sorted by shortfall amount (descending), then by part key
+ */
+export function calculateShortfallParts(
+  contents: KitContentRow[],
+  requestedUnits: number
+): ShortfallPartRow[] {
+  const normalizedUnits = Number.isFinite(requestedUnits) ? Math.max(0, Math.trunc(requestedUnits)) : 0;
+
+  if (normalizedUnits <= 0 || contents.length === 0) {
+    return [];
+  }
+
+  const shortfallParts: ShortfallPartRow[] = [];
+
+  for (const content of contents) {
+    const requiredPerUnit = clampNonNegative(content.requiredPerUnit);
+    const requiredQuantity = requiredPerUnit * normalizedUnits;
+    const availableQuantity = clampNonNegative(content.available);
+
+    // Part has shortfall when required exceeds available
+    if (requiredQuantity > availableQuantity) {
+      shortfallParts.push({
+        partKey: content.part.key,
+        partDescription: content.part.description,
+        requiredQuantity,
+        availableQuantity,
+        shortfallAmount: requiredQuantity - availableQuantity,
+        selectedAction: null,
+      });
+    }
+  }
+
+  // Sort by shortfall amount descending, then by part key for stable ordering
+  return shortfallParts.sort((a, b) => {
+    const shortfallDelta = b.shortfallAmount - a.shortfallAmount;
+    if (shortfallDelta !== 0) {
+      return shortfallDelta;
+    }
+    return a.partKey.localeCompare(b.partKey);
+  });
+}
