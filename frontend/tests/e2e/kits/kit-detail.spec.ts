@@ -1595,6 +1595,16 @@ test.describe('Pick list shortfall handling', () => {
 
     // Request 2 units: 10 * 2 = 20 required > 15 available = shortfall
     await kits.detailCreatePickListRequestedUnits.fill('2');
+
+    // Wait for the preview API call to complete (debounced check)
+    // The loading indicator should appear briefly then disappear
+    await expect(kits.detailCreatePickListShortfallLoading).toBeVisible();
+    await expect(kits.detailCreatePickListShortfallLoading).not.toBeVisible();
+
+    // Verify warning message appears indicating shortfall will occur
+    await expect(kits.detailCreatePickListShortfallWarning).toBeVisible();
+    await expect(kits.detailCreatePickListShortfallWarning).toContainText('1 part has insufficient stock');
+
     await kits.detailCreatePickListContinue.click();
 
     // Should transition to shortfall step
@@ -1613,9 +1623,9 @@ test.describe('Pick list shortfall handling', () => {
     await expect(kits.detailCreatePickListSubmit).toBeDisabled();
 
     // Select "Limit" action for the shortfall part
-    const limitRadio = kits.detailCreatePickListShortfallRadio(part.key, 'limit');
-    await limitRadio.click();
-    await expect(limitRadio).toBeChecked();
+    const limitAction = kits.detailCreatePickListShortfallAction(part.key, 'limit');
+    await limitAction.click();
+    await expect(limitAction).toHaveAttribute('aria-selected', 'true');
 
     // Submit button should now be enabled
     await expect(kits.detailCreatePickListSubmit).toBeEnabled();
@@ -1863,8 +1873,8 @@ test.describe('Pick list shortfall handling', () => {
     await expect(kits.detailCreatePickListStepShortfall).toBeVisible();
 
     // Select "Omit" for the only shortfall part
-    const omitRadio = kits.detailCreatePickListShortfallRadio(part.key, 'omit');
-    await omitRadio.click();
+    const omitAction = kits.detailCreatePickListShortfallAction(part.key, 'omit');
+    await omitAction.click();
 
     // Expect console error for the 409 response
     await expectConsoleError(page, /409|conflict|omit|cannot/i);
@@ -1967,10 +1977,10 @@ test.describe('Pick list shortfall handling', () => {
     await expect(kits.detailCreatePickListSubmit).toBeDisabled();
 
     // Select limit for part1, omit for part2
-    await kits.detailCreatePickListShortfallRadio(part1.key, 'limit').click();
+    await kits.detailCreatePickListShortfallAction(part1.key, 'limit').click();
     await expect(kits.detailCreatePickListSubmit).toBeDisabled(); // Still disabled - part2 has no action
 
-    await kits.detailCreatePickListShortfallRadio(part2.key, 'omit').click();
+    await kits.detailCreatePickListShortfallAction(part2.key, 'omit').click();
     await expect(kits.detailCreatePickListSubmit).toBeEnabled(); // Now enabled
 
     // Submit and verify success

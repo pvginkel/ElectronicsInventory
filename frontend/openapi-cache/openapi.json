@@ -3207,6 +3207,75 @@
         "title": "KitPickListStatus",
         "type": "string"
       },
+      "KitPickListPreviewRequestSchema.b247181": {
+        "description": "Request payload for previewing pick list shortfall.",
+        "properties": {
+          "requested_units": {
+            "description": "Number of kit builds to check availability for",
+            "example": 10,
+            "minimum": 1,
+            "title": "Requested Units",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requested_units"
+        ],
+        "title": "KitPickListPreviewRequestSchema",
+        "type": "object"
+      },
+      "KitPickListPreviewResponseSchema.b247181": {
+        "description": "Response payload for pick list preview showing parts with shortfall.",
+        "properties": {
+          "parts_with_shortfall": {
+            "description": "Parts that have insufficient stock for the requested units",
+            "items": {
+              "$ref": "#/components/schemas/KitPickListPreviewResponseSchema.b247181.PartShortfallSchema"
+            },
+            "title": "Parts With Shortfall",
+            "type": "array"
+          }
+        },
+        "title": "KitPickListPreviewResponseSchema",
+        "type": "object"
+      },
+      "KitPickListPreviewResponseSchema.b247181.PartShortfallSchema": {
+        "description": "Shortfall information for a single part.",
+        "properties": {
+          "part_key": {
+            "description": "Unique key of the part with shortfall",
+            "example": "ABCD",
+            "title": "Part Key",
+            "type": "string"
+          },
+          "required_quantity": {
+            "description": "Total quantity required for the requested units",
+            "example": 20,
+            "title": "Required Quantity",
+            "type": "integer"
+          },
+          "shortfall_amount": {
+            "description": "Amount short (required - usable)",
+            "example": 5,
+            "title": "Shortfall Amount",
+            "type": "integer"
+          },
+          "usable_quantity": {
+            "description": "Quantity available after accounting for reservations",
+            "example": 15,
+            "title": "Usable Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part_key",
+          "required_quantity",
+          "usable_quantity",
+          "shortfall_amount"
+        ],
+        "title": "PartShortfallSchema",
+        "type": "object"
+      },
       "KitPickListSummarySchemaList.a9993e3": {
         "items": {
           "$ref": "#/components/schemas/KitPickListSummarySchemaList.a9993e3.KitPickListSummarySchema"
@@ -12554,6 +12623,68 @@
           }
         },
         "summary": "Create a pick list for the specified kit.",
+        "tags": []
+      }
+    },
+    "/api/kits/{kit_id}/pick-lists/preview": {
+      "post": {
+        "description": "",
+        "operationId": "post__api_kits_{kit_id}_pick-lists_preview",
+        "parameters": [
+          {
+            "description": "",
+            "in": "path",
+            "name": "kit_id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KitPickListPreviewRequestSchema.b247181"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KitPickListPreviewResponseSchema.b247181"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseSchema.c2a0d71"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Preview parts with shortfall for the specified requested units.",
         "tags": []
       }
     },

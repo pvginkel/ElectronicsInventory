@@ -508,6 +508,8 @@ export type ShortfallAction = 'limit' | 'omit';
 export interface ShortfallPartRow {
   partKey: string;
   partDescription: string;
+  coverUrl: string | null;
+  manufacturerCode: string | null;
   requiredQuantity: number;  // requestedUnits * requiredPerUnit
   availableQuantity: number;
   shortfallAmount: number;   // requiredQuantity - availableQuantity
@@ -544,6 +546,8 @@ export function calculateShortfallParts(
       shortfallParts.push({
         partKey: content.part.key,
         partDescription: content.part.description,
+        coverUrl: content.part.coverUrl,
+        manufacturerCode: content.part.manufacturerCode,
         requiredQuantity,
         availableQuantity,
         shortfallAmount: requiredQuantity - availableQuantity,

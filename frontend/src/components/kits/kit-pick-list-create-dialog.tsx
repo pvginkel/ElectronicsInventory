@@ -11,6 +11,7 @@ import {
 import { Form, FormField, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
 import { useFormState } from '@/hooks/use-form-state';
 import { useFormInstrumentation, type UseFormInstrumentationResult } from '@/hooks/use-form-instrumentation';
 import { useListLoadingInstrumentation } from '@/lib/test/query-instrumentation';
@@ -18,11 +19,14 @@ import { useToast } from '@/hooks/use-toast';
 import { ApiError } from '@/lib/api/api-error';
 import {
   usePostKitsPickListsByKitId,
+  usePostKitsPickListsPreviewByKitId,
   type KitPickListDetailSchema_b247181,
   type KitPickListCreateSchema_b247181_ShortfallActionSchema,
+  type KitPickListPreviewResponseSchema_b247181,
 } from '@/lib/api/generated/hooks';
-import type { KitDetail, ShortfallPartRow, ShortfallAction } from '@/types/kits';
-import { calculateShortfallParts } from '@/types/kits';
+import type { KitDetail, ShortfallPartRow, ShortfallAction, KitContentRow } from '@/types/kits';
+import { PartInlineSummary } from '@/components/parts/part-inline-summary';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 
 const FORM_ID = 'KitPickList:create';
 
@@ -64,9 +68,16 @@ export function KitPickListCreateDialog({
   const [currentStep, setCurrentStep] = useState<DialogStep>('units');
   const [shortfallParts, setShortfallParts] = useState<ShortfallPartRow[]>([]);
 
+  // Preview state for the real-time shortfall warning
+  const [previewData, setPreviewData] = useState<KitPickListPreviewResponseSchema_b247181 | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const previewDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const mutation = usePostKitsPickListsByKitId({
     mutationKey: ['kits.detail.pickLists.create', kit.id],
   });
+
+  const previewMutation = usePostKitsPickListsPreviewByKitId();
 
   const form = useFormState<KitPickListFormValues>({
     initialValues: { requestedUnits: '' },
@@ -77,6 +88,50 @@ export function KitPickListCreateDialog({
       // Form submission is handled by handleCreatePickList
     },
   });
+
+  // Debounced preview endpoint call to determine shortfall as user types
+  useEffect(() => {
+    // Clear any pending debounce
+    if (previewDebounceRef.current) {
+      clearTimeout(previewDebounceRef.current);
+      previewDebounceRef.current = null;
+    }
+
+    const requestedUnits = parseRequestedUnits(form.values.requestedUnits);
+    if (requestedUnits === null || requestedUnits <= 0) {
+      setPreviewData(null);
+      setIsPreviewLoading(false);
+      return;
+    }
+
+    // Show loading state while debouncing
+    setIsPreviewLoading(true);
+
+    // Debounce the API call
+    previewDebounceRef.current = setTimeout(async () => {
+      try {
+        const result = await previewMutation.mutateAsync({
+          path: { kit_id: kit.id },
+          body: { requested_units: requestedUnits },
+        });
+        setPreviewData(result);
+      } catch {
+        // On error, clear preview data - the create call will handle the error
+        setPreviewData(null);
+      } finally {
+        setIsPreviewLoading(false);
+      }
+    }, 400);
+
+    return () => {
+      if (previewDebounceRef.current) {
+        clearTimeout(previewDebounceRef.current);
+      }
+    };
+    // Note: previewMutation is intentionally excluded from deps as it's stable and
+    // including it can cause unnecessary effect re-runs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.values.requestedUnits, kit.id]);
 
   // Define instrumentationSnapshot before it's used in callbacks
   const instrumentationSnapshot = useCallback(
@@ -191,18 +246,41 @@ export function KitPickListCreateDialog({
       return;
     }
 
-    // Calculate shortfall parts
-    const shortfall = calculateShortfallParts(kit.contents, requestedUnits);
+    // Use the preview endpoint to get accurate shortfall data from the backend
+    try {
+      const preview = await previewMutation.mutateAsync({
+        path: { kit_id: kit.id },
+        body: { requested_units: requestedUnits },
+      });
 
-    if (shortfall.length === 0) {
-      // No shortfall - create pick list directly
-      await handleCreatePickList();
-    } else {
-      // Has shortfall - transition to shortfall step
-      setShortfallParts(shortfall);
-      setCurrentStep('shortfall');
+      const shortfallItems = preview.parts_with_shortfall ?? [];
+
+      if (shortfallItems.length === 0) {
+        // No shortfall - create pick list directly
+        await handleCreatePickList();
+      } else {
+        // Has shortfall - map preview data to ShortfallPartRow and transition to step 2
+        const shortfall = mapPreviewToShortfallParts(shortfallItems, kit.contents);
+        setShortfallParts(shortfall);
+        setCurrentStep('shortfall');
+      }
+    } catch (error) {
+      // If preview fails, try to create the pick list anyway - backend will validate
+      // This handles cases where the preview endpoint might have issues
+      const fieldMessage = extractRequestedUnitsError(error);
+      if (fieldMessage) {
+        setRequestedUnitsError(fieldMessage);
+        instrumentationRef.current?.trackValidationError(
+          'requestedUnits',
+          fieldMessage,
+          instrumentationSnapshot(),
+        );
+      } else {
+        // Show the error via toast
+        showException('Failed to check availability', error);
+      }
     }
-  }, [form.values.requestedUnits, kit.contents, handleCreatePickList, instrumentationSnapshot]);
+  }, [form.values.requestedUnits, kit.id, kit.contents, previewMutation, handleCreatePickList, instrumentationSnapshot, showException]);
 
   // Handle action selection for a shortfall part
   const handleActionSelect = useCallback((partKey: string, action: ShortfallAction) => {
@@ -241,6 +319,12 @@ export function KitPickListCreateDialog({
     setRequestedUnitsError(undefined);
     setCurrentStep('units');
     setShortfallParts([]);
+    setPreviewData(null);
+    setIsPreviewLoading(false);
+    if (previewDebounceRef.current) {
+      clearTimeout(previewDebounceRef.current);
+      previewDebounceRef.current = null;
+    }
     form.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -301,6 +385,9 @@ export function KitPickListCreateDialog({
 
   const isSubmitDisabled = currentStep === 'shortfall' ? !allActionsSelected || mutation.isPending : mutation.isPending;
 
+  // Determine dialog width class based on current step
+  const dialogContentClass = currentStep === 'shortfall' ? 'max-w-4xl' : undefined;
+
   return (
     <Dialog
       open={open}
@@ -308,6 +395,7 @@ export function KitPickListCreateDialog({
       contentProps={
         {
           'data-testid': 'kits.detail.pick-list.create.dialog',
+          className: dialogContentClass,
         } as DialogContentProps
       }
     >
@@ -320,8 +408,10 @@ export function KitPickListCreateDialog({
               setRequestedUnitsError={setRequestedUnitsError}
               formTouched={form.touched.requestedUnits}
               formErrors={form.errors.requestedUnits}
-              isPending={mutation.isPending}
+              isPending={mutation.isPending || previewMutation.isPending}
               onCancel={() => handleDialogOpenChange(false)}
+              previewData={previewData}
+              isPreviewLoading={isPreviewLoading}
             />
           ) : (
             <ShortfallStep
@@ -353,6 +443,8 @@ interface UnitsStepProps {
   formErrors: string | undefined;
   isPending: boolean;
   onCancel: () => void;
+  previewData: KitPickListPreviewResponseSchema_b247181 | null;
+  isPreviewLoading: boolean;
 }
 
 function UnitsStep({
@@ -363,7 +455,13 @@ function UnitsStep({
   formErrors,
   isPending,
   onCancel,
+  previewData,
+  isPreviewLoading,
 }: UnitsStepProps) {
+  // Use the preview endpoint data to determine shortfall count
+  // The preview endpoint accounts for reservations from other kits correctly
+  const shortfallCount = previewData?.parts_with_shortfall?.length ?? null;
+
   return (
     <div data-testid="kits.detail.pick-list.create.step.units">
       <DialogHeader>
@@ -401,6 +499,31 @@ function UnitsStep({
           autoFocus
         />
       </FormField>
+
+      {isPreviewLoading && parseRequestedUnits(requestedUnitsField.value) !== null && (
+        <div
+          className="mt-4 flex items-center gap-2 text-sm text-muted-foreground"
+          data-testid="kits.detail.pick-list.create.shortfall-loading"
+        >
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          Checking availability...
+        </div>
+      )}
+
+      {!isPreviewLoading && shortfallCount !== null && shortfallCount > 0 && (
+        <div
+          className="mt-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-200"
+          data-testid="kits.detail.pick-list.create.shortfall-warning"
+        >
+          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" aria-hidden="true" />
+          <div>
+            <span className="font-medium">
+              {shortfallCount} {shortfallCount === 1 ? 'part has' : 'parts have'} insufficient stock.
+            </span>{' '}
+            You&apos;ll be asked to choose how to handle each shortfall in the next step.
+          </div>
+        </div>
+      )}
 
       <DialogFooter>
         <Button
@@ -518,48 +641,48 @@ interface ShortfallPartRowComponentProps {
   onActionSelect: (partKey: string, action: ShortfallAction) => void;
 }
 
+const SHORTFALL_ACTION_ITEMS = [
+  { id: 'limit', label: 'Limit' },
+  { id: 'omit', label: 'Omit' },
+];
+
 function ShortfallPartRowComponent({ part, onActionSelect }: ShortfallPartRowComponentProps) {
-  const radioName = `shortfall-action-${part.partKey}`;
+  const handleValueChange = useCallback((value: string) => {
+    if (value === 'limit' || value === 'omit') {
+      onActionSelect(part.partKey, value);
+    }
+  }, [onActionSelect, part.partKey]);
 
   return (
     <tr data-testid={`kits.detail.pick-list.create.shortfall.row.${part.partKey}`}>
-      <td className="py-2">
-        <div className="font-medium">{part.partKey}</div>
-        <div className="text-muted-foreground text-xs truncate max-w-48" title={part.partDescription}>
-          {part.partDescription}
-        </div>
+      <td className="px-3 py-3">
+        <PartInlineSummary
+          partKey={part.partKey}
+          description={part.partDescription}
+          coverUrl={part.coverUrl}
+          manufacturerCode={part.manufacturerCode}
+          link={true}
+          showCoverImage={true}
+        />
       </td>
-      <td className="py-2 text-right tabular-nums">{part.requiredQuantity.toLocaleString()}</td>
-      <td className="py-2 text-right tabular-nums">{part.availableQuantity.toLocaleString()}</td>
-      <td className="py-2 text-right tabular-nums text-destructive font-medium">
+      <td className="py-3 text-right tabular-nums">{part.requiredQuantity.toLocaleString()}</td>
+      <td className="py-3 text-right tabular-nums">{part.availableQuantity.toLocaleString()}</td>
+      <td className="py-3 text-right tabular-nums text-destructive font-medium">
         {part.shortfallAmount.toLocaleString()}
       </td>
-      <td className="py-2">
-        <div className="flex justify-center gap-4">
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="radio"
-              name={radioName}
-              value="limit"
-              checked={part.selectedAction === 'limit'}
-              onChange={() => onActionSelect(part.partKey, 'limit')}
-              className="w-4 h-4 text-primary focus:ring-primary border-input"
-              data-testid={`kits.detail.pick-list.create.shortfall.row.${part.partKey}.limit`}
-            />
-            <span className="text-xs">Limit</span>
-          </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="radio"
-              name={radioName}
-              value="omit"
-              checked={part.selectedAction === 'omit'}
-              onChange={() => onActionSelect(part.partKey, 'omit')}
-              className="w-4 h-4 text-primary focus:ring-primary border-input"
-              data-testid={`kits.detail.pick-list.create.shortfall.row.${part.partKey}.omit`}
-            />
-            <span className="text-xs">Omit</span>
-          </label>
+      <td className="py-3 text-center">
+        <div
+          className="inline-block"
+          data-testid={`kits.detail.pick-list.create.shortfall.row.${part.partKey}.action`}
+        >
+          <SegmentedTabs
+            items={SHORTFALL_ACTION_ITEMS}
+            value={part.selectedAction ?? ''}
+            onValueChange={handleValueChange}
+            ariaLabel={`Action for ${part.partKey}`}
+            scrollable={false}
+            className="text-xs"
+          />
         </div>
       </td>
     </tr>
@@ -620,4 +743,48 @@ function extractRequestedUnitsError(error: unknown): string | undefined {
     }
   }
   return undefined;
+}
+
+/**
+ * Maps the preview endpoint response to ShortfallPartRow array.
+ * Enriches the response with part descriptions from kit contents.
+ * Sorts by shortfall amount descending, then by part key for stable ordering.
+ */
+function mapPreviewToShortfallParts(
+  previewParts: Array<{
+    part_key: string;
+    required_quantity: number;
+    usable_quantity: number;
+    shortfall_amount: number;
+  }>,
+  contents: KitContentRow[]
+): ShortfallPartRow[] {
+  // Build a lookup map for part descriptions
+  const contentsByPartKey = new Map<string, KitContentRow>();
+  for (const content of contents) {
+    contentsByPartKey.set(content.part.key, content);
+  }
+
+  const shortfallRows = previewParts.map((item): ShortfallPartRow => {
+    const content = contentsByPartKey.get(item.part_key);
+    return {
+      partKey: item.part_key,
+      partDescription: content?.part.description ?? '',
+      coverUrl: content?.part.coverUrl ?? null,
+      manufacturerCode: content?.part.manufacturerCode ?? null,
+      requiredQuantity: item.required_quantity,
+      availableQuantity: item.usable_quantity,
+      shortfallAmount: item.shortfall_amount,
+      selectedAction: null,
+    };
+  });
+
+  // Sort by shortfall amount descending, then by part key for stable ordering
+  return shortfallRows.sort((a, b) => {
+    const shortfallDelta = b.shortfallAmount - a.shortfallAmount;
+    if (shortfallDelta !== 0) {
+      return shortfallDelta;
+    }
+    return a.partKey.localeCompare(b.partKey);
+  });
 }

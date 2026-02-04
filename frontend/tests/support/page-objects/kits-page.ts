@@ -381,11 +381,28 @@ export class KitsPage extends BasePage {
   }
 
   /**
-   * Returns the locator for a shortfall action radio button.
+   * Returns the locator for a shortfall action button (segmented tab).
    * @param partKey The part key identifying the shortfall row
    * @param action The action type ('limit' or 'omit')
    */
-  detailCreatePickListShortfallRadio(partKey: string, action: 'limit' | 'omit'): Locator {
-    return this.page.getByTestId(`kits.detail.pick-list.create.shortfall.row.${partKey}.${action}`);
+  detailCreatePickListShortfallAction(partKey: string, action: 'limit' | 'omit'): Locator {
+    const label = action === 'limit' ? 'Limit' : 'Omit';
+    return this.page
+      .getByTestId(`kits.detail.pick-list.create.shortfall.row.${partKey}.action`)
+      .getByRole('tab', { name: label });
+  }
+
+  /**
+   * Returns the locator for the shortfall warning message in the units step.
+   */
+  get detailCreatePickListShortfallWarning(): Locator {
+    return this.page.getByTestId('kits.detail.pick-list.create.shortfall-warning');
+  }
+
+  /**
+   * Returns the locator for the shortfall loading indicator in the units step.
+   */
+  get detailCreatePickListShortfallLoading(): Locator {
+    return this.page.getByTestId('kits.detail.pick-list.create.shortfall-loading');
   }
 }
