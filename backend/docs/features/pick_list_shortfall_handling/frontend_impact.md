@@ -92,71 +92,97 @@ When all parts would be omitted:
 }
 ```
 
-## Detecting Shortfall
+## Preview Endpoint (Recommended)
 
-The kit detail response already includes shortfall information for each part:
+Use the preview endpoint to get accurate shortfall information for a specific `requested_units` value. This avoids duplicating the complex reservation and availability calculations in the frontend.
 
-```
-GET /api/kits/<kit_id>
-```
+### Endpoint
 
-Response includes `contents` array where each item has:
+`POST /api/kits/<kit_id>/pick-lists/preview`
+
+### Request
 
 ```json
 {
-  "part": { "key": "ABCD", ... },
-  "required_per_unit": 5,
-  "in_stock": 100,
-  "reserved": 20,
-  "available": 80,
-  "shortfall": 10
+  "requested_units": 10
 }
 ```
 
-**Shortfall detection**: A part has shortfall when `shortfall > 0`.
+### Response
 
-For `requested_units = N`, calculate:
-- `total_required = required_per_unit * N`
-- Part has shortfall if `total_required > available`
+```json
+{
+  "parts_with_shortfall": [
+    {
+      "part_key": "ABCD",
+      "required_quantity": 20,
+      "usable_quantity": 15,
+      "shortfall_amount": 5
+    }
+  ]
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `part_key` | string | 4-character part identifier |
+| `required_quantity` | integer | Total quantity needed for requested units |
+| `usable_quantity` | integer | Quantity available after accounting for reservations |
+| `shortfall_amount` | integer | How many units short (`required - usable`) |
+
+### Response Codes
+
+| Code | Condition |
+|------|-----------|
+| 200 | Preview calculated successfully |
+| 400 | Invalid request (e.g., `requested_units < 1`) |
+| 404 | Kit not found |
+
+**Note**: An empty `parts_with_shortfall` array means all parts have sufficient stock.
 
 ## Frontend Implementation Guide
 
-### Step 1: Check for Shortfall Before Submission
+### Step 1: Check for Shortfall Using Preview Endpoint
 
 When user clicks "Create Pick List" and enters `requested_units`:
 
 ```typescript
-const partsWithShortfall = kit.contents.filter(content => {
-  const totalRequired = content.required_per_unit * requestedUnits;
-  return totalRequired > content.available;
+const previewResponse = await fetch(`/api/kits/${kitId}/pick-lists/preview`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ requested_units: requestedUnits }),
 });
 
-if (partsWithShortfall.length > 0) {
-  // Show shortfall handling dialog
+const preview = await previewResponse.json();
+
+if (preview.parts_with_shortfall.length > 0) {
+  // Show shortfall handling dialog with preview.parts_with_shortfall
 } else {
-  // Submit without shortfall_handling
+  // No shortfall - submit without shortfall_handling
 }
 ```
 
 ### Step 2: Collect User Choices
 
-Display a dialog/modal for parts with shortfall:
+Display a dialog/modal using the preview data. For each part in `parts_with_shortfall`:
 
 ```
 Part ABCD (Capacitor 100nF):
-  Required: 100, Available: 60, Short by: 40
+  Required: 20, Available: 15, Short by: 5
 
-  ○ Reject - Don't create pick list (default)
-  ○ Limit - Include only 60 available
+  ○ Limit - Include only 15 available
   ○ Omit - Skip this part
 
 Part EFGH (LED Red 5mm):
   Required: 50, Available: 0, Short by: 50
 
-  ○ Reject - Don't create pick list (default)
   ○ Limit - Include only 0 available
   ○ Omit - Skip this part
 ```
+
+**Note**: Do not show a "Reject" option in the UI. The Cancel button serves the same purpose. Require the user to select either Limit or Omit for each part before enabling the submit button.
 
 ### Step 3: Build Request
 

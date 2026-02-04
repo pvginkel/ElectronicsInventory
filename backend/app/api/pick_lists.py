@@ -12,7 +12,10 @@ from app.schemas.common import ErrorResponseSchema
 from app.schemas.pick_list import (
     KitPickListCreateSchema,
     KitPickListDetailSchema,
+    KitPickListPreviewRequestSchema,
+    KitPickListPreviewResponseSchema,
     KitPickListSummarySchema,
+    PartShortfallSchema,
     PickListLineQuantityUpdateSchema,
 )
 from app.services.container import ServiceContainer
@@ -61,6 +64,34 @@ def create_pick_list(
         KitPickListDetailSchema.model_validate(detail).model_dump(),
         201,
     )
+
+
+@pick_lists_bp.route("/kits/<int:kit_id>/pick-lists/preview", methods=["POST"])
+@api.validate(
+    json=KitPickListPreviewRequestSchema,
+    resp=SpectreeResponse(
+        HTTP_200=KitPickListPreviewResponseSchema,
+        HTTP_400=ErrorResponseSchema,
+        HTTP_404=ErrorResponseSchema,
+    ),
+)
+@handle_api_errors
+@inject
+def preview_pick_list_shortfall(
+    kit_id: int,
+    kit_pick_list_service: KitPickListService = Provide[ServiceContainer.kit_pick_list_service],
+) -> Any:
+    """Preview parts with shortfall for the specified requested units."""
+    payload = KitPickListPreviewRequestSchema.model_validate(request.get_json())
+    parts_with_shortfall = kit_pick_list_service.preview_shortfall(
+        kit_id,
+        requested_units=payload.requested_units,
+    )
+    return KitPickListPreviewResponseSchema(
+        parts_with_shortfall=[
+            PartShortfallSchema.model_validate(part) for part in parts_with_shortfall
+        ]
+    ).model_dump()
 
 
 @pick_lists_bp.route("/kits/<int:kit_id>/pick-lists", methods=["GET"])
