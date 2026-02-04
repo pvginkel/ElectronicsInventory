@@ -3,11 +3,29 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.models.kit_pick_list import KitPickListStatus
 from app.models.kit_pick_list_line import PickListLineStatus
+
+
+class ShortfallAction(str, Enum):
+    """Actions for handling part shortfall during pick list creation."""
+
+    REJECT = "reject"
+    LIMIT = "limit"
+    OMIT = "omit"
+
+
+class ShortfallActionSchema(BaseModel):
+    """Schema for specifying a shortfall handling action."""
+
+    action: ShortfallAction = Field(
+        description="Action to take when part has insufficient stock",
+        json_schema_extra={"example": "limit"},
+    )
 
 
 class KitPickListCreateSchema(BaseModel):
@@ -17,6 +35,16 @@ class KitPickListCreateSchema(BaseModel):
         description="Number of kit builds to fulfill with this pick list",
         ge=1,
         json_schema_extra={"example": 2},
+    )
+    shortfall_handling: dict[str, ShortfallActionSchema] | None = Field(
+        default=None,
+        description=(
+            "Optional map of part keys to shortfall actions. "
+            "Parts not in the map default to 'reject' behavior."
+        ),
+        json_schema_extra={
+            "example": {"ABCD": {"action": "limit"}, "DEFG": {"action": "omit"}}
+        },
     )
 
 

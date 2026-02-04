@@ -42,9 +42,19 @@ def create_pick_list(
 ) -> Any:
     """Create a pick list for the specified kit."""
     payload = KitPickListCreateSchema.model_validate(request.get_json())
+
+    # Convert shortfall_handling from schema objects to simple action strings
+    shortfall_handling: dict[str, str] | None = None
+    if payload.shortfall_handling:
+        shortfall_handling = {
+            part_key: action_schema.action.value
+            for part_key, action_schema in payload.shortfall_handling.items()
+        }
+
     pick_list = kit_pick_list_service.create_pick_list(
         kit_id,
         requested_units=payload.requested_units,
+        shortfall_handling=shortfall_handling,
     )
     detail = kit_pick_list_service.get_pick_list_detail(pick_list.id)
     return (
