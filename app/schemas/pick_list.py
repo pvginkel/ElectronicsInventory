@@ -48,6 +48,46 @@ class KitPickListCreateSchema(BaseModel):
     )
 
 
+class KitPickListPreviewRequestSchema(BaseModel):
+    """Request payload for previewing pick list shortfall."""
+
+    requested_units: int = Field(
+        description="Number of kit builds to check availability for",
+        ge=1,
+        json_schema_extra={"example": 10},
+    )
+
+
+class PartShortfallSchema(BaseModel):
+    """Shortfall information for a single part."""
+
+    part_key: str = Field(
+        description="Unique key of the part with shortfall",
+        json_schema_extra={"example": "ABCD"},
+    )
+    required_quantity: int = Field(
+        description="Total quantity required for the requested units",
+        json_schema_extra={"example": 20},
+    )
+    usable_quantity: int = Field(
+        description="Quantity available after accounting for reservations",
+        json_schema_extra={"example": 15},
+    )
+    shortfall_amount: int = Field(
+        description="Amount short (required - usable)",
+        json_schema_extra={"example": 5},
+    )
+
+
+class KitPickListPreviewResponseSchema(BaseModel):
+    """Response payload for pick list preview showing parts with shortfall."""
+
+    parts_with_shortfall: list[PartShortfallSchema] = Field(
+        default_factory=list,
+        description="Parts that have insufficient stock for the requested units",
+    )
+
+
 class PickListLineQuantityUpdateSchema(BaseModel):
     """Request payload for updating a pick list line quantity."""
 

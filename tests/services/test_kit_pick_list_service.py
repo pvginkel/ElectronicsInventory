@@ -1426,3 +1426,138 @@ class TestShortfallHandling:
         assert len(pick_list.lines) == 1
         # 8 total - 3 reserved = 5 usable
         assert pick_list.lines[0].quantity_to_pick == 5
+
+
+class TestPreviewShortfall:
+    """Tests for the preview_shortfall method."""
+
+    def test_preview_no_shortfall(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        make_attachment_set,
+    ) -> None:
+        """Preview returns empty list when all parts have sufficient stock."""
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "PNSF", "Sufficient Part")
+        _attach_content(session, kit, part, required_per_unit=5)
+
+        location = _create_location(session, box_no=500, loc_no=1)
+        _attach_location(session, part, location, qty=50)
+
+        result = kit_pick_list_service.preview_shortfall(kit.id, requested_units=2)
+
+        assert result == []
+
+    def test_preview_with_shortfall(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        make_attachment_set,
+    ) -> None:
+        """Preview returns parts with shortfall details."""
+        kit = _create_active_kit(session, make_attachment_set)
+        part = _create_part(session, make_attachment_set, "PSHT", "Short Part")
+        _attach_content(session, kit, part, required_per_unit=10)
+
+        location = _create_location(session, box_no=501, loc_no=1)
+        _attach_location(session, part, location, qty=15)
+
+        # Request 2 units = 20 required, only 15 available
+        result = kit_pick_list_service.preview_shortfall(kit.id, requested_units=2)
+
+        assert len(result) == 1
+        assert result[0]["part_key"] == "PSHT"
+        assert result[0]["required_quantity"] == 20
+        assert result[0]["usable_quantity"] == 15
+        assert result[0]["shortfall_amount"] == 5
+
+    def test_preview_multiple_parts_mixed(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        make_attachment_set,
+    ) -> None:
+        """Preview only returns parts with shortfall, not all parts."""
+        kit = _create_active_kit(session, make_attachment_set)
+
+        part_ok = _create_part(session, make_attachment_set, "PROK", "OK Part")
+        part_short = _create_part(session, make_attachment_set, "PRSH", "Short Part")
+        _attach_content(session, kit, part_ok, required_per_unit=5)
+        _attach_content(session, kit, part_short, required_per_unit=10)
+
+        loc1 = _create_location(session, box_no=510, loc_no=1)
+        loc2 = _create_location(session, box_no=511, loc_no=1)
+        _attach_location(session, part_ok, loc1, qty=100)  # Plenty
+        _attach_location(session, part_short, loc2, qty=5)  # Not enough
+
+        result = kit_pick_list_service.preview_shortfall(kit.id, requested_units=1)
+
+        assert len(result) == 1
+        assert result[0]["part_key"] == "PRSH"
+        assert result[0]["required_quantity"] == 10
+        assert result[0]["usable_quantity"] == 5
+        assert result[0]["shortfall_amount"] == 5
+
+    def test_preview_accounts_for_reservations(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        make_attachment_set,
+    ) -> None:
+        """Preview accounts for reservations from other kits."""
+        kit = _create_active_kit(session, make_attachment_set)
+        other_kit = _create_active_kit(session, make_attachment_set, name="Other Kit")
+
+        part = _create_part(session, make_attachment_set, "PRVR", "Reserved Part")
+        _attach_content(session, kit, part, required_per_unit=10)
+        _attach_content(session, other_kit, part, required_per_unit=5)
+
+        location = _create_location(session, box_no=503, loc_no=1)
+        _attach_location(session, part, location, qty=12)
+
+        # 12 in stock, 5 reserved by other kit = 7 usable
+        # Requesting 1 unit = 10 required
+        result = kit_pick_list_service.preview_shortfall(kit.id, requested_units=1)
+
+        assert len(result) == 1
+        assert result[0]["part_key"] == "PRVR"
+        assert result[0]["required_quantity"] == 10
+        assert result[0]["usable_quantity"] == 7
+        assert result[0]["shortfall_amount"] == 3
+
+    def test_preview_empty_kit(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        make_attachment_set,
+    ) -> None:
+        """Preview returns empty list for kit with no contents."""
+        kit = _create_active_kit(session, make_attachment_set)
+
+        result = kit_pick_list_service.preview_shortfall(kit.id, requested_units=1)
+
+        assert result == []
+
+    def test_preview_invalid_units(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+        make_attachment_set,
+    ) -> None:
+        """Preview rejects invalid requested units."""
+        kit = _create_active_kit(session, make_attachment_set)
+
+        with pytest.raises(InvalidOperationException) as exc_info:
+            kit_pick_list_service.preview_shortfall(kit.id, requested_units=0)
+
+        assert "requested units must be at least 1" in str(exc_info.value)
+
+    def test_preview_kit_not_found(
+        self,
+        session,
+        kit_pick_list_service: KitPickListService,
+    ) -> None:
+        """Preview raises error for non-existent kit."""
+        with pytest.raises(RecordNotFoundException):
+            kit_pick_list_service.preview_shortfall(99999, requested_units=1)

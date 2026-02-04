@@ -771,3 +771,76 @@ class TestShortfallHandlingApi:
         payload = response.get_json()
         assert "insufficient stock" in payload["error"].lower()
         assert "REJE" in payload["error"]
+
+
+class TestPreviewShortfallApi:
+    """Tests for the pick list preview endpoint."""
+
+    def test_preview_no_shortfall(self, client, session, make_attachment_set) -> None:
+        """Preview returns empty list when all parts have sufficient stock."""
+        kit, _, _, _ = _seed_kit_with_inventory(
+            session,
+            make_attachment_set,
+            part_key="PRVN",
+            required_per_unit=5,
+            initial_qty=50,
+        )
+
+        response = client.post(
+            f"/api/kits/{kit.id}/pick-lists/preview",
+            json={"requested_units": 2},
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["parts_with_shortfall"] == []
+
+    def test_preview_with_shortfall(self, client, session, make_attachment_set) -> None:
+        """Preview returns parts with shortfall details."""
+        kit, _, _, _ = _seed_kit_with_inventory(
+            session,
+            make_attachment_set,
+            part_key="PRVS",
+            required_per_unit=10,
+            initial_qty=15,
+        )
+
+        response = client.post(
+            f"/api/kits/{kit.id}/pick-lists/preview",
+            json={"requested_units": 2},
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert len(payload["parts_with_shortfall"]) == 1
+        part = payload["parts_with_shortfall"][0]
+        assert part["part_key"] == "PRVS"
+        assert part["required_quantity"] == 20
+        assert part["usable_quantity"] == 15
+        assert part["shortfall_amount"] == 5
+
+    def test_preview_kit_not_found(self, client) -> None:
+        """Preview returns 404 for non-existent kit."""
+        response = client.post(
+            "/api/kits/99999/pick-lists/preview",
+            json={"requested_units": 1},
+        )
+
+        assert response.status_code == 404
+
+    def test_preview_invalid_requested_units(self, client, session, make_attachment_set) -> None:
+        """Preview returns 400 for invalid requested units."""
+        kit, _, _, _ = _seed_kit_with_inventory(
+            session,
+            make_attachment_set,
+            part_key="PRVU",
+            required_per_unit=5,
+            initial_qty=50,
+        )
+
+        response = client.post(
+            f"/api/kits/{kit.id}/pick-lists/preview",
+            json={"requested_units": 0},
+        )
+
+        assert response.status_code == 400

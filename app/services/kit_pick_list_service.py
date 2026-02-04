@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from collections.abc import Sequence
 from datetime import UTC, datetime
@@ -19,6 +20,8 @@ from app.models.part_location import PartLocation
 from app.services.inventory_service import InventoryService
 from app.services.kit_reservation_service import KitReservationService
 from app.services.metrics_service import MetricsServiceProtocol
+
+logger = logging.getLogger(__name__)
 
 
 class KitPickListService:
@@ -230,6 +233,85 @@ class KitPickListService:
             line_count=len(planned_lines),
         )
         return pick_list
+
+    def preview_shortfall(
+        self,
+        kit_id: int,
+        requested_units: int,
+    ) -> list[dict[str, int | str]]:
+        """Preview which parts have shortfall for the requested units.
+
+        Returns a list of dicts with part_key, required_quantity, usable_quantity,
+        and shortfall_amount for each part that has insufficient stock.
+        """
+        if requested_units < 1:
+            raise InvalidOperationException(
+                "preview shortfall",
+                "requested units must be at least 1",
+            )
+
+        kit = self._get_active_kit_with_contents(kit_id)
+        if not kit.contents:
+            return []
+
+        contents = list(kit.contents)
+        part_ids = [
+            content.part_id for content in contents if content.part_id is not None
+        ]
+        if not part_ids:
+            return []
+
+        # Calculate reservations from other kits
+        reservations_by_part = (
+            self.kit_reservation_service.get_reservations_by_part_ids(part_ids)
+        )
+        reserved_totals: dict[int, int] = {}
+        for part_id in part_ids:
+            reserved_totals[part_id] = sum(
+                entry.reserved_quantity
+                for entry in reservations_by_part.get(part_id, [])
+                if entry.kit_id != kit.id
+            )
+
+        # Load part locations and open line reservations
+        locations_by_part = self._load_part_locations(part_ids)
+        all_location_ids = [
+            location.location_id
+            for part_locations in locations_by_part.values()
+            for location in part_locations
+        ]
+        reserved_by_location = self._load_open_line_reservations(all_location_ids)
+
+        # Calculate shortfall for each part
+        parts_with_shortfall: list[dict[str, int | str]] = []
+
+        for content in contents:
+            required_total = content.required_per_unit * requested_units
+            part_locations = list(locations_by_part.get(content.part_id, []))
+            part_key = content.part.key if content.part else "unknown"
+
+            # Calculate total available across all locations
+            total_available = 0
+            for candidate in part_locations:
+                reservation_key = (content.part_id, candidate.location_id)
+                reserved_for_location = reserved_by_location.get(reservation_key, 0)
+                available_quantity = max(candidate.qty - reserved_for_location, 0)
+                total_available += available_quantity
+
+            # Subtract reservations from other kits
+            reserved_total = reserved_totals.get(content.part_id, 0)
+            usable_quantity = max(total_available - reserved_total, 0)
+
+            # Check for shortfall
+            if usable_quantity < required_total:
+                parts_with_shortfall.append({
+                    "part_key": part_key,
+                    "required_quantity": required_total,
+                    "usable_quantity": usable_quantity,
+                    "shortfall_amount": required_total - usable_quantity,
+                })
+
+        return parts_with_shortfall
 
     def get_pick_list_detail(self, pick_list_id: int) -> KitPickList:
         """Return a pick list with eager loaded lines for detailed views."""
