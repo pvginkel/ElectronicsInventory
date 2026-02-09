@@ -33,7 +33,7 @@ export function useAttachmentSetDocuments(attachmentSetId: number | undefined) {
       // We normalize 'image' and 'pdf' to 'file' type
       type: attachment.attachment_type === 'url' ? 'url' as const : 'file' as const,
       attachmentType: attachment.attachment_type, // Preserve original type for accurate display
-      url: null, // Not available in lightweight list schema
+      url: attachment.url || null,
       filename: null, // Not available in lightweight list schema
       fileSize: null, // Not available in lightweight list schema
       mimeType: null, // Not available in lightweight list schema
