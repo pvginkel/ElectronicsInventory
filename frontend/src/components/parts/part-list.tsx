@@ -155,13 +155,17 @@ export function PartList({ searchTerm = '', hasStockFilter, onShoppingListFilter
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       result = result.filter((part: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema) => {
-        const { displayId, displayDescription, displayManufacturerCode } = formatPartForDisplay(part);
+        const { displayId, displayDescription, displayManufacturerCode, displayManufacturer } = formatPartForDisplay(part);
         const typeName = part.type_id ? typeMap.get(part.type_id) : '';
+
+        const sellerName = part.seller?.name;
 
         return (
           displayId.toLowerCase().includes(term) ||
           displayDescription.toLowerCase().includes(term) ||
           (displayManufacturerCode && displayManufacturerCode.toLowerCase().includes(term)) ||
+          (displayManufacturer && displayManufacturer.toLowerCase().includes(term)) ||
+          (sellerName && sellerName.toLowerCase().includes(term)) ||
           (typeName && typeName.toLowerCase().includes(term)) ||
           (part.tags && part.tags.some(tag => tag.toLowerCase().includes(term)))
         );
