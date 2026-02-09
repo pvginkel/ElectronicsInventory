@@ -24,6 +24,7 @@ export interface PartSelectorSummary {
   displayManufacturerCode?: string;
   typeName?: string;
   manufacturer?: string;
+  coverUrl: string | null;
   raw?: PartWithTotalSchemaList_a9993e3_PartWithTotalSchema;
 }
 
@@ -54,6 +55,8 @@ function buildSearchTokens(detail: PartSelectorOption, part: PartWithTotalSchema
     detail.displayDescription,
     detail.displayManufacturerCode ?? '',
     detail.typeName ?? '',
+    detail.manufacturer ?? '',
+    part.seller?.name ?? '',
   ];
 
   if (part.tags?.length) {
@@ -127,6 +130,7 @@ export function usePartsSelector(options?: UsePartsSelectorOptions): UsePartsSel
         displayManufacturerCode,
         typeName,
         manufacturer: displayManufacturer,
+        coverUrl: part.cover_url ?? null,
         raw: part,
       };
 

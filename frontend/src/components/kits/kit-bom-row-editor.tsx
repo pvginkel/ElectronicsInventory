@@ -130,6 +130,7 @@ export function KitBOMRowEditor(props: KitBOMRowEditorProps) {
         displayManufacturerCode: undefined,
         typeName: undefined,
         manufacturer: undefined,
+        coverUrl: null,
       } satisfies PartSelectorSummary;
       createProps.onPartSelectionChange(fallbackSummary);
     },

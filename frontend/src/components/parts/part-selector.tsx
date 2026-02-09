@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { usePartsSelector, type PartSelectorOption, type PartSelectorSummary } from '@/hooks/use-parts-selector';
+import { PartInlineSummary } from '@/components/parts/part-inline-summary';
 import { cn } from '@/lib/utils';
 
 interface PartSelectorProps {
@@ -92,16 +93,17 @@ export function PartSelector({
       />
 
       {selectedPart && (
-        <div className="text-sm text-muted-foreground" data-testid="parts.selector.selected">
-          <div className="font-medium">
-            {selectedPart.displayDescription} ({selectedPart.id})
-          </div>
-          <div>{selectedPart.displayId}</div>
-          <div className="text-xs">
-            {`Key: ${selectedPart.id}`}
-            {selectedPart.displayManufacturerCode && ` • MFR: ${selectedPart.displayManufacturerCode}`}
-            {selectedPart.typeName && ` • Type: ${selectedPart.typeName}`}
-          </div>
+        <div className="pt-1 px-2">
+          <PartInlineSummary
+            partKey={selectedPart.id}
+            description={selectedPart.displayDescription}
+            manufacturerCode={selectedPart.displayManufacturerCode}
+            coverUrl={selectedPart.coverUrl}
+            link
+            showCoverImage
+            testId="parts.selector.selected"
+            className="w-auto"
+          />
         </div>
       )}
 
