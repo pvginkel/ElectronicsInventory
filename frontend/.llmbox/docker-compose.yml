@@ -3,13 +3,13 @@ services:
     image: registry:5000/llmbox:latest
     network_mode: host
     pid: host
-    working_dir: /work/frontend
+    working_dir: /work/ElectronicsInventory/frontend
     tty: true
     user: "${UID}:${GID}"
     environment:
       TERM: ${TERM}
       COLORTERM: ${COLORTERM}
-      SSE_GATEWAY_ROOT: ../ssegateway
+      SSE_GATEWAY_ROOT: /work/SSEGateway
     volumes:
       - ${HOME}/.claude.json:/home/ubuntu/.claude.json:rw
       - ${HOME}/.claude:/home/ubuntu/.claude:rw
@@ -18,11 +18,12 @@ services:
       - ${HOME}/.gitconfig:/home/ubuntu/.gitconfig:ro
       - ${HOME}/.cache:/home/ubuntu/.cache:rw
       - ${HOME}/.happy:/home/ubuntu/.happy:rw
-      - ../backend:/work/backend:rw
-      - ../backend/.git:/work/backend/.git:ro
-      - ../frontend:/work/frontend:rw
-      - ../frontend/.git:/work/frontend/.git:ro
-      - ../../SSEGateway:/work/ssegateway:rw
-      - ../../SSEGateway/.git:/work/ssegateway/.git:ro
+      - ../backend:/work/ElectronicsInventory/backend:rw
+      - ../backend/.git:/work/ElectronicsInventory/backend/.git:ro
+      - ../frontend:/work/ElectronicsInventory/frontend:rw
+      - ../frontend/.git:/work/ElectronicsInventory/frontend/.git:ro
+      - ../../SSEGateway:/work/SSEGateway:rw
+      - ../../SSEGateway/.git:/work/SSEGateway/.git:ro
+      - ../../IoTSupport:/work/IoTSupport:ro
     # Required for Chromium
     shm_size: 1G
