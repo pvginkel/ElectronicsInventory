@@ -103,6 +103,7 @@ class AttachmentListSchema(BaseModel):
     id: int
     attachment_type: AttachmentType
     title: str
+    url: str | None = None
     attachment_url: str | None = None
     preview_url: str | None = None
 
