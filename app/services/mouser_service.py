@@ -6,6 +6,7 @@ from typing import Any
 from urllib.parse import quote_plus
 
 import requests
+from prometheus_client import Counter, Histogram
 
 from app.config import Settings
 from app.schemas.mouser import (
@@ -13,9 +14,20 @@ from app.schemas.mouser import (
     MouserSearchResponse,
 )
 from app.services.download_cache_service import DownloadCacheService
-from app.services.metrics_service import MetricsServiceProtocol
 
 logger = logging.getLogger(__name__)
+
+# Mouser API metrics
+MOUSER_API_REQUESTS_TOTAL = Counter(
+    "mouser_api_requests_total",
+    "Mouser API requests by endpoint and status",
+    ["endpoint", "status"],
+)
+MOUSER_API_DURATION_SECONDS = Histogram(
+    "mouser_api_duration_seconds",
+    "Mouser API request duration in seconds",
+    ["endpoint"],
+)
 
 
 class MouserService:
@@ -27,19 +39,15 @@ class MouserService:
         self,
         config: Settings,
         download_cache_service: DownloadCacheService,
-        metrics_service: MetricsServiceProtocol,
     ) -> None:
         """Initialize MouserService.
 
         Args:
             config: Application configuration
             download_cache_service: Service for caching HTTP responses
-            metrics_service: Service for recording metrics
         """
         self.download_cache_service = download_cache_service
-        self.metrics_service = metrics_service
         self.api_key = config.mouser_search_api_key
-        self._initialize_metrics()
 
     def search_by_part_number(self, part_number: str) -> MouserSearchResponse:
         """Search Mouser catalog by part number.
@@ -123,29 +131,6 @@ class MouserService:
             logger.error(error_msg, exc_info=True)
             return MouserSearchResponse(error=error_msg)
 
-    def _initialize_metrics(self) -> None:
-        """Initialize Mouser-specific Prometheus metrics."""
-        try:
-            # Check if metrics already initialized
-            if hasattr(self.metrics_service, 'mouser_api_requests_total'):
-                return
-
-            from prometheus_client import Counter, Histogram
-
-            # Dynamically add metrics to the service (mypy doesn't know about these)
-            self.metrics_service.mouser_api_requests_total = Counter(  # type: ignore[attr-defined]
-                'mouser_api_requests_total',
-                'Mouser API requests by endpoint and status',
-                ['endpoint', 'status']
-            )
-            self.metrics_service.mouser_api_duration_seconds = Histogram(  # type: ignore[attr-defined]
-                'mouser_api_duration_seconds',
-                'Mouser API request duration in seconds',
-                ['endpoint']
-            )
-        except Exception as e:
-            logger.warning(f"Failed to initialize Mouser API metrics: {e}")
-
     def _record_request_metric(self, endpoint: str, status: str, duration: float) -> None:
         """Record Mouser API request metrics.
 
@@ -154,21 +139,11 @@ class MouserService:
             status: Request status (success, error, cached)
             duration: Request duration in seconds
         """
-        try:
-            # Dynamically added metrics attributes (initialized in _initialize_metrics)
-            self.metrics_service.mouser_api_requests_total.labels(  # type: ignore[attr-defined]
-                endpoint=endpoint,
-                status=status
-            ).inc()
+        MOUSER_API_REQUESTS_TOTAL.labels(endpoint=endpoint, status=status).inc()
 
-            # Record duration (only for actual API calls, not cache hits)
-            if status != "cached" and duration > 0:
-                self.metrics_service.mouser_api_duration_seconds.labels(  # type: ignore[attr-defined]
-                    endpoint=endpoint
-                ).observe(duration)
-
-        except Exception as e:
-            logger.warning(f"Failed to record Mouser API metrics: {e}")
+        # Record duration (only for actual API calls, not cache hits)
+        if status != "cached" and duration > 0:
+            MOUSER_API_DURATION_SECONDS.labels(endpoint=endpoint).observe(duration)
 
     def _post_with_cache(self, url: str, body: dict[str, Any]) -> dict[str, Any]:
         """Execute POST request with caching via DownloadCacheService.

@@ -27,7 +27,6 @@ from app.services.ai_model import PartAnalysisSuggestion
 from app.services.base_task import ProgressHandle
 from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
-from app.services.metrics_service import MetricsServiceProtocol
 from app.services.seller_service import SellerService
 from app.services.type_service import TypeService
 from app.utils.ai.ai_runner import AIFunction, AIRequest, AIRunner
@@ -54,7 +53,6 @@ class AIService:
         seller_service: SellerService,
         download_cache_service: DownloadCacheService,
         document_service: DocumentService,
-        metrics_service: MetricsServiceProtocol,
         duplicate_search_function: AIFunction,
         mouser_part_number_search_function: AIFunction,
         mouser_keyword_search_function: AIFunction,

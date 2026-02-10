@@ -47,7 +47,7 @@ def run_full_tests(queries: list[str], models: list[tuple[AIType, str, list[str]
 
     temp_file_manager = get_temp_file_manager()
     download_cache_service = DownloadCacheService(temp_file_manager)
-    mouser_service = MouserService(config_mock, download_cache_service, Mock())
+    mouser_service = MouserService(config_mock, download_cache_service)
 
     search_mouser_by_part_number = SearchMouserByPartNumberFunction(mouser_service)
     search_mouser_by_keyword = SearchMouserByKeywordFunction(mouser_service)

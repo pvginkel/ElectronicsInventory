@@ -189,7 +189,7 @@ def template_connection() -> Generator[sqlite3.Connection, None, None]:
         },
     })
 
-    template_app = create_app(settings)
+    template_app = create_app(settings, skip_background_services=True)
     with template_app.app_context():
         upgrade_database(recreate=True)
         _assert_s3_available(template_app)
@@ -221,6 +221,20 @@ def app(test_settings: Settings, template_connection: sqlite3.Connection) -> Gen
     try:
         yield app
     finally:
+        # Stop background threads before closing DB to avoid segfaults
+        try:
+            app.container.metrics_service().shutdown()
+        except Exception:
+            pass
+        try:
+            app.container.temp_file_manager().stop_cleanup_thread()
+        except Exception:
+            pass
+        try:
+            app.container.task_service().shutdown()
+        except Exception:
+            pass
+
         with app.app_context():
             from app.extensions import db as flask_db
 
@@ -472,6 +486,20 @@ def oidc_app(
             try:
                 yield app
             finally:
+                # Stop background threads before closing DB to avoid segfaults
+                try:
+                    app.container.metrics_service().shutdown()
+                except Exception:
+                    pass
+                try:
+                    app.container.temp_file_manager().stop_cleanup_thread()
+                except Exception:
+                    pass
+                try:
+                    app.container.task_service().shutdown()
+                except Exception:
+                    pass
+
                 with app.app_context():
                     from app.extensions import db as flask_db
                     flask_db.session.remove()

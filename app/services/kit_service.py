@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from time import perf_counter
 from typing import Any
 
+from prometheus_client import Counter, Gauge, Histogram
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
@@ -25,7 +26,34 @@ from app.models.part import Part
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.services.inventory_service import InventoryService
 from app.services.kit_reservation_service import KitReservationService
-from app.services.metrics_service import MetricsServiceProtocol
+
+# Kit lifecycle metrics
+KITS_CREATED_TOTAL = Counter("kits_created_total", "Total kits created")
+KITS_ARCHIVED_TOTAL = Counter("kits_archived_total", "Total kits archived")
+KITS_UNARCHIVED_TOTAL = Counter(
+    "kits_unarchived_total", "Total kits restored from archive"
+)
+KITS_OVERVIEW_REQUESTS_TOTAL = Counter(
+    "kits_overview_requests_total",
+    "Total kit overview requests",
+    ["status"],
+)
+KITS_ACTIVE_COUNT = Gauge("kits_active_count", "Current count of active kits")
+KITS_ARCHIVED_COUNT = Gauge(
+    "kits_archived_count", "Current count of archived kits"
+)
+KIT_DETAIL_VIEWS_TOTAL = Counter(
+    "kit_detail_views_total", "Total kit detail view requests"
+)
+KIT_CONTENT_MUTATIONS_TOTAL = Counter(
+    "kit_content_mutations_total",
+    "Total kit content mutations grouped by action",
+    ["action"],
+)
+KIT_CONTENT_UPDATE_DURATION_SECONDS = Histogram(
+    "kit_content_update_duration_seconds",
+    "Duration of kit content update operations in seconds",
+)
 
 MAX_BULK_KIT_QUERY = 100
 
@@ -36,7 +64,6 @@ class KitService:
     def __init__(
         self,
         db: Session,
-        metrics_service: MetricsServiceProtocol | None = None,
         inventory_service: InventoryService | None = None,
         kit_reservation_service: KitReservationService | None = None,
         attachment_set_service: Any = None,
@@ -50,7 +77,6 @@ class KitService:
         if attachment_set_service is None:
             raise ValueError("attachment_set_service dependency is required")
 
-        self.metrics_service = metrics_service
         self.inventory_service = inventory_service
         self.kit_reservation_service = kit_reservation_service
         self.attachment_set_service = attachment_set_service
@@ -111,7 +137,13 @@ class KitService:
             kit.pick_list_badge_count = int(pick_list_badge_count or 0)
             kits.append(kit)
 
-        self._record_overview_metric(status, len(kits), limit)
+        # Record overview metrics
+        KITS_OVERVIEW_REQUESTS_TOTAL.labels(status=status.value).inc()
+        if limit is None:
+            if status == KitStatus.ACTIVE:
+                KITS_ACTIVE_COUNT.set(len(kits))
+            elif status == KitStatus.ARCHIVED:
+                KITS_ARCHIVED_COUNT.set(len(kits))
         return kits
 
     def resolve_kits_for_bulk(
@@ -239,7 +271,7 @@ class KitService:
             1 for pick_list in kit.pick_lists if not pick_list.is_completed
         )
 
-        self._record_detail_metric(kit.id)
+        KIT_DETAIL_VIEWS_TOTAL.inc()
         return kit
 
     def get_active_kit_for_flow(self, kit_id: int, *, operation: str) -> Kit:
@@ -298,7 +330,7 @@ class KitService:
                 "kit content",
                 f"kit {kit_id} already includes part {part_id}",
             ) from exc
-        self._record_content_created(kit.id, part.id, required_per_unit)
+        KIT_CONTENT_MUTATIONS_TOTAL.labels(action="create").inc()
         return content
 
     def update_content(
@@ -369,7 +401,8 @@ class KitService:
             ) from exc
 
         duration = perf_counter() - start
-        self._record_content_updated(kit.id, content.part_id, duration)
+        KIT_CONTENT_MUTATIONS_TOTAL.labels(action="update").inc()
+        KIT_CONTENT_UPDATE_DURATION_SECONDS.observe(max(duration, 0.0))
         return content
 
     def delete_content(
@@ -395,7 +428,7 @@ class KitService:
                 "database rejected removal",
             ) from exc
 
-        self._record_content_deleted(kit.id, part_id)
+        KIT_CONTENT_MUTATIONS_TOTAL.labels(action="delete").inc()
 
     def create_kit(
         self,
@@ -437,7 +470,8 @@ class KitService:
 
         self._touch_kit(kit)
         self.db.flush()
-        self._record_created_metric()
+        KITS_CREATED_TOTAL.inc()
+        KITS_ACTIVE_COUNT.inc()
         return kit
 
     def update_kit(
@@ -508,7 +542,9 @@ class KitService:
         kit.archived_at = datetime.now(UTC)
         self._touch_kit(kit)
         self.db.flush()
-        self._record_archived_metric()
+        KITS_ARCHIVED_TOTAL.inc()
+        KITS_ACTIVE_COUNT.dec()
+        KITS_ARCHIVED_COUNT.inc()
         return kit
 
     def unarchive_kit(self, kit_id: int) -> Kit:
@@ -525,7 +561,9 @@ class KitService:
         kit.archived_at = None
         self._touch_kit(kit)
         self.db.flush()
-        self._record_unarchived_metric()
+        KITS_UNARCHIVED_TOTAL.inc()
+        KITS_ARCHIVED_COUNT.dec()
+        KITS_ACTIVE_COUNT.inc()
         return kit
 
     def delete_kit(self, kit_id: int) -> None:
@@ -573,105 +611,6 @@ class KitService:
         if content is None:
             raise RecordNotFoundException("Kit content", content_id)
         return content
-
-    def _record_detail_metric(self, kit_id: int) -> None:
-        if self.metrics_service is None:
-            return
-        try:
-            self.metrics_service.record_kit_detail_view(kit_id)
-        except Exception:
-            pass
-
-    def _record_content_created(
-        self,
-        kit_id: int,
-        part_id: int,
-        required_per_unit: int,
-    ) -> None:
-        if self.metrics_service is None:
-            return
-        try:
-            self.metrics_service.record_kit_content_created(
-                kit_id,
-                part_id,
-                required_per_unit,
-            )
-        except Exception:
-            pass
-
-    def _record_content_updated(
-        self,
-        kit_id: int,
-        part_id: int,
-        duration_seconds: float,
-    ) -> None:
-        if self.metrics_service is None:
-            return
-        try:
-            self.metrics_service.record_kit_content_updated(
-                kit_id,
-                part_id,
-                duration_seconds,
-            )
-        except Exception:
-            pass
-
-    def _record_content_deleted(
-        self,
-        kit_id: int,
-        part_id: int,
-    ) -> None:
-        if self.metrics_service is None:
-            return
-        try:
-            self.metrics_service.record_kit_content_deleted(
-                kit_id,
-                part_id,
-            )
-        except Exception:
-            pass
-
-    def _record_created_metric(self) -> None:
-        if self.metrics_service is None:
-            return
-        try:
-            self.metrics_service.record_kit_created()
-        except Exception:
-            # Metrics recording should not block core operations
-            pass
-
-    def _record_archived_metric(self) -> None:
-        if self.metrics_service is None:
-            return
-        try:
-            self.metrics_service.record_kit_archived()
-        except Exception:
-            pass
-
-    def _record_unarchived_metric(self) -> None:
-        if self.metrics_service is None:
-            return
-        try:
-            self.metrics_service.record_kit_unarchived()
-        except Exception:
-            pass
-
-    def _record_overview_metric(
-        self,
-        status: KitStatus,
-        count: int,
-        limit: int | None,
-    ) -> None:
-        if self.metrics_service is None:
-            return
-        try:
-            self.metrics_service.record_kit_overview_request(
-                status.value,
-                count,
-                limit,
-            )
-        except Exception:
-            pass
 
     @staticmethod
     def _shopping_badge_statuses() -> Sequence[ShoppingListStatus]:

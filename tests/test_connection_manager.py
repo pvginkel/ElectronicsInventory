@@ -8,21 +8,10 @@ from app.services.connection_manager import ConnectionManager
 
 
 @pytest.fixture
-def mock_metrics():
-    """Create a mock metrics service."""
-    metrics = Mock()
-    metrics.record_sse_gateway_connection = Mock()
-    metrics.record_sse_gateway_event = Mock()
-    metrics.record_sse_gateway_send_duration = Mock()
-    return metrics
-
-
-@pytest.fixture
-def connection_manager(mock_metrics):
-    """Create ConnectionManager instance with mock metrics."""
+def connection_manager():
+    """Create ConnectionManager instance for testing."""
     return ConnectionManager(
         gateway_url="http://localhost:3000",
-        metrics_service=mock_metrics,
         http_timeout=5.0
     )
 
@@ -30,7 +19,7 @@ def connection_manager(mock_metrics):
 class TestConnectionManagerConnect:
     """Tests for connection registration."""
 
-    def test_on_connect_new_connection(self, connection_manager, mock_metrics):
+    def test_on_connect_new_connection(self, connection_manager):
         """Test registering a new connection."""
         # Given no existing connection
         request_id = "abc123"
@@ -47,9 +36,6 @@ class TestConnectionManagerConnect:
             "url": url,
         }
         assert connection_manager._token_to_request_id[token] == request_id
-
-        # And metrics recorded (no service_type)
-        mock_metrics.record_sse_gateway_connection.assert_called_once_with("connect")
 
     def test_on_connect_notifies_observers(self, connection_manager):
         """Test that on_connect notifies all registered observers."""
@@ -99,13 +85,12 @@ class TestBroadcastSend:
     """Tests for broadcast send functionality."""
 
     @patch("app.services.connection_manager.requests.post")
-    def test_broadcast_to_all_connections(self, mock_post, connection_manager, mock_metrics):
+    def test_broadcast_to_all_connections(self, mock_post, connection_manager):
         """Test broadcasting event to all connections."""
         # Given multiple active connections
         connection_manager.on_connect("req1", "token-1", "/api/sse/stream?request_id=req1")
         connection_manager.on_connect("req2", "token-2", "/api/sse/stream?request_id=req2")
         connection_manager.on_connect("req3", "token-3", "/api/sse/stream?request_id=req3")
-        mock_metrics.reset_mock()
 
         # Mock successful response
         mock_response = Mock()

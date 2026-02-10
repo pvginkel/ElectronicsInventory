@@ -8,16 +8,11 @@ import pytest
 from app.schemas.task_schema import TaskEventType, TaskStatus
 from app.services.task_service import TaskProgressHandle, TaskService
 from tests.test_tasks.test_task import DemoTask, FailingTask, LongRunningTask
-from tests.testing_utils import StubMetricsService, StubShutdownCoordinator
+from tests.testing_utils import StubShutdownCoordinator
 
 
 class TestTaskService:
     """Test TaskService functionality."""
-
-    @pytest.fixture
-    def mock_metrics_service(self):
-        """Create mock metrics service."""
-        return StubMetricsService()
 
     @pytest.fixture
     def mock_shutdown_coordinator(self):
@@ -31,10 +26,9 @@ class TestTaskService:
         return Mock()
 
     @pytest.fixture
-    def task_service(self, mock_metrics_service, mock_shutdown_coordinator, mock_connection_manager):
+    def task_service(self, mock_shutdown_coordinator, mock_connection_manager):
         """Create TaskService instance for testing."""
         service = TaskService(
-            mock_metrics_service,
             mock_shutdown_coordinator,
             mock_connection_manager,
             max_workers=2,
@@ -247,9 +241,9 @@ class TestTaskService:
             assert task_info is not None
             assert task_info.status == TaskStatus.COMPLETED
 
-    def test_task_service_shutdown(self, mock_metrics_service, mock_shutdown_coordinator, mock_connection_manager):
+    def test_task_service_shutdown(self, mock_shutdown_coordinator, mock_connection_manager):
         """Test TaskService shutdown and cleanup."""
-        service = TaskService(mock_metrics_service, mock_shutdown_coordinator, mock_connection_manager, max_workers=1)
+        service = TaskService(mock_shutdown_coordinator, mock_connection_manager, max_workers=1)
 
         # Start a task
         task = DemoTask()
@@ -262,10 +256,10 @@ class TestTaskService:
         assert len(service._tasks) == 0
         assert len(service._task_instances) == 0
 
-    def test_automatic_cleanup_of_completed_tasks(self, mock_metrics_service, mock_shutdown_coordinator, mock_connection_manager):
+    def test_automatic_cleanup_of_completed_tasks(self, mock_shutdown_coordinator, mock_connection_manager):
         """Test that completed tasks are automatically cleaned up."""
         # Create service with short cleanup interval for testing
-        service = TaskService(mock_metrics_service, mock_shutdown_coordinator, mock_connection_manager, max_workers=1, cleanup_interval=1)
+        service = TaskService(mock_shutdown_coordinator, mock_connection_manager, max_workers=1, cleanup_interval=1)
 
         try:
             # Start and complete a task

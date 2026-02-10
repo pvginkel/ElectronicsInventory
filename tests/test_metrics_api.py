@@ -38,38 +38,29 @@ class TestMetricsAPI:
         assert isinstance(content, str)
         assert len(content) >= 0  # At minimum should be empty string, not None
 
-    def test_get_metrics_with_recorded_data(self, app: Flask, client, container):
-        """Test metrics endpoint after recording some data."""
-        # Get metrics service and record some data
-        metrics_service = container.metrics_service()
+    def test_get_metrics_with_recorded_data(self, app: Flask, client):
+        """Test metrics endpoint returns data after recording metrics.
 
-        # Record some test metrics
-        metrics_service.record_quantity_change("add", 10)
-        metrics_service.record_quantity_change("remove", 5)
+        Note: The autouse clear_prometheus_registry fixture unregisters
+        module-level collectors between tests.  We create fresh counters
+        to verify the endpoint picks up any registered metric.
+        """
+        from prometheus_client import Counter
 
-        metrics_service.record_ai_analysis(
-            status="success",
-            model="gpt-4o",
-            verbosity="medium",
-            reasoning_effort="medium",
-            duration=3.5,
-            tokens_input=500,
-            tokens_output=200
+        test_counter = Counter(
+            "test_metrics_api_counter_total",
+            "Temporary counter for test verification",
         )
+        test_counter.inc(42)
 
-        # Now get metrics
         response = client.get('/metrics')
 
         assert response.status_code == 200
         assert response.content_type == 'text/plain; version=0.0.4; charset=utf-8'
 
         content = response.get_data(as_text=True)
-
-        # Should contain our recorded metrics
-        # Note: The exact format depends on Prometheus client implementation
-        # but we can check for metric names
-        assert "inventory_quantity_changes_total" in content or len(content) >= 0
-        assert "ai_analysis_requests_total" in content or len(content) >= 0
+        assert "test_metrics_api_counter_total" in content
+        assert "42.0" in content
 
     def test_get_metrics_method_not_allowed(self, app: Flask, client):
         """Test that only GET method is allowed on /metrics endpoint."""

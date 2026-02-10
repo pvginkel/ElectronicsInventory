@@ -7,12 +7,6 @@ import pytest
 from app.config import Settings
 from app.exceptions import AuthenticationException
 from app.services.auth_service import AuthContext, AuthService
-from app.services.metrics_service import MetricsServiceProtocol
-
-
-def _create_mock_metrics() -> MagicMock:
-    """Create a mock metrics service that satisfies MetricsServiceProtocol."""
-    return MagicMock(spec=MetricsServiceProtocol)
 
 
 def _create_auth_service(
@@ -30,8 +24,6 @@ def _create_auth_service(
     Returns:
         AuthService instance with mocked dependencies
     """
-    metrics_service = _create_mock_metrics()
-
     with patch("httpx.get") as mock_get:
         mock_response = MagicMock()
         mock_response.json.return_value = mock_oidc_discovery
@@ -45,7 +37,7 @@ def _create_auth_service(
             mock_jwk_client.get_signing_key_from_jwt.return_value = mock_signing_key
             mock_jwk_client_class.return_value = mock_jwk_client
 
-            return AuthService(auth_settings, metrics_service)
+            return AuthService(auth_settings)
 
 
 class TestAuthService:
@@ -182,15 +174,13 @@ class TestAuthService:
 
     def test_oidc_disabled_does_not_init_jwks(self, test_settings):
         """Test that AuthService does not initialize JWKS when OIDC is disabled."""
-        metrics_service = _create_mock_metrics()
-        auth_service = AuthService(test_settings, metrics_service)
+        auth_service = AuthService(test_settings)
 
         assert auth_service._jwks_client is None
 
     def test_oidc_disabled_validate_token_raises(self, test_settings):
         """Test that validate_token raises when OIDC is disabled."""
-        metrics_service = _create_mock_metrics()
-        auth_service = AuthService(test_settings, metrics_service)
+        auth_service = AuthService(test_settings)
 
         with pytest.raises(AuthenticationException, match="not enabled"):
             auth_service.validate_token("some-token")
@@ -202,10 +192,9 @@ class TestAuthService:
             "oidc_issuer_url": None,
             "oidc_client_id": "ei-backend",
         })
-        metrics_service = _create_mock_metrics()
 
         with pytest.raises(ValueError, match="OIDC_ISSUER_URL"):
-            AuthService(settings, metrics_service)
+            AuthService(settings)
 
     def test_missing_client_id_raises_value_error(self, test_settings):
         """Test that OIDC enabled without client ID raises ValueError."""
@@ -214,16 +203,14 @@ class TestAuthService:
             "oidc_issuer_url": "https://auth.example.com/realms/ei",
             "oidc_client_id": None,
         })
-        metrics_service = _create_mock_metrics()
 
         with pytest.raises(ValueError, match="OIDC_CLIENT_ID"):
-            AuthService(settings, metrics_service)
+            AuthService(settings)
 
     def test_extract_roles_from_realm_access(self):
         """Test role extraction from realm_access.roles."""
-        metrics_service = _create_mock_metrics()
         settings = Settings(oidc_enabled=False)
-        auth_service = AuthService(settings, metrics_service)
+        auth_service = AuthService(settings)
 
         payload = {
             "realm_access": {"roles": ["admin", "viewer"]},
@@ -234,9 +221,8 @@ class TestAuthService:
 
     def test_extract_roles_from_resource_access(self):
         """Test role extraction from resource_access.<audience>.roles."""
-        metrics_service = _create_mock_metrics()
         settings = Settings(oidc_enabled=False)
-        auth_service = AuthService(settings, metrics_service)
+        auth_service = AuthService(settings)
 
         payload = {
             "realm_access": {"roles": ["admin"]},
@@ -250,9 +236,8 @@ class TestAuthService:
 
     def test_extract_roles_empty_payload(self):
         """Test role extraction from payload with no role claims."""
-        metrics_service = _create_mock_metrics()
         settings = Settings(oidc_enabled=False)
-        auth_service = AuthService(settings, metrics_service)
+        auth_service = AuthService(settings)
 
         payload = {}
         roles = auth_service._extract_roles(payload, "ei-backend")

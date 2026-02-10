@@ -15,9 +15,9 @@ from openai.types.responses import (
 from openai.types.responses.function_tool_param import FunctionToolParam
 from openai.types.responses.parsed_response import ParsedResponse
 from openai.types.responses.response_function_web_search import ActionSearch
+from prometheus_client import Counter, Histogram
 
 from app.services.base_task import ProgressHandle, SubProgressHandle
-from app.services.metrics_service import MetricsServiceProtocol
 from app.utils.ai.ai_runner import (
     AIFunction,
     AIRequest,
@@ -29,13 +29,35 @@ from app.utils.ai.cost_calculation import calculate_cost
 
 logger = logging.getLogger(__name__)
 
+# AI analysis metrics
+AI_ANALYSIS_REQUESTS_TOTAL = Counter(
+    "ai_analysis_requests_total",
+    "Total AI analysis requests",
+    ["status", "model", "verbosity", "reasoning_effort"],
+)
+AI_ANALYSIS_DURATION_SECONDS = Histogram(
+    "ai_analysis_duration_seconds",
+    "AI analysis request duration",
+    ["model", "verbosity", "reasoning_effort"],
+)
+AI_ANALYSIS_TOKENS_TOTAL = Counter(
+    "ai_analysis_tokens_total",
+    "Total tokens used",
+    ["type", "model", "verbosity", "reasoning_effort"],
+)
+AI_ANALYSIS_COST_DOLLARS_TOTAL = Counter(
+    "ai_analysis_cost_dollars_total",
+    "Total cost of AI analysis in dollars",
+    ["model", "verbosity", "reasoning_effort"],
+)
+
 
 _WRITING_RESPONSE_PROGRESS_START = 0.9
 _PROGRESS_STEP = 0.25
 
 
 class OpenAIRunner(AIRunner):
-    def __init__(self, api_key: str, metrics_service: MetricsServiceProtocol | None = None):
+    def __init__(self, api_key: str):
         def on_request(request: Any) -> None:
             logger.info(f"Sending request to URL {request.method} {request.url}")
             logger.info(f"Body {request.content}")
@@ -46,7 +68,6 @@ class OpenAIRunner(AIRunner):
             }
         )
         self.client = OpenAI(api_key=api_key, http_client=self.http_client)
-        self.metrics_service = metrics_service
 
     def run(self, request: AIRequest, function_tools: list[AIFunction], progress_handle: ProgressHandle | None = None, streaming: bool = False) -> AIResponse:
         # It's unclear how long the AI job is going to take. This means that it's difficult
@@ -243,38 +264,31 @@ class OpenAIRunner(AIRunner):
                     search_count = self._count_web_searches(response)
                     cost = calculate_cost(request.model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens, search_count)
 
-                    if self.metrics_service:
-                        self.metrics_service.record_ai_analysis(
-                            status="success",
-                            model=request.model,
-                            verbosity=request.verbosity,
-                            reasoning_effort=request.reasoning_effort or "none",
-                            duration=duration,
-                            tokens_input=input_tokens,
-                            tokens_output=output_tokens,
-                            tokens_reasoning=reasoning_tokens,
-                            tokens_cached_input=cached_input_tokens,
-                            cost_dollars=cost or 0.0
-                        )
+                    labels = {
+                        "model": request.model,
+                        "verbosity": request.verbosity,
+                        "reasoning_effort": request.reasoning_effort or "none",
+                    }
+                    AI_ANALYSIS_REQUESTS_TOTAL.labels(status="success", **labels).inc()
+                    AI_ANALYSIS_DURATION_SECONDS.labels(**labels).observe(duration)
+                    AI_ANALYSIS_TOKENS_TOTAL.labels(type="input", **labels).inc(input_tokens)
+                    AI_ANALYSIS_TOKENS_TOTAL.labels(type="output", **labels).inc(output_tokens)
+                    AI_ANALYSIS_TOKENS_TOTAL.labels(type="reasoning", **labels).inc(reasoning_tokens)
+                    AI_ANALYSIS_TOKENS_TOTAL.labels(type="cached_input", **labels).inc(cached_input_tokens)
+                    AI_ANALYSIS_COST_DOLLARS_TOTAL.labels(**labels).inc(cost or 0.0)
 
                 return response
 
             except APIError as e:
                 # Record failed API call metrics
                 duration = time.perf_counter() - start
-                if self.metrics_service:
-                    self.metrics_service.record_ai_analysis(
-                        status="error",
-                        model=request.model,
-                        verbosity=request.verbosity,
-                        reasoning_effort=request.reasoning_effort or "none",
-                        duration=duration,
-                        tokens_input=0,
-                        tokens_output=0,
-                        tokens_reasoning=0,
-                        tokens_cached_input=0,
-                        cost_dollars=0.0
-                    )
+                labels = {
+                    "model": request.model,
+                    "verbosity": request.verbosity,
+                    "reasoning_effort": request.reasoning_effort or "none",
+                }
+                AI_ANALYSIS_REQUESTS_TOTAL.labels(status="error", **labels).inc()
+                AI_ANALYSIS_DURATION_SECONDS.labels(**labels).observe(duration)
 
                 if attempt >= 3:
                     raise

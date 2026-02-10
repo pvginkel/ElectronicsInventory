@@ -17,8 +17,19 @@ from app.models.kit_pick_list_line import KitPickListLine, PickListLineStatus
 from app.models.location import Location
 from app.models.part import Part
 from app.models.part_location import PartLocation
-from app.services.inventory_service import InventoryService
-from app.services.kit_pick_list_service import KitPickListService
+from app.services.inventory_service import (
+    INVENTORY_QUANTITY_CHANGES_TOTAL,
+    InventoryService,
+)
+from app.services.kit_pick_list_service import (
+    PICK_LIST_CREATED_TOTAL,
+    PICK_LIST_DETAIL_REQUESTS_TOTAL,
+    PICK_LIST_LINE_PICKED_TOTAL,
+    PICK_LIST_LINE_QUANTITY_UPDATED_TOTAL,
+    PICK_LIST_LINE_UNDO_TOTAL,
+    PICK_LIST_LIST_REQUESTS_TOTAL,
+    KitPickListService,
+)
 from app.services.kit_reservation_service import KitReservationService
 from app.services.part_service import PartService
 
@@ -36,49 +47,6 @@ class AttachmentSetStub:
         return attachment_set
 
 
-class PickListMetricsStub:
-    """Minimal metrics stub capturing pick list interactions."""
-
-    def __init__(self) -> None:
-        self.quantity_changes: list[tuple[str, int]] = []
-        self.pick_list_creations: list[tuple[int, int, int]] = []
-        self.line_picks: list[tuple[int, int]] = []
-        self.line_undo: list[tuple[str, float]] = []
-        self.detail_requests: list[int] = []
-        self.list_requests: list[tuple[int, int]] = []
-        self.line_quantity_updates: list[tuple[int, int, int]] = []
-
-    def record_quantity_change(self, operation: str, delta: int) -> None:
-        self.quantity_changes.append((operation, delta))
-
-    def record_pick_list_created(self, kit_id: int, requested_units: int, line_count: int) -> None:
-        self.pick_list_creations.append((kit_id, requested_units, line_count))
-
-    def record_pick_list_line_picked(self, line_id: int, quantity: int) -> None:
-        self.line_picks.append((line_id, quantity))
-
-    def record_pick_list_line_undo(self, outcome: str, duration_seconds: float) -> None:
-        self.line_undo.append((outcome, duration_seconds))
-
-    def record_pick_list_detail_request(self, pick_list_id: int) -> None:
-        self.detail_requests.append(pick_list_id)
-
-    def record_pick_list_list_request(self, kit_id: int, result_count: int) -> None:
-        self.list_requests.append((kit_id, result_count))
-
-    def record_pick_list_line_quantity_updated(
-        self, line_id: int, old_quantity: int, new_quantity: int
-    ) -> None:
-        self.line_quantity_updates.append((line_id, old_quantity, new_quantity))
-
-
-@pytest.fixture
-def metrics_stub() -> PickListMetricsStub:
-    """Provide a metrics stub for each test case."""
-
-    return PickListMetricsStub()
-
-
 @pytest.fixture
 def part_service(session) -> PartService:
     """Create a PartService bound to the test session."""
@@ -87,10 +55,10 @@ def part_service(session) -> PartService:
 
 
 @pytest.fixture
-def inventory_service(session, part_service: PartService, metrics_stub: PickListMetricsStub) -> InventoryService:
-    """Inventory service using the shared metrics stub."""
+def inventory_service(session, part_service: PartService) -> InventoryService:
+    """Inventory service for pick list tests."""
 
-    return InventoryService(session, part_service=part_service, metrics_service=metrics_stub)
+    return InventoryService(session, part_service=part_service)
 
 
 @pytest.fixture
@@ -98,7 +66,6 @@ def kit_pick_list_service(
     session,
     inventory_service: InventoryService,
     kit_reservation_service: KitReservationService,
-    metrics_stub: PickListMetricsStub,
 ) -> KitPickListService:
     """Instantiate the service under test with real dependencies."""
 
@@ -106,7 +73,6 @@ def kit_pick_list_service(
         session,
         inventory_service=inventory_service,
         kit_reservation_service=kit_reservation_service,
-        metrics_service=metrics_stub,
     )
 
 
@@ -171,7 +137,6 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
-        metrics_stub: PickListMetricsStub,
 
         make_attachment_set,
 
@@ -189,8 +154,10 @@ class TestKitPickListService:
         location_b = _create_location(session, box_no=23, loc_no=1)
         _attach_location(session, part_b, location_b, qty=4)
 
+        before_created = PICK_LIST_CREATED_TOTAL._value.get()
         pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=2)
         session.flush()
+        after_created = PICK_LIST_CREATED_TOTAL._value.get()
 
         assert pick_list.status is KitPickListStatus.OPEN
         assert len(pick_list.lines) == 3
@@ -209,13 +176,12 @@ class TestKitPickListService:
         ]
         assert quantities_for_b == [2]
 
-        assert metrics_stub.pick_list_creations[-1] == (kit.id, 2, 3)
+        assert after_created - before_created == 1.0
 
     def test_create_pick_list_requires_sufficient_stock(
         self,
         session,
         kit_pick_list_service: KitPickListService,
-        metrics_stub: PickListMetricsStub,
 
         make_attachment_set,
 
@@ -227,10 +193,12 @@ class TestKitPickListService:
         location = _create_location(session, box_no=30, loc_no=1)
         _attach_location(session, part, location, qty=4)
 
+        before_created = PICK_LIST_CREATED_TOTAL._value.get()
         with pytest.raises(InvalidOperationException):
             kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        after_created = PICK_LIST_CREATED_TOTAL._value.get()
 
-        assert not metrics_stub.pick_list_creations
+        assert after_created - before_created == 0
         remaining_lists = session.execute(select(KitPickList)).all()
         assert not remaining_lists
 
@@ -285,7 +253,6 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
-        metrics_stub: PickListMetricsStub,
 
         make_attachment_set,
 
@@ -296,6 +263,7 @@ class TestKitPickListService:
         location = _create_location(session, box_no=41, loc_no=1)
         _attach_location(session, part, location, qty=1)
 
+        before_created = PICK_LIST_CREATED_TOTAL._value.get()
         first = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
         session.flush()
 
@@ -303,14 +271,14 @@ class TestKitPickListService:
 
         with pytest.raises(InvalidOperationException):
             kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
+        after_created = PICK_LIST_CREATED_TOTAL._value.get()
 
-        assert len(metrics_stub.pick_list_creations) == 1
+        assert after_created - before_created == 1.0
 
     def test_pick_line_completes_line_and_updates_parent(
         self,
         session,
         kit_pick_list_service: KitPickListService,
-        metrics_stub: PickListMetricsStub,
 
         make_attachment_set,
 
@@ -325,8 +293,12 @@ class TestKitPickListService:
         line = pick_list.lines[0]
         original_qty = assignment.qty
 
+        before_picked = PICK_LIST_LINE_PICKED_TOTAL._value.get()
+        before_qty_remove = INVENTORY_QUANTITY_CHANGES_TOTAL.labels(operation="remove")._value.get()
         updated_line = kit_pick_list_service.pick_line(pick_list.id, line.id)
         session.flush()
+        after_picked = PICK_LIST_LINE_PICKED_TOTAL._value.get()
+        after_qty_remove = INVENTORY_QUANTITY_CHANGES_TOTAL.labels(operation="remove")._value.get()
 
         assert updated_line.status is PickListLineStatus.COMPLETED
         assert updated_line.inventory_change_id is not None
@@ -338,14 +310,13 @@ class TestKitPickListService:
         assert persisted_assignment is not None
         assert persisted_assignment.qty == original_qty - updated_line.quantity_to_pick
 
-        assert metrics_stub.line_picks[-1][0] == updated_line.id
-        assert metrics_stub.quantity_changes[-1] == ("remove", updated_line.quantity_to_pick)
+        assert after_picked - before_picked == 1.0
+        assert after_qty_remove - before_qty_remove == updated_line.quantity_to_pick
 
     def test_undo_line_restores_inventory_and_status(
         self,
         session,
         kit_pick_list_service: KitPickListService,
-        metrics_stub: PickListMetricsStub,
 
         make_attachment_set,
 
@@ -363,8 +334,12 @@ class TestKitPickListService:
         session.flush()
         consumed_qty = line.quantity_to_pick
 
+        before_undo_success = PICK_LIST_LINE_UNDO_TOTAL.labels(outcome="success")._value.get()
+        before_qty_add = INVENTORY_QUANTITY_CHANGES_TOTAL.labels(operation="add")._value.get()
         reopened = kit_pick_list_service.undo_line(pick_list.id, line.id)
         session.flush()
+        after_undo_success = PICK_LIST_LINE_UNDO_TOTAL.labels(outcome="success")._value.get()
+        after_qty_add = INVENTORY_QUANTITY_CHANGES_TOTAL.labels(operation="add")._value.get()
 
         assert reopened.status is PickListLineStatus.OPEN
         assert reopened.inventory_change_id is None
@@ -376,14 +351,13 @@ class TestKitPickListService:
         assert refreshed_assignment is not None
         assert refreshed_assignment.qty == initial_qty
 
-        assert metrics_stub.line_undo[-1][0] == "success"
-        assert metrics_stub.quantity_changes[-1] == ("add", consumed_qty)
+        assert after_undo_success - before_undo_success == 1.0
+        assert after_qty_add - before_qty_add == consumed_qty
 
     def test_undo_line_noop_when_line_open(
         self,
         kit_pick_list_service: KitPickListService,
         session,
-        metrics_stub: PickListMetricsStub,
 
         make_attachment_set,
 
@@ -397,15 +371,16 @@ class TestKitPickListService:
         pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
         line = pick_list.lines[0]
 
+        before_noop = PICK_LIST_LINE_UNDO_TOTAL.labels(outcome="noop")._value.get()
         result = kit_pick_list_service.undo_line(pick_list.id, line.id)
+        after_noop = PICK_LIST_LINE_UNDO_TOTAL.labels(outcome="noop")._value.get()
         assert result.status is PickListLineStatus.OPEN
-        assert metrics_stub.line_undo[-1][0] == "noop"
+        assert after_noop - before_noop == 1.0
 
     def test_get_pick_list_detail_records_metrics(
         self,
         session,
         kit_pick_list_service: KitPickListService,
-        metrics_stub: PickListMetricsStub,
 
         make_attachment_set,
 
@@ -418,15 +393,16 @@ class TestKitPickListService:
 
         pick_list = kit_pick_list_service.create_pick_list(kit.id, requested_units=1)
 
+        before_detail = PICK_LIST_DETAIL_REQUESTS_TOTAL._value.get()
         detail = kit_pick_list_service.get_pick_list_detail(pick_list.id)
+        after_detail = PICK_LIST_DETAIL_REQUESTS_TOTAL._value.get()
         assert detail.id == pick_list.id
-        assert metrics_stub.detail_requests[-1] == pick_list.id
+        assert after_detail - before_detail == 1.0
 
     def test_list_pick_lists_for_kit_orders_newest_first(
         self,
         session,
         kit_pick_list_service: KitPickListService,
-        metrics_stub: PickListMetricsStub,
 
         make_attachment_set,
 
@@ -441,15 +417,16 @@ class TestKitPickListService:
         second = kit_pick_list_service.create_pick_list(kit.id, requested_units=2)
         session.flush()
 
+        before_list = PICK_LIST_LIST_REQUESTS_TOTAL._value.get()
         pick_lists = kit_pick_list_service.list_pick_lists_for_kit(kit.id)
+        after_list = PICK_LIST_LIST_REQUESTS_TOTAL._value.get()
         assert [pick_lists[0].id, pick_lists[1].id] == [second.id, first.id]
-        assert metrics_stub.list_requests[-1] == (kit.id, 2)
+        assert after_list - before_list == 1.0
 
     def test_list_pick_lists_for_kits_bulk_groups_and_orders(
         self,
         session,
         kit_pick_list_service: KitPickListService,
-        metrics_stub: PickListMetricsStub,
 
         make_attachment_set,
 
@@ -473,12 +450,13 @@ class TestKitPickListService:
         second_b = kit_pick_list_service.create_pick_list(kit_b.id, requested_units=2)
         session.flush()
 
-        before_metrics = len(metrics_stub.list_requests)
+        # The bulk method increments the list counter once per kit_id in the input
+        before_list = PICK_LIST_LIST_REQUESTS_TOTAL._value.get()
         memberships = kit_pick_list_service.list_pick_lists_for_kits_bulk(
             [kit_a.id, kit_b.id, kit_empty.id],
             include_done=False,
         )
-        after_metrics = metrics_stub.list_requests[before_metrics:]
+        after_list = PICK_LIST_LIST_REQUESTS_TOTAL._value.get()
 
         assert list(memberships.keys()) == [kit_a.id, kit_b.id, kit_empty.id]
         assert [pick_list.id for pick_list in memberships[kit_a.id]] == [first_a.id]
@@ -487,17 +465,13 @@ class TestKitPickListService:
             first_b.id,
         ]
         assert memberships[kit_empty.id] == []
-        assert after_metrics == [
-            (kit_a.id, 1),
-            (kit_b.id, 2),
-            (kit_empty.id, 0),
-        ]
+        # 3 kit IDs passed in, so counter increments by 3
+        assert after_list - before_list == 3.0
 
     def test_list_pick_lists_for_kits_bulk_include_done_flag(
         self,
         session,
         kit_pick_list_service: KitPickListService,
-        metrics_stub: PickListMetricsStub,
 
         make_attachment_set,
 
@@ -764,7 +738,6 @@ class TestKitPickListService:
         self,
         session,
         kit_pick_list_service: KitPickListService,
-        metrics_stub: PickListMetricsStub,
 
         make_attachment_set,
 
@@ -780,18 +753,18 @@ class TestKitPickListService:
         initial_updated_at = pick_list.updated_at
 
         line = pick_list.lines[0]
-        original_quantity = line.quantity_to_pick
 
+        before_qty_updated = PICK_LIST_LINE_QUANTITY_UPDATED_TOTAL._value.get()
         kit_pick_list_service.update_line_quantity(pick_list.id, line.id, 5)
         session.flush()
         session.refresh(pick_list)
+        after_qty_updated = PICK_LIST_LINE_QUANTITY_UPDATED_TOTAL._value.get()
 
         refreshed_line = session.get(KitPickListLine, line.id)
         assert refreshed_line is not None
         assert refreshed_line.quantity_to_pick == 5
         assert pick_list.updated_at > initial_updated_at
-        assert len(metrics_stub.line_quantity_updates) == 1
-        assert metrics_stub.line_quantity_updates[0] == (line.id, original_quantity, 5)
+        assert after_qty_updated - before_qty_updated == 1.0
 
     def test_update_line_quantity_allows_zero(
         self,
@@ -1154,7 +1127,6 @@ class TestShortfallHandling:
         self,
         session,
         kit_pick_list_service: KitPickListService,
-        metrics_stub: PickListMetricsStub,
         make_attachment_set,
     ) -> None:
         """Limit action should create pick list with reduced quantity."""
@@ -1165,24 +1137,25 @@ class TestShortfallHandling:
         location = _create_location(session, box_no=402, loc_no=1)
         _attach_location(session, part, location, qty=7)
 
+        before_created = PICK_LIST_CREATED_TOTAL._value.get()
         pick_list = kit_pick_list_service.create_pick_list(
             kit.id,
             requested_units=1,
             shortfall_handling={"LIMT": "limit"},
         )
         session.flush()
+        after_created = PICK_LIST_CREATED_TOTAL._value.get()
 
         assert pick_list.status is KitPickListStatus.OPEN
         assert len(pick_list.lines) == 1
         # Should be limited to available quantity (7), not required (10)
         assert pick_list.lines[0].quantity_to_pick == 7
-        assert metrics_stub.pick_list_creations[-1] == (kit.id, 1, 1)
+        assert after_created - before_created == 1.0
 
     def test_shortfall_omit_action_excludes_part_from_pick_list(
         self,
         session,
         kit_pick_list_service: KitPickListService,
-        metrics_stub: PickListMetricsStub,
         make_attachment_set,
     ) -> None:
         """Omit action should exclude part from pick list entirely."""
@@ -1198,19 +1171,21 @@ class TestShortfallHandling:
         # Part B has enough stock
         _attach_location(session, part_b, location, qty=10)
 
+        before_created = PICK_LIST_CREATED_TOTAL._value.get()
         pick_list = kit_pick_list_service.create_pick_list(
             kit.id,
             requested_units=1,
             shortfall_handling={"OMTA": "omit"},
         )
         session.flush()
+        after_created = PICK_LIST_CREATED_TOTAL._value.get()
 
         assert pick_list.status is KitPickListStatus.OPEN
         # Only part B should have lines
         assert len(pick_list.lines) == 1
         assert pick_list.lines[0].quantity_to_pick == 2
         assert pick_list.lines[0].kit_content.part.key == "OKPB"
-        assert metrics_stub.pick_list_creations[-1] == (kit.id, 1, 1)
+        assert after_created - before_created == 1.0
 
     def test_shortfall_all_parts_omitted_rejects(
         self,
@@ -1243,7 +1218,6 @@ class TestShortfallHandling:
         self,
         session,
         kit_pick_list_service: KitPickListService,
-        metrics_stub: PickListMetricsStub,
         make_attachment_set,
     ) -> None:
         """Limiting all parts to zero quantity should create valid pick list.
@@ -1262,23 +1236,24 @@ class TestShortfallHandling:
         # Part has 5 units, but other kit reserves all of them
         _attach_location(session, part, location, qty=5)
 
+        before_created = PICK_LIST_CREATED_TOTAL._value.get()
         pick_list = kit_pick_list_service.create_pick_list(
             kit.id,
             requested_units=1,
             shortfall_handling={"LIM0": "limit"},
         )
         session.flush()
+        after_created = PICK_LIST_CREATED_TOTAL._value.get()
 
         assert pick_list.status is KitPickListStatus.OPEN
         # Limit to zero usable results in no lines, but the pick list is valid
         assert len(pick_list.lines) == 0
-        assert metrics_stub.pick_list_creations[-1] == (kit.id, 1, 0)
+        assert after_created - before_created == 1.0
 
     def test_shortfall_mixed_actions_multiple_parts(
         self,
         session,
         kit_pick_list_service: KitPickListService,
-        metrics_stub: PickListMetricsStub,
         make_attachment_set,
     ) -> None:
         """Mixed shortfall actions should apply correctly to each part."""

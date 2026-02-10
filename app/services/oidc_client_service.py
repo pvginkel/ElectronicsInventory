@@ -8,10 +8,22 @@ from dataclasses import dataclass
 from urllib.parse import urlencode
 
 import httpx
+from prometheus_client import Counter
 
 from app.config import Settings
 from app.exceptions import AuthenticationException
-from app.services.metrics_service import MetricsServiceProtocol
+
+# OIDC metrics
+EI_OIDC_TOKEN_EXCHANGE_TOTAL = Counter(
+    "ei_oidc_token_exchange_total",
+    "Total authorization code exchange outcomes",
+    ["status"],
+)
+EI_AUTH_TOKEN_REFRESH_TOTAL = Counter(
+    "ei_auth_token_refresh_total",
+    "Total token refresh outcomes",
+    ["status"],
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,19 +67,16 @@ class OidcClientService:
     def __init__(
         self,
         config: Settings,
-        metrics_service: MetricsServiceProtocol,
     ) -> None:
         """Initialize OIDC client service.
 
         Args:
             config: Application settings containing OIDC configuration
-            metrics_service: Metrics service for recording operations
 
         Raises:
             ValueError: If OIDC endpoint discovery fails
         """
         self.config = config
-        self.metrics_service = metrics_service
         self._endpoints: OidcEndpoints | None = None
 
         # Discover endpoints at initialization if OIDC is enabled
@@ -276,7 +285,7 @@ class OidcClientService:
                 )
 
             # Record successful token exchange
-            self.metrics_service.record_oidc_token_exchange("success")
+            EI_OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="success").inc()
 
             logger.info("Successfully exchanged authorization code for tokens")
 
@@ -290,7 +299,7 @@ class OidcClientService:
 
         except httpx.HTTPError as e:
             # Record failed token exchange
-            self.metrics_service.record_oidc_token_exchange("failed")
+            EI_OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="failed").inc()
 
             logger.error("Token exchange failed: %s", str(e))
             error_detail = "Unknown error"
@@ -347,7 +356,7 @@ class OidcClientService:
                 )
 
             # Record successful refresh
-            self.metrics_service.record_auth_token_refresh("success")
+            EI_AUTH_TOKEN_REFRESH_TOTAL.labels(status="success").inc()
 
             logger.info("Successfully refreshed access token")
 
@@ -361,7 +370,7 @@ class OidcClientService:
 
         except httpx.HTTPError as e:
             # Record failed refresh
-            self.metrics_service.record_auth_token_refresh("failed")
+            EI_AUTH_TOKEN_REFRESH_TOTAL.labels(status="failed").inc()
 
             logger.error("Token refresh failed: %s", str(e))
             raise AuthenticationException(

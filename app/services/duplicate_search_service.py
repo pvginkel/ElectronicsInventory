@@ -7,6 +7,7 @@ import time
 from typing import Any
 
 from jinja2 import Environment
+from prometheus_client import Counter, Gauge, Histogram
 from pydantic import ValidationError
 
 from app.config import Settings
@@ -15,9 +16,28 @@ from app.schemas.duplicate_search import (
     DuplicateSearchRequest,
     DuplicateSearchResponse,
 )
-from app.services.metrics_service import MetricsService
 from app.services.part_service import PartService
 from app.utils.ai.ai_runner import AIRequest, AIRunner
+
+# Duplicate search metrics
+AI_DUPLICATE_SEARCH_REQUESTS_TOTAL = Counter(
+    "ai_duplicate_search_requests_total",
+    "Total duplicate search requests by outcome",
+    ["outcome"],
+)
+AI_DUPLICATE_SEARCH_DURATION_SECONDS = Histogram(
+    "ai_duplicate_search_duration_seconds",
+    "Duplicate search request duration in seconds",
+)
+AI_DUPLICATE_SEARCH_MATCHES_FOUND = Histogram(
+    "ai_duplicate_search_matches_found",
+    "Number of duplicate matches found per search",
+    ["confidence"],
+)
+AI_DUPLICATE_SEARCH_PARTS_DUMP_SIZE = Gauge(
+    "ai_duplicate_search_parts_dump_size",
+    "Number of parts in the inventory dump for duplicate search",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +54,6 @@ class DuplicateSearchService:
         config: Settings,
         part_service: PartService,
         ai_runner: AIRunner | None,
-        metrics_service: MetricsService,
     ):
         """Initialize the duplicate search service.
 
@@ -42,12 +61,10 @@ class DuplicateSearchService:
             config: Application settings
             part_service: Service for accessing parts inventory
             ai_runner: AI runner for LLM calls (None if AI disabled)
-            metrics_service: Metrics service for tracking operations
         """
         self.config = config
         self.part_service = part_service
         self.ai_runner = ai_runner
-        self.metrics_service = metrics_service
 
         # Cache the prompt template to avoid repeated file I/O
         prompt_path = os.path.join(
@@ -77,7 +94,7 @@ class DuplicateSearchService:
             parts_data = self.part_service.get_all_parts_for_search()
 
             # Record inventory size for monitoring
-            self.metrics_service.ai_duplicate_search_parts_dump_size.set(len(parts_data))
+            AI_DUPLICATE_SEARCH_PARTS_DUMP_SIZE.set(len(parts_data))
 
             # If inventory is empty, return no matches immediately
             if not parts_data:
@@ -86,8 +103,8 @@ class DuplicateSearchService:
                 logger.info(f"Duplicate search completed in {duration:.3f}s - outcome: empty, matches: 0, parts: 0")
 
                 # Record metrics for empty outcome
-                self.metrics_service.ai_duplicate_search_requests_total.labels(outcome="empty").inc()
-                self.metrics_service.ai_duplicate_search_duration_seconds.observe(duration)
+                AI_DUPLICATE_SEARCH_REQUESTS_TOTAL.labels(outcome="empty").inc()
+                AI_DUPLICATE_SEARCH_DURATION_SECONDS.observe(duration)
 
                 return DuplicateSearchResponse(matches=[])
 
@@ -130,15 +147,15 @@ class DuplicateSearchService:
             )
 
             # Record success metrics
-            self.metrics_service.ai_duplicate_search_requests_total.labels(outcome="success").inc()
-            self.metrics_service.ai_duplicate_search_duration_seconds.observe(duration)
-            self.metrics_service.ai_duplicate_search_matches_found.labels(confidence="total").observe(len(matches))
+            AI_DUPLICATE_SEARCH_REQUESTS_TOTAL.labels(outcome="success").inc()
+            AI_DUPLICATE_SEARCH_DURATION_SECONDS.observe(duration)
+            AI_DUPLICATE_SEARCH_MATCHES_FOUND.labels(confidence="total").observe(len(matches))
             if high_confidence_count > 0:
-                self.metrics_service.ai_duplicate_search_matches_found.labels(confidence="high").observe(
+                AI_DUPLICATE_SEARCH_MATCHES_FOUND.labels(confidence="high").observe(
                     high_confidence_count
                 )
             if medium_confidence_count > 0:
-                self.metrics_service.ai_duplicate_search_matches_found.labels(confidence="medium").observe(
+                AI_DUPLICATE_SEARCH_MATCHES_FOUND.labels(confidence="medium").observe(
                     medium_confidence_count
                 )
 
@@ -150,8 +167,8 @@ class DuplicateSearchService:
             logger.error(f"Failed to parse LLM response for duplicate search after {duration:.3f}s: {e}")
 
             # Record validation error metrics
-            self.metrics_service.ai_duplicate_search_requests_total.labels(outcome="validation_error").inc()
-            self.metrics_service.ai_duplicate_search_duration_seconds.observe(duration)
+            AI_DUPLICATE_SEARCH_REQUESTS_TOTAL.labels(outcome="validation_error").inc()
+            AI_DUPLICATE_SEARCH_DURATION_SECONDS.observe(duration)
 
             # Return empty matches to allow graceful degradation
             return DuplicateSearchResponse(matches=[])
@@ -162,8 +179,8 @@ class DuplicateSearchService:
             logger.error(f"Duplicate search failed after {duration:.3f}s: {e}", exc_info=True)
 
             # Record error metrics
-            self.metrics_service.ai_duplicate_search_requests_total.labels(outcome="error").inc()
-            self.metrics_service.ai_duplicate_search_duration_seconds.observe(duration)
+            AI_DUPLICATE_SEARCH_REQUESTS_TOTAL.labels(outcome="error").inc()
+            AI_DUPLICATE_SEARCH_DURATION_SECONDS.observe(duration)
 
             # Return empty matches to allow graceful degradation
             return DuplicateSearchResponse(matches=[])

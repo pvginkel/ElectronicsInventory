@@ -1,425 +1,324 @@
-"""Tests for MetricsService."""
+"""Tests for MetricsService polling infrastructure and decentralized metrics."""
 
+import threading
 import time
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
+import pytest
+from flask import Flask
+from sqlalchemy.orm import Session
 
 from app.services.dashboard_service import DashboardService
+from app.services.metrics_service import MetricsService
+from tests.testing_utils import StubShutdownCoordinator
 
 
-def get_real_metrics_service(container):
-    """Helper function to get real MetricsService instance for testing."""
-    from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
+class TestMetricsServicePolling:
+    """Test the thin MetricsService polling infrastructure."""
 
-    from app.services.metrics_service import MetricsService
+    @pytest.fixture
+    def shutdown_coordinator(self):
+        return StubShutdownCoordinator()
 
-    # Create a custom MetricsService that uses its own registry
-    class TestMetricsService(MetricsService):
-        def __init__(self, container):
-            # Don't call super().__init__ to avoid double initialization
-            self._shutdown_start_time: float | None = None
-            self.container = container
-
-            # Create our own registry for this test
-            self._test_registry = CollectorRegistry()
-            self.initialize_test_metrics()
-
-            # Background update control (needed for background updater tests)
-            import threading
-            self._stop_event = threading.Event()
-            self._updater_thread = None
-
-        def initialize_test_metrics(self):
-            """Initialize metrics with test registry."""
-            # Inventory Metrics
-            self.inventory_total_parts = Gauge(
-                'inventory_total_parts',
-                'Total parts in system',
-                registry=self._test_registry
-            )
-            self.inventory_total_quantity = Gauge(
-                'inventory_total_quantity',
-                'Sum of all quantities',
-                registry=self._test_registry
-            )
-            self.inventory_low_stock_parts = Gauge(
-                'inventory_low_stock_parts',
-                'Parts with qty <= 5',
-                registry=self._test_registry
-            )
-            self.inventory_parts_without_docs = Gauge(
-                'inventory_parts_without_docs',
-                'Undocumented parts',
-                registry=self._test_registry
-            )
-
-            # Storage Metrics
-            self.inventory_box_utilization_percent = Gauge(
-                'inventory_box_utilization_percent',
-                'Box usage percentage',
-                ['box_no'],
-                registry=self._test_registry
-            )
-            self.inventory_total_boxes = Gauge(
-                'inventory_total_boxes',
-                'Active storage boxes',
-                registry=self._test_registry
-            )
-
-            # Activity Metrics
-            self.inventory_quantity_changes_total = Counter(
-                'inventory_quantity_changes_total',
-                'Total changes by type',
-                ['operation'],
-                registry=self._test_registry
-            )
-            self.inventory_recent_changes_7d = Gauge(
-                'inventory_recent_changes_7d',
-                'Changes in last 7 days',
-                registry=self._test_registry
-            )
-            self.inventory_recent_changes_30d = Gauge(
-                'inventory_recent_changes_30d',
-                'Changes in last 30 days',
-                registry=self._test_registry
-            )
-
-            # Category Metrics
-            self.inventory_parts_by_type = Gauge(
-                'inventory_parts_by_type',
-                'Parts per category',
-                ['type_name'],
-                registry=self._test_registry
-            )
-
-            # Kit Metrics
-            self.kit_detail_views_total = Counter(
-                'kit_detail_views_total',
-                'Total kit detail view requests',
-                registry=self._test_registry
-            )
-            self.part_kit_usage_requests_total = Counter(
-                'part_kit_usage_requests_total',
-                'Total part kit usage lookup requests',
-                ['has_results'],
-                registry=self._test_registry
-            )
-            self.kit_content_mutations_total = Counter(
-                'kit_content_mutations_total',
-                'Total kit content mutations grouped by action',
-                ['action'],
-                registry=self._test_registry
-            )
-            self.kit_content_update_duration_seconds = Histogram(
-                'kit_content_update_duration_seconds',
-                'Duration of kit content update operations in seconds',
-                registry=self._test_registry
-            )
-
-            # AI Analysis Metrics
-            self.ai_analysis_requests_total = Counter(
-                'ai_analysis_requests_total',
-                'Total AI analysis requests',
-                ['status', 'model', 'verbosity', 'reasoning_effort'],
-                registry=self._test_registry
-            )
-            self.ai_analysis_duration_seconds = Histogram(
-                'ai_analysis_duration_seconds',
-                'AI analysis request duration',
-                ['model', 'verbosity', 'reasoning_effort'],
-                registry=self._test_registry
-            )
-            self.ai_analysis_tokens_total = Counter(
-                'ai_analysis_tokens_total',
-                'Total tokens used',
-                ['type', 'model', 'verbosity', 'reasoning_effort'],
-                registry=self._test_registry
-            )
-            self.ai_analysis_cost_dollars_total = Counter(
-                'ai_analysis_cost_dollars_total',
-                'Total cost of AI analysis in dollars',
-                ['model', 'verbosity', 'reasoning_effort'],
-                registry=self._test_registry
-            )
-
-        def get_metrics_text(self) -> str:
-            """Generate metrics from test registry."""
-            from prometheus_client import generate_latest
-            return generate_latest(self._test_registry).decode('utf-8')
-
-    return TestMetricsService(container)
-
-
-class TestMetricsService:
-    """Test suite for MetricsService."""
-
-    def test_initialize_metrics(self, app, session, container):
-        """Test that metric objects are initialized correctly."""
-        service = get_real_metrics_service(container)
-
-        # Check that all expected metrics exist
-        assert hasattr(service, 'inventory_total_parts')
-        assert hasattr(service, 'inventory_total_quantity')
-        assert hasattr(service, 'inventory_low_stock_parts')
-        assert hasattr(service, 'inventory_parts_without_docs')
-        assert hasattr(service, 'inventory_box_utilization_percent')
-        assert hasattr(service, 'inventory_total_boxes')
-        assert hasattr(service, 'inventory_quantity_changes_total')
-        assert hasattr(service, 'inventory_recent_changes_7d')
-        assert hasattr(service, 'inventory_recent_changes_30d')
-        assert hasattr(service, 'inventory_parts_by_type')
-        assert hasattr(service, 'ai_analysis_requests_total')
-        assert hasattr(service, 'ai_analysis_duration_seconds')
-        assert hasattr(service, 'ai_analysis_tokens_total')
-        assert hasattr(service, 'ai_analysis_cost_dollars_total')
-
-        # Verify container is available (no longer has persistent dashboard service)
-        assert service.container is not None
-
-    @patch.object(DashboardService, 'get_dashboard_stats')
-    @patch.object(DashboardService, 'get_parts_without_documents')
-    def test_update_inventory_metrics(self, mock_parts_without_docs, mock_dashboard_stats, app, session, container):
-        """Test inventory metrics update."""
-        service = get_real_metrics_service(container)
-
-        # Mock dashboard service responses
-        mock_dashboard_stats.return_value = {
-            'total_parts': 150,
-            'total_quantity': 2500,
-            'low_stock_count': 12,
-            'changes_7d': 25,
-            'changes_30d': 78
-        }
-        mock_parts_without_docs.return_value = {'count': 18}
-
-        # Update metrics
-        service.update_inventory_metrics()
-
-        # Verify mock calls
-        mock_dashboard_stats.assert_called_once()
-        mock_parts_without_docs.assert_called_once()
-
-        # Verify metrics values are set (we can't easily check exact values due to Prometheus internals)
-        # But we can verify the methods were called without errors
-
-    @patch.object(DashboardService, 'get_storage_summary')
-    def test_update_storage_metrics(self, mock_storage_summary, app, session, container):
-        """Test storage metrics update."""
-        service = get_real_metrics_service(container)
-
-        # Mock storage summary response
-        mock_storage_summary.return_value = [
-            {'box_no': 1, 'description': 'Box 1', 'usage_percentage': 75.5},
-            {'box_no': 2, 'description': 'Box 2', 'usage_percentage': 42.3},
-            {'box_no': 3, 'description': 'Box 3', 'usage_percentage': 0.0}
-        ]
-
-        # Update metrics
-        service.update_storage_metrics()
-
-        # Verify mock call
-        mock_storage_summary.assert_called_once()
-
-    @patch.object(DashboardService, 'get_category_distribution')
-    def test_update_category_metrics(self, mock_category_distribution, app, session, container):
-        """Test category metrics update."""
-        service = get_real_metrics_service(container)
-
-        # Mock category distribution response
-        mock_category_distribution.return_value = [
-            {'type_name': 'Resistor', 'part_count': 45},
-            {'type_name': 'Capacitor', 'part_count': 32},
-            {'type_name': 'IC', 'part_count': 18}
-        ]
-
-        # Update metrics
-        service.update_category_metrics()
-
-        # Verify mock call
-        mock_category_distribution.assert_called_once()
-
-    def test_record_kit_content_metrics(self, app, session, container):
-        """Ensure kit detail and content metrics increment correctly."""
-        service = get_real_metrics_service(container)
-
-        service.record_kit_detail_view(kit_id=1)
-        assert service.kit_detail_views_total._value.get() == 1
-
-        service.record_kit_content_created(kit_id=1, part_id=2, required_per_unit=3)
-        assert service.kit_content_mutations_total.labels(action="create")._value.get() == 1
-
-        service.record_kit_content_updated(kit_id=1, part_id=2, duration_seconds=0.5)
-        assert service.kit_content_mutations_total.labels(action="update")._value.get() == 1
-        assert service.kit_content_update_duration_seconds._sum.get() == 0.5
-
-        service.record_kit_content_deleted(kit_id=1, part_id=2)
-        assert service.kit_content_mutations_total.labels(action="delete")._value.get() == 1
-
-    def test_record_part_kit_usage_request(self, app, session, container):
-        """Ensure part kit usage counter increments for both result states."""
-        service = get_real_metrics_service(container)
-
-        service.record_part_kit_usage_request(has_results=True)
-        assert (
-            service.part_kit_usage_requests_total.labels(has_results="true")._value.get()
-            == 1
+    @pytest.fixture
+    def metrics_service(self, shutdown_coordinator):
+        container = MagicMock()
+        service = MetricsService(
+            container=container,
+            shutdown_coordinator=shutdown_coordinator,
         )
+        yield service
+        service.shutdown()
 
-        service.record_part_kit_usage_request(has_results=False)
-        assert (
-            service.part_kit_usage_requests_total.labels(has_results="false")
-            ._value.get()
-            == 1
-        )
+    def test_register_for_polling(self, metrics_service):
+        """Test that callbacks can be registered for polling."""
+        called = threading.Event()
 
-    def test_record_quantity_change(self, app, session, container):
-        """Test recording quantity changes."""
-        service = get_real_metrics_service(container)
+        def callback():
+            called.set()
 
-        # Record some quantity changes
-        service.record_quantity_change("add", 100)
-        service.record_quantity_change("remove", 25)
-        service.record_quantity_change("add", 50)
+        metrics_service.register_for_polling("test", callback)
+        assert "test" in metrics_service._polling_callbacks
 
-        # These should not raise exceptions
-        # We can't easily verify counter values without inspecting Prometheus internals
-
-    def test_record_ai_analysis_success(self, app, session, container):
-        """Test recording successful AI analysis metrics."""
-        service = get_real_metrics_service(container)
-
-        # Record a successful AI analysis
-        service.record_ai_analysis(
-            status="success",
-            model="gpt-4o",
-            verbosity="medium",
-            reasoning_effort="medium",
-            duration=5.5,
-            tokens_input=1000,
-            tokens_output=500,
-            tokens_reasoning=200,
-            tokens_cached_input=100,
-            cost_dollars=0.15
-        )
-
-        # Should not raise exceptions
-
-    def test_record_ai_analysis_error(self, app, session, container):
-        """Test recording failed AI analysis metrics."""
-        service = get_real_metrics_service(container)
-
-        # Record a failed AI analysis
-        service.record_ai_analysis(
-            status="error",
-            model="gpt-4o",
-            verbosity="high",
-            reasoning_effort="low",
-            duration=2.1,
-            tokens_input=500,
-            tokens_output=0,
-            tokens_reasoning=0,
-            tokens_cached_input=50,
-            cost_dollars=0.05
-        )
-
-        # Should not raise exceptions
-
-    def test_record_ai_analysis_minimal(self, app, session, container):
-        """Test recording AI analysis with minimal parameters."""
-        service = get_real_metrics_service(container)
-
-        # Record with minimal parameters
-        service.record_ai_analysis(
-            status="success",
-            model="gpt-4o-mini",
-            verbosity="low",
-            reasoning_effort="low",
-            duration=1.0
-        )
-
-        # Should not raise exceptions
-
-    def test_background_updater_lifecycle(self, app, session, container):
+    def test_background_updater_lifecycle(self, metrics_service):
         """Test background updater start/stop lifecycle."""
-        service = get_real_metrics_service(container)
+        metrics_service.start_background_updater(1)
 
-        # Start background updater with short interval
+        assert metrics_service._updater_thread is not None
+        assert metrics_service._updater_thread.is_alive()
+        assert not metrics_service._stop_event.is_set()
+
+        metrics_service.shutdown()
+
+        time.sleep(0.1)
+        assert metrics_service._stop_event.is_set()
+
+    def test_background_updater_double_start(self, metrics_service):
+        """Test that starting background updater twice doesn't create multiple threads."""
+        metrics_service.start_background_updater(1)
+        first_thread = metrics_service._updater_thread
+
+        metrics_service.start_background_updater(1)
+        assert metrics_service._updater_thread is first_thread
+
+    def test_background_updater_invokes_callbacks(self, metrics_service):
+        """Test that the background thread invokes registered callbacks."""
+        called = threading.Event()
+
+        def callback():
+            called.set()
+
+        metrics_service.register_for_polling("test_cb", callback)
+        # Use a short interval so the first tick fires quickly (after one wait)
+        metrics_service.start_background_updater(interval_seconds=1)
+
+        assert called.wait(timeout=3.0), "Callback was not invoked within timeout"
+
+    def test_background_updater_handles_callback_errors(self, metrics_service):
+        """Test that errors in callbacks don't crash the background thread."""
+        error_count = 0
+        good_called = threading.Event()
+
+        def bad_callback():
+            nonlocal error_count
+            error_count += 1
+            raise Exception("Callback error")
+
+        def good_callback():
+            good_called.set()
+
+        metrics_service.register_for_polling("bad", bad_callback)
+        metrics_service.register_for_polling("good", good_callback)
+        metrics_service.start_background_updater(interval_seconds=1)
+
+        # Good callback should still be invoked despite bad callback raising
+        assert good_called.wait(timeout=3.0), "Good callback was not invoked"
+        assert error_count > 0
+
+    def test_shutdown_via_lifetime_event(self, shutdown_coordinator):
+        """Test that MetricsService shuts down via lifetime events."""
+        container = MagicMock()
+        service = MetricsService(
+            container=container,
+            shutdown_coordinator=shutdown_coordinator,
+        )
         service.start_background_updater(1)
 
-        # Verify thread is running
         assert service._updater_thread is not None
         assert service._updater_thread.is_alive()
-        assert not service._stop_event.is_set()
 
-        # Stop background updater
-        service.shutdown()
+        # Simulate the SHUTDOWN lifetime event
+        from app.utils.shutdown_coordinator import LifetimeEvent
+        for notification in shutdown_coordinator._notifications:
+            notification(LifetimeEvent.SHUTDOWN)
 
-        # Verify thread is stopped (give it a moment)
-        time.sleep(0.1)
+        time.sleep(0.2)
         assert service._stop_event.is_set()
 
-        # Thread should eventually stop (we can't wait too long in tests)
 
-    def test_background_updater_double_start(self, app, session, container):
-        """Test that starting background updater twice doesn't create multiple threads."""
-        service = get_real_metrics_service(container)
+class TestDashboardPollingCallback:
+    """Test the dashboard metrics polling callback."""
 
-        # Start background updater
-        service.start_background_updater(1)
-        first_thread = service._updater_thread
+    @patch.object(DashboardService, "get_dashboard_stats")
+    @patch.object(DashboardService, "get_parts_without_documents")
+    @patch.object(DashboardService, "get_storage_summary")
+    @patch.object(DashboardService, "get_category_distribution")
+    def test_dashboard_callback_updates_gauges(
+        self,
+        mock_category,
+        mock_storage,
+        mock_docs,
+        mock_stats,
+        app: Flask,
+        session: Session,
+        container,
+    ):
+        """Test that the dashboard polling callback updates gauge values."""
+        from app.services.metrics.dashboard_metrics import (
+            INVENTORY_TOTAL_BOXES,
+            INVENTORY_TOTAL_PARTS,
+            INVENTORY_TOTAL_QUANTITY,
+            create_dashboard_polling_callback,
+        )
 
-        # Start again - should not create new thread
-        service.start_background_updater(1)
+        mock_stats.return_value = {
+            "total_parts": 42,
+            "total_quantity": 1000,
+            "low_stock_count": 5,
+            "changes_7d": 10,
+            "changes_30d": 30,
+        }
+        mock_docs.return_value = {"count": 3}
+        mock_storage.return_value = [
+            {"box_no": 1, "description": "Box 1", "usage_percentage": 50.0},
+        ]
+        mock_category.return_value = [
+            {"type_name": "Resistor", "part_count": 20},
+        ]
 
-        # Should be same thread
-        assert service._updater_thread is first_thread
+        callback = create_dashboard_polling_callback(container)
+        callback()
 
-        # Cleanup
-        service.shutdown()
+        assert INVENTORY_TOTAL_PARTS._value.get() == 42
+        assert INVENTORY_TOTAL_QUANTITY._value.get() == 1000
+        assert INVENTORY_TOTAL_BOXES._value.get() == 1
 
-    @patch.object(DashboardService, 'get_dashboard_stats')
-    def test_background_update_error_handling(self, mock_dashboard_stats, app, session, container):
-        """Test that background update handles errors gracefully."""
-        service = get_real_metrics_service(container)
+    @patch.object(DashboardService, "get_dashboard_stats")
+    def test_dashboard_callback_handles_errors(
+        self, mock_stats, app: Flask, session: Session, container
+    ):
+        """Test that the callback handles errors gracefully."""
+        from app.services.metrics.dashboard_metrics import (
+            create_dashboard_polling_callback,
+        )
 
-        # Make dashboard stats raise exception
-        mock_dashboard_stats.side_effect = Exception("Database error")
+        mock_stats.side_effect = Exception("Database error")
 
-        # This should not raise - errors should be handled gracefully
-        service.update_inventory_metrics()
+        callback = create_dashboard_polling_callback(container)
+        # Should not raise; errors are handled internally
+        callback()
 
-    def test_get_metrics_text(self, app, session, container):
-        """Test getting metrics in Prometheus text format."""
-        service = get_real_metrics_service(container)
 
-        # Record some metrics first
-        service.record_quantity_change("add", 10)
+class TestDecentralizedMetricsExist:
+    """Verify that module-level metrics are defined in owning services."""
 
-        # Get metrics text
-        metrics_text = service.get_metrics_text()
+    def test_inventory_service_metrics(self):
+        """Check inventory service owns quantity change counter."""
+        from app.services.inventory_service import INVENTORY_QUANTITY_CHANGES_TOTAL
+        assert INVENTORY_QUANTITY_CHANGES_TOTAL is not None
 
-        # Should be a non-empty string
-        assert isinstance(metrics_text, str)
-        assert len(metrics_text) > 0
+    def test_kit_service_metrics(self):
+        """Check kit service owns lifecycle counters and gauges."""
+        from app.services.kit_service import (
+            KITS_ACTIVE_COUNT,
+            KITS_ARCHIVED_COUNT,
+            KITS_CREATED_TOTAL,
+        )
+        assert KITS_CREATED_TOTAL is not None
+        assert KITS_ACTIVE_COUNT is not None
+        assert KITS_ARCHIVED_COUNT is not None
 
-        # Should contain Prometheus format indicators
-        assert "# HELP" in metrics_text or "# TYPE" in metrics_text
+    def test_kit_pick_list_service_metrics(self):
+        """Check pick list service owns pick list metrics."""
+        from app.services.kit_pick_list_service import (
+            PICK_LIST_CREATED_TOTAL,
+            PICK_LIST_LINE_PICKED_TOTAL,
+        )
+        assert PICK_LIST_CREATED_TOTAL is not None
+        assert PICK_LIST_LINE_PICKED_TOTAL is not None
 
-    def test_record_task_execution_placeholder(self, app, session, container):
-        """Test task execution recording (currently a placeholder)."""
-        # Use the real metrics service for comprehensive testing
-        service = get_real_metrics_service(container)
+    def test_connection_manager_metrics(self):
+        """Check connection manager owns SSE gateway metrics."""
+        from app.services.connection_manager import (
+            SSE_GATEWAY_ACTIVE_CONNECTIONS,
+            SSE_GATEWAY_CONNECTIONS_TOTAL,
+            SSE_GATEWAY_EVENTS_SENT_TOTAL,
+        )
+        assert SSE_GATEWAY_CONNECTIONS_TOTAL is not None
+        assert SSE_GATEWAY_EVENTS_SENT_TOTAL is not None
+        assert SSE_GATEWAY_ACTIVE_CONNECTIONS is not None
 
-        # This is currently a placeholder method
-        service.record_task_execution("test_task", 5.0, "success")
+    def test_auth_service_metrics(self):
+        """Check auth service owns validation metrics."""
+        from app.services.auth_service import (
+            EI_AUTH_VALIDATION_DURATION_SECONDS,
+            EI_AUTH_VALIDATION_TOTAL,
+        )
+        assert EI_AUTH_VALIDATION_TOTAL is not None
+        assert EI_AUTH_VALIDATION_DURATION_SECONDS is not None
 
-        # Should not raise exceptions
+    def test_oidc_client_service_metrics(self):
+        """Check OIDC client service owns token exchange metrics."""
+        from app.services.oidc_client_service import (
+            EI_AUTH_TOKEN_REFRESH_TOTAL,
+            EI_OIDC_TOKEN_EXCHANGE_TOTAL,
+        )
+        assert EI_OIDC_TOKEN_EXCHANGE_TOTAL is not None
+        assert EI_AUTH_TOKEN_REFRESH_TOTAL is not None
 
-    def test_update_activity_metrics_placeholder(self, app, session, container):
-        """Test activity metrics update (currently a placeholder)."""
-        # Use the real metrics service for comprehensive testing
-        service = get_real_metrics_service(container)
+    def test_openai_runner_metrics(self):
+        """Check OpenAI runner owns AI analysis metrics."""
+        from app.utils.ai.openai.openai_runner import (
+            AI_ANALYSIS_COST_DOLLARS_TOTAL,
+            AI_ANALYSIS_DURATION_SECONDS,
+            AI_ANALYSIS_REQUESTS_TOTAL,
+            AI_ANALYSIS_TOKENS_TOTAL,
+        )
+        assert AI_ANALYSIS_REQUESTS_TOTAL is not None
+        assert AI_ANALYSIS_DURATION_SECONDS is not None
+        assert AI_ANALYSIS_TOKENS_TOTAL is not None
+        assert AI_ANALYSIS_COST_DOLLARS_TOTAL is not None
 
-        # This is currently a placeholder method
-        service.update_activity_metrics()
+    def test_duplicate_search_service_metrics(self):
+        """Check duplicate search service owns its metrics."""
+        from app.services.duplicate_search_service import (
+            AI_DUPLICATE_SEARCH_DURATION_SECONDS,
+            AI_DUPLICATE_SEARCH_MATCHES_FOUND,
+            AI_DUPLICATE_SEARCH_PARTS_DUMP_SIZE,
+            AI_DUPLICATE_SEARCH_REQUESTS_TOTAL,
+        )
+        assert AI_DUPLICATE_SEARCH_REQUESTS_TOTAL is not None
+        assert AI_DUPLICATE_SEARCH_DURATION_SECONDS is not None
+        assert AI_DUPLICATE_SEARCH_MATCHES_FOUND is not None
+        assert AI_DUPLICATE_SEARCH_PARTS_DUMP_SIZE is not None
 
-        # Should not raise exceptions
+    def test_mouser_service_metrics(self):
+        """Check Mouser service owns its metrics."""
+        from app.services.mouser_service import (
+            MOUSER_API_DURATION_SECONDS,
+            MOUSER_API_REQUESTS_TOTAL,
+        )
+        assert MOUSER_API_REQUESTS_TOTAL is not None
+        assert MOUSER_API_DURATION_SECONDS is not None
+
+    def test_shutdown_coordinator_metrics(self):
+        """Check shutdown coordinator owns shutdown metrics."""
+        from app.utils.shutdown_coordinator import (
+            APPLICATION_SHUTTING_DOWN,
+            GRACEFUL_SHUTDOWN_DURATION_SECONDS,
+        )
+        assert APPLICATION_SHUTTING_DOWN is not None
+        assert GRACEFUL_SHUTDOWN_DURATION_SECONDS is not None
+
+    def test_task_service_shutdown_metric(self):
+        """Check task service owns the active-tasks-at-shutdown gauge."""
+        from app.services.task_service import ACTIVE_TASKS_AT_SHUTDOWN
+        assert ACTIVE_TASKS_AT_SHUTDOWN is not None
+
+    def test_pick_list_report_service_metrics(self):
+        """Check pick list report service owns PDF generation metrics."""
+        from app.services.pick_list_report_service import (
+            PICK_LIST_PDF_GENERATED_TOTAL,
+            PICK_LIST_PDF_GENERATION_DURATION_SECONDS,
+        )
+        assert PICK_LIST_PDF_GENERATED_TOTAL is not None
+        assert PICK_LIST_PDF_GENERATION_DURATION_SECONDS is not None
+
+    def test_parts_api_metric(self, app: Flask):
+        """Check parts API owns kit usage request counter."""
+        from app.api.parts import PART_KIT_USAGE_REQUESTS_TOTAL
+        assert PART_KIT_USAGE_REQUESTS_TOTAL is not None
+
+    def test_dashboard_metrics(self):
+        """Check dashboard metrics module owns polling gauges."""
+        from app.services.metrics.dashboard_metrics import (
+            INVENTORY_TOTAL_BOXES,
+            INVENTORY_TOTAL_PARTS,
+            INVENTORY_TOTAL_QUANTITY,
+        )
+        assert INVENTORY_TOTAL_PARTS is not None
+        assert INVENTORY_TOTAL_QUANTITY is not None
+        assert INVENTORY_TOTAL_BOXES is not None
+
+
+class TestMetricsEndpoint:
+    """Test the /metrics endpoint uses generate_latest() directly."""
+
+    def test_metrics_endpoint_returns_prometheus_format(self, client):
+        """Test /metrics returns valid Prometheus exposition format."""
+        response = client.get("/metrics")
+        assert response.status_code == 200
+        assert "text/plain" in response.content_type
+        # Prometheus text format contains TYPE and HELP lines
+        text = response.data.decode("utf-8")
+        assert len(text) > 0

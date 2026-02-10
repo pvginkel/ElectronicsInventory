@@ -50,12 +50,11 @@ from app.utils.shutdown_coordinator import ShutdownCoordinator
 from app.utils.temp_file_manager import TempFileManager
 
 
-def _create_ai_runner(cfg: Settings, metrics: "MetricsService") -> AIRunner | None:
+def _create_ai_runner(cfg: Settings) -> AIRunner | None:
     """Factory function to create AI runner based on configuration.
 
     Args:
         cfg: Application settings
-        metrics: Metrics service for tracking AI usage
 
     Returns:
         OpenAIRunner instance, or None if AI is disabled
@@ -71,7 +70,7 @@ def _create_ai_runner(cfg: Settings, metrics: "MetricsService") -> AIRunner | No
             raise ValueError(
                 "OPENAI_API_KEY is required when AI_PROVIDER is set to 'openai'"
             )
-        return OpenAIRunner(cfg.openai_api_key, metrics)
+        return OpenAIRunner(cfg.openai_api_key)
 
     else:
         raise ValueError(
@@ -164,19 +163,16 @@ class ServiceContainer(containers.DeclarativeContainer):
     auth_service = providers.Singleton(
         AuthService,
         config=config,
-        metrics_service=metrics_service,
     )
     oidc_client_service = providers.Singleton(
         OidcClientService,
         config=config,
-        metrics_service=metrics_service,
     )
 
     # ConnectionManager - Singleton for SSE Gateway token mapping
     connection_manager = providers.Singleton(
         ConnectionManager,
         gateway_url=config.provided.sse_gateway_url,
-        metrics_service=metrics_service,
         http_timeout=2.0,  # Short timeout to avoid exceeding SSE Gateway's 5s callback timeout
     )
 
@@ -188,7 +184,6 @@ class ServiceContainer(containers.DeclarativeContainer):
         InventoryService,
         db=db_session,
         part_service=part_service,
-        metrics_service=metrics_service,
         kit_reservation_service=kit_reservation_service,
         shopping_list_service=shopping_list_service,
     )
@@ -197,18 +192,15 @@ class ServiceContainer(containers.DeclarativeContainer):
         db=db_session,
         seller_service=seller_service,
         inventory_service=inventory_service,
-        metrics_service=metrics_service,
     )
     kit_pick_list_service = providers.Factory(
         KitPickListService,
         db=db_session,
         inventory_service=inventory_service,
         kit_reservation_service=kit_reservation_service,
-        metrics_service=metrics_service,
     )
     pick_list_report_service = providers.Factory(
         PickListReportService,
-        metrics_service=metrics_service,
     )
     kit_shopping_list_service = providers.Factory(
         KitShoppingListService,
@@ -217,12 +209,10 @@ class ServiceContainer(containers.DeclarativeContainer):
         kit_reservation_service=kit_reservation_service,
         shopping_list_service=shopping_list_service,
         shopping_list_line_service=shopping_list_line_service,
-        metrics_service=metrics_service,
     )
     kit_service = providers.Factory(
         KitService,
         db=db_session,
-        metrics_service=metrics_service,
         inventory_service=inventory_service,
         kit_reservation_service=kit_reservation_service,
         attachment_set_service=attachment_set_service,
@@ -248,7 +238,6 @@ class ServiceContainer(containers.DeclarativeContainer):
     # TaskService - Singleton for in-memory task management with configurable settings
     task_service = providers.Singleton(
         TaskService,
-        metrics_service=metrics_service,
         shutdown_coordinator=shutdown_coordinator,
         connection_manager=connection_manager,
         max_workers=config.provided.task_max_workers,
@@ -260,7 +249,6 @@ class ServiceContainer(containers.DeclarativeContainer):
     ai_runner = providers.Singleton(
         _create_ai_runner,
         cfg=config,
-        metrics=metrics_service
     )
 
     # Duplicate search service
@@ -269,7 +257,6 @@ class ServiceContainer(containers.DeclarativeContainer):
         config=config,
         part_service=part_service,
         ai_runner=ai_runner,
-        metrics_service=metrics_service
     )
 
     # Duplicate search function
@@ -283,7 +270,6 @@ class ServiceContainer(containers.DeclarativeContainer):
         MouserService,
         config=config,
         download_cache_service=download_cache_service,
-        metrics_service=metrics_service
     )
 
     mouser_part_number_search_function = providers.Factory(
@@ -321,7 +307,6 @@ class ServiceContainer(containers.DeclarativeContainer):
         seller_service=seller_service,
         download_cache_service=download_cache_service,
         document_service=document_service,
-        metrics_service=metrics_service,
         duplicate_search_function=duplicate_search_function,
         mouser_part_number_search_function=mouser_part_number_search_function,
         mouser_keyword_search_function=mouser_keyword_search_function,
