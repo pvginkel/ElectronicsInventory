@@ -11,7 +11,6 @@ from app.config import Settings
 from app.database import check_db_connection, get_pending_migrations
 from app.schemas.health_schema import HealthResponse
 from app.services.container import ServiceContainer
-from app.utils.auth import public
 from app.utils.shutdown_coordinator import ShutdownCoordinatorProtocol
 from app.utils.spectree_config import api
 
@@ -22,7 +21,6 @@ health_bp = Blueprint("health", __name__, url_prefix="/health")
 
 @health_bp.route("/readyz", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=HealthResponse, HTTP_503=HealthResponse))
-@public
 @inject
 def readyz(
     shutdown_coordinator: ShutdownCoordinatorProtocol = Provide[ServiceContainer.shutdown_coordinator]
@@ -66,7 +64,6 @@ def readyz(
 
 @health_bp.route("/healthz", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=HealthResponse))
-@public
 def healthz() -> Any:
     """Liveness probe endpoint for Kubernetes.
 
@@ -78,7 +75,6 @@ def healthz() -> Any:
 
 @health_bp.route("/drain", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=HealthResponse, HTTP_401=HealthResponse))
-@public
 @inject
 def drain(
     shutdown_coordinator: ShutdownCoordinatorProtocol = Provide[ServiceContainer.shutdown_coordinator],

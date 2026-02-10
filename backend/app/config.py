@@ -421,6 +421,11 @@ class Settings(BaseModel):
         return self.flask_env == "testing"
 
     @property
+    def is_production(self) -> bool:
+        """Check if running in production environment."""
+        return self.flask_env == "production"
+
+    @property
     def real_ai_allowed(self) -> bool:
         """Determine whether real AI analysis is permitted."""
         return not self.ai_testing_mode
@@ -433,6 +438,50 @@ class Settings(BaseModel):
             SQLALCHEMY_TRACK_MODIFICATIONS=False,
             SQLALCHEMY_ENGINE_OPTIONS=self.sqlalchemy_engine_options,
         )
+
+    def validate_production_config(self) -> None:
+        """Validate that required configuration is set for production.
+
+        Raises:
+            ConfigurationError: If required settings are missing or insecure
+        """
+        from app.exceptions import ConfigurationError
+
+        errors: list[str] = []
+
+        # SECRET_KEY must be changed from default in production
+        if self.is_production and self.secret_key == _DEFAULT_SECRET_KEY:
+            errors.append(
+                "SECRET_KEY must be set to a secure value in production "
+                "(current value is the insecure default)"
+            )
+
+        # SSE_CALLBACK_SECRET required in production for authenticating gateway callbacks
+        if self.is_production and not self.sse_callback_secret:
+            errors.append(
+                "SSE_CALLBACK_SECRET must be set in production "
+                "for authenticating SSE Gateway callbacks"
+            )
+
+        # OIDC settings required when OIDC is enabled (any environment)
+        if self.oidc_enabled:
+            if not self.oidc_issuer_url:
+                errors.append(
+                    "OIDC_ISSUER_URL is required when OIDC_ENABLED=True"
+                )
+            if not self.oidc_client_id:
+                errors.append(
+                    "OIDC_CLIENT_ID is required when OIDC_ENABLED=True"
+                )
+            if not self.oidc_client_secret:
+                errors.append(
+                    "OIDC_CLIENT_SECRET is required when OIDC_ENABLED=True"
+                )
+
+        if errors:
+            raise ConfigurationError(
+                "Configuration validation failed:\n  - " + "\n  - ".join(errors)
+            )
 
     @classmethod
     def load(cls, env: Environment | None = None) -> "Settings":

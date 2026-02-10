@@ -160,18 +160,18 @@ def after_request_set_cookies(
 
 # Import and register all resource blueprints
 # Note: Imports are done after api_bp creation to avoid circular imports
+# Note: health_bp and metrics_bp are registered directly on the Flask app
+# (not under /api) since they are for internal cluster use only
 from app.api.ai_parts import ai_parts_bp  # noqa: E402
 from app.api.attachment_sets import attachment_sets_bp  # noqa: E402
 from app.api.auth import auth_bp  # noqa: E402
 from app.api.boxes import boxes_bp  # noqa: E402
 from app.api.dashboard import dashboard_bp  # noqa: E402
 from app.api.documents import documents_bp  # noqa: E402
-from app.api.health import health_bp  # noqa: E402
 from app.api.inventory import inventory_bp  # noqa: E402
 from app.api.kit_shopping_list_links import kit_shopping_list_links_bp  # noqa: E402
 from app.api.kits import kits_bp  # noqa: E402
 from app.api.locations import locations_bp  # noqa: E402
-from app.api.metrics import metrics_bp  # noqa: E402
 from app.api.parts import parts_bp  # noqa: E402
 from app.api.pick_lists import pick_lists_bp  # noqa: E402
 from app.api.sellers import sellers_bp  # noqa: E402
@@ -187,12 +187,10 @@ api_bp.register_blueprint(auth_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(boxes_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(dashboard_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(documents_bp)  # type: ignore[attr-defined]
-api_bp.register_blueprint(health_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(inventory_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(kits_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(kit_shopping_list_links_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(locations_bp)  # type: ignore[attr-defined]
-api_bp.register_blueprint(metrics_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(pick_lists_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(parts_bp)  # type: ignore[attr-defined]
 api_bp.register_blueprint(sellers_bp)  # type: ignore[attr-defined]

@@ -8,14 +8,14 @@ class TestMetricsAPI:
 
     def test_get_metrics_endpoint_exists(self, app: Flask, client):
         """Test that /metrics endpoint exists and responds."""
-        response = client.get('/api/metrics')
+        response = client.get('/metrics')
 
         # Should not return 404
         assert response.status_code != 404
 
     def test_get_metrics_response_format(self, app: Flask, client):
         """Test that /metrics endpoint returns proper Prometheus format."""
-        response = client.get('/api/metrics')
+        response = client.get('/metrics')
 
         assert response.status_code == 200
 
@@ -27,7 +27,7 @@ class TestMetricsAPI:
 
     def test_get_metrics_contains_prometheus_format(self, app: Flask, client):
         """Test that response contains Prometheus format elements."""
-        response = client.get('/api/metrics')
+        response = client.get('/metrics')
 
         assert response.status_code == 200
 
@@ -58,7 +58,7 @@ class TestMetricsAPI:
         )
 
         # Now get metrics
-        response = client.get('/api/metrics')
+        response = client.get('/metrics')
 
         assert response.status_code == 200
         assert response.content_type == 'text/plain; version=0.0.4; charset=utf-8'
@@ -74,21 +74,21 @@ class TestMetricsAPI:
     def test_get_metrics_method_not_allowed(self, app: Flask, client):
         """Test that only GET method is allowed on /metrics endpoint."""
         # POST should not be allowed
-        response = client.post('/api/metrics')
+        response = client.post('/metrics')
         assert response.status_code == 405  # Method Not Allowed
 
         # PUT should not be allowed
-        response = client.put('/api/metrics')
+        response = client.put('/metrics')
         assert response.status_code == 405
 
         # DELETE should not be allowed
-        response = client.delete('/api/metrics')
+        response = client.delete('/metrics')
         assert response.status_code == 405
 
     def test_get_metrics_no_authentication_required(self, app: Flask, client):
         """Test that /metrics endpoint doesn't require authentication."""
         # This follows standard Prometheus practice - metrics endpoints are typically open
-        response = client.get('/api/metrics')
+        response = client.get('/metrics')
 
         # Should not return 401 Unauthorized or 403 Forbidden
         assert response.status_code not in [401, 403]
@@ -101,7 +101,7 @@ class TestMetricsAPI:
         results = []
 
         def make_request():
-            response = client.get('/api/metrics')
+            response = client.get('/metrics')
             results.append(response.status_code)
 
         # Create multiple threads to hit the endpoint
@@ -124,7 +124,7 @@ class TestMetricsAPI:
         # Even if there are issues with the metrics service, the endpoint should still respond
         # This tests the robustness of the endpoint
 
-        response = client.get('/api/metrics')
+        response = client.get('/metrics')
 
         # Should still return a response, even if empty
         assert response.status_code == 200
@@ -132,7 +132,7 @@ class TestMetricsAPI:
 
     def test_get_metrics_response_is_text_format(self, app: Flask, client):
         """Test that response is in Prometheus text format, not JSON."""
-        response = client.get('/api/metrics')
+        response = client.get('/metrics')
 
         assert response.status_code == 200
 
@@ -152,10 +152,10 @@ class TestMetricsAPI:
 
     def test_get_metrics_url_path(self, app: Flask, client):
         """Test that metrics is available at the correct path."""
-        # Should be available at /api/metrics (not /metrics)
-        response = client.get('/api/metrics')
+        # Should be available at /metrics (internal endpoint, not under /api)
+        response = client.get('/metrics')
         assert response.status_code == 200
 
-        # Should NOT be available at root /metrics
-        response = client.get('/metrics')
+        # Should NOT be available under /api/metrics
+        response = client.get('/api/metrics')
         assert response.status_code == 404

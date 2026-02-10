@@ -109,16 +109,20 @@ class TestAuthenticationMiddleware:
         data = response.get_json()
         assert "signature" in data["error"].lower()
 
-    def test_public_endpoints_bypass_authentication(
+    def test_internal_endpoints_bypass_authentication(
         self, oidc_app: Flask
     ):
-        """Test that @public endpoints bypass authentication."""
+        """Test that internal endpoints (outside api_bp) bypass authentication."""
         client = oidc_app.test_client()
 
-        # Health endpoint is public - should not return auth errors
-        response = client.get("/api/health/healthz")
+        # Health endpoint is registered outside api_bp - auth middleware doesn't apply
+        response = client.get("/health/healthz")
         assert response.status_code not in (401, 403)
         assert response.status_code == 200
+
+        # Metrics endpoint is registered outside api_bp - auth middleware doesn't apply
+        response = client.get("/metrics")
+        assert response.status_code not in (401, 403)
 
     def test_public_login_endpoint_accessible_without_token(
         self, oidc_app: Flask
@@ -130,15 +134,6 @@ class TestAuthenticationMiddleware:
         response = client.get("/api/auth/login")
         # Should not be 401 (auth bypassed), should be 400 (missing redirect param)
         assert response.status_code == 400
-
-    def test_metrics_endpoint_is_public(
-        self, oidc_app: Flask
-    ):
-        """Test that /api/metrics is accessible without token (it's @public)."""
-        client = oidc_app.test_client()
-
-        response = client.get("/api/metrics")
-        assert response.status_code not in (401, 403)
 
     def test_oidc_disabled_bypasses_authentication(self, client: Any):
         """Test that OIDC_ENABLED=False bypasses all authentication."""
