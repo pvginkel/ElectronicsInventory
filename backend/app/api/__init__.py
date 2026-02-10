@@ -74,6 +74,19 @@ def before_request_authentication(
         return {"error": str(e)}, 403
 
 
+def _clear_auth_cookies(response: Response, config: Settings, cookie_secure: bool) -> None:
+    """Clear all auth cookies on the response."""
+    for name in (config.oidc_cookie_name, config.oidc_refresh_cookie_name, "id_token"):
+        response.set_cookie(
+            name,
+            "",
+            httponly=True,
+            secure=cookie_secure,
+            samesite=config.oidc_cookie_samesite,
+            max_age=0,
+        )
+
+
 @api_bp.after_request
 @inject
 def after_request_set_cookies(
@@ -96,37 +109,22 @@ def after_request_set_cookies(
 
     # Check if we need to clear cookies (refresh failed)
     if getattr(g, "clear_auth_cookies", False):
-        cookie_secure = get_cookie_secure(config)
-        response.set_cookie(
-            config.oidc_cookie_name,
-            "",
-            httponly=True,
-            secure=cookie_secure,
-            samesite=config.oidc_cookie_samesite,
-            max_age=0,
-        )
-        response.set_cookie(
-            config.oidc_refresh_cookie_name,
-            "",
-            httponly=True,
-            secure=cookie_secure,
-            samesite=config.oidc_cookie_samesite,
-            max_age=0,
-        )
-        response.set_cookie(
-            "id_token",
-            "",
-            httponly=True,
-            secure=cookie_secure,
-            samesite=config.oidc_cookie_samesite,
-            max_age=0,
-        )
+        _clear_auth_cookies(response, config, get_cookie_secure(config))
         return response
 
     # Check if we have pending tokens from a refresh
     pending = getattr(g, "pending_token_refresh", None)
     if pending:
         cookie_secure = get_cookie_secure(config)
+
+        # Validate refresh token exp before setting any cookies
+        refresh_max_age: int | None = None
+        if pending.refresh_token:
+            refresh_max_age = get_token_expiry_seconds(pending.refresh_token)
+            if refresh_max_age is None:
+                logger.error("Refreshed token missing 'exp' claim — clearing auth cookies")
+                _clear_auth_cookies(response, config, cookie_secure)
+                return response
 
         # Set new access token cookie
         response.set_cookie(
@@ -138,12 +136,8 @@ def after_request_set_cookies(
             max_age=pending.access_token_expires_in,
         )
 
-        # Set new refresh token cookie (if provided)
-        if pending.refresh_token:
-            refresh_max_age = get_token_expiry_seconds(pending.refresh_token)
-            if refresh_max_age is None:
-                refresh_max_age = pending.access_token_expires_in
-
+        # Set new refresh token cookie (if provided and validated above)
+        if pending.refresh_token and refresh_max_age is not None:
             response.set_cookie(
                 config.oidc_refresh_cookie_name,
                 pending.refresh_token,

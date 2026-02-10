@@ -232,9 +232,10 @@ def callback(
     if token_response.refresh_token:
         # Derive max_age from the refresh token's exp claim
         refresh_max_age = get_token_expiry_seconds(token_response.refresh_token)
-        # Fall back to access token expiry if refresh token is opaque
         if refresh_max_age is None:
-            refresh_max_age = token_response.expires_in
+            raise AuthenticationException(
+                "Refresh token missing 'exp' claim — cannot determine cookie lifetime"
+            )
 
         response.set_cookie(
             config.oidc_refresh_cookie_name,
