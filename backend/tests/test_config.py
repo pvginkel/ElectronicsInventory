@@ -223,19 +223,8 @@ class TestValidateProductionConfig:
         settings = Settings(
             flask_env="production",
             secret_key="my-secure-production-key",
-            sse_callback_secret="some-secret",
         )
         settings.validate_production_config()
-
-    def test_production_missing_sse_callback_secret_fails(self):
-        """Production without SSE_CALLBACK_SECRET should fail."""
-        settings = Settings(
-            flask_env="production",
-            secret_key="my-secure-production-key",
-            sse_callback_secret="",
-        )
-        with pytest.raises(ConfigurationError, match="SSE_CALLBACK_SECRET"):
-            settings.validate_production_config()
 
     def test_oidc_enabled_missing_issuer_url_fails(self):
         """OIDC enabled without OIDC_ISSUER_URL should fail."""
@@ -302,7 +291,6 @@ class TestValidateProductionConfig:
         settings = Settings(
             flask_env="production",
             # default secret_key triggers error
-            sse_callback_secret="",
             oidc_enabled=True,
             oidc_issuer_url=None,
             oidc_client_id=None,
@@ -313,7 +301,6 @@ class TestValidateProductionConfig:
 
         error_msg = str(exc_info.value)
         assert "SECRET_KEY" in error_msg
-        assert "SSE_CALLBACK_SECRET" in error_msg
         assert "OIDC_ISSUER_URL" in error_msg
         assert "OIDC_CLIENT_ID" in error_msg
         assert "OIDC_CLIENT_SECRET" in error_msg
