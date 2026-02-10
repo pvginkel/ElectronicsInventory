@@ -237,6 +237,56 @@ class Environment(BaseSettings):
         description="Log connection pool checkout/checkin events. Use 'debug' for verbose output."
     )
 
+    # OIDC Authentication settings
+    BASEURL: str = Field(
+        default="http://localhost:3000",
+        description="Base URL for the application (used for redirect URI and cookie security)"
+    )
+    OIDC_ENABLED: bool = Field(
+        default=False,
+        description="Enable OIDC authentication"
+    )
+    OIDC_ISSUER_URL: str | None = Field(
+        default=None,
+        description="OIDC issuer URL (e.g., https://auth.example.com/realms/ei)"
+    )
+    OIDC_CLIENT_ID: str | None = Field(
+        default=None,
+        description="OIDC client ID"
+    )
+    OIDC_CLIENT_SECRET: str | None = Field(
+        default=None,
+        description="OIDC client secret (confidential client)"
+    )
+    OIDC_SCOPES: str = Field(
+        default="openid profile email",
+        description="Space-separated OIDC scopes"
+    )
+    OIDC_AUDIENCE: str | None = Field(
+        default=None,
+        description="Expected 'aud' claim in JWT (defaults to client_id if not set)"
+    )
+    OIDC_CLOCK_SKEW_SECONDS: int = Field(
+        default=30,
+        description="Clock skew tolerance for token validation"
+    )
+    OIDC_COOKIE_NAME: str = Field(
+        default="access_token",
+        description="Cookie name for storing JWT access token"
+    )
+    OIDC_COOKIE_SECURE: bool | None = Field(
+        default=None,
+        description="Secure flag for cookie (inferred from BASEURL if None)"
+    )
+    OIDC_COOKIE_SAMESITE: str = Field(
+        default="Lax",
+        description="SameSite attribute for cookie"
+    )
+    OIDC_REFRESH_COOKIE_NAME: str = Field(
+        default="refresh_token",
+        description="Cookie name for storing refresh token"
+    )
+
     # Request diagnostics settings
     DIAGNOSTICS_ENABLED: bool = Field(
         default=False,
@@ -342,6 +392,20 @@ class Settings(BaseModel):
     db_pool_timeout: int = 10
     db_pool_echo: bool | str = False
 
+    # OIDC Authentication settings
+    baseurl: str = "http://localhost:3000"
+    oidc_enabled: bool = False
+    oidc_issuer_url: str | None = None
+    oidc_client_id: str | None = None
+    oidc_client_secret: str | None = None
+    oidc_scopes: str = "openid profile email"
+    oidc_audience: str | None = None  # Resolved: falls back to oidc_client_id via load()
+    oidc_clock_skew_seconds: int = 30
+    oidc_cookie_name: str = "access_token"
+    oidc_cookie_secure: bool = False  # Resolved: inferred from baseurl via load()
+    oidc_cookie_samesite: str = "Lax"
+    oidc_refresh_cookie_name: str = "refresh_token"
+
     # Request diagnostics settings
     diagnostics_enabled: bool = False
     diagnostics_slow_query_threshold_ms: int = 100
@@ -397,6 +461,15 @@ class Settings(BaseModel):
         # Compute ai_testing_mode: force True if testing, else use env value
         ai_testing_mode = True if env.FLASK_ENV == "testing" else env.AI_TESTING_MODE
 
+        # Resolve OIDC audience: fall back to client_id if not explicitly set
+        oidc_audience = env.OIDC_AUDIENCE or env.OIDC_CLIENT_ID
+
+        # Resolve OIDC cookie secure: explicit setting takes priority, else infer from baseurl
+        if env.OIDC_COOKIE_SECURE is not None:
+            oidc_cookie_secure = env.OIDC_COOKIE_SECURE
+        else:
+            oidc_cookie_secure = env.BASEURL.startswith("https://")
+
         # Build default SQLAlchemy engine options
         sqlalchemy_engine_options = {
             "pool_size": env.DB_POOL_SIZE,
@@ -451,6 +524,18 @@ class Settings(BaseModel):
             db_pool_max_overflow=env.DB_POOL_MAX_OVERFLOW,
             db_pool_timeout=env.DB_POOL_TIMEOUT,
             db_pool_echo=env.DB_POOL_ECHO,
+            baseurl=env.BASEURL,
+            oidc_enabled=env.OIDC_ENABLED,
+            oidc_issuer_url=env.OIDC_ISSUER_URL,
+            oidc_client_id=env.OIDC_CLIENT_ID,
+            oidc_client_secret=env.OIDC_CLIENT_SECRET,
+            oidc_scopes=env.OIDC_SCOPES,
+            oidc_audience=oidc_audience,
+            oidc_clock_skew_seconds=env.OIDC_CLOCK_SKEW_SECONDS,
+            oidc_cookie_name=env.OIDC_COOKIE_NAME,
+            oidc_cookie_secure=oidc_cookie_secure,
+            oidc_cookie_samesite=env.OIDC_COOKIE_SAMESITE,
+            oidc_refresh_cookie_name=env.OIDC_REFRESH_COOKIE_NAME,
             diagnostics_enabled=env.DIAGNOSTICS_ENABLED,
             diagnostics_slow_query_threshold_ms=env.DIAGNOSTICS_SLOW_QUERY_THRESHOLD_MS,
             diagnostics_slow_request_threshold_ms=env.DIAGNOSTICS_SLOW_REQUEST_THRESHOLD_MS,

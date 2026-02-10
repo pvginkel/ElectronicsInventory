@@ -7,12 +7,14 @@ from flask import Blueprint, Response
 
 from app.services.container import ServiceContainer
 from app.services.metrics_service import MetricsService
+from app.utils.auth import public
 from app.utils.error_handling import handle_api_errors
 
 metrics_bp = Blueprint("metrics", __name__, url_prefix="/metrics")
 
 
 @metrics_bp.route("", methods=["GET"])
+@public
 @handle_api_errors
 @inject
 def get_metrics(metrics_service: MetricsService = Provide[ServiceContainer.metrics_service]) -> Any:

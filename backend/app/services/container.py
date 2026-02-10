@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from app.config import Settings
 from app.services.ai_service import AIService
 from app.services.attachment_set_service import AttachmentSetService
+from app.services.auth_service import AuthService
 from app.services.box_service import BoxService
 from app.services.connection_manager import ConnectionManager
 from app.services.dashboard_service import DashboardService
@@ -22,6 +23,7 @@ from app.services.kit_service import KitService
 from app.services.kit_shopping_list_service import KitShoppingListService
 from app.services.metrics_service import MetricsService
 from app.services.mouser_service import MouserService
+from app.services.oidc_client_service import OidcClientService
 from app.services.part_service import PartService
 from app.services.pick_list_report_service import PickListReportService
 from app.services.s3_service import S3Service
@@ -156,6 +158,18 @@ class ServiceContainer(containers.DeclarativeContainer):
         MetricsService,
         container=providers.Self(),
         shutdown_coordinator=shutdown_coordinator,
+    )
+
+    # Auth services - Singletons for OIDC authentication
+    auth_service = providers.Singleton(
+        AuthService,
+        config=config,
+        metrics_service=metrics_service,
+    )
+    oidc_client_service = providers.Singleton(
+        OidcClientService,
+        config=config,
+        metrics_service=metrics_service,
     )
 
     # ConnectionManager - Singleton for SSE Gateway token mapping
