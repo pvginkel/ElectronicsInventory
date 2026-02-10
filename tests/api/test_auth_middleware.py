@@ -276,6 +276,49 @@ class TestTokenRefreshMiddleware:
             assert "access_token=" in cookie_str
             assert "Max-Age=0" in cookie_str
 
+    def test_refresh_with_opaque_refresh_token_clears_cookies(
+        self, oidc_app: Flask, generate_test_jwt: Any
+    ):
+        """Test that opaque refresh token (missing exp) clears auth cookies."""
+        client = oidc_app.test_client()
+
+        expired_token = generate_test_jwt(expired=True, roles=["admin"])
+
+        # Use a JWT refresh token so the cookie persists for the request
+        refresh_exp = int(time.time()) + 86400
+        refresh_payload = {"sub": "test-user", "exp": refresh_exp, "typ": "Refresh"}
+        refresh_token = jwt.encode(
+            refresh_payload, generate_test_jwt.private_key, algorithm="RS256"
+        )
+
+        new_access_token = generate_test_jwt(subject="test-user", roles=["admin"])
+        # Simulate IdP returning an opaque refresh token (no exp claim)
+        opaque_new_refresh = "opaque-refresh-token-no-exp"
+
+        with patch("httpx.post") as mock_post:
+            mock_refresh_response = MagicMock()
+            mock_refresh_response.json.return_value = {
+                "access_token": new_access_token,
+                "refresh_token": opaque_new_refresh,
+                "token_type": "Bearer",
+                "expires_in": 300,
+            }
+            mock_refresh_response.raise_for_status = MagicMock()
+            mock_post.return_value = mock_refresh_response
+
+            client.set_cookie("access_token", expired_token)
+            client.set_cookie("refresh_token", refresh_token)
+
+            response = client.get("/api/parts")
+
+            # Request succeeds (token was refreshed and validated)
+            assert response.status_code == 200
+
+            # But cookies should be cleared because the new refresh token is opaque
+            set_cookie_headers = response.headers.getlist("Set-Cookie")
+            cookie_str = " ".join(set_cookie_headers)
+            assert "Max-Age=0" in cookie_str
+
     def test_valid_access_token_does_not_trigger_refresh(
         self, oidc_app: Flask, generate_test_jwt: Any
     ):
