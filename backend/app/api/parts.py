@@ -4,6 +4,7 @@ from typing import Any
 
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request
+from prometheus_client import Counter
 from spectree import Response as SpectreeResponse
 
 from app.schemas.common import ErrorResponseSchema
@@ -31,12 +32,18 @@ from app.schemas.quantity_history import QuantityHistoryResponseSchema
 from app.services.container import ServiceContainer
 from app.services.inventory_service import InventoryService
 from app.services.kit_reservation_service import KitReservationService
-from app.services.metrics_service import MetricsService
 from app.services.part_service import PartService
 from app.services.shopping_list_line_service import ShoppingListLineService
 from app.services.shopping_list_service import ShoppingListService
 from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
+
+# Part kit usage request metric
+PART_KIT_USAGE_REQUESTS_TOTAL = Counter(
+    "part_kit_usage_requests_total",
+    "Total part kit usage requests",
+    ["has_results"],
+)
 
 parts_bp = Blueprint("parts", __name__, url_prefix="/parts")
 
@@ -279,12 +286,11 @@ def get_part(
 def list_part_kits(
     part_key: str,
     kit_reservation_service: KitReservationService = Provide[ServiceContainer.kit_reservation_service],
-    metrics_service: MetricsService = Provide[ServiceContainer.metrics_service],
 ) -> Any:
     """List active kits consuming the specified part."""
     usage_entries = kit_reservation_service.list_kits_for_part(part_key)
     has_results = bool(usage_entries)
-    metrics_service.record_part_kit_usage_request(has_results=has_results)
+    PART_KIT_USAGE_REQUESTS_TOTAL.labels(has_results=str(has_results).lower()).inc()
 
     return [
         PartKitUsageSchema.model_validate(entry).model_dump()

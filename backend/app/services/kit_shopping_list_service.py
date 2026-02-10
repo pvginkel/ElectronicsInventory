@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from time import perf_counter
 
+from prometheus_client import Counter, Histogram
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -16,9 +17,25 @@ from app.models.kit_shopping_list_link import KitShoppingListLink
 from app.models.shopping_list import ShoppingList, ShoppingListStatus
 from app.services.inventory_service import InventoryService
 from app.services.kit_reservation_service import KitReservationService
-from app.services.metrics_service import MetricsServiceProtocol
 from app.services.shopping_list_line_service import ShoppingListLineService
 from app.services.shopping_list_service import ShoppingListService
+
+# Kit shopping list metrics
+KIT_SHOPPING_LIST_PUSH_TOTAL = Counter(
+    "kit_shopping_list_push_total",
+    "Total kit shopping list push operations by outcome",
+    ["outcome", "honor_reserved"],
+)
+KIT_SHOPPING_LIST_PUSH_SECONDS = Histogram(
+    "kit_shopping_list_push_seconds",
+    "Duration of kit shopping list push operations",
+    ["honor_reserved"],
+)
+KIT_SHOPPING_LIST_UNLINK_TOTAL = Counter(
+    "kit_shopping_list_unlink_total",
+    "Total kit shopping list unlink operations by outcome",
+    ["outcome"],
+)
 
 
 @dataclass(slots=True)
@@ -52,14 +69,12 @@ class KitShoppingListService:
         kit_reservation_service: KitReservationService,
         shopping_list_service: ShoppingListService,
         shopping_list_line_service: ShoppingListLineService,
-        metrics_service: MetricsServiceProtocol | None = None,
     ) -> None:
         self.db = db
         self.inventory_service = inventory_service
         self.kit_reservation_service = kit_reservation_service
         self.shopping_list_service = shopping_list_service
         self.shopping_list_line_service = shopping_list_line_service
-        self.metrics_service = metrics_service
 
     def create_or_append_list(
         self,
@@ -88,21 +103,23 @@ class KitShoppingListService:
                 new_list_description=new_list_description,
             )
         except Exception:
-            if self.metrics_service is not None:
-                self.metrics_service.record_kit_shopping_list_push(
-                    outcome="error",
-                    honor_reserved=honor_reserved,
-                    duration_seconds=perf_counter() - timer_start,
-                )
+            reserved_label = "true" if honor_reserved else "false"
+            KIT_SHOPPING_LIST_PUSH_TOTAL.labels(
+                outcome="error", honor_reserved=reserved_label
+            ).inc()
+            KIT_SHOPPING_LIST_PUSH_SECONDS.labels(
+                honor_reserved=reserved_label
+            ).observe(max(perf_counter() - timer_start, 0.0))
             raise
 
-        if self.metrics_service is not None:
-            outcome = "noop" if result.noop else "success"
-            self.metrics_service.record_kit_shopping_list_push(
-                outcome=outcome,
-                honor_reserved=honor_reserved,
-                duration_seconds=perf_counter() - timer_start,
-            )
+        reserved_label = "true" if honor_reserved else "false"
+        outcome = "noop" if result.noop else "success"
+        KIT_SHOPPING_LIST_PUSH_TOTAL.labels(
+            outcome=outcome, honor_reserved=reserved_label
+        ).inc()
+        KIT_SHOPPING_LIST_PUSH_SECONDS.labels(
+            honor_reserved=reserved_label
+        ).observe(max(perf_counter() - timer_start, 0.0))
         return result
 
     def list_links_for_kit(self, kit_id: int) -> list[KitShoppingListLink]:
@@ -191,19 +208,15 @@ class KitShoppingListService:
 
     def unlink(self, link_id: int) -> None:
         """Remove a kit-shopping-list link without touching list contents."""
-        metrics_service = self.metrics_service
-
         link = self._load_link_for_update(link_id)
         if link is None:
-            if metrics_service is not None:
-                metrics_service.record_kit_shopping_list_unlink("not_found")
+            KIT_SHOPPING_LIST_UNLINK_TOTAL.labels(outcome="not_found").inc()
             raise RecordNotFoundException("Kit shopping list link", link_id)
 
         self.db.delete(link)
         self.db.flush()
 
-        if metrics_service is not None:
-            metrics_service.record_kit_shopping_list_unlink("success")
+        KIT_SHOPPING_LIST_UNLINK_TOTAL.labels(outcome="success").inc()
 
     # Internal helpers -----------------------------------------------------------------
 

@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from time import perf_counter
 
+from prometheus_client import Counter, Histogram
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -19,7 +20,38 @@ from app.models.kit_pick_list_line import KitPickListLine, PickListLineStatus
 from app.models.part_location import PartLocation
 from app.services.inventory_service import InventoryService
 from app.services.kit_reservation_service import KitReservationService
-from app.services.metrics_service import MetricsServiceProtocol
+
+# Pick list metrics
+PICK_LIST_CREATED_TOTAL = Counter(
+    "pick_list_created_total", "Total pick lists created"
+)
+PICK_LIST_LINES_PER_CREATION = Histogram(
+    "pick_list_lines_per_creation",
+    "Distribution of pick list line counts per creation event",
+)
+PICK_LIST_LINE_PICKED_TOTAL = Counter(
+    "pick_list_line_picked_total", "Pick list lines marked as picked"
+)
+PICK_LIST_LINE_UNDO_TOTAL = Counter(
+    "pick_list_line_undo_total", "Pick list line undo outcomes", ["outcome"]
+)
+PICK_LIST_LINE_UNDO_DURATION_SECONDS = Histogram(
+    "pick_list_line_undo_duration_seconds",
+    "Duration of pick list line undo operations in seconds",
+)
+PICK_LIST_DETAIL_REQUESTS_TOTAL = Counter(
+    "pick_list_detail_requests_total", "Pick list detail requests processed"
+)
+PICK_LIST_LIST_REQUESTS_TOTAL = Counter(
+    "pick_list_list_requests_total", "Pick list list requests processed"
+)
+PICK_LIST_LINE_QUANTITY_UPDATED_TOTAL = Counter(
+    "pick_list_line_quantity_updated_total", "Pick list line quantity updates"
+)
+PICK_LIST_LINE_QUANTITY_DELTA = Histogram(
+    "pick_list_line_quantity_delta",
+    "Distribution of quantity deltas on line updates",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +64,10 @@ class KitPickListService:
         db: Session,
         inventory_service: InventoryService,
         kit_reservation_service: KitReservationService,
-        metrics_service: MetricsServiceProtocol,
     ) -> None:
         self.db = db
         self.inventory_service = inventory_service
         self.kit_reservation_service = kit_reservation_service
-        self.metrics_service = metrics_service
 
     def create_pick_list(
         self,
@@ -227,11 +257,8 @@ class KitPickListService:
             self.db.add(line)
 
         self.db.flush()
-        self.metrics_service.record_pick_list_created(
-            kit_id=kit.id,
-            requested_units=requested_units,
-            line_count=len(planned_lines),
-        )
+        PICK_LIST_CREATED_TOTAL.inc()
+        PICK_LIST_LINES_PER_CREATION.observe(max(len(planned_lines), 0))
         return pick_list
 
     def preview_shortfall(
@@ -341,7 +368,7 @@ class KitPickListService:
                 line.id or 0,
             ),
         )
-        self.metrics_service.record_pick_list_detail_request(pick_list_id)
+        PICK_LIST_DETAIL_REQUESTS_TOTAL.inc()
         return pick_list
 
     def list_pick_lists_for_kit(self, kit_id: int) -> list[KitPickList]:
@@ -364,10 +391,7 @@ class KitPickListService:
         )
 
         pick_lists = list(self.db.execute(stmt).scalars().unique().all())
-        self.metrics_service.record_pick_list_list_request(
-            kit_id,
-            len(pick_lists),
-        )
+        PICK_LIST_LIST_REQUESTS_TOTAL.inc()
         return pick_lists
 
     def list_pick_lists_for_kits_bulk(
@@ -411,14 +435,9 @@ class KitPickListService:
         ):
             grouped.setdefault(pick_list.kit_id, []).append(pick_list)
 
-        metrics_service = self.metrics_service
         for kit_id in ordered_ids:
             grouped.setdefault(kit_id, [])
-            if metrics_service is not None:
-                metrics_service.record_pick_list_list_request(
-                    kit_id,
-                    len(grouped[kit_id]),
-                )
+            PICK_LIST_LIST_REQUESTS_TOTAL.inc()
 
         return grouped
 
@@ -468,10 +487,8 @@ class KitPickListService:
             pick_list.completed_at = now
 
         self.db.flush()
-        self.metrics_service.record_pick_list_line_picked(
-            line_id=line.id or 0,
-            quantity=line.quantity_to_pick,
-        )
+        if line.quantity_to_pick > 0:
+            PICK_LIST_LINE_PICKED_TOTAL.inc()
         return line
 
     def undo_line(self, pick_list_id: int, line_id: int) -> KitPickListLine:
@@ -481,7 +498,8 @@ class KitPickListService:
 
         if line.status is PickListLineStatus.OPEN:
             duration = perf_counter() - start
-            self.metrics_service.record_pick_list_line_undo("noop", duration)
+            PICK_LIST_LINE_UNDO_TOTAL.labels(outcome="noop").inc()
+            PICK_LIST_LINE_UNDO_DURATION_SECONDS.observe(max(duration, 0.0))
             return line
 
         # Zero-quantity lines have no inventory change to undo - just reset status
@@ -498,12 +516,14 @@ class KitPickListService:
 
             self.db.flush()
             duration = perf_counter() - start
-            self.metrics_service.record_pick_list_line_undo("success", duration)
+            PICK_LIST_LINE_UNDO_TOTAL.labels(outcome="success").inc()
+            PICK_LIST_LINE_UNDO_DURATION_SECONDS.observe(max(duration, 0.0))
             return line
 
         if line.inventory_change_id is None:
             duration = perf_counter() - start
-            self.metrics_service.record_pick_list_line_undo("error", duration)
+            PICK_LIST_LINE_UNDO_TOTAL.labels(outcome="error").inc()
+            PICK_LIST_LINE_UNDO_DURATION_SECONDS.observe(max(duration, 0.0))
             raise InvalidOperationException(
                 "undo pick list line",
                 "line is missing inventory change reference",
@@ -511,7 +531,8 @@ class KitPickListService:
 
         if not line.kit_content or not line.kit_content.part or not line.location:
             duration = perf_counter() - start
-            self.metrics_service.record_pick_list_line_undo("error", duration)
+            PICK_LIST_LINE_UNDO_TOTAL.labels(outcome="error").inc()
+            PICK_LIST_LINE_UNDO_DURATION_SECONDS.observe(max(duration, 0.0))
             raise InvalidOperationException(
                 "undo pick list line",
                 "line is missing inventory metadata",
@@ -537,7 +558,8 @@ class KitPickListService:
 
         self.db.flush()
         duration = perf_counter() - start
-        self.metrics_service.record_pick_list_line_undo("success", duration)
+        PICK_LIST_LINE_UNDO_TOTAL.labels(outcome="success").inc()
+        PICK_LIST_LINE_UNDO_DURATION_SECONDS.observe(max(duration, 0.0))
         return line
 
     def update_line_quantity(
@@ -572,11 +594,8 @@ class KitPickListService:
         self.db.flush()
 
         # Record metrics
-        self.metrics_service.record_pick_list_line_quantity_updated(
-            line_id=line.id or 0,
-            old_quantity=old_quantity,
-            new_quantity=quantity_to_pick,
-        )
+        PICK_LIST_LINE_QUANTITY_UPDATED_TOTAL.inc()
+        PICK_LIST_LINE_QUANTITY_DELTA.observe(quantity_to_pick - old_quantity)
 
         # Return updated pick list detail
         return self.get_pick_list_detail(pick_list_id)

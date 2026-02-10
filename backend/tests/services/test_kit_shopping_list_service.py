@@ -86,27 +86,12 @@ class TestKitShoppingListService:
         assert "BOM note" in (line.note or "")
 
     def test_zero_build_target_defaults_raise_and_emit_metrics(self, session, container, make_attachment_set):
+        from app.services.kit_shopping_list_service import KIT_SHOPPING_LIST_PUSH_TOTAL
+
         service = container.kit_shopping_list_service()
         kit, _ = _create_kit_with_content(session, make_attachment_set, build_target=0)
 
-        class PushMetricsRecorder:
-            def __init__(self) -> None:
-                self.push_events: list[tuple[str, bool]] = []
-                self.unlink_events: list[str] = []
-
-            def record_kit_shopping_list_push(
-                self,
-                outcome: str,
-                honor_reserved: bool,
-                duration_seconds: float,
-            ) -> None:
-                self.push_events.append((outcome, honor_reserved))
-
-            def record_kit_shopping_list_unlink(self, outcome: str) -> None:
-                self.unlink_events.append(outcome)
-
-        metrics_recorder = PushMetricsRecorder()
-        service.metrics_service = metrics_recorder
+        before = KIT_SHOPPING_LIST_PUSH_TOTAL.labels(outcome="error", honor_reserved="false")._value.get()
 
         with pytest.raises(InvalidOperationException):
             service.create_or_append_list(
@@ -118,7 +103,8 @@ class TestKitShoppingListService:
                 new_list_name="Should Fail",
             )
 
-        assert metrics_recorder.push_events == [("error", False)]
+        after = KIT_SHOPPING_LIST_PUSH_TOTAL.labels(outcome="error", honor_reserved="false")._value.get()
+        assert after - before == 1.0
 
     def test_append_existing_list_merges_quantities_and_notes(self, session, container, make_attachment_set):
         service = container.kit_shopping_list_service()

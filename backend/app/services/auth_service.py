@@ -8,10 +8,26 @@ from typing import Any
 import httpx
 import jwt
 from jwt import PyJWKClient
+from prometheus_client import Counter, Histogram
 
 from app.config import Settings
 from app.exceptions import AuthenticationException
-from app.services.metrics_service import MetricsServiceProtocol
+
+# Auth metrics
+EI_AUTH_VALIDATION_TOTAL = Counter(
+    "ei_auth_validation_total",
+    "Total auth token validations by status",
+    ["status"],
+)
+EI_AUTH_VALIDATION_DURATION_SECONDS = Histogram(
+    "ei_auth_validation_duration_seconds",
+    "Auth token validation duration in seconds",
+)
+EI_JWKS_REFRESH_TOTAL = Counter(
+    "ei_jwks_refresh_total",
+    "Total JWKS initialization/refresh events",
+    ["trigger", "status"],
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,19 +52,16 @@ class AuthService:
     def __init__(
         self,
         config: Settings,
-        metrics_service: MetricsServiceProtocol,
     ) -> None:
         """Initialize auth service with OIDC configuration.
 
         Args:
             config: Application settings containing OIDC configuration
-            metrics_service: Metrics service for recording auth operations
 
         Raises:
             ValueError: If OIDC is enabled but required config is missing
         """
         self.config = config
-        self.metrics_service = metrics_service
 
         # JWKS client instance (initialized once if OIDC enabled)
         self._jwks_client: PyJWKClient | None = None
@@ -76,10 +89,10 @@ class AuthService:
                 logger.info("Initialized JWKS client with URI: %s", self._jwks_uri)
 
                 # Record successful JWKS initialization
-                self.metrics_service.record_jwks_refresh("startup", "success")
+                EI_JWKS_REFRESH_TOTAL.labels(trigger="startup", status="success").inc()
             except Exception as e:
                 logger.error("Failed to initialize JWKS client: %s", str(e))
-                self.metrics_service.record_jwks_refresh("startup", "failed")
+                EI_JWKS_REFRESH_TOTAL.labels(trigger="startup", status="failed").inc()
                 raise
         else:
             logger.info("AuthService initialized with OIDC disabled")
@@ -166,7 +179,8 @@ class AuthService:
 
             # Record successful validation
             duration = time.perf_counter() - start_time
-            self.metrics_service.record_auth_validation("success", duration)
+            EI_AUTH_VALIDATION_TOTAL.labels(status="success").inc()
+            EI_AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
 
             logger.info(
                 "Token validated successfully for subject=%s email=%s roles=%s",
@@ -184,19 +198,22 @@ class AuthService:
 
         except jwt.ExpiredSignatureError as e:
             duration = time.perf_counter() - start_time
-            self.metrics_service.record_auth_validation("expired", duration)
+            EI_AUTH_VALIDATION_TOTAL.labels(status="expired").inc()
+            EI_AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
             logger.warning("Token validation failed: expired")
             raise AuthenticationException("Token has expired") from e
 
         except jwt.InvalidSignatureError as e:
             duration = time.perf_counter() - start_time
-            self.metrics_service.record_auth_validation("invalid_signature", duration)
+            EI_AUTH_VALIDATION_TOTAL.labels(status="invalid_signature").inc()
+            EI_AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
             logger.warning("Token validation failed: invalid signature")
             raise AuthenticationException("Invalid token signature") from e
 
         except (jwt.InvalidIssuerError, jwt.InvalidAudienceError) as e:
             duration = time.perf_counter() - start_time
-            self.metrics_service.record_auth_validation("invalid_claims", duration)
+            EI_AUTH_VALIDATION_TOTAL.labels(status="invalid_claims").inc()
+            EI_AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
             logger.warning("Token validation failed: invalid issuer or audience")
             raise AuthenticationException(
                 "Token issuer or audience does not match expected values"
@@ -204,19 +221,22 @@ class AuthService:
 
         except jwt.PyJWTError as e:
             duration = time.perf_counter() - start_time
-            self.metrics_service.record_auth_validation("invalid_token", duration)
+            EI_AUTH_VALIDATION_TOTAL.labels(status="invalid_token").inc()
+            EI_AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
             logger.warning("Token validation failed: %s", str(e))
             raise AuthenticationException(f"Invalid token: {str(e)}") from e
 
         except AuthenticationException:
             # Re-raise authentication exceptions as-is
             duration = time.perf_counter() - start_time
-            self.metrics_service.record_auth_validation("error", duration)
+            EI_AUTH_VALIDATION_TOTAL.labels(status="error").inc()
+            EI_AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
             raise
 
         except Exception as e:
             duration = time.perf_counter() - start_time
-            self.metrics_service.record_auth_validation("error", duration)
+            EI_AUTH_VALIDATION_TOTAL.labels(status="error").inc()
+            EI_AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
             logger.error("Unexpected error during token validation: %s", str(e))
             raise AuthenticationException(
                 f"Token validation failed: {str(e)}"

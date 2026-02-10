@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.schemas.task_schema import TaskInfo, TaskStatus
 from app.services.task_service import TaskService
 from tests.test_tasks.test_task import DemoTask
-from tests.testing_utils import StubMetricsService, StubShutdownCoordinator
+from tests.testing_utils import StubShutdownCoordinator
 
 
 class TestTaskAPI:
@@ -129,7 +129,6 @@ class TestTaskAPIIntegration:
         """Create real TaskService instance for integration testing."""
         from unittest.mock import MagicMock
         service = TaskService(
-            metrics_service=StubMetricsService(),
             shutdown_coordinator=StubShutdownCoordinator(),
             connection_manager=MagicMock(),
             max_workers=1,

@@ -10,18 +10,12 @@ import pytest
 
 from app.config import Settings
 from app.exceptions import AuthenticationException
-from app.services.metrics_service import MetricsServiceProtocol
 from app.services.oidc_client_service import (
     AuthState,
     OidcClientService,
     OidcEndpoints,
     TokenResponse,
 )
-
-
-def _create_mock_metrics() -> MagicMock:
-    """Create a mock metrics service that satisfies MetricsServiceProtocol."""
-    return MagicMock(spec=MetricsServiceProtocol)
 
 
 def _oidc_settings(base: Settings) -> Settings:
@@ -58,17 +52,15 @@ def _build_service(
             "jwks_uri": "https://auth.example.com/realms/ei/protocol/openid-connect/certs",
         }
 
-    metrics = _create_mock_metrics()
-
     if settings.oidc_enabled:
         with patch("httpx.get") as mock_get:
             mock_response = MagicMock()
             mock_response.json.return_value = discovery_doc
             mock_response.raise_for_status = MagicMock()
             mock_get.return_value = mock_response
-            return OidcClientService(settings, metrics)
+            return OidcClientService(settings)
     else:
-        return OidcClientService(settings, metrics)
+        return OidcClientService(settings)
 
 
 class TestOidcEndpointDiscovery:
@@ -113,8 +105,6 @@ class TestOidcEndpointDiscovery:
 
     def test_discovery_retries_on_http_error(self, oidc_settings: Settings) -> None:
         """Test that discovery retries on transient HTTP errors and succeeds if a retry works."""
-        metrics = _create_mock_metrics()
-
         valid_response = MagicMock()
         valid_response.json.return_value = {
             "authorization_endpoint": "https://auth.example.com/auth",
@@ -130,20 +120,18 @@ class TestOidcEndpointDiscovery:
                 httpx.ConnectError("Connection refused"),
                 valid_response,
             ]
-            service = OidcClientService(oidc_settings, metrics)
+            service = OidcClientService(oidc_settings)
 
         assert mock_get.call_count == 3
         assert service.endpoints.authorization_endpoint == "https://auth.example.com/auth"
 
     def test_discovery_fails_after_max_retries(self, oidc_settings: Settings) -> None:
         """Test that discovery raises ValueError after all retry attempts are exhausted."""
-        metrics = _create_mock_metrics()
-
         with patch("httpx.get") as mock_get:
             mock_get.side_effect = httpx.ConnectError("Connection refused")
 
             with pytest.raises(ValueError, match="Failed to discover OIDC endpoints after 3 attempts"):
-                OidcClientService(oidc_settings, metrics)
+                OidcClientService(oidc_settings)
 
         # All 3 retry attempts were made
         assert mock_get.call_count == 3
@@ -188,8 +176,6 @@ class TestOidcEndpointDiscovery:
 
     def test_discovery_url_uses_issuer_url(self, oidc_settings: Settings) -> None:
         """Test that the discovery URL is constructed from oidc_issuer_url."""
-        metrics = _create_mock_metrics()
-
         with patch("httpx.get") as mock_get:
             mock_response = MagicMock()
             mock_response.json.return_value = {
@@ -200,7 +186,7 @@ class TestOidcEndpointDiscovery:
             mock_response.raise_for_status = MagicMock()
             mock_get.return_value = mock_response
 
-            OidcClientService(oidc_settings, metrics)
+            OidcClientService(oidc_settings)
 
             mock_get.assert_called_once_with(
                 "https://auth.example.com/realms/ei/.well-known/openid-configuration",
@@ -397,11 +383,15 @@ class TestExchangeCodeForTokens:
 
     def test_exchange_records_success_metric(self, service: OidcClientService) -> None:
         """Test that a successful exchange records the success metric."""
+        from app.services.oidc_client_service import EI_OIDC_TOKEN_EXCHANGE_TOTAL
+
         token_data = {
             "access_token": "eyJ-token",
             "token_type": "Bearer",
             "expires_in": 300,
         }
+
+        before = EI_OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="success")._value.get()
 
         with patch("httpx.post") as mock_post:
             mock_response = MagicMock()
@@ -411,7 +401,8 @@ class TestExchangeCodeForTokens:
 
             service.exchange_code_for_tokens("code", "verifier")
 
-        service.metrics_service.record_oidc_token_exchange.assert_called_once_with("success")
+        after = EI_OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="success")._value.get()
+        assert after - before == 1.0
 
     def test_exchange_missing_access_token_raises(self, service: OidcClientService) -> None:
         """Test that an AuthenticationException is raised if the response lacks an access_token."""
@@ -452,13 +443,18 @@ class TestExchangeCodeForTokens:
 
     def test_exchange_http_error_records_failure_metric(self, service: OidcClientService) -> None:
         """Test that a failed exchange records the failure metric."""
+        from app.services.oidc_client_service import EI_OIDC_TOKEN_EXCHANGE_TOTAL
+
+        before = EI_OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="failed")._value.get()
+
         with patch("httpx.post") as mock_post:
             mock_post.side_effect = httpx.ConnectError("Connection refused")
 
             with pytest.raises(AuthenticationException):
                 service.exchange_code_for_tokens("code", "verifier")
 
-        service.metrics_service.record_oidc_token_exchange.assert_called_once_with("failed")
+        after = EI_OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="failed")._value.get()
+        assert after - before == 1.0
 
     def test_exchange_defaults_token_type_and_expires(self, service: OidcClientService) -> None:
         """Test that token_type defaults to 'Bearer' and expires_in to 300 when absent."""
@@ -565,11 +561,15 @@ class TestRefreshAccessToken:
 
     def test_refresh_records_success_metric(self, service: OidcClientService) -> None:
         """Test that a successful refresh records the success metric."""
+        from app.services.oidc_client_service import EI_AUTH_TOKEN_REFRESH_TOTAL
+
         token_data = {
             "access_token": "eyJ-token",
             "token_type": "Bearer",
             "expires_in": 300,
         }
+
+        before = EI_AUTH_TOKEN_REFRESH_TOTAL.labels(status="success")._value.get()
 
         with patch("httpx.post") as mock_post:
             mock_response = MagicMock()
@@ -579,7 +579,8 @@ class TestRefreshAccessToken:
 
             service.refresh_access_token("refresh-token")
 
-        service.metrics_service.record_auth_token_refresh.assert_called_once_with("success")
+        after = EI_AUTH_TOKEN_REFRESH_TOTAL.labels(status="success")._value.get()
+        assert after - before == 1.0
 
     def test_refresh_missing_access_token_raises(self, service: OidcClientService) -> None:
         """Test that an AuthenticationException is raised if refresh response lacks access_token."""
@@ -608,13 +609,18 @@ class TestRefreshAccessToken:
 
     def test_refresh_http_error_records_failure_metric(self, service: OidcClientService) -> None:
         """Test that a failed refresh records the failure metric."""
+        from app.services.oidc_client_service import EI_AUTH_TOKEN_REFRESH_TOTAL
+
+        before = EI_AUTH_TOKEN_REFRESH_TOTAL.labels(status="failed")._value.get()
+
         with patch("httpx.post") as mock_post:
             mock_post.side_effect = httpx.ConnectError("Connection refused")
 
             with pytest.raises(AuthenticationException):
                 service.refresh_access_token("refresh-token")
 
-        service.metrics_service.record_auth_token_refresh.assert_called_once_with("failed")
+        after = EI_AUTH_TOKEN_REFRESH_TOTAL.labels(status="failed")._value.get()
+        assert after - before == 1.0
 
     def test_refresh_preserves_original_refresh_token_when_not_rotated(
         self, service: OidcClientService
@@ -651,10 +657,8 @@ class TestOidcDisabled:
 
     def test_no_discovery_when_oidc_disabled(self, test_settings: Settings) -> None:
         """Test that no HTTP calls are made for discovery when OIDC is disabled."""
-        metrics = _create_mock_metrics()
-
         with patch("httpx.get") as mock_get:
-            OidcClientService(test_settings, metrics)
+            OidcClientService(test_settings)
 
         mock_get.assert_not_called()
 

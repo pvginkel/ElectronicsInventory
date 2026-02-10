@@ -23,7 +23,7 @@ from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
 from app.services.type_service import TypeService
 from app.utils.temp_file_manager import TempFileManager
-from tests.testing_utils import StubMetricsService, StubShutdownCoordinator
+from tests.testing_utils import StubShutdownCoordinator
 
 
 @pytest.fixture
@@ -78,12 +78,6 @@ def mock_document_service() -> DocumentService:
 
 
 @pytest.fixture
-def mock_metrics_service():
-    """Create mock metrics service."""
-    return StubMetricsService()
-
-
-@pytest.fixture
 def mock_seller_service(session: Session):
     """Create a seller service for testing."""
     from app.services.seller_service import SellerService
@@ -95,7 +89,7 @@ def ai_service(session: Session, ai_test_settings: Settings,
                temp_file_manager: TempFileManager, mock_type_service: TypeService,
                mock_seller_service,
                mock_download_cache_service: DownloadCacheService,
-               mock_document_service: DocumentService, mock_metrics_service):
+               mock_document_service: DocumentService):
     """Create AI service instance for testing."""
     from unittest.mock import Mock
 
@@ -122,7 +116,6 @@ def ai_service(session: Session, ai_test_settings: Settings,
         seller_service=mock_seller_service,
         download_cache_service=mock_download_cache_service,
         document_service=mock_document_service,
-        metrics_service=mock_metrics_service,
         duplicate_search_function=mock_duplicate_search_function,
         mouser_part_number_search_function=mock_mouser_part_number_search,
         mouser_keyword_search_function=mock_mouser_keyword_search,
@@ -169,7 +162,7 @@ class TestAIService:
     def test_init_without_api_key(self, session: Session, temp_file_manager: TempFileManager,
                                   mock_type_service: TypeService, mock_seller_service,
                                   mock_download_cache_service: DownloadCacheService,
-                                  mock_document_service: DocumentService, mock_metrics_service):
+                                  mock_document_service: DocumentService):
         """Test AI service initialization without API key (should not raise error - runner is injected)."""
         from unittest.mock import Mock
 
@@ -191,7 +184,7 @@ class TestAIService:
             seller_service=mock_seller_service,
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
-            metrics_service=mock_metrics_service,
+
             duplicate_search_function=mock_duplicate_search_function,
             mouser_part_number_search_function=mock_mouser_part_number_search,
             mouser_keyword_search_function=mock_mouser_keyword_search,
@@ -349,7 +342,7 @@ class TestAIService:
         mock_seller_service,
         mock_download_cache_service: DownloadCacheService,
         mock_document_service: DocumentService,
-        mock_metrics_service,
+
     ):
         """Real AI usage should be blocked in testing mode without dummy data."""
         from app.utils.ai.ai_runner import AIFunction
@@ -374,7 +367,7 @@ class TestAIService:
             seller_service=mock_seller_service,
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
-            metrics_service=mock_metrics_service,
+
             duplicate_search_function=mock_duplicate_search_function,
             mouser_part_number_search_function=mock_mouser_part_number_search,
             mouser_keyword_search_function=mock_mouser_keyword_search,
@@ -395,7 +388,7 @@ class TestAIService:
         mock_seller_service,
         mock_download_cache_service: DownloadCacheService,
         mock_document_service: DocumentService,
-        mock_metrics_service,
+
     ):
         """Dummy response should be served when configured in testing mode."""
         from app.utils.ai.ai_runner import AIFunction
@@ -428,7 +421,7 @@ class TestAIService:
             seller_service=mock_seller_service,
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
-            metrics_service=mock_metrics_service,
+
             duplicate_search_function=mock_duplicate_search_function,
             mouser_part_number_search_function=mock_mouser_part_number_search,
             mouser_keyword_search_function=mock_mouser_keyword_search,
@@ -447,7 +440,7 @@ class TestAIService:
 
     def test_conditional_function_registration_with_mouser_key(
         self, session: Session, mock_seller_service, mock_download_cache_service,
-        mock_document_service, mock_metrics_service
+        mock_document_service
     ):
         """Test that Mouser search functions are registered when API key is configured."""
         from app.utils.ai.ai_runner import AIFunction, AIRunner
@@ -473,7 +466,7 @@ class TestAIService:
             seller_service=mock_seller_service,
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
-            metrics_service=mock_metrics_service,
+
             duplicate_search_function=mock_duplicate_search_function,
             mouser_part_number_search_function=mock_mouser_part_number_search,
             mouser_keyword_search_function=mock_mouser_keyword_search,
@@ -519,7 +512,7 @@ class TestAIService:
 
     def test_conditional_function_registration_without_mouser_key(
         self, session: Session, mock_seller_service, mock_download_cache_service,
-        mock_document_service, mock_metrics_service
+        mock_document_service
     ):
         """Test that Mouser search functions are NOT registered when API key is missing."""
         from app.utils.ai.ai_runner import AIFunction, AIRunner
@@ -545,7 +538,7 @@ class TestAIService:
             seller_service=mock_seller_service,
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
-            metrics_service=mock_metrics_service,
+
             duplicate_search_function=mock_duplicate_search_function,
             mouser_part_number_search_function=mock_mouser_part_number_search,
             mouser_keyword_search_function=mock_mouser_keyword_search,
@@ -1140,7 +1133,7 @@ class TestAIServiceCleanupPart:
     def test_cleanup_part_ai_disabled(self, session: Session, temp_file_manager: TempFileManager,
                                        mock_type_service: TypeService, mock_seller_service,
                                        mock_download_cache_service: DownloadCacheService,
-                                       mock_document_service: DocumentService, mock_metrics_service):
+                                       mock_document_service: DocumentService):
         """Test cleanup_part raises InvalidOperationException when AI is disabled."""
         from app.models.attachment_set import AttachmentSet
         from app.models.part import Part
@@ -1165,7 +1158,7 @@ class TestAIServiceCleanupPart:
             seller_service=mock_seller_service,
             download_cache_service=mock_download_cache_service,
             document_service=mock_document_service,
-            metrics_service=mock_metrics_service,
+
             duplicate_search_function=mock_duplicate_search_function,
             mouser_part_number_search_function=mock_mouser_part_number_search,
             mouser_keyword_search_function=mock_mouser_keyword_search,

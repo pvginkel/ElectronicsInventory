@@ -7,6 +7,7 @@ from io import BytesIO
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
 
+from prometheus_client import Counter, Histogram
 from reportlab.lib import colors  # type: ignore[import-untyped]
 from reportlab.lib.pagesizes import letter  # type: ignore[import-untyped]
 from reportlab.lib.styles import getSampleStyleSheet  # type: ignore[import-untyped]
@@ -19,22 +20,28 @@ from reportlab.platypus import (  # type: ignore[import-untyped]
     TableStyle,
 )
 
-from app.services.metrics_service import MetricsServiceProtocol
-
 if TYPE_CHECKING:
     from app.models.kit_pick_list import KitPickList
+
+# Pick list PDF generation metrics
+PICK_LIST_PDF_GENERATED_TOTAL = Counter(
+    "pick_list_pdf_generated_total", "Total pick list PDFs generated"
+)
+PICK_LIST_PDF_LINE_COUNT = Histogram(
+    "pick_list_pdf_line_count", "Number of lines in generated PDFs"
+)
+PICK_LIST_PDF_BOX_COUNT = Histogram(
+    "pick_list_pdf_box_count", "Number of boxes in generated PDFs"
+)
+PICK_LIST_PDF_GENERATION_DURATION_SECONDS = Histogram(
+    "pick_list_pdf_generation_duration_seconds",
+    "Duration of PDF generation in seconds",
+    ["status"],
+)
 
 
 class PickListReportService:
     """Service for generating PDF reports of pick lists."""
-
-    def __init__(self, metrics_service: MetricsServiceProtocol) -> None:
-        """Initialize the report service with metrics integration.
-
-        Args:
-            metrics_service: Service for recording operational metrics
-        """
-        self.metrics_service = metrics_service
 
     def generate_pdf(self, pick_list: KitPickList) -> BytesIO:
         """Generate a PDF report for the given pick list.
@@ -99,25 +106,21 @@ class PickListReportService:
             box_count = len(lines_by_box)
             line_count = pick_list.line_count
 
-            self.metrics_service.record_pick_list_pdf_generated(
-                pick_list_id=pick_list.id,
-                line_count=line_count,
-                box_count=box_count,
-            )
-            self.metrics_service.record_pick_list_pdf_generation_duration(
-                duration=duration,
-                status="success",
-            )
+            PICK_LIST_PDF_GENERATED_TOTAL.inc()
+            PICK_LIST_PDF_LINE_COUNT.observe(max(line_count, 0))
+            PICK_LIST_PDF_BOX_COUNT.observe(max(box_count, 0))
+            PICK_LIST_PDF_GENERATION_DURATION_SECONDS.labels(
+                status="success"
+            ).observe(max(duration, 0.0))
 
             return buffer
 
         except Exception:
             # Record failure metric
             duration = perf_counter() - start_time
-            self.metrics_service.record_pick_list_pdf_generation_duration(
-                duration=duration,
-                status="error",
-            )
+            PICK_LIST_PDF_GENERATION_DURATION_SECONDS.labels(
+                status="error"
+            ).observe(max(duration, 0.0))
             raise
 
     def _build_header(

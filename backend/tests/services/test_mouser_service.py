@@ -36,35 +36,20 @@ def mock_download_cache_service():
 
 
 @pytest.fixture
-def mock_metrics_service():
-    """Create mock MetricsService."""
-    from app.services.metrics_service import MetricsServiceProtocol
-    mock = Mock(spec=MetricsServiceProtocol)
-    # Mock the counter and histogram attributes
-    mock.mouser_api_requests_total = Mock()
-    mock.mouser_api_requests_total.labels.return_value.inc = Mock()
-    mock.mouser_api_duration_seconds = Mock()
-    mock.mouser_api_duration_seconds.labels.return_value.observe = Mock()
-    return mock
-
-
-@pytest.fixture
-def mouser_service(test_settings, mock_download_cache_service, mock_metrics_service):
+def mouser_service(test_settings, mock_download_cache_service):
     """Create MouserService instance."""
     return MouserService(
         config=test_settings,
         download_cache_service=mock_download_cache_service,
-        metrics_service=mock_metrics_service
     )
 
 
 @pytest.fixture
-def mouser_service_no_key(test_settings_no_key, mock_download_cache_service, mock_metrics_service):
+def mouser_service_no_key(test_settings_no_key, mock_download_cache_service):
     """Create MouserService instance without API key."""
     return MouserService(
         config=test_settings_no_key,
         download_cache_service=mock_download_cache_service,
-        metrics_service=mock_metrics_service
     )
 
 
@@ -296,29 +281,31 @@ class TestMouserServiceMetrics:
     """Tests for metrics recording."""
 
     def test_metrics_recorded_on_success(
-        self, mouser_service, mock_download_cache_service, mock_metrics_service, sample_mouser_response
+        self, mouser_service, mock_download_cache_service, sample_mouser_response
     ):
         """Should record success metrics after API call."""
+        from app.services.mouser_service import MOUSER_API_REQUESTS_TOTAL
+
         mock_download_cache_service.post_cached_json.return_value = sample_mouser_response
 
+        before = MOUSER_API_REQUESTS_TOTAL.labels(endpoint="partnumber", status="success")._value.get()
+
         mouser_service.search_by_part_number("ABC123")
 
-        # Verify counter was incremented
-        mock_metrics_service.mouser_api_requests_total.labels.assert_called_with(
-            endpoint="partnumber",
-            status="success"
-        )
+        after = MOUSER_API_REQUESTS_TOTAL.labels(endpoint="partnumber", status="success")._value.get()
+        assert after - before == 1.0
 
     def test_metrics_recorded_on_error(
-        self, mouser_service, mock_download_cache_service, mock_metrics_service
+        self, mouser_service, mock_download_cache_service
     ):
         """Should record error metrics on API failure."""
+        from app.services.mouser_service import MOUSER_API_REQUESTS_TOTAL
+
         mock_download_cache_service.post_cached_json.side_effect = requests.RequestException("Error")
+
+        before = MOUSER_API_REQUESTS_TOTAL.labels(endpoint="partnumber", status="error")._value.get()
 
         mouser_service.search_by_part_number("ABC123")
 
-        # Verify counter was incremented with error status
-        mock_metrics_service.mouser_api_requests_total.labels.assert_called_with(
-            endpoint="partnumber",
-            status="error"
-        )
+        after = MOUSER_API_REQUESTS_TOTAL.labels(endpoint="partnumber", status="error")._value.get()
+        assert after - before == 1.0

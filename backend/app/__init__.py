@@ -134,7 +134,7 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
         'app.api', 'app.api.ai_parts', 'app.api.auth', 'app.api.parts', 'app.api.boxes', 'app.api.inventory',
         'app.api.kits', 'app.api.pick_lists', 'app.api.kit_shopping_list_links', 'app.api.types', 'app.api.sellers', 'app.api.shopping_lists',
         'app.api.shopping_list_lines', 'app.api.documents', 'app.api.tasks',
-        'app.api.dashboard', 'app.api.metrics', 'app.api.health', 'app.api.utils',
+        'app.api.dashboard', 'app.api.health', 'app.api.utils',
         'app.api.sse', 'app.api.cas', 'app.api.testing', 'app.api.attachment_sets'
     ]
 
@@ -242,13 +242,19 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
             # Log warning but don't fail startup - S3 might be optional
             app.logger.warning(f"Failed to ensure S3 bucket exists: {e}")
 
-        # Initialize and start metrics collection
+        # Initialize metrics polling: register dashboard callback and start thread
         try:
+            from app.services.metrics.dashboard_metrics import (
+                create_dashboard_polling_callback,
+            )
+
             metrics_service = container.metrics_service()
+            dashboard_callback = create_dashboard_polling_callback(container)
+            metrics_service.register_for_polling("dashboard", dashboard_callback)
             metrics_service.start_background_updater(settings.metrics_update_interval)
-            app.logger.info("Prometheus metrics collection started")
+            app.logger.info("Prometheus metrics polling started")
         except Exception as e:
-            app.logger.warning(f"Failed to start metrics collection: {e}")
+            app.logger.warning(f"Failed to start metrics polling: {e}")
 
         # Initialize request diagnostics if enabled
         from app.services.diagnostics_service import DiagnosticsService

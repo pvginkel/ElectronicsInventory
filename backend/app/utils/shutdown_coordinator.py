@@ -8,7 +8,20 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from enum import Enum
 
+from prometheus_client import Gauge, Histogram
+
 logger = logging.getLogger(__name__)
+
+# Shutdown metrics -- owned by the coordinator because it controls
+# the shutdown lifecycle and timing.
+APPLICATION_SHUTTING_DOWN = Gauge(
+    "application_shutting_down",
+    "Whether application is shutting down (1=yes, 0=no)",
+)
+GRACEFUL_SHUTDOWN_DURATION_SECONDS = Histogram(
+    "graceful_shutdown_duration_seconds",
+    "Duration of graceful shutdowns",
+)
 
 
 class LifetimeEvent(str, Enum):
@@ -112,6 +125,9 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
             self._shutting_down = True
             shutdown_start_time = time.perf_counter()
 
+            # Record that we are entering shutdown
+            APPLICATION_SHUTTING_DOWN.set(1)
+
             # Notify all listeners that we're starting shutdown. Don't
             # accept new incoming request and stuff like that.
             self._raise_lifetime_event(LifetimeEvent.PREPARE_SHUTDOWN)
@@ -145,6 +161,9 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
                 all_ready = False
 
         total_duration = time.perf_counter() - shutdown_start_time
+
+        # Record how long the graceful shutdown took
+        GRACEFUL_SHUTDOWN_DURATION_SECONDS.observe(total_duration)
 
         if not all_ready:
             logger.error(f"Shutdown timeout exceeded after {total_duration:.1f}s, forcing shutdown")

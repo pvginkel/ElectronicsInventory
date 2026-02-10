@@ -69,7 +69,7 @@ class TestPartsApi:
         )
         session.commit()
 
-        metrics_service = container.metrics_service()
+        from app.api.parts import PART_KIT_USAGE_REQUESTS_TOTAL
 
         usage_response = client.get(f"/api/parts/{part.key}/kits")
         assert usage_response.status_code == 200
@@ -84,9 +84,9 @@ class TestPartsApi:
         assert empty_response.status_code == 200
         assert empty_response.get_json() == []
 
-        # Validate metric labels
-        true_metric = metrics_service.part_kit_usage_requests_total.labels(has_results="true")
-        false_metric = metrics_service.part_kit_usage_requests_total.labels(has_results="false")
+        # Validate metric labels using module-level Counter
+        true_metric = PART_KIT_USAGE_REQUESTS_TOTAL.labels(has_results="true")
+        false_metric = PART_KIT_USAGE_REQUESTS_TOTAL.labels(has_results="false")
         assert true_metric._value.get() == 1
         assert false_metric._value.get() == 1
 

@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from prometheus_client import Counter
 from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
@@ -19,7 +20,21 @@ from app.services.seller_service import SellerService
 
 if TYPE_CHECKING:
     from app.services.inventory_service import InventoryService
-    from app.services.metrics_service import MetricsService
+
+# Shopping list metrics
+SHOPPING_LIST_LINES_MARKED_ORDERED_TOTAL = Counter(
+    "shopping_list_lines_marked_ordered_total",
+    "Total shopping list lines marked as ordered",
+    ["mode"],
+)
+SHOPPING_LIST_LINES_RECEIVED_TOTAL = Counter(
+    "shopping_list_lines_received_total",
+    "Total shopping list lines that have received stock",
+)
+SHOPPING_LIST_RECEIVE_QUANTITY_TOTAL = Counter(
+    "shopping_list_receive_quantity_total",
+    "Total quantity received via shopping list stock updates",
+)
 
 
 class ShoppingListLineService:
@@ -30,12 +45,10 @@ class ShoppingListLineService:
         db: Session,
         seller_service: SellerService,
         inventory_service: "InventoryService",
-        metrics_service: "MetricsService | None" = None,
     ) -> None:
         self.db = db
         self.seller_service = seller_service
         self.inventory_service = inventory_service
-        self.metrics_service = metrics_service
 
     def add_line(
         self,
@@ -322,7 +335,7 @@ class ShoppingListLineService:
 
         self._touch_list(shopping_list)
         self.db.flush()
-        self._record_lines_ordered(1, "single")
+        SHOPPING_LIST_LINES_MARKED_ORDERED_TOTAL.labels(mode="single").inc(1)
         return self._get_line(line.id)
 
     def set_line_new(self, line_id: int) -> ShoppingListLine:
@@ -442,11 +455,8 @@ class ShoppingListLineService:
         self._touch_list(shopping_list)
         self.db.flush()
 
-        if self.metrics_service is not None:
-            self.metrics_service.record_shopping_list_line_receipt(
-                lines=1,
-                total_qty=receive_qty,
-            )
+        SHOPPING_LIST_LINES_RECEIVED_TOTAL.inc(1)
+        SHOPPING_LIST_RECEIVE_QUANTITY_TOTAL.inc(receive_qty)
 
         return self._get_line(line.id)
 
@@ -582,7 +592,8 @@ class ShoppingListLineService:
 
         self._touch_list(shopping_list)
         self.db.flush()
-        self._record_lines_ordered(len(group_lines), "group")
+        if group_lines:
+            SHOPPING_LIST_LINES_MARKED_ORDERED_TOTAL.labels(mode="group").inc(len(group_lines))
         return [self._get_line(line.id) for line in group_lines]
 
     def check_duplicate(self, list_id: int, part_id: int) -> bool:
@@ -648,10 +659,3 @@ class ShoppingListLineService:
         """Update parent shopping list timestamp when related lines change."""
         shopping_list.updated_at = datetime.now(UTC)
 
-    def _record_lines_ordered(self, count: int, mode: str) -> None:
-        """Record metrics for lines marked ordered when metrics service available."""
-        if self.metrics_service is not None and count > 0:
-            self.metrics_service.record_shopping_list_lines_ordered(
-                count=count,
-                mode=mode,
-            )

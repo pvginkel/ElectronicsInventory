@@ -20,12 +20,33 @@ from time import perf_counter
 from typing import Any
 
 import requests
+from prometheus_client import Counter, Gauge, Histogram
 
 from app.schemas.sse_gateway_schema import (
     SSEGatewayEventData,
     SSEGatewaySendRequest,
 )
-from app.services.metrics_service import MetricsServiceProtocol
+
+# SSE Gateway metrics
+SSE_GATEWAY_CONNECTIONS_TOTAL = Counter(
+    "sse_gateway_connections_total",
+    "Total SSE Gateway connection lifecycle events",
+    ["action"],
+)
+SSE_GATEWAY_EVENTS_SENT_TOTAL = Counter(
+    "sse_gateway_events_sent_total",
+    "Total events sent to SSE Gateway",
+    ["service", "status"],
+)
+SSE_GATEWAY_SEND_DURATION_SECONDS = Histogram(
+    "sse_gateway_send_duration_seconds",
+    "Duration of SSE Gateway HTTP send calls",
+    ["service"],
+)
+SSE_GATEWAY_ACTIVE_CONNECTIONS = Gauge(
+    "sse_gateway_active_connections",
+    "Current number of active SSE Gateway connections",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,18 +57,15 @@ class ConnectionManager:
     def __init__(
         self,
         gateway_url: str,
-        metrics_service: MetricsServiceProtocol,
         http_timeout: float = 5.0
     ):
         """Initialize ConnectionManager.
 
         Args:
             gateway_url: Base URL for SSE Gateway (e.g., "http://localhost:3000")
-            metrics_service: Metrics service for observability
             http_timeout: Timeout for HTTP requests to SSE Gateway in seconds
         """
         self.gateway_url = gateway_url.rstrip("/")
-        self.metrics_service = metrics_service
         self.http_timeout = http_timeout
 
         # Bidirectional mappings
@@ -113,8 +131,9 @@ class ConnectionManager:
             }
             self._token_to_request_id[token] = request_id
 
-            # Record connection metric (no service_type dimension)
-            self.metrics_service.record_sse_gateway_connection("connect")
+            # Record connection metric
+            SSE_GATEWAY_CONNECTIONS_TOTAL.labels(action="connect").inc()
+            SSE_GATEWAY_ACTIVE_CONNECTIONS.inc()
 
             logger.info(
                 "Registered SSE Gateway connection",
@@ -186,8 +205,9 @@ class ConnectionManager:
             del self._connections[request_id]
             del self._token_to_request_id[token]
 
-            # Record disconnect metric (no service_type dimension)
-            self.metrics_service.record_sse_gateway_connection("disconnect")
+            # Record disconnect metric
+            SSE_GATEWAY_CONNECTIONS_TOTAL.labels(action="disconnect").inc()
+            SSE_GATEWAY_ACTIVE_CONNECTIONS.dec()
 
             logger.info(
                 "Unregistered SSE Gateway connection",
@@ -325,7 +345,7 @@ class ConnectionManager:
                     with self._lock:
                         self._connections.pop(request_id, None)
                         self._token_to_request_id.pop(token, None)
-                self.metrics_service.record_sse_gateway_event(service_type, "error")
+                SSE_GATEWAY_EVENTS_SENT_TOTAL.labels(service=service_type, status="error").inc()
                 return False
 
             if response.status_code != 200:
@@ -337,7 +357,7 @@ class ConnectionManager:
                         "response_body": response.text,
                     }
                 )
-                self.metrics_service.record_sse_gateway_event(service_type, "error")
+                SSE_GATEWAY_EVENTS_SENT_TOTAL.labels(service=service_type, status="error").inc()
                 return False
 
             logger.debug(
@@ -347,7 +367,7 @@ class ConnectionManager:
                     "event_name": event_name,
                 }
             )
-            self.metrics_service.record_sse_gateway_event(service_type, "success")
+            SSE_GATEWAY_EVENTS_SENT_TOTAL.labels(service=service_type, status="success").inc()
             return True
 
         except requests.RequestException as e:
@@ -360,12 +380,12 @@ class ConnectionManager:
                     "error_type": type(e).__name__,
                 }
             )
-            self.metrics_service.record_sse_gateway_event(service_type, "error")
+            SSE_GATEWAY_EVENTS_SENT_TOTAL.labels(service=service_type, status="error").inc()
             return False
 
         finally:
             duration = perf_counter() - start_time
-            self.metrics_service.record_sse_gateway_send_duration(service_type, duration)
+            SSE_GATEWAY_SEND_DURATION_SECONDS.labels(service=service_type).observe(duration)
 
     def _close_connection_internal(self, token: str, request_id: str) -> None:
         """Close a connection via SSE Gateway (best-effort, no retries).

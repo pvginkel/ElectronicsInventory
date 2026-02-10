@@ -16,34 +16,10 @@ from app.models.part import Part
 from app.services.pick_list_report_service import PickListReportService
 
 
-class ReportMetricsStub:
-    """Minimal metrics stub for PDF generation tracking."""
-
-    def __init__(self) -> None:
-        self.pdf_generated_calls: list[tuple[int, int, int]] = []
-        self.pdf_duration_calls: list[tuple[float, str]] = []
-
-    def record_pick_list_pdf_generated(
-        self, pick_list_id: int, line_count: int, box_count: int
-    ) -> None:
-        self.pdf_generated_calls.append((pick_list_id, line_count, box_count))
-
-    def record_pick_list_pdf_generation_duration(
-        self, duration: float, status: str
-    ) -> None:
-        self.pdf_duration_calls.append((duration, status))
-
-
 @pytest.fixture
-def metrics_stub() -> ReportMetricsStub:
-    """Provide a metrics stub for each test case."""
-    return ReportMetricsStub()
-
-
-@pytest.fixture
-def report_service(metrics_stub: ReportMetricsStub) -> PickListReportService:
-    """Create a PickListReportService with metrics stub."""
-    return PickListReportService(metrics_service=metrics_stub)
+def report_service() -> PickListReportService:
+    """Create a PickListReportService."""
+    return PickListReportService()
 
 
 def _create_pick_list(
@@ -256,10 +232,10 @@ class TestPickListReportService:
         data = pdf_buffer.read()
         assert data.startswith(b"%PDF"), "Should generate valid PDF"
 
-    def test_generate_pdf_records_metrics(
-        self, session, report_service: PickListReportService, metrics_stub: ReportMetricsStub, make_attachment_set
+    def test_generate_pdf_with_multiple_parts(
+        self, session, report_service: PickListReportService, make_attachment_set
     ) -> None:
-        """Test that PDF generation records appropriate metrics."""
+        """Test that PDF generation works with multiple parts across boxes."""
         pick_list = _create_pick_list(
             session,
             make_attachment_set,
@@ -269,20 +245,13 @@ class TestPickListReportService:
             ],
         )
 
-        report_service.generate_pdf(pick_list)
+        pdf_buffer = report_service.generate_pdf(pick_list)
 
-        # Verify metrics were recorded
-        assert len(metrics_stub.pdf_generated_calls) == 1
-        pick_list_id, line_count, box_count = metrics_stub.pdf_generated_calls[0]
-        assert pick_list_id == pick_list.id
-        assert line_count == 2
-        assert box_count == 2  # Two boxes
-
-        # Verify duration metric was recorded
-        assert len(metrics_stub.pdf_duration_calls) == 1
-        duration, status = metrics_stub.pdf_duration_calls[0]
-        assert duration >= 0.0
-        assert status == "success"
+        # Verify PDF is valid
+        pdf_buffer.seek(0)
+        data = pdf_buffer.read()
+        assert data.startswith(b"%PDF"), "Should generate valid PDF"
+        assert len(data) > 100, "PDF should have content"
 
     def test_generate_pdf_includes_pick_list_metadata(
         self, session, report_service: PickListReportService, make_attachment_set

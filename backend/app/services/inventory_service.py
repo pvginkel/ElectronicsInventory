@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from prometheus_client import Counter
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -14,8 +15,14 @@ from app.exceptions import (
 from app.models.location import Location
 from app.models.part_location import PartLocation
 from app.models.quantity_history import QuantityHistory
-from app.services.metrics_service import MetricsServiceProtocol
 from app.services.part_service import PartService
+
+# Inventory activity metrics
+INVENTORY_QUANTITY_CHANGES_TOTAL = Counter(
+    "inventory_quantity_changes_total",
+    "Total changes by type",
+    ["operation"],
+)
 
 if TYPE_CHECKING:
     from app.schemas.part import PartWithTotalModel
@@ -30,7 +37,6 @@ class InventoryService:
         self,
         db: Session,
         part_service: PartService,
-        metrics_service: MetricsServiceProtocol,
         kit_reservation_service: "KitReservationService | None" = None,
         shopping_list_service: "ShoppingListService | None" = None,
     ):
@@ -39,13 +45,11 @@ class InventoryService:
         Args:
             db: SQLAlchemy database session
             part_service: Instance of PartService
-            metrics_service: Instance of MetricsService for recording metrics
             kit_reservation_service: Optional instance of KitReservationService for bulk kit lookups
             shopping_list_service: Optional instance of ShoppingListService for bulk shopping list lookups
         """
         self.db = db
         self.part_service = part_service
-        self.metrics_service = metrics_service
         self.kit_reservation_service = kit_reservation_service
         self.shopping_list_service = shopping_list_service
 
@@ -101,7 +105,7 @@ class InventoryService:
         self.db.add(history)
 
         # Record metrics for quantity change
-        self.metrics_service.record_quantity_change("add", qty)
+        INVENTORY_QUANTITY_CHANGES_TOTAL.labels(operation="add").inc(qty)
 
         self.db.flush()
         return part_location
@@ -149,7 +153,7 @@ class InventoryService:
         self.db.add(history)
 
         # Record metrics for quantity change
-        self.metrics_service.record_quantity_change("remove", qty)
+        INVENTORY_QUANTITY_CHANGES_TOTAL.labels(operation="remove").inc(qty)
 
         # Check if total quantity is now zero and cleanup if needed
         self.cleanup_zero_quantities(part_key)

@@ -267,36 +267,77 @@ Reference `docs/product_brief.md` for domain understanding:
 
 ## Prometheus Metrics Infrastructure
 
-The application includes a comprehensive Prometheus metrics system for operational monitoring:
+The application uses a **decentralized** Prometheus metrics pattern where each service defines and records its own metrics at module level.
 
-### Available Metrics Infrastructure
-- **MetricsService** (`app/services/metrics_service.py`) - Central service for managing all metrics
-- **`/metrics` endpoint** - Prometheus scraping endpoint via `app/api/metrics.py`
-- **Background metric updates** - Automatic collection of inventory and system metrics
+### Architecture
 
-### Using Metrics in New Features
-When implementing features that need operational visibility:
+- **Module-level metric definitions** - Each service/module defines its Prometheus `Counter`, `Gauge`, and `Histogram` objects as module-level constants. Python's module caching ensures each metric is registered exactly once.
+- **MetricsService** (`app/services/metrics_service.py`) - Thin background-polling service. Its only responsibilities are `register_for_polling(name, callback)` to invoke callbacks on a timer, and shutdown integration. It does NOT define or wrap any metrics.
+- **`/metrics` endpoint** (`app/api/metrics.py`) - Calls `prometheus_client.generate_latest()` directly; no DI injection needed.
+- **Dashboard polling** (`app/services/metrics/dashboard_metrics.py`) - A polling callback registered with MetricsService that updates inventory gauges periodically.
 
-1. **Add metrics to MetricsService** - Define new Prometheus metrics (Gauges, Counters, Histograms)
-2. **Update metrics in business logic** - Call `metrics_service` methods when events occur
-3. **Use appropriate metric types**:
-   - `Gauge` - Current state values (active connections, queue depth)
-   - `Counter` - Cumulative totals (requests processed, errors)
-   - `Histogram` - Duration measurements (request latency, processing time)
+### Adding Metrics to New Features
 
-**Example pattern:**
+1. **Define metrics at module level** in the owning service or module:
 ```python
-# In service method
-self.metrics_service.record_operation_duration("operation_name", duration)
-self.metrics_service.increment_counter("operation_total", labels={"status": "success"})
+from prometheus_client import Counter, Histogram
+
+MY_REQUESTS_TOTAL = Counter(
+    "my_requests_total",
+    "Total requests processed",
+    ["status"],
+)
+MY_DURATION_SECONDS = Histogram(
+    "my_duration_seconds",
+    "Request processing duration",
+)
 ```
 
-**Existing metrics include:**
-- Inventory statistics (parts count, quantities, categories)
-- Storage utilization (box usage percentages)
-- Activity tracking (quantity changes, recent activity)
-- AI analysis metrics (requests, tokens, costs, duration)
-- System metrics (HTTP requests, response times, exceptions)
+2. **Record metrics directly** in the service method:
+```python
+import time
+
+start = time.perf_counter()
+# ... do work ...
+duration = time.perf_counter() - start
+
+MY_REQUESTS_TOTAL.labels(status="success").inc()
+MY_DURATION_SECONDS.observe(duration)
+```
+
+3. **Use appropriate metric types**:
+   - `Counter` - Cumulative totals (requests processed, errors)
+   - `Gauge` - Current state values (active connections, queue depth)
+   - `Histogram` - Duration measurements (request latency, processing time)
+
+### Testing Metrics
+
+Use the `before/after` pattern with the counter's internal API to assert on metric changes. The `clear_prometheus_registry` autouse fixture unregisters collectors between tests, so use `counter.labels(...)._value.get()` instead of `REGISTRY.get_sample_value()`:
+
+```python
+from app.services.my_service import MY_REQUESTS_TOTAL
+
+before = MY_REQUESTS_TOTAL.labels(status="success")._value.get()
+# ... exercise code ...
+after = MY_REQUESTS_TOTAL.labels(status="success")._value.get()
+assert after - before == 1.0
+```
+
+### Key Metric Locations
+
+- **Auth validation**: `app/services/auth_service.py` (EI_AUTH_VALIDATION_TOTAL, EI_AUTH_VALIDATION_DURATION_SECONDS)
+- **OIDC token exchange**: `app/services/oidc_client_service.py` (EI_OIDC_TOKEN_EXCHANGE_TOTAL, EI_AUTH_TOKEN_REFRESH_TOTAL)
+- **SSE connections**: `app/services/connection_manager.py` (SSE_GATEWAY_*)
+- **AI analysis**: `app/utils/ai/openai/openai_runner.py` (AI_ANALYSIS_*)
+- **Duplicate search**: `app/services/duplicate_search_service.py` (AI_DUPLICATE_SEARCH_*)
+- **Mouser API**: `app/services/mouser_service.py` (MOUSER_API_*)
+- **Inventory**: `app/services/inventory_service.py` (INVENTORY_QUANTITY_CHANGES_TOTAL)
+- **Kits**: `app/services/kit_service.py` (KITS_CREATED_TOTAL, KITS_ACTIVE_COUNT, KITS_ARCHIVED_COUNT)
+- **Pick lists**: `app/services/kit_pick_list_service.py`, `app/services/pick_list_report_service.py`
+- **Tasks**: `app/services/task_service.py` (ACTIVE_TASKS_AT_SHUTDOWN)
+- **Shutdown**: `app/utils/shutdown_coordinator.py` (APPLICATION_SHUTTING_DOWN, GRACEFUL_SHUTDOWN_DURATION_SECONDS)
+- **Dashboard polling**: `app/services/metrics/dashboard_metrics.py` (INVENTORY_TOTAL_PARTS, etc.)
+- **Parts API**: `app/api/parts.py` (PART_KIT_USAGE_REQUESTS_TOTAL)
 
 ## Dependencies
 
@@ -308,7 +349,7 @@ self.metrics_service.increment_counter("operation_total", labels={"status": "suc
 - **PostgreSQL** - Primary database
 - **pytest** - Testing framework
 - **dependency-injector** - Dependency injection container
-- **prometheus-flask-exporter** - Prometheus metrics integration
+- **prometheus-client** - Prometheus metrics (decentralized, module-level)
 
 Focus on creating well-tested, maintainable code that follows these established patterns. The goal is a robust parts inventory system that stays organized and scales with your electronics hobby.
 

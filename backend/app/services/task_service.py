@@ -7,6 +7,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from typing import Any
 
+from prometheus_client import Gauge
+
 from app.exceptions import InvalidOperationException
 from app.schemas.task_schema import (
     TaskEvent,
@@ -18,8 +20,14 @@ from app.schemas.task_schema import (
 )
 from app.services.base_task import BaseTask
 from app.services.connection_manager import ConnectionManager
-from app.services.metrics_service import MetricsServiceProtocol
 from app.utils.shutdown_coordinator import LifetimeEvent, ShutdownCoordinatorProtocol
+
+# Task shutdown metric -- owned by TaskService because it knows the
+# active task count at the moment shutdown is initiated.
+ACTIVE_TASKS_AT_SHUTDOWN = Gauge(
+    "active_tasks_at_shutdown",
+    "Number of active tasks when shutdown initiated",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +83,6 @@ class TaskService:
 
     def __init__(
         self,
-        metrics_service: MetricsServiceProtocol,
         shutdown_coordinator: ShutdownCoordinatorProtocol,
         connection_manager: ConnectionManager,
         max_workers: int = 4,
@@ -85,7 +92,6 @@ class TaskService:
         """Initialize TaskService with configurable parameters.
 
         Args:
-            metrics_service: Instance of MetricsService for recording metrics
             shutdown_coordinator: Coordinator for graceful shutdown
             connection_manager: ConnectionManager for SSE Gateway integration
             max_workers: Maximum number of concurrent tasks
@@ -95,7 +101,6 @@ class TaskService:
         self.max_workers = max_workers
         self.task_timeout = task_timeout
         self.cleanup_interval = cleanup_interval  # 10 minutes in seconds
-        self.metrics_service = metrics_service
         self.shutdown_coordinator = shutdown_coordinator
         self.connection_manager = connection_manager
         self._tasks: dict[str, TaskInfo] = {}
@@ -261,9 +266,7 @@ class TaskService:
                     # Convert BaseModel to dict for storage
                     task_info.result = result.model_dump() if result else None
 
-                    # Record task execution metrics
-                    task_type = type(task).__name__
-                    self.metrics_service.record_task_execution(task_type, duration, "success")
+                    # TODO: Add task execution metrics (Counter/Histogram) when needed
 
                     # Broadcast completion event
                     completion_event = TaskEvent(
@@ -296,9 +299,7 @@ class TaskService:
                     task_info.end_time = datetime.now(UTC)
                     task_info.error = error_msg
 
-                    # Record task execution metrics for failed tasks
-                    task_type = type(task).__name__
-                    self.metrics_service.record_task_execution(task_type, duration, "error")
+                    # TODO: Add task execution metrics (Counter/Histogram) when needed
 
             # Broadcast failure event
             failure_event = TaskEvent(
@@ -382,8 +383,8 @@ class TaskService:
                     active_count = self._get_active_task_count()
                     logger.info(f"TaskService shutdown initiated with {active_count} active tasks")
 
-                    # Record active tasks at shutdown in metrics
-                    self.metrics_service.record_active_tasks_at_shutdown(active_count)
+                    # Record active tasks at shutdown via module-level gauge
+                    ACTIVE_TASKS_AT_SHUTDOWN.set(active_count)
 
             case LifetimeEvent.SHUTDOWN:
                 self.shutdown()

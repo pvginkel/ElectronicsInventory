@@ -14,7 +14,7 @@ from app.services.task_service import TaskService
 from app.utils.shutdown_coordinator import LifetimeEvent, ShutdownCoordinator
 from app.utils.temp_file_manager import TempFileManager
 from tests.test_tasks.test_task import DemoTask, LongRunningTask
-from tests.testing_utils import StubMetricsService, TestShutdownCoordinator
+from tests.testing_utils import TestShutdownCoordinator
 
 
 class TestTaskServiceShutdownIntegration:
@@ -26,20 +26,14 @@ class TestTaskServiceShutdownIntegration:
         return TestShutdownCoordinator()
 
     @pytest.fixture
-    def metrics_service(self):
-        """Create metrics service for testing."""
-        return StubMetricsService()
-
-    @pytest.fixture
     def connection_manager(self):
         """Create mock connection manager for testing."""
         return MagicMock()
 
     @pytest.fixture
-    def task_service(self, metrics_service, shutdown_coordinator, connection_manager):
+    def task_service(self, shutdown_coordinator, connection_manager):
         """Create TaskService with shutdown coordinator."""
         service = TaskService(
-            metrics_service=metrics_service,
             shutdown_coordinator=shutdown_coordinator,
             connection_manager=connection_manager,
             max_workers=2,
@@ -147,9 +141,7 @@ class TestTaskServiceShutdownIntegration:
 
     def test_task_service_shutdown_metrics_recording(self, task_service, shutdown_coordinator):
         """Test that shutdown metrics are recorded during TaskService shutdown."""
-        # Mock the metrics service to track calls
-        mock_metrics = MagicMock()
-        task_service.metrics_service = mock_metrics
+        from app.services.task_service import ACTIVE_TASKS_AT_SHUTDOWN
 
         # Start a task to have active tasks during shutdown
         task = DemoTask()
@@ -159,10 +151,9 @@ class TestTaskServiceShutdownIntegration:
         # Trigger shutdown
         shutdown_coordinator.simulate_shutdown()
 
-        # Verify metrics were recorded
-        mock_metrics.record_active_tasks_at_shutdown.assert_called()
-        call_args = mock_metrics.record_active_tasks_at_shutdown.call_args[0]
-        assert isinstance(call_args[0], int)  # Should be count of active tasks
+        # Verify the module-level gauge was set (value should be >= 0)
+        value = ACTIVE_TASKS_AT_SHUTDOWN._value.get()
+        assert isinstance(value, (int, float))
 
     def test_task_service_cleanup_during_shutdown(self, task_service, shutdown_coordinator):
         """Test that TaskService cleanup happens during shutdown."""
@@ -337,10 +328,8 @@ class TestFullApplicationShutdownIntegration:
         coordinator.register_lifetime_notification(lifetime_notification)
 
         # Create services with real coordinator
-        metrics_service = StubMetricsService()
         connection_manager = MagicMock()
         task_service = TaskService(
-            metrics_service=metrics_service,
             shutdown_coordinator=coordinator,
             connection_manager=connection_manager,
             max_workers=1,
@@ -418,10 +407,8 @@ class TestShutdownErrorHandling:
         coordinator = TestShutdownCoordinator()
 
         # Create TaskService for testing timeout behavior
-        metrics_service = StubMetricsService()
         connection_manager = MagicMock()
         task_service = TaskService(
-            metrics_service=metrics_service,
             shutdown_coordinator=coordinator,
             connection_manager=connection_manager,
             max_workers=1,

@@ -21,83 +21,6 @@ from app.services.kit_reservation_service import KitReservationUsage
 from app.services.kit_service import KitService
 
 
-class MetricsStub:
-    """Minimal metrics collector stub for kit tests."""
-
-    def __init__(self) -> None:
-        self.created = 0
-        self.archived = 0
-        self.unarchived = 0
-        self.overview_calls: list[tuple[str, int, int | None]] = []
-        self.detail_views = 0
-        self.content_created: list[tuple[int, int, int]] = []
-        self.content_updated: list[tuple[int, int, float]] = []
-        self.content_deleted: list[tuple[int, int]] = []
-        self.quantity_changes: list[tuple[str, int]] = []
-        self.pick_list_creations: list[tuple[int, int, int]] = []
-        self.pick_list_line_picks: list[tuple[int, int]] = []
-        self.pick_list_line_undo: list[tuple[str, float]] = []
-        self.pick_list_detail_requests: list[int] = []
-        self.pick_list_list_requests: list[tuple[int, int]] = []
-
-    def record_kit_created(self) -> None:
-        self.created += 1
-
-    def record_kit_archived(self) -> None:
-        self.archived += 1
-
-    def record_kit_unarchived(self) -> None:
-        self.unarchived += 1
-
-    def record_kit_overview_request(
-        self,
-        status: str,
-        result_count: int,
-        limit: int | None = None,
-    ) -> None:
-        self.overview_calls.append((status, result_count, limit))
-
-    def record_kit_detail_view(self, kit_id: int) -> None:
-        self.detail_views += 1
-
-    def record_kit_content_created(
-        self,
-        kit_id: int,
-        part_id: int,
-        required_per_unit: int,
-    ) -> None:
-        self.content_created.append((kit_id, part_id, required_per_unit))
-
-    def record_kit_content_updated(
-        self,
-        kit_id: int,
-        part_id: int,
-        duration_seconds: float,
-    ) -> None:
-        self.content_updated.append((kit_id, part_id, duration_seconds))
-
-    def record_kit_content_deleted(self, kit_id: int, part_id: int) -> None:
-        self.content_deleted.append((kit_id, part_id))
-
-    def record_quantity_change(self, operation: str, delta: int) -> None:
-        self.quantity_changes.append((operation, delta))
-
-    def record_pick_list_created(self, kit_id: int, requested_units: int, line_count: int) -> None:
-        self.pick_list_creations.append((kit_id, requested_units, line_count))
-
-    def record_pick_list_line_picked(self, line_id: int, quantity: int) -> None:
-        self.pick_list_line_picks.append((line_id, quantity))
-
-    def record_pick_list_line_undo(self, outcome: str, duration_seconds: float) -> None:
-        self.pick_list_line_undo.append((outcome, duration_seconds))
-
-    def record_pick_list_detail_request(self, pick_list_id: int) -> None:
-        self.pick_list_detail_requests.append(pick_list_id)
-
-    def record_pick_list_list_request(self, kit_id: int, result_count: int) -> None:
-        self.pick_list_list_requests.append((kit_id, result_count))
-
-
 class InventoryStub:
     """Stub inventory service returning configurable totals."""
 
@@ -161,12 +84,6 @@ class KitReservationStub:
 
 
 @pytest.fixture
-def metrics_stub() -> MetricsStub:
-    """Provide a fresh metrics stub for each test."""
-    return MetricsStub()
-
-
-@pytest.fixture
 def inventory_stub() -> InventoryStub:
     """Provide a configurable inventory stub."""
     return InventoryStub()
@@ -194,14 +111,12 @@ class AttachmentSetStub:
 @pytest.fixture
 def kit_service(
     session,
-    metrics_stub: MetricsStub,
     inventory_stub: InventoryStub,
     kit_reservation_stub: KitReservationStub,
 ) -> KitService:
     """Create KitService instance backed by the test session."""
     return KitService(
         session,
-        metrics_service=metrics_stub,
         inventory_service=inventory_stub,
         kit_reservation_service=kit_reservation_stub,
         attachment_set_service=AttachmentSetStub(session),
@@ -215,7 +130,6 @@ class TestKitService:
         self,
         session,
         kit_service: KitService,
-        metrics_stub: MetricsStub,
         make_attachment_set,
     ):
         concept_list = ShoppingList(
@@ -306,12 +220,6 @@ class TestKitService:
         assert result.shopping_list_badge_count == 2  # concept + ready only
         assert result.pick_list_badge_count == 2  # open pick lists remain
 
-        assert metrics_stub.overview_calls
-        status, count, limit = metrics_stub.overview_calls[-1]
-        assert status == KitStatus.ACTIVE.value
-        assert count == 1
-        assert limit is None
-
         archived_results = kit_service.list_kits(status=KitStatus.ARCHIVED)
         assert len(archived_results) == 1
         assert archived_results[0].status == KitStatus.ARCHIVED
@@ -379,18 +287,15 @@ class TestKitService:
                 limit=2,
             )
 
-    def test_create_kit_enforces_constraints_and_records_metrics(
+    def test_create_kit_enforces_constraints(
         self,
         kit_service: KitService,
-        metrics_stub: MetricsStub,
     ):
         kit = kit_service.create_kit(name="New Kit", build_target=2)
         assert kit.id is not None
-        assert metrics_stub.created == 1
 
         zero_target = kit_service.create_kit(name="Zero Kit", build_target=0)
         assert zero_target.build_target == 0
-        assert metrics_stub.created == 2
 
         with pytest.raises(InvalidOperationException):
             kit_service.create_kit(name="Invalid Kit", build_target=-1)
@@ -447,11 +352,10 @@ class TestKitService:
         with pytest.raises(InvalidOperationException):
             kit_service.update_kit(second.id, name="Alpha Kit")
 
-    def test_archive_and_unarchive_flow_updates_metrics(
+    def test_archive_and_unarchive_flow(
         self,
         session,
         kit_service: KitService,
-        metrics_stub: MetricsStub,
         make_attachment_set,
     ):
         attachment_set = make_attachment_set()
@@ -462,12 +366,10 @@ class TestKitService:
         archived = kit_service.archive_kit(kit.id)
         assert archived.status == KitStatus.ARCHIVED
         assert archived.archived_at is not None
-        assert metrics_stub.archived == 1
 
         restored = kit_service.unarchive_kit(kit.id)
         assert restored.status == KitStatus.ACTIVE
         assert restored.archived_at is None
-        assert metrics_stub.unarchived == 1
 
         with pytest.raises(InvalidOperationException):
             kit_service.unarchive_kit(kit.id)
@@ -480,7 +382,6 @@ class TestKitService:
         self,
         session,
         kit_service: KitService,
-        metrics_stub: MetricsStub,
         inventory_stub: InventoryStub,
         kit_reservation_stub: KitReservationStub,
         make_attachment_set,
@@ -507,7 +408,6 @@ class TestKitService:
 
         detail = kit_service.get_kit_detail(kit.id)
 
-        assert metrics_stub.detail_views == 1
         assert inventory_stub.requests[-1] == ("P001", "P002")
         assert kit_reservation_stub.requests[-1] == (part_a.id, part_b.id)
 
@@ -532,11 +432,10 @@ class TestKitService:
         assert content_b.shortfall == 1
         assert content_b.active_reservations == []
 
-    def test_create_content_enforces_rules_and_records_metrics(
+    def test_create_content_enforces_rules(
         self,
         session,
         kit_service: KitService,
-        metrics_stub: MetricsStub,
         make_attachment_set,
     ):
         kit_attachment_set = make_attachment_set()
@@ -558,7 +457,6 @@ class TestKitService:
         session.refresh(kit)
         assert kit.updated_at > original_updated
         assert content.required_per_unit == 2
-        assert metrics_stub.content_created[-1] == (kit.id, part.id, 2)
 
         with pytest.raises(ResourceConflictException):
             kit_service.create_content(kit.id, part_id=part.id, required_per_unit=1)
@@ -567,7 +465,6 @@ class TestKitService:
         self,
         session,
         kit_service: KitService,
-        metrics_stub: MetricsStub,
         make_attachment_set,
     ):
         kit_attachment_set = make_attachment_set()
@@ -595,7 +492,6 @@ class TestKitService:
         assert updated.required_per_unit == 4
         assert updated.note == "Tight tolerance"
         assert updated.version == current_version + 1
-        assert metrics_stub.content_updated[-1][0:2] == (kit.id, part.id)
 
         with pytest.raises(ResourceConflictException):
             kit_service.update_content(
@@ -605,11 +501,10 @@ class TestKitService:
                 required_per_unit=5,
             )
 
-    def test_delete_content_removes_entry_and_records_metric(
+    def test_delete_content_removes_entry(
         self,
         session,
         kit_service: KitService,
-        metrics_stub: MetricsStub,
         make_attachment_set,
     ):
         kit_attachment_set = make_attachment_set()
@@ -626,7 +521,6 @@ class TestKitService:
         assert session.get(KitContent, content_id) is None
         session.refresh(kit)
         assert not kit.contents
-        assert metrics_stub.content_deleted[-1] == (kit.id, part.id)
 
     def test_delete_kit_removes_kit_from_database(
         self,
