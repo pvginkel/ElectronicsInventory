@@ -128,7 +128,7 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
 
     # Wire container with API modules (always include testing for OpenAPI)
     wire_modules = [
-        'app.api.ai_parts', 'app.api.parts', 'app.api.boxes', 'app.api.inventory',
+        'app.api', 'app.api.ai_parts', 'app.api.auth', 'app.api.parts', 'app.api.boxes', 'app.api.inventory',
         'app.api.kits', 'app.api.pick_lists', 'app.api.kit_shopping_list_links', 'app.api.types', 'app.api.sellers', 'app.api.shopping_lists',
         'app.api.shopping_list_lines', 'app.api.documents', 'app.api.tasks',
         'app.api.dashboard', 'app.api.metrics', 'app.api.health', 'app.api.utils',

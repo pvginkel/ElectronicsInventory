@@ -35,6 +35,10 @@ validators = "^0.35.0"
 prometheus-flask-exporter = "^0.23.0"
 flask-log-request-id = "^0.10.1"
 reportlab = "^4.0.0"
+httpx = "^0.28.1"
+pyjwt = "^2.11.0"
+cryptography = "^46.0.4"
+itsdangerous = "^2.1.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.1.0"

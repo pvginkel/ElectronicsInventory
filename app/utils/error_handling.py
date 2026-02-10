@@ -12,6 +12,8 @@ from sqlalchemy.exc import IntegrityError
 from werkzeug.exceptions import BadRequest
 
 from app.exceptions import (
+    AuthenticationException,
+    AuthorizationException,
     BusinessLogicException,
     CapacityExceededException,
     DependencyException,
@@ -20,6 +22,7 @@ from app.exceptions import (
     RecordNotFoundException,
     ResourceConflictException,
     RouteNotAvailableException,
+    ValidationException,
 )
 from app.utils import get_current_correlation_id
 
@@ -91,6 +94,33 @@ def handle_api_errors(func: Callable[..., Any]) -> Callable[..., Response | tupl
                 return _build_error_response(
                     "Validation failed",
                     {"errors": error_details},
+                    status_code=400
+                )
+
+            except AuthenticationException as e:
+                # Authentication failure (missing/invalid/expired token)
+                return _build_error_response(
+                    e.message,
+                    {"message": "Authentication is required to access this resource"},
+                    code=e.error_code,
+                    status_code=401
+                )
+
+            except AuthorizationException as e:
+                # Authorization failure (insufficient permissions)
+                return _build_error_response(
+                    e.message,
+                    {"message": "You do not have permission to access this resource"},
+                    code=e.error_code,
+                    status_code=403
+                )
+
+            except ValidationException as e:
+                # Request validation failure (malformed input, invalid redirect, etc.)
+                return _build_error_response(
+                    e.message,
+                    {"message": "The request contains invalid data"},
+                    code=e.error_code,
                     status_code=400
                 )
 

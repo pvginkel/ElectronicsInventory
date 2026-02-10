@@ -60,6 +60,22 @@ class MetricsServiceProtocol(ABC):
         """Record shopping list line stock receipt events."""
         pass
 
+    def record_auth_validation(self, status: str, duration: float) -> None:
+        """Record auth token validation outcome and duration."""
+        return None
+
+    def record_jwks_refresh(self, trigger: str, status: str) -> None:
+        """Record JWKS initialization/refresh events."""
+        return None
+
+    def record_oidc_token_exchange(self, status: str) -> None:
+        """Record authorization code exchange outcomes."""
+        return None
+
+    def record_auth_token_refresh(self, status: str) -> None:
+        """Record token refresh outcomes."""
+        return None
+
     def record_kit_created(self) -> None:
         """Record kit creation lifecycle events."""
         return None
@@ -535,6 +551,36 @@ class MetricsService(MetricsServiceProtocol):
             'Current number of active SSE Gateway connections'
         )
 
+        # Auth Metrics
+        self.ei_auth_validation_total = Counter(
+            'ei_auth_validation_total',
+            'Total auth token validations by status',
+            ['status']
+        )
+
+        self.ei_auth_validation_duration_seconds = Histogram(
+            'ei_auth_validation_duration_seconds',
+            'Auth token validation duration in seconds'
+        )
+
+        self.ei_jwks_refresh_total = Counter(
+            'ei_jwks_refresh_total',
+            'Total JWKS initialization/refresh events',
+            ['trigger', 'status']
+        )
+
+        self.ei_oidc_token_exchange_total = Counter(
+            'ei_oidc_token_exchange_total',
+            'Total authorization code exchange outcomes',
+            ['status']
+        )
+
+        self.ei_auth_token_refresh_total = Counter(
+            'ei_auth_token_refresh_total',
+            'Total token refresh outcomes',
+            ['status']
+        )
+
     def update_inventory_metrics(self) -> None:
         """Update inventory-related gauges with current database values."""
         if not self.container:
@@ -1001,6 +1047,35 @@ class MetricsService(MetricsServiceProtocol):
             ).observe(duration)
         except Exception as e:
             logger.error(f"Error recording SSE Gateway send duration metric: {e}")
+
+    def record_auth_validation(self, status: str, duration: float) -> None:
+        """Record auth token validation outcome and duration."""
+        try:
+            self.ei_auth_validation_total.labels(status=status).inc()
+            self.ei_auth_validation_duration_seconds.observe(max(duration, 0.0))
+        except Exception as e:
+            logger.error("Error recording auth validation metric: %s", e)
+
+    def record_jwks_refresh(self, trigger: str, status: str) -> None:
+        """Record JWKS initialization/refresh events."""
+        try:
+            self.ei_jwks_refresh_total.labels(trigger=trigger, status=status).inc()
+        except Exception as e:
+            logger.error("Error recording JWKS refresh metric: %s", e)
+
+    def record_oidc_token_exchange(self, status: str) -> None:
+        """Record authorization code exchange outcomes."""
+        try:
+            self.ei_oidc_token_exchange_total.labels(status=status).inc()
+        except Exception as e:
+            logger.error("Error recording OIDC token exchange metric: %s", e)
+
+    def record_auth_token_refresh(self, status: str) -> None:
+        """Record token refresh outcomes."""
+        try:
+            self.ei_auth_token_refresh_total.labels(status=status).inc()
+        except Exception as e:
+            logger.error("Error recording auth token refresh metric: %s", e)
 
     def start_background_updater(self, interval_seconds: int = 60) -> None:
         """Start background thread for periodic metric updates.
