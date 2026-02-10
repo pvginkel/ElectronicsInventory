@@ -456,13 +456,6 @@ class Settings(BaseModel):
                 "(current value is the insecure default)"
             )
 
-        # SSE_CALLBACK_SECRET required in production for authenticating gateway callbacks
-        if self.is_production and not self.sse_callback_secret:
-            errors.append(
-                "SSE_CALLBACK_SECRET must be set in production "
-                "for authenticating SSE Gateway callbacks"
-            )
-
         # OIDC settings required when OIDC is enabled (any environment)
         if self.oidc_enabled:
             if not self.oidc_issuer_url:
