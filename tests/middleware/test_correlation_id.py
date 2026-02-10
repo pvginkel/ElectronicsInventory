@@ -14,7 +14,7 @@ class TestCorrelationIdMiddleware:
 
     def test_basic_request_functionality(self, client: FlaskClient):
         """Test that basic requests work with correlation ID middleware."""
-        response = client.get("/api/health/healthz")
+        response = client.get("/health/healthz")
         assert response.status_code == 200
 
     def test_error_responses_include_error_codes(self, client: FlaskClient):

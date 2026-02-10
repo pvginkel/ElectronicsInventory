@@ -1,6 +1,9 @@
 """Test configuration management."""
 
+import pytest
+
 from app.config import Environment, Settings
+from app.exceptions import ConfigurationError
 
 
 def test_environment_defaults(monkeypatch):
@@ -186,3 +189,131 @@ def test_settings_real_ai_allowed_property():
     # Use FLASK_ENV=development to prevent Settings.load() from forcing ai_testing_mode=True
     settings = Settings.load(Environment(FLASK_ENV="development", AI_TESTING_MODE=False))
     assert settings.real_ai_allowed is True
+
+
+def test_settings_is_production_property():
+    """Test is_production property."""
+    settings = Settings(flask_env="production")
+    assert settings.is_production is True
+
+    settings = Settings(flask_env="development")
+    assert settings.is_production is False
+
+    settings = Settings(flask_env="testing")
+    assert settings.is_production is False
+
+
+class TestValidateProductionConfig:
+    """Tests for production configuration validation."""
+
+    def test_development_defaults_pass(self):
+        """Development defaults should pass validation (no production checks)."""
+        settings = Settings()
+        # Should not raise
+        settings.validate_production_config()
+
+    def test_production_default_secret_key_fails(self):
+        """Production with default SECRET_KEY should fail."""
+        settings = Settings(flask_env="production")
+        with pytest.raises(ConfigurationError, match="SECRET_KEY"):
+            settings.validate_production_config()
+
+    def test_production_custom_secret_key_passes(self):
+        """Production with a custom SECRET_KEY passes that check."""
+        settings = Settings(
+            flask_env="production",
+            secret_key="my-secure-production-key",
+            sse_callback_secret="some-secret",
+        )
+        settings.validate_production_config()
+
+    def test_production_missing_sse_callback_secret_fails(self):
+        """Production without SSE_CALLBACK_SECRET should fail."""
+        settings = Settings(
+            flask_env="production",
+            secret_key="my-secure-production-key",
+            sse_callback_secret="",
+        )
+        with pytest.raises(ConfigurationError, match="SSE_CALLBACK_SECRET"):
+            settings.validate_production_config()
+
+    def test_oidc_enabled_missing_issuer_url_fails(self):
+        """OIDC enabled without OIDC_ISSUER_URL should fail."""
+        settings = Settings(
+            oidc_enabled=True,
+            oidc_issuer_url=None,
+            oidc_client_id="my-client",
+            oidc_client_secret="my-secret",
+        )
+        with pytest.raises(ConfigurationError, match="OIDC_ISSUER_URL"):
+            settings.validate_production_config()
+
+    def test_oidc_enabled_missing_client_id_fails(self):
+        """OIDC enabled without OIDC_CLIENT_ID should fail."""
+        settings = Settings(
+            oidc_enabled=True,
+            oidc_issuer_url="https://auth.example.com/realms/ei",
+            oidc_client_id=None,
+            oidc_client_secret="my-secret",
+        )
+        with pytest.raises(ConfigurationError, match="OIDC_CLIENT_ID"):
+            settings.validate_production_config()
+
+    def test_oidc_enabled_missing_client_secret_fails(self):
+        """OIDC enabled without OIDC_CLIENT_SECRET should fail."""
+        settings = Settings(
+            oidc_enabled=True,
+            oidc_issuer_url="https://auth.example.com/realms/ei",
+            oidc_client_id="my-client",
+            oidc_client_secret=None,
+        )
+        with pytest.raises(ConfigurationError, match="OIDC_CLIENT_SECRET"):
+            settings.validate_production_config()
+
+    def test_oidc_enabled_all_settings_present_passes(self):
+        """OIDC enabled with all settings present should pass."""
+        settings = Settings(
+            oidc_enabled=True,
+            oidc_issuer_url="https://auth.example.com/realms/ei",
+            oidc_client_id="my-client",
+            oidc_client_secret="my-secret",
+        )
+        settings.validate_production_config()
+
+    def test_oidc_disabled_missing_settings_passes(self):
+        """OIDC disabled should not require OIDC settings."""
+        settings = Settings(oidc_enabled=False)
+        settings.validate_production_config()
+
+    def test_oidc_validation_applies_in_any_environment(self):
+        """OIDC validation should apply regardless of environment."""
+        settings = Settings(
+            flask_env="development",
+            oidc_enabled=True,
+            oidc_issuer_url=None,
+            oidc_client_id=None,
+            oidc_client_secret=None,
+        )
+        with pytest.raises(ConfigurationError, match="OIDC_ISSUER_URL"):
+            settings.validate_production_config()
+
+    def test_multiple_errors_collected(self):
+        """All validation errors should be collected and reported together."""
+        settings = Settings(
+            flask_env="production",
+            # default secret_key triggers error
+            sse_callback_secret="",
+            oidc_enabled=True,
+            oidc_issuer_url=None,
+            oidc_client_id=None,
+            oidc_client_secret=None,
+        )
+        with pytest.raises(ConfigurationError) as exc_info:
+            settings.validate_production_config()
+
+        error_msg = str(exc_info.value)
+        assert "SECRET_KEY" in error_msg
+        assert "SSE_CALLBACK_SECRET" in error_msg
+        assert "OIDC_ISSUER_URL" in error_msg
+        assert "OIDC_CLIENT_ID" in error_msg
+        assert "OIDC_CLIENT_SECRET" in error_msg

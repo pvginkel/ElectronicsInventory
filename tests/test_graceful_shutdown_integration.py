@@ -243,12 +243,12 @@ class TestFullApplicationShutdownIntegration:
                 coordinator = test_coordinator
 
                 # Initially should be ready
-                response = client.get("/api/health/readyz")
+                response = client.get("/health/readyz")
                 assert response.status_code == 200
                 assert response.json["ready"] is True
 
                 # Healthz should be alive
-                response = client.get("/api/health/healthz")
+                response = client.get("/health/healthz")
                 assert response.status_code == 200
                 assert response.json["ready"] is True
 
@@ -259,12 +259,12 @@ class TestFullApplicationShutdownIntegration:
                     coordinator._shutting_down = True
 
                 # After shutdown signal
-                response = client.get("/api/health/readyz")
+                response = client.get("/health/readyz")
                 assert response.status_code == 503
                 assert response.json["ready"] is False
 
                 # Healthz should still be alive
-                response = client.get("/api/health/healthz")
+                response = client.get("/health/healthz")
                 assert response.status_code == 200
                 assert response.json["ready"] is True
 

@@ -23,6 +23,9 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
     if settings is None:
         settings = Settings.load()
 
+    # Validate configuration before proceeding
+    settings.validate_production_config()
+
     app.config.from_object(settings.to_flask_config())
 
     # Initialize extensions
@@ -180,6 +183,14 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
     from app.api import api_bp
 
     app.register_blueprint(api_bp)
+
+    # Register health and metrics blueprints directly on the app (not under /api)
+    # These are for internal cluster use only and should not be publicly proxied
+    from app.api.health import health_bp
+    from app.api.metrics import metrics_bp
+
+    app.register_blueprint(health_bp)
+    app.register_blueprint(metrics_bp)
 
     # Always register testing blueprint (runtime check handles access control)
     from app.api.testing import testing_bp

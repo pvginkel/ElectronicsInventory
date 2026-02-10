@@ -1,6 +1,12 @@
 """Domain-specific exceptions with user-ready messages for the inventory system."""
 
 
+class ConfigurationError(Exception):
+    """Raised when application configuration is invalid."""
+
+    pass
+
+
 class BusinessLogicException(Exception):
     """Base exception class for business logic errors.
 

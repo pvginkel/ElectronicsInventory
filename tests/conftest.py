@@ -570,7 +570,7 @@ def sse_server(template_connection: sqlite3.Connection) -> Generator[tuple[str, 
     max_attempts = 20
     for _ in range(max_attempts):
         try:
-            resp = requests.get(f"{base_url}/api/health/healthz", timeout=1.0)
+            resp = requests.get(f"{base_url}/health/healthz", timeout=1.0)
             if resp.status_code == 200:
                 break
         except requests.RequestException:
