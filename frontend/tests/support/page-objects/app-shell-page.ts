@@ -4,11 +4,10 @@ import { BasePage } from './base-page';
 export class AppShellPage extends BasePage {
   readonly root: Locator;
   readonly layout: Locator;
+  readonly topBar: Locator;
+  readonly hamburgerButton: Locator;
   readonly desktopContainer: Locator;
   readonly desktopSidebar: Locator;
-  readonly desktopToggle: Locator;
-  readonly mobileToggleContainer: Locator;
-  readonly mobileToggleButton: Locator;
   readonly mobileOverlay: Locator;
   readonly mobileSidebar: Locator;
   readonly toastViewport: Locator;
@@ -20,11 +19,10 @@ export class AppShellPage extends BasePage {
     super(page);
     this.root = page.getByTestId('app-shell.root');
     this.layout = page.getByTestId('app-shell.layout');
+    this.topBar = page.getByTestId('app-shell.topbar');
+    this.hamburgerButton = page.getByTestId('app-shell.topbar.hamburger');
     this.desktopContainer = page.getByTestId('app-shell.sidebar.desktop');
     this.desktopSidebar = this.desktopContainer.getByTestId('app-shell.sidebar');
-    this.desktopToggle = this.desktopSidebar.getByTestId('app-shell.sidebar.toggle');
-    this.mobileToggleContainer = page.getByTestId('app-shell.mobile-toggle');
-    this.mobileToggleButton = page.getByTestId('app-shell.mobile-toggle.button');
     this.mobileOverlay = page.getByTestId('app-shell.mobile-overlay');
     this.mobileSidebar = page.getByTestId('app-shell.sidebar.mobile');
     this.toastViewport = page.getByTestId('app-shell.toast.viewport');
@@ -54,8 +52,9 @@ export class AppShellPage extends BasePage {
     await expect(this.root).toHaveAttribute('data-mobile-menu-state', state);
   }
 
+  /** Toggle sidebar (desktop) or mobile menu via the TopBar hamburger button */
   async toggleDesktopSidebar(): Promise<void> {
-    await this.desktopToggle.click();
+    await this.hamburgerButton.click();
   }
 
   async expectActiveNav(slug: string): Promise<void> {
@@ -72,8 +71,9 @@ export class AppShellPage extends BasePage {
     await this.sidebarLink(slug).click();
   }
 
+  /** Open mobile menu via the TopBar hamburger button */
   async openMobileMenu(): Promise<void> {
-    await this.mobileToggleButton.click();
+    await this.hamburgerButton.click();
     await this.expectMobileMenuState('open');
     await expect(this.mobileSidebar).toBeVisible();
   }

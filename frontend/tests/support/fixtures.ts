@@ -40,6 +40,7 @@ import type {
   AiCleanupMockSession,
 } from './helpers/ai-cleanup-mock';
 import { FileUploadHelper, createFileUploadHelper } from './helpers/file-upload';
+import { AuthFactory } from '../api/factories/auth';
 import { startBackend, startFrontend, startSSEGateway } from './process/servers';
 import {
   createBackendLogCollector,
@@ -93,6 +94,7 @@ type TestFixtures = {
     options?: AiCleanupMockOptions
   ) => AiCleanupMockSession;
   deploymentSse: DeploymentSseHelper;
+  auth: AuthFactory;
 };
 
 type InternalFixtures = {
@@ -217,6 +219,12 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
             text.includes('404') ||
             text.includes('NOT FOUND')
           ) {
+            return;
+          }
+
+          // Allow auth-related errors (401/403/500) scoped to /api/auth/ endpoints.
+          // These are expected during auth gate error/retry tests and OIDC flows.
+          if (text.includes('/api/auth/')) {
             return;
           }
 
@@ -382,6 +390,15 @@ export const test = base.extend<TestFixtures, InternalFixtures>({
         }
       }
     },
+
+    auth: async ({ _serviceManager, page }, use) => {
+      // Use frontend URL so cookies are set on the correct origin.
+      // The /api/* routes are proxied to the backend.
+      // Uses page.request to share cookies with the browser context.
+      const factory = new AuthFactory(_serviceManager.frontendUrl, page);
+      await use(factory);
+    },
+
     _serviceManager: [
       async ({}, use: (value: ServiceManager) => Promise<void>, workerInfo: WorkerInfo) => {
         const backendStreamLogs =

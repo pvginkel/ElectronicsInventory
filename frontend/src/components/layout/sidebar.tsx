@@ -1,3 +1,9 @@
+/**
+ * Sidebar component.
+ * Navigation-only component (header moved to TopBar).
+ * Collapses to icon-only (w-20) when toggled on desktop.
+ */
+
 import { Link } from '@tanstack/react-router'
 import { Wrench, CircuitBoard, ShoppingCart, Archive, Tag, Store, Info, type LucideIcon } from 'lucide-react'
 
@@ -10,7 +16,6 @@ interface SidebarItem {
 
 interface SidebarProps {
   isCollapsed?: boolean
-  onToggle?: () => void
   onNavigate?: () => void
   variant?: 'desktop' | 'mobile'
 }
@@ -25,9 +30,16 @@ const navigationItems: SidebarItem[] = [
   { to: '/about', label: 'About', icon: Info, testId: 'about' }
 ]
 
+/**
+ * Sidebar component.
+ * Renders navigation links only - header content is now in TopBar.
+ *
+ * Collapse behavior:
+ * - Desktop: Shows icons only (w-16) when collapsed, full width (w-64) when expanded
+ * - Mobile: Always shows full width in overlay
+ */
 export function Sidebar({
   isCollapsed = false,
-  onToggle,
   onNavigate,
   variant = 'desktop'
 }: SidebarProps) {
@@ -35,34 +47,12 @@ export function Sidebar({
 
   return (
     <div
-      className={`bg-background border-r border-border transition-all duration-300 h-full ${isCollapsed ? 'w-20' : 'w-64'}`}
+      className={`bg-background border-r border-border transition-all duration-300 h-full ${isCollapsed ? 'w-16' : 'w-64'}`}
       data-testid="app-shell.sidebar"
       data-state={dataState}
       data-variant={variant}
     >
       <div className="flex h-full flex-col">
-        {/* Logo/Header */}
-        <div className="flex h-16 items-center border-b border-border px-3" data-testid="app-shell.sidebar.header">
-          {!isCollapsed && (
-            <div className="flex items-center gap-2 px-2">
-              <img src="/favicon.png" alt="" className="h-7 w-7" aria-hidden="true" />
-              <span className="font-semibold text-foreground">Electronics</span>
-            </div>
-          )}
-          {onToggle && (
-            <button
-              onClick={onToggle}
-              className={`${isCollapsed ? 'mx-auto' : 'ml-auto'} flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground`}
-              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              type="button"
-              aria-pressed={!isCollapsed}
-              data-testid="app-shell.sidebar.toggle"
-            >
-              <span className="text-xl">☰</span>
-            </button>
-          )}
-        </div>
-        
         {/* Navigation */}
         <nav
           className="flex-1 overflow-y-auto py-4"
@@ -74,7 +64,7 @@ export function Sidebar({
               <li key={item.to} data-testid={`app-shell.sidebar.item.${item.testId}`}>
                 <Link
                   to={item.to}
-                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground [&.active]:bg-accent [&.active]:text-accent-foreground [&.active]:font-medium"
+                  className={`flex items-center rounded-md py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground [&.active]:bg-accent [&.active]:text-accent-foreground [&.active]:font-medium ${isCollapsed ? 'justify-center px-2' : 'gap-3 px-3'}`}
                   data-testid={`app-shell.sidebar.link.${item.testId}`}
                   data-nav-target={item.to}
                   title={item.label}

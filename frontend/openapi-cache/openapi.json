@@ -10243,6 +10243,56 @@
         "title": "UrlPreviewResponseSchema",
         "type": "object"
       },
+      "UserInfoResponseSchema.a535b8c": {
+        "description": "Response schema for current user information.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "User email address",
+            "title": "Email"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "User display name",
+            "title": "Name"
+          },
+          "roles": {
+            "description": "User roles",
+            "items": {
+              "type": "string"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "subject": {
+            "description": "User subject (sub claim from JWT)",
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject",
+          "email",
+          "name",
+          "roles"
+        ],
+        "title": "UserInfoResponseSchema",
+        "type": "object"
+      },
       "ValidationError.6a07bef": {
         "description": "Model of a validation error response.",
         "items": {
@@ -10874,6 +10924,67 @@
         "tags": []
       }
     },
+    "/api/auth/callback": {
+      "get": {
+        "description": "Exchanges authorization code for tokens and sets access token cookie.\n\nQuery Parameters:     code: Authorization code from OIDC provider     state: CSRF token from OIDC provider\n\nReturns:     302: Redirect to original redirect URL with access token cookie set     400: Invalid or missing callback parameters     401: Token exchange failed",
+        "operationId": "get__api_auth_callback",
+        "parameters": [],
+        "responses": {},
+        "summary": "Handle OIDC callback after user authorization.",
+        "tags": []
+      }
+    },
+    "/api/auth/login": {
+      "get": {
+        "description": "Generates authorization URL and redirects to OIDC provider. Stores PKCE state in signed cookie.\n\nQuery Parameters:     redirect: URL to redirect to after successful login (required)\n\nReturns:     302: Redirect to OIDC provider authorization endpoint     400: Missing or invalid redirect parameter",
+        "operationId": "get__api_auth_login",
+        "parameters": [],
+        "responses": {},
+        "summary": "Initiate OIDC login flow with PKCE.",
+        "tags": []
+      }
+    },
+    "/api/auth/logout": {
+      "get": {
+        "description": "Clears access token cookie and redirects to OIDC provider's logout endpoint to terminate the session at the IdP level.\n\nQuery Parameters:     redirect: URL to redirect to after logout (default: /)\n\nReturns:     302: Redirect to OIDC logout endpoint (or direct redirect if OIDC disabled)",
+        "operationId": "get__api_auth_logout",
+        "parameters": [],
+        "responses": {},
+        "summary": "Log out current user.",
+        "tags": []
+      }
+    },
+    "/api/auth/self": {
+      "get": {
+        "description": "Returns user information from the validated JWT token in the cookie.\n\nThis endpoint is NOT @public. The before_request hook handles auth: - When OIDC disabled: hook passes through, we return default local-user - When OIDC enabled: hook validates token, sets g.auth_context\n\nReturns:     200: User information from validated token     401: No valid token provided or token invalid (via before_request hook)",
+        "operationId": "get__api_auth_self",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInfoResponseSchema.a535b8c"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Get current authenticated user information.",
+        "tags": []
+      }
+    },
     "/api/boxes": {
       "get": {
         "description": "",
@@ -11466,119 +11577,6 @@
           }
         },
         "summary": "Get storage box utilization summary.",
-        "tags": []
-      }
-    },
-    "/api/health/drain": {
-      "get": {
-        "description": "Requires bearer token authentication against DRAIN_AUTH_KEY config setting. Calls drain() on the shutdown coordinator and returns health status.",
-        "operationId": "get__api_health_drain",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HealthResponse.d817ae2"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationError.6a07bef"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HealthResponse.d817ae2"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          }
-        },
-        "summary": "Drain endpoint for manual graceful shutdown initiation.",
-        "tags": []
-      }
-    },
-    "/api/health/healthz": {
-      "get": {
-        "description": "Always returns 200 to indicate the application is alive. This keeps the pod running even during graceful shutdown.",
-        "operationId": "get__api_health_healthz",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HealthResponse.d817ae2"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationError.6a07bef"
-                }
-              }
-            },
-            "description": "Bad Request"
-          }
-        },
-        "summary": "Liveness probe endpoint for Kubernetes.",
-        "tags": []
-      }
-    },
-    "/api/health/readyz": {
-      "get": {
-        "description": "Returns 503 when the application is shutting down, database is not ready, or migrations are pending. This signals Kubernetes to remove the pod from service endpoints.",
-        "operationId": "get__api_health_readyz",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HealthResponse.d817ae2"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationError.6a07bef"
-                }
-              }
-            },
-            "description": "Bad Request"
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HealthResponse.d817ae2"
-                }
-              }
-            },
-            "description": "Service Unavailable"
-          }
-        },
-        "summary": "Readiness probe endpoint for Kubernetes.",
         "tags": []
       }
     },
@@ -12955,16 +12953,6 @@
           }
         },
         "summary": "Get specific location details.",
-        "tags": []
-      }
-    },
-    "/api/metrics": {
-      "get": {
-        "description": "Returns:     Response with metrics data in Prometheus exposition format",
-        "operationId": "get__api_metrics",
-        "parameters": [],
-        "responses": {},
-        "summary": "Return metrics in Prometheus text format.",
         "tags": []
       }
     },
@@ -15907,6 +15895,129 @@
           }
         },
         "summary": "Update type name.",
+        "tags": []
+      }
+    },
+    "/health/drain": {
+      "get": {
+        "description": "Requires bearer token authentication against DRAIN_AUTH_KEY config setting. Calls drain() on the shutdown coordinator and returns health status.",
+        "operationId": "get__health_drain",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse.d817ae2"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse.d817ae2"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Drain endpoint for manual graceful shutdown initiation.",
+        "tags": []
+      }
+    },
+    "/health/healthz": {
+      "get": {
+        "description": "Always returns 200 to indicate the application is alive. This keeps the pod running even during graceful shutdown.",
+        "operationId": "get__health_healthz",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse.d817ae2"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Liveness probe endpoint for Kubernetes.",
+        "tags": []
+      }
+    },
+    "/health/readyz": {
+      "get": {
+        "description": "Returns 503 when the application is shutting down, database is not ready, or migrations are pending. This signals Kubernetes to remove the pod from service endpoints.",
+        "operationId": "get__health_readyz",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse.d817ae2"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError.6a07bef"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse.d817ae2"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Readiness probe endpoint for Kubernetes.",
+        "tags": []
+      }
+    },
+    "/metrics": {
+      "get": {
+        "description": "Returns:     Response with metrics data in Prometheus exposition format",
+        "operationId": "get__metrics",
+        "parameters": [],
+        "responses": {},
+        "summary": "Return metrics in Prometheus text format.",
         "tags": []
       }
     }

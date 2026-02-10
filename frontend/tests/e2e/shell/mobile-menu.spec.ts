@@ -14,7 +14,7 @@ test.describe('App shell - mobile menu', () => {
     await appShell.gotoHome();
 
     await expect(appShell.desktopContainer).toBeHidden();
-    await expect(appShell.mobileToggleButton).toBeVisible();
+    await expect(appShell.hamburgerButton).toBeVisible();
 
     await appShell.openMobileMenu();
     await expect(appShell.mobileSidebar).toBeVisible();
