@@ -383,7 +383,7 @@ class TestExchangeCodeForTokens:
 
     def test_exchange_records_success_metric(self, service: OidcClientService) -> None:
         """Test that a successful exchange records the success metric."""
-        from app.services.oidc_client_service import EI_OIDC_TOKEN_EXCHANGE_TOTAL
+        from app.services.oidc_client_service import OIDC_TOKEN_EXCHANGE_TOTAL
 
         token_data = {
             "access_token": "eyJ-token",
@@ -391,7 +391,7 @@ class TestExchangeCodeForTokens:
             "expires_in": 300,
         }
 
-        before = EI_OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="success")._value.get()
+        before = OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="success")._value.get()
 
         with patch("httpx.post") as mock_post:
             mock_response = MagicMock()
@@ -401,7 +401,7 @@ class TestExchangeCodeForTokens:
 
             service.exchange_code_for_tokens("code", "verifier")
 
-        after = EI_OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="success")._value.get()
+        after = OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="success")._value.get()
         assert after - before == 1.0
 
     def test_exchange_missing_access_token_raises(self, service: OidcClientService) -> None:
@@ -443,9 +443,9 @@ class TestExchangeCodeForTokens:
 
     def test_exchange_http_error_records_failure_metric(self, service: OidcClientService) -> None:
         """Test that a failed exchange records the failure metric."""
-        from app.services.oidc_client_service import EI_OIDC_TOKEN_EXCHANGE_TOTAL
+        from app.services.oidc_client_service import OIDC_TOKEN_EXCHANGE_TOTAL
 
-        before = EI_OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="failed")._value.get()
+        before = OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="failed")._value.get()
 
         with patch("httpx.post") as mock_post:
             mock_post.side_effect = httpx.ConnectError("Connection refused")
@@ -453,7 +453,7 @@ class TestExchangeCodeForTokens:
             with pytest.raises(AuthenticationException):
                 service.exchange_code_for_tokens("code", "verifier")
 
-        after = EI_OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="failed")._value.get()
+        after = OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="failed")._value.get()
         assert after - before == 1.0
 
     def test_exchange_defaults_token_type_and_expires(self, service: OidcClientService) -> None:
@@ -561,7 +561,7 @@ class TestRefreshAccessToken:
 
     def test_refresh_records_success_metric(self, service: OidcClientService) -> None:
         """Test that a successful refresh records the success metric."""
-        from app.services.oidc_client_service import EI_AUTH_TOKEN_REFRESH_TOTAL
+        from app.services.oidc_client_service import AUTH_TOKEN_REFRESH_TOTAL
 
         token_data = {
             "access_token": "eyJ-token",
@@ -569,7 +569,7 @@ class TestRefreshAccessToken:
             "expires_in": 300,
         }
 
-        before = EI_AUTH_TOKEN_REFRESH_TOTAL.labels(status="success")._value.get()
+        before = AUTH_TOKEN_REFRESH_TOTAL.labels(status="success")._value.get()
 
         with patch("httpx.post") as mock_post:
             mock_response = MagicMock()
@@ -579,7 +579,7 @@ class TestRefreshAccessToken:
 
             service.refresh_access_token("refresh-token")
 
-        after = EI_AUTH_TOKEN_REFRESH_TOTAL.labels(status="success")._value.get()
+        after = AUTH_TOKEN_REFRESH_TOTAL.labels(status="success")._value.get()
         assert after - before == 1.0
 
     def test_refresh_missing_access_token_raises(self, service: OidcClientService) -> None:
@@ -609,9 +609,9 @@ class TestRefreshAccessToken:
 
     def test_refresh_http_error_records_failure_metric(self, service: OidcClientService) -> None:
         """Test that a failed refresh records the failure metric."""
-        from app.services.oidc_client_service import EI_AUTH_TOKEN_REFRESH_TOTAL
+        from app.services.oidc_client_service import AUTH_TOKEN_REFRESH_TOTAL
 
-        before = EI_AUTH_TOKEN_REFRESH_TOTAL.labels(status="failed")._value.get()
+        before = AUTH_TOKEN_REFRESH_TOTAL.labels(status="failed")._value.get()
 
         with patch("httpx.post") as mock_post:
             mock_post.side_effect = httpx.ConnectError("Connection refused")
@@ -619,7 +619,7 @@ class TestRefreshAccessToken:
             with pytest.raises(AuthenticationException):
                 service.refresh_access_token("refresh-token")
 
-        after = EI_AUTH_TOKEN_REFRESH_TOTAL.labels(status="failed")._value.get()
+        after = AUTH_TOKEN_REFRESH_TOTAL.labels(status="failed")._value.get()
         assert after - before == 1.0
 
     def test_refresh_preserves_original_refresh_token_when_not_rotated(

@@ -60,7 +60,7 @@ The plan is thorough, well-researched, and demonstrates deep knowledge of both t
   - Given expired JWT, When validate_token called, Then AuthenticationException raised
   - Given invalid signature, When validate_token called, Then AuthenticationException raised
   - Given wrong issuer/audience, When validate_token called, Then AuthenticationException raised
-- Instrumentation: `ei_auth_validation_total` (Counter), `ei_auth_validation_duration_seconds` (Histogram), `ei_jwks_refresh_total` (Counter)
+- Instrumentation: `auth_validation_total` (Counter), `auth_validation_duration_seconds` (Histogram), `jwks_refresh_total` (Counter)
 - Persistence hooks: No DB changes. DI wiring in container.py. New dependencies in pyproject.toml.
 - Gaps: None identified.
 - Evidence: `plan.md:646-659`
@@ -73,7 +73,7 @@ The plan is thorough, well-researched, and demonstrates deep knowledge of both t
   - Given provider unreachable, When initialized, Then ValueError after 3 retries
   - Given valid code, When exchange_code_for_tokens called, Then TokenResponse returned
   - Given valid refresh_token, When refresh_access_token called, Then new TokenResponse returned
-- Instrumentation: `ei_oidc_token_exchange_total` (Counter), `ei_auth_token_refresh_total` (Counter)
+- Instrumentation: `oidc_token_exchange_total` (Counter), `auth_token_refresh_total` (Counter)
 - Persistence hooks: No DB changes. DI wiring in container.py.
 - Gaps: None identified.
 - Evidence: `plan.md:663-677`

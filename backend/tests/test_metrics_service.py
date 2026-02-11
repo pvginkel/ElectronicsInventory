@@ -221,20 +221,22 @@ class TestDecentralizedMetricsExist:
     def test_auth_service_metrics(self):
         """Check auth service owns validation metrics."""
         from app.services.auth_service import (
-            EI_AUTH_VALIDATION_DURATION_SECONDS,
-            EI_AUTH_VALIDATION_TOTAL,
+            AUTH_VALIDATION_DURATION_SECONDS,
+            AUTH_VALIDATION_TOTAL,
+            JWKS_REFRESH_TOTAL,
         )
-        assert EI_AUTH_VALIDATION_TOTAL is not None
-        assert EI_AUTH_VALIDATION_DURATION_SECONDS is not None
+        assert AUTH_VALIDATION_TOTAL is not None
+        assert AUTH_VALIDATION_DURATION_SECONDS is not None
+        assert JWKS_REFRESH_TOTAL is not None
 
     def test_oidc_client_service_metrics(self):
         """Check OIDC client service owns token exchange metrics."""
         from app.services.oidc_client_service import (
-            EI_AUTH_TOKEN_REFRESH_TOTAL,
-            EI_OIDC_TOKEN_EXCHANGE_TOTAL,
+            AUTH_TOKEN_REFRESH_TOTAL,
+            OIDC_TOKEN_EXCHANGE_TOTAL,
         )
-        assert EI_OIDC_TOKEN_EXCHANGE_TOTAL is not None
-        assert EI_AUTH_TOKEN_REFRESH_TOTAL is not None
+        assert OIDC_TOKEN_EXCHANGE_TOTAL is not None
+        assert AUTH_TOKEN_REFRESH_TOTAL is not None
 
     def test_openai_runner_metrics(self):
         """Check OpenAI runner owns AI analysis metrics."""

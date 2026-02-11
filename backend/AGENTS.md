@@ -334,8 +334,8 @@ assert after - before == 1.0
 
 ### Key Metric Locations
 
-- **Auth validation**: `app/services/auth_service.py` (EI_AUTH_VALIDATION_TOTAL, EI_AUTH_VALIDATION_DURATION_SECONDS)
-- **OIDC token exchange**: `app/services/oidc_client_service.py` (EI_OIDC_TOKEN_EXCHANGE_TOTAL, EI_AUTH_TOKEN_REFRESH_TOTAL)
+- **Auth validation**: `app/services/auth_service.py` (AUTH_VALIDATION_TOTAL, AUTH_VALIDATION_DURATION_SECONDS, JWKS_REFRESH_TOTAL)
+- **OIDC token exchange**: `app/services/oidc_client_service.py` (OIDC_TOKEN_EXCHANGE_TOTAL, AUTH_TOKEN_REFRESH_TOTAL)
 - **SSE connections**: `app/services/connection_manager.py` (SSE_GATEWAY_*)
 - **AI analysis**: `app/utils/ai/openai/openai_runner.py` (AI_ANALYSIS_*)
 - **Duplicate search**: `app/services/duplicate_search_service.py` (AI_DUPLICATE_SEARCH_*)

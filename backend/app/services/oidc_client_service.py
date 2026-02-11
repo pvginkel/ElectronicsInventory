@@ -14,13 +14,13 @@ from app.config import Settings
 from app.exceptions import AuthenticationException
 
 # OIDC metrics
-EI_OIDC_TOKEN_EXCHANGE_TOTAL = Counter(
-    "ei_oidc_token_exchange_total",
+OIDC_TOKEN_EXCHANGE_TOTAL = Counter(
+    "oidc_token_exchange_total",
     "Total authorization code exchange outcomes",
     ["status"],
 )
-EI_AUTH_TOKEN_REFRESH_TOTAL = Counter(
-    "ei_auth_token_refresh_total",
+AUTH_TOKEN_REFRESH_TOTAL = Counter(
+    "auth_token_refresh_total",
     "Total token refresh outcomes",
     ["status"],
 )
@@ -285,7 +285,7 @@ class OidcClientService:
                 )
 
             # Record successful token exchange
-            EI_OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="success").inc()
+            OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="success").inc()
 
             logger.info("Successfully exchanged authorization code for tokens")
 
@@ -299,7 +299,7 @@ class OidcClientService:
 
         except httpx.HTTPError as e:
             # Record failed token exchange
-            EI_OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="failed").inc()
+            OIDC_TOKEN_EXCHANGE_TOTAL.labels(status="failed").inc()
 
             logger.error("Token exchange failed: %s", str(e))
             error_detail = "Unknown error"
@@ -356,7 +356,7 @@ class OidcClientService:
                 )
 
             # Record successful refresh
-            EI_AUTH_TOKEN_REFRESH_TOTAL.labels(status="success").inc()
+            AUTH_TOKEN_REFRESH_TOTAL.labels(status="success").inc()
 
             logger.info("Successfully refreshed access token")
 
@@ -370,7 +370,7 @@ class OidcClientService:
 
         except httpx.HTTPError as e:
             # Record failed refresh
-            EI_AUTH_TOKEN_REFRESH_TOTAL.labels(status="failed").inc()
+            AUTH_TOKEN_REFRESH_TOTAL.labels(status="failed").inc()
 
             logger.error("Token refresh failed: %s", str(e))
             raise AuthenticationException(
