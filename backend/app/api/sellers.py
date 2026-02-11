@@ -15,7 +15,6 @@ from app.schemas.seller import (
 )
 from app.services.container import ServiceContainer
 from app.services.seller_service import SellerService
-from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
 sellers_bp = Blueprint("sellers", __name__, url_prefix="/sellers")
@@ -23,7 +22,6 @@ sellers_bp = Blueprint("sellers", __name__, url_prefix="/sellers")
 
 @sellers_bp.route("", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=list[SellerListSchema]))
-@handle_api_errors
 @inject
 def list_sellers(seller_service: SellerService = Provide[ServiceContainer.seller_service]) -> Any:
     """List all sellers."""
@@ -33,7 +31,6 @@ def list_sellers(seller_service: SellerService = Provide[ServiceContainer.seller
 
 @sellers_bp.route("", methods=["POST"])
 @api.validate(json=SellerCreateSchema, resp=SpectreeResponse(HTTP_201=SellerResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_409=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def create_seller(seller_service: SellerService = Provide[ServiceContainer.seller_service]) -> Any:
     """Create new seller."""
@@ -47,7 +44,6 @@ def create_seller(seller_service: SellerService = Provide[ServiceContainer.selle
 
 @sellers_bp.route("/<int:seller_id>", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=SellerResponseSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def get_seller(seller_id: int, seller_service: SellerService = Provide[ServiceContainer.seller_service]) -> Any:
     """Get seller details."""
@@ -57,7 +53,6 @@ def get_seller(seller_id: int, seller_service: SellerService = Provide[ServiceCo
 
 @sellers_bp.route("/<int:seller_id>", methods=["PUT"])
 @api.validate(json=SellerUpdateSchema, resp=SpectreeResponse(HTTP_200=SellerResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema, HTTP_409=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def update_seller(seller_id: int, seller_service: SellerService = Provide[ServiceContainer.seller_service]) -> Any:
     """Update seller."""
@@ -72,7 +67,6 @@ def update_seller(seller_id: int, seller_service: SellerService = Provide[Servic
 
 @sellers_bp.route("/<int:seller_id>", methods=["DELETE"])
 @api.validate(resp=SpectreeResponse(HTTP_204=None, HTTP_404=ErrorResponseSchema, HTTP_409=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def delete_seller(seller_id: int, seller_service: SellerService = Provide[ServiceContainer.seller_service]) -> Any:
     """Delete seller."""

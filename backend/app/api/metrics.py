@@ -5,13 +5,10 @@ from typing import Any
 from flask import Blueprint, Response
 from prometheus_client import generate_latest
 
-from app.utils.error_handling import handle_api_errors
-
 metrics_bp = Blueprint("metrics", __name__, url_prefix="/metrics")
 
 
 @metrics_bp.route("", methods=["GET"])
-@handle_api_errors
 def get_metrics() -> Any:
     """Return metrics in Prometheus text format.
 

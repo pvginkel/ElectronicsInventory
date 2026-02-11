@@ -21,7 +21,6 @@ from app.schemas.pick_list import (
 from app.services.container import ServiceContainer
 from app.services.kit_pick_list_service import KitPickListService
 from app.services.pick_list_report_service import PickListReportService
-from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
 pick_lists_bp = Blueprint("pick_lists", __name__)
@@ -37,7 +36,6 @@ pick_lists_bp = Blueprint("pick_lists", __name__)
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def create_pick_list(
     kit_id: int,
@@ -75,7 +73,6 @@ def create_pick_list(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def preview_pick_list_shortfall(
     kit_id: int,
@@ -101,7 +98,6 @@ def preview_pick_list_shortfall(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def list_pick_lists_for_kit(
     kit_id: int,
@@ -122,7 +118,6 @@ def list_pick_lists_for_kit(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def get_pick_list_detail(
     pick_list_id: int,
@@ -140,7 +135,6 @@ def get_pick_list_detail(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def delete_pick_list(
     pick_list_id: int,
@@ -162,7 +156,6 @@ def delete_pick_list(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def pick_pick_list_line(
     pick_list_id: int,
@@ -186,7 +179,6 @@ def pick_pick_list_line(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def undo_pick_list_line(
     pick_list_id: int,
@@ -212,7 +204,6 @@ def undo_pick_list_line(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def update_pick_list_line_quantity(
     pick_list_id: int,
@@ -230,7 +221,6 @@ def update_pick_list_line_quantity(
 
 
 @pick_lists_bp.route("/pick-lists/<int:pick_list_id>/pdf", methods=["GET"])
-@handle_api_errors
 @inject
 def get_pick_list_pdf(
     pick_list_id: int,

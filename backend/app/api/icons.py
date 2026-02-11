@@ -7,8 +7,6 @@ from typing import Any
 
 from flask import Blueprint, Response
 
-from app.utils.error_handling import handle_api_errors
-
 icons_bp = Blueprint("icons", __name__, url_prefix="/api/icons")
 
 logger = logging.getLogger(__name__)
@@ -39,7 +37,6 @@ def get_pdf_icon_version() -> str:
 
 
 @icons_bp.route("/pdf", methods=["GET"])
-@handle_api_errors
 def get_pdf_icon() -> Any:
     """Serve PDF icon with immutable caching.
 

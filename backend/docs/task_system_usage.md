@@ -121,12 +121,10 @@ from dependency_injector.wiring import Provide, inject
 from app.services.container import ServiceContainer
 from app.services.task_service import TaskService
 from app.services.my_background_task import DataProcessingTask
-from app.utils.error_handling import handle_api_errors
 
 data_bp = Blueprint("data", __name__, url_prefix="/api/data")
 
 @data_bp.route("/process", methods=["POST"])
-@handle_api_errors
 @inject
 def start_processing(task_service=Provide[ServiceContainer.task_service]):
     """Start background data processing task."""

@@ -176,7 +176,7 @@ State your confidence level and rationale, using `<confidence_template>` to keep
 - Migrations & seed data: every schema change needs Alembic revision and updated `app/data/test_data/` where relevant.
 - Metrics & shutdown: integrate with `MetricsService` and `ShutdownCoordinator` when background work/logging is added.
 - Storage integrations: S3 operations after DB flush, cleanup best-effort on delete paths.
-- Observability: typed exceptions, `handle_api_errors`, ruff/mypy compliance, deterministic tests.
+- Observability: typed exceptions, Flask `@app.errorhandler` registry, ruff/mypy compliance, deterministic tests.
 
 ---
 

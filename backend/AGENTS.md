@@ -31,6 +31,15 @@ This app follows the BFF pattern—the backend serves only this frontend. Change
 - Don't include migration hints in error messages.
 - Document frontend impact in `docs/features/<FEATURE>/frontend_impact.md` when the frontend dev needs update instructions.
 
+**No tombstones.** When code is replaced or removed, delete it completely. Never leave behind:
+- Empty or near-empty files with "moved to X" or "see Y instead" docstrings.
+- Commented-out code or `# removed` markers.
+- Stub functions/classes that only raise `NotImplementedError` or redirect to another module.
+- Re-exports or aliases kept solely for old import paths.
+- Variables prefixed with `_unused_` or similar to silence linters.
+
+If something is dead, delete it. **When moving code, update every caller to use the new import path directly.** Never add re-exports at the old location to avoid touching callers — that's not a refactoring, it's hiding the mess. The number of files changed is not a cost; incomplete migrations are.
+
 ## Code Organization Patterns
 
 ### 1. API Layer (`app/api/`)
@@ -42,14 +51,13 @@ API endpoints handle HTTP concerns only - no business logic.
 - Use Flask blueprints with URL prefixes
 - Validate requests with Pydantic schemas via `@api.validate`
 - Delegate all business logic to service classes
-- Handle errors with `@handle_api_errors` decorator
+- Exceptions propagate to Flask's `@app.errorhandler` registry (no per-endpoint decorator needed)
 - Return data using response schemas
 
 **Example structure:**
 ```python
 @parts_bp.route("", methods=["POST"])
 @api.validate(json=PartCreateSchema, resp=SpectreeResponse(HTTP_201=PartResponseSchema))
-@handle_api_errors
 @inject
 def create_part(part_service=Provide[ServiceContainer.part_service]):
     data = PartCreateSchema.model_validate(request.get_json())
@@ -217,7 +225,7 @@ poetry run pytest          # Full test suite
 - **Fail fast and fail often** - Don't swallow exceptions or hide errors from users
 - Use custom exceptions from `app.exceptions`
 - Include context in error messages
-- Let `@handle_api_errors` convert exceptions to HTTP responses
+- Let Flask's `@app.errorhandler` registry convert exceptions to HTTP responses
 - **Avoid defensive try/catch blocks** that silently continue on errors
 - If an operation fails, the user should know about it immediately
 

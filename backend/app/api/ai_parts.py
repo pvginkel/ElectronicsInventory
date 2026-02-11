@@ -23,7 +23,7 @@ from app.services.container import ServiceContainer
 from app.services.document_service import DocumentService
 from app.services.part_service import PartService
 from app.services.task_service import TaskService
-from app.utils.error_handling import _build_error_response, handle_api_errors
+from app.utils.flask_error_handlers import build_error_response
 from app.utils.spectree_config import api
 from app.utils.url_utils import get_filename_from_url
 
@@ -36,7 +36,6 @@ ai_parts_bp = Blueprint("ai_parts", __name__, url_prefix="/ai-parts")
 
 @ai_parts_bp.route("/analyze", methods=["POST"])
 @api.validate(resp=SpectreeResponse(HTTP_201=TaskStartResponse, HTTP_400=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def analyze_part(
     task_service: TaskService = Provide[ServiceContainer.task_service],
@@ -110,7 +109,7 @@ def analyze_part(
             "perform AI analysis",
             "real AI usage is disabled in testing mode",
         )
-        return _build_error_response(
+        return build_error_response(
             exception.message,
             {"message": "The requested operation cannot be performed"},
             code=exception.error_code,
@@ -132,7 +131,6 @@ def analyze_part(
 
 @ai_parts_bp.route("/create", methods=["POST"])
 @api.validate(json=AIPartCreateSchema, resp=SpectreeResponse(HTTP_201=PartResponseSchema, HTTP_400=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def create_part_from_ai_analysis(
     part_service: PartService = Provide[ServiceContainer.part_service],
@@ -205,7 +203,6 @@ def create_part_from_ai_analysis(
     json=CleanupPartRequestSchema,
     resp=SpectreeResponse(HTTP_201=TaskStartResponse, HTTP_400=ErrorResponseSchema),
 )
-@handle_api_errors
 @inject
 def cleanup_part(
     task_service: TaskService = Provide[ServiceContainer.task_service],
@@ -247,7 +244,7 @@ def cleanup_part(
             "perform AI cleanup",
             "real AI usage is disabled in testing mode",
         )
-        return _build_error_response(
+        return build_error_response(
             exception.message,
             {"message": "The requested operation cannot be performed"},
             code=exception.error_code,

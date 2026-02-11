@@ -5,13 +5,11 @@ from flask import Blueprint, jsonify
 
 from app.services.container import ServiceContainer
 from app.services.task_service import TaskService
-from app.utils.error_handling import handle_api_errors
 
 tasks_bp = Blueprint("tasks", __name__, url_prefix="/tasks")
 
 
 @tasks_bp.route("/<task_id>/status", methods=["GET"])
-@handle_api_errors
 @inject
 def get_task_status(task_id: str, task_service: TaskService = Provide[ServiceContainer.task_service]) -> Any:
     """
@@ -28,7 +26,6 @@ def get_task_status(task_id: str, task_service: TaskService = Provide[ServiceCon
 
 
 @tasks_bp.route("/<task_id>/cancel", methods=["POST"])
-@handle_api_errors
 @inject
 def cancel_task(task_id: str, task_service: TaskService = Provide[ServiceContainer.task_service]) -> Any:
     """
@@ -45,7 +42,6 @@ def cancel_task(task_id: str, task_service: TaskService = Provide[ServiceContain
 
 
 @tasks_bp.route("/<task_id>", methods=["DELETE"])
-@handle_api_errors
 @inject
 def remove_task(task_id: str, task_service: TaskService = Provide[ServiceContainer.task_service]) -> Any:
     """

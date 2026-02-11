@@ -21,7 +21,6 @@ from app.schemas.url_preview import UrlPreviewRequestSchema, UrlPreviewResponseS
 from app.services.container import ServiceContainer
 from app.services.document_service import DocumentService
 from app.services.url_transformers.registry import URLInterceptorRegistry
-from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
 documents_bp = Blueprint("documents", __name__, url_prefix="/parts")
@@ -32,7 +31,6 @@ logger = logging.getLogger(__name__)
 # Attachment Copying Endpoints
 @documents_bp.route("/copy-attachment", methods=["POST"])
 @api.validate(json=CopyAttachmentRequestSchema, resp=SpectreeResponse(HTTP_200=CopyAttachmentResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def copy_attachment(document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """Copy an individual attachment from one part to another."""
@@ -56,7 +54,6 @@ def copy_attachment(document_service: DocumentService = Provide[ServiceContainer
 # URL Preview Endpoints
 @documents_bp.route("/attachment-preview", methods=["POST"])
 @api.validate(json=UrlPreviewRequestSchema, resp=SpectreeResponse(HTTP_200=UrlPreviewResponseSchema, HTTP_400=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def attachment_preview(document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """Get URL preview metadata (title and backend image endpoint URL)."""
@@ -98,7 +95,6 @@ def attachment_preview(document_service: DocumentService = Provide[ServiceContai
 
 
 @documents_bp.route("/attachment-preview/image", methods=["GET"])
-@handle_api_errors
 @inject
 def attachment_preview_image(document_service: DocumentService = Provide[ServiceContainer.document_service]) -> Any:
     """Get preview image for URL."""
@@ -124,7 +120,6 @@ def attachment_preview_image(document_service: DocumentService = Provide[Service
 
 
 @documents_bp.route("/attachment-proxy/content", methods=["GET"])
-@handle_api_errors
 @inject
 def attachment_proxy_content(
     document_service: DocumentService = Provide[ServiceContainer.document_service],

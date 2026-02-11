@@ -25,7 +25,6 @@ from app.schemas.shopping_list_seller_note import (
 from app.services.container import ServiceContainer
 from app.services.kit_shopping_list_service import KitShoppingListService
 from app.services.shopping_list_service import ShoppingListService
-from app.utils.error_handling import handle_api_errors
 from app.utils.request_parsing import (
     parse_bool_query_param,
     parse_enum_list_query_param,
@@ -42,7 +41,6 @@ shopping_lists_bp = Blueprint("shopping_lists", __name__, url_prefix="/shopping-
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def create_shopping_list(
     shopping_list_service: ShoppingListService = Provide[ServiceContainer.shopping_list_service],
@@ -66,7 +64,6 @@ def create_shopping_list(
         HTTP_200=list[ShoppingListListSchema],
     ),
 )
-@handle_api_errors
 @inject
 def list_shopping_lists(
     shopping_list_service: ShoppingListService = Provide[ServiceContainer.shopping_list_service],
@@ -105,7 +102,6 @@ def list_shopping_lists(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def list_kits_for_shopping_list(
     list_id: int,
@@ -126,7 +122,6 @@ def list_kits_for_shopping_list(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def get_shopping_list(
     list_id: int,
@@ -147,7 +142,6 @@ def get_shopping_list(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def update_shopping_list(
     list_id: int,
@@ -171,7 +165,6 @@ def update_shopping_list(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def delete_shopping_list(
     list_id: int,
@@ -192,7 +185,6 @@ def delete_shopping_list(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def update_shopping_list_status(
     list_id: int,
@@ -221,7 +213,6 @@ def update_shopping_list_status(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def upsert_seller_order_note(
     list_id: int,

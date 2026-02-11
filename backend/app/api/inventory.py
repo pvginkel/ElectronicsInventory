@@ -17,7 +17,6 @@ from app.schemas.part import PartLocationResponseSchema
 from app.services.container import ServiceContainer
 from app.services.inventory_service import InventoryService
 from app.services.part_service import PartService
-from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
 inventory_bp = Blueprint("inventory", __name__, url_prefix="/inventory")
@@ -25,7 +24,6 @@ inventory_bp = Blueprint("inventory", __name__, url_prefix="/inventory")
 
 @inventory_bp.route("/parts/<string:part_key>/stock", methods=["POST"])
 @api.validate(json=AddStockSchema, resp=SpectreeResponse(HTTP_201=PartLocationResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def add_stock(part_key: str, part_service: PartService = Provide[ServiceContainer.part_service], inventory_service: InventoryService = Provide[ServiceContainer.inventory_service]) -> Any:
     """Add stock to a location."""
@@ -48,7 +46,6 @@ def add_stock(part_key: str, part_service: PartService = Provide[ServiceContaine
 
 @inventory_bp.route("/parts/<string:part_key>/stock", methods=["DELETE"])
 @api.validate(json=RemoveStockSchema, resp=SpectreeResponse(HTTP_204=None, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def remove_stock(part_key: str, part_service: PartService = Provide[ServiceContainer.part_service], inventory_service: InventoryService = Provide[ServiceContainer.inventory_service]) -> Any:
     """Remove stock from a location."""
@@ -65,7 +62,6 @@ def remove_stock(part_key: str, part_service: PartService = Provide[ServiceConta
 
 @inventory_bp.route("/parts/<string:part_key>/move", methods=["POST"])
 @api.validate(json=MoveStockSchema, resp=SpectreeResponse(HTTP_204=None, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def move_stock(part_key: str, part_service: PartService = Provide[ServiceContainer.part_service], inventory_service: InventoryService = Provide[ServiceContainer.inventory_service]) -> Any:
     """Move stock between locations."""
@@ -87,7 +83,6 @@ def move_stock(part_key: str, part_service: PartService = Provide[ServiceContain
 
 @inventory_bp.route("/suggestions/<int:type_id>", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=LocationSuggestionSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def get_location_suggestion(type_id: int, inventory_service: InventoryService = Provide[ServiceContainer.inventory_service]) -> Any:
     """Get location suggestions for part type."""

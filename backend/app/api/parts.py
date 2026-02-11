@@ -7,6 +7,7 @@ from flask import Blueprint, request
 from prometheus_client import Counter
 from spectree import Response as SpectreeResponse
 
+from app.exceptions import ValidationException
 from app.schemas.common import ErrorResponseSchema
 from app.schemas.kit_reservations import (
     KitReservationEntrySchema,
@@ -35,7 +36,6 @@ from app.services.kit_reservation_service import KitReservationService
 from app.services.part_service import PartService
 from app.services.shopping_list_line_service import ShoppingListLineService
 from app.services.shopping_list_service import ShoppingListService
-from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
 # Part kit usage request metric
@@ -48,10 +48,9 @@ PART_KIT_USAGE_REQUESTS_TOTAL = Counter(
 parts_bp = Blueprint("parts", __name__, url_prefix="/parts")
 
 
-class IncludeParameterError(Exception):
+class IncludeParameterError(ValidationException):
     """Exception raised for invalid include parameter values."""
     def __init__(self, message: str):
-        self.message = message
         super().__init__(message)
 
 
@@ -138,7 +137,6 @@ def _convert_part_to_schema_data(part: Any, total_quantity: int) -> dict[str, An
 
 @parts_bp.route("", methods=["POST"])
 @api.validate(json=PartCreateSchema, resp=SpectreeResponse(HTTP_201=PartResponseSchema, HTTP_400=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def create_part(part_service: PartService = Provide[ServiceContainer.part_service]) -> Any:
     """Create new part."""
@@ -168,7 +166,6 @@ def create_part(part_service: PartService = Provide[ServiceContainer.part_servic
 
 @parts_bp.route("", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=list[PartWithTotalSchema], HTTP_400=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def list_parts(inventory_service: InventoryService = Provide[ServiceContainer.inventory_service]) -> Any:
     """List parts with pagination, total quantities, and optional related data.
@@ -188,14 +185,9 @@ def list_parts(inventory_service: InventoryService = Provide[ServiceContainer.in
     type_filter = request.args.get("type_id", type=int)
     include_param = request.args.get("include", type=str)
 
-    # Parse include parameter - return 400 on validation errors
-    try:
-        include_locations, include_kits, include_shopping_lists, include_cover = _parse_include_parameter(include_param)
-    except IncludeParameterError as e:
-        return {
-            "error": "Invalid parameter",
-            "details": {"message": e.message}
-        }, 400
+    # Parse include parameter - IncludeParameterError (a ValidationException
+    # subclass) propagates to Flask's error handler for a 400 response.
+    include_locations, include_kits, include_shopping_lists, include_cover = _parse_include_parameter(include_param)
 
     # Get parts with calculated total quantities and optional bulk-loaded data
     parts_with_totals = inventory_service.get_all_parts_with_totals(
@@ -258,7 +250,6 @@ def list_parts(inventory_service: InventoryService = Provide[ServiceContainer.in
 
 @parts_bp.route("/<string:part_key>", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=PartResponseSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def get_part(
     part_key: str,
@@ -281,7 +272,6 @@ def get_part(
         HTTP_404=ErrorResponseSchema,
     )
 )
-@handle_api_errors
 @inject
 def list_part_kits(
     part_key: str,
@@ -305,7 +295,6 @@ def list_part_kits(
         HTTP_404=ErrorResponseSchema,
     )
 )
-@handle_api_errors
 @inject
 def get_part_kit_reservations(
     part_key: str,
@@ -331,7 +320,6 @@ def get_part_kit_reservations(
 
 @parts_bp.route("/<string:part_key>", methods=["PUT"])
 @api.validate(json=PartUpdateSchema, resp=SpectreeResponse(HTTP_200=PartResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def update_part(part_key: str, part_service: PartService = Provide[ServiceContainer.part_service]) -> Any:
     """Update part details."""
@@ -346,7 +334,6 @@ def update_part(part_key: str, part_service: PartService = Provide[ServiceContai
 
 @parts_bp.route("/<string:part_key>", methods=["DELETE"])
 @api.validate(resp=SpectreeResponse(HTTP_204=None, HTTP_404=ErrorResponseSchema, HTTP_409=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def delete_part(part_key: str, part_service: PartService = Provide[ServiceContainer.part_service]) -> Any:
     """Delete part if total quantity is zero."""
@@ -363,7 +350,6 @@ def delete_part(part_key: str, part_service: PartService = Provide[ServiceContai
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def query_part_shopping_list_memberships(
     part_service: PartService = Provide[ServiceContainer.part_service],
@@ -408,7 +394,6 @@ def query_part_shopping_list_memberships(
         HTTP_404=ErrorResponseSchema,
     )
 )
-@handle_api_errors
 @inject
 def list_part_shopping_list_memberships(
     part_key: str,
@@ -434,7 +419,6 @@ def list_part_shopping_list_memberships(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def add_part_shopping_list_membership(
     part_key: str,
@@ -457,7 +441,6 @@ def add_part_shopping_list_membership(
 
 @parts_bp.route("/<string:part_key>/locations", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=list[PartLocationResponseSchema], HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def get_part_locations(part_key: str, part_service: PartService = Provide[ServiceContainer.part_service], inventory_service: InventoryService = Provide[ServiceContainer.inventory_service]) -> Any:
     """Get all locations for a part."""
@@ -478,7 +461,6 @@ def get_part_locations(part_key: str, part_service: PartService = Provide[Servic
 
 @parts_bp.route("/<string:part_key>/history", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=list[QuantityHistoryResponseSchema], HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def get_part_history(part_key: str, part_service: PartService = Provide[ServiceContainer.part_service]) -> Any:
     """Get quantity change history for a part."""
