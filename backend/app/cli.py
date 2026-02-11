@@ -4,7 +4,6 @@ import argparse
 import sys
 from typing import NoReturn
 
-import sqlalchemy as sa
 from dotenv import load_dotenv
 from flask import Flask
 
@@ -13,24 +12,9 @@ from app.database import (
     check_db_connection,
     get_current_revision,
     get_pending_migrations,
-    sync_master_data_from_setup,
     upgrade_database,
 )
-from app.models.box import Box
-from app.models.kit import Kit
-from app.models.kit_content import KitContent
-from app.models.kit_pick_list import KitPickList
-from app.models.kit_pick_list_line import KitPickListLine
-from app.models.kit_shopping_list_link import KitShoppingListLink
-from app.models.location import Location
-from app.models.part import Part
-from app.models.part_location import PartLocation
-from app.models.quantity_history import QuantityHistory
-from app.models.seller import Seller
-from app.models.shopping_list import ShoppingList
-from app.models.shopping_list_line import ShoppingListLine
-from app.models.shopping_list_seller_note import ShoppingListSellerNote
-from app.models.type import Type
+from app.startup import load_test_data_hook, post_migration_hook
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -156,16 +140,8 @@ def handle_upgrade_db(
         else:
             print("✅ Database is up to date. No migrations to apply.")
 
-        # Phase 2: Sync master data unconditionally
-        session = app.container.session_maker()()
-        try:
-            sync_master_data_from_setup(session)
-            session.commit()
-        except Exception as e:
-            print(f"⚠️  Warning: Failed to sync master data: {e}")
-            # Continue - master data sync failure shouldn't block the command
-        finally:
-            session.close()
+        # Phase 2: Run app-specific post-migration hook (master data sync, etc.)
+        post_migration_hook(app)
 
 
 def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
@@ -207,110 +183,8 @@ def handle_load_test_data(app: Flask, confirmed: bool = False) -> None:
             else:
                 print("✅ Database recreated successfully")
 
-            # Get a fresh session from the container
-            session = app.container.session_maker()()
-            try:
-                # Sync master data after database recreation
-                sync_master_data_from_setup(session)
-                session.commit()
-
-                # Load test data using the container (provides S3 service for images)
-                print("📦 Loading fixed test dataset...")
-                test_data_service = app.container.test_data_service()
-                test_data_service.load_full_dataset()
-
-                # Keep the box number sequence aligned with loaded fixtures when supported
-                bind = session.get_bind() if hasattr(session, "get_bind") else None
-                if bind is None:
-                    bind = getattr(session, "bind", None)
-
-                if bind is not None and bind.dialect.name.startswith("postgres"):
-                    session.execute(
-                        sa.text(
-                            "SELECT setval('boxes_box_no_seq', COALESCE(MAX(box_no), 1), CASE WHEN MAX(box_no) IS NULL THEN false ELSE true END) FROM boxes"
-                        )
-                    )
-                print("✅ Test data loaded successfully")
-
-                # Show summary of loaded data
-                type_count = session.query(Type).count()
-                part_count = session.query(Part).count()
-                seller_count = session.query(Seller).count()
-                box_count = session.query(Box).count()
-                location_slot_count = session.query(Location).count()
-                part_location_count = session.query(PartLocation).count()
-                quantity_history_count = session.query(QuantityHistory).count()
-                shopping_list_count = session.query(ShoppingList).count()
-                shopping_list_line_count = session.query(ShoppingListLine).count()
-                shopping_list_note_count = session.query(
-                    ShoppingListSellerNote
-                ).count()
-                kit_count = session.query(Kit).count()
-                kit_content_count = session.query(KitContent).count()
-                kit_link_count = session.query(KitShoppingListLink).count()
-                kit_pick_list_count = session.query(KitPickList).count()
-                kit_pick_list_line_count = session.query(
-                    KitPickListLine
-                ).count()
-
-                summary_sections = [
-                    (
-                        "🏷️  Catalog",
-                        [
-                            f"{type_count} part types",
-                            f"{part_count} parts",
-                            f"{seller_count} sellers",
-                        ],
-                    ),
-                    (
-                        "📦 Storage",
-                        [
-                            f"{box_count} storage boxes",
-                            f"{location_slot_count} location slots",
-                            f"{part_location_count} inventory placements",
-                            f"{quantity_history_count} quantity history events",
-                        ],
-                    ),
-                    (
-                        "🛒 Shopping",
-                        [
-                            (
-                                f"{shopping_list_count} shopping lists "
-                                f"with {shopping_list_line_count} lines"
-                            ),
-                            (
-                                f"{shopping_list_note_count} shopping list "
-                                "seller notes"
-                            ),
-                        ],
-                    ),
-                    (
-                        "🧰 Kits",
-                        [
-                            (
-                                f"{kit_count} kits stocked with "
-                                f"{kit_content_count} contents"
-                            ),
-                            (
-                                f"{kit_pick_list_count} pick lists wrangled "
-                                f"into {kit_pick_list_line_count} lines"
-                            ),
-                            (
-                                f"{kit_link_count} kit to shopping list links "
-                                "kept in sync"
-                            ),
-                        ],
-                    ),
-                ]
-
-                print("📊 Dataset summary:")
-                for section_title, entries in summary_sections:
-                    print(f"   {section_title}")
-                    for entry in entries:
-                        print(f"      • {entry}")
-
-            finally:
-                session.close()
+            # Run app-specific test data hook (master data sync, test data, summary)
+            load_test_data_hook(app)
 
         except Exception as e:
             print(f"❌ Failed to load test data: {e}", file=sys.stderr)
