@@ -218,17 +218,12 @@ def app(test_settings: Settings, template_connection: sqlite3.Connection) -> Gen
     try:
         yield app
     finally:
-        # Stop background threads before closing DB to avoid segfaults
+        # Shut down all background services via the lifecycle coordinator.
+        # This fires PREPARE_SHUTDOWN then SHUTDOWN, which MetricsService,
+        # TempFileManager, TaskService (and any other registered service)
+        # handle in their _on_lifecycle_event callbacks.
         try:
-            app.container.metrics_service().shutdown()
-        except Exception:
-            pass
-        try:
-            app.container.temp_file_manager().stop_cleanup_thread()
-        except Exception:
-            pass
-        try:
-            app.container.task_service().shutdown()
+            app.container.lifecycle_coordinator().shutdown()
         except Exception:
             pass
 
@@ -295,49 +290,6 @@ def container(app: Flask):
     container.session_maker.override(SessionLocal)
 
     return container
-
-
-@pytest.fixture
-def make_attachment_set(session):
-    """Helper fixture to create AttachmentSet instances for testing.
-
-    Returns a callable that creates and persists an AttachmentSet.
-    Usage:
-        attachment_set = make_attachment_set()
-        kit = Kit(..., attachment_set_id=attachment_set.id)
-    """
-    from app.models.attachment_set import AttachmentSet
-
-    def _make():
-        attachment_set = AttachmentSet()
-        session.add(attachment_set)
-        session.flush()
-        return attachment_set
-
-    return _make
-
-
-@pytest.fixture
-def make_attachment_set_flask(app: Flask):
-    """Helper fixture to create AttachmentSet instances using Flask's db.session.
-
-    Returns a callable that creates and persists an AttachmentSet.
-    This variant is for tests using app context and Flask's db.session.
-    Usage:
-        with app.app_context():
-            attachment_set = make_attachment_set_flask()
-            kit = Kit(..., attachment_set_id=attachment_set.id)
-    """
-    from app.extensions import db
-    from app.models.attachment_set import AttachmentSet
-
-    def _make():
-        attachment_set = AttachmentSet()
-        db.session.add(attachment_set)
-        db.session.flush()
-        return attachment_set
-
-    return _make
 
 
 @pytest.fixture
@@ -483,17 +435,9 @@ def oidc_app(
             try:
                 yield app
             finally:
-                # Stop background threads before closing DB to avoid segfaults
+                # Shut down all background services via the lifecycle coordinator
                 try:
-                    app.container.metrics_service().shutdown()
-                except Exception:
-                    pass
-                try:
-                    app.container.temp_file_manager().stop_cleanup_thread()
-                except Exception:
-                    pass
-                try:
-                    app.container.task_service().shutdown()
+                    app.container.lifecycle_coordinator().shutdown()
                 except Exception:
                     pass
 
@@ -509,9 +453,11 @@ def oidc_client(oidc_app: Flask) -> Any:
     return oidc_app.test_client()
 
 
-# Import document fixtures to make them available to all tests
-from .test_document_fixtures import (  # noqa
+# Import domain fixtures to make them available to all tests
+from .domain_fixtures import (  # noqa
     large_image_file,
+    make_attachment_set,
+    make_attachment_set_flask,
     mock_html_content,
     mock_url_metadata,
     sample_image_file,
@@ -607,12 +553,18 @@ def sse_server(template_connection: sqlite3.Connection) -> Generator[tuple[str, 
     try:
         yield (base_url, app)
     finally:
-        # Stop version service mock
+        # Shut down all background services via the lifecycle coordinator
+        # before stopping mocks and cleaning up DB.
+        try:
+            app.container.lifecycle_coordinator().shutdown()
+        except Exception:
+            pass
+
+        # Stop version service mock after lifecycle shutdown
         version_mock.stop()
 
-        # Server cleanup: waitress doesn't have a graceful shutdown API when run in thread
-        # The daemon thread will be terminated when the process exits
-        # Clean up database connection
+        # The daemon server thread will be terminated when the process exits.
+        # Clean up database connection.
         with app.app_context():
             from app.extensions import db as flask_db
 
