@@ -53,7 +53,7 @@
 
 ### 10. Auth-related Prometheus metrics
 **Status:** PASS
-- `app/services/metrics_service.py:555-582` -- 5 Prometheus metrics (ei_auth_validation_total, ei_auth_validation_duration_seconds, ei_jwks_refresh_total, ei_oidc_token_exchange_total, ei_auth_token_refresh_total)
+- `app/services/auth_service.py` and `app/services/oidc_client_service.py` -- 5 Prometheus metrics (auth_validation_total, auth_validation_duration_seconds, jwks_refresh_total, oidc_token_exchange_total, auth_token_refresh_total)
 - `app/services/metrics_service.py:1051-1078` -- Implementation methods
 
 ### 11. Integration with existing DI container (ServiceContainer)

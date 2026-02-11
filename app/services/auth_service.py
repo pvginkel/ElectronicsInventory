@@ -14,17 +14,17 @@ from app.config import Settings
 from app.exceptions import AuthenticationException
 
 # Auth metrics
-EI_AUTH_VALIDATION_TOTAL = Counter(
-    "ei_auth_validation_total",
+AUTH_VALIDATION_TOTAL = Counter(
+    "auth_validation_total",
     "Total auth token validations by status",
     ["status"],
 )
-EI_AUTH_VALIDATION_DURATION_SECONDS = Histogram(
-    "ei_auth_validation_duration_seconds",
+AUTH_VALIDATION_DURATION_SECONDS = Histogram(
+    "auth_validation_duration_seconds",
     "Auth token validation duration in seconds",
 )
-EI_JWKS_REFRESH_TOTAL = Counter(
-    "ei_jwks_refresh_total",
+JWKS_REFRESH_TOTAL = Counter(
+    "jwks_refresh_total",
     "Total JWKS initialization/refresh events",
     ["trigger", "status"],
 )
@@ -89,10 +89,10 @@ class AuthService:
                 logger.info("Initialized JWKS client with URI: %s", self._jwks_uri)
 
                 # Record successful JWKS initialization
-                EI_JWKS_REFRESH_TOTAL.labels(trigger="startup", status="success").inc()
+                JWKS_REFRESH_TOTAL.labels(trigger="startup", status="success").inc()
             except Exception as e:
                 logger.error("Failed to initialize JWKS client: %s", str(e))
-                EI_JWKS_REFRESH_TOTAL.labels(trigger="startup", status="failed").inc()
+                JWKS_REFRESH_TOTAL.labels(trigger="startup", status="failed").inc()
                 raise
         else:
             logger.info("AuthService initialized with OIDC disabled")
@@ -179,8 +179,8 @@ class AuthService:
 
             # Record successful validation
             duration = time.perf_counter() - start_time
-            EI_AUTH_VALIDATION_TOTAL.labels(status="success").inc()
-            EI_AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
+            AUTH_VALIDATION_TOTAL.labels(status="success").inc()
+            AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
 
             logger.info(
                 "Token validated successfully for subject=%s email=%s roles=%s",
@@ -198,22 +198,22 @@ class AuthService:
 
         except jwt.ExpiredSignatureError as e:
             duration = time.perf_counter() - start_time
-            EI_AUTH_VALIDATION_TOTAL.labels(status="expired").inc()
-            EI_AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
+            AUTH_VALIDATION_TOTAL.labels(status="expired").inc()
+            AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
             logger.warning("Token validation failed: expired")
             raise AuthenticationException("Token has expired") from e
 
         except jwt.InvalidSignatureError as e:
             duration = time.perf_counter() - start_time
-            EI_AUTH_VALIDATION_TOTAL.labels(status="invalid_signature").inc()
-            EI_AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
+            AUTH_VALIDATION_TOTAL.labels(status="invalid_signature").inc()
+            AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
             logger.warning("Token validation failed: invalid signature")
             raise AuthenticationException("Invalid token signature") from e
 
         except (jwt.InvalidIssuerError, jwt.InvalidAudienceError) as e:
             duration = time.perf_counter() - start_time
-            EI_AUTH_VALIDATION_TOTAL.labels(status="invalid_claims").inc()
-            EI_AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
+            AUTH_VALIDATION_TOTAL.labels(status="invalid_claims").inc()
+            AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
             logger.warning("Token validation failed: invalid issuer or audience")
             raise AuthenticationException(
                 "Token issuer or audience does not match expected values"
@@ -221,22 +221,22 @@ class AuthService:
 
         except jwt.PyJWTError as e:
             duration = time.perf_counter() - start_time
-            EI_AUTH_VALIDATION_TOTAL.labels(status="invalid_token").inc()
-            EI_AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
+            AUTH_VALIDATION_TOTAL.labels(status="invalid_token").inc()
+            AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
             logger.warning("Token validation failed: %s", str(e))
             raise AuthenticationException(f"Invalid token: {str(e)}") from e
 
         except AuthenticationException:
             # Re-raise authentication exceptions as-is
             duration = time.perf_counter() - start_time
-            EI_AUTH_VALIDATION_TOTAL.labels(status="error").inc()
-            EI_AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
+            AUTH_VALIDATION_TOTAL.labels(status="error").inc()
+            AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
             raise
 
         except Exception as e:
             duration = time.perf_counter() - start_time
-            EI_AUTH_VALIDATION_TOTAL.labels(status="error").inc()
-            EI_AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
+            AUTH_VALIDATION_TOTAL.labels(status="error").inc()
+            AUTH_VALIDATION_DURATION_SECONDS.observe(max(duration, 0.0))
             logger.error("Unexpected error during token validation: %s", str(e))
             raise AuthenticationException(
                 f"Token validation failed: {str(e)}"

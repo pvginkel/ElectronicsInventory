@@ -559,16 +559,16 @@ Port the OIDC/Keycloak BFF cookie-based authentication system from the IoTSuppor
 
 ## 9) Observability / Telemetry
 
-- Signal: `ei_auth_validation_total`
+- Signal: `auth_validation_total`
 - Type: Counter
 - Trigger: Every call to AuthService.validate_token(), with status label
 - Labels / fields: `status` = success | expired | invalid_signature | invalid_claims | invalid_token | error
 - Consumer: Dashboard showing auth success/failure rates
-- Evidence: `/work/IoTSupport/backend/app/services/auth_service.py:176-262` (IoTSupport uses `iot_` prefix; EI will use `ei_` prefix).
+- Evidence: `/work/IoTSupport/backend/app/services/auth_service.py:176-262` (IoTSupport uses `iot_` prefix; EI uses generic prefix).
 
 ---
 
-- Signal: `ei_auth_validation_duration_seconds`
+- Signal: `auth_validation_duration_seconds`
 - Type: Histogram
 - Trigger: Every call to AuthService.validate_token()
 - Labels / fields: None (single histogram)
@@ -577,7 +577,7 @@ Port the OIDC/Keycloak BFF cookie-based authentication system from the IoTSuppor
 
 ---
 
-- Signal: `ei_jwks_refresh_total`
+- Signal: `jwks_refresh_total`
 - Type: Counter
 - Trigger: JWKS initialization at startup and key refresh events
 - Labels / fields: `trigger` = startup | refresh; `status` = success | failed
@@ -586,7 +586,7 @@ Port the OIDC/Keycloak BFF cookie-based authentication system from the IoTSuppor
 
 ---
 
-- Signal: `ei_oidc_token_exchange_total`
+- Signal: `oidc_token_exchange_total`
 - Type: Counter
 - Trigger: Authorization code exchange in callback flow
 - Labels / fields: `status` = success | failed
@@ -595,7 +595,7 @@ Port the OIDC/Keycloak BFF cookie-based authentication system from the IoTSuppor
 
 ---
 
-- Signal: `ei_auth_token_refresh_total`
+- Signal: `auth_token_refresh_total`
 - Type: Counter
 - Trigger: Token refresh attempts (silent refresh in before_request)
 - Labels / fields: `status` = success | failed

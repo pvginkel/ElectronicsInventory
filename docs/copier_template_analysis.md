@@ -442,27 +442,16 @@ App-specific blueprint registration (parts, boxes, kits, inventory, etc.) moves 
 
 **Priority:** Medium — Concrete code change, no design decisions
 
-### Current State
+### Status: COMPLETED
 
-Auth services use Electronics Inventory-specific metric names:
-- `EI_AUTH_VALIDATION_TOTAL`
-- `EI_AUTH_VALIDATION_DURATION_SECONDS`
-- `EI_JWKS_REFRESH_TOTAL`
-- `EI_OIDC_TOKEN_EXCHANGE_TOTAL`
-- `EI_AUTH_TOKEN_REFRESH_TOTAL`
+Auth service metrics have been renamed to generic names consistent with all other infrastructure services:
+- `AUTH_VALIDATION_TOTAL` (was `EI_AUTH_VALIDATION_TOTAL`)
+- `AUTH_VALIDATION_DURATION_SECONDS` (was `EI_AUTH_VALIDATION_DURATION_SECONDS`)
+- `JWKS_REFRESH_TOTAL` (was `EI_JWKS_REFRESH_TOTAL`)
+- `OIDC_TOKEN_EXCHANGE_TOTAL` (was `EI_OIDC_TOKEN_EXCHANGE_TOTAL`)
+- `AUTH_TOKEN_REFRESH_TOTAL` (was `EI_AUTH_TOKEN_REFRESH_TOTAL`)
 
-All other infrastructure services (MetricsService, ConnectionManager, TaskService, LifecycleCoordinator) already use generic metric names. The auth services are the only exception.
-
-### Proposed Change
-
-Rename to generic names:
-- `EI_AUTH_VALIDATION_TOTAL` → `AUTH_VALIDATION_TOTAL`
-- `EI_AUTH_VALIDATION_DURATION_SECONDS` → `AUTH_VALIDATION_DURATION_SECONDS`
-- `EI_JWKS_REFRESH_TOTAL` → `JWKS_REFRESH_TOTAL`
-- `EI_OIDC_TOKEN_EXCHANGE_TOTAL` → `OIDC_TOKEN_EXCHANGE_TOTAL`
-- `EI_AUTH_TOKEN_REFRESH_TOTAL` → `AUTH_TOKEN_REFRESH_TOTAL`
-
-Update the Grafana dashboard queries that reference these metrics. Update any tests that assert on metric names.
+All source files, tests, and documentation have been updated. Grafana dashboard queries referencing the old `ei_*` metric names must be updated separately (external to this repository).
 
 ### Note on Service Container
 
