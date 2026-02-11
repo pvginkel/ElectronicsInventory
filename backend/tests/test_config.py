@@ -104,8 +104,6 @@ def test_settings_direct_construction():
         thumbnail_storage_path="/tmp/thumbnails",
         download_cache_base_path="/tmp/cache",
         download_cache_cleanup_hours=24,
-        celery_broker_url="pyamqp://guest@localhost//",
-        celery_result_backend="db+postgresql+psycopg://postgres:@localhost:5432/test",
         ai_provider="openai",
         openai_api_key="",
         openai_model="gpt-5-mini",
