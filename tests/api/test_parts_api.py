@@ -306,21 +306,22 @@ class TestPartsListIncludeParameter:
         """Verify invalid include values return 400."""
         response = client.get("/api/parts?include=invalid")
         assert response.status_code == 400
-        error = response.get_json()
-        assert "invalid include value" in error["details"]["message"]
+        data = response.get_json()
+        # Specific message is in the top-level "error" field (Flask error handler envelope)
+        assert "invalid include value" in data["error"]
 
     def test_list_parts_include_parameter_too_long(self, client):
         """Verify DoS protection rejects excessively long include parameters."""
         long_param = "a" * 201
         response = client.get(f"/api/parts?include={long_param}")
         assert response.status_code == 400
-        error = response.get_json()
-        assert "exceeds maximum length" in error["details"]["message"]
+        data = response.get_json()
+        assert "exceeds maximum length" in data["error"]
 
     def test_list_parts_include_parameter_too_many_tokens(self, client):
         """Verify DoS protection rejects too many include tokens."""
         many_tokens = ",".join(["locations"] * 11)
         response = client.get(f"/api/parts?include={many_tokens}")
         assert response.status_code == 400
-        error = response.get_json()
-        assert "exceeds maximum" in error["details"]["message"]
+        data = response.get_json()
+        assert "exceeds maximum" in data["error"]

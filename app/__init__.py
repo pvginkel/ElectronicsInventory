@@ -174,10 +174,10 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
 
         app.logger.info("Log capture handler initialized for testing mode")
 
-    # Register error handlers
-    from app.utils.flask_error_handlers import register_error_handlers
+    # Register error handlers (modular: core + business logic)
+    from app.utils.flask_error_handlers import register_app_error_handlers
 
-    register_error_handlers(app)
+    register_app_error_handlers(app)
 
     # Register main API blueprint
     from app.api import api_bp
@@ -210,18 +210,24 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
 
     @app.teardown_request
     def close_session(exc: Exception | None) -> None:
-        try:
-            """Close the database session after each request."""
-            db_session = container.db_session()
-            needs_rollback = db_session.info.get('needs_rollback', False)
+        """Close the database session after each request.
 
-            if exc or needs_rollback:
+        Roll back the session when either (a) Flask passes an unhandled
+        exception via ``exc``, or (b) an @app.errorhandler set the
+        ``g.needs_rollback`` flag.  Flask 3.x does NOT propagate the
+        original exception to teardown_request when an errorhandler
+        successfully returns a response, so the flag is the reliable
+        rollback signal for handled exceptions.
+        """
+        try:
+            db_session = container.db_session()
+
+            needs_rollback = exc or getattr(g, "needs_rollback", False)
+            if needs_rollback:
                 db_session.rollback()
             else:
                 db_session.commit()
 
-            # Clear rollback flag after processing
-            db_session.info.pop('needs_rollback', None)
             db_session.close()
 
         finally:

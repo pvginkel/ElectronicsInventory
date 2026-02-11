@@ -20,7 +20,6 @@ from app.schemas.common import ErrorResponseSchema
 from app.services.attachment_set_service import AttachmentSetService
 from app.services.container import ServiceContainer
 from app.services.document_service import DocumentService
-from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
 attachment_sets_bp = Blueprint("attachment_sets", __name__, url_prefix="/attachment-sets")
@@ -31,7 +30,6 @@ logger = logging.getLogger(__name__)
 # Attachment Set Operations
 @attachment_sets_bp.route("/<int:set_id>", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=AttachmentSetResponseSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def get_attachment_set(set_id: int, service: AttachmentSetService = Provide[ServiceContainer.attachment_set_service]) -> Any:
     """Get attachment set details with all attachments."""
@@ -41,7 +39,6 @@ def get_attachment_set(set_id: int, service: AttachmentSetService = Provide[Serv
 
 # Attachment Operations
 @attachment_sets_bp.route("/<int:set_id>/attachments", methods=["POST"])
-@handle_api_errors
 @inject
 def create_attachment(
     set_id: int,
@@ -90,7 +87,6 @@ def create_attachment(
 
 @attachment_sets_bp.route("/<int:set_id>/attachments", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=list[AttachmentListSchema], HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def list_attachments(set_id: int, service: AttachmentSetService = Provide[ServiceContainer.attachment_set_service]) -> Any:
     """List all attachments for an attachment set."""
@@ -100,7 +96,6 @@ def list_attachments(set_id: int, service: AttachmentSetService = Provide[Servic
 
 @attachment_sets_bp.route("/<int:set_id>/attachments/<int:attachment_id>", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=AttachmentResponseSchema, HTTP_404=ErrorResponseSchema, HTTP_400=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def get_attachment(set_id: int, attachment_id: int, service: AttachmentSetService = Provide[ServiceContainer.attachment_set_service]) -> Any:
     """Get a specific attachment and verify it belongs to the set."""
@@ -110,7 +105,6 @@ def get_attachment(set_id: int, attachment_id: int, service: AttachmentSetServic
 
 @attachment_sets_bp.route("/<int:set_id>/attachments/<int:attachment_id>", methods=["PUT"])
 @api.validate(json=AttachmentUpdateSchema, resp=SpectreeResponse(HTTP_200=AttachmentResponseSchema, HTTP_404=ErrorResponseSchema, HTTP_400=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def update_attachment(set_id: int, attachment_id: int, service: AttachmentSetService = Provide[ServiceContainer.attachment_set_service]) -> Any:
     """Update attachment metadata."""
@@ -121,7 +115,6 @@ def update_attachment(set_id: int, attachment_id: int, service: AttachmentSetSer
 
 @attachment_sets_bp.route("/<int:set_id>/attachments/<int:attachment_id>", methods=["DELETE"])
 @api.validate(resp=SpectreeResponse(HTTP_204=None, HTTP_404=ErrorResponseSchema, HTTP_400=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def delete_attachment(set_id: int, attachment_id: int, service: AttachmentSetService = Provide[ServiceContainer.attachment_set_service]) -> Any:
     """Delete an attachment and reassign cover if necessary."""
@@ -132,7 +125,6 @@ def delete_attachment(set_id: int, attachment_id: int, service: AttachmentSetSer
 # Cover Management
 @attachment_sets_bp.route("/<int:set_id>/cover", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=AttachmentSetCoverSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def get_cover(set_id: int, service: AttachmentSetService = Provide[ServiceContainer.attachment_set_service]) -> Any:
     """Get cover attachment details for an attachment set."""
@@ -153,7 +145,6 @@ def get_cover(set_id: int, service: AttachmentSetService = Provide[ServiceContai
 
 @attachment_sets_bp.route("/<int:set_id>/cover", methods=["PUT"])
 @api.validate(json=AttachmentSetCoverUpdateSchema, resp=SpectreeResponse(HTTP_200=AttachmentSetCoverSchema, HTTP_404=ErrorResponseSchema, HTTP_400=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def set_cover(set_id: int, service: AttachmentSetService = Provide[ServiceContainer.attachment_set_service]) -> Any:
     """Set cover attachment for an attachment set."""
@@ -175,7 +166,6 @@ def set_cover(set_id: int, service: AttachmentSetService = Provide[ServiceContai
 
 @attachment_sets_bp.route("/<int:set_id>/cover", methods=["DELETE"])
 @api.validate(resp=SpectreeResponse(HTTP_200=AttachmentSetCoverSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def clear_cover(set_id: int, service: AttachmentSetService = Provide[ServiceContainer.attachment_set_service]) -> Any:
     """Clear cover attachment for an attachment set."""

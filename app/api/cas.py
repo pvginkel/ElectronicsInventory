@@ -11,7 +11,6 @@ from werkzeug.exceptions import BadRequest, InternalServerError, NotFound
 from app.services.container import ServiceContainer
 from app.services.image_service import ImageService
 from app.services.s3_service import S3Service
-from app.utils.error_handling import handle_api_errors
 
 cas_bp = Blueprint("cas", __name__, url_prefix="/api/cas")
 
@@ -22,7 +21,6 @@ HASH_PATTERN = re.compile(r'^[0-9a-f]{64}$')
 
 
 @cas_bp.route("/<hash_value>", methods=["GET"])
-@handle_api_errors
 @inject
 def get_cas_content(
     hash_value: str,

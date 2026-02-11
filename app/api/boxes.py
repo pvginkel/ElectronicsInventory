@@ -22,7 +22,6 @@ from app.schemas.location import (
 )
 from app.services.box_service import BoxService
 from app.services.container import ServiceContainer
-from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
 boxes_bp = Blueprint("boxes", __name__, url_prefix="/boxes")
@@ -30,7 +29,6 @@ boxes_bp = Blueprint("boxes", __name__, url_prefix="/boxes")
 
 @boxes_bp.route("", methods=["POST"])
 @api.validate(json=BoxCreateSchema, resp=SpectreeResponse(HTTP_201=BoxResponseSchema, HTTP_400=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def create_box(box_service: BoxService = Provide[ServiceContainer.box_service]) -> Any:
     """Create new box with specified capacity."""
@@ -42,7 +40,6 @@ def create_box(box_service: BoxService = Provide[ServiceContainer.box_service]) 
 
 @boxes_bp.route("", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=list[BoxWithUsageSchema]))
-@handle_api_errors
 @inject
 def list_boxes(box_service: BoxService = Provide[ServiceContainer.box_service]) -> Any:
     """List all boxes with usage statistics."""
@@ -75,7 +72,6 @@ def list_boxes(box_service: BoxService = Provide[ServiceContainer.box_service]) 
 
 @boxes_bp.route("/<int:box_no>", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=BoxResponseSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def get_box_details(box_no: int, box_service: BoxService = Provide[ServiceContainer.box_service]) -> Any:
     """Get box details."""
@@ -85,7 +81,6 @@ def get_box_details(box_no: int, box_service: BoxService = Provide[ServiceContai
 
 @boxes_bp.route("/<int:box_no>", methods=["PUT"])
 @api.validate(json=BoxUpdateSchema, resp=SpectreeResponse(HTTP_200=BoxResponseSchema, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def update_box(box_no: int, box_service: BoxService = Provide[ServiceContainer.box_service]) -> Any:
     """Update box (capacity changes require validation)."""
@@ -98,7 +93,6 @@ def update_box(box_no: int, box_service: BoxService = Provide[ServiceContainer.b
 
 @boxes_bp.route("/<int:box_no>", methods=["DELETE"])
 @api.validate(resp=SpectreeResponse(HTTP_204=None, HTTP_400=ErrorResponseSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def delete_box(box_no: int, box_service: BoxService = Provide[ServiceContainer.box_service]) -> Any:
     """Delete empty box."""
@@ -108,7 +102,6 @@ def delete_box(box_no: int, box_service: BoxService = Provide[ServiceContainer.b
 
 @boxes_bp.route("/<int:box_no>/usage", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=BoxUsageStatsSchema, HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def get_box_usage(box_no: int, box_service: BoxService = Provide[ServiceContainer.box_service]) -> Any:
     """Get usage statistics for a specific box."""
@@ -124,7 +117,6 @@ def get_box_usage(box_no: int, box_service: BoxService = Provide[ServiceContaine
 
 @boxes_bp.route("/<int:box_no>/locations", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=list[LocationResponseSchema], HTTP_404=ErrorResponseSchema))
-@handle_api_errors
 @inject
 def get_box_locations(box_no: int, box_service: BoxService = Provide[ServiceContainer.box_service]) -> Any:
     """Get all locations in box.

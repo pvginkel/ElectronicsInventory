@@ -39,7 +39,6 @@ from app.services.container import ServiceContainer
 from app.services.kit_pick_list_service import KitPickListService
 from app.services.kit_service import KitService
 from app.services.kit_shopping_list_service import KitShoppingListService
-from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
 kits_bp = Blueprint("kits", __name__, url_prefix="/kits")
@@ -74,7 +73,6 @@ def _fetch_content_detail(kit_service: KitService, kit_id: int, content_id: int)
         HTTP_400=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def list_kits(
     kit_service: KitService = Provide[ServiceContainer.kit_service],
@@ -103,7 +101,6 @@ def list_kits(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def create_kit(
     kit_service: KitService = Provide[ServiceContainer.kit_service],
@@ -126,7 +123,6 @@ def create_kit(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def get_kit_detail(
     kit_id: int,
@@ -148,7 +144,6 @@ def get_kit_detail(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def update_kit(
     kit_id: int,
@@ -178,7 +173,6 @@ def update_kit(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def create_kit_content(
     kit_id: int,
@@ -213,7 +207,6 @@ def create_kit_content(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def update_kit_content(
     kit_id: int,
@@ -250,7 +243,6 @@ def update_kit_content(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def delete_kit_content(
     kit_id: int,
@@ -271,7 +263,6 @@ def delete_kit_content(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def query_shopping_list_memberships_for_kits(
     kit_service: KitService = Provide[ServiceContainer.kit_service],
@@ -320,7 +311,6 @@ def query_shopping_list_memberships_for_kits(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def query_pick_list_memberships_for_kits(
     kit_service: KitService = Provide[ServiceContainer.kit_service],
@@ -367,7 +357,6 @@ def query_pick_list_memberships_for_kits(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def list_kit_shopping_lists(
     kit_id: int,
@@ -392,7 +381,6 @@ def list_kit_shopping_lists(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def push_kit_to_shopping_list(
     kit_id: int,
@@ -427,7 +415,6 @@ def push_kit_to_shopping_list(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def archive_kit(
     kit_id: int,
@@ -447,7 +434,6 @@ def archive_kit(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def unarchive_kit(
     kit_id: int,
@@ -466,7 +452,6 @@ def unarchive_kit(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def delete_kit(
     kit_id: int,

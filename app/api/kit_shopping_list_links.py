@@ -9,7 +9,6 @@ from spectree import Response as SpectreeResponse
 from app.schemas.common import ErrorResponseSchema
 from app.services.container import ServiceContainer
 from app.services.kit_shopping_list_service import KitShoppingListService
-from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
 kit_shopping_list_links_bp = Blueprint(
@@ -26,7 +25,6 @@ kit_shopping_list_links_bp = Blueprint(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def delete_kit_shopping_list_link(
     link_id: int,

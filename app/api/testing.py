@@ -9,7 +9,6 @@ from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, current_app, jsonify, request
 from spectree import Response as SpectreeResponse
 
-from app.exceptions import RouteNotAvailableException
 from app.schemas.task_schema import TaskEvent, TaskEventType
 from app.schemas.testing import (
     ContentHtmlQuerySchema,
@@ -27,7 +26,7 @@ from app.services.task_service import TaskService
 from app.services.testing_service import TestingService
 from app.services.version_service import VersionService
 from app.utils import ensure_request_id_from_query, get_current_correlation_id
-from app.utils.error_handling import handle_api_errors
+from app.utils.flask_error_handlers import build_error_response
 from app.utils.log_capture import LogCaptureHandler
 from app.utils.spectree_config import api
 from app.utils.sse_utils import create_sse_response, format_sse_event
@@ -40,25 +39,25 @@ testing_bp = Blueprint("testing", __name__, url_prefix="/api/testing")
 @testing_bp.before_request
 def check_testing_mode() -> Any:
     """Check if the server is running in testing mode before processing any testing endpoint."""
-    from app.utils.error_handling import _build_error_response
-
     container = current_app.container
     settings = container.config()
 
     if not settings.is_testing:
-        # Return error response directly since before_request handlers don't go through @handle_api_errors
+        # Return error response directly since before_request handlers
+        # return a response before the endpoint is called.
+        from app.exceptions import RouteNotAvailableException
+
         exception = RouteNotAvailableException()
-        return _build_error_response(
+        return build_error_response(
             exception.message,
             {"message": "Testing endpoints require FLASK_ENV=testing"},
             code=exception.error_code,
-            status_code=400
+            status_code=400,
         )
 
 
 @testing_bp.route("/reset", methods=["POST"])
 @api.validate(resp=SpectreeResponse(HTTP_200=TestResetResponseSchema, HTTP_503=TestErrorResponseSchema))
-@handle_api_errors
 @inject
 def reset_database(
     testing_service: TestingService = Provide[ServiceContainer.testing_service]
@@ -90,7 +89,6 @@ def reset_database(
 
 
 @testing_bp.route("/logs/stream", methods=["GET"])
-@handle_api_errors
 def stream_logs() -> Any:
     """
     SSE endpoint for streaming backend application logs in real-time.
@@ -180,7 +178,6 @@ def stream_logs() -> Any:
 
 @testing_bp.route("/content/image", methods=["GET"])
 @api.validate(query=ContentImageQuerySchema)
-@handle_api_errors
 @inject
 def generate_content_image(
     testing_service: TestingService = Provide[ServiceContainer.testing_service]
@@ -198,7 +195,6 @@ def generate_content_image(
 
 
 @testing_bp.route("/content/pdf", methods=["GET"])
-@handle_api_errors
 @inject
 def generate_content_pdf(
     testing_service: TestingService = Provide[ServiceContainer.testing_service]
@@ -216,7 +212,6 @@ def generate_content_pdf(
 
 @testing_bp.route("/content/html", methods=["GET"])
 @api.validate(query=ContentHtmlQuerySchema)
-@handle_api_errors
 @inject
 def generate_content_html(
     testing_service: TestingService = Provide[ServiceContainer.testing_service]
@@ -236,7 +231,6 @@ def generate_content_html(
 
 @testing_bp.route("/content/html-with-banner", methods=["GET"])
 @api.validate(query=ContentHtmlQuerySchema)
-@handle_api_errors
 @inject
 def generate_content_html_with_banner(
     testing_service: TestingService = Provide[ServiceContainer.testing_service]
@@ -256,7 +250,6 @@ def generate_content_html_with_banner(
 
 @testing_bp.route("/deployments/version", methods=["POST"])
 @api.validate(json=DeploymentTriggerRequestSchema, resp=SpectreeResponse(HTTP_202=DeploymentTriggerResponseSchema))
-@handle_api_errors
 @inject
 def trigger_version_deployment(
     version_service: VersionService = Provide[ServiceContainer.version_service]
@@ -281,7 +274,6 @@ def trigger_version_deployment(
 
 
 @testing_bp.route("/tasks/start", methods=["POST"])
-@handle_api_errors
 @inject
 def start_test_task(
     task_service: TaskService = Provide[ServiceContainer.task_service]
@@ -333,7 +325,6 @@ _EVENT_TYPE_MAP = {
 
 @testing_bp.route("/sse/task-event", methods=["POST"])
 @api.validate(json=TaskEventRequestSchema, resp=SpectreeResponse(HTTP_200=TaskEventResponseSchema, HTTP_400=TestErrorResponseSchema))
-@handle_api_errors
 @inject
 def send_task_event(
     connection_manager: ConnectionManager = Provide[ServiceContainer.connection_manager]

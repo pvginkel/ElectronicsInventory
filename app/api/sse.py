@@ -14,7 +14,6 @@ from app.schemas.sse_gateway_schema import (
 )
 from app.services.connection_manager import ConnectionManager
 from app.services.container import ServiceContainer
-from app.utils.error_handling import handle_api_errors
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +43,6 @@ def _authenticate_callback(secret_from_query: str | None, settings: Settings) ->
 
 
 @sse_bp.route("/callback", methods=["POST"])
-@handle_api_errors
 @inject
 def handle_callback(
     connection_manager: ConnectionManager = Provide[ServiceContainer.connection_manager],

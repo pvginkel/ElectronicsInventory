@@ -23,7 +23,6 @@ from app.schemas.shopping_list_line import (
 )
 from app.services.container import ServiceContainer
 from app.services.shopping_list_line_service import ShoppingListLineService
-from app.utils.error_handling import handle_api_errors
 from app.utils.request_parsing import parse_bool_query_param
 from app.utils.spectree_config import api
 
@@ -38,7 +37,6 @@ shopping_list_lines_bp = Blueprint("shopping_list_lines", __name__)
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def add_shopping_list_line(
     list_id: int,
@@ -69,7 +67,6 @@ def add_shopping_list_line(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def update_shopping_list_line(
     line_id: int,
@@ -95,7 +92,6 @@ def update_shopping_list_line(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def delete_shopping_list_line(
     line_id: int,
@@ -113,7 +109,6 @@ def delete_shopping_list_line(
         HTTP_404=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def list_shopping_list_lines(
     list_id: int,
@@ -149,7 +144,6 @@ def list_shopping_list_lines(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def mark_line_ordered(
     line_id: int,
@@ -178,7 +172,6 @@ def mark_line_ordered(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def revert_line_to_new(
     line_id: int,
@@ -208,7 +201,6 @@ def revert_line_to_new(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def mark_group_ordered(
     list_id: int,
@@ -253,7 +245,6 @@ def mark_group_ordered(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def receive_shopping_list_line_stock(
     line_id: int,
@@ -283,7 +274,6 @@ def receive_shopping_list_line_stock(
         HTTP_409=ErrorResponseSchema,
     ),
 )
-@handle_api_errors
 @inject
 def complete_shopping_list_line(
     line_id: int,

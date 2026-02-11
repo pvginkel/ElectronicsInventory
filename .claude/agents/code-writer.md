@@ -48,7 +48,7 @@ Do NOT proceed with implementation until you have read these documents. If you c
 5. **Error Handling**:
    - Use typed exceptions from `app.exceptions`
    - Fail fast with clear error messages
-   - Let @handle_api_errors convert exceptions to HTTP responses
+   - Let Flask's `@app.errorhandler` registry convert exceptions to HTTP responses
    - Never silently swallow errors
 
 6. **Observability**:

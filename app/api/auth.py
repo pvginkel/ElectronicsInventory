@@ -22,7 +22,6 @@ from app.utils.auth import (
     serialize_auth_state,
     validate_redirect_url,
 )
-from app.utils.error_handling import handle_api_errors
 from app.utils.spectree_config import api
 
 logger = logging.getLogger(__name__)
@@ -41,7 +40,6 @@ class UserInfoResponseSchema(BaseModel):
 
 @auth_bp.route("/self", methods=["GET"])
 @api.validate(resp=SpectreeResponse(HTTP_200=UserInfoResponseSchema))
-@handle_api_errors
 @inject
 def get_current_user(
     config: Settings = Provide[ServiceContainer.config],
@@ -92,7 +90,6 @@ def get_current_user(
 
 @auth_bp.route("/login", methods=["GET"])
 @public
-@handle_api_errors
 @inject
 def login(
     oidc_client_service: OidcClientService = Provide[ServiceContainer.oidc_client_service],
@@ -153,7 +150,6 @@ def login(
 
 @auth_bp.route("/callback", methods=["GET"])
 @public
-@handle_api_errors
 @inject
 def callback(
     oidc_client_service: OidcClientService = Provide[ServiceContainer.oidc_client_service],
