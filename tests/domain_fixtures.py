@@ -1,12 +1,14 @@
-"""Test fixtures and utilities for document testing."""
+"""Domain-specific test fixtures for parts, attachment sets, documents, and sample data."""
 
 import io
 from pathlib import Path
 from typing import BinaryIO
 
 import pytest
+from flask import Flask
 from PIL import Image
 
+from app.models.attachment_set import AttachmentSet
 from app.models.part import Part
 from app.models.type import Type
 
@@ -14,8 +16,6 @@ from app.models.type import Type
 @pytest.fixture
 def sample_part(session) -> Part:
     """Create a sample part for testing."""
-    from app.models.attachment_set import AttachmentSet
-
     # Create a part type first
     part_type = Type(name="Test Type")
     session.add(part_type)
@@ -36,6 +36,47 @@ def sample_part(session) -> Part:
     session.add(part)
     session.flush()
     return part
+
+
+@pytest.fixture
+def make_attachment_set(session):
+    """Helper fixture to create AttachmentSet instances for testing.
+
+    Returns a callable that creates and persists an AttachmentSet.
+    Usage:
+        attachment_set = make_attachment_set()
+        kit = Kit(..., attachment_set_id=attachment_set.id)
+    """
+
+    def _make():
+        attachment_set = AttachmentSet()
+        session.add(attachment_set)
+        session.flush()
+        return attachment_set
+
+    return _make
+
+
+@pytest.fixture
+def make_attachment_set_flask(app: Flask):
+    """Helper fixture to create AttachmentSet instances using Flask's db.session.
+
+    Returns a callable that creates and persists an AttachmentSet.
+    This variant is for tests using app context and Flask's db.session.
+    Usage:
+        with app.app_context():
+            attachment_set = make_attachment_set_flask()
+            kit = Kit(..., attachment_set_id=attachment_set.id)
+    """
+    from app.extensions import db
+
+    def _make():
+        attachment_set = AttachmentSet()
+        db.session.add(attachment_set)
+        db.session.flush()
+        return attachment_set
+
+    return _make
 
 
 @pytest.fixture
