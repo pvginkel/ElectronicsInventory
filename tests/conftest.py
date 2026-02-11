@@ -104,9 +104,6 @@ def _build_test_settings() -> Settings:
         thumbnail_storage_path="/tmp/thumbnails",
         download_cache_base_path="/tmp/download_cache",
         download_cache_cleanup_hours=24,
-        # Celery
-        celery_broker_url="pyamqp://guest@localhost//",
-        celery_result_backend="db+postgresql+psycopg://postgres:@localhost:5432/electronics_inventory",
         # AI provider
         ai_provider="openai",
         openai_api_key="",
