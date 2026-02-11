@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from app.utils.temp_file_manager import CachedContent, TempFileManager
-from tests.testing_utils import StubShutdownCoordinator
+from tests.testing_utils import StubLifecycleCoordinator
 
 
 @contextmanager
@@ -20,7 +20,7 @@ def make_temp_file_manager(cleanup_age_hours: float = 1.0):
         manager = TempFileManager(
             base_path=temp_base,
             cleanup_age_hours=cleanup_age_hours,
-            shutdown_coordinator=StubShutdownCoordinator()
+            lifecycle_coordinator=StubLifecycleCoordinator()
         )
         try:
             yield manager
@@ -142,7 +142,7 @@ class TestTempFileManager:
             TempFileManager(
                 base_path=base_path,
                 cleanup_age_hours=1.0,
-                shutdown_coordinator=StubShutdownCoordinator()
+                lifecycle_coordinator=StubLifecycleCoordinator()
             )
             assert Path(base_path).exists()
 

@@ -8,7 +8,7 @@ import requests
 
 from app.services.container import ServiceContainer
 from app.services.version_service import VersionService
-from app.utils.shutdown_coordinator import LifetimeEvent
+from app.utils.lifecycle_coordinator import LifecycleEvent
 
 # Note: The /api/utils/version/stream endpoint was removed in favor of SSE Gateway pattern.
 # SSE Gateway tests are in tests/api/test_sse.py
@@ -117,14 +117,14 @@ class TestVersionService:
         request_id = "vs-shutdown"
 
         # Trigger shutdown
-        version_service._handle_lifetime_event(LifetimeEvent.PREPARE_SHUTDOWN)
+        version_service._handle_lifecycle_event(LifecycleEvent.PREPARE_SHUTDOWN)
 
         # Try to queue event during shutdown
         delivered = version_service.queue_version_event(request_id, "3.1.4")
         assert delivered is False
 
         # Clean up shutdown state for other tests
-        version_service._handle_lifetime_event(LifetimeEvent.SHUTDOWN)
+        version_service._handle_lifecycle_event(LifecycleEvent.SHUTDOWN)
         version_service._is_shutting_down = False
 
     def test_queue_version_event_thread_safety(self, version_service: VersionService):

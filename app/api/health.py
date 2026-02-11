@@ -11,7 +11,7 @@ from app.config import Settings
 from app.database import check_db_connection, get_pending_migrations
 from app.schemas.health_schema import HealthResponse
 from app.services.container import ServiceContainer
-from app.utils.shutdown_coordinator import ShutdownCoordinatorProtocol
+from app.utils.lifecycle_coordinator import LifecycleCoordinatorProtocol
 from app.utils.spectree_config import api
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ health_bp = Blueprint("health", __name__, url_prefix="/health")
 @api.validate(resp=SpectreeResponse(HTTP_200=HealthResponse, HTTP_503=HealthResponse))
 @inject
 def readyz(
-    shutdown_coordinator: ShutdownCoordinatorProtocol = Provide[ServiceContainer.shutdown_coordinator]
+    lifecycle_coordinator: LifecycleCoordinatorProtocol = Provide[ServiceContainer.lifecycle_coordinator]
 ) -> Any:
     """Readiness probe endpoint for Kubernetes.
 
@@ -31,7 +31,7 @@ def readyz(
     or migrations are pending. This signals Kubernetes to remove the pod from service endpoints.
     """
     # Check if shutdown has been initiated
-    if shutdown_coordinator.is_shutting_down():
+    if lifecycle_coordinator.is_shutting_down():
         return jsonify({"status": "shutting down", "ready": False}), 503
 
     # Check database connectivity
@@ -77,13 +77,13 @@ def healthz() -> Any:
 @api.validate(resp=SpectreeResponse(HTTP_200=HealthResponse, HTTP_401=HealthResponse))
 @inject
 def drain(
-    shutdown_coordinator: ShutdownCoordinatorProtocol = Provide[ServiceContainer.shutdown_coordinator],
+    lifecycle_coordinator: LifecycleCoordinatorProtocol = Provide[ServiceContainer.lifecycle_coordinator],
     settings: Settings = Provide[ServiceContainer.config]
 ) -> Any:
     """Drain endpoint for manual graceful shutdown initiation.
 
     Requires bearer token authentication against DRAIN_AUTH_KEY config setting.
-    Calls drain() on the shutdown coordinator and returns health status.
+    Calls shutdown() on the lifecycle coordinator and returns health status.
     """
     # Check if DRAIN_AUTH_KEY is configured
     if not settings.drain_auth_key:
@@ -98,10 +98,10 @@ def drain(
         logger.warning("Drain request with invalid token")
         return jsonify({"status": "unauthorized", "ready": False}), 401
 
-    # Call drain on shutdown coordinator
+    # Call drain on lifecycle coordinator
     try:
         logger.info("Authenticated drain request received, calling starting drain")
-        shutdown_coordinator.shutdown()
+        lifecycle_coordinator.shutdown()
         logger.info("Shutdown complete")
         return jsonify({"status": "alive", "ready": True}), 200
     except Exception as e:

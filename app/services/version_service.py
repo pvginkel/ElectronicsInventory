@@ -11,7 +11,7 @@ import requests
 
 from app.config import Settings
 from app.services.connection_manager import ConnectionManager
-from app.utils.shutdown_coordinator import LifetimeEvent, ShutdownCoordinatorProtocol
+from app.utils.lifecycle_coordinator import LifecycleCoordinatorProtocol, LifecycleEvent
 
 logger = logging.getLogger(__name__)
 
@@ -22,12 +22,12 @@ class VersionService:
     def __init__(
         self,
         settings: Settings,
-        shutdown_coordinator: ShutdownCoordinatorProtocol,
+        lifecycle_coordinator: LifecycleCoordinatorProtocol,
         connection_manager: ConnectionManager
     ):
         """Initialize version service and register observer callback."""
         self.settings = settings
-        self.shutdown_coordinator = shutdown_coordinator
+        self.lifecycle_coordinator = lifecycle_coordinator
         self.connection_manager = connection_manager
 
         self._lock = threading.RLock()
@@ -37,8 +37,8 @@ class VersionService:
         # Register observer callback with ConnectionManager
         self.connection_manager.register_on_connect(self._on_connect_callback)
 
-        # Register for shutdown notifications
-        shutdown_coordinator.register_lifetime_notification(self._handle_lifetime_event)
+        # Register for lifecycle notifications
+        lifecycle_coordinator.register_lifecycle_notification(self._handle_lifecycle_event)
 
     def _fetch_frontend_version(self) -> dict[str, Any]:
         """Fetch frontend version from configured URL."""
@@ -135,13 +135,13 @@ class VersionService:
         )
         return True
 
-    def _handle_lifetime_event(self, event: LifetimeEvent) -> None:
-        """Handle application shutdown events."""
-        if event == LifetimeEvent.PREPARE_SHUTDOWN:
+    def _handle_lifecycle_event(self, event: LifecycleEvent) -> None:
+        """Handle application lifecycle events."""
+        if event == LifecycleEvent.PREPARE_SHUTDOWN:
             with self._lock:
                 self._is_shutting_down = True
                 logger.info("VersionService: preparing for shutdown")
-        elif event == LifetimeEvent.SHUTDOWN:
+        elif event == LifecycleEvent.SHUTDOWN:
             with self._lock:
                 self._pending_version.clear()
                 logger.info("VersionService: shutdown complete")

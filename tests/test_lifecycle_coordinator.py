@@ -1,49 +1,49 @@
-"""Tests for graceful shutdown coordinator."""
+"""Tests for lifecycle coordinator."""
 
 import signal
 import threading
 import time
 from unittest.mock import MagicMock, patch
 
-from app.utils.shutdown_coordinator import LifetimeEvent, ShutdownCoordinator
-from tests.testing_utils import TestShutdownCoordinator
+from app.utils.lifecycle_coordinator import LifecycleCoordinator, LifecycleEvent
+from tests.testing_utils import TestLifecycleCoordinator
 
 
-class TestProductionShutdownCoordinator:
-    """Test shutdown coordinator functionality."""
+class TestProductionLifecycleCoordinator:
+    """Test lifecycle coordinator functionality."""
 
-    def test_lifetime_event_sequence(self):
-        """Test that LifetimeEvent notifications are sent in correct order."""
-        coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
+    def test_lifecycle_event_sequence(self):
+        """Test that LifecycleEvent notifications are sent in correct order."""
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=60)
 
         # Track the order of events
         events_received = []
 
-        def notification_callback(event: LifetimeEvent):
+        def notification_callback(event: LifecycleEvent):
             events_received.append(event)
 
-        coordinator.register_lifetime_notification(notification_callback)
+        coordinator.register_lifecycle_notification(notification_callback)
 
         # Trigger shutdown
         coordinator._handle_sigterm(signal.SIGTERM, None)
 
         # Should receive both events in order
         assert len(events_received) == 3
-        assert events_received[0] == LifetimeEvent.PREPARE_SHUTDOWN
-        assert events_received[1] == LifetimeEvent.SHUTDOWN
-        assert events_received[2] == LifetimeEvent.AFTER_SHUTDOWN
+        assert events_received[0] == LifecycleEvent.PREPARE_SHUTDOWN
+        assert events_received[1] == LifecycleEvent.SHUTDOWN
+        assert events_received[2] == LifecycleEvent.AFTER_SHUTDOWN
 
     def test_multiple_notifications(self):
         """Test multiple notification callbacks are called."""
-        coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=60)
 
         callback1 = MagicMock()
         callback2 = MagicMock()
         callback3 = MagicMock()
 
-        coordinator.register_lifetime_notification(callback1)
-        coordinator.register_lifetime_notification(callback2)
-        coordinator.register_lifetime_notification(callback3)
+        coordinator.register_lifecycle_notification(callback1)
+        coordinator.register_lifecycle_notification(callback2)
+        coordinator.register_lifecycle_notification(callback3)
 
         # Trigger shutdown
         coordinator._handle_sigterm(signal.SIGTERM, None)
@@ -54,22 +54,22 @@ class TestProductionShutdownCoordinator:
         assert callback3.call_count == 3
 
         # Check they were called with correct events
-        callback1.assert_any_call(LifetimeEvent.PREPARE_SHUTDOWN)
-        callback1.assert_any_call(LifetimeEvent.SHUTDOWN)
-        callback1.assert_any_call(LifetimeEvent.AFTER_SHUTDOWN)
+        callback1.assert_any_call(LifecycleEvent.PREPARE_SHUTDOWN)
+        callback1.assert_any_call(LifecycleEvent.SHUTDOWN)
+        callback1.assert_any_call(LifecycleEvent.AFTER_SHUTDOWN)
 
     def test_shutdown_waiters_sequential_execution(self):
         """Test that shutdown waiters are called sequentially with proper timeouts."""
-        coordinator = ShutdownCoordinator(graceful_shutdown_timeout=5)
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=5)
 
         after_shutdown_attempted = False
 
-        def lifetime_notification(event: LifetimeEvent):
+        def lifecycle_notification(event: LifecycleEvent):
             nonlocal after_shutdown_attempted
-            if event == LifetimeEvent.AFTER_SHUTDOWN:
+            if event == LifecycleEvent.AFTER_SHUTDOWN:
                 after_shutdown_attempted = True
 
-        coordinator.register_lifetime_notification(lifetime_notification)
+        coordinator.register_lifecycle_notification(lifecycle_notification)
 
         # Track the order and timing of waiter calls
         waiter_calls = []
@@ -110,16 +110,16 @@ class TestProductionShutdownCoordinator:
 
     def test_waiter_timeout_exceeded(self):
         """Test behavior when waiter timeout is exceeded."""
-        coordinator = ShutdownCoordinator(graceful_shutdown_timeout=0.5)
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=0.5)
 
         after_shutdown_attempted = False
 
-        def lifetime_notification(event: LifetimeEvent):
+        def lifecycle_notification(event: LifecycleEvent):
             nonlocal after_shutdown_attempted
-            if event == LifetimeEvent.AFTER_SHUTDOWN:
+            if event == LifecycleEvent.AFTER_SHUTDOWN:
                 after_shutdown_attempted = True
 
-        coordinator.register_lifetime_notification(lifetime_notification)
+        coordinator.register_lifecycle_notification(lifecycle_notification)
 
         def slow_waiter(timeout: float) -> bool:
             time.sleep(1.0)  # Takes longer than total timeout
@@ -144,16 +144,16 @@ class TestProductionShutdownCoordinator:
 
     def test_waiter_returns_false(self):
         """Test behavior when waiter returns False (not ready)."""
-        coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=60)
 
         after_shutdown_attempted = False
 
-        def lifetime_notification(event: LifetimeEvent):
+        def lifecycle_notification(event: LifecycleEvent):
             nonlocal after_shutdown_attempted
-            if event == LifetimeEvent.AFTER_SHUTDOWN:
+            if event == LifecycleEvent.AFTER_SHUTDOWN:
                 after_shutdown_attempted = True
 
-        coordinator.register_lifetime_notification(lifetime_notification)
+        coordinator.register_lifecycle_notification(lifecycle_notification)
 
         def not_ready_waiter(timeout: float) -> bool:
             return False
@@ -172,7 +172,7 @@ class TestProductionShutdownCoordinator:
 
     def test_is_shutting_down_state(self):
         """Test shutdown state tracking."""
-        coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=60)
 
         # Initially not shutting down
         assert not coordinator.is_shutting_down()
@@ -184,10 +184,10 @@ class TestProductionShutdownCoordinator:
         # Set up notification to check state during shutdown
         shutdown_state_during_notification = []
 
-        def check_state_callback(event: LifetimeEvent):
+        def check_state_callback(event: LifecycleEvent):
             shutdown_state_during_notification.append((event, coordinator.is_shutting_down()))
 
-        coordinator.register_lifetime_notification(check_state_callback)
+        coordinator.register_lifecycle_notification(check_state_callback)
 
         thread = threading.Thread(target=shutdown_thread)
         thread.start()
@@ -195,16 +195,16 @@ class TestProductionShutdownCoordinator:
 
         # Should be shutting down during both events
         assert len(shutdown_state_during_notification) == 3
-        assert shutdown_state_during_notification[0] == (LifetimeEvent.PREPARE_SHUTDOWN, True)
-        assert shutdown_state_during_notification[1] == (LifetimeEvent.SHUTDOWN, True)
-        assert shutdown_state_during_notification[2] == (LifetimeEvent.AFTER_SHUTDOWN, True)
+        assert shutdown_state_during_notification[0] == (LifecycleEvent.PREPARE_SHUTDOWN, True)
+        assert shutdown_state_during_notification[1] == (LifecycleEvent.SHUTDOWN, True)
+        assert shutdown_state_during_notification[2] == (LifecycleEvent.AFTER_SHUTDOWN, True)
 
     def test_double_signal_handling(self):
         """Test that multiple signals are handled gracefully."""
-        coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=60)
 
         callback = MagicMock()
-        coordinator.register_lifetime_notification(callback)
+        coordinator.register_lifecycle_notification(callback)
 
         # Send signal twice rapidly
         coordinator._handle_sigterm(signal.SIGTERM, None)
@@ -218,39 +218,39 @@ class TestProductionShutdownCoordinator:
 
     def test_notification_exception_handling(self):
         """Test that exceptions in notification callbacks don't break shutdown."""
-        coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=60)
 
-        def bad_callback(event: LifetimeEvent):
+        def bad_callback(event: LifecycleEvent):
             raise Exception("Test error")
 
-        def good_callback(event: LifetimeEvent):
+        def good_callback(event: LifecycleEvent):
             good_callback.calls = getattr(good_callback, 'calls', [])
             good_callback.calls.append(event)
 
-        coordinator.register_lifetime_notification(bad_callback)
-        coordinator.register_lifetime_notification(good_callback)
+        coordinator.register_lifecycle_notification(bad_callback)
+        coordinator.register_lifecycle_notification(good_callback)
 
         # Should not raise exception
         coordinator._handle_sigterm(signal.SIGTERM, None)
 
         # Good callback should still be called
         assert len(good_callback.calls) == 3
-        assert good_callback.calls[0] == LifetimeEvent.PREPARE_SHUTDOWN
-        assert good_callback.calls[1] == LifetimeEvent.SHUTDOWN
-        assert good_callback.calls[2] == LifetimeEvent.AFTER_SHUTDOWN
+        assert good_callback.calls[0] == LifecycleEvent.PREPARE_SHUTDOWN
+        assert good_callback.calls[1] == LifecycleEvent.SHUTDOWN
+        assert good_callback.calls[2] == LifecycleEvent.AFTER_SHUTDOWN
 
     def test_waiter_exception_handling(self):
         """Test that exceptions in waiters don't prevent shutdown."""
-        coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=60)
 
         after_shutdown_attempted = False
 
-        def lifetime_notification(event: LifetimeEvent):
+        def lifecycle_notification(event: LifecycleEvent):
             nonlocal after_shutdown_attempted
-            if event == LifetimeEvent.AFTER_SHUTDOWN:
+            if event == LifecycleEvent.AFTER_SHUTDOWN:
                 after_shutdown_attempted = True
 
-        coordinator.register_lifetime_notification(lifetime_notification)
+        coordinator.register_lifecycle_notification(lifecycle_notification)
 
         def bad_waiter(timeout: float) -> bool:
             raise Exception("Waiter error")
@@ -273,17 +273,17 @@ class TestProductionShutdownCoordinator:
         assert after_shutdown_attempted
 
     def test_thread_safety(self):
-        """Test thread safety of shutdown coordinator."""
-        coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
+        """Test thread safety of lifecycle coordinator."""
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=60)
 
         after_shutdown_attempted = False
 
-        def lifetime_notification(event: LifetimeEvent):
+        def lifecycle_notification(event: LifecycleEvent):
             nonlocal after_shutdown_attempted
-            if event == LifetimeEvent.AFTER_SHUTDOWN:
+            if event == LifecycleEvent.AFTER_SHUTDOWN:
                 after_shutdown_attempted = True
 
-        coordinator.register_lifetime_notification(lifetime_notification)
+        coordinator.register_lifecycle_notification(lifecycle_notification)
 
         # Multiple threads checking shutdown state
         results = []
@@ -316,12 +316,110 @@ class TestProductionShutdownCoordinator:
         assert after_shutdown_attempted
 
 
-class TestNoopShutdownCoordinator:
-    """Test no-op shutdown coordinator for testing."""
+    def test_fire_startup_dispatches_event(self):
+        """Test that fire_startup() dispatches STARTUP event to all registered callbacks."""
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=60)
+
+        events_received: list[LifecycleEvent] = []
+
+        def callback(event: LifecycleEvent) -> None:
+            events_received.append(event)
+
+        coordinator.register_lifecycle_notification(callback)
+        coordinator.fire_startup()
+
+        assert len(events_received) == 1
+        assert events_received[0] == LifecycleEvent.STARTUP
+
+    def test_fire_startup_idempotent(self):
+        """Test that fire_startup() is idempotent -- second call is a no-op."""
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=60)
+
+        call_count = 0
+
+        def callback(event: LifecycleEvent) -> None:
+            nonlocal call_count
+            if event == LifecycleEvent.STARTUP:
+                call_count += 1
+
+        coordinator.register_lifecycle_notification(callback)
+
+        coordinator.fire_startup()
+        coordinator.fire_startup()  # Second call should be ignored
+
+        assert call_count == 1
+
+    def test_fire_startup_multiple_callbacks(self):
+        """Test that fire_startup() dispatches to all registered callbacks."""
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=60)
+
+        callback1 = MagicMock()
+        callback2 = MagicMock()
+        callback3 = MagicMock()
+
+        coordinator.register_lifecycle_notification(callback1)
+        coordinator.register_lifecycle_notification(callback2)
+        coordinator.register_lifecycle_notification(callback3)
+
+        coordinator.fire_startup()
+
+        callback1.assert_called_once_with(LifecycleEvent.STARTUP)
+        callback2.assert_called_once_with(LifecycleEvent.STARTUP)
+        callback3.assert_called_once_with(LifecycleEvent.STARTUP)
+
+    def test_fire_startup_exception_handling(self):
+        """Test that exceptions in STARTUP callbacks don't prevent other callbacks."""
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=60)
+
+        def bad_callback(event: LifecycleEvent) -> None:
+            raise Exception("Startup error")
+
+        good_events: list[LifecycleEvent] = []
+
+        def good_callback(event: LifecycleEvent) -> None:
+            good_events.append(event)
+
+        coordinator.register_lifecycle_notification(bad_callback)
+        coordinator.register_lifecycle_notification(good_callback)
+
+        # Should not raise
+        coordinator.fire_startup()
+
+        # Good callback should still be called
+        assert len(good_events) == 1
+        assert good_events[0] == LifecycleEvent.STARTUP
+
+    def test_full_lifecycle_with_startup(self):
+        """Test complete lifecycle: STARTUP -> PREPARE_SHUTDOWN -> waiters -> SHUTDOWN -> AFTER_SHUTDOWN."""
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=60)
+
+        events_received: list[LifecycleEvent] = []
+
+        def callback(event: LifecycleEvent) -> None:
+            events_received.append(event)
+
+        coordinator.register_lifecycle_notification(callback)
+
+        # Fire startup
+        coordinator.fire_startup()
+
+        # Trigger shutdown
+        coordinator._handle_sigterm(signal.SIGTERM, None)
+
+        # Should see full lifecycle sequence
+        assert len(events_received) == 4
+        assert events_received[0] == LifecycleEvent.STARTUP
+        assert events_received[1] == LifecycleEvent.PREPARE_SHUTDOWN
+        assert events_received[2] == LifecycleEvent.SHUTDOWN
+        assert events_received[3] == LifecycleEvent.AFTER_SHUTDOWN
+
+
+class TestNoopLifecycleCoordinator:
+    """Test no-op lifecycle coordinator for testing."""
 
     def test_initialization(self):
-        """Test TestShutdownCoordinator initialization."""
-        coordinator = TestShutdownCoordinator()
+        """Test TestLifecycleCoordinator initialization."""
+        coordinator = TestLifecycleCoordinator()
 
         assert not coordinator.is_shutting_down()
         assert len(coordinator._notifications) == 0
@@ -329,17 +427,17 @@ class TestNoopShutdownCoordinator:
 
     def test_register_notification(self):
         """Test registering notification callbacks."""
-        coordinator = TestShutdownCoordinator()
+        coordinator = TestLifecycleCoordinator()
         callback = MagicMock()
 
-        coordinator.register_lifetime_notification(callback)
+        coordinator.register_lifecycle_notification(callback)
 
         assert len(coordinator._notifications) == 1
         assert callback in coordinator._notifications
 
     def test_register_waiter(self):
         """Test registering shutdown waiters."""
-        coordinator = TestShutdownCoordinator()
+        coordinator = TestLifecycleCoordinator()
         waiter = MagicMock()
 
         coordinator.register_shutdown_waiter("TestService", waiter)
@@ -349,12 +447,12 @@ class TestNoopShutdownCoordinator:
 
     def test_handle_sigterm_simulation(self):
         """Test simulated shutdown behavior."""
-        coordinator = TestShutdownCoordinator()
+        coordinator = TestLifecycleCoordinator()
 
         callback = MagicMock()
         waiter = MagicMock(return_value=True)
 
-        coordinator.register_lifetime_notification(callback)
+        coordinator.register_lifecycle_notification(callback)
         coordinator.register_shutdown_waiter("TestService", waiter)
 
         # Should not be shutting down initially
@@ -368,15 +466,15 @@ class TestNoopShutdownCoordinator:
 
         # Callback should be called twice (PREPARE_SHUTDOWN + SHUTDOWN)
         assert callback.call_count == 2
-        callback.assert_any_call(LifetimeEvent.PREPARE_SHUTDOWN)
-        callback.assert_any_call(LifetimeEvent.SHUTDOWN)
+        callback.assert_any_call(LifecycleEvent.PREPARE_SHUTDOWN)
+        callback.assert_any_call(LifecycleEvent.SHUTDOWN)
 
         # Waiter should be called once
         waiter.assert_called_once_with(30.0)
 
     def test_simulate_shutdown_method(self):
         """Test the simulate_shutdown convenience method."""
-        coordinator = TestShutdownCoordinator()
+        coordinator = TestLifecycleCoordinator()
 
         assert not coordinator.is_shutting_down()
 
@@ -384,19 +482,35 @@ class TestNoopShutdownCoordinator:
 
         assert coordinator.is_shutting_down()
 
-    def test_exception_handling_in_callbacks(self):
-        """Test that TestShutdownCoordinator handles exceptions in callbacks."""
-        coordinator = TestShutdownCoordinator()
+    def test_simulate_startup_method(self):
+        """Test the simulate_startup convenience method."""
+        coordinator = TestLifecycleCoordinator()
 
-        def bad_callback(event: LifetimeEvent):
+        events_received = []
+
+        def callback(event: LifecycleEvent):
+            events_received.append(event)
+
+        coordinator.register_lifecycle_notification(callback)
+
+        coordinator.simulate_startup()
+
+        assert len(events_received) == 1
+        assert events_received[0] == LifecycleEvent.STARTUP
+
+    def test_exception_handling_in_callbacks(self):
+        """Test that TestLifecycleCoordinator handles exceptions in callbacks."""
+        coordinator = TestLifecycleCoordinator()
+
+        def bad_callback(event: LifecycleEvent):
             raise Exception("Test error")
 
-        def good_callback(event: LifetimeEvent):
+        def good_callback(event: LifecycleEvent):
             good_callback.calls = getattr(good_callback, 'calls', [])
             good_callback.calls.append(event)
 
-        coordinator.register_lifetime_notification(bad_callback)
-        coordinator.register_lifetime_notification(good_callback)
+        coordinator.register_lifecycle_notification(bad_callback)
+        coordinator.register_lifecycle_notification(good_callback)
 
         # Should not raise exception
         coordinator.simulate_full_shutdown()
@@ -405,8 +519,8 @@ class TestNoopShutdownCoordinator:
         assert len(good_callback.calls) == 2
 
     def test_exception_handling_in_waiters(self):
-        """Test that TestShutdownCoordinator handles exceptions in waiters."""
-        coordinator = TestShutdownCoordinator()
+        """Test that TestLifecycleCoordinator handles exceptions in waiters."""
+        coordinator = TestLifecycleCoordinator()
 
         def bad_waiter(timeout: float) -> bool:
             raise Exception("Waiter error")
@@ -427,36 +541,38 @@ class TestNoopShutdownCoordinator:
         assert good_waiter_called.is_set()
 
     def test_interface_compatibility(self):
-        """Test that TestShutdownCoordinator has same interface as real coordinator."""
-        noop = TestShutdownCoordinator()
+        """Test that TestLifecycleCoordinator has same interface as real coordinator."""
+        noop = TestLifecycleCoordinator()
 
         # Check all required methods exist
         assert hasattr(noop, 'initialize')
-        assert hasattr(noop, 'register_lifetime_notification')
+        assert hasattr(noop, 'register_lifecycle_notification')
         assert hasattr(noop, 'register_shutdown_waiter')
         assert hasattr(noop, 'is_shutting_down')
         assert hasattr(noop, 'simulate_full_shutdown')
+        assert hasattr(noop, 'fire_startup')
 
         # Check methods are callable
         assert callable(noop.initialize)
-        assert callable(noop.register_lifetime_notification)
+        assert callable(noop.register_lifecycle_notification)
         assert callable(noop.register_shutdown_waiter)
         assert callable(noop.is_shutting_down)
         assert callable(noop.simulate_full_shutdown)
+        assert callable(noop.fire_startup)
 
 
-class TestShutdownIntegrationScenarios:
+class TestLifecycleIntegrationScenarios:
     """Test realistic shutdown scenarios."""
 
     def test_coordinated_service_shutdown(self):
         """Test coordinated shutdown with multiple services."""
-        coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=60)
 
         # Track the sequence of events
         event_sequence = []
 
         # Service 1: Quick to prepare, quick to shutdown
-        def service1_notification(event: LifetimeEvent):
+        def service1_notification(event: LifecycleEvent):
             event_sequence.append(f"Service1:{event.value}")
 
         def service1_waiter(timeout: float) -> bool:
@@ -464,7 +580,7 @@ class TestShutdownIntegrationScenarios:
             return True
 
         # Service 2: Needs time to complete work
-        def service2_notification(event: LifetimeEvent):
+        def service2_notification(event: LifecycleEvent):
             event_sequence.append(f"Service2:{event.value}")
 
         def service2_waiter(timeout: float) -> bool:
@@ -472,10 +588,10 @@ class TestShutdownIntegrationScenarios:
             event_sequence.append("Service2:waiter_complete")
             return True
 
-        coordinator.register_lifetime_notification(service1_notification)
+        coordinator.register_lifecycle_notification(service1_notification)
         coordinator.register_shutdown_waiter("Service1", service1_waiter)
 
-        coordinator.register_lifetime_notification(service2_notification)
+        coordinator.register_lifecycle_notification(service2_notification)
         coordinator.register_shutdown_waiter("Service2", service2_waiter)
 
         # Trigger shutdown
@@ -504,7 +620,7 @@ class TestShutdownIntegrationScenarios:
 
     def test_shutdown_with_mixed_service_behavior(self):
         """Test shutdown with services that behave differently."""
-        coordinator = ShutdownCoordinator(graceful_shutdown_timeout=60)
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=60)
 
         results = {
             'fast_service_notified': False,
@@ -517,9 +633,9 @@ class TestShutdownIntegrationScenarios:
         }
 
         # Fast service - completes immediately
-        def fast_notification(event: LifetimeEvent):
+        def fast_notification(event: LifecycleEvent):
             results['fast_service_notified'] = True
-            if event == LifetimeEvent.AFTER_SHUTDOWN:
+            if event == LifecycleEvent.AFTER_SHUTDOWN:
                 results['after_shutdown_attempted'] = True
 
         def fast_waiter(timeout: float) -> bool:
@@ -527,7 +643,7 @@ class TestShutdownIntegrationScenarios:
             return True
 
         # Slow service - takes time but completes
-        def slow_notification(event: LifetimeEvent):
+        def slow_notification(event: LifecycleEvent):
             results['slow_service_notified'] = True
 
         def slow_waiter(timeout: float) -> bool:
@@ -536,20 +652,20 @@ class TestShutdownIntegrationScenarios:
             return True
 
         # Failing service - raises exception
-        def failing_notification(event: LifetimeEvent):
+        def failing_notification(event: LifecycleEvent):
             results['failing_service_notified'] = True
 
         def failing_waiter(timeout: float) -> bool:
             results['failing_service_attempted'] = True
             raise Exception("Service failure")
 
-        coordinator.register_lifetime_notification(fast_notification)
+        coordinator.register_lifecycle_notification(fast_notification)
         coordinator.register_shutdown_waiter("FastService", fast_waiter)
 
-        coordinator.register_lifetime_notification(slow_notification)
+        coordinator.register_lifecycle_notification(slow_notification)
         coordinator.register_shutdown_waiter("SlowService", slow_waiter)
 
-        coordinator.register_lifetime_notification(failing_notification)
+        coordinator.register_lifecycle_notification(failing_notification)
         coordinator.register_shutdown_waiter("FailingService", failing_waiter)
 
         # Trigger shutdown

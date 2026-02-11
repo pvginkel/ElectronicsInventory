@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from app.utils import get_current_correlation_id
-from app.utils.shutdown_coordinator import LifetimeEvent, ShutdownCoordinatorProtocol
+from app.utils.lifecycle_coordinator import LifecycleCoordinatorProtocol, LifecycleEvent
 
 
 class LogCaptureHandler(logging.Handler):
@@ -23,7 +23,7 @@ class LogCaptureHandler(logging.Handler):
         self.level = logging.INFO
         self._clients: set[Any] = set()  # SSE client generators
         self._client_lock = threading.RLock()
-        self.shutdown_coordinator: ShutdownCoordinatorProtocol | None = None
+        self.lifecycle_coordinator: LifecycleCoordinatorProtocol | None = None
 
     @classmethod
     def get_instance(cls) -> LogCaptureHandler:
@@ -34,14 +34,14 @@ class LogCaptureHandler(logging.Handler):
                     cls._instance = cls()
         return cls._instance
 
-    def set_shutdown_coordinator(self, coordinator: ShutdownCoordinatorProtocol) -> None:
-        """Set shutdown coordinator for sending connection_close events."""
-        self.shutdown_coordinator = coordinator
-        coordinator.register_lifetime_notification(self._on_lifetime_event)
+    def set_lifecycle_coordinator(self, coordinator: LifecycleCoordinatorProtocol) -> None:
+        """Set lifecycle coordinator for sending connection_close events."""
+        self.lifecycle_coordinator = coordinator
+        coordinator.register_lifecycle_notification(self._on_lifecycle_event)
 
-    def _on_lifetime_event(self, event: LifetimeEvent) -> None:
-        """Handle lifecycle events from shutdown coordinator."""
-        if event == LifetimeEvent.SHUTDOWN:
+    def _on_lifecycle_event(self, event: LifecycleEvent) -> None:
+        """Handle lifecycle events from lifecycle coordinator."""
+        if event == LifecycleEvent.SHUTDOWN:
             self._broadcast_event("connection_close", {"reason": "server_shutdown"})
 
     def register_client(self, client: Any) -> None:
