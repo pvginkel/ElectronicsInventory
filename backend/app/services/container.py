@@ -45,8 +45,8 @@ from app.utils.ai.mouser_search import (
     SearchMouserByPartNumberFunction,
 )
 from app.utils.ai.openai.openai_runner import OpenAIRunner
+from app.utils.lifecycle_coordinator import LifecycleCoordinator
 from app.utils.reset_lock import ResetLock
-from app.utils.shutdown_coordinator import ShutdownCoordinator
 from app.utils.temp_file_manager import TempFileManager
 
 
@@ -122,9 +122,9 @@ class ServiceContainer(containers.DeclarativeContainer):
         db=db_session,
     )
 
-    # Shutdown coordinator - Singleton for managing graceful shutdown
-    shutdown_coordinator = providers.Singleton(
-        ShutdownCoordinator,
+    # Lifecycle coordinator - Singleton for managing startup and graceful shutdown
+    lifecycle_coordinator = providers.Singleton(
+        LifecycleCoordinator,
         graceful_shutdown_timeout=config.provided.graceful_shutdown_timeout,
     )
 
@@ -133,7 +133,7 @@ class ServiceContainer(containers.DeclarativeContainer):
         TempFileManager,
         base_path=config.provided.download_cache_base_path,
         cleanup_age_hours=config.provided.download_cache_cleanup_hours,
-        shutdown_coordinator=shutdown_coordinator
+        lifecycle_coordinator=lifecycle_coordinator
     )
     download_cache_service = providers.Factory(
         DownloadCacheService,
@@ -156,7 +156,7 @@ class ServiceContainer(containers.DeclarativeContainer):
     metrics_service = providers.Singleton(
         MetricsService,
         container=providers.Self(),
-        shutdown_coordinator=shutdown_coordinator,
+        lifecycle_coordinator=lifecycle_coordinator,
     )
 
     # Auth services - Singletons for OIDC authentication
@@ -238,7 +238,7 @@ class ServiceContainer(containers.DeclarativeContainer):
     # TaskService - Singleton for in-memory task management with configurable settings
     task_service = providers.Singleton(
         TaskService,
-        shutdown_coordinator=shutdown_coordinator,
+        lifecycle_coordinator=lifecycle_coordinator,
         connection_manager=connection_manager,
         max_workers=config.provided.task_max_workers,
         task_timeout=config.provided.task_timeout_seconds,
@@ -318,7 +318,7 @@ class ServiceContainer(containers.DeclarativeContainer):
     version_service = providers.Singleton(
         VersionService,
         settings=config,
-        shutdown_coordinator=shutdown_coordinator,
+        lifecycle_coordinator=lifecycle_coordinator,
         connection_manager=connection_manager
     )
 

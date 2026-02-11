@@ -1,22 +1,24 @@
 """Flask application factory for Electronics Inventory backend."""
 
 import logging
-from typing import TYPE_CHECKING
 
-from flask import Flask, g
+from flask import g
 from flask_cors import CORS
-
-if TYPE_CHECKING:
-    from app.config import Settings
 
 from app.app import App
 from app.config import Settings
 from app.extensions import db
-from app.services.container import ServiceContainer
 
 
 def create_app(settings: "Settings | None" = None, skip_background_services: bool = False) -> App:
-    """Create and configure Flask application."""
+    """Create and configure Flask application.
+
+    This factory follows a hook-based pattern where app-specific behavior
+    is injected through three functions in app/startup.py:
+    - create_container(): builds the DI container with app-specific providers
+    - register_blueprints(): registers domain resource blueprints
+    - register_error_handlers(): registers app-specific error handlers
+    """
     app = App(__name__)
 
     # Load configuration
@@ -52,104 +54,26 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
         # Enable SQLAlchemy pool logging via events if configured
         # (echo_pool config option doesn't work reliably in SQLAlchemy 2.x)
         if settings.db_pool_echo:
-            import traceback
+            from app.utils.pool_diagnostics import setup_pool_logging
 
-            from sqlalchemy import event
-            from sqlalchemy.pool import Pool
-
-            pool_logger = logging.getLogger("sqlalchemy.pool")
-            pool_logger.setLevel(logging.DEBUG)
-            if not pool_logger.handlers:
-                pool_logger.addHandler(logging.StreamHandler())
-
-            engine = db.engine  # Capture engine reference for closures
-
-            def _get_pool_stats(pool: Pool) -> str:
-                # QueuePool has checkedout(), size(), overflow() methods not on base Pool type
-                return f"checkedout={pool.checkedout()} size={pool.size()} overflow={pool.overflow()}"  # type: ignore[attr-defined]
-
-            def _get_caller_info() -> str:
-                """Extract the first app-level caller from the stack trace."""
-                # Skip SQLAlchemy/library internals, find app code
-                skip_prefixes = (
-                    "sqlalchemy",
-                    "flask_sqlalchemy",
-                    "werkzeug",
-                    "flask",
-                    "waitress",
-                    "paste",
-                )
-                frames = []
-                for frame_info in traceback.extract_stack():
-                    # Skip this file and library code
-                    if "/app/__init__.py" in frame_info.filename:
-                        continue
-                    if any(p in frame_info.filename for p in skip_prefixes):
-                        continue
-                    if "/app/" in frame_info.filename or "/tests/" in frame_info.filename:
-                        # Extract just the relevant part of the path
-                        path = frame_info.filename
-                        if "/app/" in path:
-                            path = "app/" + path.split("/app/")[-1]
-                        elif "/tests/" in path:
-                            path = "tests/" + path.split("/tests/")[-1]
-                        frames.append(f"{path}:{frame_info.lineno}:{frame_info.name}")
-                # Return the most recent app-level callers (last 3)
-                return " <- ".join(frames[-3:]) if frames else "unknown"
-
-            @event.listens_for(engine, "checkout")
-            def _on_checkout(
-                dbapi_conn: object, conn_record: object, conn_proxy: object
-            ) -> None:
-                caller = _get_caller_info()
-                pool_logger.debug(
-                    "CHECKOUT %s | conn=%s %s",
-                    caller,
-                    id(dbapi_conn),
-                    _get_pool_stats(engine.pool),
-                )
-
-            @event.listens_for(engine, "checkin")
-            def _on_checkin(dbapi_conn: object, conn_record: object) -> None:
-                caller = _get_caller_info()
-                pool_logger.debug(
-                    "CHECKIN %s | conn=%s %s",
-                    caller,
-                    id(dbapi_conn),
-                    _get_pool_stats(engine.pool),
-                )
+            setup_pool_logging(db.engine)
 
     # Initialize SpecTree for OpenAPI docs
     from app.utils.spectree_config import configure_spectree
 
     configure_spectree(app)
 
-    # Initialize service container after SpecTree
-    container = ServiceContainer()
+    # --- Hook 1: Create service container ---
+    from app.startup import create_container
+
+    container = create_container()
     container.config.override(settings)
     container.session_maker.override(SessionLocal)
 
-    # Wire container with API modules (always include testing for OpenAPI)
-    wire_modules = [
-        'app.api', 'app.api.ai_parts', 'app.api.auth', 'app.api.parts', 'app.api.boxes', 'app.api.inventory',
-        'app.api.kits', 'app.api.pick_lists', 'app.api.kit_shopping_list_links', 'app.api.types', 'app.api.sellers', 'app.api.shopping_lists',
-        'app.api.shopping_list_lines', 'app.api.documents', 'app.api.tasks',
-        'app.api.dashboard', 'app.api.health', 'app.api.utils',
-        'app.api.sse', 'app.api.cas', 'app.api.testing', 'app.api.attachment_sets'
-    ]
-
-    container.wire(modules=wire_modules)
-
-    # Register URL interceptors
-    registry = container.url_interceptor_registry()
-    lcsc_interceptor = container.lcsc_interceptor()
-    registry.register(lcsc_interceptor)
+    # Wire container to all API modules via package scanning
+    container.wire(packages=['app.api'])
 
     app.container = container
-
-    # Initialize VersionService singleton to register its observer callback
-    # with ConnectionManager. This must happen at startup, not lazily.
-    container.version_service()
 
     # Configure CORS
     CORS(app, origins=settings.cors_origins)
@@ -163,9 +87,9 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
         from app.utils.log_capture import LogCaptureHandler
         log_handler = LogCaptureHandler.get_instance()
 
-        # Set shutdown coordinator for connection_close events
-        shutdown_coordinator = container.shutdown_coordinator()
-        log_handler.set_shutdown_coordinator(shutdown_coordinator)
+        # Set lifecycle coordinator for connection_close events
+        lifecycle_coordinator = container.lifecycle_coordinator()
+        log_handler.set_lifecycle_coordinator(lifecycle_coordinator)
 
         # Attach to root logger
         root_logger = logging.getLogger()
@@ -174,17 +98,31 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
 
         app.logger.info("Log capture handler initialized for testing mode")
 
-    # Register error handlers (modular: core + business logic)
-    from app.utils.flask_error_handlers import register_app_error_handlers
+    # Register error handlers: core + business (template), then app-specific hook
+    from app.utils.flask_error_handlers import (
+        register_business_error_handlers,
+        register_core_error_handlers,
+    )
 
-    register_app_error_handlers(app)
+    register_core_error_handlers(app)
+    register_business_error_handlers(app)
 
-    # Register main API blueprint
+    # --- Hook 2: App-specific error handlers ---
+    from app.startup import register_error_handlers
+
+    register_error_handlers(app)
+
+    # Register main API blueprint (includes auth hooks and auth_bp)
     from app.api import api_bp
+
+    # --- Hook 3: App-specific blueprint registrations ---
+    from app.startup import register_blueprints
+
+    register_blueprints(api_bp, app)
 
     app.register_blueprint(api_bp)
 
-    # Register health and metrics blueprints directly on the app (not under /api)
+    # Register template blueprints directly on the app (not under /api)
     # These are for internal cluster use only and should not be publicly proxied
     from app.api.health import health_bp
     from app.api.metrics import metrics_bp
@@ -203,10 +141,6 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
     # Register CAS (Content-Addressable Storage) blueprint
     from app.api.cas import cas_bp
     app.register_blueprint(cas_bp)
-
-    # Register static icons blueprint (for attachment previews)
-    from app.api.icons import icons_bp
-    app.register_blueprint(icons_bp)
 
     @app.teardown_request
     def close_session(exc: Exception | None) -> None:
@@ -268,5 +202,13 @@ def create_app(settings: "Settings | None" = None, skip_background_services: boo
         with app.app_context():
             diagnostics_service.init_app(app, db.engine)
         app.diagnostics_service = diagnostics_service
+
+        # Initialize VersionService singleton to register its observer callback
+        # with ConnectionManager. Must happen before fire_startup().
+        container.version_service()
+
+        # Signal that application startup is complete. Services that registered
+        # for STARTUP notifications will be invoked here.
+        container.lifecycle_coordinator().fire_startup()
 
     return app

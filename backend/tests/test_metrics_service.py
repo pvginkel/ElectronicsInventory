@@ -10,22 +10,22 @@ from sqlalchemy.orm import Session
 
 from app.services.dashboard_service import DashboardService
 from app.services.metrics_service import MetricsService
-from tests.testing_utils import StubShutdownCoordinator
+from tests.testing_utils import StubLifecycleCoordinator
 
 
 class TestMetricsServicePolling:
     """Test the thin MetricsService polling infrastructure."""
 
     @pytest.fixture
-    def shutdown_coordinator(self):
-        return StubShutdownCoordinator()
+    def lifecycle_coordinator(self):
+        return StubLifecycleCoordinator()
 
     @pytest.fixture
-    def metrics_service(self, shutdown_coordinator):
+    def metrics_service(self, lifecycle_coordinator):
         container = MagicMock()
         service = MetricsService(
             container=container,
-            shutdown_coordinator=shutdown_coordinator,
+            lifecycle_coordinator=lifecycle_coordinator,
         )
         yield service
         service.shutdown()
@@ -95,22 +95,22 @@ class TestMetricsServicePolling:
         assert good_called.wait(timeout=3.0), "Good callback was not invoked"
         assert error_count > 0
 
-    def test_shutdown_via_lifetime_event(self, shutdown_coordinator):
-        """Test that MetricsService shuts down via lifetime events."""
+    def test_shutdown_via_lifecycle_event(self, lifecycle_coordinator):
+        """Test that MetricsService shuts down via lifecycle events."""
         container = MagicMock()
         service = MetricsService(
             container=container,
-            shutdown_coordinator=shutdown_coordinator,
+            lifecycle_coordinator=lifecycle_coordinator,
         )
         service.start_background_updater(1)
 
         assert service._updater_thread is not None
         assert service._updater_thread.is_alive()
 
-        # Simulate the SHUTDOWN lifetime event
-        from app.utils.shutdown_coordinator import LifetimeEvent
-        for notification in shutdown_coordinator._notifications:
-            notification(LifetimeEvent.SHUTDOWN)
+        # Simulate the SHUTDOWN lifecycle event
+        from app.utils.lifecycle_coordinator import LifecycleEvent
+        for notification in lifecycle_coordinator._notifications:
+            notification(LifecycleEvent.SHUTDOWN)
 
         time.sleep(0.2)
         assert service._stop_event.is_set()
@@ -271,9 +271,9 @@ class TestDecentralizedMetricsExist:
         assert MOUSER_API_REQUESTS_TOTAL is not None
         assert MOUSER_API_DURATION_SECONDS is not None
 
-    def test_shutdown_coordinator_metrics(self):
-        """Check shutdown coordinator owns shutdown metrics."""
-        from app.utils.shutdown_coordinator import (
+    def test_lifecycle_coordinator_metrics(self):
+        """Check lifecycle coordinator owns shutdown metrics."""
+        from app.utils.lifecycle_coordinator import (
             APPLICATION_SHUTTING_DOWN,
             GRACEFUL_SHUTDOWN_DURATION_SECONDS,
         )

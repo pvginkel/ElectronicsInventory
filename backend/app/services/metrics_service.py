@@ -5,10 +5,10 @@ import threading
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from app.utils.shutdown_coordinator import LifetimeEvent
+from app.utils.lifecycle_coordinator import LifecycleEvent
 
 if TYPE_CHECKING:
-    from app.utils.shutdown_coordinator import ShutdownCoordinatorProtocol
+    from app.utils.lifecycle_coordinator import LifecycleCoordinatorProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class MetricsService:
     - register_for_polling(name, callback): register a callable to be
       invoked on each tick of the background thread.
     - start_background_updater(interval_seconds): spawn the daemon thread.
-    - Shutdown integration via ShutdownCoordinator lifetime events.
+    - Shutdown integration via LifecycleCoordinator lifecycle events.
 
     All Prometheus metric *definitions* and *recording logic* live in the
     services that publish them (module-level Counter / Gauge / Histogram
@@ -30,10 +30,10 @@ class MetricsService:
     def __init__(
         self,
         container: object,
-        shutdown_coordinator: "ShutdownCoordinatorProtocol",
+        lifecycle_coordinator: "LifecycleCoordinatorProtocol",
     ) -> None:
         self.container = container
-        self.shutdown_coordinator = shutdown_coordinator
+        self.lifecycle_coordinator = lifecycle_coordinator
 
         # Registered polling callbacks: name -> callable
         self._polling_callbacks: dict[str, Callable[[], None]] = {}
@@ -42,9 +42,9 @@ class MetricsService:
         self._stop_event = threading.Event()
         self._updater_thread: threading.Thread | None = None
 
-        # Register for shutdown notifications
-        self.shutdown_coordinator.register_lifetime_notification(
-            self._on_lifetime_event
+        # Register for lifecycle notifications
+        self.lifecycle_coordinator.register_lifecycle_notification(
+            self._on_lifecycle_event
         )
 
     # ------------------------------------------------------------------
@@ -115,8 +115,8 @@ class MetricsService:
                         "Error in polling callback '%s': %s", name, e
                     )
 
-    def _on_lifetime_event(self, event: LifetimeEvent) -> None:
-        """Respond to shutdown coordinator lifetime events."""
+    def _on_lifecycle_event(self, event: LifecycleEvent) -> None:
+        """Respond to lifecycle coordinator events."""
         match event:
-            case LifetimeEvent.SHUTDOWN:
+            case LifecycleEvent.SHUTDOWN:
                 self.shutdown()

@@ -12,6 +12,7 @@ app/
 ├── services/     # Business logic layer
 ├── models/       # SQLAlchemy database models
 ├── schemas/      # Pydantic request/response schemas
+├── startup.py    # App-specific hooks called by create_app()
 └── utils/        # Shared utilities and error handling
 ```
 
@@ -343,7 +344,7 @@ assert after - before == 1.0
 - **Kits**: `app/services/kit_service.py` (KITS_CREATED_TOTAL, KITS_ACTIVE_COUNT, KITS_ARCHIVED_COUNT)
 - **Pick lists**: `app/services/kit_pick_list_service.py`, `app/services/pick_list_report_service.py`
 - **Tasks**: `app/services/task_service.py` (ACTIVE_TASKS_AT_SHUTDOWN)
-- **Shutdown**: `app/utils/shutdown_coordinator.py` (APPLICATION_SHUTTING_DOWN, GRACEFUL_SHUTDOWN_DURATION_SECONDS)
+- **Shutdown**: `app/utils/lifecycle_coordinator.py` (APPLICATION_SHUTTING_DOWN, GRACEFUL_SHUTDOWN_DURATION_SECONDS)
 - **Dashboard polling**: `app/services/metrics/dashboard_metrics.py` (INVENTORY_TOTAL_PARTS, etc.)
 - **Parts API**: `app/api/parts.py` (PART_KIT_USAGE_REQUESTS_TOTAL)
 
@@ -431,20 +432,16 @@ def create_part(part_service=Provide[ServiceContainer.part_service]):
 
 ### Container Wiring
 
-The service container is wired to API modules in the application factory (`app/__init__.py`):
+The service container is wired to all API modules via package scanning in the application factory (`app/__init__.py`):
 
 ```python
-# Initialize service container
-container = ServiceContainer()
-container.wire(modules=[
-    'app.api.parts', 'app.api.boxes', 'app.api.inventory', 
-    'app.api.types', 'app.api.testing'
-])
+# Wire container to all API modules via package scanning
+container.wire(packages=['app.api'])
 ```
 
 ## Graceful Shutdown Integration
 
-Services with background threads or long-running operations must integrate with the graceful shutdown coordinator to ensure clean shutdowns during Kubernetes deployments.
+Services with background threads or long-running operations must integrate with the lifecycle coordinator to ensure clean shutdowns during Kubernetes deployments.
 
 ### When to Integrate
 
@@ -457,29 +454,31 @@ Services need shutdown integration if they:
 
 **Constructor pattern:**
 ```python
-def __init__(self, shutdown_coordinator: ShutdownCoordinatorProtocol, ...):
-    self.shutdown_coordinator = shutdown_coordinator
+def __init__(self, lifecycle_coordinator: LifecycleCoordinatorProtocol, ...):
+    self.lifecycle_coordinator = lifecycle_coordinator
     # Register for notifications and/or waiters
 ```
 
 **Two registration types:**
 
-1. **Lifetime notifications** (immediate, non-blocking):
+1. **Lifecycle notifications** (immediate, non-blocking):
    ```python
-   shutdown_coordinator.register_lifetime_notification(self._on_lifetime_event)
-   
-   def _on_lifetime_event(self, event: LifetimeEvent) -> None:
+   lifecycle_coordinator.register_lifecycle_notification(self._on_lifecycle_event)
+
+   def _on_lifecycle_event(self, event: LifecycleEvent) -> None:
        match event:
-           case LifetimeEvent.PREPARE_SHUTDOWN:
+           case LifecycleEvent.STARTUP:
+               # Initialize resources that need the full app context
+           case LifecycleEvent.PREPARE_SHUTDOWN:
                # Stop accepting new work, set shutdown flags
-           case LifetimeEvent.SHUTDOWN: 
+           case LifecycleEvent.SHUTDOWN:
                # Final cleanup
    ```
 
 2. **Shutdown waiters** (block shutdown until complete):
    ```python
-   shutdown_coordinator.register_shutdown_waiter("ServiceName", self._wait_for_completion)
-   
+   lifecycle_coordinator.register_shutdown_waiter("ServiceName", self._wait_for_completion)
+
    def _wait_for_completion(self, timeout: float) -> bool:
        # Wait for operations to complete within timeout
        # Return True if ready, False if timeout
@@ -493,8 +492,8 @@ def __init__(self, shutdown_coordinator: ShutdownCoordinatorProtocol, ...):
 
 ### Testing
 
-- Use `StubShutdownCoordinator` for unit tests (dependency injection only)
-- Use `TestShutdownCoordinator` for integration tests (simulates shutdown behavior)
+- Use `StubLifecycleCoordinator` for unit tests (dependency injection only)
+- Use `TestLifecycleCoordinator` for integration tests (simulates shutdown behavior)
 - Both available in `tests.testing_utils`
 
 ## Test Data Management

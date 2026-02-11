@@ -1,4 +1,4 @@
-"""Graceful shutdown coordinator for managing service shutdowns in Kubernetes."""
+"""Lifecycle coordinator for managing application startup and graceful shutdown in Kubernetes."""
 
 import logging
 import signal
@@ -24,13 +24,14 @@ GRACEFUL_SHUTDOWN_DURATION_SECONDS = Histogram(
 )
 
 
-class LifetimeEvent(str, Enum):
+class LifecycleEvent(str, Enum):
+    STARTUP = "startup"
     PREPARE_SHUTDOWN = "prepare-shutdown"
     SHUTDOWN = "shutdown"
     AFTER_SHUTDOWN = "after-shutdown"
 
-class ShutdownCoordinatorProtocol(ABC):
-    """Protocol for shutdown coordinator implementations."""
+class LifecycleCoordinatorProtocol(ABC):
+    """Protocol for lifecycle coordinator implementations."""
 
     @abstractmethod
     def initialize(self) -> None:
@@ -38,11 +39,11 @@ class ShutdownCoordinatorProtocol(ABC):
         pass
 
     @abstractmethod
-    def register_lifetime_notification(self, callback: Callable[[LifetimeEvent], None]) -> None:
-        """Register a callback to be notified immediately when shutdown starts.
+    def register_lifecycle_notification(self, callback: Callable[[LifecycleEvent], None]) -> None:
+        """Register a callback to be notified on lifecycle events.
 
         Args:
-            callback: Function to call when shutdown is initiated
+            callback: Function to call when a lifecycle event occurs
         """
         pass
 
@@ -70,44 +71,60 @@ class ShutdownCoordinatorProtocol(ABC):
         """Implements the shutdown process."""
         pass
 
-class ShutdownCoordinator(ShutdownCoordinatorProtocol):
-    """Coordinator for graceful shutdown of services."""
+    @abstractmethod
+    def fire_startup(self) -> None:
+        """Fire the STARTUP lifecycle event to all registered callbacks."""
+        pass
+
+class LifecycleCoordinator(LifecycleCoordinatorProtocol):
+    """Coordinator for application lifecycle events and graceful shutdown."""
 
     def __init__(self, graceful_shutdown_timeout: int):
-        """Initialize shutdown coordinator.
+        """Initialize lifecycle coordinator.
 
         Args:
             graceful_shutdown_timeout: Maximum seconds to wait for shutdown
         """
         self._graceful_shutdown_timeout = graceful_shutdown_timeout
         self._shutting_down = False
-        self._shutdown_lock = threading.RLock()
-        self._shutdown_notifications: list[Callable[[LifetimeEvent], None]] = []
+        self._started = False
+        self._lifecycle_lock = threading.RLock()
+        self._lifecycle_notifications: list[Callable[[LifecycleEvent], None]] = []
         self._shutdown_waiters: dict[str, Callable[[float], bool]] = {}
 
-        logger.info("ShutdownCoordinator initialized")
+        logger.info("LifecycleCoordinator initialized")
 
     def initialize(self) -> None:
         """Setup the signal handlers."""
         signal.signal(signal.SIGTERM, self._handle_sigterm)
         signal.signal(signal.SIGINT, self._handle_sigterm)
 
-    def register_lifetime_notification(self, callback: Callable[[LifetimeEvent], None]) -> None:
-        """Register a callback to be notified immediately when shutdown starts."""
-        with self._shutdown_lock:
-            self._shutdown_notifications.append(callback)
-            logger.debug(f"Registered shutdown notification: {getattr(callback, '__name__', repr(callback))}")
+    def register_lifecycle_notification(self, callback: Callable[[LifecycleEvent], None]) -> None:
+        """Register a callback to be notified on lifecycle events."""
+        with self._lifecycle_lock:
+            self._lifecycle_notifications.append(callback)
+            logger.debug(f"Registered lifecycle notification: {getattr(callback, '__name__', repr(callback))}")
 
     def register_shutdown_waiter(self, name: str, handler: Callable[[float], bool]) -> None:
         """Register a handler that blocks until ready for shutdown."""
-        with self._shutdown_lock:
+        with self._lifecycle_lock:
             self._shutdown_waiters[name] = handler
             logger.debug(f"Registered shutdown waiter: {name}")
 
     def is_shutting_down(self) -> bool:
         """Check if shutdown has been initiated."""
-        with self._shutdown_lock:
+        with self._lifecycle_lock:
             return self._shutting_down
+
+    def fire_startup(self) -> None:
+        """Fire the STARTUP lifecycle event. Idempotent: second call is a no-op."""
+        with self._lifecycle_lock:
+            if self._started:
+                logger.debug("STARTUP already fired, ignoring duplicate call")
+                return
+            self._started = True
+
+        self._raise_lifecycle_event(LifecycleEvent.STARTUP)
 
     def _handle_sigterm(self, signum: int, frame: object) -> None:
         """SIGTERM signal handler that performs complete graceful shutdown."""
@@ -117,7 +134,7 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
 
     def shutdown(self) -> None:
         """Implements the shutdown process."""
-        with self._shutdown_lock:
+        with self._lifecycle_lock:
             if self._shutting_down:
                 logger.warning("Shutdown already in progress, ignoring signal")
                 return
@@ -130,7 +147,7 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
 
             # Notify all listeners that we're starting shutdown. Don't
             # accept new incoming request and stuff like that.
-            self._raise_lifetime_event(LifetimeEvent.PREPARE_SHUTDOWN)
+            self._raise_lifecycle_event(LifecycleEvent.PREPARE_SHUTDOWN)
 
         # Phase 2: Wait for services to complete (blocking)
         # Release lock before waiting to avoid deadlocks
@@ -169,17 +186,17 @@ class ShutdownCoordinator(ShutdownCoordinatorProtocol):
             logger.error(f"Shutdown timeout exceeded after {total_duration:.1f}s, forcing shutdown")
 
         # Notify that we're actually shutting down now.
-        self._raise_lifetime_event(LifetimeEvent.SHUTDOWN)
+        self._raise_lifecycle_event(LifecycleEvent.SHUTDOWN)
 
         logger.info("Shutting down")
 
-        self._raise_lifetime_event(LifetimeEvent.AFTER_SHUTDOWN)
+        self._raise_lifecycle_event(LifecycleEvent.AFTER_SHUTDOWN)
 
-    def _raise_lifetime_event(self, event: LifetimeEvent) -> None:
-        logger.info(f"Raising lifetime event {event}")
+    def _raise_lifecycle_event(self, event: LifecycleEvent) -> None:
+        logger.info(f"Raising lifecycle event {event}")
 
-        for callback in self._shutdown_notifications:
+        for callback in self._lifecycle_notifications:
             try:
                 callback(event)
             except Exception as e:
-                logger.error(f"Error in lifetime event notification {getattr(callback, '__name__', repr(callback))}: {e}")
+                logger.error(f"Error in lifecycle event notification {getattr(callback, '__name__', repr(callback))}: {e}")

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import NamedTuple
 from uuid import uuid4
 
-from app.utils.shutdown_coordinator import LifetimeEvent, ShutdownCoordinatorProtocol
+from app.utils.lifecycle_coordinator import LifecycleCoordinatorProtocol, LifecycleEvent
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class TempFileManager:
         self,
         base_path: str,
         cleanup_age_hours: float,
-        shutdown_coordinator: ShutdownCoordinatorProtocol
+        lifecycle_coordinator: LifecycleCoordinatorProtocol
     ):
         """
         Initialize the temporary file manager.
@@ -41,11 +41,11 @@ class TempFileManager:
         Args:
             base_path: Base directory for temporary file storage
             cleanup_age_hours: Age in hours after which files are cleaned up
-            shutdown_coordinator: Coordinator for graceful shutdown
+            lifecycle_coordinator: Coordinator for lifecycle events
         """
         self.base_path = Path(base_path)
         self.cleanup_age_hours = cleanup_age_hours
-        self.shutdown_coordinator = shutdown_coordinator
+        self.lifecycle_coordinator = lifecycle_coordinator
         self._cleanup_thread: threading.Thread | None = None
         self._shutdown_event = threading.Event()
 
@@ -53,8 +53,8 @@ class TempFileManager:
         self.base_path.mkdir(parents=True, exist_ok=True)
         self.cache_path = self.base_path
 
-        # Register shutdown notification
-        self.shutdown_coordinator.register_lifetime_notification(self._on_lifetime_event)
+        # Register lifecycle notification
+        self.lifecycle_coordinator.register_lifecycle_notification(self._on_lifecycle_event)
 
     def start_cleanup_thread(self) -> None:
         """Start the background cleanup thread."""
@@ -237,10 +237,10 @@ class TempFileManager:
             logger.error(f"Failed to cache content for {url}: {e}")
             return False
 
-    def _on_lifetime_event(self, event: LifetimeEvent) -> None:
-        """Callback when shutdown is initiated."""
+    def _on_lifecycle_event(self, event: LifecycleEvent) -> None:
+        """Callback when a lifecycle event occurs."""
         match event:
-            case LifetimeEvent.SHUTDOWN:
+            case LifecycleEvent.SHUTDOWN:
                 self.shutdown()
 
     def shutdown(self) -> None:

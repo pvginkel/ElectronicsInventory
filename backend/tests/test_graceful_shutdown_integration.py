@@ -11,19 +11,19 @@ from flask import Flask
 from sqlalchemy.orm import Session
 
 from app.services.task_service import TaskService
-from app.utils.shutdown_coordinator import LifetimeEvent, ShutdownCoordinator
+from app.utils.lifecycle_coordinator import LifecycleCoordinator, LifecycleEvent
 from app.utils.temp_file_manager import TempFileManager
 from tests.test_tasks.test_task import DemoTask, LongRunningTask
-from tests.testing_utils import TestShutdownCoordinator
+from tests.testing_utils import TestLifecycleCoordinator
 
 
 class TestTaskServiceShutdownIntegration:
-    """Test TaskService integration with shutdown coordinator."""
+    """Test TaskService integration with lifecycle coordinator."""
 
     @pytest.fixture
-    def shutdown_coordinator(self):
-        """Create shutdown coordinator for testing."""
-        return TestShutdownCoordinator()
+    def lifecycle_coordinator(self):
+        """Create lifecycle coordinator for testing."""
+        return TestLifecycleCoordinator()
 
     @pytest.fixture
     def connection_manager(self):
@@ -31,10 +31,10 @@ class TestTaskServiceShutdownIntegration:
         return MagicMock()
 
     @pytest.fixture
-    def task_service(self, shutdown_coordinator, connection_manager):
-        """Create TaskService with shutdown coordinator."""
+    def task_service(self, lifecycle_coordinator, connection_manager):
+        """Create TaskService with lifecycle coordinator."""
         service = TaskService(
-            shutdown_coordinator=shutdown_coordinator,
+            lifecycle_coordinator=lifecycle_coordinator,
             connection_manager=connection_manager,
             max_workers=2,
             task_timeout=10,
@@ -45,13 +45,13 @@ class TestTaskServiceShutdownIntegration:
         finally:
             service.shutdown()
 
-    def test_task_service_shutdown_registration(self, task_service, shutdown_coordinator):
-        """Test that TaskService registers with shutdown coordinator."""
+    def test_task_service_shutdown_registration(self, task_service, lifecycle_coordinator):
+        """Test that TaskService registers with lifecycle coordinator."""
         # TaskService should have registered notification and waiter
-        assert len(shutdown_coordinator._notifications) > 0
-        assert "TaskService" in shutdown_coordinator._waiters
+        assert len(lifecycle_coordinator._notifications) > 0
+        assert "TaskService" in lifecycle_coordinator._waiters
 
-    def test_task_service_stops_accepting_tasks_on_prepare_shutdown(self, task_service, shutdown_coordinator):
+    def test_task_service_stops_accepting_tasks_on_prepare_shutdown(self, task_service, lifecycle_coordinator):
         """Test that TaskService stops accepting new tasks during PREPARE_SHUTDOWN."""
         from app.exceptions import InvalidOperationException
 
@@ -63,14 +63,14 @@ class TestTaskServiceShutdownIntegration:
         # Wait for task to complete
         time.sleep(0.1)
 
-        # Trigger PREPARE_SHUTDOWN manually (StubShutdownCoordinator doesn't execute callbacks)
-        shutdown_coordinator.simulate_shutdown()
+        # Trigger PREPARE_SHUTDOWN manually (StubLifecycleCoordinator doesn't execute callbacks)
+        lifecycle_coordinator.simulate_shutdown()
 
         # Should now reject new tasks
         with pytest.raises(InvalidOperationException, match="service is shutting down"):
             task_service.start_task(DemoTask(), steps=1, delay=0.01)
 
-    def test_task_service_waits_for_active_tasks(self, task_service, shutdown_coordinator):
+    def test_task_service_waits_for_active_tasks(self, task_service, lifecycle_coordinator):
         """Test that TaskService waits for active tasks to complete."""
         # Start a long-running task
         task = LongRunningTask()
@@ -86,7 +86,7 @@ class TestTaskServiceShutdownIntegration:
         # Track when waiter is called
         waiter_start_time = None
         waiter_end_time = None
-        original_waiter = shutdown_coordinator._waiters["TaskService"]
+        original_waiter = lifecycle_coordinator._waiters["TaskService"]
 
         def tracked_waiter(timeout: float) -> bool:
             nonlocal waiter_start_time, waiter_end_time
@@ -95,10 +95,10 @@ class TestTaskServiceShutdownIntegration:
             waiter_end_time = time.perf_counter()
             return result
 
-        shutdown_coordinator._waiters["TaskService"] = tracked_waiter
+        lifecycle_coordinator._waiters["TaskService"] = tracked_waiter
 
         # Trigger full shutdown (includes waiters)
-        shutdown_coordinator.simulate_full_shutdown(timeout=5.0)
+        lifecycle_coordinator.simulate_full_shutdown(timeout=5.0)
 
         # Verify waiter was called and waited for task completion
         assert waiter_start_time is not None
@@ -112,24 +112,24 @@ class TestTaskServiceShutdownIntegration:
         task_info = task_service.get_task_status(response.task_id)
         assert task_info is None or task_info.status.value == "completed"
 
-    def test_task_service_shutdown_with_no_active_tasks(self, task_service, shutdown_coordinator):
+    def test_task_service_shutdown_with_no_active_tasks(self, task_service, lifecycle_coordinator):
         """Test TaskService shutdown when no tasks are active."""
         # Ensure no active tasks
         assert task_service._get_active_task_count() == 0
 
         # Track waiter call
         waiter_called = threading.Event()
-        original_waiter = shutdown_coordinator._waiters["TaskService"]
+        original_waiter = lifecycle_coordinator._waiters["TaskService"]
 
         def tracked_waiter(timeout: float) -> bool:
             waiter_called.set()
             return original_waiter(timeout)
 
-        shutdown_coordinator._waiters["TaskService"] = tracked_waiter
+        lifecycle_coordinator._waiters["TaskService"] = tracked_waiter
 
         # Trigger full shutdown (includes waiters)
         start_time = time.perf_counter()
-        shutdown_coordinator.simulate_full_shutdown(timeout=5.0)
+        lifecycle_coordinator.simulate_full_shutdown(timeout=5.0)
         end_time = time.perf_counter()
 
         # Should complete quickly when no tasks active
@@ -139,7 +139,7 @@ class TestTaskServiceShutdownIntegration:
         # Waiter should have been called
         assert waiter_called.is_set()
 
-    def test_task_service_shutdown_metrics_recording(self, task_service, shutdown_coordinator):
+    def test_task_service_shutdown_metrics_recording(self, task_service, lifecycle_coordinator):
         """Test that shutdown metrics are recorded during TaskService shutdown."""
         from app.services.task_service import ACTIVE_TASKS_AT_SHUTDOWN
 
@@ -149,13 +149,13 @@ class TestTaskServiceShutdownIntegration:
         time.sleep(0.05)  # Let task start
 
         # Trigger shutdown
-        shutdown_coordinator.simulate_shutdown()
+        lifecycle_coordinator.simulate_shutdown()
 
         # Verify the module-level gauge was set (value should be >= 0)
         value = ACTIVE_TASKS_AT_SHUTDOWN._value.get()
         assert isinstance(value, (int, float))
 
-    def test_task_service_cleanup_during_shutdown(self, task_service, shutdown_coordinator):
+    def test_task_service_cleanup_during_shutdown(self, task_service, lifecycle_coordinator):
         """Test that TaskService cleanup happens during shutdown."""
         # Start and complete a task
         task = DemoTask()
@@ -167,7 +167,7 @@ class TestTaskServiceShutdownIntegration:
         assert task_info is not None
 
         # Trigger full shutdown (includes waiters that do cleanup)
-        shutdown_coordinator.simulate_full_shutdown()
+        lifecycle_coordinator.simulate_full_shutdown()
 
         # After shutdown, internal state should be cleared
         assert len(task_service._tasks) == 0
@@ -175,30 +175,30 @@ class TestTaskServiceShutdownIntegration:
 
 
 class TestTempFileManagerShutdownIntegration:
-    """Test TempFileManager integration with shutdown coordinator."""
+    """Test TempFileManager integration with lifecycle coordinator."""
 
     @pytest.fixture
-    def shutdown_coordinator(self):
-        """Create shutdown coordinator for testing."""
-        return TestShutdownCoordinator()
+    def lifecycle_coordinator(self):
+        """Create lifecycle coordinator for testing."""
+        return TestLifecycleCoordinator()
 
     @pytest.fixture
-    def temp_file_manager(self, shutdown_coordinator):
-        """Create TempFileManager with shutdown coordinator."""
+    def temp_file_manager(self, lifecycle_coordinator):
+        """Create TempFileManager with lifecycle coordinator."""
         with tempfile.TemporaryDirectory() as temp_dir:
             manager = TempFileManager(
                 base_path=temp_dir,
                 cleanup_age_hours=1.0,
-                shutdown_coordinator=shutdown_coordinator
+                lifecycle_coordinator=lifecycle_coordinator
             )
             yield manager
 
-    def test_temp_file_manager_shutdown_registration(self, temp_file_manager, shutdown_coordinator):
-        """Test that TempFileManager registers with shutdown coordinator."""
+    def test_temp_file_manager_shutdown_registration(self, temp_file_manager, lifecycle_coordinator):
+        """Test that TempFileManager registers with lifecycle coordinator."""
         # TempFileManager should have registered for notifications
-        assert len(shutdown_coordinator._notifications) > 0
+        assert len(lifecycle_coordinator._notifications) > 0
 
-    def test_temp_file_manager_stops_cleanup_on_shutdown(self, temp_file_manager, shutdown_coordinator):
+    def test_temp_file_manager_stops_cleanup_on_shutdown(self, temp_file_manager, lifecycle_coordinator):
         """Test that TempFileManager stops cleanup thread on shutdown."""
         # Start cleanup thread
         temp_file_manager.start_cleanup_thread()
@@ -206,7 +206,7 @@ class TestTempFileManagerShutdownIntegration:
         assert temp_file_manager._cleanup_thread.is_alive()
 
         # Trigger shutdown
-        shutdown_coordinator.simulate_shutdown()
+        lifecycle_coordinator.simulate_shutdown()
 
         # Give some time for shutdown to process
         time.sleep(0.1)
@@ -229,8 +229,8 @@ class TestFullApplicationShutdownIntegration:
 
             with app.app_context():
                 # Override container's coordinator with test implementation
-                test_coordinator = TestShutdownCoordinator()
-                app.container.shutdown_coordinator.override(test_coordinator)
+                test_coordinator = TestLifecycleCoordinator()
+                app.container.lifecycle_coordinator.override(test_coordinator)
                 coordinator = test_coordinator
 
                 # Initially should be ready
@@ -244,7 +244,7 @@ class TestFullApplicationShutdownIntegration:
                 assert response.json["ready"] is True
 
                 # Simulate shutdown
-                if isinstance(coordinator, TestShutdownCoordinator):
+                if isinstance(coordinator, TestLifecycleCoordinator):
                     coordinator.simulate_shutdown()
                 else:
                     coordinator._shutting_down = True
@@ -259,25 +259,25 @@ class TestFullApplicationShutdownIntegration:
                 assert response.status_code == 200
                 assert response.json["ready"] is True
 
-    def test_service_container_shutdown_coordinator_injection(self, app: Flask):
-        """Test that shutdown coordinator is properly injected into services."""
+    def test_service_container_lifecycle_coordinator_injection(self, app: Flask):
+        """Test that lifecycle coordinator is properly injected into services."""
         with app.app_context():
             container = app.container
 
             # Override with test coordinator
-            test_coordinator = TestShutdownCoordinator()
-            container.shutdown_coordinator.override(test_coordinator)
+            test_coordinator = TestLifecycleCoordinator()
+            container.lifecycle_coordinator.override(test_coordinator)
 
             # Get coordinator
-            coordinator = container.shutdown_coordinator()
+            coordinator = container.lifecycle_coordinator()
             assert coordinator is test_coordinator
 
             # Get services that should have the coordinator
             task_service = container.task_service()
-            assert task_service.shutdown_coordinator is coordinator
+            assert task_service.lifecycle_coordinator is coordinator
 
             # Verify registration happened
-            # TestShutdownCoordinator should have registrations
+            # TestLifecycleCoordinator should have registrations
             assert len(coordinator._notifications) > 0
             assert "TaskService" in coordinator._waiters
 
@@ -287,8 +287,8 @@ class TestFullApplicationShutdownIntegration:
             container = app.container
 
             # Override with test coordinator
-            test_coordinator = TestShutdownCoordinator()
-            container.shutdown_coordinator.override(test_coordinator)
+            test_coordinator = TestLifecycleCoordinator()
+            container.lifecycle_coordinator.override(test_coordinator)
             coordinator = test_coordinator
 
             # Get multiple services
@@ -299,13 +299,13 @@ class TestFullApplicationShutdownIntegration:
             notified_services = set()
 
             def track_notification(service_name):
-                def notification_tracker(event: LifetimeEvent):
-                    if event == LifetimeEvent.PREPARE_SHUTDOWN:
+                def notification_tracker(event: LifecycleEvent):
+                    if event == LifecycleEvent.PREPARE_SHUTDOWN:
                         notified_services.add(service_name)
                 return notification_tracker
 
             # Add tracking to coordinator
-            coordinator.register_lifetime_notification(track_notification("TestService"))
+            coordinator.register_lifecycle_notification(track_notification("TestService"))
 
             # Trigger shutdown
             coordinator.simulate_shutdown()
@@ -314,23 +314,23 @@ class TestFullApplicationShutdownIntegration:
             assert "TestService" in notified_services
 
     def test_real_coordinator_integration_without_exit(self, session: Session):
-        """Test real ShutdownCoordinator integration (mocking sys.exit)."""
+        """Test real LifecycleCoordinator integration (mocking sys.exit)."""
         # Create a real coordinator for testing
-        coordinator = ShutdownCoordinator(graceful_shutdown_timeout=5)
+        coordinator = LifecycleCoordinator(graceful_shutdown_timeout=5)
 
         after_shutdown_attempted = False
 
-        def lifetime_notification(event: LifetimeEvent):
+        def lifetime_notification(event: LifecycleEvent):
             nonlocal after_shutdown_attempted
-            if event == LifetimeEvent.AFTER_SHUTDOWN:
+            if event == LifecycleEvent.AFTER_SHUTDOWN:
                 after_shutdown_attempted = True
 
-        coordinator.register_lifetime_notification(lifetime_notification)
+        coordinator.register_lifecycle_notification(lifetime_notification)
 
         # Create services with real coordinator
         connection_manager = MagicMock()
         task_service = TaskService(
-            shutdown_coordinator=coordinator,
+            lifecycle_coordinator=coordinator,
             connection_manager=connection_manager,
             max_workers=1,
             task_timeout=5
@@ -338,7 +338,7 @@ class TestFullApplicationShutdownIntegration:
 
         try:
             # Verify registrations
-            assert len(coordinator._shutdown_notifications) > 0
+            assert len(coordinator._lifecycle_notifications) > 0
             assert "TaskService" in coordinator._shutdown_waiters
 
             # Start a quick task
@@ -362,17 +362,17 @@ class TestShutdownErrorHandling:
 
     def test_service_exception_during_notification(self):
         """Test that service exceptions during notification don't break shutdown."""
-        coordinator = TestShutdownCoordinator()
+        coordinator = TestLifecycleCoordinator()
 
         # Create a service that raises an exception
-        def failing_notification(event: LifetimeEvent):
+        def failing_notification(event: LifecycleEvent):
             raise Exception("Service notification failed")
 
-        def working_notification(event: LifetimeEvent):
+        def working_notification(event: LifecycleEvent):
             working_notification.called = True
 
-        coordinator.register_lifetime_notification(failing_notification)
-        coordinator.register_lifetime_notification(working_notification)
+        coordinator.register_lifecycle_notification(failing_notification)
+        coordinator.register_lifecycle_notification(working_notification)
 
         # Should not raise exception
         coordinator.simulate_shutdown()
@@ -382,7 +382,7 @@ class TestShutdownErrorHandling:
 
     def test_service_exception_during_waiter(self):
         """Test that service exceptions during waiter don't prevent other services."""
-        coordinator = TestShutdownCoordinator()
+        coordinator = TestLifecycleCoordinator()
 
         def failing_waiter(timeout: float) -> bool:
             raise Exception("Service waiter failed")
@@ -404,12 +404,12 @@ class TestShutdownErrorHandling:
 
     def test_timeout_handling_in_integration(self):
         """Test timeout handling with real services by directly testing waiter behavior."""
-        coordinator = TestShutdownCoordinator()
+        coordinator = TestLifecycleCoordinator()
 
         # Create TaskService for testing timeout behavior
         connection_manager = MagicMock()
         task_service = TaskService(
-            shutdown_coordinator=coordinator,
+            lifecycle_coordinator=coordinator,
             connection_manager=connection_manager,
             max_workers=1,
             task_timeout=10
@@ -450,14 +450,14 @@ class TestShutdownErrorHandling:
 
     def test_concurrent_shutdown_signals(self):
         """Test handling of multiple concurrent shutdown signals."""
-        coordinator = TestShutdownCoordinator()
+        coordinator = TestLifecycleCoordinator()
 
         callback_calls = []
 
-        def tracking_callback(event: LifetimeEvent):
+        def tracking_callback(event: LifecycleEvent):
             callback_calls.append((event, time.perf_counter()))
 
-        coordinator.register_lifetime_notification(tracking_callback)
+        coordinator.register_lifecycle_notification(tracking_callback)
 
         # Simulate multiple rapid shutdown signals
         def signal_sender():
@@ -472,8 +472,8 @@ class TestShutdownErrorHandling:
             thread.join(timeout=5)
 
         # Should only process shutdown once (only one set of events)
-        prepare_events = [call for call in callback_calls if call[0] == LifetimeEvent.PREPARE_SHUTDOWN]
-        shutdown_events = [call for call in callback_calls if call[0] == LifetimeEvent.SHUTDOWN]
+        prepare_events = [call for call in callback_calls if call[0] == LifecycleEvent.PREPARE_SHUTDOWN]
+        shutdown_events = [call for call in callback_calls if call[0] == LifecycleEvent.SHUTDOWN]
 
         # With multiple threads, we might get multiple calls, but the first one should set the state
         # The important thing is that it doesn't crash
@@ -486,7 +486,7 @@ class TestShutdownPerformance:
 
     def test_shutdown_timing_with_multiple_services(self):
         """Test shutdown timing with multiple services."""
-        coordinator = TestShutdownCoordinator()
+        coordinator = TestLifecycleCoordinator()
 
         # Create multiple services with known timing characteristics
         service_timings = {}
@@ -521,15 +521,15 @@ class TestShutdownPerformance:
 
     def test_shutdown_memory_cleanup(self):
         """Test that shutdown properly cleans up memory."""
-        coordinator = TestShutdownCoordinator()
+        coordinator = TestLifecycleCoordinator()
 
         # Create services and register many callbacks
         callbacks = []
         for i in range(100):
-            def callback(event: LifetimeEvent, index=i):
+            def callback(event: LifecycleEvent, index=i):
                 pass
             callbacks.append(callback)
-            coordinator.register_lifetime_notification(callback)
+            coordinator.register_lifecycle_notification(callback)
 
         waiters = []
         for i in range(50):
@@ -545,6 +545,6 @@ class TestShutdownPerformance:
         # Trigger shutdown
         coordinator.simulate_shutdown()
 
-        # Callbacks and waiters should still be registered (TestShutdownCoordinator keeps them)
+        # Callbacks and waiters should still be registered (TestLifecycleCoordinator keeps them)
         assert len(coordinator._notifications) == 100
         assert len(coordinator._waiters) == 50

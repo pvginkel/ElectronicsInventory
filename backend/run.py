@@ -9,7 +9,7 @@ from waitress import serve
 
 from app import create_app
 from app.config import Settings
-from app.utils.shutdown_coordinator import LifetimeEvent
+from app.utils.lifecycle_coordinator import LifecycleEvent
 
 
 def main() -> None:
@@ -24,8 +24,8 @@ def main() -> None:
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", 5000))
 
-    # Get and initialize the shutdown coordinator
-    shutdown_coordinator = app.container.shutdown_coordinator()
+    # Get and initialize the lifecycle coordinator
+    lifecycle_coordinator = app.container.lifecycle_coordinator()
 
     # Enable debug mode for development and testing environments
     debug_mode = settings.flask_env in ("development", "testing")
@@ -36,19 +36,19 @@ def main() -> None:
         # Only initialize the shutdown coordinator if we're in an actual
         # Flask worker process.
         if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-            shutdown_coordinator.initialize()
+            lifecycle_coordinator.initialize()
 
-        def signal_shutdown(lifetime_event: LifetimeEvent) -> None:
-            if lifetime_event == LifetimeEvent.AFTER_SHUTDOWN:
+        def signal_shutdown(lifecycle_event: LifecycleEvent) -> None:
+            if lifecycle_event == LifecycleEvent.AFTER_SHUTDOWN:
                 # Need to call. os._exit. sys.exit doesn't work with the
                 # reloader is exit.
                 os._exit(0)
 
-        shutdown_coordinator.register_lifetime_notification(signal_shutdown)
+        lifecycle_coordinator.register_lifecycle_notification(signal_shutdown)
 
         app.run(host=host, port=port, debug=True)
     else:
-        shutdown_coordinator.initialize()
+        lifecycle_coordinator.initialize()
 
         def runner() -> None:
             # Production: Use Waitress WSGI server
@@ -66,11 +66,11 @@ def main() -> None:
 
         event = threading.Event()
 
-        def signal_shutdown_prod(lifetime_event: LifetimeEvent) -> None:
-            if lifetime_event == LifetimeEvent.AFTER_SHUTDOWN:
+        def signal_shutdown_prod(lifecycle_event: LifecycleEvent) -> None:
+            if lifecycle_event == LifecycleEvent.AFTER_SHUTDOWN:
                 event.set()
 
-        shutdown_coordinator.register_lifetime_notification(signal_shutdown_prod)
+        lifecycle_coordinator.register_lifecycle_notification(signal_shutdown_prod)
 
         event.wait()
 

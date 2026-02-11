@@ -5,7 +5,7 @@ from unittest.mock import patch
 from flask import Flask
 from flask.testing import FlaskClient
 
-from tests.testing_utils import StubShutdownCoordinator
+from tests.testing_utils import StubLifecycleCoordinator
 
 
 class TestHealthEndpoints:
@@ -26,10 +26,10 @@ class TestHealthEndpoints:
     def test_readyz_when_shutting_down(self, app: Flask, client: FlaskClient):
         """Test readiness probe returns 503 when shutting down."""
         with app.app_context():
-            coordinator = app.container.shutdown_coordinator()
+            coordinator = app.container.lifecycle_coordinator()
 
             # Use proper interface to trigger shutdown
-            if isinstance(coordinator, StubShutdownCoordinator):
+            if isinstance(coordinator, StubLifecycleCoordinator):
                 coordinator.simulate_shutdown()
             else:
                 # For real coordinator, we'd need to handle sys.exit in tests
@@ -52,10 +52,10 @@ class TestHealthEndpoints:
     def test_healthz_during_shutdown(self, app: Flask, client: FlaskClient):
         """Test liveness probe returns 200 even during shutdown."""
         with app.app_context():
-            coordinator = app.container.shutdown_coordinator()
+            coordinator = app.container.lifecycle_coordinator()
 
             # Use proper interface to trigger shutdown
-            if isinstance(coordinator, StubShutdownCoordinator):
+            if isinstance(coordinator, StubLifecycleCoordinator):
                 coordinator.simulate_shutdown()
             else:
                 # For real coordinator, we'd need to handle sys.exit in tests
@@ -116,7 +116,7 @@ class TestHealthEndpoints:
              patch('app.api.health.get_pending_migrations', return_value=[]):
 
             with app.app_context():
-                coordinator = app.container.shutdown_coordinator()
+                coordinator = app.container.lifecycle_coordinator()
 
                 # Initially should be ready
                 response = client.get("/health/readyz")
@@ -124,7 +124,7 @@ class TestHealthEndpoints:
                 assert response.json["ready"] is True
 
                 # After shutdown signal, should not be ready
-                if isinstance(coordinator, StubShutdownCoordinator):
+                if isinstance(coordinator, StubLifecycleCoordinator):
                     coordinator.simulate_shutdown()
                 else:
                     coordinator._shutting_down = True
@@ -136,10 +136,10 @@ class TestHealthEndpoints:
     def test_multiple_readyz_calls_during_shutdown(self, app: Flask, client: FlaskClient):
         """Test multiple readiness probe calls during shutdown."""
         with app.app_context():
-            coordinator = app.container.shutdown_coordinator()
+            coordinator = app.container.lifecycle_coordinator()
 
             # Trigger shutdown
-            if isinstance(coordinator, StubShutdownCoordinator):
+            if isinstance(coordinator, StubLifecycleCoordinator):
                 coordinator.simulate_shutdown()
             else:
                 coordinator._shutting_down = True
@@ -153,10 +153,10 @@ class TestHealthEndpoints:
     def test_healthz_consistency_during_shutdown(self, app: Flask, client: FlaskClient):
         """Test liveness probe consistency during shutdown."""
         with app.app_context():
-            coordinator = app.container.shutdown_coordinator()
+            coordinator = app.container.lifecycle_coordinator()
 
             # Trigger shutdown
-            if isinstance(coordinator, StubShutdownCoordinator):
+            if isinstance(coordinator, StubLifecycleCoordinator):
                 coordinator.simulate_shutdown()
             else:
                 coordinator._shutting_down = True
@@ -185,12 +185,12 @@ class TestHealthEndpointIntegration:
             assert response.status_code == 200
 
     def test_health_endpoints_with_noop_coordinator(self, app: Flask, client: FlaskClient):
-        """Test health endpoints work correctly with StubShutdownCoordinator."""
+        """Test health endpoints work correctly with StubLifecycleCoordinator."""
         # Mock the database functions since tests use SQLite with create_all() instead of migrations
         with patch('app.api.health.check_db_connection', return_value=True), \
              patch('app.api.health.get_pending_migrations', return_value=[]):
             with app.app_context():
-                coordinator = app.container.shutdown_coordinator()
+                coordinator = app.container.lifecycle_coordinator()
 
                 # Should work with either type of coordinator
                 response = client.get("/health/readyz")
@@ -199,8 +199,8 @@ class TestHealthEndpointIntegration:
                 response = client.get("/health/healthz")
                 assert response.status_code == 200
 
-                # Test shutdown simulation with StubShutdownCoordinator
-                if isinstance(coordinator, StubShutdownCoordinator):
+                # Test shutdown simulation with StubLifecycleCoordinator
+                if isinstance(coordinator, StubLifecycleCoordinator):
                     coordinator.simulate_shutdown()
 
                     response = client.get("/health/readyz")
@@ -249,7 +249,7 @@ class TestHealthEndpointIntegration:
         with patch('app.api.health.check_db_connection', return_value=True), \
              patch('app.api.health.get_pending_migrations', return_value=[]):
             with app.app_context():
-                coordinator = app.container.shutdown_coordinator()
+                coordinator = app.container.lifecycle_coordinator()
 
                 # Test during normal operation
                 response = client.get("/health/readyz")
@@ -257,7 +257,7 @@ class TestHealthEndpointIntegration:
                 assert initial_status == 200
 
                 # Test during shutdown (simple simulation)
-                if isinstance(coordinator, StubShutdownCoordinator):
+                if isinstance(coordinator, StubLifecycleCoordinator):
                     coordinator.simulate_shutdown()
 
                     # Health check should now return 503
@@ -270,14 +270,14 @@ class TestHealthEndpointIntegration:
         with patch('app.api.health.check_db_connection', return_value=True), \
              patch('app.api.health.get_pending_migrations', return_value=[]):
             with app.app_context():
-                coordinator = app.container.shutdown_coordinator()
+                coordinator = app.container.lifecycle_coordinator()
 
                 # Ready state
                 response = client.get("/health/readyz")
                 assert response.json["status"] == "ready"
 
                 # Shutting down state
-                if isinstance(coordinator, StubShutdownCoordinator):
+                if isinstance(coordinator, StubLifecycleCoordinator):
                     coordinator.simulate_shutdown()
                 else:
                     coordinator._shutting_down = True
@@ -288,14 +288,14 @@ class TestHealthEndpointIntegration:
     def test_healthz_status_consistency(self, app: Flask, client: FlaskClient):
         """Test that healthz always returns consistent status."""
         with app.app_context():
-            coordinator = app.container.shutdown_coordinator()
+            coordinator = app.container.lifecycle_coordinator()
 
             # Before shutdown
             response = client.get("/health/healthz")
             assert response.json["status"] == "alive"
 
             # During shutdown
-            if isinstance(coordinator, StubShutdownCoordinator):
+            if isinstance(coordinator, StubLifecycleCoordinator):
                 coordinator.simulate_shutdown()
             else:
                 coordinator._shutting_down = True

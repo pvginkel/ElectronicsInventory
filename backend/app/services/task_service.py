@@ -20,7 +20,7 @@ from app.schemas.task_schema import (
 )
 from app.services.base_task import BaseTask
 from app.services.connection_manager import ConnectionManager
-from app.utils.shutdown_coordinator import LifetimeEvent, ShutdownCoordinatorProtocol
+from app.utils.lifecycle_coordinator import LifecycleCoordinatorProtocol, LifecycleEvent
 
 # Task shutdown metric -- owned by TaskService because it knows the
 # active task count at the moment shutdown is initiated.
@@ -83,7 +83,7 @@ class TaskService:
 
     def __init__(
         self,
-        shutdown_coordinator: ShutdownCoordinatorProtocol,
+        lifecycle_coordinator: LifecycleCoordinatorProtocol,
         connection_manager: ConnectionManager,
         max_workers: int = 4,
         task_timeout: int = 300,
@@ -92,7 +92,7 @@ class TaskService:
         """Initialize TaskService with configurable parameters.
 
         Args:
-            shutdown_coordinator: Coordinator for graceful shutdown
+            lifecycle_coordinator: Coordinator for lifecycle events and graceful shutdown
             connection_manager: ConnectionManager for SSE Gateway integration
             max_workers: Maximum number of concurrent tasks
             task_timeout: Task execution timeout in seconds
@@ -101,7 +101,7 @@ class TaskService:
         self.max_workers = max_workers
         self.task_timeout = task_timeout
         self.cleanup_interval = cleanup_interval  # 10 minutes in seconds
-        self.shutdown_coordinator = shutdown_coordinator
+        self.lifecycle_coordinator = lifecycle_coordinator
         self.connection_manager = connection_manager
         self._tasks: dict[str, TaskInfo] = {}
         self._task_instances: dict[str, BaseTask] = {}
@@ -111,9 +111,9 @@ class TaskService:
         self._shutting_down = False
         self._tasks_complete_event = threading.Event()
 
-        # Register with shutdown coordinator
-        self.shutdown_coordinator.register_lifetime_notification(self._on_lifetime_event)
-        self.shutdown_coordinator.register_shutdown_waiter("TaskService", self._wait_for_tasks_completion)
+        # Register with lifecycle coordinator
+        self.lifecycle_coordinator.register_lifecycle_notification(self._on_lifecycle_event)
+        self.lifecycle_coordinator.register_shutdown_waiter("TaskService", self._wait_for_tasks_completion)
 
         # Start cleanup thread
         self._cleanup_thread = threading.Thread(target=self._cleanup_worker, daemon=True)
@@ -374,10 +374,10 @@ class TaskService:
 
         logger.info("TaskService shutdown complete")
 
-    def _on_lifetime_event(self, event: LifetimeEvent) -> None:
-        """Callback when shutdown is initiated."""
+    def _on_lifecycle_event(self, event: LifecycleEvent) -> None:
+        """Callback when a lifecycle event occurs."""
         match event:
-            case LifetimeEvent.PREPARE_SHUTDOWN:
+            case LifecycleEvent.PREPARE_SHUTDOWN:
                 with self._lock:
                     self._shutting_down = True
                     active_count = self._get_active_task_count()
@@ -386,7 +386,7 @@ class TaskService:
                     # Record active tasks at shutdown via module-level gauge
                     ACTIVE_TASKS_AT_SHUTDOWN.set(active_count)
 
-            case LifetimeEvent.SHUTDOWN:
+            case LifecycleEvent.SHUTDOWN:
                 self.shutdown()
 
     def _wait_for_tasks_completion(self, timeout: float) -> bool:

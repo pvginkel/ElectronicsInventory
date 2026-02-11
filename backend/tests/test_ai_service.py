@@ -23,7 +23,7 @@ from app.services.document_service import DocumentService
 from app.services.download_cache_service import DownloadCacheService
 from app.services.type_service import TypeService
 from app.utils.temp_file_manager import TempFileManager
-from tests.testing_utils import StubShutdownCoordinator
+from tests.testing_utils import StubLifecycleCoordinator
 
 
 @pytest.fixture
@@ -47,7 +47,7 @@ def temp_file_manager() -> Generator[TempFileManager, None, None]:
         yield TempFileManager(
             base_path=temp_dir,
             cleanup_age_hours=1.0,
-            shutdown_coordinator=StubShutdownCoordinator()
+            lifecycle_coordinator=StubLifecycleCoordinator()
         )
 
 

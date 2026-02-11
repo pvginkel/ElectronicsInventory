@@ -10,7 +10,7 @@ import requests
 from app.services.download_cache_service import DownloadCacheService, DownloadResult
 from app.utils.mime_handling import detect_mime_type
 from app.utils.temp_file_manager import TempFileManager
-from tests.testing_utils import StubShutdownCoordinator
+from tests.testing_utils import StubLifecycleCoordinator
 
 
 class TestDownloadCacheService:
@@ -23,16 +23,16 @@ class TestDownloadCacheService:
             yield Path(tmpdir)
 
     @pytest.fixture
-    def test_shutdown_coordinator(self):
-        return StubShutdownCoordinator()
+    def test_lifecycle_coordinator(self):
+        return StubLifecycleCoordinator()
 
     @pytest.fixture
-    def temp_file_manager(self, temp_dir, test_shutdown_coordinator):
+    def temp_file_manager(self, temp_dir, test_lifecycle_coordinator):
         """Create a TempFileManager instance for testing."""
         return TempFileManager(
             base_path=str(temp_dir),
             cleanup_age_hours=1.0,
-            shutdown_coordinator=test_shutdown_coordinator
+            lifecycle_coordinator=test_lifecycle_coordinator
         )
 
     @pytest.fixture
