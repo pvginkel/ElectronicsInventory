@@ -7,15 +7,15 @@ from typing import BinaryIO, cast
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.config import Settings
+from app.app_config import AppSettings
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.attachment import Attachment, AttachmentType
 from app.models.attachment_set import AttachmentSet
 from app.models.part import Part
 from app.schemas.upload_document import DocumentContentSchema, UploadDocumentSchema
+from app.services.cas_image_service import CasImageService
 from app.services.download_cache_service import DownloadCacheService
 from app.services.html_document_handler import HtmlDocumentHandler
-from app.services.image_service import ImageService
 from app.services.s3_service import S3Service
 from app.services.url_transformers import URLInterceptorRegistry
 from app.utils.mime_handling import detect_mime_type
@@ -28,32 +28,33 @@ logger = logging.getLogger(__name__)
 class DocumentService:
     """Service for managing part documents and attachments."""
 
-    def __init__(self, db: Session, s3_service: S3Service, image_service: ImageService,
+    def __init__(self, db: Session, s3_service: S3Service, cas_image_service: CasImageService,
                  html_handler: HtmlDocumentHandler, download_cache_service: DownloadCacheService,
-                 settings: Settings, url_interceptor_registry: URLInterceptorRegistry):
+                 app_settings: AppSettings, url_interceptor_registry: URLInterceptorRegistry):
         """Initialize document service with dependencies.
 
         Args:
             db: SQLAlchemy database session
             s3_service: S3 service for file operations
-            image_service: Image processing service
+            cas_image_service: CAS image processing service
             html_handler: HTML document handler for preview extraction
             download_cache_service: Download cache service for URL content
+            app_settings: Application-specific settings
             url_interceptor_registry: Registry for URL interceptors
         """
         self.db = db
         self.s3_service = s3_service
-        self.image_service = image_service
+        self.cas_image_service = cas_image_service
         self.html_handler = html_handler
         self.download_cache_service = download_cache_service
-        self.settings = settings
+        self.app_settings = app_settings
         self.url_interceptor_registry = url_interceptor_registry
 
     def _mime_type_to_attachment_type(self, mime_type: str) -> AttachmentType | None:
         """Convert MIME type to AttachmentType."""
         if mime_type == 'text/html':
             return AttachmentType.URL
-        elif mime_type in self.settings.allowed_image_types:
+        elif mime_type in self.app_settings.allowed_image_types:
             return AttachmentType.IMAGE
         elif mime_type == 'application/pdf':
             return AttachmentType.PDF
@@ -138,8 +139,8 @@ class DocumentService:
             detected_type = detect_mime_type(file_data, content_type)
 
             # Allowed file types from config
-            allowed_image_types = self.settings.allowed_image_types
-            allowed_file_types = self.settings.allowed_file_types
+            allowed_image_types = self.app_settings.allowed_image_types
+            allowed_file_types = self.app_settings.allowed_file_types
             all_allowed = allowed_image_types + allowed_file_types
 
             if detected_type not in all_allowed:
@@ -161,9 +162,9 @@ class DocumentService:
             InvalidOperationException: If file size exceeds limits
         """
         if is_image:
-            max_size = self.settings.max_image_size
+            max_size = self.app_settings.max_image_size
         else:
-            max_size = self.settings.max_file_size
+            max_size = self.app_settings.max_file_size
 
         if file_size > max_size:
             max_mb = max_size / (1024 * 1024)
@@ -256,8 +257,8 @@ class DocumentService:
         if upload_payload:
             file_size = len(upload_payload.content)
 
-            allowed_image_types = self.settings.allowed_image_types
-            allowed_file_types = self.settings.allowed_file_types
+            allowed_image_types = self.app_settings.allowed_image_types
+            allowed_file_types = self.app_settings.allowed_file_types
             all_allowed = allowed_image_types + allowed_file_types
 
             if upload_payload.content_type not in all_allowed:

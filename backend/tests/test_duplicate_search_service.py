@@ -6,7 +6,7 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from app.config import Settings
+from app.app_config import AppSettings
 from app.models.attachment_set import AttachmentSet
 from app.models.part import Part
 from app.models.type import Type
@@ -34,15 +34,14 @@ class AttachmentSetStub:
 
 
 @pytest.fixture
-def test_settings() -> Settings:
-    """Settings for duplicate search testing."""
-    return Settings(
-        database_url="sqlite:///:memory:",
+def dup_search_app_settings() -> AppSettings:
+    """App settings for duplicate search testing."""
+    return AppSettings(
         openai_api_key="test-api-key",
-        OPENAI_MODEL="gpt-5-mini",
-        OPENAI_REASONING_EFFORT="low",
-        OPENAI_VERBOSITY="medium",
-        OPENAI_MAX_OUTPUT_TOKENS=None,
+        openai_model="gpt-5-mini",
+        openai_reasoning_effort="low",
+        openai_verbosity="medium",
+        openai_max_output_tokens=None,
     )
 
 
@@ -110,7 +109,7 @@ class TestDuplicateSearchService:
     """Test cases for DuplicateSearchService."""
 
     def test_search_duplicates_exact_match(
-        self, session: Session, test_settings: Settings, sample_parts: list[Part]
+        self, session: Session, dup_search_app_settings: AppSettings, sample_parts: list[Part]
     ):
         """Test duplicate search with exact MPN match."""
         attachment_set_service = AttachmentSetStub(db=session)
@@ -131,7 +130,7 @@ class TestDuplicateSearchService:
         mock_runner.run.return_value = mock_response
 
         service = DuplicateSearchService(
-            config=test_settings,
+            app_config=dup_search_app_settings,
             part_service=part_service,
             ai_runner=mock_runner,
 
@@ -146,7 +145,7 @@ class TestDuplicateSearchService:
         assert mock_runner.run.called
 
     def test_search_duplicates_multiple_matches(
-        self, session: Session, test_settings: Settings, sample_parts: list[Part]
+        self, session: Session, dup_search_app_settings: AppSettings, sample_parts: list[Part]
     ):
         """Test duplicate search returning multiple matches with mixed confidence."""
         attachment_set_service = AttachmentSetStub(db=session)
@@ -172,7 +171,7 @@ class TestDuplicateSearchService:
         mock_runner.run.return_value = mock_response
 
         service = DuplicateSearchService(
-            config=test_settings,
+            app_config=dup_search_app_settings,
             part_service=part_service,
             ai_runner=mock_runner,
 
@@ -186,7 +185,7 @@ class TestDuplicateSearchService:
         assert any(m.confidence == "medium" for m in response.matches)
 
     def test_search_duplicates_no_matches(
-        self, session: Session, test_settings: Settings, sample_parts: list[Part]
+        self, session: Session, dup_search_app_settings: AppSettings, sample_parts: list[Part]
     ):
         """Test duplicate search with no matches found."""
         attachment_set_service = AttachmentSetStub(db=session)
@@ -198,7 +197,7 @@ class TestDuplicateSearchService:
         mock_runner.run.return_value = mock_response
 
         service = DuplicateSearchService(
-            config=test_settings,
+            app_config=dup_search_app_settings,
             part_service=part_service,
             ai_runner=mock_runner,
 
@@ -210,7 +209,7 @@ class TestDuplicateSearchService:
         assert len(response.matches) == 0
 
     def test_search_duplicates_empty_inventory(
-        self, session: Session, test_settings: Settings
+        self, session: Session, dup_search_app_settings: AppSettings
     ):
         """Test duplicate search with empty inventory."""
         attachment_set_service = AttachmentSetStub(db=session)
@@ -218,7 +217,7 @@ class TestDuplicateSearchService:
 
         # No AI runner needed - should return early
         service = DuplicateSearchService(
-            config=test_settings,
+            app_config=dup_search_app_settings,
             part_service=part_service,
             ai_runner=None,
 
@@ -230,7 +229,7 @@ class TestDuplicateSearchService:
         assert len(response.matches) == 0
 
     def test_search_duplicates_llm_validation_error(
-        self, session: Session, test_settings: Settings, sample_parts: list[Part]
+        self, session: Session, dup_search_app_settings: AppSettings, sample_parts: list[Part]
     ):
         """Test graceful handling of LLM returning invalid response schema."""
         attachment_set_service = AttachmentSetStub(db=session)
@@ -243,7 +242,7 @@ class TestDuplicateSearchService:
         )
 
         service = DuplicateSearchService(
-            config=test_settings,
+            app_config=dup_search_app_settings,
             part_service=part_service,
             ai_runner=mock_runner,
 
@@ -256,7 +255,7 @@ class TestDuplicateSearchService:
         assert len(response.matches) == 0
 
     def test_search_duplicates_llm_network_error(
-        self, session: Session, test_settings: Settings, sample_parts: list[Part]
+        self, session: Session, dup_search_app_settings: AppSettings, sample_parts: list[Part]
     ):
         """Test graceful handling of network/API errors."""
         attachment_set_service = AttachmentSetStub(db=session)
@@ -266,7 +265,7 @@ class TestDuplicateSearchService:
         mock_runner.run.side_effect = Exception("Network error")
 
         service = DuplicateSearchService(
-            config=test_settings,
+            app_config=dup_search_app_settings,
             part_service=part_service,
             ai_runner=mock_runner,
 
@@ -279,14 +278,14 @@ class TestDuplicateSearchService:
         assert len(response.matches) == 0
 
     def test_build_prompt_with_parts(
-        self, session: Session, test_settings: Settings, sample_parts: list[Part]
+        self, session: Session, dup_search_app_settings: AppSettings, sample_parts: list[Part]
     ):
         """Test that prompt includes parts inventory as JSON."""
         attachment_set_service = AttachmentSetStub(db=session)
         part_service = PartService(db=session, attachment_set_service=attachment_set_service)
 
         service = DuplicateSearchService(
-            config=test_settings,
+            app_config=dup_search_app_settings,
             part_service=part_service,
             ai_runner=None,
 
@@ -304,7 +303,7 @@ class TestDuplicateSearchService:
         assert '"manufacturer_code"' in prompt
 
     def test_search_duplicates_with_generic_description(
-        self, session: Session, test_settings: Settings, sample_parts: list[Part]
+        self, session: Session, dup_search_app_settings: AppSettings, sample_parts: list[Part]
     ):
         """Test duplicate search with generic description (should find no high-confidence matches)."""
         attachment_set_service = AttachmentSetStub(db=session)
@@ -325,7 +324,7 @@ class TestDuplicateSearchService:
         mock_runner.run.return_value = mock_response
 
         service = DuplicateSearchService(
-            config=test_settings,
+            app_config=dup_search_app_settings,
             part_service=part_service,
             ai_runner=mock_runner,
 

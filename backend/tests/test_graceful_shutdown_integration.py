@@ -26,16 +26,16 @@ class TestTaskServiceShutdownIntegration:
         return TestLifecycleCoordinator()
 
     @pytest.fixture
-    def connection_manager(self):
-        """Create mock connection manager for testing."""
+    def sse_connection_manager(self):
+        """Create mock SSE connection manager for testing."""
         return MagicMock()
 
     @pytest.fixture
-    def task_service(self, lifecycle_coordinator, connection_manager):
+    def task_service(self, lifecycle_coordinator, sse_connection_manager):
         """Create TaskService with lifecycle coordinator."""
         service = TaskService(
             lifecycle_coordinator=lifecycle_coordinator,
-            connection_manager=connection_manager,
+            sse_connection_manager=sse_connection_manager,
             max_workers=2,
             task_timeout=10,
             cleanup_interval=60
@@ -224,13 +224,15 @@ class TestFullApplicationShutdownIntegration:
         # Mock the database functions since tests use SQLite with create_all() instead of migrations
         from unittest.mock import patch
 
-        with patch('app.api.health.check_db_connection', return_value=True), \
-             patch('app.api.health.get_pending_migrations', return_value=[]):
+        with patch('app.database.check_db_connection', return_value=True), \
+             patch('app.database.get_pending_migrations', return_value=[]):
 
             with app.app_context():
                 # Override container's coordinator with test implementation
                 test_coordinator = TestLifecycleCoordinator()
                 app.container.lifecycle_coordinator.override(test_coordinator)
+                # Reset HealthService singleton so it picks up the new coordinator
+                app.container.health_service.reset()
                 coordinator = test_coordinator
 
                 # Initially should be ready
@@ -328,10 +330,10 @@ class TestFullApplicationShutdownIntegration:
         coordinator.register_lifecycle_notification(lifetime_notification)
 
         # Create services with real coordinator
-        connection_manager = MagicMock()
+        sse_connection_manager = MagicMock()
         task_service = TaskService(
             lifecycle_coordinator=coordinator,
-            connection_manager=connection_manager,
+            sse_connection_manager=sse_connection_manager,
             max_workers=1,
             task_timeout=5
         )
@@ -407,10 +409,10 @@ class TestShutdownErrorHandling:
         coordinator = TestLifecycleCoordinator()
 
         # Create TaskService for testing timeout behavior
-        connection_manager = MagicMock()
+        sse_connection_manager = MagicMock()
         task_service = TaskService(
             lifecycle_coordinator=coordinator,
-            connection_manager=connection_manager,
+            sse_connection_manager=sse_connection_manager,
             max_workers=1,
             task_timeout=10
         )

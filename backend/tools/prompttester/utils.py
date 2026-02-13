@@ -344,21 +344,21 @@ def get_document_service() -> DocumentService:
     settings.MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
     settings.MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 
-    # Create HTML handler for webpage previews (mocked image_service since we only need PDFs)
+    # Create HTML handler for webpage previews (mocked cas_image_service since we only need PDFs)
     html_handler = HtmlDocumentHandler(
         download_cache_service=download_cache_service,
-        settings=settings,
-        image_service=Mock(),
+        app_settings=settings,
+        cas_image_service=Mock(),
     )
 
     # Create document service with mocked dependencies we don't need
     return DocumentService(
         db=Mock(),  # Not used for process_upload_url
         s3_service=Mock(),  # Not used for process_upload_url
-        image_service=Mock(),  # Not used for process_upload_url
+        cas_image_service=Mock(),  # Not used for process_upload_url
         html_handler=html_handler,
         download_cache_service=download_cache_service,
-        settings=settings,
+        app_settings=settings,
         url_interceptor_registry=url_interceptor_registry,
     )
 

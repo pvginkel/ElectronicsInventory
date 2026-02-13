@@ -8,7 +8,7 @@ from urllib.parse import quote_plus
 import requests
 from prometheus_client import Counter, Histogram
 
-from app.config import Settings
+from app.app_config import AppSettings
 from app.schemas.mouser import (
     MouserPartResult,
     MouserSearchResponse,
@@ -37,17 +37,17 @@ class MouserService:
 
     def __init__(
         self,
-        config: Settings,
+        app_config: AppSettings,
         download_cache_service: DownloadCacheService,
     ) -> None:
         """Initialize MouserService.
 
         Args:
-            config: Application configuration
+            app_config: Application-specific configuration
             download_cache_service: Service for caching HTTP responses
         """
         self.download_cache_service = download_cache_service
-        self.api_key = config.mouser_search_api_key
+        self.api_key = app_config.mouser_search_api_key
 
     def search_by_part_number(self, part_number: str) -> MouserSearchResponse:
         """Search Mouser catalog by part number.

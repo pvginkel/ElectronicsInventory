@@ -166,3 +166,20 @@ class TestHandleUpgradeDb:
 
         assert exc_info.value.code == 1
         assert len(hook_calls) == 0
+
+
+# ---------------------------------------------------------------------------
+# Click CLI group
+# ---------------------------------------------------------------------------
+
+
+class TestCliGroup:
+    """Test the Click CLI group structure."""
+
+    def test_cli_group_has_upgrade_db_command(self) -> None:
+        """The CLI group should have an upgrade-db command."""
+        assert "upgrade-db" in cli.cli.commands
+
+    def test_cli_group_has_load_test_data_command(self) -> None:
+        """The CLI group should have a load-test-data command."""
+        assert "load-test-data" in cli.cli.commands

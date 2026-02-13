@@ -10,7 +10,7 @@ from jinja2 import Environment
 from prometheus_client import Counter, Gauge, Histogram
 from pydantic import ValidationError
 
-from app.config import Settings
+from app.app_config import AppSettings
 from app.schemas.duplicate_search import (
     DuplicateMatchLLMResponse,
     DuplicateSearchRequest,
@@ -51,18 +51,18 @@ class DuplicateSearchService:
 
     def __init__(
         self,
-        config: Settings,
+        app_config: AppSettings,
         part_service: PartService,
         ai_runner: AIRunner | None,
     ):
         """Initialize the duplicate search service.
 
         Args:
-            config: Application settings
+            app_config: Application-specific settings
             part_service: Service for accessing parts inventory
             ai_runner: AI runner for LLM calls (None if AI disabled)
         """
-        self.config = config
+        self.config = app_config
         self.part_service = part_service
         self.ai_runner = ai_runner
 

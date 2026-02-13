@@ -6,6 +6,8 @@ from typing import Any
 from flask import Flask
 from spectree import SpecTree
 
+from app.consts import API_DESCRIPTION, API_TITLE
+
 # Global Spectree instance that can be imported by API modules.
 # This will be initialized by configure_spectree() before any imports of the API modules.
 # The type is being ignored to not over complicate the code and
@@ -25,9 +27,9 @@ def configure_spectree(app: Flask) -> SpecTree:
     # Create Spectree instance with Flask backend
     api = SpecTree(
         backend_name="flask",
-        title="Electronics Inventory API",
+        title=API_TITLE,
         version="1.0.0",
-        description="Hobby electronics parts inventory management system",
+        description=API_DESCRIPTION,
         path="api/docs",  # OpenAPI docs available at /api/docs
         validation_error_status=400,
     )

@@ -20,17 +20,17 @@ class TestTaskService:
         return StubLifecycleCoordinator()
 
     @pytest.fixture
-    def mock_connection_manager(self):
-        """Create mock ConnectionManager."""
+    def mock_sse_connection_manager(self):
+        """Create mock SSEConnectionManager."""
         from unittest.mock import Mock
         return Mock()
 
     @pytest.fixture
-    def task_service(self, mock_lifecycle_coordinator, mock_connection_manager):
+    def task_service(self, mock_lifecycle_coordinator, mock_sse_connection_manager):
         """Create TaskService instance for testing."""
         service = TaskService(
             mock_lifecycle_coordinator,
-            mock_connection_manager,
+            mock_sse_connection_manager,
             max_workers=2,
             task_timeout=10
         )
@@ -172,8 +172,8 @@ class TestTaskService:
         # Cancel to cleanup
         task_service.cancel_task(response.task_id)
 
-    def test_get_task_events(self, task_service, mock_connection_manager):
-        """Test that task events are sent via ConnectionManager."""
+    def test_get_task_events(self, task_service, mock_sse_connection_manager):
+        """Test that task events are sent via SSEConnectionManager."""
         task = DemoTask()
 
         _ = task_service.start_task(
@@ -186,11 +186,11 @@ class TestTaskService:
         # Wait for task to complete
         time.sleep(0.3)
 
-        # Verify that send_event was called on the connection manager
-        assert mock_connection_manager.send_event.called
+        # Verify that send_event was called on the SSE connection manager
+        assert mock_sse_connection_manager.send_event.called
 
         # Get all calls to send_event
-        calls = mock_connection_manager.send_event.call_args_list
+        calls = mock_sse_connection_manager.send_event.call_args_list
 
         # Should have received several event calls
         assert len(calls) > 0
@@ -208,11 +208,11 @@ class TestTaskService:
         assert TaskEventType.PROGRESS_UPDATE in event_types
         assert TaskEventType.TASK_COMPLETED in event_types
 
-    def test_get_events_nonexistent_task(self, task_service, mock_connection_manager):
+    def test_get_events_nonexistent_task(self, task_service, mock_sse_connection_manager):
         """Test that nonexistent task doesn't send events."""
         # This test is no longer applicable as get_task_events doesn't exist
         # Instead, verify that trying to send events for nonexistent task doesn't crash
-        # The ConnectionManager handles cases where no connection exists
+        # The SSEConnectionManager handles cases where no connection exists
         pass
 
     def test_concurrent_tasks(self, task_service):
@@ -241,9 +241,9 @@ class TestTaskService:
             assert task_info is not None
             assert task_info.status == TaskStatus.COMPLETED
 
-    def test_task_service_shutdown(self, mock_lifecycle_coordinator, mock_connection_manager):
+    def test_task_service_shutdown(self, mock_lifecycle_coordinator, mock_sse_connection_manager):
         """Test TaskService shutdown and cleanup."""
-        service = TaskService(mock_lifecycle_coordinator, mock_connection_manager, max_workers=1)
+        service = TaskService(mock_lifecycle_coordinator, mock_sse_connection_manager, max_workers=1)
 
         # Start a task
         task = DemoTask()
@@ -256,10 +256,10 @@ class TestTaskService:
         assert len(service._tasks) == 0
         assert len(service._task_instances) == 0
 
-    def test_automatic_cleanup_of_completed_tasks(self, mock_lifecycle_coordinator, mock_connection_manager):
+    def test_automatic_cleanup_of_completed_tasks(self, mock_lifecycle_coordinator, mock_sse_connection_manager):
         """Test that completed tasks are automatically cleaned up."""
         # Create service with short cleanup interval for testing
-        service = TaskService(mock_lifecycle_coordinator, mock_connection_manager, max_workers=1, cleanup_interval=1)
+        service = TaskService(mock_lifecycle_coordinator, mock_sse_connection_manager, max_workers=1, cleanup_interval=1)
 
         try:
             # Start and complete a task
@@ -379,19 +379,19 @@ class TestTaskProgressHandle:
         """Test TaskProgressHandle creation and basic functionality."""
         from unittest.mock import Mock
 
-        mock_connection_manager = Mock()
-        handle = TaskProgressHandle("test-task-id", mock_connection_manager)
+        mock_sse_connection_manager = Mock()
+        handle = TaskProgressHandle("test-task-id", mock_sse_connection_manager)
 
         # Send different types of progress updates
         handle.send_progress_text("Text update")
         handle.send_progress_value(0.5)
         handle.send_progress("Combined update", 0.75)
 
-        # Verify events were sent via connection_manager
-        assert mock_connection_manager.send_event.call_count == 3
+        # Verify events were sent via SSE connection manager
+        assert mock_sse_connection_manager.send_event.call_count == 3
 
         # Get all calls
-        calls = mock_connection_manager.send_event.call_args_list
+        calls = mock_sse_connection_manager.send_event.call_args_list
 
         # Check first call (text update) - broadcast mode (request_id=None)
         text_call = calls[0]
@@ -422,16 +422,16 @@ class TestTaskProgressHandle:
         assert combined_event["data"]["value"] == 0.75
 
     def test_progress_handle_full_queue(self):
-        """Test progress handle behavior - now sends via ConnectionManager."""
+        """Test progress handle behavior - now sends via SSEConnectionManager."""
         from unittest.mock import Mock
 
-        # Events are sent via ConnectionManager (no queue)
-        mock_connection_manager = Mock()
-        handle = TaskProgressHandle("test-task-id", mock_connection_manager)
+        # Events are sent via SSEConnectionManager (no queue)
+        mock_sse_connection_manager = Mock()
+        handle = TaskProgressHandle("test-task-id", mock_sse_connection_manager)
 
         # Send multiple progress updates
         handle.send_progress_text("First message")
         handle.send_progress_text("Second message")
 
-        # Both events should be sent via ConnectionManager (no queue limitations)
-        assert mock_connection_manager.send_event.call_count == 2
+        # Both events should be sent via SSEConnectionManager (no queue limitations)
+        assert mock_sse_connection_manager.send_event.call_count == 2

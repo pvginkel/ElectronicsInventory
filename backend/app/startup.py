@@ -11,12 +11,20 @@ Hook points called by create_app():
   - register_error_handlers()
 
 Hook points called by CLI command handlers:
+  - register_cli_commands()  -- register app-specific CLI commands
   - post_migration_hook()  -- after upgrade-db migrations
   - load_test_data_hook()  -- after load-test-data database recreation
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import sqlalchemy as sa
 from flask import Blueprint, Flask
+
+if TYPE_CHECKING:
+    import click
 
 from app.database import sync_master_data_from_setup
 from app.models.box import Box
@@ -118,6 +126,14 @@ def register_blueprints(api_bp: Blueprint, app: Flask) -> None:
 
     app.register_blueprint(icons_bp)
 
+    # Testing blueprints registered directly on app (not on api_bp).
+    # Runtime before_request checks restrict these to testing mode.
+    from app.api.testing_content import testing_content_bp
+    from app.api.testing_sse import testing_sse_bp
+
+    app.register_blueprint(testing_content_bp)
+    app.register_blueprint(testing_sse_bp)
+
 
 def register_error_handlers(app: Flask) -> None:
     """Register app-specific error handlers.
@@ -128,6 +144,19 @@ def register_error_handlers(app: Flask) -> None:
 
     Args:
         app: The Flask application instance
+    """
+    pass
+
+
+def register_cli_commands(cli: click.Group) -> None:
+    """Register app-specific CLI commands.
+
+    Called by main() in cli.py before invoking the CLI group.
+    Currently no app-specific CLI commands exist. This hook is a
+    stable extension point for future app-specific commands.
+
+    Args:
+        cli: The Click CLI group to add commands to
     """
     pass
 

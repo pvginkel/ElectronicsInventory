@@ -1,4 +1,4 @@
-"""Testing service for test operations like database reset and utilities."""
+"""Testing service for test utilities like content generation."""
 
 import html
 import io
@@ -6,22 +6,13 @@ import logging
 from pathlib import Path
 from textwrap import dedent
 
-# Import TYPE_CHECKING for forward reference
-from typing import TYPE_CHECKING, Any
-
 from PIL import Image, ImageDraw, ImageFont
-
-from app.database import drop_all_tables, sync_master_data_from_setup, upgrade_database
-from app.utils.reset_lock import ResetLock
-
-if TYPE_CHECKING:
-    from app.services.test_data_service import TestDataService
 
 logger = logging.getLogger(__name__)
 
 
 class TestingService:
-    """Service for testing operations like database reset."""
+    """Service for testing utilities like deterministic content generation."""
 
     IMAGE_WIDTH = 400
     IMAGE_HEIGHT = 100
@@ -30,83 +21,8 @@ class TestingService:
     PREVIEW_IMAGE_QUERY = "Fixture+Preview"
     _PDF_ASSET_PATH = Path(__file__).resolve().parents[1] / "assets" / "fake-pdf.pdf"
 
-    def __init__(self, db: Any, reset_lock: ResetLock, test_data_service: "TestDataService"):
-        """Initialize service with database session, reset lock, and test data service.
-
-        Args:
-            db: SQLAlchemy database session
-            reset_lock: Reset lock for concurrency control
-            test_data_service: Service for loading test data
-        """
-        self.db = db
-        self.reset_lock = reset_lock
-        self.test_data_service = test_data_service
+    def __init__(self) -> None:
         self._cached_pdf_bytes: bytes | None = None
-
-    def reset_database(self, seed: bool = False) -> dict[str, Any]:
-        """
-        Reset database to clean state with optional test data seeding.
-
-        Args:
-            seed: Whether to load test data after reset
-
-        Returns:
-            Status information about the reset operation
-
-        Raises:
-            RuntimeError: If reset is already in progress
-        """
-        # Try to acquire reset lock
-        if not self.reset_lock.acquire_reset():
-            raise RuntimeError("Database reset already in progress")
-
-        try:
-            logger.info("Starting database reset", extra={"seed": seed})
-
-            # Step 1: Drop all tables
-            logger.info("Dropping all database tables")
-            drop_all_tables()
-
-            # Step 2: Run all migrations from scratch
-            logger.info("Running database migrations")
-            applied_migrations = upgrade_database(recreate=True)
-
-            logger.info(f"Applied {len(applied_migrations)} migrations")
-
-            # Step 3: Sync types from setup file
-            logger.info("Syncing master data from setup")
-            sync_master_data_from_setup(self.db)
-
-            # Step 4: Load test data if requested
-            if seed:
-                logger.info("Loading test dataset")
-                self.test_data_service.load_full_dataset()
-                logger.info("Test dataset loaded successfully")
-
-            # Commit all changes
-            self.db.commit()
-
-            logger.info("Database reset completed successfully", extra={"seed": seed})
-
-            return {
-                "status": "complete",
-                "mode": "testing",
-                "seeded": seed,
-                "migrations_applied": len(applied_migrations)
-            }
-
-        except Exception as e:
-            logger.error(f"Database reset failed: {e}", extra={"seed": seed})
-            # Rollback any partial changes
-            self.db.rollback()
-            raise
-        finally:
-            # Always release the lock
-            self.reset_lock.release_reset()
-
-    def is_reset_in_progress(self) -> bool:
-        """Check if database reset is currently in progress."""
-        return self.reset_lock.is_resetting()
 
     def create_fake_image(self, text: str) -> bytes:
         """Create a 400x100 PNG with centered text on a light blue background.

@@ -10,7 +10,7 @@ from app.config import Settings
 from app.exceptions import InvalidOperationException, RecordNotFoundException
 from app.models.attachment import Attachment, AttachmentType
 from app.models.attachment_set import AttachmentSet
-from app.services.image_service import ImageService
+from app.services.cas_image_service import CasImageService
 from app.services.s3_service import S3Service
 
 logger = logging.getLogger(__name__)
@@ -19,19 +19,19 @@ logger = logging.getLogger(__name__)
 class AttachmentSetService:
     """Service for managing attachment sets and their attachments."""
 
-    def __init__(self, db: Session, s3_service: S3Service, image_service: ImageService,
+    def __init__(self, db: Session, s3_service: S3Service, cas_image_service: CasImageService,
                  settings: Settings):
         """Initialize attachment set service with dependencies.
 
         Args:
             db: SQLAlchemy database session
             s3_service: S3 service for file operations
-            image_service: Image processing service
+            cas_image_service: CAS image processing service
             settings: Application settings
         """
         self.db = db
         self.s3_service = s3_service
-        self.image_service = image_service
+        self.cas_image_service = cas_image_service
         self.settings = settings
 
     def create_attachment_set(self) -> AttachmentSet:

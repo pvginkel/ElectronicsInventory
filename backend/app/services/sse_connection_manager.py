@@ -51,7 +51,7 @@ SSE_GATEWAY_ACTIVE_CONNECTIONS = Gauge(
 logger = logging.getLogger(__name__)
 
 
-class ConnectionManager:
+class SSEConnectionManager:
     """Manages SSE Gateway token mappings and event delivery."""
 
     def __init__(
@@ -59,7 +59,7 @@ class ConnectionManager:
         gateway_url: str,
         http_timeout: float = 5.0
     ):
-        """Initialize ConnectionManager.
+        """Initialize SSEConnectionManager.
 
         Args:
             gateway_url: Base URL for SSE Gateway (e.g., "http://localhost:3000")

@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 import pytest
 from sqlalchemy.orm import Session
 
-from app.config import Settings
+from app.app_config import AppSettings
 from app.exceptions import InvalidOperationException
 from app.models.attachment import AttachmentType
 from app.models.type import Type
@@ -27,15 +27,14 @@ from tests.testing_utils import StubLifecycleCoordinator
 
 
 @pytest.fixture
-def ai_test_settings() -> Settings:
+def ai_test_settings() -> AppSettings:
     """Settings for AI service testing."""
-    return Settings(
-        database_url="sqlite:///:memory:",
+    return AppSettings(
         openai_api_key="test-api-key",
-        OPENAI_MODEL="gpt-5-mini",
-        OPENAI_REASONING_EFFORT="low",
-        OPENAI_VERBOSITY="medium",
-        OPENAI_MAX_OUTPUT_TOKENS=None,
+        openai_model="gpt-5-mini",
+        openai_reasoning_effort="low",
+        openai_verbosity="medium",
+        openai_max_output_tokens=None,
         ai_analysis_cache_path=None,  # Override .env file setting for tests
     )
 
@@ -85,7 +84,7 @@ def mock_seller_service(session: Session):
 
 
 @pytest.fixture
-def ai_service(session: Session, ai_test_settings: Settings,
+def ai_service(session: Session, ai_test_settings: AppSettings,
                temp_file_manager: TempFileManager, mock_type_service: TypeService,
                mock_seller_service,
                mock_download_cache_service: DownloadCacheService,
@@ -110,7 +109,7 @@ def ai_service(session: Session, ai_test_settings: Settings,
 
     return AIService(
         db=session,
-        config=ai_test_settings,
+        app_config=ai_test_settings,
         temp_file_manager=temp_file_manager,
         type_service=mock_type_service,
         seller_service=mock_seller_service,
@@ -173,12 +172,12 @@ class TestAIService:
         mock_mouser_keyword_search = Mock(spec=AIFunction)
         mock_datasheet_extraction = Mock(spec=AIFunction)
 
-        settings = Settings(database_url="sqlite:///:memory:", openai_api_key="")
+        app_cfg = AppSettings(openai_api_key="")
 
         # AIService no longer initializes the runner internally, so this should succeed
         service = AIService(
             db=session,
-            config=settings,
+            app_config=app_cfg,
             temp_file_manager=temp_file_manager,
             type_service=mock_type_service,
             seller_service=mock_seller_service,
@@ -347,9 +346,7 @@ class TestAIService:
         """Real AI usage should be blocked in testing mode without dummy data."""
         from app.utils.ai.ai_runner import AIFunction
 
-        settings = Settings(
-            database_url="sqlite:///:memory:",
-            flask_env="testing",
+        app_cfg = AppSettings(
             ai_testing_mode=True,
             ai_analysis_cache_path=None,
         )
@@ -361,7 +358,7 @@ class TestAIService:
 
         service = AIService(
             db=session,
-            config=settings,
+            app_config=app_cfg,
             temp_file_manager=temp_file_manager,
             type_service=mock_type_service,
             seller_service=mock_seller_service,
@@ -402,9 +399,7 @@ class TestAIService:
         dummy_path = tmp_path / "dummy_response.json"
         dummy_path.write_text(json.dumps(dummy_response.model_dump()))
 
-        settings = Settings(
-            database_url="sqlite:///:memory:",
-            flask_env="testing",
+        app_cfg = AppSettings(
             ai_analysis_cache_path=str(dummy_path),
         )
 
@@ -415,7 +410,7 @@ class TestAIService:
 
         service = AIService(
             db=session,
-            config=settings,
+            app_config=app_cfg,
             temp_file_manager=temp_file_manager,
             type_service=mock_type_service,
             seller_service=mock_seller_service,
@@ -446,8 +441,7 @@ class TestAIService:
         from app.utils.ai.ai_runner import AIFunction, AIRunner
 
         # Settings WITH Mouser API key
-        settings = Settings(
-            database_url="sqlite:///:memory:",
+        app_cfg = AppSettings(
             openai_api_key="test-key",
             mouser_search_api_key="test-mouser-key"
         )
@@ -460,7 +454,7 @@ class TestAIService:
 
         service = AIService(
             db=session,
-            config=settings,
+            app_config=app_cfg,
             temp_file_manager=Mock(),
             type_service=Mock(),
             seller_service=mock_seller_service,
@@ -518,8 +512,7 @@ class TestAIService:
         from app.utils.ai.ai_runner import AIFunction, AIRunner
 
         # Settings WITHOUT Mouser API key
-        settings = Settings(
-            database_url="sqlite:///:memory:",
+        app_cfg = AppSettings(
             openai_api_key="test-key",
             mouser_search_api_key=""
         )
@@ -532,7 +525,7 @@ class TestAIService:
 
         service = AIService(
             db=session,
-            config=settings,
+            app_config=app_cfg,
             temp_file_manager=Mock(),
             type_service=Mock(),
             seller_service=mock_seller_service,
@@ -1144,15 +1137,14 @@ class TestAIServiceCleanupPart:
         mock_mouser_part_number_search = Mock(spec=AIFunction)
         mock_mouser_keyword_search = Mock(spec=AIFunction)
         mock_datasheet_extraction = Mock(spec=AIFunction)
-        settings = Settings(
-            database_url="sqlite:///:memory:",
+        app_cfg = AppSettings(
             openai_api_key="test-key",
             ai_testing_mode=True,  # This makes real_ai_allowed=False
             ai_analysis_cache_path=None
         )
         ai_service = AIService(
             db=session,
-            config=settings,
+            app_config=app_cfg,
             temp_file_manager=temp_file_manager,
             type_service=mock_type_service,
             seller_service=mock_seller_service,

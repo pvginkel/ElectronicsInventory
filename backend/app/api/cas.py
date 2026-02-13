@@ -8,8 +8,8 @@ from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, request, send_file
 from werkzeug.exceptions import BadRequest, InternalServerError, NotFound
 
+from app.services.cas_image_service import CasImageService
 from app.services.container import ServiceContainer
-from app.services.image_service import ImageService
 from app.services.s3_service import S3Service
 
 cas_bp = Blueprint("cas", __name__, url_prefix="/api/cas")
@@ -25,7 +25,7 @@ HASH_PATTERN = re.compile(r'^[0-9a-f]{64}$')
 def get_cas_content(
     hash_value: str,
     s3_service: S3Service = Provide[ServiceContainer.s3_service],
-    image_service: ImageService = Provide[ServiceContainer.image_service]
+    cas_image_service: CasImageService = Provide[ServiceContainer.cas_image_service]
 ) -> Any:
     """Serve content from CAS storage with immutable caching.
 
@@ -67,7 +67,7 @@ def get_cas_content(
 
         # Generate or retrieve cached thumbnail
         try:
-            thumbnail_path = image_service.get_thumbnail_for_hash(hash_value, thumbnail_size)
+            thumbnail_path = cas_image_service.get_thumbnail_for_hash(hash_value, thumbnail_size)
         except Exception as e:
             logger.error(f"Failed to generate thumbnail for hash {hash_value}: {str(e)}")
             raise InternalServerError("Failed to generate thumbnail") from e

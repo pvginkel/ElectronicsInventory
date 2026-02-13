@@ -207,9 +207,9 @@ class TestDecentralizedMetricsExist:
         assert PICK_LIST_CREATED_TOTAL is not None
         assert PICK_LIST_LINE_PICKED_TOTAL is not None
 
-    def test_connection_manager_metrics(self):
-        """Check connection manager owns SSE gateway metrics."""
-        from app.services.connection_manager import (
+    def test_sse_connection_manager_metrics(self):
+        """Check SSE connection manager owns SSE gateway metrics."""
+        from app.services.sse_connection_manager import (
             SSE_GATEWAY_ACTIVE_CONNECTIONS,
             SSE_GATEWAY_CONNECTIONS_TOTAL,
             SSE_GATEWAY_EVENTS_SENT_TOTAL,

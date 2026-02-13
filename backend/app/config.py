@@ -18,7 +18,9 @@ Fields are organized by Copier feature flag so each group can be wrapped in
 - use_oidc: BASEURL, all OIDC_* settings
 - use_s3: all S3_* settings
 - use_sse: SSE_*, FRONTEND_VERSION_URL
-- App-specific: document processing, download cache, AI, Mouser
+
+App-specific fields (document processing, download cache, AI, Mouser) live in
+app/app_config.py as AppSettings.
 """
 
 from pathlib import Path
@@ -217,82 +219,6 @@ class Environment(BaseSettings):
         description="Shared secret for authenticating SSE Gateway callbacks (required in production)"
     )
 
-    # ── App-specific ───────────────────────────────────────────────────
-
-    # Document processing
-    MAX_IMAGE_SIZE: int = Field(
-        default=10 * 1024 * 1024,  # 10MB
-        description="Maximum image file size in bytes"
-    )
-    MAX_FILE_SIZE: int = Field(
-        default=100 * 1024 * 1024,  # 100MB
-        description="Maximum file size in bytes"
-    )
-    ALLOWED_IMAGE_TYPES: list[str] = Field(
-        default=["image/jpeg", "image/png", "image/webp", "image/svg+xml"],
-        description="Allowed image MIME types"
-    )
-    ALLOWED_FILE_TYPES: list[str] = Field(
-        default=["application/pdf"],
-        description="Allowed file MIME types (excluding images)"
-    )
-    THUMBNAIL_STORAGE_PATH: str = Field(
-        default="/tmp/thumbnails",
-        description="Path for disk-based thumbnail storage"
-    )
-
-    # Download cache
-    DOWNLOAD_CACHE_BASE_PATH: str = Field(
-        default="/tmp/download_cache",
-        description="Base path for download cache storage"
-    )
-    DOWNLOAD_CACHE_CLEANUP_HOURS: int = Field(
-        default=24,
-        description="Hours after which cached downloads are cleaned up"
-    )
-
-    # AI provider
-    AI_PROVIDER: str = Field(
-        default="openai",
-        description="AI provider to use ('openai')"
-    )
-    OPENAI_API_KEY: str = Field(
-        default="", description="OpenAI API key for AI features"
-    )
-    OPENAI_MODEL: str = Field(
-        default="gpt-5-mini", description="OpenAI model to use for AI analysis"
-    )
-    OPENAI_REASONING_EFFORT: str = Field(
-        default="low", description="OpenAI reasoning effort level (low/medium/high)"
-    )
-    OPENAI_VERBOSITY: str = Field(
-        default="medium", description="OpenAI response verbosity (low/medium/high)"
-    )
-    OPENAI_MAX_OUTPUT_TOKENS: int | None = Field(
-        default=None, description="Maximum output tokens for OpenAI responses"
-    )
-    AI_ANALYSIS_CACHE_PATH: str | None = Field(
-        default=None,
-        description="Path to a JSON file for caching AI analysis responses. "
-        "If the file exists, its contents are returned instead of calling the AI. "
-        "If the file doesn't exist, the AI response is saved there for future replay."
-    )
-    AI_CLEANUP_CACHE_PATH: str | None = Field(
-        default=None,
-        description="Path to a JSON file for caching AI cleanup responses. "
-        "If the file exists, its contents are returned instead of calling the AI. "
-        "If the file doesn't exist, the AI response is saved there for future replay."
-    )
-    AI_TESTING_MODE: bool = Field(
-        default=False,
-        description="When true, AI endpoints return dummy task IDs for testing without calling real AI",
-    )
-
-    # Mouser API
-    MOUSER_SEARCH_API_KEY: str = Field(
-        default="", description="Mouser Search API key for part search integration"
-    )
-
 
 class Settings(BaseModel):
     """Application settings with lowercase fields and derived values.
@@ -365,33 +291,6 @@ class Settings(BaseModel):
     sse_gateway_url: str = "http://localhost:3001"
     sse_callback_secret: str = ""
 
-    # ── App-specific ───────────────────────────────────────────────────
-
-    # Document processing
-    max_image_size: int = 10 * 1024 * 1024  # 10MB
-    max_file_size: int = 100 * 1024 * 1024  # 100MB
-    allowed_image_types: list[str] = Field(default=["image/jpeg", "image/png", "image/webp", "image/svg+xml"])
-    allowed_file_types: list[str] = Field(default=["application/pdf"])
-    thumbnail_storage_path: str = "/tmp/thumbnails"
-
-    # Download cache
-    download_cache_base_path: str = "/tmp/download_cache"
-    download_cache_cleanup_hours: int = 24
-
-    # AI provider
-    ai_provider: str = "openai"
-    openai_api_key: str = ""
-    openai_model: str = "gpt-5-mini"
-    openai_reasoning_effort: str = "low"
-    openai_verbosity: str = "medium"
-    openai_max_output_tokens: int | None = None
-    ai_analysis_cache_path: str | None = None
-    ai_cleanup_cache_path: str | None = None
-    ai_testing_mode: bool = False  # Resolved: True if flask_env == "testing" via load()
-
-    # Mouser API
-    mouser_search_api_key: str = ""
-
     @property
     def is_testing(self) -> bool:
         """Check if running in testing environment."""
@@ -401,11 +300,6 @@ class Settings(BaseModel):
     def is_production(self) -> bool:
         """Check if running in production environment."""
         return self.flask_env == "production"
-
-    @property
-    def real_ai_allowed(self) -> bool:
-        """Determine whether real AI analysis is permitted."""
-        return not self.ai_testing_mode
 
     def to_flask_config(self) -> "FlaskConfig":
         """Create Flask configuration object from settings."""
@@ -459,7 +353,7 @@ class Settings(BaseModel):
 
         This method:
         1. Loads Environment from environment variables
-        2. Computes derived values (sse_heartbeat_interval, ai_testing_mode)
+        2. Computes derived values (sse_heartbeat_interval)
         3. Builds default SQLAlchemy engine options
         4. Constructs and returns a Settings instance
 
@@ -476,9 +370,6 @@ class Settings(BaseModel):
         sse_heartbeat_interval = (
             30 if env.FLASK_ENV == "production" else env.SSE_HEARTBEAT_INTERVAL
         )
-
-        # Compute ai_testing_mode: force True if testing, else use env value
-        ai_testing_mode = True if env.FLASK_ENV == "testing" else env.AI_TESTING_MODE
 
         # Resolve OIDC audience: fall back to client_id if not explicitly set
         oidc_audience = env.OIDC_AUDIENCE or env.OIDC_CLIENT_ID
@@ -546,24 +437,6 @@ class Settings(BaseModel):
             sse_heartbeat_interval=sse_heartbeat_interval,
             sse_gateway_url=env.SSE_GATEWAY_URL,
             sse_callback_secret=env.SSE_CALLBACK_SECRET,
-            # App-specific
-            max_image_size=env.MAX_IMAGE_SIZE,
-            max_file_size=env.MAX_FILE_SIZE,
-            allowed_image_types=env.ALLOWED_IMAGE_TYPES,
-            allowed_file_types=env.ALLOWED_FILE_TYPES,
-            thumbnail_storage_path=env.THUMBNAIL_STORAGE_PATH,
-            download_cache_base_path=env.DOWNLOAD_CACHE_BASE_PATH,
-            download_cache_cleanup_hours=env.DOWNLOAD_CACHE_CLEANUP_HOURS,
-            ai_provider=env.AI_PROVIDER,
-            openai_api_key=env.OPENAI_API_KEY,
-            openai_model=env.OPENAI_MODEL,
-            openai_reasoning_effort=env.OPENAI_REASONING_EFFORT,
-            openai_verbosity=env.OPENAI_VERBOSITY,
-            openai_max_output_tokens=env.OPENAI_MAX_OUTPUT_TOKENS,
-            ai_analysis_cache_path=env.AI_ANALYSIS_CACHE_PATH,
-            ai_cleanup_cache_path=env.AI_CLEANUP_CACHE_PATH,
-            ai_testing_mode=ai_testing_mode,
-            mouser_search_api_key=env.MOUSER_SEARCH_API_KEY,
         )
 
 
